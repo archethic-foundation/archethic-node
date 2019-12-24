@@ -22,6 +22,7 @@ Current implemented features:
 - Adapative cryptography: different elliptic curves and software implementation
 - TransactionChain: basic struct and transaction generation
 - Smart Contract: interpreter coded with Elixir DSL through Metaprogramming and AST
+- Node election: heurisitic validation and storage node selection
 
 
 ## Contribution
