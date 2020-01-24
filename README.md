@@ -23,6 +23,7 @@ Current implemented features:
 - TransactionChain: basic struct and transaction generation
 - Smart Contract: interpreter coded with Elixir DSL through Metaprogramming and AST
 - Node election: heurisitic validation and storage node selection
+- Network layer: Inter-node communication using RPC and TCP, Supervised multicast to detect the P2P view of nodes, Node and Shared secrets fast access.
 
 
 ## Contribution
