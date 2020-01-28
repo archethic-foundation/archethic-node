@@ -27,6 +27,7 @@ defmodule UnirisElection.MixProject do
   defp deps do
     [
       {:uniris_chain, in_umbrella: true},
+      {:uniris_network, in_umbrella: true},
       {:stream_data, "~> 0.4.3", only: [:test]},
       {:ex_doc, "~> 0.21.2", only: [:dev]}
       # {:dep_from_hexpm, "~> 0.3.0"},
