@@ -3,6 +3,7 @@ defmodule UnirisNetwork.P2P.ConnectionHandler do
 
   alias UnirisNetwork.P2P.Request
   alias UnirisNetwork.P2P.Payload
+  alias UnirisNetwork.Node
 
   use GenServer
 
@@ -20,7 +21,16 @@ defmodule UnirisNetwork.P2P.ConnectionHandler do
   end
 
   def handle_info({_, socket, data}, state = %{transport: transport}) do
-    result = Request.execute(data)
+    result =
+      case Payload.decode(data) do
+        {:ok, request, public_key} ->
+          Node.available(public_key)
+          Request.execute(request)
+
+        _ ->
+          {:error, :invalid_request}
+      end
+
     encoded_payload = Payload.encode(result)
     transport.send(socket, encoded_payload)
 

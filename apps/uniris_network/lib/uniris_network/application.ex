@@ -8,14 +8,13 @@ defmodule UnirisNetwork.Application do
   def start(_type, _args) do
 
     port = Application.get_env(:uniris_network, :port)
-    :ets.new(:node_view_backup, [:named_table, :set, :public])
-    :ets.new(:node_store_list, [:named_table, :set, :public, read_concurrency: true])
-    :ets.new(:node_store_last, [:named_table, :set, :public, read_concurrency: true])
+    :ets.new(:node_store, [:named_table, :set, :public])
     :ets.new(:shared_secrets, [:named_table, :set, :public, read_concurrency: true])
 
     children = [
       {Task.Supervisor, name: UnirisNetwork.TaskSupervisor},
-      {Registry, keys: :unique, name: UnirisNetwork.NodeViewRegistry},
+      {Registry, keys: :unique, name: UnirisNetwork.NodeRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisNetwork.NodeSupervisor},
       UnirisNetwork.GeoPatch,
       UnirisNetwork.ChainLoader,
       :ranch.child_spec(

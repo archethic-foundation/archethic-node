@@ -2,7 +2,6 @@ defmodule UnirisNetwork.P2P.Client.TCPImpl do
   @moduledoc false
 
   alias UnirisNetwork.Node
-  alias UnirisNetwork.P2P.NodeView
   alias UnirisNetwork.P2P.Payload
 
   @tcp_options [:binary, packet: 4, active: false]
@@ -14,7 +13,7 @@ defmodule UnirisNetwork.P2P.Client.TCPImpl do
   def send(node = %Node{ ip: ip, port: port}, request) when is_binary(request) do
     case :gen_tcp.connect(String.to_charlist(ip), port, @tcp_options, 2000) do
       {:ok, socket} ->
-        NodeView.connected(node.first_public_key)
+        Node.available(node.first_public_key)
 
         with :ok <- :gen_tcp.send(socket, request),
              {:ok, packet} <- :gen_tcp.recv(socket, 0) do
@@ -24,18 +23,17 @@ defmodule UnirisNetwork.P2P.Client.TCPImpl do
             {:ok, data, _} ->
               {:ok, data, node}
 
-            other ->
-              IO.inspect other
+            _ ->
               {:error, :network_issue}
           end
         else
           _ ->
-            NodeView.disconnected(node.first_public_key)
+            Node.unavailable(node.first_public_key)
             {:error, :network_issue}
         end
 
       _ ->
-        NodeView.disconnected(node.first_public_key)
+        Node.unavailable(node.first_public_key)
         {:error, :network_issue}
     end
   end
