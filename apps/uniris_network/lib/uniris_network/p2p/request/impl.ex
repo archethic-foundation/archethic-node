@@ -15,5 +15,5 @@ defmodule UnirisNetwork.P2P.Request.Impl do
   @callback cross_validate_stamp(address :: binary(), ValidationStamp.t()) :: binary()
   @callback store_transaction(Transaction.validated()) :: binary()
 
-  @callback execute(term()) :: {:ok, term()} | {:error, :invalid_request}
+  @callback execute(term()) :: {:ok, term()} | {:error, :invalid_request} | {:error, atom()}
 end

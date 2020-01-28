@@ -55,15 +55,9 @@ defmodule UnirisNetwork.P2P.Request do
   end
 
   @impl true
-  @spec execute(term()) :: {:ok, term()} | {:error, :invalid_request}
-  def execute(encoded_payload) do
-    case Payload.decode(encoded_payload) do
-      {:ok, request, public_key} ->
-        NodeView.connected(public_key)
-        impl().execute(request)
-      _ ->
-        {:error, :invalid_request}
-    end
+  @spec execute(term()) :: {:ok, term()} | {:error, :invalid_request} | {:error, atom()}
+  def execute(request) do
+    impl().execute(request)
   end
 
 

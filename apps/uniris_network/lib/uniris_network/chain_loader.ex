@@ -11,11 +11,11 @@ defmodule UnirisNetwork.ChainLoader do
     Task.start(fn -> load_shared_secrets() end)
     Task.start(fn -> load_nodes() end)
   end
-  
 
   defp load_shared_secrets() do
     # TODO: retrieve last shared secret transaction chain
     # TODO: fill ETS table with
+
   end
 
   defp load_nodes() do
@@ -23,5 +23,4 @@ defmodule UnirisNetwork.ChainLoader do
     # TODO: fill ETS tables with
     # TODO: set up NodeView FSM for each node to keep their P2P view
   end
-
 end
