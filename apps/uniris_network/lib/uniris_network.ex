@@ -62,6 +62,15 @@ defmodule UnirisNetwork do
   end
 
   @doc """
+  Retreive node information from a public key 
+  """
+  @impl true
+  @spec node_info(binary()) :: {:ok, Node.t()} | {:error, :node_not_exists}
+  def node_info(public_key) do
+    impl().node_info(public_key)
+  end
+
+  @doc """
   Request atomically the download of a specific transaction.
   """
   @impl true

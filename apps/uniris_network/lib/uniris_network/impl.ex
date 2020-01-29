@@ -9,6 +9,7 @@ defmodule UnirisNetwork.Impl do
   @callback daily_nonce() :: binary()
   @callback origin_public_keys() :: list(binary())
   @callback list_nodes() :: list(Node.t())
+  @callback node_info(binary()) :: {:ok, Node.t()} | {:error, :node_not_exists}
   @callback download_transaction(list(Node.t()), binary()) :: {:ok, Transaction.validated(), list(Node.t())} | {:error, :transaction_not_exists} | {:error, :consensus_not_reached}
 
   @callback download_transaction_and_utxo(list(Node.t()), binary()) :: {:ok, Transaction.validated(), list(), list(Node.t())} | {:error, :consensus_not_reached}

@@ -40,6 +40,17 @@ defmodule UnirisNetwork.DefaultImpl do
   end
 
   @impl true
+  @spec node_info(binary()) :: {:ok, Node.t()} | {:error, :node_not_exists}
+  def node_info(public_key) do
+    case UnirisNetwork.NodeRegistry.lookup(public_key) do
+      [{pid, _}] ->
+        {:ok, Node.details(pid)}
+      [] ->
+        {:error, :node_not_exists}
+    end
+  end
+
+  @impl true
   @spec download_transaction(storage_nodes :: list(Node.t()), address :: binary()) ::
           {:ok, Transaction.validated(), list(Node.t())}
           | {:error, :transaction_not_exists}
