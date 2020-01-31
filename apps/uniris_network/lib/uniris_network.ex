@@ -11,8 +11,6 @@ defmodule UnirisNetwork do
   """
 
   alias UnirisNetwork.Node
-  alias UnirisChain.Transaction
-  alias UnirisChain.Transaction.ValidationStamp
 
   @behaviour UnirisNetwork.Impl
 
@@ -68,72 +66,6 @@ defmodule UnirisNetwork do
   @spec node_info(binary()) :: {:ok, Node.t()} | {:error, :node_not_exists}
   def node_info(public_key) do
     impl().node_info(public_key)
-  end
-
-  @doc """
-  Request atomically the download of a specific transaction.
-  """
-  @impl true
-  @spec download_transaction(storage_nodes :: list(Node.t()), address :: binary()) ::
-          {:ok, Transaction.validated(), list(Node.t())}
-          | {:error, :transaction_not_exists}
-          | {:error, :consensus_not_reached}
-  def download_transaction(storage_nodes, address)
-      when is_list(storage_nodes) and is_binary(address) do
-    impl().download_transaction(storage_nodes, address)
-  end
-
-  @doc """
-  Request atomically the download of specific transaction and the related unspent output transactions
-  """
-  @impl true
-  @spec download_transaction_and_utxo(storage_nodes :: list(Node.t()), address :: binary()) ::
-          {:ok, Transaction.validated(), list(), list(Node.t())} | {:error, :consenus_not_reached}
-  def download_transaction_and_utxo(storage_nodes, address)
-      when is_list(storage_nodes) and is_binary(address) do
-    impl().download_transaction_and_utxo(storage_nodes, address)
-  end
-
-  @doc """
-  Request atomically the download of a transaction chain.
-  """
-  @impl true
-  @spec download_transaction_chain(storage_nodes :: list(Node.t()), address :: binary()) ::
-          {:ok, list(Transaction.validated()), list(Node.t())}
-          | {:error, :transaction_chain_not_exists}
-          | {:error, :consensus_not_reached}
-  def download_transaction_chain(storage_nodes, address)
-      when is_list(storage_nodes) and is_binary(address) do
-    impl().download_transaction_chain(storage_nodes, address)
-  end
-
-  @doc """
-  Request atomically the preparation of a transaction validation where validation nodes must acknowledge the validation request.
-  """
-  @impl true
-  @spec prepare_validation(list(Node.t()), Transaction.pending()) ::
-          :ok | {:error, :network_error}
-  def prepare_validation(validation_nodes, tx = %Transaction{}) when is_list(validation_nodes) do
-    impl().prepare_validation(validation_nodes, tx)
-  end
-
-  @doc """
-  Request the cross validation of the coordinator stamp.
-  """
-  @impl true
-  @spec cross_validate_stamp(list(Node.t()), binary(), ValidationStamp.t()) :: :ok
-  def cross_validate_stamp(validation_nodes, tx_address, stamp = %ValidationStamp{})
-      when is_binary(tx_address) and is_list(validation_nodes) do
-    impl().cross_validate_stamp(validation_nodes, tx_address, stamp)
-  end
-
-  @doc """
-  Request atomically the storage of a transaction where storage nodes must acknowledge the storage request.
-  """
-  @impl true
-  @spec store_transaction(list(Node.t()), Transaction.pending()) :: :ok
-  def store_transaction(storage_nodes, tx = %Transaction{}) when is_list(storage_nodes) do
-    impl().store_transaction(storage_nodes, tx)
   end
 
   defp impl(), do: Application.get_env(:uniris_network, :impl, __MODULE__.DefaultImpl)

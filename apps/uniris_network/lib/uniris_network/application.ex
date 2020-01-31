@@ -6,7 +6,6 @@ defmodule UnirisNetwork.Application do
   use Application
 
   def start(_type, _args) do
-
     port = Application.get_env(:uniris_network, :port)
     :ets.new(:node_store, [:named_table, :set, :public])
     :ets.new(:shared_secrets, [:named_table, :set, :public, read_concurrency: true])

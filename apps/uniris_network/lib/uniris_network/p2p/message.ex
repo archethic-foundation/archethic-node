@@ -1,7 +1,8 @@
-defmodule UnirisNetwork.P2P.Payload do
+defmodule UnirisNetwork.P2P.Message do
   @moduledoc false
 
   alias UnirisCrypto, as: Crypto
+  alias UnirisNetwork.P2P.MessageHandler
 
   @spec encode(term()) :: binary()
   def encode(payload) do
@@ -24,4 +25,15 @@ defmodule UnirisNetwork.P2P.Payload do
   end
 
   def decode(_), do: {:error, :invalid_payload}
+
+
+  def process({:get_transaction, _tx_address}) do
+    
+  end
+
+  def process({:get_transaction_chain, _tx_address}) do
+  end
+
+  def process(_), do: {:error, :invalid_message}
+
 end

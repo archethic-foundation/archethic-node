@@ -1,8 +1,7 @@
 defmodule UnirisNetwork.P2P.ConnectionHandler do
   @moduledoc false
 
-  alias UnirisNetwork.P2P.Request
-  alias UnirisNetwork.P2P.Payload
+  alias UnirisNetwork.P2P.Message
   alias UnirisNetwork.Node
 
   use GenServer
@@ -22,20 +21,36 @@ defmodule UnirisNetwork.P2P.ConnectionHandler do
 
   def handle_info({_, socket, data}, state = %{transport: transport}) do
     result =
-      case Payload.decode(data) do
-        {:ok, request, public_key} ->
+      case Message.decode(data) do
+        {:ok, message, public_key} ->
           Node.available(public_key)
-          Request.execute(request)
+          process_message(message)
 
         _ ->
-          {:error, :invalid_request}
+          {:error, :invalid_message}
       end
 
-    encoded_payload = Payload.encode(result)
+    encoded_payload = Message.encode(result)
     transport.send(socket, encoded_payload)
 
     {:noreply, state}
   end
 
   def handle_info({_, _}, state), do: {:stop, :normal, state}
+
+  defp process_message(message) when is_list(message) do
+    Task.async_stream(message, &Message.process/1)
+    |> Enum.into([], fn {:ok, res} -> res end)
+    |> reduce_message_processing([])
+  end
+
+  defp process_message(message), do: Message.process(message)
+
+  defp reduce_message_processing([{:error, reason} | rest], _) do
+    {:error, reason}
+  end
+
+  defp reduce_message_processing([result | rest], acc = []) do
+    reduce_message_processing(rest, acc ++ [result])
+  end
 end

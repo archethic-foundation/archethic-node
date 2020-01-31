@@ -1,9 +1,6 @@
 ExUnit.start()
 
-Mox.defmock(MockRequest, for: UnirisNetwork.P2P.Request.Impl)
+Mox.defmock(MockSupervisedConnection, for: UnirisNetwork.P2P.SupervisedConnection.Impl)
 
-Mox.defmock(MockClient, for: UnirisNetwork.P2P.Client.Impl)
+Application.put_env(:uniris_network, :supervised_connection_impl, MockSupervisedConnection)
 
-Application.put_env(:uniris_network, :request_handler, MockRequest)
-
-Application.put_env(:uniris_network, :client, MockClient)
