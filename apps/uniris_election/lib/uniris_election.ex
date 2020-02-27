@@ -90,7 +90,7 @@ defmodule UnirisElection do
           validation_number: fn tx = %Transaction{} -> Constraints.validation_number(tx) end
         ]
       )
-      when is_binary(daily_nonce) and is_list(nodes) and length(nodes) >= 5 do
+      when is_binary(daily_nonce) and is_list(nodes) do
     impl().validation_nodes(tx, nodes, daily_nonce, constraints)
   end
 
@@ -139,7 +139,7 @@ defmodule UnirisElection do
   @spec storage_nodes(
           address :: binary(),
           network_nodes :: [Node.t()],
-          storage_nonce ::binary(),
+          storage_nonce :: binary(),
           constraints :: [
             min_geo_patch: (() -> non_neg_integer()),
             min_geo_patch_avg_availability: (() -> non_neg_integer()),
@@ -160,10 +160,8 @@ defmodule UnirisElection do
       )
       when is_binary(address) and is_binary(storage_nonce) and is_list(nodes) and
              is_list(constraints) do
-        impl().storage_nodes(address, nodes, storage_nonce, constraints)
+    impl().storage_nodes(address, nodes, storage_nonce, constraints)
   end
 
-
-             defp impl(), do: Application.get_env(:uniris_election, :impl, __MODULE__.DefaultImpl)
-
+  defp impl(), do: Application.get_env(:uniris_election, :impl, __MODULE__.DefaultImpl)
 end
