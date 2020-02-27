@@ -5,35 +5,28 @@ defmodule UnirisCrypto.SoftwareImpl.ECDSA do
     :crypto.generate_key(:ecdh, curve)
   end
 
-  def generate_keypair(seed, curve) when is_atom(curve) do
+  def generate_keypair(seed, curve) do
     :crypto.generate_key(:ecdh, curve, seed)
   end
 
   def sign(private_key, curve, data) do
-    {
-      :ok,
-      :crypto.sign(:ecdsa, :sha256, :crypto.hash(:sha256, data), [
-        private_key,
-        curve
-      ])
-    }
+    :crypto.sign(:ecdsa, :sha256, :crypto.hash(:sha256, data), [
+      private_key,
+      curve
+    ])
   end
 
   def verify(public_key, curve, data, sig) do
-    if :crypto.verify(
-         :ecdsa,
-         :sha256,
-         :crypto.hash(:sha256, data),
-         sig,
-         [
-           public_key,
-           curve
-         ]
-       ) do
-      :ok
-    else
-      {:error, :invalid_signature}
-    end
+    :crypto.verify(
+      :ecdsa,
+      :sha256,
+      :crypto.hash(:sha256, data),
+      sig,
+      [
+        public_key,
+        curve
+      ]
+    )
   end
 
   def encrypt(public_key, curve, message) do
@@ -48,7 +41,7 @@ defmodule UnirisCrypto.SoftwareImpl.ECDSA do
       {cipher, tag} = aes_auth_encrypt(iv, aes_key, message)
 
       # Encode the cipher within the ephemeral public key, the authentication tag
-      {:ok, ephemeral_public_key <> tag <> cipher}
+      ephemeral_public_key <> tag <> cipher
     end
   end
 
@@ -68,10 +61,10 @@ defmodule UnirisCrypto.SoftwareImpl.ECDSA do
 
     case aes_auth_decrypt(iv, aes_key, cipher, tag) do
       :error ->
-        {:error, :decryption_failed}
+        raise "Decryption failed"
 
       data ->
-        {:ok, data}
+        data
     end
   end
 
