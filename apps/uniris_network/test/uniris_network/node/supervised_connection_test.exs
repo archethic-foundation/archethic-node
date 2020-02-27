@@ -40,7 +40,7 @@ defmodule UnirisNetwork.Node.SupervisedConnectionTest do
   test "start_link/3 should create a new state machine" do
     Registry.register(UnirisNetwork.NodeRegistry, "public_key", self())
     {:ok, pid} = Connection.start_link("public_key", "127.0.0.1", 3000)
-    Process.sleep(200)
+    Process.sleep(400)
     assert true == Process.alive?(pid)
     assert {:connected, %{client_pid: _}} = :sys.get_state(pid)
     assert_receive {:"$gen_cast", :available}
@@ -69,8 +69,7 @@ defmodule UnirisNetwork.Node.SupervisedConnectionTest do
 
   test "after error unavailability notification is sent" do
     Registry.register(UnirisNetwork.NodeRegistry, "public_key2", self())
-    
-    {:ok, pid} = Connection.start_link("public_key2", "127.0.0.1", 3000)
+    {:ok, _} = Connection.start_link("public_key2", "127.0.0.1", 3000)
     Process.sleep(200)
     assert_receive {:"$gen_cast", :unavailable}
   end

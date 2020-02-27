@@ -48,6 +48,10 @@ defmodule UnirisNetwork.Node.SupervisedConnection do
      [{:next_event, :internal, :notify_unavailability}, {:next_event, :internal, :connect}]}
   end
 
+  def handle_event({:call, from}, {:send_message, msg}, :idle, _) do
+    {:keep_state_and_data, :postpone}
+  end
+
   def handle_event(
         {:call, from},
         {:send_message, msg},
