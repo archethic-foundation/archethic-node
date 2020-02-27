@@ -5,14 +5,24 @@ defmodule UnirisChain.Transaction.Data.Ledger.Transfer do
   defstruct [:to, :amount, :conditions]
 
   @typedoc """
+  Recipient address of the ledger transfers
+  """
+  @type recipient :: binary()
+
+  @typedoc """
+  Set of conditions to spent the outputs transactions
+  """
+  @type conditions :: list(binary())
+
+  @typedoc """
   Transfer is composed from:
-  - to: receiver address of the asseet
+  - to: receiver address of the asset
   - amount: specify the number of asset to transfer to the recipients
   - conditions: specify to which address the asset can be used
   """
   @type t :: %__MODULE__{
-          to: binary(),
-          amount: number(),
-          conditions: list(binary())
+          to: recipient(),
+          amount: float(),
+          conditions: conditions()
         }
 end

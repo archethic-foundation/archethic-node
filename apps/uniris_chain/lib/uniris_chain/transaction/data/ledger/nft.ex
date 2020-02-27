@@ -8,6 +8,11 @@ defmodule UnirisChain.Transaction.Data.Ledger.NFT do
   alias UnirisChain.Transaction.Data.Ledger.Transfer
 
   @typedoc """
+  Name of the NFT
+  """
+  @type nft_type :: binary()
+
+  @typedoc """
   NFT movement is composed from:
   - Type: NFT name
   - Recipients: address which will receive the NFT
@@ -15,7 +20,7 @@ defmodule UnirisChain.Transaction.Data.Ledger.NFT do
   - Conditions: List of addresses where the NFT can be spent
   """
   @type t :: %__MODULE__{
-          type: binary(),
+          type: nft_type(),
           transfers: list(Transfer.t())
         }
 end

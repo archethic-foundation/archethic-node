@@ -1,31 +1,55 @@
 defmodule UnirisChain.TransactionTest do
   use ExUnit.Case
-  doctest UnirisChain.Transaction
 
-  test "should validate a pending transaction integrity" do
-    assert :ok ==
-             UnirisChain.Transaction.check_pending_integrity(%UnirisChain.Transaction{
-               address:
-                 <<4, 137, 241, 154, 36, 26, 91, 164, 53, 203, 213, 51, 239, 164, 212, 70, 105,
-                   104, 115, 3, 13, 160, 181, 91, 198, 76, 110, 240, 24, 74, 162, 246, 163, 107,
-                   232, 86, 239, 101, 37, 133, 133, 16, 137, 35, 82, 21, 223, 246, 146, 192, 29,
-                   62, 155, 230, 167, 247, 190, 236, 101, 30, 18, 72, 102, 42, 218>>,
-               data: %{},
-               timestamp: 1_573_054_121,
-               type: :identity,
-               previous_public_key:
-                 <<0, 238, 158, 189, 86, 99, 94, 250, 108, 99, 130, 116, 124, 236, 155, 75, 126,
-                   82, 179, 227, 207, 248, 183, 161, 96, 119, 172, 71, 228, 142, 192, 109, 56>>,
-               previous_signature:
-                 <<77, 185, 255, 119, 20, 88, 248, 219, 203, 140, 193, 129, 1, 223, 241, 51, 230,
-                   11, 249, 155, 10, 9, 194, 82, 117, 66, 43, 7, 135, 186, 101, 151, 197, 103,
-                   247, 242, 125, 33, 213, 95, 225, 178, 17, 121, 143, 23, 84, 58, 116, 102, 210,
-                   127, 47, 17, 205, 100, 216, 2, 229, 38, 170, 193, 158, 6>>,
-               origin_signature:
-                 <<218, 146, 82, 183, 176, 151, 91, 66, 8, 200, 0, 8, 129, 125, 156, 227, 248,
-                   188, 126, 55, 133, 211, 207, 49, 117, 212, 186, 36, 138, 85, 34, 15, 131, 143,
-                   25, 116, 34, 133, 165, 243, 151, 243, 53, 10, 139, 255, 119, 159, 179, 245,
-                   138, 192, 120, 212, 144, 69, 87, 201, 115, 206, 174, 73, 9, 4>>
+  alias UnirisChain.Transaction
+  alias UnirisChain.Transaction.Data
+  alias UnirisChain.Transaction.Data.Ledger
+  alias UnirisChain.Transaction.Data.Ledger.UCO
+  alias UnirisChain.Transaction.Data.Ledger.Transfer
+  alias UnirisCrypto, as: Crypto
+
+  test "new/4 should create a new transaction" do
+    origin_keyspairs = [
+      {<<0, 195, 84, 216, 212, 203, 243, 221, 69, 12, 73, 56, 72, 36, 182, 126, 169, 181, 57, 19,
+         136, 12, 49, 220, 138, 27, 238, 216, 110, 230, 9, 61, 135>>,
+       <<0, 185, 223, 241, 198, 63, 175, 22, 169, 80, 250, 126, 230, 19, 143, 48, 78, 154, 81, 15,
+         70, 197, 195, 14, 144, 116, 203, 211, 27, 237, 151, 18, 174, 195, 84, 216, 212, 203, 243,
+         221, 69, 12, 73, 56, 72, 36, 182, 126, 169, 181, 57, 19, 136, 12, 49, 220, 138, 27, 238,
+         216, 110, 230, 9, 61, 135>>}
+    ]
+
+    Crypto.SoftwareImpl.load_origin_keys(origin_keyspairs)
+
+    assert %Transaction{} =
+             Transaction.new(:transfer, %Data{
+               ledger: %Ledger{
+                 uco: %UCO{
+                   transfers: [%Transfer{to: "", amount: 10}]
+                 }
+               }
              })
+  end
+
+  test "valid_pending_transaction?/1 should return true when the transaction is valid" do
+    origin_keyspairs = [
+      {<<0, 195, 84, 216, 212, 203, 243, 221, 69, 12, 73, 56, 72, 36, 182, 126, 169, 181, 57, 19,
+         136, 12, 49, 220, 138, 27, 238, 216, 110, 230, 9, 61, 135>>,
+       <<0, 185, 223, 241, 198, 63, 175, 22, 169, 80, 250, 126, 230, 19, 143, 48, 78, 154, 81, 15,
+         70, 197, 195, 14, 144, 116, 203, 211, 27, 237, 151, 18, 174, 195, 84, 216, 212, 203, 243,
+         221, 69, 12, 73, 56, 72, 36, 182, 126, 169, 181, 57, 19, 136, 12, 49, 220, 138, 27, 238,
+         216, 110, 230, 9, 61, 135>>}
+    ]
+
+    Crypto.SoftwareImpl.load_origin_keys(origin_keyspairs)
+
+    assert true =
+             Transaction.new(:transfer, %Data{
+               ledger: %Ledger{
+                 uco: %UCO{
+                   transfers: [%Transfer{to: "", amount: 10}]
+                 }
+               }
+             })
+             |> Transaction.valid_pending_transaction?()
   end
 end

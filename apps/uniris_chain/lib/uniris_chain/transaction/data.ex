@@ -2,7 +2,7 @@ defmodule UnirisChain.Transaction.Data do
   @moduledoc """
   Represents any transaction data block
   """
-  alias UnirisChain.Transaction.Data.Ledger
+  alias __MODULE__.Ledger
 
   defstruct recipients: [], ledger: %Ledger{}, code: "", keys: %{}, content: ""
 

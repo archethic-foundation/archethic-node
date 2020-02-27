@@ -13,7 +13,7 @@ defmodule UnirisChain.Transaction.Data.Ledger.UCO do
   - Transfers: List of UCO transfers
   """
   @type t :: %__MODULE__{
-          fee: number(),
+          fee: float(),
           transfers: list(Transfer.t())
         }
 end

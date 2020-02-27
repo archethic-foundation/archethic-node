@@ -4,9 +4,9 @@ defmodule UnirisChain.Transaction.Data.Ledger do
   """
   defstruct [:uco, :nft, :stock]
 
-  alias UnirisChain.Transaction.Data.Ledger.UCO
-  alias UnirisChain.Transaction.Data.Ledger.NFT
-  alias UnirisChain.Transaction.Data.Ledger.Stock
+  alias __MODULE__.UCO
+  alias __MODULE__.NFT
+  alias __MODULE__.Stock
 
   @typedoc """
   Ledger movements are composed from:

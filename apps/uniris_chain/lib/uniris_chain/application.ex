@@ -4,7 +4,7 @@ defmodule UnirisChain.Application do
 
   def start(_type, _args) do
     children = [
-      UnirisChain.TransactionStore.InMemory
+      UnirisChain.DefaultImpl.Store.InMemoryImpl
     ]
 
     opts = [strategy: :one_for_one, name: UnirisChain.Supervisor]

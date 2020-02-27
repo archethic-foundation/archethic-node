@@ -6,12 +6,22 @@ defmodule UnirisChain.Transaction.Data.Ledger.Stock.VoucherPolicy do
   defstruct [:voucher, :policy]
 
   @typedoc """
+  Name of the NFT accepted to offer discount
+  """
+  @type voucher :: binary()
+
+  @typedoc """
+  Percentage of discount offered
+  """
+  @type discount_policy :: float()
+
+  @typedoc """
   Voucher policy is composed from:
   - Voucher: Name of the NFT accepted to offer discount
   - Policy: Percentage of discount offered
   """
   @type t :: %__MODULE__{
-          voucher: binary(),
-          policy: number()
+          voucher: voucher(),
+          policy: discount_policy()
         }
 end
