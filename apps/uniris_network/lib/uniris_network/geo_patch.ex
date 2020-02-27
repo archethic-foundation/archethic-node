@@ -18,7 +18,7 @@ defmodule UnirisNetwork.GeoPatch do
 
   def handle_call({:get_patch_from_ip, ip}, _, state) do
     :ip2location.query(ip)
-    {:reply, {0, 0, 0}, state}
+    {:reply, "000", state}
   end
 
   @spec from_ip(:inet.ip_address()) :: UnirisNetwork.Node.patch()

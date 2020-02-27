@@ -36,7 +36,7 @@ defmodule UnirisNetwork.DefaultImpl do
   @spec list_nodes() :: list(Node.t())
   def list_nodes() do
     DynamicSupervisor.which_children(NodeSupervisor)
-    |> Task.async_stream(fn {:undefined, pid, _, _} -> :sys.get_state(pid) end)
+    |> Task.async_stream(fn {:undefined, pid, _, _} -> Node.details(pid) end)
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
@@ -62,6 +62,15 @@ defmodule UnirisNetwork.DefaultImpl do
   @spec node_info(binary()) :: Node.t()
   def node_info(public_key) do
     Node.details(public_key)
+  end
+
+  @impl true
+  @spec node_public_key_by_ip(:inet.ip_address()) :: binary()
+  def node_public_key_by_ip(ip) do
+    case Registry.lookup(NodeRegistry, ip) do
+      [{pid, _}] ->
+        Node.details(pid)
+    end
   end
 
   @impl true

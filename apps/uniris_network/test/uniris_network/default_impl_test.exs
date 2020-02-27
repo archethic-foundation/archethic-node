@@ -15,23 +15,25 @@ defmodule UnirisNetwork.DefaultImplTest do
     |> stub(:start_link, fn _, _, _, pid ->
       send(pid, :connected)
       {:ok, self()}
-      
     end)
-    :ok 
+
+    :ok
   end
 
   test "list_nodes/0 should retrieve the supervised nodes processes" do
     pub = Crypto.generate_random_keypair()
     pub2 = Crypto.generate_random_keypair()
+
     DynamicSupervisor.start_child(NodeSupervisor, {
       Node,
       first_public_key: pub, last_public_key: pub, ip: "88.100.200.10", port: 3000
     })
 
-    {:ok, pid} = DynamicSupervisor.start_child(NodeSupervisor, {
-          Node,
-          first_public_key: pub2, last_public_key: pub2, ip: "77.22.19.202", port: 3000
-                                  })
+    {:ok, pid} =
+      DynamicSupervisor.start_child(NodeSupervisor, {
+        Node,
+        first_public_key: pub2, last_public_key: pub2, ip: "77.22.19.202", port: 3000
+      })
 
     nodes = UnirisNetwork.list_nodes()
     Enum.any?(nodes, &(&1.last_public_key == pub))
@@ -42,10 +44,7 @@ defmodule UnirisNetwork.DefaultImplTest do
       first_public_key: Crypto.generate_random_keypair(),
       last_public_key: Crypto.generate_random_keypair(),
       ip: "88.100.200.10",
-      port: 3000,
-      geo_patch: "AAA",
-      availability: 1,
-      average_availability: 1
+      port: 3000
     }
 
     UnirisNetwork.add_node(node)
@@ -56,20 +55,29 @@ defmodule UnirisNetwork.DefaultImplTest do
     assert node_first_public_key == node.first_public_key
   end
 
-  test "node_info/1 should given node details" do
+  test "node_info/1 should give node details" do
     node = %Node{
       first_public_key: Crypto.generate_random_keypair(),
       last_public_key: Crypto.generate_random_keypair(),
       ip: "88.100.200.10",
-      port: 3000,
-      geo_patch: "AAA",
-      availability: 1,
-      average_availability: 1
+      port: 3000
     }
 
     :ok = UnirisNetwork.add_node(node)
     Process.sleep(100)
-    node_details = UnirisNetwork.node_info(node.first_public_key)
-    assert node_details == node
+    %Node{
+      last_public_key: last_pub,
+      first_public_key: first_pub,
+      ip: ip,
+      port: port
+    } = UnirisNetwork.node_info(node.first_public_key)
+    
+    assert last_pub == node.last_public_key
+    assert first_pub == node.first_public_key
+    assert ip == node.ip
+    assert port == node.port
+
+
+    assert %Node{} = UnirisNetwork.node_info("88.100.200.10")
   end
 end

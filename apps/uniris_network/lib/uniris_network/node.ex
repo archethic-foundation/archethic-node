@@ -18,10 +18,7 @@ defmodule UnirisNetwork.Node do
     :first_public_key,
     :last_public_key,
     :ip,
-    :port,
-    :geo_patch,
-    :availability,
-    :average_availability
+    :port
   ]
   defstruct [
     :first_public_key,
@@ -30,8 +27,8 @@ defmodule UnirisNetwork.Node do
     :port,
     :geo_patch,
     :network_patch,
-    :availability,
-    :average_availability
+    availability: 0,
+    average_availability: 0
   ]
 
   @type t() :: %__MODULE__{
@@ -58,6 +55,7 @@ defmodule UnirisNetwork.Node do
 
   def init([first_public_key, last_public_key, ip, port]) do
     Registry.register(UnirisNetwork.NodeRegistry, last_public_key, [])
+    Registry.register(UnirisNetwork.NodeRegistry, ip, [])
 
     data = %__MODULE__{
       first_public_key: first_public_key,
@@ -91,7 +89,7 @@ defmodule UnirisNetwork.Node do
           port: port
         }
       )
-  when ref == connection_pid do
+      when ref == connection_pid do
     {:ok, pid} = Connection.start_link(first_public_key, ip, port)
 
     {:noreply,
@@ -155,8 +153,13 @@ defmodule UnirisNetwork.Node do
   Get the details of a node
   """
   @spec details(binary()) :: __MODULE__.t()
-  def details(node_public_key) do
+  def details(node_public_key) when is_binary(node_public_key) do
     GenServer.call(via_tuple(node_public_key), :details)
+  end
+
+  @spec details(pid()) :: __MODULE__.t()
+  def details(pid) when is_pid(pid) do
+    GenServer.call(pid, :details)
   end
 
   @doc """

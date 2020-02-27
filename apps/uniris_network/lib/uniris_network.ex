@@ -88,6 +88,17 @@ defmodule UnirisNetwork do
   end
 
   @doc """
+  Retrieve node public key by IP.
+
+  Helps to make Supervised Connection efficient.
+  """
+  @impl true
+  @spec node_public_key_by_ip(:inet.ip_address()) :: binary()
+  def node_public_key_by_ip(ip) do
+    impl().node_public_key_by_ip(ip)
+  end
+
+  @doc """
   Send a P2P message to a remote node
   """
   @impl true
