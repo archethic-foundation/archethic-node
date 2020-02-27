@@ -1,6 +1,3 @@
 import Mix.Config
 
-
-config :uniris_network, :packet_sender, UnirisNetwork.P2P.PacketSenderMock
-
-config :uniris_network, :port, 3001
+config :uniris_network, :p2p_client, MockP2P

@@ -10,26 +10,27 @@ defmodule UnirisNetwork.NodeTest do
   setup :verify_on_exit!
 
   setup do
-    MockSupervisedConnection
-    |> stub(:start_link, fn _, _, _ ->
-      {:ok,
-       spawn_link(fn ->
-         receive do
-           _ ->
-             :ok
-         end
-       end)}
+    MockP2P
+    |> stub(:start_link, fn _, _, _, pid ->
+      send(pid, :connected)
+      {:ok, self()}
+    end)
+    |> stub(:send_message, fn _, {from, msg} ->
+      send(from, {:p2p_response, {:ok, "hello", "public_key"}})
+      :ok
     end)
 
     :ok
   end
 
   test "start_link/1 should create a new node, register it and create a connection " do
-    {:ok, pub} = Crypto.generate_random_keypair()
-    {:ok, pub2} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
+    pub2 = Crypto.generate_random_keypair()
 
     {:ok, pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub2, ip: "127.0.0.1", port: 3000)
+
+    Process.sleep(200)
 
     assert Process.alive?(pid)
     assert match?([{_, _}], Registry.lookup(UnirisNetwork.NodeRegistry, pub))
@@ -37,10 +38,12 @@ defmodule UnirisNetwork.NodeTest do
 
     %{connection_pid: connection_pid} = :sys.get_state(pid)
     Process.alive?(connection_pid)
+
+    Process.sleep(200)
   end
 
   test "available/1 should state the node as available" do
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
@@ -50,7 +53,7 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "unavailable/1 should state the node as unavailable" do
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
@@ -61,10 +64,10 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "details/1 should retrieve the node information" do
-    {:ok, pub} = Crypto.generate_random_keypair()
-    {:ok, pub2} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
+    pub2 = Crypto.generate_random_keypair()
 
-    {:ok, pid} =
+    {:ok, _pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub2, ip: "127.0.0.1", port: 3000)
 
     assert match?(%Node{}, Node.details(pub))
@@ -72,12 +75,12 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "update_basics/4 should update the basic node information" do
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, _pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
 
-    {:ok, pub2} = Crypto.generate_random_keypair()
+    pub2 = Crypto.generate_random_keypair()
     Node.update_basics(pub, pub2, "88.100.242.12", 3000)
     node = Node.details(pub)
     assert node.last_public_key == pub2
@@ -85,7 +88,7 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "update_network_patch/2 should update the network patch" do
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, _pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
@@ -96,7 +99,7 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "update_average_availability/2 should update the average availability" do
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, _pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
@@ -107,8 +110,7 @@ defmodule UnirisNetwork.NodeTest do
   end
 
   test "should kill the connection pid after the crash" do
-    #
-    {:ok, pub} = Crypto.generate_random_keypair()
+    pub = Crypto.generate_random_keypair()
 
     {:ok, pid} =
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
@@ -127,5 +129,18 @@ defmodule UnirisNetwork.NodeTest do
       Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
 
     assert match?(%{availability: 0}, Node.details(pub))
+  end
+
+  test "send_message/2 should call the send message through connection" do
+    
+    pub = Crypto.generate_random_keypair()
+
+    {:ok, pid} =
+      Node.start_link(first_public_key: pub, last_public_key: pub, ip: "127.0.0.1", port: 3000)
+    Process.sleep(200)
+
+    %{connection_pid: connection_pid} = :sys.get_state(pid)
+
+      assert {:ok, "hello"} = Node.send_message(pub, {connection_pid, "hello"})
   end
 end

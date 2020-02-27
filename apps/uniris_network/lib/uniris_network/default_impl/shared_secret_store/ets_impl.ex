@@ -1,7 +1,7 @@
-defmodule UnirisNetwork.SharedSecretStore.ETSImpl do
+defmodule UnirisNetwork.DefaultImpl.SharedSecretStore.ETSImpl do
   @moduledoc false
 
-  @behaviour UnirisNetwork.SharedSecretStore.Impl
+  @behaviour UnirisNetwork.DefaultImpl.SharedSecretStore.Impl
 
   @impl true
   @spec storage_nonce() :: binary()

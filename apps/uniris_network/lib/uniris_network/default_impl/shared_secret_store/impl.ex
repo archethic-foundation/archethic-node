@@ -1,4 +1,4 @@
-defmodule UnirisNetwork.SharedSecretStore.Impl do
+defmodule UnirisNetwork.DefaultImpl.SharedSecretStore.Impl do
   @moduledoc false
 
   @callback storage_nonce() :: binary()

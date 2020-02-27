@@ -1,13 +1,13 @@
-defmodule UnirisNetwork.SharedSecretStoreTest do
+defmodule UnirisNetwork.DefaultImpl.SharedSecretStoreTest do
   use ExUnit.Case
 
-  alias UnirisNetwork.SharedSecretStore
+  alias UnirisNetwork.DefaultImpl.SharedSecretStore
 
   setup do
     :ets.insert(:shared_secrets, {:storage_nonce, :crypto.strong_rand_bytes(32)})
     :ets.insert(:shared_secrets, {:daily_nonce, :crypto.strong_rand_bytes(32)})
 
-    {:ok, pub} = UnirisCrypto.generate_random_keypair()
+    pub = UnirisCrypto.generate_random_keypair()
     :ets.insert(:shared_secrets, {:origin_public_keys, [pub]})
     :ok
   end
@@ -26,7 +26,7 @@ defmodule UnirisNetwork.SharedSecretStoreTest do
   end
 
   test "add_origin_public_key/1 should update the list of origin public keys" do
-    {:ok, pub} = UnirisCrypto.generate_random_keypair()
+    pub = UnirisCrypto.generate_random_keypair()
     SharedSecretStore.add_origin_public_key(pub)
     assert 2 == length(SharedSecretStore.origin_public_keys())
   end

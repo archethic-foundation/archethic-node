@@ -3,7 +3,7 @@ defmodule UnirisNetwork.Node do
   Represent a node in the Uniris P2P network.
   Each node has it own process to enable fast update and retrieval.
   It also provide a fresh availability of the node:
-  - when a node is started, a TCP connection is opened and monitored to follow any disconnection or error
+  - when a node is started, a P2P connection is opened and monitored to follow any disconnection or error
   - when a node is the emitter source for a request, he can be identified as available
   - if the connection is down, a new connection will be start
 
@@ -11,8 +11,8 @@ defmodule UnirisNetwork.Node do
 
   use GenServer
 
-  alias UnirisNetwork.P2P.SupervisedConnection, as: Connection
-  alias UnirisNetwork.P2P.Message
+  alias __MODULE__.SupervisedConnection, as: Connection
+  alias UnirisNetwork.NodeRegistry
 
   @enforce_keys [
     :first_public_key,
@@ -34,15 +34,13 @@ defmodule UnirisNetwork.Node do
     :average_availability
   ]
 
-  @type patch() :: {0..9 | ?A..?F, 0..9 | ?A..?F, 0..9 | ?A..?F}
-
   @type t() :: %__MODULE__{
           first_public_key: binary(),
           last_public_key: binary(),
           ip: :inet.ip_address(),
           port: :inet.port_number(),
-          geo_patch: patch(),
-          network_patch: patch(),
+          geo_patch: binary(),
+          network_patch: binary(),
           availability: boolean(),
           average_availability: float()
         }
@@ -56,10 +54,6 @@ defmodule UnirisNetwork.Node do
     GenServer.start_link(__MODULE__, [first_public_key, last_public_key, ip, port],
       name: via_tuple(first_public_key)
     )
-  end
-
-  def start_link(node = %__MODULE__{}) do
-    GenServer.start_link(__MODULE__, node, name: via_tuple(node.first_public_key))
   end
 
   def init([first_public_key, last_public_key, ip, port]) do
@@ -97,7 +91,7 @@ defmodule UnirisNetwork.Node do
           port: port
         }
       )
-      when ref == connection_pid do
+  when ref == connection_pid do
     {:ok, pid} = Connection.start_link(first_public_key, ip, port)
 
     {:noreply,
@@ -112,10 +106,6 @@ defmodule UnirisNetwork.Node do
 
   def handle_cast(:unavailable, state) do
     {:noreply, Map.put(state, :availability, 0)}
-  end
-
-  def handle_call(:details, from, state) do
-    {:reply, state, state}
   end
 
   def handle_cast({:update_basics, last_public_key, ip, port}, state) do
@@ -136,6 +126,15 @@ defmodule UnirisNetwork.Node do
     {:noreply, Map.put(state, :average_availability, avg_availability)}
   end
 
+  def handle_call({:send_message, msg}, _from, state = %{connection_pid: connection_pid}) do
+    response = Connection.send_message(connection_pid, msg)
+    {:reply, response, state}
+  end
+
+  def handle_call(:details, _from, state) do
+    {:reply, state, state}
+  end
+
   @doc """
   Mark the node as available
   """
@@ -148,7 +147,7 @@ defmodule UnirisNetwork.Node do
   Mark the node as unavailable
   """
   @spec unavailable(binary()) :: :ok
-  def unavailable(node_public_key) when is_binary(node_public_key) do
+  def unavailable(node_public_key) do
     GenServer.cast(via_tuple(node_public_key), :unavailable)
   end
 
@@ -156,7 +155,7 @@ defmodule UnirisNetwork.Node do
   Get the details of a node
   """
   @spec details(binary()) :: __MODULE__.t()
-  def details(node_public_key) when is_binary(node_public_key) do
+  def details(node_public_key) do
     GenServer.call(via_tuple(node_public_key), :details)
   end
 
@@ -174,7 +173,7 @@ defmodule UnirisNetwork.Node do
   Update the network patch for a given node
   """
   @spec update_network_patch(binary(), binary()) :: :ok
-  def update_network_patch(public_key, network_patch) when is_binary(network_patch) do
+  def update_network_patch(public_key, network_patch) do
     [{pid, _}] = Registry.lookup(UnirisNetwork.NodeRegistry, public_key)
     GenServer.cast(pid, {:update_network_patch, network_patch})
   end
@@ -184,26 +183,26 @@ defmodule UnirisNetwork.Node do
   """
   @spec update_average_availability(binary(), float()) :: :ok
   def update_average_availability(public_key, avg_availability)
-      when is_binary(public_key) and is_float(avg_availability) and avg_availability >= 0 and
+      when is_float(avg_availability) and avg_availability >= 0 and
              avg_availability <= 1 do
     [{pid, _}] = Registry.lookup(UnirisNetwork.NodeRegistry, public_key)
     GenServer.cast(pid, {:update_average_availability, avg_availability})
   end
 
-  def handle_cast({:send_message, msg}, state = %{connection_pid: connection_pid}) do
-    Connection.send_message(connection_pid, msg)
-    {:noreply, state}
-  end
-
   @doc """
   Send a message to a node for the given public key
   """
-  @spec send_message(public_key :: binary(), message :: binary()) :: :ok
+  @spec send_message(__MODULE__.t(), term()) :: :ok
+  def send_message(%__MODULE__{first_public_key: public_key}, message) do
+    send_message(public_key, message)
+  end
+
+  @spec send_message(public_key :: binary(), message :: term()) :: :ok
   def send_message(public_key, msg) do
-    GenServer.cast(via_tuple(public_key), {:send_message, Message.encode(msg)})
+    GenServer.call(via_tuple(public_key), {:send_message, msg})
   end
 
   defp via_tuple(public_key) do
-    {:via, Registry, {UnirisNetwork.NodeRegistry, public_key}}
+    {:via, Registry, {NodeRegistry, public_key}}
   end
 end

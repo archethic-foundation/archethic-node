@@ -1,6 +1,6 @@
-defmodule UnirisNetwork.SharedSecretStore do
+defmodule UnirisNetwork.DefaultImpl.SharedSecretStore do
   @moduledoc false
-  @behaviour UnirisNetwork.SharedSecretStore.Impl
+  @behaviour __MODULE__.Impl
 
   @impl true
   def storage_nonce do
@@ -27,5 +27,5 @@ defmodule UnirisNetwork.SharedSecretStore do
     impl().add_origin_public_key(public_key)
   end
 
-  defp impl(), do: Application.get_env(:uniris_network, :shared_secret_store, UnirisNetwork.SharedSecretStore.ETSImpl)
+  defp impl(), do: Application.get_env(:uniris_network, :shared_secret_store, __MODULE__.ETSImpl)
 end

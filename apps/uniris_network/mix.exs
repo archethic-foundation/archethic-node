@@ -28,7 +28,6 @@ defmodule UnirisNetwork.MixProject do
     [
       {:ranch, "~> 1.7"},
       {:uniris_crypto, in_umbrella: true},
-      {:uniris_chain, in_umbrella: true},
       {:mox, "~> 0.5.1", only: [:test]},
       {:stream_data, "~> 0.4.3", only: [:test]} 
     ]

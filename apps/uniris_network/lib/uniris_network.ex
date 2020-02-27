@@ -11,6 +11,7 @@ defmodule UnirisNetwork do
   """
 
   alias UnirisNetwork.Node
+  alias UnirisCrypto, as: Crypto
 
   @behaviour UnirisNetwork.Impl
 
@@ -39,6 +40,15 @@ defmodule UnirisNetwork do
   end
 
   @doc """
+  Change the daily nonce with the given value.
+  """
+  @impl true
+  @spec set_daily_nonce(binary()) :: :ok
+  def set_daily_nonce(nonce) do
+    impl().set_daily_nonce(nonce)
+  end
+
+  @doc """
   Retrieve the origin public keys used to determine the proof of work.
   """
   @impl true
@@ -60,12 +70,66 @@ defmodule UnirisNetwork do
   end
 
   @doc """
-  Retreive node information from a public key 
+  Add a node in the Uniris network
   """
   @impl true
-  @spec node_info(binary()) :: {:ok, Node.t()} | {:error, :node_not_exists}
+  @spec add_node(Node.t()) :: :ok
+  def add_node(node = %Node{}) do
+    impl().add_node(node)
+  end
+
+  @doc """
+  Retreive node information from a public key
+  """
+  @impl true
+  @spec node_info(binary()) :: Node.t()
   def node_info(public_key) do
     impl().node_info(public_key)
+  end
+
+  @doc """
+  Send a P2P message to a remote node
+  """
+  @impl true
+  @spec send_message(Node.t(), term()) :: {:ok, term()}
+  def send_message(node = %Node{}, message) do
+    impl().send_message(node, message)
+  end
+
+  @doc """
+  Get the nearest nodes from a specified node and a list of nodes to compare with
+
+  ## Examples
+
+     iex> list_nodes = [%{network_patch: "AA0"}, %{network_patch: "F50"}, %{network_patch: "3A2"}]
+     iex> from_node = %{network_patch: "12F"}
+     iex> UnirisNetwork.nearest_nodes(from_nodes, list_nodes)
+     [
+       %{network_patch: "3A2"},
+       %{network_patch: "AA0"},
+       %{network_patch: "F50"}
+     ]
+  """
+  @spec nearest_nodes(Node.t(), nonempty_list(Node.t())) :: list(Node.t())
+  def nearest_nodes(from_node = %Node{}, storage_nodes) when is_list(storage_nodes) do
+    from_node_position = from_node.network_patch |> String.to_charlist() |> List.to_integer(16)
+
+    Enum.sort_by(storage_nodes, fn storage_node ->
+      storage_node_position =
+        storage_node.network_patch |> String.to_charlist() |> List.to_integer(16)
+
+      abs(storage_node_position - from_node_position)
+    end)
+  end
+
+  @doc """
+  Get the nearest from me and the a list of nodes to compare with
+  """
+  @spec nearest_nodes(list(Node.t())) :: list(Node.t())
+  def nearest_nodes(storage_nodes) when is_list(storage_nodes) do
+    pub = Crypto.last_node_public_key()
+    me = node_info(pub)
+    nearest_nodes(me, storage_nodes)
   end
 
   defp impl(), do: Application.get_env(:uniris_network, :impl, __MODULE__.DefaultImpl)

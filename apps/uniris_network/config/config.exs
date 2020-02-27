@@ -1,6 +1,6 @@
 import Mix.Config
 
-config :uniris_network, :port, 5000
+config :uniris_network, :p2p_client, UnirisP2P
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
