@@ -328,9 +328,11 @@ defmodule UnirisCrypto do
 
   Invalid message to decrypt or key return an error:
 
-      iex> UnirisCrypto.generate_random_keypair(persistence: true)
-      iex> UnirisCrypto.ec_decrypt!(<<0, 0, 0>>, [with: :node, as: :last])
+      ```
+      UnirisCrypto.generate_random_keypair(persistence: true)
+      UnirisCrypto.ec_decrypt!(<<0, 0, 0>>, [with: :node, as: :last])
       ** (RuntimeError) Decryption failed
+      ```
   """
   @spec ec_decrypt!(cipher :: binary(), key_access :: key_access) :: term()
   def ec_decrypt!(cipher, key_access) when is_binary(cipher) and is_list(key_access) do
@@ -368,9 +370,11 @@ defmodule UnirisCrypto do
 
   Return an error when the key is invalid
 
-      iex> ciphertext = UnirisCrypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
-      iex> UnirisCrypto.aes_decrypt!(ciphertext, :crypto.strong_rand_bytes(32))
+      ```
+      ciphertext = UnirisCrypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
+      UnirisCrypto.aes_decrypt!(ciphertext, :crypto.strong_rand_bytes(32))
       ** (RuntimeError) Decryption failed
+      ```
 
   """
   @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
