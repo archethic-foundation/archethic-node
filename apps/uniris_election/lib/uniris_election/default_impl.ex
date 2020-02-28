@@ -3,7 +3,7 @@ defmodule UnirisElection.DefaultImpl do
 
   alias UnirisChain.Transaction
   alias UnirisCrypto, as: Crypto
-  alias UnirisElection.HeuristicConstraints, as: Constraints
+  alias __MODULE__.HeuristicConstraints, as: Constraints
 
   @behaviour UnirisElection.Impl
 

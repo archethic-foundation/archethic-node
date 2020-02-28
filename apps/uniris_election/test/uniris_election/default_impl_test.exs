@@ -1,7 +1,8 @@
-defmodule UnirisElectionTest do
+defmodule UnirisElection.DefaultImplTest do
   use ExUnit.Case
-  doctest UnirisElection
   use ExUnitProperties
+
+  alias UnirisElection.DefaultImpl, as: Election
 
   property "validation_nodes/3 should return an error when the number of nodes is too less" do
     check all(
@@ -46,8 +47,7 @@ defmodule UnirisElectionTest do
       }
 
       assert {:error, :unsufficient_network} ==
-               UnirisElection.validation_nodes(tx, nodes, nonce)
+               Election.validation_nodes(tx, nodes, nonce)
     end
   end
-
 end

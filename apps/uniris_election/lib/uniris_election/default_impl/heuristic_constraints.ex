@@ -1,10 +1,10 @@
-defmodule UnirisElection.HeuristicConstraints do
-  @moduledoc """
-  Election algorithms are based on constrains with heuristics aims to the best case.
+defmodule UnirisElection.DefaultImpl.HeuristicConstraints do
+  @moduledoc false
 
-  However this function can overrided in the election function to provide the most accurate
-  tuning through the network evolution and monitor for example via the Prediction module.
-  """
+  # Election algorithms are based on constrains with heuristics aims to the best case.
+
+  # However this function can overrided in the election function to provide the most accurate
+  # tuning through the network evolution and monitor for example via the Prediction module.
 
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data.Ledger.UCO, as: UCOLedger
@@ -67,7 +67,7 @@ defmodule UnirisElection.HeuristicConstraints do
       ...>  previous_signature: "4DB9FF771458F8DBCB8CC18101DFF133E60BF99B0A09C25275422B0787BA6597C567F7F27D21D55FE1B211798F17543A7466D27F2F11CD64D802E526AAC19E06",
       ...>  origin_signature: "DA9252B7B0975B4208C80008817D9CE3F8BC7E3785D3CF3175D4BA248A55220F838F19742285A5F397F3350A8BFF779FB3F58AC078D4904557C973CEAE490904"
       ...> }
-      iex> UnirisElection.HeuristicConstraints.validation_number(tx)
+      iex> UnirisElection.DefaultImpl.HeuristicConstraints.validation_number(tx)
       5
 
       iex> tx = %UnirisChain.Transaction{
@@ -94,7 +94,7 @@ defmodule UnirisElection.HeuristicConstraints do
       ...>  previous_signature: "4DB9FF771458F8DBCB8CC18101DFF133E60BF99B0A09C25275422B0787BA6597C567F7F27D21D55FE1B211798F17543A7466D27F2F11CD64D802E526AAC19E06",
       ...>  origin_signature: "DA9252B7B0975B4208C80008817D9CE3F8BC7E3785D3CF3175D4BA248A55220F838F19742285A5F397F3350A8BFF779FB3F58AC078D4904557C973CEAE490904"
       ...> }
-      iex> UnirisElection.HeuristicConstraints.validation_number(tx)
+      iex> UnirisElection.DefaultImpl.HeuristicConstraints.validation_number(tx)
       8
   """
   @spec validation_number(Transaction.pending()) :: non_neg_integer()
@@ -127,17 +127,17 @@ defmodule UnirisElection.HeuristicConstraints do
 
   ## Examples
 
-      iex> UnirisElection.HeuristicConstraints.number_replicas(Enum.map(0..99, fn _ ->
+      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..99, fn _ ->
       ...>  %{average_availability: 1}
       ...> end))
       100
 
-      iex> UnirisElection.HeuristicConstraints.number_replicas(Enum.map(0..144, fn _ ->
+      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..144, fn _ ->
       ...>  %{average_availability: 1}
       ...> end))
       143
 
-      iex> UnirisElection.HeuristicConstraints.number_replicas(Enum.map(0..200, fn _ ->
+      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..200, fn _ ->
       ...>  %{average_availability: 1}
       ...> end))
       158

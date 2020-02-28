@@ -5,7 +5,7 @@ defmodule UnirisElection.Application do
 
   def start(_type, _args) do
     children = [
-      {UnirisElection.HypergeometricDistribution,
+      {UnirisElection.DefaultImpl.HypergeometricDistribution,
        [
          executable: Application.app_dir(:uniris_election, "/priv/c/hypergeometric_distribution")
        ]}

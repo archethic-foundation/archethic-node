@@ -6,7 +6,6 @@ defmodule UnirisElection do
   """
 
   alias UnirisChain.Transaction
-  alias UnirisElection.HeuristicConstraints, as: Constraints
 
   @behaviour __MODULE__.Impl
 
@@ -85,10 +84,7 @@ defmodule UnirisElection do
         tx = %Transaction{},
         nodes,
         daily_nonce,
-        constraints \\ [
-          min_geo_patch: fn -> Constraints.min_validation_geo_patch() end,
-          validation_number: fn tx = %Transaction{} -> Constraints.validation_number(tx) end
-        ]
+        constraints
       )
       when is_binary(daily_nonce) and is_list(nodes) do
     impl().validation_nodes(tx, nodes, daily_nonce, constraints)
@@ -150,13 +146,7 @@ defmodule UnirisElection do
         address,
         nodes,
         storage_nonce,
-        constraints \\ [
-          min_geo_patch: fn -> Constraints.min_storage_geo_patch() end,
-          min_geo_patch_avg_availability: fn ->
-            Constraints.min_storage_geo_patch_avg_availability()
-          end,
-          number_replicas: fn nodes -> Constraints.number_replicas(nodes) end
-        ]
+        constraints
       )
       when is_binary(address) and is_binary(storage_nonce) and is_list(nodes) and
              is_list(constraints) do

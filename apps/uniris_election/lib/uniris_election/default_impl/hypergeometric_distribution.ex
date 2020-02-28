@@ -1,16 +1,16 @@
-defmodule UnirisElection.HypergeometricDistribution do
-  @moduledoc """
-  Hypergeometric distribution has the property to garantee than even with 90% of malicious nodes
-  the risk that an honest cannot detect a fraudulent transaction is only 10^-9 or once chance in one billion.
-  (beyond the standards of the acceptable risk for aviation or nuclear)
+defmodule UnirisElection.DefaultImpl.HypergeometricDistribution do
+  @moduledoc false
 
-  Therefore it describes the probability of k success (detection of fraudulent operation) for `n`
-  drawn (verifications) without repetition with a total finite number of nodes `N` and by
-  considering a number N1 of malicious nodes (90%).
+  # Hypergeometric distribution has the property to garantee than even with 90% of malicious nodes
+  # the risk that an honest cannot detect a fraudulent transaction is only 10^-9 or once chance in one billion.
+  # (beyond the standards of the acceptable risk for aviation or nuclear)
 
-  No matter how many nodes are running on the network, a control with a tiny part of the network (less than 200 nodes)
-  ensures the atomicity property of network transactions.
-  """
+  # Therefore it describes the probability of k success (detection of fraudulent operation) for `n`
+  # drawn (verifications) without repetition with a total finite number of nodes `N` and by
+  # considering a number N1 of malicious nodes (90%).
+
+  # No matter how many nodes are running on the network, a control with a tiny part of the network (less than 200 nodes)
+  # ensures the atomicity property of network transactions.
 
   use GenServer
 
@@ -51,13 +51,13 @@ defmodule UnirisElection.HypergeometricDistribution do
 
   ## Examples
 
-      iex> UnirisElection.HypergeometricDistribution.run_simulation(100)
+      iex> UnirisElection.DefaultImpl.HypergeometricDistribution.run_simulation(100)
       84
 
-      iex> UnirisElection.HypergeometricDistribution.run_simulation(1000)
+      iex> UnirisElection.DefaultImpl.HypergeometricDistribution.run_simulation(1000)
       178
 
-      iex> UnirisElection.HypergeometricDistribution.run_simulation(10000)
+      iex> UnirisElection.DefaultImpl.HypergeometricDistribution.run_simulation(10000)
       195
   """
   @spec run_simulation(pos_integer) :: pos_integer
