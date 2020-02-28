@@ -229,4 +229,44 @@ defmodule UnirisValidation.DefaultImplTest do
     assert :ok == Validation.replicate_transaction(validated_tx)
     assert_received :store
   end
+
+  test "mining?/1 should return true when the mining process is started for the given transaction address" do
+    tx = %Transaction{
+      address: :crypto.strong_rand_bytes(32),
+      type: :transfer,
+      timestamp: DateTime.utc_now(),
+      data: %{},
+      previous_public_key: "",
+      previous_signature: "",
+      origin_signature: ""
+    }
+
+    Validation.start_validation(tx, "welcome_node_public_key", [
+          "validator_key1",
+          "validator_key2"
+        ])
+
+
+    assert true = Validation.mining?(tx.address)
+  end
+
+  test "mined_transaction/1 should return the mined transaction for the given address" do
+    tx = %Transaction{
+      address: :crypto.strong_rand_bytes(32),
+      type: :transfer,
+      timestamp: DateTime.utc_now(),
+      data: %{},
+      previous_public_key: "",
+      previous_signature: "",
+      origin_signature: ""
+    }
+
+    Validation.start_validation(tx, "welcome_node_public_key", [
+          "validator_key1",
+          "validator_key2"
+        ])
+
+
+    assert tx = Validation.mined_transaction(tx.address)
+  end
 end

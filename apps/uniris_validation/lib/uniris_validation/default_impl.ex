@@ -188,7 +188,7 @@ defmodule UnirisValidation.DefaultImpl do
   @impl true
   @spec mining?(binary()) :: boolean()
   def mining?(tx_address) do
-    case Registry.lookup(__MODULE__.MiningRegistry, tx_address) do
+    case Registry.lookup(UnirisValidation.MiningRegistry, tx_address) do
       [] ->
         false
       _ ->
