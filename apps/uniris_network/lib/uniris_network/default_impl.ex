@@ -29,7 +29,7 @@ defmodule UnirisNetwork.DefaultImpl do
   end
 
   @impl true
-  @spec origin_public_keys() :: list(binary())
+  @spec origin_public_keys() :: list(UnirisCrypto.key())
   def origin_public_keys() do
     SharedSecretStore.origin_public_keys()
   end
@@ -67,7 +67,7 @@ defmodule UnirisNetwork.DefaultImpl do
   end
 
   @impl true
-  @spec node_info(_ :: 256) :: Node.t()
+  @spec node_info(UnirisCrypto.key()) :: Node.t()
   def node_info(<<public_key::binary-33>>) do
     Node.details(public_key)
   end

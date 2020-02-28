@@ -51,7 +51,7 @@ defmodule UnirisNetwork do
   Retrieve the origin public keys used to determine the proof of work.
   """
   @impl true
-  @spec origin_public_keys() :: list(binary())
+  @spec origin_public_keys() :: list(UnirisCrypto.key())
   def origin_public_keys() do
     impl().origin_public_keys()
   end
@@ -81,8 +81,8 @@ defmodule UnirisNetwork do
   Retreive node information from a public key
   """
   @impl true
-  @spec node_info(binary()) :: Node.t()
-  def node_info(public_key) when is_binary(public_key) do
+  @spec node_info(UnirisCrypto.key()) :: Node.t()
+  def node_info(<<public_key::binary-33>>) do
     impl().node_info(public_key)
   end
 

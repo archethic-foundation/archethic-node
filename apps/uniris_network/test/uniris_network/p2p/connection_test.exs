@@ -42,22 +42,20 @@ defmodule UnirisNetwork.P2P.ConnectionTest do
     {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
     Process.sleep(00)
     assert true == Process.alive?(pid)
-    Process.sleep(500)
-    assert {:connected, %{client_pid: _}} = :sys.get_state(pid)
     assert_receive {:"$gen_cast", :available}
+    assert {:connected, %{client_pid: _}} = :sys.get_state(pid)
+
   end
 
   test "send_message/2 should send a message and get response" do
     {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
     Process.sleep(200)
     assert {:ok, :response} = Connection.send_message("public_key", {pid, :request})
-    Process.sleep(100)
     assert {:connected, %{queue: {[], []}}} = :sys.get_state(pid)
   end
 
   test "send_message/2 should queue messages" do
     {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
-    Process.sleep(200)
     me = self()
 
     spawn(fn ->
@@ -71,8 +69,7 @@ defmodule UnirisNetwork.P2P.ConnectionTest do
 
   test "after error unavailability notification is sent" do
     Registry.register(UnirisNetwork.NodeRegistry, "public_key2", self())
-    {:ok, pid} = Connection.start_link(public_key: "public_key2", ip: {127, 0, 0, 1}, port: 3000)
-    Process.sleep(200)
+    {:ok, _} = Connection.start_link(public_key: "public_key2", ip: {127, 0, 0, 1}, port: 3000)
     assert_receive {:"$gen_cast", :unavailable}
   end
 end

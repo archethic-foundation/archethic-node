@@ -108,7 +108,7 @@ defmodule UnirisNetwork.Node do
   @doc """
   Mark the node as available
   """
-  @spec available(binary()) :: :ok
+  @spec available(node_public_key :: UnirisCrypto.key()) :: :ok
   def available(node_public_key) when is_binary(node_public_key) do
     GenServer.cast(via_tuple(node_public_key), :available)
   end
@@ -116,7 +116,7 @@ defmodule UnirisNetwork.Node do
   @doc """
   Mark the node as unavailable
   """
-  @spec unavailable(binary()) :: :ok
+  @spec unavailable(node_public_key :: UnirisCrypto.key()) :: :ok
   def unavailable(node_public_key) do
     GenServer.cast(via_tuple(node_public_key), :unavailable)
   end
@@ -124,12 +124,12 @@ defmodule UnirisNetwork.Node do
   @doc """
   Get the details of a node
   """
-  @spec details(binary()) :: __MODULE__.t()
+  @spec details(node_public_key :: UnirisCrypto.key()) :: __MODULE__.t()
   def details(node_public_key) when is_binary(node_public_key) do
     GenServer.call(via_tuple(node_public_key), :details)
   end
 
-  @spec details(pid()) :: __MODULE__.t()
+  @spec details(node_process :: pid()) :: __MODULE__.t()
   def details(pid) when is_pid(pid) do
     GenServer.call(pid, :details)
   end
@@ -139,7 +139,7 @@ defmodule UnirisNetwork.Node do
 
   A geo IP lookup will be perform to change the GeoPatch
   """
-  @spec update_basics(binary(), binary(), :inet.ip_address(), :inet.port_number()) :: :ok
+  @spec update_basics(node_first_public_key :: UnirisCrypto.key(), node_last_public_key :: UnirisCrypto.key(), node_ip :: :inet.ip_address(), node_port :: :inet.port_number()) :: :ok
   def update_basics(first_public_key, last_public_key, ip, port) do
     GenServer.cast(via_tuple(first_public_key), {:update_basics, last_public_key, ip, port})
   end
@@ -147,7 +147,7 @@ defmodule UnirisNetwork.Node do
   @doc """
   Update the network patch for a given node
   """
-  @spec update_network_patch(binary(), binary()) :: :ok
+  @spec update_network_patch(node_public_key :: UnirisCrypto.key(), geo_patch :: binary()) :: :ok
   def update_network_patch(public_key, network_patch) do
     [{pid, _}] = Registry.lookup(UnirisNetwork.NodeRegistry, public_key)
     GenServer.cast(pid, {:update_network_patch, network_patch})
@@ -156,7 +156,7 @@ defmodule UnirisNetwork.Node do
   @doc """
   Update the average availability of the node
   """
-  @spec update_average_availability(binary(), float()) :: :ok
+  @spec update_average_availability(node_public_key :: UnirisCrypto.key(), average_availability :: float()) :: :ok
   def update_average_availability(public_key, avg_availability)
       when is_float(avg_availability) and avg_availability >= 0 and
              avg_availability <= 1 do
@@ -172,7 +172,7 @@ defmodule UnirisNetwork.Node do
     send_message(public_key, message)
   end
 
-  @spec send_message(public_key :: binary(), message :: term()) :: :ok
+  @spec send_message(node_public_key :: UnirisCrypto.key(), message :: term()) :: :ok
   def send_message(public_key, msg) do
     GenServer.call(via_tuple(public_key), {:send_message, msg})
   end

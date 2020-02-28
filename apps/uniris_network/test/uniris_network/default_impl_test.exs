@@ -5,6 +5,7 @@ defmodule UnirisNetwork.DefaultImplTest do
   alias UnirisNetwork.NodeSupervisor
   alias UnirisNetwork.ConnectionSupervisor
   alias UnirisCrypto, as: Crypto
+  alias UnirisNetwork.DefaultImpl, as: Network
 
   import Mox
 
@@ -36,18 +37,18 @@ defmodule UnirisNetwork.DefaultImplTest do
     pub = Crypto.generate_random_keypair()
     pub2 = Crypto.generate_random_keypair()
 
-    DynamicSupervisor.start_child(NodeSupervisor, {
+    {:ok, _} = DynamicSupervisor.start_child(NodeSupervisor, {
       Node,
       first_public_key: pub, last_public_key: pub, ip: {88, 100, 200, 10}, port: 3000
     })
 
-    {:ok, pid} =
+    {:ok, _} =
       DynamicSupervisor.start_child(NodeSupervisor, {
         Node,
         first_public_key: pub2, last_public_key: pub2, ip: {77, 22, 19, 202}, port: 3000
       })
 
-    nodes = UnirisNetwork.list_nodes()
+    nodes = Network.list_nodes()
     assert Enum.map(nodes, & &1.last_public_key) == [pub, pub2]
   end
 
@@ -59,7 +60,7 @@ defmodule UnirisNetwork.DefaultImplTest do
       port: 3000
     }
 
-    UnirisNetwork.add_node(node)
+    Network.add_node(node)
     Process.sleep(200)
 
     node_processes = DynamicSupervisor.which_children(NodeSupervisor)
@@ -88,7 +89,7 @@ defmodule UnirisNetwork.DefaultImplTest do
       port: 3000
     }
 
-    :ok = UnirisNetwork.add_node(node)
+    :ok = Network.add_node(node)
     Process.sleep(100)
 
     %Node{
@@ -96,13 +97,13 @@ defmodule UnirisNetwork.DefaultImplTest do
       first_public_key: first_pub,
       ip: ip,
       port: port
-    } = UnirisNetwork.node_info(node.first_public_key)
+    } = Network.node_info(node.first_public_key)
 
     assert last_pub == node.last_public_key
     assert first_pub == node.first_public_key
     assert ip == node.ip
     assert port == node.port
 
-    assert %Node{} = UnirisNetwork.node_info({88, 100, 200, 10})
+    assert %Node{} = Network.node_info({88, 100, 200, 10})
   end
 end

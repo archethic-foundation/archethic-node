@@ -21,8 +21,8 @@ defmodule UnirisNetwork.GeoPatch do
     {:reply, "000", state}
   end
 
-  @spec from_ip(:inet.ip_address()) :: UnirisNetwork.Node.patch()
-  def from_ip(ip) do
+  @spec from_ip(:inet.ip_address()) :: binary()
+  def from_ip({_, _, _, _} = ip) do
     GenServer.call(__MODULE__, {:get_patch_from_ip, ip})
   end
 end

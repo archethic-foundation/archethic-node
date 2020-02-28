@@ -18,7 +18,7 @@ defmodule UnirisNetwork.DefaultImpl.SharedSecretStore.ETSImpl do
   end
 
   @impl true
-  @spec origin_public_keys() :: list(binary())
+  @spec origin_public_keys() :: list(UnirisCrypto.key())
   def origin_public_keys() do
     [{_, keys}] = :ets.lookup(:shared_secrets, :origin_public_keys)
     keys
@@ -31,7 +31,7 @@ defmodule UnirisNetwork.DefaultImpl.SharedSecretStore.ETSImpl do
   end
 
   @impl true
-  @spec add_origin_public_key(<<_::264>>) :: :ok
+  @spec add_origin_public_key(UnirisCrypto.key()) :: :ok
   def add_origin_public_key(<<public_key::binary-33>>) do
     :ets.insert(:shared_secrets, {:origin_public_keys, origin_public_keys() ++ [public_key]})
   end

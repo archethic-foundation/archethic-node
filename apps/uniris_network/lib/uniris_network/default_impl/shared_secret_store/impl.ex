@@ -5,9 +5,9 @@ defmodule UnirisNetwork.DefaultImpl.SharedSecretStore.Impl do
 
   @callback daily_nonce() :: binary()
 
-  @callback origin_public_keys() :: binary()
+  @callback origin_public_keys() :: list(UnirisCrypto.key())
 
   @callback set_daily_nonce(binary()) :: :ok
 
-  @callback add_origin_public_key(binary()) :: :ok
+  @callback add_origin_public_key(UnirisCrypto.key()) :: :ok
 end

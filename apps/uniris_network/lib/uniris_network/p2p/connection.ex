@@ -18,7 +18,7 @@ defmodule UnirisNetwork.P2P.Connection do
     }
   end
 
-  @spec start_link(public_key: binary(), ip: :inet.ip_address(), port: :inet.port_number()) ::
+  @spec start_link(public_key: UnirisCrypto.key(), ip: :inet.ip_address(), port: :inet.port_number()) ::
           {:ok, pid()}
   def start_link(opts \\ []) do
     public_key = Keyword.get(opts, :public_key)
@@ -92,7 +92,7 @@ defmodule UnirisNetwork.P2P.Connection do
     end
   end
 
-  @spec send_message(binary(), term()) :: term()
+  @spec send_message(node_public_key :: UnirisCrypto.key(), message :: term()) :: response :: term()
   def send_message(public_key, msg) do
     :gen_statem.call(via_tuple(public_key), {:send_message, msg})
   end
