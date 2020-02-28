@@ -1,3 +1,3 @@
 import Mix.Config
 
-config :uniris_p2p, :port, 3000
+config :uniris_p2p, :port, 3002

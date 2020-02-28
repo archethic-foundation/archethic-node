@@ -1,27 +1,39 @@
 defmodule UnirisP2P do
   @moduledoc """
-  Interface for P2P node communication responsible to spawn process for each P2P client
+  Interface for P2P node communication responsible to spawn process for each P2P client and communicate with
+
+  Curent implementation using :gen_tcp to keep long living connection and monitor any flews
   """
 
-  alias __MODULE__.Client
+  @behaviour UnirisNetwork.P2P.ClientImpl
 
   @doc """
-  Establishes a connection to remote node
+  Spawn a monitored connection to remote node
+
+  Using an active P2P client such as GenServer, it receives messages
+  from the remote node (ie. data response, connection closed, miscellanous errors) and notify the parent (the one which spawn the process) about all these messages
   """
-  @spec connect(:inet.ip_address(), :inet.port_number(), binary()) :: :ok
-  def connect(ip, port, public_key) do
-    Client.connect(ip, port, public_key, self())
+  @impl true
+  @spec start_link(
+          ip_address :: :inet.ip_address(),
+          port :: :inet.port_number(),
+          node_public_key :: UnirisCrypto.key(),
+          from :: pid()
+        ) :: {:ok, pid()}
+  def start_link(ip, port, public_key, from) do
+    client_impl().start_link(ip, port, public_key, from)
   end
 
   @doc """
-  Send asynchronously a message to a remote node
+  Send asynchronously a message to a remote node by encoding the message and decoding the response and notify it to the process owner
   """
-  @spec send(binary(), term()) :: :ok
-  def send(public_key, message) do
-    Client.send_message(public_key, message)
+  @impl true
+  @spec send_message(UnirisCrypto.key(), term()) :: :ok
+  def send_message(public_key, message) do
+    client_impl().send_message(public_key, message)
   end
 
-  defp impl() do
+  defp client_impl() do
     Application.get_env(:uniris_p2p, :client, __MODULE__.TCPClient)
   end
 end
