@@ -23,6 +23,14 @@ defmodule UnirisValidation.DefaultImplTest do
 
   setup :verify_on_exit!
 
+  setup do
+    DynamicSupervisor.which_children(UnirisValidation.MiningSupervisor)
+    |> Enum.each(fn {_, pid, _, _} ->
+      DynamicSupervisor.terminate_child(UnirisValidation.MiningSupervisor, pid)
+    end)
+    
+  end
+
   test "start_validation/1 should start a mining process under the dynamic supervisor" do
     tx = %Transaction{
       address: "",

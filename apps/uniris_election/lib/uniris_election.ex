@@ -84,7 +84,7 @@ defmodule UnirisElection do
         tx = %Transaction{},
         nodes,
         daily_nonce,
-        constraints
+        constraints \\ []
       )
       when is_binary(daily_nonce) and is_list(nodes) do
     impl().validation_nodes(tx, nodes, daily_nonce, constraints)
@@ -146,7 +146,7 @@ defmodule UnirisElection do
         address,
         nodes,
         storage_nonce,
-        constraints
+        constraints \\ []
       )
       when is_binary(address) and is_binary(storage_nonce) and is_list(nodes) and
              is_list(constraints) do
