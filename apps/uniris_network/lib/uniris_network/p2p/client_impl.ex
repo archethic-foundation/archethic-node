@@ -1,4 +1,4 @@
-defmodule UnirisNetwork.P2PClient do
+defmodule UnirisNetwork.P2P.ClientImpl do
   @moduledoc false
 
   @callback start_link(

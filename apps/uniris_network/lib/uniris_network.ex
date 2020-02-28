@@ -3,10 +3,9 @@ defmodule UnirisNetwork do
   Uniris's network supports a supervised P2P communication helpful to determine a local P2P view of the network and node shared secrets
   which handle authorization and access - preventing malicious nodes to validate transaction.
 
-  During the node bootstraping, the node shared secrets and node listing are loading in memory into specific processes
-  from the transaction chain to enable a fast read and processing.
+  During the node bootstraping, the node shared secrets and node listing are loading from the transaction chain to enable a fast read and processing.
 
-  This module provides interface to get the node shared secrets, the network nodes and communicate with them throught P2P requests.
+  This module provides interface to get the node shared secrets, the network nodes information and communicate with them throught P2P requests.
 
   """
 
@@ -83,26 +82,24 @@ defmodule UnirisNetwork do
   """
   @impl true
   @spec node_info(binary()) :: Node.t()
-  def node_info(public_key) do
+  def node_info(public_key) when is_binary(public_key) do
     impl().node_info(public_key)
   end
 
   @doc """
-  Retrieve node public key by IP.
-
-  Helps to make Supervised Connection efficient.
+  Retrieve node information from an IP.
   """
   @impl true
-  @spec node_public_key_by_ip(:inet.ip_address()) :: binary()
-  def node_public_key_by_ip(ip) do
-    impl().node_public_key_by_ip(ip)
+  @spec node_info(:inet.ip_address()) :: Node.t()
+  def node_info(ip = {_, _, _, _}) do
+    impl().node_info(ip)
   end
 
   @doc """
   Send a P2P message to a remote node
   """
   @impl true
-  @spec send_message(Node.t(), term()) :: {:ok, term()}
+  @spec send_message(Node.t(), term()) :: {:ok, data :: term()} | {:error, reason :: atom()}
   def send_message(node = %Node{}, message) do
     impl().send_message(node, message)
   end

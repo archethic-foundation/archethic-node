@@ -2,8 +2,10 @@ defmodule UnirisNetwork.DefaultImpl do
   @moduledoc false
 
   alias UnirisNetwork.Node
+  alias UnirisNetwork.P2P.Connection
   alias UnirisNetwork.NodeRegistry
   alias UnirisNetwork.NodeSupervisor
+  alias UnirisNetwork.ConnectionSupervisor
   alias __MODULE__.SharedSecretStore
 
   @behaviour UnirisNetwork.Impl
@@ -55,18 +57,24 @@ defmodule UnirisNetwork.DefaultImpl do
          first_public_key: first_public_key, last_public_key: last_public_key, ip: ip, port: port}
       )
 
+    {:ok, _} =
+      DynamicSupervisor.start_child(
+        ConnectionSupervisor,
+        {Connection, public_key: first_public_key, ip: ip, port: port}
+      )
+
     :ok
   end
 
   @impl true
-  @spec node_info(binary()) :: Node.t()
-  def node_info(public_key) do
+  @spec node_info(_ :: 256) :: Node.t()
+  def node_info(<<public_key::binary-33>>) do
     Node.details(public_key)
   end
 
   @impl true
-  @spec node_public_key_by_ip(:inet.ip_address()) :: binary()
-  def node_public_key_by_ip(ip) do
+  @spec node_info(:inet.ip_address()) :: Node.t()
+  def node_info({_, _, _, _} = ip) do
     case Registry.lookup(NodeRegistry, ip) do
       [{pid, _}] ->
         Node.details(pid)
@@ -75,7 +83,7 @@ defmodule UnirisNetwork.DefaultImpl do
 
   @impl true
   @spec send_message(Node.t(), term()) :: {:ok, term()}
-  def send_message(node = %Node{}, message) do
+  def send_message(%Node{} = node, message) do
     Node.send_message(node, message)
   end
 end

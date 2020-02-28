@@ -12,10 +12,11 @@ defmodule UnirisNetwork.Application do
     children = [
       {Task.Supervisor, name: UnirisNetwork.TaskSupervisor},
       {Registry, keys: :unique, name: UnirisNetwork.NodeRegistry},
+      {Registry, keys: :unique, name: UnirisNetwork.ConnectionRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: UnirisNetwork.NodeSupervisor},
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisNetwork.ConnectionSupervisor},
       UnirisNetwork.GeoPatch
     ]
-
 
     Supervisor.start_link(children, strategy: :one_for_one, name: UnirisNetwork.Supervisor)
   end

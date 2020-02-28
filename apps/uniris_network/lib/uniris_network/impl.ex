@@ -9,7 +9,6 @@ defmodule UnirisNetwork.Impl do
   @callback origin_public_keys() :: list(binary())
   @callback list_nodes() :: list(Node.t())
   @callback add_node(Node.t()) :: :ok
-  @callback node_info(binary()) :: Node.t()
-  @callback node_public_key_by_ip(:inet.ip_address()) :: binary()
+  @callback node_info(binary() | :inet.ip_address()) :: Node.t()
   @callback send_message(Node.t(), term()) :: {:ok, term()}
 end

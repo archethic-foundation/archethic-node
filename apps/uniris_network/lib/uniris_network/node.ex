@@ -11,7 +11,7 @@ defmodule UnirisNetwork.Node do
 
   use GenServer
 
-  alias __MODULE__.SupervisedConnection, as: Connection
+  alias UnirisNetwork.P2P.Connection
   alias UnirisNetwork.NodeRegistry
 
   @enforce_keys [
@@ -67,35 +67,7 @@ defmodule UnirisNetwork.Node do
       availability: 0
     }
 
-    {:ok, pid} = Connection.start_link(first_public_key, ip, port)
-    Process.monitor(pid)
-
-    {:ok, Map.put(data, :connection_pid, pid)}
-  end
-
-  def init(data = %__MODULE__{}) do
-    {:ok, pid} = Connection.start_link(data.first_public_key, data.ip, data.port)
-    Process.monitor(pid)
-
-    {:ok, Map.put(data, :connection_pid, pid)}
-  end
-
-  def handle_info(
-        {:DOWN, ref, :process, _},
-        state = %{
-          connection_pid: connection_pid,
-          first_public_key: first_public_key,
-          ip: ip,
-          port: port
-        }
-      )
-      when ref == connection_pid do
-    {:ok, pid} = Connection.start_link(first_public_key, ip, port)
-
-    {:noreply,
-     state
-     |> Map.put(:availability, 0)
-     |> Map.put(:connection_pid, pid)}
+    {:ok, data}
   end
 
   def handle_cast(:available, state) do
@@ -124,8 +96,8 @@ defmodule UnirisNetwork.Node do
     {:noreply, Map.put(state, :average_availability, avg_availability)}
   end
 
-  def handle_call({:send_message, msg}, _from, state = %{connection_pid: connection_pid}) do
-    response = Connection.send_message(connection_pid, msg)
+  def handle_call({:send_message, msg}, _from, state = %{first_public_key: public_key}) do
+    response = Connection.send_message(public_key, msg)
     {:reply, response, state}
   end
 

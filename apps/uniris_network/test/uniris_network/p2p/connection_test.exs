@@ -1,7 +1,7 @@
-defmodule UnirisNetwork.Node.SupervisedConnectionTest do
+defmodule UnirisNetwork.P2P.ConnectionTest do
   use ExUnit.Case
 
-  alias UnirisNetwork.Node.SupervisedConnection, as: Connection
+  alias UnirisNetwork.P2P.Connection
 
   import Mox
 
@@ -37,41 +37,42 @@ defmodule UnirisNetwork.Node.SupervisedConnectionTest do
     :ok
   end
 
-  test "start_link/3 should create a new state machine" do
+  test "start_link/3 should create a new connection and reach the connected state" do
     Registry.register(UnirisNetwork.NodeRegistry, "public_key", self())
-    {:ok, pid} = Connection.start_link("public_key", "127.0.0.1", 3000)
-    Process.sleep(400)
+    {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
+    Process.sleep(00)
     assert true == Process.alive?(pid)
+    Process.sleep(500)
     assert {:connected, %{client_pid: _}} = :sys.get_state(pid)
     assert_receive {:"$gen_cast", :available}
   end
 
   test "send_message/2 should send a message and get response" do
-    {:ok, pid} = Connection.start_link("public_key", "127.0.0.1", 3000)
+    {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
     Process.sleep(200)
-    assert {:ok, :response} = Connection.send_message(pid, {pid, :request})
+    assert {:ok, :response} = Connection.send_message("public_key", {pid, :request})
+    Process.sleep(100)
     assert {:connected, %{queue: {[], []}}} = :sys.get_state(pid)
   end
 
   test "send_message/2 should queue messages" do
-    {:ok, pid} = Connection.start_link("public_key", "127.0.0.1", 3000)
+    {:ok, pid} = Connection.start_link(public_key: "public_key", ip: {127, 0, 0, 1}, port: 3000)
     Process.sleep(200)
     me = self()
 
     spawn(fn ->
-      {:ok, :response} = Connection.send_message(pid, {pid, :long_request})
+      {:ok, :response} = Connection.send_message("public_key", {pid, :long_request})
       send(me, :response)
     end)
 
-    {:ok, :response} = Connection.send_message(pid, {pid, :request})
+    {:ok, :response} = Connection.send_message("public_key", {pid, :request})
     assert_receive :response, 1000
   end
 
   test "after error unavailability notification is sent" do
     Registry.register(UnirisNetwork.NodeRegistry, "public_key2", self())
-    {:ok, _} = Connection.start_link("public_key2", "127.0.0.1", 3000)
+    {:ok, pid} = Connection.start_link(public_key: "public_key2", ip: {127, 0, 0, 1}, port: 3000)
     Process.sleep(200)
     assert_receive {:"$gen_cast", :unavailable}
   end
-  
 end
