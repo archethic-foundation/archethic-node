@@ -1,4 +1,4 @@
-defmodule UnirisValidation.ProofOfWork do
+defmodule UnirisValidation.DefaultImpl.ProofOfWork do
   @moduledoc false
 
   alias UnirisChain.Transaction

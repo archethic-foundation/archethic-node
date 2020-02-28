@@ -1,4 +1,4 @@
-defmodule UnirisValidation.ProofOfIntegrity do
+defmodule UnirisValidation.DefaultImpl.ProofOfIntegrity do
   @moduledoc false
 
   alias UnirisChain.Transaction
@@ -29,7 +29,7 @@ defmodule UnirisValidation.ProofOfIntegrity do
      ...>   proof_of_integrity: "B83DAC77B813006F94CEEF73565BD211E327CB8D1C23A0A1390A4AE180991D38",
      ...>   signature: ""
      ...> })]
-     iex> UnirisValidation.ProofOfIntegrity.from_chain([tx | previous_chain])
+     iex> UnirisValidation.DefaultImpl.ProofOfIntegrity.from_chain([tx | previous_chain])
      <<0, 249, 178, 39, 230, 117, 84, 68, 85, 148, 134, 163, 72, 186, 98,
      216, 60, 205, 65, 15, 190, 58, 161, 61, 110, 24, 180, 5, 105, 151,
      75, 99, 60>>

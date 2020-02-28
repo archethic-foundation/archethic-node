@@ -1,11 +1,11 @@
-defmodule UnirisValidation.Mining do
+defmodule UnirisValidation.DefaultImpl.Mining do
   @moduledoc false
 
-  alias UnirisValidation.Replication
-  alias UnirisValidation.BinarySequence
-  alias UnirisValidation.Stamp
-  alias UnirisValidation.ProofOfWork
-  alias UnirisValidation.ContextBuilding
+  alias UnirisValidation.DefaultImpl.Replication
+  alias UnirisValidation.DefaultImpl.BinarySequence
+  alias UnirisValidation.DefaultImpl.Stamp
+  alias UnirisValidation.DefaultImpl.ProofOfWork
+  alias UnirisValidation.DefaultImpl.ContextBuilding
   alias UnirisValidation.TaskSupervisor
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
@@ -38,21 +38,19 @@ defmodule UnirisValidation.Mining do
       validation_node_public_keys: validation_node_public_keys
     }
 
+    Logger.info("Mining starting for #{tx.address |> Base.encode16()}")
+
     {:ok, :started, data, {:next_event, :internal, {:precheck, validation_node_public_keys}}}
   end
 
   def callback_mode do
-    [:state_functions, :state_enter]
+    [:handle_event_function]
   end
 
-  def started(:enter, _, _data = %{transaction: tx}) do
-    Logger.info("Mining starting for #{tx.address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def started(
+  def handle_event(
         :internal,
         {:precheck, validation_node_public_keys},
+        :started,
         data = %{transaction: tx}
       ) do
     if Transaction.valid_pending_transaction?(tx) do
@@ -72,16 +70,20 @@ defmodule UnirisValidation.Mining do
 
         {:keep_state, new_data, {:next_event, :internal, :start_mining}}
       else
+        Logger.error("invalid welcome node election #{tx.address |> Base.encode16()}")
+
         {:next_state, :invalid_welcome_node_election, data}
       end
     else
+      Logger.error("invalid pending transaction #{tx.address |> Base.encode16()}")
       {:next_state, :invalid_pending_transaction, data}
     end
   end
 
-  def started(
+  def handle_event(
         :internal,
         :start_mining,
+        :started,
         data = %{
           transaction: tx,
           validation_nodes: [%Node{last_public_key: coordinator_public_key} | _]
@@ -107,38 +109,18 @@ defmodule UnirisValidation.Mining do
     # Execute the Proof of work if coordinator
     if Crypto.last_node_public_key() == coordinator_public_key do
       pow_task = Task.Supervisor.async(TaskSupervisor, ProofOfWork, :run, [tx])
+      Logger.info("Coordinator work started for #{tx.address |> Base.encode16()}")
       {:next_state, :coordinator, Map.put(new_data, :pow_task, pow_task)}
     else
+      Logger.info("Cross validation work started for #{tx.address |> Base.encode16()}")
       {:next_state, :cross_validator, new_data}
     end
   end
 
-  def invalid_pending_transaction(
-        :enter,
-        _,
-        _data = %{transaction: %Transaction{address: tx_address}}
-      ) do
-    Logger.error("invalid pending transaction #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def invalid_welcome_node_election(
-        :enter,
-        _,
-        _data = %{transaction: %Transaction{address: tx_address}}
-      ) do
-    Logger.error("invalid welcome node election #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def cross_validator(:enter, _, _data = %{transaction: %Transaction{address: tx_address}}) do
-    Logger.info("Cross validation work started for #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def cross_validator(
+  def handle_event(
         :info,
         {:DOWN, ref, _, _, _reason},
+        _,
         _data = %{
           transaction: %Transaction{address: tx_address},
           context_building_task: %Task{ref: t_ref}
@@ -149,9 +131,10 @@ defmodule UnirisValidation.Mining do
     :keep_state_and_data
   end
 
-  def cross_validator(
+  def handle_event(
         :info,
         {ref, result},
+        state,
         data = %{
           transaction: %Transaction{address: tx_address},
           context_building_task: %Task{ref: t_ref},
@@ -169,22 +152,27 @@ defmodule UnirisValidation.Mining do
           |> Map.put(:unspent_outputs, unspent_outputs)
           |> Map.put(:previous_storage_nodes, nodes)
 
-        # Notify the coordinator about the context building + P2P view about
-        # the cross validation nodes and next storage nodes
-        Task.Supervisor.start_child(TaskSupervisor, fn ->
-          Network.send_message(
-            coordinator,
-            {:add_context, tx_address, nodes, validation_nodes_view, storage_nodes_view}
-          )
-        end)
+        if state == :cross_validator do
+          # Notify the coordinator about the context building + P2P view about
+          # the cross validation nodes and next storage nodes
+          Task.Supervisor.start_child(TaskSupervisor, fn ->
+            Network.send_message(
+              coordinator,
+              {:add_context, tx_address, nodes, validation_nodes_view, storage_nodes_view}
+            )
+          end)
 
-        {:keep_state, new_data}
+          {:keep_state, new_data}
+        else
+          {:keep_state, new_data}
+        end
     end
   end
 
-  def cross_validator(
+  def handle_event(
         :cast,
         {:cross_validate, stamp = %ValidationStamp{}},
+        :cross_validator,
         data = %{
           transaction: tx = %Transaction{address: tx_address},
           previous_chain: previous_chain,
@@ -225,12 +213,14 @@ defmodule UnirisValidation.Mining do
       ])
       |> Map.put(:validation_stamp, stamp)
 
+    Logger.info("End cross validation for #{tx_address |> Base.encode16()}")
     {:next_state, :waiting_cross_validation_stamps, new_data}
   end
 
-  def cross_validator(
+  def handle_event(
         :cast,
         {:set_replication_tree, binary_tree},
+        :cross_validator,
         data = %{
           validation_nodes: validation_nodes,
           storage_nodes: storage_nodes
@@ -258,53 +248,30 @@ defmodule UnirisValidation.Mining do
     {:keep_state, Map.put(data, :replication_nodes, replication_nodes)}
   end
 
-  def coordinator(:enter, _, _data = %{transaction: %Transaction{address: tx_address}}) do
-    Logger.info("Coordinator work started for #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def coordinator(
+  def handle_event(
         :info,
         {:DOWN, ref, _, _, _reason},
+        :coordinator,
         _data = %{
           transaction: tx,
-          context_building_task: %Task{ref: context_ref},
           pow_task: %Task{ref: pow_ref}
         }
-      ) do
-    case ref do
-      ref when ref == context_ref ->
-        Logger.info("End of context building for #{tx.address |> Base.encode16()}")
-
-      ref when ref == pow_ref ->
-        Logger.info("End of proof of work for #{tx.address |> Base.encode16()}")
-    end
+      )
+      when pow_ref == ref do
+    Logger.info("End of proof of work for #{tx.address |> Base.encode16()}")
 
     :keep_state_and_data
   end
 
-  def coordinator(:info, {ref, result}, data = %{context_building_task: %Task{ref: t_ref}})
-      when ref == t_ref do
-    case result do
-      {:ok, chain, unspent_outputs, nodes} ->
-        new_data =
-          data
-          |> Map.put(:previous_chain, chain)
-          |> Map.put(:unspent_outputs, unspent_outputs)
-          |> Map.put(:previous_storage_nodes, nodes)
-
-        {:keep_state, new_data}
-    end
-  end
-
-  def coordinator(:info, {ref, result}, data = %{pow_task: %Task{ref: t_ref}})
+  def handle_event(:info, {ref, result}, :coordinator, data = %{pow_task: %Task{ref: t_ref}})
       when t_ref == ref do
     {:keep_state, Map.put(data, :proof_of_work, result)}
   end
 
-  def coordinator(
+  def handle_event(
         :cast,
         {:add_context, from, previous_storage_nodes, validation_nodes_view, storage_nodes_view},
+        :coordinator,
         data = %{
           validation_nodes: [_ | cross_validation_nodes]
         }
@@ -332,9 +299,10 @@ defmodule UnirisValidation.Mining do
     end
   end
 
-  def coordinator(
+  def handle_event(
         :internal,
         :create_validation_stamp,
+        :coordinator,
         data = %{
           transaction: tx = %Transaction{address: tx_address},
           unspent_outputs: unspent_outputs,
@@ -375,32 +343,17 @@ defmodule UnirisValidation.Mining do
     end)
     |> Stream.run()
 
+    Logger.info("End validation stamp creation for #{tx_address |> Base.encode16()}")
+
     {:next_state, :waiting_cross_validation_stamps,
      data |> Map.put(:stamp, stamp) |> Map.put(:replication_tree, replication_tree)}
   end
 
-  def waiting_cross_validation_stamps(
-        :enter,
-        :coordinator,
-        _data = %{transaction: %Transaction{address: tx_address}}
-      ) do
-    Logger.info("End validation stamp creation for #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def waiting_cross_validation_stamps(
-        :enter,
-        :cross_validator,
-        _data = %{transaction: %Transaction{address: tx_address}}
-      ) do
-    Logger.info("End cross validation for #{tx_address |> Base.encode16()}")
-    :keep_state_and_data
-  end
-
-  def waiting_cross_validation_stamps(
+  def handle_event(
         :cast,
         {:add_cross_validation_stamp, cross_validation_stamp = {_signature, _inconsistencies},
          from},
+        :waiting_cross_validation_stamps,
         data = %{validation_stamp: stamp, validation_nodes: [_ | cross_validation_nodes]}
       ) do
     if Stamp.valid_cross_validation_stamp?(cross_validation_stamp, stamp, from) do
@@ -416,10 +369,11 @@ defmodule UnirisValidation.Mining do
         |> length
         |> case do
           1 ->
-            {:next_state, :replication, new_data}
+            {:next_state, :replication, new_data, {:next_event, :internal, :send_transaction}}
 
           _ ->
-            {:next_state, :atomic_commitment_not_reach, new_data}
+            {:next_state, :atomic_commitment_not_reach, new_data,
+             {:next_event, :internal, :init_malicious_detection}}
         end
       else
         {:keep_state, new_data}
@@ -429,9 +383,10 @@ defmodule UnirisValidation.Mining do
     end
   end
 
-  def atomic_commitment_not_reach(
-        :enter,
-        _,
+  def handle_event(
+        :internal,
+        :init_malicious_detection,
+        :atomic_commitment_not_reach,
         _data = %{transaction: %Transaction{address: tx_address}}
       ) do
     Logger.error("Atomic commitment not reach for #{tx_address |> Base.encode16()}")
@@ -440,7 +395,7 @@ defmodule UnirisValidation.Mining do
     :keep_state_and_data
   end
 
-  def replication(:enter, _, %{
+  def handle_event(:internal, :send_transaction, :replication, %{
         transaction: tx,
         validation_stamp: stamp,
         cross_validation_stamps: cross_validation_stamps,
@@ -459,8 +414,16 @@ defmodule UnirisValidation.Mining do
     :keep_state_and_data
   end
 
-  def replication(:cast, {:add_cross_validation_stamp, _, _}, _data) do
+  def handle_event(:cast, {:add_cross_validation_stamp, _, _}, :replication, _data) do
     :keep_state_and_data
+  end
+
+  def handle_event(:cast, {:add_cross_validation_stamp, _, _}, _, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event({:call, from}, :transaction, _, %{transaction: tx}) do
+    {:keep_state_and_data, {:reply, from, tx}}
   end
 
   @spec add_cross_validation_stamp(
@@ -503,6 +466,11 @@ defmodule UnirisValidation.Mining do
   @spec cross_validate(binary(), ValidationStamp.t()) :: :ok
   def cross_validate(tx_address, stamp = %ValidationStamp{}) do
     :gen_statem.cast(via_tuple(tx_address), {:cross_validate, stamp})
+  end
+
+  @spec get_transaction(binary()) :: Transaction.pending()
+  def get_transaction(tx_address) do
+    :gen_statem.cast(via_tuple(tx_address), :transaction)
   end
 
   defp via_tuple(tx_address) do

@@ -1,4 +1,4 @@
-defmodule UnirisValidation.UTXO do
+defmodule UnirisValidation.DefaultImpl.UTXO do
   @moduledoc false
 
   alias UnirisChain.Transaction
@@ -40,7 +40,7 @@ defmodule UnirisValidation.UTXO do
      ...>   previous_signature: "",
      ...>   origin_signature: ""
      ...> }]
-     ...> UnirisValidation.UTXO.next_ledger(tx, 1.0, %UnirisChain.Transaction.ValidationStamp.LedgerMovements{}, unspent_output_transactions)
+     ...> UnirisValidation.DefaultImpl.UTXO.next_ledger(tx, 1.0, %UnirisChain.Transaction.ValidationStamp.LedgerMovements{}, unspent_output_transactions)
      {
        :ok,
        %UnirisChain.Transaction.ValidationStamp.LedgerMovements{

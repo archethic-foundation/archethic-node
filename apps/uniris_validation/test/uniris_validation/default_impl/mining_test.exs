@@ -1,4 +1,4 @@
-defmodule UnirisValidation.Mining.Test do
+defmodule UnirisValidation.DefaultImpl.Mining.Test do
   use ExUnit.Case
 
   alias UnirisChain.Transaction
@@ -6,8 +6,8 @@ defmodule UnirisValidation.Mining.Test do
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
-  alias UnirisValidation.Mining
-  alias UnirisValidation.BinarySequence
+  alias UnirisValidation.DefaultImpl.Mining
+  alias UnirisValidation.DefaultImpl.BinarySequence
   alias UnirisCrypto, as: Crypto
   alias UnirisNetwork.Node
 
@@ -157,8 +157,7 @@ defmodule UnirisValidation.Mining.Test do
           network_patch: "FAA",
           ip: "127.0.0.1",
           port: 3000,
-          average_availability: 1,
-          availability: 1
+          average_availability: 1
         }
       ]
     end)
@@ -196,7 +195,7 @@ defmodule UnirisValidation.Mining.Test do
     process =
       Task.Supervisor.children(UnirisValidation.TaskSupervisor) |> Enum.map(&Process.info(&1))
 
-    assert {UnirisValidation.ContextBuilding, :with_confirmation, _} =
+    assert {UnirisValidation.DefaultImpl.ContextBuilding, :with_confirmation, _} =
              process |> List.first() |> get_in([:dictionary, :"$initial_call"])
   end
 
@@ -271,8 +270,7 @@ defmodule UnirisValidation.Mining.Test do
           network_patch: "FAA",
           ip: "127.0.0.1",
           port: 3000,
-          average_availability: 1,
-          availability: 1
+          average_availability: 1
         }
       ]
     end)
@@ -290,10 +288,10 @@ defmodule UnirisValidation.Mining.Test do
     processes =
       Task.Supervisor.children(UnirisValidation.TaskSupervisor) |> Enum.map(&Process.info(&1))
 
-    assert {UnirisValidation.ContextBuilding, :with_confirmation, _} =
+    assert {UnirisValidation.DefaultImpl.ContextBuilding, :with_confirmation, _} =
              processes |> List.first() |> get_in([:dictionary, :"$initial_call"])
 
-    assert {UnirisValidation.ProofOfWork, :run, _} =
+    assert {UnirisValidation.DefaultImpl.ProofOfWork, :run, _} =
              processes |> Enum.at(1) |> get_in([:dictionary, :"$initial_call"])
   end
 
@@ -871,8 +869,6 @@ defmodule UnirisValidation.Mining.Test do
         }
       ]
     end)
-
-    me = self()
 
     {:ok, pid} =
       Mining.start_link(

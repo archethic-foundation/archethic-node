@@ -1,4 +1,4 @@
-defmodule UnirisValidation.Fee do
+defmodule UnirisValidation.DefaultImpl.Fee do
   @moduledoc false
 
   alias UnirisChain.Transaction

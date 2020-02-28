@@ -1,4 +1,4 @@
-defmodule UnirisValidation.ContextBuilding do
+defmodule UnirisValidation.DefaultImpl.ContextBuilding do
   @moduledoc false
 
   alias UnirisChain.Transaction

@@ -1,4 +1,4 @@
-defmodule UnirisValidation.BinarySequence do
+defmodule UnirisValidation.DefaultImpl.BinarySequence do
   @moduledoc false
 
   alias UnirisNetwork.Node
@@ -10,7 +10,7 @@ defmodule UnirisValidation.BinarySequence do
 
   ## Examples
 
-     iex> UnirisValidation.BinarySequence.from_subset(
+     iex> UnirisValidation.DefaultImpl.BinarySequence.from_subset(
      ...> [%{last_public_key: "key1"}, %{last_public_key: "key2"}, %{last_public_key: "key3"}],
      ...> [%{last_public_key: "key1"}, %{last_public_key: "key3"}])
      <<1::1, 0::1, 1::1>>
@@ -36,7 +36,7 @@ defmodule UnirisValidation.BinarySequence do
 
   ## Examples
 
-    iex> UnirisValidation.BinarySequence.from_availability([
+    iex> UnirisValidation.DefaultImpl.BinarySequence.from_availability([
     ...> %{availability: 1}, %{availability: 0}, %{availability: 1}
     ...> ])
     <<1::1, 0::1, 1::1>>
@@ -61,7 +61,7 @@ defmodule UnirisValidation.BinarySequence do
 
   ##  Examples
 
-     iex> UnirisValidation.BinarySequence.aggregate(
+     iex> UnirisValidation.DefaultImpl.BinarySequence.aggregate(
      ...> <<1::1, 0::1, 1::1, 1::1>>,
      ...> <<0::1, 0::1, 1::1, 0::1>>
      ...>)
@@ -90,10 +90,10 @@ defmodule UnirisValidation.BinarySequence do
 
   ## Examples
 
-    iex> UnirisValidation.BinarySequence.extract(<<1::1, 0::1, 1::1>>)
+    iex> UnirisValidation.DefaultImpl.BinarySequence.extract(<<1::1, 0::1, 1::1>>)
     [1, 0, 1]
 
-    iex> UnirisValidation.BinarySequence.extract(<<5::size(3)>>)
+    iex> UnirisValidation.DefaultImpl.BinarySequence.extract(<<5::size(3)>>)
     [1, 0, 1]
   """
   @spec extract(bitstring()) :: list()

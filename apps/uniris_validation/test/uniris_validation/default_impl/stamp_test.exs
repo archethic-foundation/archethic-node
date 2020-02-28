@@ -1,6 +1,6 @@
-defmodule UnirisValidation.StampTest do
+defmodule UnirisValidation.DefaultImpl.StampTest do
   use ExUnit.Case
-  doctest UnirisValidation.Stamp
+  doctest UnirisValidation.DefaultImpl.Stamp
 
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
@@ -9,8 +9,8 @@ defmodule UnirisValidation.StampTest do
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
 
   alias UnirisCrypto, as: Crypto
-  alias UnirisValidation.Stamp
-  alias UnirisValidation.Reward
+  alias UnirisValidation.DefaultImpl.Stamp
+  alias UnirisValidation.DefaultImpl.Reward
 
   import Mox
 

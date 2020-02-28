@@ -1,9 +1,9 @@
-defmodule UnirisValidation.ProofOfWorkTest do
+defmodule UnirisValidation.DefaultImpl.ProofOfWorkTest do
   use ExUnit.Case
 
   alias UnirisChain.Transaction
   alias UnirisCrypto, as: Crypto
-  alias UnirisValidation.ProofOfWork, as: POW
+  alias UnirisValidation.DefaultImpl.ProofOfWork, as: POW
 
   import Mox
 

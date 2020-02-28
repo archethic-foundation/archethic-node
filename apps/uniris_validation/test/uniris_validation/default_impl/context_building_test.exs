@@ -1,4 +1,4 @@
-defmodule UnirisValidation.ContextBuildingTest do
+defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
   use ExUnit.Case
 
   alias UnirisChain.Transaction
@@ -6,7 +6,7 @@ defmodule UnirisValidation.ContextBuildingTest do
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
-  alias UnirisValidation.ContextBuilding
+  alias UnirisValidation.DefaultImpl.ContextBuilding
   alias UnirisNetwork.Node
   alias UnirisCrypto, as: Crypto
 

@@ -1,7 +1,7 @@
-defmodule UnirisValidation.Replication do
+defmodule UnirisValidation.DefaultImpl.Replication do
   @moduledoc false
 
-  alias UnirisValidation.BinarySequence
+  alias UnirisValidation.DefaultImpl.BinarySequence
 
   @doc ~S"""
   Define a tree from a list of storage nodes and validation nodes by grouping
@@ -81,7 +81,7 @@ defmodule UnirisValidation.Replication do
      ...> %{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
      ...> %{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
      ...> ]
-     iex> UnirisValidation.Replication.build_tree(validation_nodes, storage_nodes)
+     iex> UnirisValidation.DefaultImpl.Replication.build_tree(validation_nodes, storage_nodes)
      %{
        "key_v1" => [
          %{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
@@ -167,8 +167,8 @@ defmodule UnirisValidation.Replication do
      ...> %{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
      ...> %{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
      ...> ]
-     iex> tree = UnirisValidation.Replication.build_binary_tree(validation_nodes, storage_nodes)
-     iex> Enum.map(tree, &(UnirisValidation.BinarySequence.extract(&1)))
+     iex> tree = UnirisValidation.DefaultImpl.Replication.build_binary_tree(validation_nodes, storage_nodes)
+     iex> Enum.map(tree, &(UnirisValidation.DefaultImpl.BinarySequence.extract(&1)))
      [
        [0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],

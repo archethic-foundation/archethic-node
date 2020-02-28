@@ -1,4 +1,4 @@
-defmodule UnirisValidation.Reward do
+defmodule UnirisValidation.DefaultImpl.Reward do
   @moduledoc false
 
   @storage_node_rate 0.5
@@ -18,7 +18,7 @@ defmodule UnirisValidation.Reward do
 
   ## Examples
 
-    iex> UnirisValidation.Reward.distribute_fee(
+    iex> UnirisValidation.DefaultImpl.Reward.distribute_fee(
     ...> 0.5,
     ...> "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D",
     ...> "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD",

@@ -1,4 +1,4 @@
-defmodule UnirisValidation.Test do
+defmodule UnirisValidation.DefaultImplTest do
   use ExUnit.Case
 
   alias UnirisChain.Transaction
@@ -11,11 +11,13 @@ defmodule UnirisValidation.Test do
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
   alias UnirisCrypto, as: Crypto
-  alias UnirisValidation.ProofOfWork
-  alias UnirisValidation.ProofOfIntegrity
-  alias UnirisValidation.Fee
-  alias UnirisValidation.Reward
+  alias UnirisValidation.DefaultImpl.ProofOfWork
+  alias UnirisValidation.DefaultImpl.ProofOfIntegrity
+  alias UnirisValidation.DefaultImpl.Fee
+  alias UnirisValidation.DefaultImpl.Reward
   alias UnirisNetwork.Node
+
+  alias UnirisValidation.DefaultImpl, as: Validation
 
   import Mox
 
@@ -32,21 +34,20 @@ defmodule UnirisValidation.Test do
       origin_signature: ""
     }
 
-    UnirisValidation.start_validation(tx, "welcome_node_public_key", [
+    Validation.start_validation(tx, "welcome_node_public_key", [
       "validator_key1",
       "validator_key2"
     ])
 
     assert 1 == DynamicSupervisor.count_children(UnirisValidation.MiningSupervisor).active
 
-    [{_, pid, :worker, [UnirisValidation.Mining]}] =
+    [{_, pid, :worker, [UnirisValidation.DefaultImpl.Mining]}] =
       DynamicSupervisor.which_children(UnirisValidation.MiningSupervisor)
 
     assert Process.alive?(pid)
   end
 
   test "replicate_transaction/1 should verify the transaction and store it if ok" do
-    pub = Crypto.generate_random_keypair(persistence: true)
 
     origin_keyspairs = [
       {<<0, 195, 84, 216, 212, 203, 243, 221, 69, 12, 73, 56, 72, 36, 182, 126, 169, 181, 57, 19,
@@ -225,7 +226,7 @@ defmodule UnirisValidation.Test do
     sig = Crypto.sign(stamp, with: :node, as: :last)
     validated_tx = %{tx | validation_stamp: stamp, cross_validation_stamps: [{sig, [], pub}]}
 
-    assert :ok == UnirisValidation.replicate_transaction(validated_tx)
+    assert :ok == Validation.replicate_transaction(validated_tx)
     assert_received :store
   end
 end

@@ -1,15 +1,15 @@
-defmodule UnirisValidation.Stamp do
+defmodule UnirisValidation.DefaultImpl.Stamp do
   @moduledoc false
 
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
-  alias UnirisValidation.Reward
-  alias UnirisValidation.Fee
-  alias UnirisValidation.ProofOfIntegrity
-  alias UnirisValidation.ProofOfWork
-  alias UnirisValidation.UTXO
+  alias UnirisValidation.DefaultImpl.Reward
+  alias UnirisValidation.DefaultImpl.Fee
+  alias UnirisValidation.DefaultImpl.ProofOfIntegrity
+  alias UnirisValidation.DefaultImpl.ProofOfWork
+  alias UnirisValidation.DefaultImpl.UTXO
   alias UnirisCrypto, as: Crypto
   alias UnirisElection, as: Election
   alias UnirisNetwork, as: Network
@@ -72,7 +72,7 @@ defmodule UnirisValidation.Stamp do
      ...>     signature: "4B38788522E29C3ED6D06FFD406B2E0D1479BF53A98A08F3E97BF6BF8020165012F95DA012913B92FB387B71F9324514E688D85FCD7FEB03CB376D3A31F4EF52"
      ...>   }
      ...> }]
-     iex> UnirisValidation.Stamp.create_validation_stamp(tx, chain, unspent_outputs, "welcome_node_public_key", "coordinator_public_key", ["validator_public_key"], ["storage_node_public_key"], {:ok, "ABF22E362D4947C7604D103C88C6728C6CAAF9D20AE72FB317A2E475EE732572"})
+     iex> UnirisValidation.DefaultImpl.Stamp.create_validation_stamp(tx, chain, unspent_outputs, "welcome_node_public_key", "coordinator_public_key", ["validator_public_key"], ["storage_node_public_key"], {:ok, "ABF22E362D4947C7604D103C88C6728C6CAAF9D20AE72FB317A2E475EE732572"})
      %UnirisChain.Transaction.ValidationStamp{
      proof_of_work: "ABF22E362D4947C7604D103C88C6728C6CAAF9D20AE72FB317A2E475EE732572",
      proof_of_integrity: <<0, 35, 255, 132, 117, 130, 182, 105, 55, 250, 14, 36, 54, 165, 149, 183, 21, 167, 183, 184, 250, 200, 82, 251, 147, 170, 213, 214, 178,
@@ -239,7 +239,7 @@ defmodule UnirisValidation.Stamp do
      ...>     rewards: [{:crypto.strong_rand_bytes(32), 1}]
      ...>   }
      ...> )
-     ...> |> UnirisValidation.Stamp.check_validation_stamp_signature(pub)
+     ...> |> UnirisValidation.DefaultImpl.Stamp.check_validation_stamp_signature(pub)
      :ok
   """
   def check_validation_stamp_signature(stamp = %ValidationStamp{}, coordinator_public_key) do
@@ -284,8 +284,8 @@ defmodule UnirisValidation.Stamp do
      ...>     signature: :crypto.strong_rand_bytes(32)
      ...>   }
      ...> }]
-     iex> poi = UnirisValidation.ProofOfIntegrity.from_chain([tx | chain])
-     iex> UnirisValidation.Stamp.check_validation_stamp_proof_of_integrity([tx | chain], poi)
+     iex> poi = UnirisValidation.DefaultImpl.ProofOfIntegrity.from_chain([tx | chain])
+     iex> UnirisValidation.DefaultImpl.Stamp.check_validation_stamp_proof_of_integrity([tx | chain], poi)
      :ok
 
   """
@@ -311,7 +311,7 @@ defmodule UnirisValidation.Stamp do
      ...>   previous_signature: :crypto.strong_rand_bytes(64),
      ...>   origin_signature: :crypto.strong_rand_bytes(64)
      ...> }
-     ...> |> UnirisValidation.Stamp.check_validation_stamp_fee(0.1)
+     ...> |> UnirisValidation.DefaultImpl.Stamp.check_validation_stamp_fee(0.1)
      :ok
   """
   def check_validation_stamp_fee(tx = %Transaction{}, fee) do
@@ -339,7 +339,7 @@ defmodule UnirisValidation.Stamp do
      ...>   previous_signature: :crypto.strong_rand_bytes(64),
      ...>   origin_signature: :crypto.strong_rand_bytes(64)
      ...> }
-     ...> |> UnirisValidation.Stamp.check_validation_stamp_rewards(["validation_node"], [])
+     ...> |> UnirisValidation.DefaultImpl.Stamp.check_validation_stamp_rewards(["validation_node"], [])
      {:error, :invalid_rewarded_nodes}
 
   """
@@ -424,8 +424,8 @@ defmodule UnirisValidation.Stamp do
      ...>   previous_signature: "",
      ...>   origin_signature: ""
      ...> }]
-     iex> {:ok, next_ledger} = UnirisValidation.UTXO.next_ledger(tx, 0.1, previous_ledger, unspent_outputs)
-     iex> UnirisValidation.Stamp.check_validation_stamp_ledger_movements(tx, previous_ledger, unspent_outputs, next_ledger)
+     iex> {:ok, next_ledger} = UnirisValidation.DefaultImpl.UTXO.next_ledger(tx, 0.1, previous_ledger, unspent_outputs)
+     iex> UnirisValidation.DefaultImpl.Stamp.check_validation_stamp_ledger_movements(tx, previous_ledger, unspent_outputs, next_ledger)
      :ok
   """
   def check_validation_stamp_ledger_movements(
@@ -476,7 +476,7 @@ defmodule UnirisValidation.Stamp do
      ...>  },
      ...>  signature: "D8DCCFFDF472DBCA8C1DA0D819A77BEF34A4804D3576791FB3490678C2B3FBCBBC10EB997B35523998B20C2C802AA38DD9A9BBD365E52434DED76137A6611777"
      ...> }
-     iex> UnirisValidation.Stamp.create_cross_validation_stamp(stamp, [])
+     iex> UnirisValidation.DefaultImpl.Stamp.create_cross_validation_stamp(stamp, [])
      {<<104, 30, 64, 135, 105, 68, 240, 9, 38, 116, 10, 193, 134, 181, 253, 138, 251,
      202, 78, 185, 100, 6, 94, 55, 158, 58, 83, 23, 2, 15, 161, 248, 44, 27, 198,
      104, 83, 201, 59, 131, 81, 234, 240, 77, 55, 214, 178, 22, 237, 206, 18, 9,
@@ -508,8 +508,8 @@ defmodule UnirisValidation.Stamp do
      ...>   },
      ...>   signature: :crypto.strong_rand_bytes(32)
      ...> }
-     iex> cross_validation_stamp = UnirisValidation.Stamp.create_cross_validation_stamp(stamp, [])
-     iex> UnirisValidation.Stamp.valid_cross_validation_stamp?(
+     iex> cross_validation_stamp = UnirisValidation.DefaultImpl.Stamp.create_cross_validation_stamp(stamp, [])
+     iex> UnirisValidation.DefaultImpl.Stamp.valid_cross_validation_stamp?(
      ...>  cross_validation_stamp,
      ...>  stamp,
      ...>  pub
