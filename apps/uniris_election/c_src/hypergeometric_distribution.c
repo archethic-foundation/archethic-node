@@ -100,7 +100,7 @@ void hypergeometric_distribution(int nb_nodes) {
                     printf("%d\r\n", n);
                     #pragma omp atomic write
                     abort = 1;
-                    #pragma omp cancel for
+//                    #pragma omp cancel for
                   }
                 }
               }

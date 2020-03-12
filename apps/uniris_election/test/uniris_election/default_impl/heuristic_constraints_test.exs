@@ -1,9 +1,8 @@
 defmodule UnirisElection.DefaultImpl.HeuristicConstraintsTest do
   use ExUnit.Case
-  alias UnirisElection.DefaultImpl.HeuristicConstraints, as: HeuristicConstraints
+  alias UnirisElection.DefaultImpl.HeuristicConstraints
   doctest HeuristicConstraints
   use ExUnitProperties
-
 
   property "validation_number/1 should return 5 when less than 10 uco are transfered" do
     check(
@@ -18,7 +17,7 @@ defmodule UnirisElection.DefaultImpl.HeuristicConstraintsTest do
             amount: StreamData.float(max: 10)
           })
       ) do
-         HeuristicConstraints.validation_number(%UnirisChain.Transaction{
+        HeuristicConstraints.validation_number(%UnirisChain.Transaction{
           address: address,
           type: :ledger,
           timestamp: DateTime.utc_now() |> DateTime.to_unix(),
@@ -69,7 +68,7 @@ defmodule UnirisElection.DefaultImpl.HeuristicConstraintsTest do
     )
   end
 
-  property "number_replicas/1 should returns a less than the the list of nodes provided" do
+  property "number_replicas/1 should returns a less number of nodes than the the list of nodes provided" do
     check all(
             nodes <-
               list_of(

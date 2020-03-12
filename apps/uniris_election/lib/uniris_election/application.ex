@@ -4,11 +4,13 @@ defmodule UnirisElection.Application do
   use Application
 
   def start(_type, _args) do
+
     children = [
-      {UnirisElection.DefaultImpl.HypergeometricDistribution,
-       [
-         executable: Application.app_dir(:uniris_election, "/priv/c/hypergeometric_distribution")
-       ]}
+      # {UnirisElection.DefaultImpl.HypergeometricDistribution,
+      #  [
+      #    executable: Application.app_dir(:uniris_election, "/priv/c/hypergeometric_distribution")
+      #  ]},
+      UnirisElection.DefaultImpl.HeuristicConstraints
     ]
 
     opts = [strategy: :one_for_one, name: UnirisElection.Supervisor]

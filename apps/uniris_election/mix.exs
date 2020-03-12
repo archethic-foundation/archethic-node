@@ -27,9 +27,10 @@ defmodule UnirisElection.MixProject do
   defp deps do
     [
       {:uniris_chain, in_umbrella: true},
-      {:uniris_network, in_umbrella: true},
+      {:uniris_p2p, in_umbrella: true},
       {:stream_data, "~> 0.4.3", only: [:test]},
-      {:ex_doc, "~> 0.21.2", only: [:dev]}
+      {:ex_doc, "~> 0.21.2", only: [:dev]},
+      {:mox, "~> 0.5.2", only: [:test]}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       # {:sibling_app_in_umbrella, in_umbrella: true}

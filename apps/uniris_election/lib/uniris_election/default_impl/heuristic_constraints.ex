@@ -6,10 +6,50 @@ defmodule UnirisElection.DefaultImpl.HeuristicConstraints do
   # However this function can overrided in the election function to provide the most accurate
   # tuning through the network evolution and monitor for example via the Prediction module.
 
-  alias UnirisChain.Transaction
-  alias UnirisChain.Transaction.Data.Ledger.UCO, as: UCOLedger
+  use GenServer
 
-  @min_validations 5
+  alias UnirisChain.Transaction
+  alias __MODULE__.Validation, as: ValidationConstraints
+  alias __MODULE__.Storage, as: StorageConstraints
+
+  @default_min_validations 3
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
+  end
+
+  def init(_) do
+    {:ok,
+     %{
+       validation: %ValidationConstraints{
+         min_geo_patch: &min_validation_geo_patch/0,
+         validation_number: &validation_number/1
+       },
+       storage: %StorageConstraints{
+         min_geo_patch: &min_storage_geo_patch/0,
+         min_geo_patch_avg_availability: &min_storage_geo_patch_avg_availability/0,
+         number_replicas: &number_replicas/1
+       }
+     }}
+  end
+
+  def handle_call(:validation_constraints, _from, state = %{validation: validation_constraints}) do
+    {:reply, validation_constraints, state}
+  end
+
+  def handle_call(:storage_constraints, _from, state = %{storage: storage_constraints}) do
+    {:reply, storage_constraints, state}
+  end
+
+  @spec for_validation() :: ValidationConstraints.t()
+  def for_validation() do
+    GenServer.call(__MODULE__, :validation_constraints)
+  end
+
+  @spec for_storage() :: StorageConstraints.t()
+  def for_storage() do
+    GenServer.call(__MODULE__, :storage_constraints)
+  end
 
   @doc """
   Require number of distinct geographic patch for the elected validation nodes.
@@ -44,75 +84,20 @@ defmodule UnirisElection.DefaultImpl.HeuristicConstraints do
 
   By default 5 validations is required, but if the amount of UCO to transfer
   a logarithmic progression is done to increase the number of validations
-
-  ## Examples
-
-      iex> tx = %UnirisChain.Transaction{
-      ...>  address: "0489F19A241A5BA435CBD533EFA4D446696873030DA0B55BC64C6EF0184AA2F6",
-      ...>  timestamp: 1573054121,
-      ...>  type: :ledger,
-      ...>  data: %UnirisChain.Transaction.Data{
-      ...>    ledger: %UnirisChain.Transaction.Data.Ledger{
-      ...>      uco: %UnirisChain.Transaction.Data.Ledger.UCO{
-      ...>         transfers: [
-      ...>             %UnirisChain.Transaction.Data.Ledger.Transfer{
-      ...>               to: "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824",
-      ...>               amount: 2
-      ...>             }
-      ...>         ]
-      ...>      }
-      ...>    }
-      ...>  },
-      ...>  previous_public_key: "00EE9EBD56635EFA6C6382747CEC9B4B7E52B3E3CFF8B7A16077AC47E48EC06D38",
-      ...>  previous_signature: "4DB9FF771458F8DBCB8CC18101DFF133E60BF99B0A09C25275422B0787BA6597C567F7F27D21D55FE1B211798F17543A7466D27F2F11CD64D802E526AAC19E06",
-      ...>  origin_signature: "DA9252B7B0975B4208C80008817D9CE3F8BC7E3785D3CF3175D4BA248A55220F838F19742285A5F397F3350A8BFF779FB3F58AC078D4904557C973CEAE490904"
-      ...> }
-      iex> UnirisElection.DefaultImpl.HeuristicConstraints.validation_number(tx)
-      5
-
-      iex> tx = %UnirisChain.Transaction{
-      ...>  address: "0489F19A241A5BA435CBD533EFA4D446696873030DA0B55BC64C6EF0184AA2F6",
-      ...>  timestamp: 1573054121,
-      ...>  type: :ledger,
-      ...>  data: %UnirisChain.Transaction.Data{
-      ...>    ledger: %UnirisChain.Transaction.Data.Ledger{
-      ...>      uco: %UnirisChain.Transaction.Data.Ledger.UCO{
-      ...>         transfers: [
-      ...>           %UnirisChain.Transaction.Data.Ledger.Transfer{
-      ...>             to: "2CF24DBA5FB0A30E26E83B2AC5B9E29E1B161E5C1FA7425E73043362938B9824",
-      ...>             amount: 10
-      ...>           },
-      ...>           %UnirisChain.Transaction.Data.Ledger.Transfer{
-      ...>             to: "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
-      ...>             amount: 30
-      ...>           }
-      ...>         ]
-      ...>       }
-      ...>     }
-      ...>  },
-      ...>  previous_public_key: "00EE9EBD56635EFA6C6382747CEC9B4B7E52B3E3CFF8B7A16077AC47E48EC06D38",
-      ...>  previous_signature: "4DB9FF771458F8DBCB8CC18101DFF133E60BF99B0A09C25275422B0787BA6597C567F7F27D21D55FE1B211798F17543A7466D27F2F11CD64D802E526AAC19E06",
-      ...>  origin_signature: "DA9252B7B0975B4208C80008817D9CE3F8BC7E3785D3CF3175D4BA248A55220F838F19742285A5F397F3350A8BFF779FB3F58AC078D4904557C973CEAE490904"
-      ...> }
-      iex> UnirisElection.DefaultImpl.HeuristicConstraints.validation_number(tx)
-      8
   """
   @spec validation_number(Transaction.pending()) :: non_neg_integer()
-  def validation_number(tx = %Transaction{}) do
-    case tx.data.ledger.uco do
-      %UCOLedger{transfers: transfers} when is_list(transfers) and length(transfers) > 0 ->
-        total_transfers = Enum.map(transfers, & &1.amount) |> Enum.sum()
+  def validation_number(%Transaction{data: %{ledger: %{uco: %{transfers: transfers}}}})
+      when length(transfers) > 0 do
+    total_transfers = Enum.map(transfers, & &1.amount) |> Enum.sum()
 
-        if total_transfers > 10 do
-          :math.floor(@min_validations * :math.log10(total_transfers)) |> trunc
-        else
-          @min_validations
-        end
-
-      _ ->
-        @min_validations
+    if total_transfers > 10 do
+      :math.floor(@default_min_validations * :math.log10(total_transfers)) |> trunc
+    else
+      @default_min_validations
     end
   end
+
+  def validation_number(_), do: @default_min_validations
 
   @doc """
   Require number of storages nodes for a given list of nodes according to their
@@ -124,23 +109,6 @@ defmodule UnirisElection.DefaultImpl.HeuristicConstraints do
   From 143 nodes the number replicas start to reduce from the number of nodes.
   Just to ensure some stability in the network the sharding can evolve and later on the
   `HypergeometricDistribution` could be used instead to reduce to ~~200 nodes.
-
-  ## Examples
-
-      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..99, fn _ ->
-      ...>  %{average_availability: 1}
-      ...> end))
-      100
-
-      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..144, fn _ ->
-      ...>  %{average_availability: 1}
-      ...> end))
-      143
-
-      iex> UnirisElection.DefaultImpl.HeuristicConstraints.number_replicas(Enum.map(0..200, fn _ ->
-      ...>  %{average_availability: 1}
-      ...> end))
-      158
   """
   @spec number_replicas(nonempty_list(Node.t()), (non_neg_integer -> non_neg_integer)) ::
           non_neg_integer()
