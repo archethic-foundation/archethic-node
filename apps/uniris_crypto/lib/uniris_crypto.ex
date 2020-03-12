@@ -23,20 +23,14 @@ defmodule UnirisCrypto do
   Some functions rely on software implementations such as hashing, encryption or signature verification.
   Other can rely on hardware or software as an configuration choice to generate keys, sign or decrypt data.
 
-  A local keystore is implemented through software or hardware according to the configuration choice
-  and each time a generation keypair function is called, it's possible to store it as new node keypair.
-
-  Some keys are preloaded by the system such as shared and origin keys.
-
-  Node keys are labelled in the keystore can  be retrieved from the latest, the first or the previous generated key
-
-  Shared keys are labelled in the keystore and can be retrieved from the latest and the first
-
-  Origin keys in the keystore can be retrieve randomly
+  A local keystore is implemented through software or hardware according to the configuration choice.
+  According to the implementation, keys can be stored and regenerated on the fly
   """
 
-  alias UnirisCrypto.ID
-  alias UnirisCrypto.SoftwareImpl
+  alias __MODULE__.ID
+  alias __MODULE__.ECDSA
+  alias __MODULE__.Ed25519
+  alias __MODULE__.Keystore
 
   @typedoc """
   List of the supported hash algorithms
@@ -72,22 +66,6 @@ defmodule UnirisCrypto do
   """
   @type aes_cipher :: <<_::384, _::_*8>>
 
-  @typedoc """
-  Options for the generation keypair:
-  - curve: which elliptic curve to use
-  - persistence: determines if the private key must be stored
-
-  """
-  @type key_generation_options :: [
-          curve: supported_curve(),
-          persistence: boolean()
-        ]
-
-  @type key_access :: [
-          with: :node | :origin | :shared,
-          as: :first | :last | :previous | :random
-        ]
-
   @doc """
   Derivate a new keypair from a seed (retrieved from the local keystore
   and an index representing the number of previous generate keypair.
@@ -101,130 +79,139 @@ defmodule UnirisCrypto do
                         \
                          (256 bytes) Master entropy
 
-  Options can specifies:
-  - curve: which curve to use during the generation
-  - persistence: determines if the key must be stored
 
-  Returns the public key generated
 
+  ## Examples
+
+      iex> {pub, _} = UnirisCrypto.derivate_keypair("myseed", 1)
+      iex> {pub10, _} = UnirisCrypto.derivate_keypair("myseed", 10)
+      iex> {pub_bis, _} = UnirisCrypto.derivate_keypair("myseed", 1)
+      iex> pub != pub10 and pub == pub_bis
+      true
   """
-  @spec derivate_keypair(index :: non_neg_integer(), options :: key_generation_options()) ::
-          public_key :: key()
-  def derivate_keypair(
-        index \\ 1,
-        options \\ [curve: Application.get_env(:uniris_crypto, :default_curve)]
-      )
-      when is_integer(index) and index >= 0 and is_list(options) do
-    if Keyword.has_key?(options, :curve) do
-      impl().derivate_keypair(index, options)
-    else
-      impl().derivate_keypair(
-        index,
-        options ++ [curve: Application.get_env(:uniris_crypto, :default_curve)]
-      )
-    end
+  @spec derivate_keypair(
+          seed :: binary(),
+          index :: non_neg_integer(),
+          curve :: __MODULE__.supported_curve()
+        ) :: {public_key :: key(), private_key :: key()}
+  def derivate_keypair(seed, index, curve \\ Application.get_env(:uniris_crypto, :default_curve))
+      when is_binary(seed) and is_integer(index) do
+    seed
+    |> get_extended_seed(index)
+    |> generate_deterministic_keypair(curve)
+  end
+
+  @spec add_origin_seed(seed :: binary()) :: :ok
+  def add_origin_seed(seed) do
+    Keystore.add_origin_seed(seed)
+  end
+
+  @spec set_daily_nonce(seed :: binary()) :: :ok
+  def set_daily_nonce(seed) do
+    Keystore.set_daily_nonce(seed)
+  end
+
+  @spec set_storage_nonce(seed :: binary()) :: :ok
+  def set_storage_nonce(seed) do
+    Keystore.set_storage_nonce(seed)
+  end
+
+  defp get_extended_seed(seed, index) do
+    <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
+
+    <<extended_pv::binary-32, _::binary-32>> =
+      :crypto.hmac(:sha512, master_entropy, master_key <> <<index>>)
+
+    extended_pv
   end
 
   @doc """
-  Generate a new random keypair using the seed from the local keystore and a given supported elliptic curve
-
-  Options can specifies:
-  - curve: which curve to use during the generation
-  - persistence: determines if the key must be stored
-
-  Returns the public key generated
+  Return the last node public key
   """
-  @spec generate_random_keypair(options :: key_generation_options()) :: public_key :: key()
-  def generate_random_keypair(
-        options \\ [curve: Application.get_env(:uniris_crypto, :default_curve)]
-      )
-      when is_list(options) do
-    if Keyword.has_key?(options, :curve) do
-      impl().generate_random_keypair(options)
-    else
-      impl().generate_random_keypair(
-        options ++ [curve: Application.get_env(:uniris_crypto, :default_curve)]
-      )
-    end
+  @spec node_public_key() :: UnirisCrypto.key()
+  def node_public_key() do
+    Keystore.node_public_key()
+  end
+
+  @doc """
+  Return a node public key by using key derivation from an index
+
+  ## Examples
+
+    iex> pub0 = UnirisCrypto.node_public_key(0)
+    iex> pub10 = UnirisCrypto.node_public_key(10)
+    iex> pub0_bis = UnirisCrypto.node_public_key(0)
+    iex> pub0 != pub10 and pub0 == pub0_bis
+    true
+  """
+  @spec node_public_key(index :: number()) :: UnirisCrypto.key()
+  def node_public_key(index) do
+    Keystore.node_public_key(index)
+  end
+
+  @doc """
+  Increment the counter for the number of generated node private keys.
+  This number is used for the key derivation to detect the latest index.
+
+  ## Examples
+
+     iex> pub = UnirisCrypto.node_public_key()
+     iex> UnirisCrypto.increment_number_of_generate_node_keys()
+     iex> UnirisCrypto.node_public_key() != pub
+     true
+  """
+  @spec increment_number_of_generate_node_keys() :: :ok
+  def increment_number_of_generate_node_keys() do
+    Keystore.increment_number_of_generate_node_keys()
+  end
+
+  @doc """
+  Return the list of origin public keys
+  """
+  @spec origin_public_keys() :: list(UnirisCrypto.key())
+  def origin_public_keys() do
+    Keystore.origin_public_keys()
   end
 
   @doc """
   Generate a keypair in a deterministic way using a seed
 
-  Options can specifies:
-  - curve: which curve to use during the generation
-  - persistence: determines if the key must be stored
-
-  Returns the public key generated
-
-
   ## Examples
 
-      iex> UnirisCrypto.generate_deterministic_keypair("myseed", [curve: :ed25519])
+      iex> {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> pub
       <<0, 195, 217, 87, 74, 44, 143, 133, 202, 49, 24, 21, 172, 125, 120, 229, 214,
       229, 203, 0, 171, 137, 3, 53, 26, 206, 212, 108, 55, 78, 175, 52, 104>>
 
-      iex> UnirisCrypto.generate_deterministic_keypair("myseed", [curve: :secp256r1])
+      iex> {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed", :secp256r1)
+      iex> pub
       <<1, 4, 71, 234, 56, 77, 247, 36, 202, 205, 0, 115, 85, 40, 74, 90, 107, 180,
       162, 184, 168, 248, 179, 160, 69, 68, 159, 128, 0, 23, 81, 29, 122, 89, 51,
       182, 115, 31, 213, 158, 244, 116, 92, 197, 246, 196, 55, 27, 8, 205, 62, 39,
       55, 227, 59, 94, 246, 213, 26, 22, 150, 137, 167, 23, 69, 144>>
 
   """
-  @spec generate_deterministic_keypair(seed :: binary(), options :: key_generation_options()) ::
-          public_key :: key()
+  @spec generate_deterministic_keypair(
+          seed :: binary(),
+          curve :: __MODULE__.supported_curve()
+        ) :: {public_key :: key(), private_key :: key()}
   def generate_deterministic_keypair(
         seed,
-        options \\ [curve: Application.get_env(:uniris_crypto, :default_curve)]
+        curve \\ Application.get_env(:uniris_crypto, :default_curve)
       )
-      when is_binary(seed) and is_list(options) do
-    if Keyword.has_key?(options, :curve) do
-      impl().generate_deterministic_keypair(seed, options)
-    else
-      impl().generate_deterministic_keypair(
-        seed,
-        options ++ [curve: Application.get_env(:uniris_crypto, :default_curve)]
-      )
-    end
+      when is_binary(seed) do
+    do_generate_deterministic_keypair(curve, seed)
   end
 
-  @doc """
-  Check the validity of a public key.
+  defp do_generate_deterministic_keypair(:ed25519, seed),
+    do:
+      Ed25519.generate_keypair(seed)
+      |> ID.identify_keypair(ID.id_from_curve(:ed25519))
 
-  The first byte of the public key identifies the curve and the validation rules to apply.
-
-  ## Examples
-
-      iex> pub = Crypto.generate_random_keypair([curve: :ed25519])
-      iex> UnirisCrypto.valid_public_key?(pub)
-      true
-
-      iex> pub = Crypto.generate_random_keypair([curve: :secp256r1])
-      iex> UnirisCrypto.valid_public_key?(pub)
-      true
-
-  Invalid size of public key return an error:
-
-      iex> UnirisCrypto.valid_public_key?(<<1,0>>)
-      false
-  """
-  @spec valid_public_key?(key()) :: boolean()
-  def valid_public_key?(<<curve_id::8, key::binary>>) do
-    curve = ID.curve_from_id(curve_id)
-    do_valid_public_key?(curve, key)
-  end
-
-  defp do_valid_public_key?(:ed25519, key) when byte_size(key) == 32 do
-    true
-  end
-
-  defp do_valid_public_key?(_, key) when byte_size(key) == 65 do
-    true
-  end
-
-  defp do_valid_public_key?(_, _) do
-    false
-  end
+  defp do_generate_deterministic_keypair(curve, seed),
+    do:
+      ECDSA.generate_keypair(curve, seed)
+      |> ID.identify_keypair(ID.id_from_curve(curve))
 
   @doc """
   Sign data.
@@ -233,19 +220,60 @@ defmodule UnirisCrypto do
 
   ## Examples
 
-      iex> UnirisCrypto.generate_deterministic_keypair("myseed", [persistence: true])
-      iex> UnirisCrypto.sign("myfakedata", [with: :node, as: :last])
+      iex> {pub, pv} = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> UnirisCrypto.sign("myfakedata", pv)
       <<240, 207, 59, 29, 236, 164, 157, 87, 84, 62, 177, 26, 76, 69, 209, 125, 110,
       136, 168, 113, 112, 243, 155, 254, 59, 214, 193, 191, 112, 55, 194, 220, 2,
       190, 0, 1, 214, 104, 252, 133, 3, 112, 19, 27, 129, 231, 237, 59, 174, 4, 82,
       210, 110, 204, 219, 237, 197, 26, 140, 63, 97, 67, 27, 8>>
   """
-  @spec sign(binary() | term(), key_access :: key_access()) :: signature :: binary()
-  def sign(data, key_access) when is_binary(data) do
-    impl().sign(data, key_access)
+  @spec sign(data :: any(), private_key :: binary()) :: signature :: binary()
+  def sign(data, <<curve_id::8, key::binary>>) when is_binary(data) do
+    ID.curve_from_id(curve_id)
+    |> do_sign(data, key)
   end
 
-  def sign(data, key_access), do: sign(:erlang.term_to_binary(data), key_access)
+  def sign(data, key), do: sign(:erlang.term_to_binary(data), key)
+
+  def do_sign(:ed25519, data, key), do: Ed25519.sign(key, data)
+  def do_sign(curve, data, key), do: ECDSA.sign(curve, key, data)
+
+  @doc """
+  Sign the data with a random origin private key.
+  """
+  @spec sign_with_origin_key(data :: binary()) :: binary()
+  def sign_with_origin_key(data) when is_binary(data) do
+    Keystore.sign_with_origin_key(data)
+  end
+
+  def sign_with_origin_key(data) do
+    sign_with_origin_key(:erlang.term_to_binary(data))
+  end
+
+  @doc """
+  Sign the data with the last node private key
+  """
+  @spec sign_with_node_key(data :: binary()) :: binary()
+  def sign_with_node_key(data) when is_binary(data) do
+    Keystore.sign_with_node_key(data)
+  end
+
+  def sign_with_node_key(data) do
+    sign_with_node_key(:erlang.term_to_binary(data))
+  end
+
+  @doc """
+  Sign the data with the private key at the given index.
+
+  """
+  @spec sign_with_node_key(data :: binary(), index :: binary()) :: binary()
+  def sign_with_node_key(data, index) when is_binary(data) and is_number(index) do
+    Keystore.sign_with_node_key(data, index)
+  end
+
+  def sign_with_node_key(data, index) do
+    sign_with_node_key(:erlang.term_to_binary(data), index)
+  end
 
   @doc """
   Verify a signature.
@@ -254,18 +282,18 @@ defmodule UnirisCrypto do
 
   ## Examples
 
-      iex> pub = UnirisCrypto.generate_deterministic_keypair("myseed", [persistence: true])
-      iex> sig = UnirisCrypto.sign("myfakedata", [with: :node, as: :last])
+      iex> {pub, pv} = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> sig = UnirisCrypto.sign("myfakedata", pv)
       iex> UnirisCrypto.verify(sig, "myfakedata", pub)
       true
 
   Returns an error when the signature is invalid
-      iex> pub = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed")
       iex> sig = <<1, 48, 69, 2, 33, 0, 185, 231, 7, 86, 207, 253, 8, 230, 199, 94, 251, 33, 42, 172, 95, 93, 7, 209, 175, 69, 216, 121, 239, 24, 17, 21, 41, 129, 255, 49, 153, 116, 2, 32, 85, 1, 212, 69, 182, 98, 174, 213, 79, 154, 69, 84, 149, 126, 169, 44, 98, 64, 21, 211, 20, 235, 165, 97, 61, 8, 239, 194, 196, 177, 46, 199>>
       iex> UnirisCrypto.verify(sig, "myfakedata", pub)
       false
   """
-  @spec verify(signature :: binary(), data :: term() | binary(), public_key :: key()) :: boolean()
+  @spec verify(signature :: binary(), data :: any(), public_key :: key()) :: boolean()
   def verify(
         sig,
         data,
@@ -273,11 +301,14 @@ defmodule UnirisCrypto do
       )
       when is_binary(data) do
     curve = ID.curve_from_id(curve_id)
-    SoftwareImpl.verify(curve, key, data, sig)
+    do_verify(curve, key, data, sig)
   end
 
   def verify(sig, data, key),
     do: verify(sig, :erlang.term_to_binary(data), key)
+
+  defp do_verify(:ed25519, key, data, sig), do: Ed25519.verify(key, data, sig)
+  defp do_verify(curve, key, data, sig), do: ECDSA.verify(curve, key, data, sig)
 
   @doc """
   Encrypts data using public key authenticated encryption (ECIES).
@@ -290,7 +321,7 @@ defmodule UnirisCrypto do
   ## Examples
 
       ```
-      pub = UnirisCrypto.generate_random_keypair()
+      pub = {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed")
       UnirisCrypto.ec_encrypt("myfakedata", pub)
       <<0, 0, 0, 0, 58, 138, 57, 196, 76, 95, 222, 131, 128, 248, 50, 146, 221, 145,
       152, 20, 45, 164, 221, 166, 242, 172, 237, 36, 238, 150, 238, 127, 53, 160,
@@ -301,11 +332,14 @@ defmodule UnirisCrypto do
   @spec ec_encrypt(message :: term() | binary(), public_key :: key()) :: binary()
   def ec_encrypt(message, <<curve_id::8, key::binary>> = _public_key) when is_binary(message) do
     curve = ID.curve_from_id(curve_id)
-    impl().ec_encrypt(curve, key, message)
+    do_ec_encrypt(curve, message, key)
   end
 
   def ec_encrypt(message, public_key),
     do: ec_encrypt(:erlang.term_to_binary(message), public_key)
+
+  defp do_ec_encrypt(:ed25519, message, public_key), do: Ed25519.encrypt(public_key, message)
+  defp do_ec_encrypt(curve, message, public_key), do: ECDSA.encrypt(curve, public_key, message)
 
   @doc """
   Decrypt a cipher using public key authenticated encryption (ECIES).
@@ -322,22 +356,24 @@ defmodule UnirisCrypto do
   ## Examples
 
       iex> cipher = <<0, 0, 0, 58, 16, 25, 106, 181, 34, 80, 25, 136, 170, 141, 8, 112, 178, 140, 1, 180, 192, 35, 141, 241, 149, 179, 111, 154, 57, 244, 88, 102, 57, 95, 240, 17, 121, 194, 181, 224, 45, 68, 115, 111, 19, 136, 156, 91, 231, 53, 171, 79, 231, 226, 122, 76, 38, 129, 81, 79, 43, 133>>
-      iex> UnirisCrypto.generate_deterministic_keypair("myseed", [persistence: true])
-      iex> UnirisCrypto.ec_decrypt!(cipher, [with: :node, as: :last])
+      iex> {pub, pv} = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> UnirisCrypto.ec_decrypt!(cipher, pv)
       "myfakedata"
 
   Invalid message to decrypt or key return an error:
 
       ```
-      UnirisCrypto.generate_random_keypair(persistence: true)
-      UnirisCrypto.ec_decrypt!(<<0, 0, 0>>, [with: :node, as: :last])
+      UnirisCrypto.generate_deterministic_keypair("myseed", :node)
+      UnirisCrypto.ec_decrypt!(<<0, 0, 0>>, :node)
       ** (RuntimeError) Decryption failed
       ```
   """
-  @spec ec_decrypt!(cipher :: binary(), key_access :: key_access) :: term()
-  def ec_decrypt!(cipher, key_access) when is_binary(cipher) and is_list(key_access) do
-    case impl().ec_decrypt!(cipher, key_access) do
-      <<131::8, _>> = data ->
+  @spec ec_decrypt!(cipher :: binary(), private_key :: key()) :: term()
+  def ec_decrypt!(cipher, <<curve_id::8, key::binary>>) when is_binary(cipher) do
+    ID.curve_from_id(curve_id)
+    |> do_ec_decrypt!(cipher, key)
+    |> case do
+      <<131::8, _::binary>> = data ->
         :erlang.binary_to_term(data, [:safe])
 
       data ->
@@ -346,13 +382,27 @@ defmodule UnirisCrypto do
   end
 
   @doc """
+  Decrypt the cipher using last node private key
+  """
+  @spec ec_decrypt_with_node_key!(binary()) :: :ok
+  def ec_decrypt_with_node_key!(cipher) do
+    Keystore.decrypt_with_node_key!(cipher)
+  end
+
+  defp do_ec_decrypt!(:ed25519, cipher, key), do: Ed25519.decrypt(key, cipher)
+  defp do_ec_decrypt!(curve, cipher, key), do: ECDSA.decrypt(curve, key, cipher)
+
+  @doc """
   Encrypt a data using AES authenticated encryption.
   """
   @spec aes_encrypt(data :: term(), key :: binary) :: aes_cipher
 
   @spec aes_encrypt(data :: binary(), key :: binary) :: aes_cipher
-  def aes_encrypt(data, <<key::binary-32>>) when is_binary(data),
-    do: impl().aes_encrypt(data, key)
+  def aes_encrypt(data, <<key::binary-32>>) when is_binary(data) do
+    iv = :crypto.strong_rand_bytes(32)
+    {cipher, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", true)
+    iv <> tag <> cipher
+  end
 
   def aes_encrypt(data, key),
     do: aes_encrypt(:erlang.term_to_binary(data), key)
@@ -378,16 +428,26 @@ defmodule UnirisCrypto do
 
   """
   @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
-  def aes_decrypt!(<<_iv::32*8, _tag::8*16, _::binary>> = cipher, <<key::binary-32>>) do
-    case impl().aes_decrypt!(cipher, key) do
-      <<131::8, _>> = data ->
+  def aes_decrypt!(<<iv::32*8, tag::8*16, cipher::binary>>, <<key::binary-32>>) do
+    case :crypto.crypto_one_time_aead(
+           :aes_256_gcm,
+           key,
+           :binary.encode_unsigned(iv),
+           cipher,
+           "",
+           :binary.encode_unsigned(tag),
+           false
+         ) do
+      :error ->
+        raise "Decryption failed"
+
+      <<131::8, _::binary>> = data ->
         :erlang.binary_to_term(data, [:safe])
 
       data ->
         data
     end
   end
-
 
   @doc """
   Hash a data.
@@ -430,6 +490,54 @@ defmodule UnirisCrypto do
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
 
+  @spec hash_with_daily_nonce(data :: binary()) :: binary()
+  def hash_with_daily_nonce(data) do
+    Keystore.hash_with_daily_nonce(data)
+  end
+
+  @spec hash_with_storage_nonce(data :: binary()) :: binary()
+  def hash_with_storage_nonce(data) do
+    Keystore.hash_with_storage_nonce(data)
+  end
+
+  @doc """
+  Check the validity of a public key.
+
+  The first byte of the public key identifies the curve and the validation rules to apply.
+
+  ## Examples
+
+      iex> {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed")
+      iex> UnirisCrypto.valid_public_key?(pub)
+      true
+
+      iex> {pub, _} = UnirisCrypto.generate_deterministic_keypair("myseed", :secp256r1)
+      iex> UnirisCrypto.valid_public_key?(pub)
+      true
+
+  Invalid size of public key return an error:
+
+      iex> UnirisCrypto.valid_public_key?(<<1,0>>)
+      false
+  """
+  @spec valid_public_key?(key()) :: boolean()
+  def valid_public_key?(<<curve_id::8, key::binary>>) do
+    curve = ID.curve_from_id(curve_id)
+    do_valid_public_key?(curve, key)
+  end
+
+  defp do_valid_public_key?(:ed25519, key) when byte_size(key) == 32 do
+    true
+  end
+
+  defp do_valid_public_key?(_, key) when byte_size(key) == 65 do
+    true
+  end
+
+  defp do_valid_public_key?(_, _) do
+    false
+  end
+
   @doc """
   Checks if a hash is valid
 
@@ -452,62 +560,4 @@ defmodule UnirisCrypto do
   def valid_hash?(<<3::8, hash::binary>>), do: byte_size(hash) == 64
   def valid_hash?(<<4::8, hash::binary>>), do: byte_size(hash) == 64
   def valid_hash?(_hash), do: false
-
-  @doc """
-  Get the first public key from the node keystore
-  """
-  def first_node_public_key() do
-    impl().first_node_public_key()
-  end
-
-  @doc """
-  Get the last public key from the node keystore
-  """
-  def last_node_public_key() do
-    impl().last_node_public_key()
-  end
-
-  @doc """
-  Get the previous public key from the node keystore
-  """
-  def previous_node_public_key() do
-     impl().previous_node_public_key()
-  end
-
-  @doc """
-  Get the first public key from the shared keystore
-  """
-  def first_shared_public_key() do
-    impl().first_shared_public_key()
-  end
-
-  @doc """
-  Get the last public key from the shared keystore
-  """
-  def last_shared_public_key() do
-    impl().last_shared_public_key()
-  end
-
-  @doc """
-  Generate node shared keys from a given seed and number of transactions through derivation
-
-  The first shared key will also be generated
-
-  Those keys will be stored inside the keystore
-  """
-  @spec generate_shared_keys(binary(), pos_integer()) :: :ok
-  def generate_shared_keys(seed, last_index)
-      when last_index >= 0 do
-    impl().generate_shared_keys(seed, last_index)
-  end
-
-  @doc """
-  Load a set of origin keypairs into the keystore
-  """
-  @spec load_origin_keys(list({binary, binary})) :: :ok
-  def load_origin_keys(origin_keys) do
-    impl().load_origin_keys(origin_keys)
-  end
-
-  defp impl, do: Application.get_env(:uniris_crypto, :impl, UnirisCrypto.SoftwareImpl)
 end

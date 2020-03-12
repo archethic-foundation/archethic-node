@@ -1,22 +1,18 @@
-defmodule UnirisCrypto.SoftwareImpl.ECDSA do
+defmodule UnirisCrypto.ECDSA do
   @moduledoc false
 
-  def generate_keypair(curve) do
-    :crypto.generate_key(:ecdh, curve)
-  end
-
-  def generate_keypair(seed, curve) do
+  def generate_keypair(curve, seed) do
     :crypto.generate_key(:ecdh, curve, seed)
   end
 
-  def sign(private_key, curve, data) do
+  def sign(curve, private_key, data) do
     :crypto.sign(:ecdsa, :sha256, :crypto.hash(:sha256, data), [
       private_key,
       curve
     ])
   end
 
-  def verify(public_key, curve, data, sig) do
+  def verify(curve, public_key, data, sig) do
     :crypto.verify(
       :ecdsa,
       :sha256,
@@ -29,26 +25,25 @@ defmodule UnirisCrypto.SoftwareImpl.ECDSA do
     )
   end
 
-  def encrypt(public_key, curve, message) do
-    with {ephemeral_public_key, <<_::8, ephemeral_private_key::binary>>} <-
-           generate_keypair(curve) do
-      # Derivate secret using ECDH with the given public key and the ephemeral private key
-      shared_key = generate_dh_key(curve, public_key, ephemeral_private_key)
+  def encrypt(curve, public_key, message) do
+    {ephemeral_public_key, ephemeral_private_key} = :crypto.generate_key(:ecdh, curve)
 
-      # Generate keys for the AES authenticated encryption
-      {iv, aes_key} = derivate_secrets(shared_key)
+    # Derivate secret using ECDH with the given public key and the ephemeral private key
+    shared_key = generate_dh_key(curve, public_key, ephemeral_private_key)
 
-      {cipher, tag} = aes_auth_encrypt(iv, aes_key, message)
+    # Generate keys for the AES authenticated encryption
+    {iv, aes_key} = derivate_secrets(shared_key)
 
-      # Encode the cipher within the ephemeral public key, the authentication tag
-      ephemeral_public_key <> tag <> cipher
-    end
+    {cipher, tag} = aes_auth_encrypt(iv, aes_key, message)
+
+    # Encode the cipher within the ephemeral public key, the authentication tag
+    ephemeral_public_key <> tag <> cipher
   end
 
   def decrypt(
-        private_key,
         curve,
-        _encoded_cipher = <<_::8, ephemeral_public_key::8*65, tag::8*16, cipher::binary>>
+        private_key,
+        _encoded_cipher = <<ephemeral_public_key::8*65, tag::8*16, cipher::binary>>
       ) do
     ephemeral_public_key = :binary.encode_unsigned(ephemeral_public_key)
     tag = :binary.encode_unsigned(tag)

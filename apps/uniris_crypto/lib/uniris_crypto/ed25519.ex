@@ -1,14 +1,7 @@
-defmodule UnirisCrypto.SoftwareImpl.Ed25519 do
+defmodule UnirisCrypto.Ed25519 do
   @moduledoc false
 
-  alias UnirisCrypto.SoftwareImpl.LibSodiumPort, as: Ed25519Port
-
-  def generate_keypair() do
-    {:ok, <<secret_key::binary-64, public_key::binary-32>>} =
-      GenServer.call(Ed25519Port, :generate_key)
-
-    {public_key, secret_key}
-  end
+  alias UnirisCrypto.LibSodiumPort, as: Ed25519Port
 
   def generate_keypair(seed)
       when byte_size(seed) < 32 and byte_size(seed) > 0,
@@ -19,18 +12,29 @@ defmodule UnirisCrypto.SoftwareImpl.Ed25519 do
 
   def generate_keypair(<<seed::binary-32, _::binary>>) do
     {:ok, <<secret_key::binary-64, public_key::binary-32>>} =
-      GenServer.call(Ed25519Port, {:generate_key, seed})
+      :poolboy.transaction(
+        :libsodium,
+        fn pid -> GenServer.call(pid, {:generate_key, seed}) end
+      )
 
     {public_key, secret_key}
   end
 
   def encrypt(<<public_key::binary-32>> = _key, data) do
-    {:ok, cipher} = GenServer.call(Ed25519Port, {:encrypt, public_key, data})
+    {:ok, cipher} =
+      :poolboy.transaction(
+        :libsodium,
+        fn pid -> GenServer.call(pid, {:encrypt, public_key, data}) end
+      )
+
     cipher
   end
 
   def decrypt(<<secret_key::binary-64>> = _key, data) do
-    case GenServer.call(Ed25519Port, {:decrypt, secret_key, data}) do
+    case :poolboy.transaction(
+           :libsodium,
+           fn pid -> GenServer.call(pid, {:decrypt, secret_key, data}) end
+         ) do
       {:ok, data} ->
         data
 
@@ -40,7 +44,12 @@ defmodule UnirisCrypto.SoftwareImpl.Ed25519 do
   end
 
   def sign(<<secret_key::binary-64>> = _key, data) do
-    {:ok, sig} = GenServer.call(Ed25519Port, {:sign, secret_key, data})
+    {:ok, sig} =
+      :poolboy.transaction(
+        :libsodium,
+        fn pid -> GenServer.call(pid, {:sign, secret_key, data}) end
+      )
+
     sig
   end
 
@@ -48,7 +57,10 @@ defmodule UnirisCrypto.SoftwareImpl.Ed25519 do
     if byte_size(sig) != 64 do
       false
     else
-      case GenServer.call(Ed25519Port, {:verify, public_key, data, sig}) do
+      case :poolboy.transaction(
+             :libsodium,
+             fn pid -> GenServer.call(pid, {:verify, public_key, data, sig}) end
+           ) do
         :ok ->
           true
 
