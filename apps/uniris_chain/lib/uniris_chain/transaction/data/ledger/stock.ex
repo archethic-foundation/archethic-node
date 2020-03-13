@@ -17,7 +17,7 @@ defmodule UnirisChain.Transaction.Data.Ledger.Stock do
   Identification of the type of stock offered
   """
   @type category_id() :: binary()
-  
+
   @typedoc """
   Stock is composed from:
   - Category: identification of the type of stock offered

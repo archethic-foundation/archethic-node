@@ -3,8 +3,12 @@ defmodule UnirisChain.Application do
   use Application
 
   def start(_type, _args) do
+    :ets.new(:ko_transactions, [:named_table, :public])
+
     children = [
-      UnirisChain.DefaultImpl.Store.InMemoryImpl
+      UnirisChain,
+      {Registry, keys: :unique, name: UnirisChain.TransactionRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisChain.TransactionSupervisor}
     ]
 
     opts = [strategy: :one_for_one, name: UnirisChain.Supervisor]

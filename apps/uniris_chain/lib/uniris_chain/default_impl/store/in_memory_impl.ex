@@ -2,7 +2,6 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
   @moduledoc false
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data
-  alias UnirisChain.Transaction.Data.Ledger
   alias UnirisChain.Transaction.Data.Ledger.UCO
   alias UnirisChain.Transaction.Data.Ledger.Transfer
 
@@ -11,19 +10,20 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
   @behaviour UnirisChain.DefaultImpl.Store.Impl
 
   def start_link(_opts) do
-    GenServer.start(__MODULE__, [], name: __MODULE__)
+    GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
+  @impl true
   def init(_) do
     {:ok,
      %{
-       device_shared_keys: [],
        unspent_outputs: %{},
        transactions: %{},
        chain_lookup: %{}
      }}
   end
 
+  @impl true
   def handle_call({:get_transaction, address}, _, state = %{transactions: txs}) do
     {:reply, Map.get(txs, address), state}
   end
@@ -33,30 +33,23 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
         _from,
         state = %{chain_lookup: chain_lookup, transactions: txs}
       ) do
-    chain =
-      case Map.get(chain_lookup, address) do
-        [] ->
-          []
+    case Map.get(chain_lookup, address) do
+      nil ->
+        {:reply, [], state}
 
-        addresses ->
-          Enum.map(addresses, &Map.get(txs, &1))
-      end
-
-    {:reply, chain, state}
-  end
-
-  def handle_call({:get_transaction_chain, _}, _from, state) do
-    {:reply, [], state}
+      addresses ->
+        {:reply, Enum.map(addresses, &Map.get(txs, &1)), state}
+    end
   end
 
   def handle_call(
         {:get_unspent_output_transactions, address},
         _from,
-        state = %{unspent_outputs: utxos, ransaction: txs}
+        state = %{unspent_outputs: utxos, transactions: txs}
       ) do
     utxos =
       case Map.get(utxos, address) do
-        [] ->
+        nil ->
           []
 
         addresses ->
@@ -67,11 +60,11 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
   end
 
   def handle_call(
-        :get_last_node_shared_secret_transaction,
+        :get_last_node_shared_secrets_transaction,
         _from,
-        state = %{transaction: txs}
+        state = %{transactions: txs}
       ) do
-    case Map.get(state, :node_shared_secret_tx) do
+    case Map.get(state, :node_shared_secrets_tx) do
       nil ->
         {:reply, nil, state}
 
@@ -80,47 +73,9 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
     end
   end
 
-  def handle_call(
-        :list_device_shared_secret_transactions,
-        _from,
-        state = %{device_shared_keys: addresses, transactions: txs}
-      ) do
-    txs = Enum.map(addresses, &Map.get(txs, &1))
-    {:reply, txs, state}
-  end
-
+  @impl true
   def handle_cast({:store_transaction, tx}, state) do
     {:noreply, build_lookup([tx], state)}
-  end
-
-  defp build_lookup(
-         txs = [
-           tx = %Transaction{
-             address: genesis,
-             type: type,
-             data: %Data{ledger: %Ledger{uco: %UCO{transfers: uco_transfers}}}
-           }
-           | _
-         ],
-         state
-       ) do
-    new_state =
-      state
-      |> put_in([:transactions, genesis], tx)
-      |> put_in([:chain_lookup, genesis], Enum.map(txs, & &1.address))
-
-    case type do
-      :node_shared_secret ->
-        Map.put(new_state, :node_shared_secret, tx.address)
-
-      :device_shared_secret ->
-        Map.update!(new_state, :device_shared_secret, &(&1 ++ [tx.address]))
-
-      :transfer ->
-        Enum.reduce(uco_transfers, new_state, fn %Transfer{to: recipient} ->
-          put_in(new_state, [:unspent_outputs, recipient], &(&1 ++ [tx.address]))
-        end)
-    end
   end
 
   def handle_cast(
@@ -130,48 +85,123 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImpl do
     {:noreply, build_lookup(txs, state)}
   end
 
-  @spec get_transaction(binary()) :: Transaction.validated()
+  defp build_lookup(
+         txs = [%Transaction{} | []],
+         state
+       ) do
+    do_build_lookup(txs, state)
+  end
+
+  defp build_lookup(
+         txs = [%Transaction{address: last_address} | _],
+         state
+       ) do
+    do_build_lookup(
+      txs,
+      put_in(state, [:chain_lookup, last_address], Enum.map(txs, & &1.address))
+    )
+  end
+
+  defp do_build_lookup(txs = [tx = %Transaction{address: last_address, type: type} | _], state) do
+    %Transaction{address: genesis_address} = List.last(txs)
+
+    new_state =
+      Enum.reduce(txs, state, fn tx, acc ->
+        put_in(acc, [:transactions, tx.address], tx)
+      end)
+      |> put_in([:chain_lookup, genesis_address], Enum.map(txs, & &1.address))
+      |> put_in([:chain_lookup, last_address], Enum.map(txs, & &1.address))
+
+    new_state = do_build_lookup_unspent_outputs(tx, new_state)
+
+    case type do
+      :node_shared_secrets ->
+        Map.put(new_state, :node_shared_secrets_tx, tx.address)
+
+      _ ->
+        new_state
+    end
+  end
+
+  defp do_build_lookup_unspent_outputs(tx = %Transaction{data: %Data{ledger: ledger}}, state) do
+    case ledger do
+      %{uco: %UCO{transfers: uco_transfers}} ->
+        Enum.reduce(uco_transfers, state, fn %Transfer{to: recipient}, acc ->
+          update_in(acc, [:unspent_outputs, recipient], fn utxo ->
+            case utxo do
+              nil ->
+                [tx.address]
+
+              _ ->
+                utxo ++ [tx.address]
+            end
+          end)
+        end)
+
+      _ ->
+        state
+    end
+  end
+
+  @impl true
+  @spec get_transaction(binary()) ::
+          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
   def get_transaction(address) do
     case GenServer.call(__MODULE__, {:get_transaction, address}) do
       tx = %Transaction{} ->
-        tx
+        {:ok, tx}
 
       nil ->
-        raise "Transaction not exists"
+        {:error, :transaction_not_exists}
     end
   end
 
-  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
+  @impl true
+  @spec get_transaction_chain(binary()) ::
+          {:ok, list(Transaction.validated())} | {:error, :transaction_chain_not_exists}
   def get_transaction_chain(address) do
-    GenServer.call(__MODULE__, {:get_transaction_chain, address})
-  end
+    case GenServer.call(__MODULE__, {:get_transaction_chain, address}) do
+      [] ->
+        {:error, :transaction_chain_not_exists}
 
-  @spec get_unspent_output_transactions(binary()) :: list(Transaction.validated())
-  def get_unspent_output_transactions(address) do
-    GenServer.call(__MODULE__, {:get_unspent_output_transactions, address})
-  end
-
-  @spec get_last_node_shared_secret_transaction() :: Transaction.validated()
-  def get_last_node_shared_secret_transaction() do
-    case GenServer.call(__MODULE__, :get_last_node_shared_secret_transaction) do
-      tx = %Transaction{} ->
-        tx
-
-      nil ->
-        raise "Transaction not exists"
+      chain ->
+        {:ok, chain}
     end
   end
 
-  @spec list_device_shared_secret_transactions() :: list(Transaction.validated())
-  def list_device_shared_secret_transactions() do
-    GenServer.call(__MODULE__, :list_device_shared_secret_transactions)
+  @impl true
+  @spec get_unspent_output_transactions(binary()) ::
+          {:ok, list(Transaction.validated())} | {:error, :unspent_output_transactions_not_exists}
+  def get_unspent_output_transactions(address) do
+    case GenServer.call(__MODULE__, {:get_unspent_output_transactions, address}) do
+      [] ->
+        {:error, :unspent_output_transactions_not_exists}
+
+      utxo ->
+        {:ok, utxo}
+    end
   end
 
+  @impl true
+  @spec get_last_node_shared_secrets_transaction() ::
+          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+  def get_last_node_shared_secrets_transaction() do
+    case GenServer.call(__MODULE__, :get_last_node_shared_secrets_transaction) do
+      tx = %Transaction{} ->
+        {:ok, tx}
+
+      nil ->
+        {:error, :transaction_not_exists}
+    end
+  end
+
+  @impl true
   @spec store_transaction(Transaction.validated()) :: :ok
   def store_transaction(tx = %Transaction{}) do
     GenServer.cast(__MODULE__, {:store_transaction, tx})
   end
 
+  @impl true
   @spec store_transaction_chain(list(Transaction.validated())) :: :ok
   def store_transaction_chain(txs) when is_list(txs) do
     GenServer.cast(__MODULE__, {:store_transaction_chain, txs})

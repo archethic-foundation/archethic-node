@@ -2,15 +2,15 @@ defmodule UnirisChain.Transaction do
   @moduledoc """
   Represents a transaction in the Uniris TransactionChain.
 
-  Each transaction also has an additional signature corresponding to
-  the signature of the device that generated the transaction.
-
-  This signature is used inside the Proof of Work mechanism and can be integrated as
-  a necessary condition for the validation of a transaction
+  Hosted on its own process for fast retrieval of information
   """
   alias UnirisCrypto, as: Crypto
   alias UnirisChain.Transaction.Data
   alias UnirisChain.Transaction.ValidationStamp
+
+  alias UnirisChain.TransactionRegistry
+
+  use Agent
 
   @enforce_keys [
     :address,
@@ -86,8 +86,7 @@ defmodule UnirisChain.Transaction do
           | :keychain
           | :smart_contract
           | :node
-          | :origin_shared_key
-          | :node_shared_key
+          | :node_shared_secrets
           | :code
 
   @transaction_types [
@@ -95,98 +94,92 @@ defmodule UnirisChain.Transaction do
     :keychain,
     :transfer,
     :node,
-    :origin_shared_key,
-    :node_shared_key,
+    :node_shared_secrets,
     :code
   ]
 
   @doc """
   Create a new pending transaction by derivating keypair w/o predecence.
 
+  The key generation and signature is protected by never givin the seed of the private key.
+
   The predecence is determined by the number of previous created transaction.
   If greater than 0, the keypair N-1 will be regenerated to sign the transaction (to compute the `previous_signature`).
 
-
-  ## Examples
-     ```
-     iex> UnirisChain.Transaction.new(:transfer,
-     ...>   %UnirisChain.Transaction.Data{
-     ...>     ledger: %UnirisChain.Transaction.Data.Ledger.UCO{
-     ...>       transfers: [%UnirisChain.Transaction.Data.Ledger.Transfer{ to: "", amount: 10}]
-     ...>      }
-     ...>   }
-     ...> )
-     %UnirisChain.Transaction{
-       address: <<0, 28, 183, 200, 78, 111, 143, 127, 108, 149, 238, 111, 230, 51,
-         217, 17, 224, 61, 219, 111, 134, 10, 75, 220, 49, 98, 10, 42, 62, 121, 121,
-         47, 121>>,
-       data: %UnirisChain.Transaction.Data{
-         code: "",
-         content: "",
-         keys: %{},
-         ledger: %UnirisChain.Transaction.Data.Ledger.UCO{
-           fee: nil,
-           transfers: [
-             %UnirisChain.Transaction.Data.Ledger.Transfer{
-                amount: 10,
-                conditions: nil,
-                to: ""
-             }
-           ]
-         },
-         recipients: []
-       },
-       origin_signature: <<224, 241, 112, 2, 58, 254, 225, 87, 97, 223, 126, 96,
-       184, 172, 93, 151, 187, 137, 176, 28, 16, 151, 99, 143, 171, 56, 73, 87,
-       133, 35, 81, 46, 128, 98, 236, 74, 127, 243, 180, 115, 216, 234, 235, 125,
-       65, 141, 65, 244, 180, 152, 233, 200, 5, 173, 145, 89, 193, 207, 203, 49,
-       217, 190, 195, 2>>, 
-       previous_public_key: <<0, 193, 80, 142, 239, 14, 128, 108, 123, 101, 138, 2,
-        155, 99, 63, 100, 54, 144, 168, 232, 240, 161, 13, 59, 177, 89, 80, 17,
-        197, 49, 14, 7, 174>>,
-       previous_signature: <<230, 64, 254, 226, 145, 242, 253, 122, 62, 196, 201,
-         212, 236, 198, 61, 110, 95, 26, 45, 66, 204, 227, 91, 48, 130, 100, 177,
-         143, 180, 229, 26, 191, 67, 7, 189, 58, 214, 236, 222, 30, 191, 47, 117,
-         138, 253, 231, 160, 24, 143, 125, 84, 163, 126, 60, 19, 164, 116, 27, 42,
-         188, 165, 248, 68, 8>>,
-       timestamp: 1582635339,
-       type: :transfer
-     }
-     ```
   """
-  @spec new(
-          transaction_type :: Transaction.types(),
+  @spec from_node_seed(
+          transaction_type :: __MODULE__.types(),
           transaction_data :: Data.t(),
-          timestamp :: integer(),
-          nb_transaction :: non_neg_integer() | 0
+          index :: integer()
         ) :: Transaction.pending()
-  def new(
+  def from_node_seed(
         type,
-        data = %Data{},
-        timestamp \\ DateTime.utc_now() |> DateTime.to_unix(),
-        nb_transaction \\ 0
+        data = %Data{} \\ %Data{},
+        index \\ 0
       )
-      when nb_transaction >= 0 and
-             type in @transaction_types do
-    previous_public_key = Crypto.derivate_keypair(nb_transaction, persistence: true)
-    next_public_key = Crypto.derivate_keypair(nb_transaction + 1, persistence: true)
+      when type in @transaction_types and is_number(index) do
+    # Derivate previous and next keys
+    previous_public_key = Crypto.node_public_key(index)
+    next_public_key = Crypto.node_public_key(index + 1)
 
     transaction = %{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: timestamp,
+      timestamp: DateTime.utc_now() |> DateTime.to_unix(),
       data: data,
       previous_public_key: previous_public_key
     }
 
+    # Sign with the previous private key to ensure the integrity
     prev_sig =
-      Crypto.sign(Map.take(transaction, [:address, :type, :timestamp, :data]),
-        with: :node,
-        as: :previous
+      Crypto.sign_with_node_key(
+        Map.take(transaction, [:address, :type, :timestamp, :data]),
+        index
       )
 
     transaction = Map.put(transaction, :previous_signature, prev_sig)
-    origin_sig = Crypto.sign(transaction, with: :origin, as: :random)
+
+    # Sign the transaction with a random origin signature to ensure the authorization
+    origin_sig = Crypto.sign_with_origin_key(transaction)
+    struct(__MODULE__, Map.put(transaction, :origin_signature, origin_sig))
+  end
+
+  @spec from_seed(
+          seed :: binary(),
+          transaction_type :: Transaction.types(),
+          transaction_data :: Data.t(),
+          index :: integer()
+        ) :: Transaction.pending()
+  def from_seed(
+        seed,
+        type,
+        data = %Data{} \\ %Data{},
+        index \\ 0
+      )
+      when is_binary(seed) and type in @transaction_types and is_number(index) do
+    # Derivate previous and next keys
+    {previous_public_key, previous_private_key} = Crypto.derivate_keypair(seed, index)
+    {next_public_key, _} = Crypto.derivate_keypair(seed, index + 1)
+
+    transaction = %{
+      address: Crypto.hash(next_public_key),
+      type: type,
+      timestamp: DateTime.utc_now() |> DateTime.to_unix(),
+      data: data,
+      previous_public_key: previous_public_key
+    }
+
+    # Sign with the previous private key to ensure the integrity
+    prev_sig =
+      Crypto.sign(
+        Map.take(transaction, [:address, :type, :timestamp, :data]),
+        previous_private_key
+      )
+
+    transaction = Map.put(transaction, :previous_signature, prev_sig)
+
+    # Sign the transaction with a random origin signature to ensure the authorization
+    origin_sig = Crypto.sign_with_origin_key(transaction)
     struct(__MODULE__, Map.put(transaction, :origin_signature, origin_sig))
   end
 
@@ -195,21 +188,50 @@ defmodule UnirisChain.Transaction do
   """
   @spec valid_pending_transaction?(__MODULE__.pending()) :: boolean()
   def valid_pending_transaction?(tx = %__MODULE__{}) do
-    with true <- Crypto.valid_hash?(tx.address),
-         true <- tx.type in @transaction_types,
-         true <- Crypto.valid_public_key?(tx.previous_public_key),
-         true <- tx.address != Crypto.hash(tx.previous_public_key),
-         true <-
-           Crypto.verify(
-             tx.previous_signature,
-             Map.take(tx, [:address, :type, :timestamp, :data]),
-             tx.previous_public_key
-           ) do
-      # TODO: perform additional checks regarding the data block
-      true
-    else
-      _ ->
+    cond do
+      !Crypto.valid_hash?(tx.address) ->
         false
+
+      tx.type not in @transaction_types ->
+        false
+
+      !Crypto.valid_public_key?(tx.previous_public_key) ->
+        false
+
+      !Crypto.verify(
+        tx.previous_signature,
+        Map.take(tx, [:address, :type, :timestamp, :data]),
+        tx.previous_public_key
+      ) ->
+        false
+
+      true ->
+        # TODO: perform additional checks regarding the data block
+        true
     end
+  end
+
+  def start_link(tx = %__MODULE__{address: address, type: type}) do
+    Agent.start_link(
+      fn ->
+        case type do
+          :node_shared_secret ->
+            Registry.register(TransactionRegistry, :node_shared_secrets, [])
+            tx
+
+          _ ->
+            tx
+        end
+      end,
+      name: via_tuple(address)
+    )
+  end
+
+  def get(pid) do
+    Agent.get(pid, & &1)
+  end
+
+  defp via_tuple(address) do
+    {:via, Registry, {TransactionRegistry, address}}
   end
 end

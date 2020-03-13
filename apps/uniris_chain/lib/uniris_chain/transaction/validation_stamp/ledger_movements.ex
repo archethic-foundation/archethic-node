@@ -5,7 +5,7 @@ defmodule UnirisChain.Transaction.ValidationStamp.LedgerMovements do
 
   alias __MODULE__.UTXO
 
-  defstruct [uco: %UTXO{}, nft: nil]
+  defstruct uco: %UTXO{}, nft: nil
 
   @typedoc """
   Ledger movements from the transaction's issuer.
@@ -14,7 +14,7 @@ defmodule UnirisChain.Transaction.ValidationStamp.LedgerMovements do
   - next: the next balance
   """
   @type t :: %__MODULE__{
-    uco: UTXO.t(),
-    nft: UTXO.t()
-  }
+          uco: UTXO.t(),
+          nft: UTXO.t()
+        }
 end

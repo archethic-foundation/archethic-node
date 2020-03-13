@@ -55,7 +55,7 @@ defmodule UnirisChain.Transaction.ValidationStamp do
       node_movements: node_movements
     }
 
-    sig = Crypto.sign(stamp, with: :node, as: :last)
+    sig = Crypto.sign_with_node_key(stamp)
     struct(__MODULE__, Map.put(stamp, :signature, sig))
   end
 

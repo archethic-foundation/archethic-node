@@ -3,15 +3,15 @@ defmodule UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO do
   Represents the UTXO model for a ledger with a previous status and a next status
   """
 
-  defstruct [previous: %{from: [], amount: 0}, next: 0]
+  defstruct previous: %{from: [], amount: 0}, next: 0
 
   @type balance :: float()
   @type utxo_senders :: list(binary())
 
   @type previous_ledger_summary() :: %{
-    from: utxo_senders(),
-    amount: balance()
-  }
+          from: utxo_senders(),
+          amount: balance()
+        }
 
   @typedoc """
   It represents the summary of the UTXO transfer
@@ -19,8 +19,7 @@ defmodule UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO do
   - next: the next balance
   """
   @type t :: %__MODULE__{
-    previous: previous_ledger_summary(),
-    next: balance()
-  }
-
+          previous: previous_ledger_summary(),
+          next: balance()
+        }
 end

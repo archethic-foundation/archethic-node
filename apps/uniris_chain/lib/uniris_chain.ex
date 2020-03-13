@@ -4,9 +4,10 @@ defmodule UnirisChain do
 
   """
   alias UnirisChain.Transaction
-  alias UnirisChain.TransactionStore
 
   @behaviour UnirisChain.Impl
+
+  defdelegate child_spec(opts), to: __MODULE__.DefaultImpl
 
   @doc """
   Retrieve a transaction by its address
@@ -29,10 +30,10 @@ defmodule UnirisChain do
   @doc """
   Retrieve unspent outputs with destination of transfers for the given address
   """
-  @spec get_unspent_outputs(binary()) ::
+  @spec get_unspent_output_transactions(binary()) ::
           {:ok, list(Transaction.validated())} | {:error, :unspent_outputs_not_exists}
-  def get_unspent_outputs(address) do
-    impl().get_unspent_outputs(address)
+  def get_unspent_output_transactions(address) do
+    impl().get_unspent_output_transactions(address)
   end
 
   @doc """
@@ -44,11 +45,28 @@ defmodule UnirisChain do
   end
 
   @doc """
+  Persist temporary a failed transaction
+  """
+  @spec store_ko_transaction(Transaction.t()) :: :ok
+  def store_ko_transaction(tx = %Transaction{}) do
+    impl().store_transaction(tx)
+  end
+
+  @doc """
   Persist a new transaction chain
   """
   @spec store_transaction_chain(list(Transaction.validated())) :: :ok
   def store_transaction_chain(txs) do
     impl().store_transaction_chain(txs)
+  end
+
+  @doc """
+  Get the latest node shared secrets transaction including the required nonces
+  """
+  @spec get_last_node_shared_secrets_transaction() ::
+          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+  def get_last_node_shared_secrets_transaction() do
+    impl().get_last_node_shared_secrets_transaction()
   end
 
   defp impl() do

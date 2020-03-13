@@ -1,11 +1,15 @@
 defmodule UnirisChain.DefaultImpl.Store.Impl do
   @moduledoc false
 
-  @callback get_transaction(binary()) :: Transaction.validated()
-  @callback get_transaction_chain(binary()) :: list(Transaction.validated())
-  @callback get_unspent_output_transactions(binary()) :: list(Transaction.validated())
+  @callback get_transaction(binary()) ::
+              {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+  @callback get_transaction_chain(binary()) ::
+              {:ok, list(Transaction.validated())} | {:error, :transaction_chain_not_exists}
+  @callback get_unspent_output_transactions(binary()) ::
+              {:ok, list(Transaction.validated())}
+              | {:error, :unspent_output_transaction_not_exists}
   @callback store_transaction(Transaction.validated()) :: :ok
   @callback store_transaction_chain(list(Transaction.validated())) :: :ok
-  @callback get_last_node_shared_secret_transaction() :: Transaction.validated()
-  @callback list_device_shared_secret_transactions() :: list(Transaction.validated())
+  @callback get_last_node_shared_secrets_transaction() ::
+              {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
 end
