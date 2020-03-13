@@ -30,8 +30,10 @@ defmodule UnirisValidation.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
       {:uniris_chain, in_umbrella: true},
       {:uniris_election, in_umbrella: true},
-      {:uniris_network, in_umbrella: true},
-      {:mox, "~> 0.5.1", only: [:test]}
+      {:uniris_p2p, in_umbrella: true},
+      {:uniris_shared_secrets, in_umbrella: true},
+      {:uniris_sync, in_umbrella: true},
+      {:mox, "~> 0.5.1"}
     ]
   end
 end

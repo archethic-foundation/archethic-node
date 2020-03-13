@@ -65,12 +65,14 @@ defmodule UnirisValidation.DefaultImpl.UTXO do
           LedgerMovements.t(),
           list(Transaction.validated())
         ) :: {:ok, LedgerMovements.t()} | {:error, :unsufficients_funds}
+
   def next_ledger(
         %Transaction{},
-        _fee,
+        fee,
         _previous_ledger = %LedgerMovements{uco: %{next: 0}},
         []
-      ) do
+      )
+      when fee > 0 do
     {:error, :unsufficients_funds}
   end
 
@@ -80,13 +82,22 @@ defmodule UnirisValidation.DefaultImpl.UTXO do
         %LedgerMovements{uco: %{next: previous_uco_balance}},
         unspent_output_transactions
       ) do
-    if length(uco_transfers) > 0 do
-      {:ok,
-       %LedgerMovements{
-         uco:
-           next_uco_ledger(uco_transfers, fee, previous_uco_balance, unspent_output_transactions)
-       }}
-    end
+    {:ok,
+     %LedgerMovements{
+       uco: next_uco_ledger(uco_transfers, fee, previous_uco_balance, unspent_output_transactions)
+     }}
+  end
+
+  def next_ledger(
+        %Transaction{},
+        fee,
+        %LedgerMovements{uco: %{next: previous_uco_balance}},
+        unspent_output_transactions
+      ) do
+    {:ok,
+     %LedgerMovements{
+       uco: next_uco_ledger([], fee, previous_uco_balance, unspent_output_transactions)
+     }}
   end
 
   @doc """

@@ -16,13 +16,14 @@ defmodule UnirisValidation do
 
   A new process is spawn responsible to gather context and forward information to other validation nodes.
 
-  If the node is the coordinator, it will run the proof of work and manage the acknowledgements of jobs coming from the cross validation nodes. 
+  If the node is the coordinator, it will run the proof of work and manage the acknowledgements of jobs coming from the cross validation nodes.
   """
+
   @impl true
-  @spec start_validation(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
+  @spec start_mining(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
           {:ok, pid()}
-  def start_validation(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
-    impl().start_validation(tx, welcome_node_public_key, validation_node_public_keys)
+  def start_mining(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
+    impl().start_mining(tx, welcome_node_public_key, validation_node_public_keys)
   end
 
   @doc """
@@ -30,7 +31,8 @@ defmodule UnirisValidation do
   """
   @impl true
   @spec cross_validate(binary(), ValidationStamp.t()) ::
-          {signature :: binary(), inconsistencies :: list(atom())}
+          {signature :: binary(), inconsistencies :: list(atom()),
+           public_key :: UnirisCrypto.key()}
   def cross_validate(tx_address, stamp = %ValidationStamp{}) do
     impl().cross_validate(tx_address, stamp)
   end
@@ -41,14 +43,16 @@ defmodule UnirisValidation do
   It includes the signature of the cross validation stamp, the list of inconsistencies and theS
   node emitter of the validation
   """
+
   @impl true
   @spec add_cross_validation_stamp(
           tx_address :: binary(),
-          stamp :: {signature :: binary(), inconsistencies :: list(atom)},
-          validation_node :: UnirisCrypto.key()
+          stamp ::
+            {signature :: binary(), inconsistencies :: list(atom),
+             public_key :: UnirisCrypto.key()}
         ) :: :ok
-  def add_cross_validation_stamp(tx_address, stamp = {_sig, _inconsistencies}, validation_node) do
-    impl().add_cross_validation_stamp(tx_address, stamp, validation_node)
+  def add_cross_validation_stamp(tx_address, stamp = {_sig, _inconsistencies, _public_key}) do
+    impl().add_cross_validation_stamp(tx_address, stamp)
   end
 
   @doc """
@@ -82,41 +86,30 @@ defmodule UnirisValidation do
   end
 
   @doc """
-  Verify a transaction by download it previous chain and make all the necessary checks:
-  - Pending transaction integrity
-  - Ledger movements
-  - Node movements
-  - Atomic commitment
-  - Chain integrity
+  Add the replication tree computed by the coordinator to the mining process.
 
-  If the transaction does not match any of these checks, the transaction will be stored as KO
-  If the transaction is invalid and if the atomic commitment approved it alo, the transaction will be stored as KO
-
-  Otherwise the transaction will be stored on the TransactionChain
+  Based on the bitstring positionning, the validation node can find out which are the nodes he/she must replicate on
   """
+  @impl true
+  @spec set_replication_tree(binary(), list(bitstring())) :: :ok
+  def set_replication_tree(tx_address, tree) do
+    impl().set_replication_tree(tx_address, tree)
+  end
+
+  @doc """
+  Validate a transaction and store the transaction in the chain storage if it's ok
+
+  Differents kinds of validation are made depending on the nature of the receiving node:
+  - Elected storage node: full validation (context building, ledger movements, node movements, chain integrity, etc..)
+  - Unspent outputs and Beacon chain node: lite validation (cryptographic integrity and atomic commitment)
+
+  """
+
   @impl true
   @spec replicate_transaction(Transaction.validated()) ::
           :ok | {:error, :invalid_transaction} | {:error, :invalid_transaction_chain}
   def replicate_transaction(tx = %Transaction{}) do
     impl().replicate_transaction(tx)
-  end
-
-  @doc """
-  Determines if the transaction address is under mining
-  """
-  @impl true
-  @spec mining?(binary()) :: boolean()
-  def mining?(tx_address) do
-    impl().mining?(tx_address)
-  end
-
-  @doc """
-  Retrieve the mined transaction from an address
-  """
-  @impl true
-  @spec mined_transaction(binary()) :: Transaction.pending()
-  def mined_transaction(tx_address) do
-    impl().mined_transaction(tx_address)
   end
 
   defp impl() do

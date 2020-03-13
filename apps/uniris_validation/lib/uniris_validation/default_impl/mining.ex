@@ -10,8 +10,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
   alias UnirisElection, as: Election
-  alias UnirisNetwork, as: Network
-  alias UnirisNetwork.Node
+  alias UnirisP2P, as: P2P
+  alias UnirisP2P.Node
   alias UnirisCrypto, as: Crypto
 
   require Logger
@@ -35,7 +35,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     data = %{
       transaction: tx,
       welcome_node_public_key: welcome_node_public_key,
-      validation_node_public_keys: validation_node_public_keys
+      validation_node_public_keys: validation_node_public_keys,
+      node_public_key: Crypto.node_public_key()
     }
 
     Logger.info("Mining starting for #{tx.address |> Base.encode16()}")
@@ -55,9 +56,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
       ) do
     if Transaction.valid_pending_transaction?(tx) do
       # Verify welcome node validaiton node election
-      elected_validation_nodes =
-        [_ | cross_validation_nodes] =
-        Election.validation_nodes(tx, Network.list_nodes(), Network.daily_nonce())
+      elected_validation_nodes = Election.validation_nodes(tx)
 
       if Enum.map(elected_validation_nodes, & &1.last_public_key) == validation_node_public_keys do
         new_data =
@@ -65,7 +64,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
           |> Map.put(:validation_nodes, elected_validation_nodes)
           |> Map.put(
             :validation_nodes_view,
-            BinarySequence.from_availability(cross_validation_nodes)
+            BinarySequence.from_availability(cross_validation_nodes(elected_validation_nodes))
           )
 
         {:keep_state, new_data, {:next_event, :internal, :start_mining}}
@@ -86,19 +85,18 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         :started,
         data = %{
           transaction: tx,
-          validation_nodes: [%Node{last_public_key: coordinator_public_key} | _]
+          node_public_key: node_public_key,
+          validation_nodes:
+            validation_nodes = [%Node{last_public_key: coordinator_public_key} | _]
         }
       ) do
     # Compute the storage node and the P2P view in a binary format
-    storage_nodes =
-      Election.storage_nodes(tx.address, Network.list_nodes(), Network.storage_nonce())
-
-    storage_nodes_view = BinarySequence.from_availability(storage_nodes)
+    storage_nodes = storage_nodes(tx)
 
     new_data =
       data
       |> Map.put(:storage_nodes, storage_nodes)
-      |> Map.put(:storage_nodes_view, storage_nodes_view)
+      |> Map.put(:storage_nodes_view, BinarySequence.from_availability(storage_nodes))
 
     # Run the context building phase
     context_building_task =
@@ -106,13 +104,15 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
     new_data = Map.put(new_data, :context_building_task, context_building_task)
 
-    # Execute the Proof of work if coordinator
-    if Crypto.last_node_public_key() == coordinator_public_key do
-      pow_task = Task.Supervisor.async(TaskSupervisor, ProofOfWork, :run, [tx])
-      Logger.info("Coordinator work started for #{tx.address |> Base.encode16()}")
-      {:next_state, :coordinator, Map.put(new_data, :pow_task, pow_task)}
+    if node_public_key == coordinator_public_key do
+      if length(validation_nodes) == 1 do
+        {:next_state, :coordinator_and_cross_validator, new_data}
+      else
+        Logger.debug("Coordinator")
+        {:next_state, :coordinator, new_data}
+      end
     else
-      Logger.info("Cross validation work started for #{tx.address |> Base.encode16()}")
+      Logger.debug("Cross validator")
       {:next_state, :cross_validator, new_data}
     end
   end
@@ -133,56 +133,63 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
   def handle_event(
         :info,
-        {ref, result},
+        {ref, {:ok, chain, unspent_outputs, nodes}},
         state,
         data = %{
           transaction: %Transaction{address: tx_address},
           context_building_task: %Task{ref: t_ref},
           validation_nodes: [coordinator | _],
           storage_nodes_view: storage_nodes_view,
-          validation_nodes_view: validation_nodes_view
+          validation_nodes_view: validation_nodes_view,
+          node_public_key: node_public_key
+        }
+      )
+      when state in [:cross_validator, :coordinator_and_cross_validator] and ref == t_ref do
+    # Notify the coordinator about the context building + P2P view about
+    # the cross validation nodes and next storage nodes
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      P2P.send_message(
+        coordinator,
+        {:add_context, tx_address, node_public_key, nodes, validation_nodes_view,
+         storage_nodes_view}
+      )
+    end)
+
+    {:keep_state, update_data_from_context(data, chain, unspent_outputs, nodes)}
+  end
+
+  def handle_event(
+        :info,
+        {ref, {:ok, chain, unspent_outputs, nodes}},
+        _,
+        data = %{
+          context_building_task: %Task{ref: t_ref}
         }
       )
       when ref == t_ref do
-    case result do
-      {:ok, chain, unspent_outputs, nodes} ->
-        new_data =
-          data
-          |> Map.put(:previous_chain, chain)
-          |> Map.put(:unspent_outputs, unspent_outputs)
-          |> Map.put(:previous_storage_nodes, nodes)
-
-        if state == :cross_validator do
-          # Notify the coordinator about the context building + P2P view about
-          # the cross validation nodes and next storage nodes
-          Task.Supervisor.start_child(TaskSupervisor, fn ->
-            Network.send_message(
-              coordinator,
-              {:add_context, tx_address, nodes, validation_nodes_view, storage_nodes_view}
-            )
-          end)
-
-          {:keep_state, new_data}
-        else
-          {:keep_state, new_data}
-        end
-    end
+    {:keep_state, update_data_from_context(data, chain, unspent_outputs, nodes)}
   end
 
   def handle_event(
         :cast,
         {:cross_validate, stamp = %ValidationStamp{}},
-        :cross_validator,
+        state,
         data = %{
           transaction: tx = %Transaction{address: tx_address},
           previous_chain: previous_chain,
           unspent_outputs: unspent_outputs,
           validation_nodes:
             validation_nodes = [
-              %Node{last_public_key: coordinator_public_key} | cross_validation_nodes
-            ]
+              %Node{last_public_key: coordinator_public_key} | _
+            ],
+          node_public_key: node_public_key
         }
-      ) do
+      )
+      when state in [
+             :cross_validator,
+             :coordinator_and_cross_validator,
+             :waiting_cross_validation_stamps
+           ] do
     Logger.info("Start cross validation for #{tx_address |> Base.encode16()}")
 
     cross_validation_stamp =
@@ -190,27 +197,26 @@ defmodule UnirisValidation.DefaultImpl.Mining do
              tx,
              stamp,
              coordinator_public_key,
-             cross_validation_nodes |> Enum.map(& &1.last_public_key),
+             cross_validation_nodes(validation_nodes) |> Enum.map(& &1.last_public_key),
              previous_chain,
              unspent_outputs
            ) do
         :ok ->
-          Stamp.create_cross_validation_stamp(stamp, [])
+          Stamp.create_cross_validation_stamp(stamp, [], node_public_key)
 
         {:error, inconsistencies} ->
-          Stamp.create_cross_validation_stamp(stamp, inconsistencies)
+          Stamp.create_cross_validation_stamp(stamp, inconsistencies, node_public_key)
       end
 
-    Task.Supervisor.async_stream(TaskSupervisor, validation_nodes, fn n ->
-      Network.send_message(n, {:cross_validation_done, tx.address, cross_validation_stamp})
+    Enum.each(validation_nodes, fn n ->
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        P2P.send_message(n, {:cross_validation_done, tx.address, cross_validation_stamp})
+      end)
     end)
-    |> Stream.run()
 
     new_data =
       data
-      |> Map.put(:cross_validation_stamps, [
-        {Crypto.last_node_public_key(), cross_validation_stamp}
-      ])
+      |> Map.put(:cross_validation_stamps, [cross_validation_stamp])
       |> Map.put(:validation_stamp, stamp)
 
     Logger.info("End cross validation for #{tx_address |> Base.encode16()}")
@@ -220,14 +226,14 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   def handle_event(
         :cast,
         {:set_replication_tree, binary_tree},
-        :cross_validator,
+        _,
         data = %{
           validation_nodes: validation_nodes,
-          storage_nodes: storage_nodes
+          storage_nodes: storage_nodes,
+          node_public_key: node_public_key
         }
       ) do
-    pub = Crypto.last_node_public_key()
-    validator_index = Enum.find_index(validation_nodes, &(&1.last_public_key == pub))
+    validator_index = Enum.find_index(validation_nodes, &(&1.last_public_key == node_public_key))
 
     %{list: replication_nodes} =
       binary_tree
@@ -249,33 +255,14 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   end
 
   def handle_event(
-        :info,
-        {:DOWN, ref, _, _, _reason},
-        :coordinator,
-        _data = %{
-          transaction: tx,
-          pow_task: %Task{ref: pow_ref}
-        }
-      )
-      when pow_ref == ref do
-    Logger.info("End of proof of work for #{tx.address |> Base.encode16()}")
-
-    :keep_state_and_data
-  end
-
-  def handle_event(:info, {ref, result}, :coordinator, data = %{pow_task: %Task{ref: t_ref}})
-      when t_ref == ref do
-    {:keep_state, Map.put(data, :proof_of_work, result)}
-  end
-
-  def handle_event(
         :cast,
         {:add_context, from, previous_storage_nodes, validation_nodes_view, storage_nodes_view},
-        :coordinator,
+        state,
         data = %{
-          validation_nodes: [_ | cross_validation_nodes]
+          validation_nodes: validation_nodes
         }
-      ) do
+      )
+      when state in [:coordinator, :coordinator_and_cross_validator] do
     new_data =
       data
       |> Map.update(:confirm_validation_nodes, [from], &(&1 ++ [from]))
@@ -286,6 +273,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         previous_storage_nodes,
         &(&1 ++ previous_storage_nodes)
       )
+
+    cross_validation_nodes = cross_validation_nodes(validation_nodes)
 
     new_data.confirm_validation_nodes
     |> length()
@@ -302,7 +291,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   def handle_event(
         :internal,
         :create_validation_stamp,
-        :coordinator,
+        state,
         data = %{
           transaction: tx = %Transaction{address: tx_address},
           unspent_outputs: unspent_outputs,
@@ -312,12 +301,16 @@ defmodule UnirisValidation.DefaultImpl.Mining do
           welcome_node_public_key: welcome_node_public_key,
           validation_nodes:
             validation_nodes = [
-              %Node{last_public_key: coordinator_public_key} | cross_validation_nodes
-            ],
-          proof_of_work: pow_result
+              %Node{last_public_key: coordinator_public_key} | _
+            ]
         }
-      ) do
+      )
+      when state in [:coordinator, :coordinator_and_cross_validator] do
     Logger.info("Start validation stamp creation for #{tx_address |> Base.encode16()}")
+
+    pow_result = ProofOfWork.run(tx)
+
+    cross_validation_nodes = cross_validation_nodes(validation_nodes)
 
     stamp =
       Stamp.create_validation_stamp(
@@ -335,13 +328,14 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
     # Send cross validation request and replication tree computation to the available
     # cross validation nodes
-    Task.Supervisor.async_stream(TaskSupervisor, cross_validation_nodes, fn node ->
-      Network.send_message(node, [
-        {:cross_validate, tx.address, stamp},
-        {:set_replication_tree, tx.address, replication_tree}
-      ])
+    Enum.each(cross_validation_nodes, fn n ->
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        P2P.send_message(n, [
+          {:set_replication_tree, tx.address, replication_tree},
+          {:cross_validate, tx.address, stamp}
+        ])
+      end)
     end)
-    |> Stream.run()
 
     Logger.info("End validation stamp creation for #{tx_address |> Base.encode16()}")
 
@@ -351,21 +345,27 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
   def handle_event(
         :cast,
-        {:add_cross_validation_stamp, cross_validation_stamp = {_signature, _inconsistencies},
-         from},
+        {:add_cross_validation_stamp, cross_validation_stamp},
         :waiting_cross_validation_stamps,
-        data = %{validation_stamp: stamp, validation_nodes: [_ | cross_validation_nodes]}
+        data = %{
+          validation_stamp: stamp,
+          validation_nodes: validation_nodes,
+          cross_validation_stamps: cross_stamps
+        }
       ) do
-    if Stamp.valid_cross_validation_stamp?(cross_validation_stamp, stamp, from) do
-      new_data =
-        Map.update!(data, :cross_validation_stamps, &(&1 ++ [{from, cross_validation_stamp}]))
+    if Stamp.valid_cross_validation_stamp?(cross_validation_stamp, stamp) do
+      cross_stamps =
+        [cross_validation_stamp | cross_stamps]
+        |> Enum.dedup_by(fn {_, _, pub} -> pub end)
 
-      %{cross_validation_stamps: stamps} = new_data
+      new_data = Map.put(data, :cross_validation_stamps, cross_stamps)
 
       # Wait to receive the all the cross validation stamps and to reach
       # the atomic commitment before to start replication
-      if length(stamps) == length(cross_validation_nodes) do
-        Enum.dedup_by(stamps, fn {_, inconsistencies} -> inconsistencies end)
+      if length(cross_stamps) < length(cross_validation_nodes(validation_nodes)) do
+        {:keep_state, new_data}
+      else
+        Enum.dedup_by(cross_stamps, fn {_, inconsistencies, _} -> inconsistencies end)
         |> length
         |> case do
           1 ->
@@ -375,10 +375,9 @@ defmodule UnirisValidation.DefaultImpl.Mining do
             {:next_state, :atomic_commitment_not_reach, new_data,
              {:next_event, :internal, :init_malicious_detection}}
         end
-      else
-        {:keep_state, new_data}
       end
     else
+      Logger.error("invalid cross validation stamp #{inspect cross_validation_stamp}")
       :keep_state_and_data
     end
   end
@@ -401,45 +400,44 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         cross_validation_stamps: cross_validation_stamps,
         replication_nodes: replication_nodes
       }) do
+    Logger.info("Start replication")
+
     validated_transaction =
       tx
       |> Map.put(:validation_stamp, stamp)
       |> Map.put(:cross_validation_stamps, cross_validation_stamps)
 
-    Task.Supervisor.async_stream(TaskSupervisor, replication_nodes, fn n ->
-      Network.send_message(n, {:replicate_transaction, validated_transaction})
+    Enum.each(replication_nodes, fn n ->
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        P2P.send_message(n, {:replicate_transaction, validated_transaction})
+      end)
     end)
-    |> Stream.run()
 
     :keep_state_and_data
-  end
-
-  def handle_event(:cast, {:add_cross_validation_stamp, _, _}, :replication, _data) do
-    :keep_state_and_data
-  end
-
-  def handle_event(:cast, {:add_cross_validation_stamp, _, _}, _, _data) do
-    {:keep_state_and_data, :postpone}
   end
 
   def handle_event({:call, from}, :transaction, _, %{transaction: tx}) do
     {:keep_state_and_data, {:reply, from, tx}}
   end
 
+  def handle_event(_event, msg, state, _data) do
+    Logger.debug("Unexpected message: state: #{state} - message: #{inspect(msg)}")
+    :keep_state_and_data
+  end
+
   @spec add_cross_validation_stamp(
           binary(),
-          {signature :: binary(), inconsistencies :: list(atom)},
-          binary()
+          stamp ::
+            {signature :: binary(), inconsistencies :: list(atom), public_key :: Crypto.key()}
         ) ::
           :ok
   def add_cross_validation_stamp(
         tx_address,
-        stamp = {_sig, _inconsistencies},
-        validation_node_public_key
+        stamp = {_sig, _inconsistencies, _public_key}
       ) do
     :gen_statem.cast(
       via_tuple(tx_address),
-      {:add_cross_validation_stamp, stamp, validation_node_public_key}
+      {:add_cross_validation_stamp, stamp}
     )
   end
 
@@ -448,7 +446,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     :gen_statem.cast(via_tuple(tx_address), {:set_replication_tree, tree})
   end
 
-  @spec add_context(binary(), binary(), list(binary()), bitstring(), bitstring()) :: :ok
+  @spec add_context(binary(), Crypto.key(), list(binary()), bitstring(), bitstring()) :: :ok
   def add_context(
         tx_address,
         validation_node_public_key,
@@ -468,12 +466,30 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     :gen_statem.cast(via_tuple(tx_address), {:cross_validate, stamp})
   end
 
-  @spec get_transaction(binary()) :: Transaction.pending()
-  def get_transaction(tx_address) do
-    :gen_statem.cast(via_tuple(tx_address), :transaction)
-  end
-
   defp via_tuple(tx_address) do
     {:via, Registry, {UnirisValidation.MiningRegistry, tx_address}}
+  end
+
+  defp update_data_from_context(data, previous_chain, unspent_outputs, nodes) do
+    data
+    |> Map.put(:previous_chain, previous_chain)
+    |> Map.put(:unspent_outputs, unspent_outputs)
+    |> Map.put(:previous_storage_nodes, nodes)
+  end
+
+  defp storage_nodes(%Transaction{address: tx_address, type: type}) do
+    if type in [:node, :code] do
+      P2P.list_nodes()
+    else
+      Election.storage_nodes(tx_address)
+    end
+  end
+
+  defp cross_validation_nodes(validation_nodes = [_]) do
+    validation_nodes
+  end
+
+  defp cross_validation_nodes([_ | cross_validation_nodes]) do
+    cross_validation_nodes
   end
 end

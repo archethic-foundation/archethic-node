@@ -6,32 +6,26 @@ defmodule UnirisValidation.DefaultImpl do
   orchestrate the state holding for the job processed (Context building, Node movements, Ledger movements)
   """
 
+  alias UnirisChain, as: Chain
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
-  alias UnirisChain.Transaction.ValidationStamp.NodeMovements
   alias UnirisValidation.MiningSupervisor
+  alias __MODULE__.Replication
   alias __MODULE__.Mining
-  alias __MODULE__.ContextBuilding
-  alias __MODULE__.Stamp
-  alias __MODULE__.ProofOfIntegrity
   alias UnirisElection, as: Election
-  alias UnirisNetwork, as: Network
   alias UnirisCrypto, as: Crypto
+  alias UnirisP2P, as: P2P
+  alias UnirisP2P.Node
+  alias UnirisChain.Transaction.ValidationStamp.NodeMovements
 
   @behaviour UnirisValidation.Impl
 
   require Logger
 
-  @doc """
-  Initiate the validation workflow for the given transaction.
-
-  A new process is spawn responsible to gather context and forward information to other validation nodes.
-
-  If the node is the coordinator, it will run the proof of work and manage the acknowledgements of jobs coming from the cross validation nodes. 
-  """
   @impl true
-  @spec start_validation(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) :: {:ok, pid()}
-  def start_validation(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
+  @spec start_mining(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
+          {:ok, pid()}
+  def start_mining(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
     DynamicSupervisor.start_child(
       MiningSupervisor,
       {Mining,
@@ -41,10 +35,6 @@ defmodule UnirisValidation.DefaultImpl do
     )
   end
 
-
-  @doc """
-  Cross validate the stamp coming from a coordinator and return a signature with or without a list of inconsistencies.
-  """
   @impl true
   @spec cross_validate(binary(), ValidationStamp.t()) ::
           {signature :: binary(), inconsistencies :: list(atom())}
@@ -52,28 +42,17 @@ defmodule UnirisValidation.DefaultImpl do
     Mining.cross_validate(tx_address, stamp)
   end
 
-  @doc """
-  Add a cross validation coming from other validation node to the transaction processor.
-
-  It includes the signature of the cross validation stamp, the list of inconsistencies and theS
-  node emitter of the validation
-  """
   @impl true
   @spec add_cross_validation_stamp(
           tx_address :: binary(),
-          stamp :: {signature :: binary(), inconsistencies :: list(atom)},
-          validation_node :: UnirisCrypto.key()
+          stamp ::
+            {signature :: binary(), inconsistencies :: list(atom),
+             public_key :: UnirisCrypto.key()}
         ) :: :ok
-  def add_cross_validation_stamp(tx_address, stamp = {_sig, _inconsistencies}, validation_node) do
-    Mining.add_cross_validation_stamp(tx_address, stamp, validation_node)
+  def add_cross_validation_stamp(tx_address, stamp = {_sig, _inconsistencies, _public_key}) do
+    Mining.add_cross_validation_stamp(tx_address, stamp)
   end
 
-  @doc """
-  Add a context built from a validation node to the transaction processor.
-
-  Context view include the previous storage used to rebuilt the context and view of the availability
-  from the elected validation nodes and the next storage pool.
-  """
   @impl true
   @spec add_context(
           tx_address :: binary(),
@@ -98,110 +77,57 @@ defmodule UnirisValidation.DefaultImpl do
     )
   end
 
-  @doc """
-  Verify a transaction by download it previous chain and make all the necessary checks:
-  - Pending transaction integrity
-  - Ledger movements
-  - Node movements
-  - Atomic commitment
-  - Chain integrity
+  @impl true
+  @spec set_replication_tree(binary(), list(bitstring())) :: :ok
+  def set_replication_tree(tx_address, tree) do
+    Mining.set_replication_tree(tx_address, tree)
+  end
 
-  If the transaction does not match any of these checks, the transaction will be stored as KO
-  If the transaction is invalid and if the atomic commitment approved it alo, the transaction will be stored as KO
-
-  Otherwise the transaction will be stored on the TransactionChain
-  """
   @impl true
   @spec replicate_transaction(Transaction.validated()) ::
-          :ok | {:error, :invalid_transaction} | {:error, :invalid_transaction_chain}
-  def replicate_transaction(tx = %Transaction{previous_public_key: prev_pub_key}) do
-    if Transaction.valid_pending_transaction?(tx) do
-      prev_address = Crypto.hash(prev_pub_key)
-      closest_storage_nodes = ContextBuilding.closest_storage_nodes(prev_address)
+          :ok | {:error, :invalid_transaction}
+  def replicate_transaction(tx = %Transaction{}) do
+    storage_nodes_keys = Enum.map(Election.storage_nodes(tx.address), & &1.last_public_key)
+     %Node{authorized?: authorized_node?} = Node.details(Crypto.node_public_key())
 
-      case ContextBuilding.download_transaction_context(prev_address, closest_storage_nodes) do
-        {:ok, [], unspent_outputs, _} ->
-          case verify_transaction_stamp(tx, [], unspent_outputs) do
-            :ok ->
-              UnirisChain.store_transaction(tx)
-          end
+    if Crypto.node_public_key() in storage_nodes_keys and authorized_node? do
+      # As next storage pool
+      case Replication.full_validation(tx) do
+        {:ok, [tx | []]} ->
+          Chain.store_transaction(tx)
+          acknowledge_storage(tx)
+          UnirisSync.publish_new_transaction(tx)
 
-        {:ok, chain, unspent_outputs, _} ->
-          %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}} =
-            List.first(chain)
+        {:ok, chain = [_ | _]} ->
+          Chain.store_transaction_chain(chain)
+          acknowledge_storage(tx)
+          UnirisSync.publish_new_transaction(tx)
 
-          with previous_poi <- ProofOfIntegrity.from_chain(chain),
-               true <- previous_poi == poi,
-               :ok <- verify_transaction_stamp(tx, chain, unspent_outputs) do
-            UnirisChain.store_transaction_chain([tx | chain])
-          else
-            false ->
-              {:error, :invalid_transaction_chain}
-          end
+        _ ->
+          {:error, :invalid_transaction}
       end
     else
-      {:error, :invalid_transaction}
-    end
-  end
+      # As unspent ouputs nodes or beacon chain nodes
+      case Replication.lite_validation(tx) do
+        :ok ->
+          Chain.store_transaction(tx)
+          UnirisSync.publish_new_transaction(tx)
 
-  defp verify_transaction_stamp(
-         tx = %Transaction{
-           validation_stamp:
-             stamp = %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}},
-           cross_validation_stamps: cross_stamps
-         },
-         chain,
-         unspent_outputs
-       ) do
-    {coordinator_public_key, _} = Enum.at(rewards, 1)
-
-    validation_nodes = Election.validation_nodes(tx, Network.list_nodes(), Network.daily_nonce())
-
-    with true <- Stamp.valid_cross_validation_stamps?(cross_stamps, stamp),
-         :ok <-
-           Stamp.check_validation_stamp(
-             tx,
-             stamp,
-             coordinator_public_key,
-             Enum.map(validation_nodes, & &1.last_public_key),
-             chain,
-             unspent_outputs
-           ),
-         true <- Enum.all?(cross_stamps, &match?({_, [], _}, &1)) do
-      :ok
-    else
-      {:error, _inconsistencies} ->
-        if Enum.all?(cross_stamps, &match?({_, [_ | _], _}, &1)) do
-          :ok
-        else
+        _ ->
           {:error, :invalid_transaction}
-        end
-
-      false ->
-        {:error, :invalid_transaction}
+      end
     end
   end
 
-  @doc """
-  Determines if the transaction address is under mining
-  """
-  @impl true
-  @spec mining?(binary()) :: boolean()
-  def mining?(tx_address) do
-    case Registry.lookup(UnirisValidation.MiningRegistry, tx_address) do
-      [] ->
-        false
-      _ ->
-        true
-    end
-  end
+  defp acknowledge_storage(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}}
+         }
+       ) do
+    [{welcome_node_public_key, _} | _] = rewards
 
-  @doc """
-  Retrieve the mined transaction from an address
-  """
-  @impl true
-  @spec mined_transaction(binary()) :: Transaction.pending()
-  def mined_transaction(tx_address) do
-    Mining.get_transaction(tx_address)
+    Task.start(fn ->
+      P2P.send_message(welcome_node_public_key, {:acknowledge_storage, tx.address})
+    end)
   end
 end

@@ -5,6 +5,7 @@ defmodule UnirisValidation.DefaultImpl.Reward do
   @validation_node_rate 0.4
   @coordinator_rate 0.095
   @welcome_rate 0.005
+
   # @network_pool_rate 0.1
 
   @doc ~S"""
@@ -34,7 +35,13 @@ defmodule UnirisValidation.DefaultImpl.Reward do
       {"4d75266a648f6d67576e6c77138c07042077b815fb5255d7f585cd36860da19e", 0.08333333333333333}
     ]
   """
-  @spec distribute_fee(float(), binary(), binary(), nonempty_list(binary()), nonempty_list(binary())) ::
+  @spec distribute_fee(
+          float(),
+          binary(),
+          binary(),
+          nonempty_list(binary()),
+          nonempty_list(binary())
+        ) ::
           nonempty_list({binary(), number()})
   def distribute_fee(
         fee,
@@ -44,23 +51,29 @@ defmodule UnirisValidation.DefaultImpl.Reward do
         previous_storage_nodes
       )
       when is_list(validation_nodes) and is_list(previous_storage_nodes) and
-             length(validation_nodes) > 0 and length(previous_storage_nodes) > 0 do
+             length(validation_nodes) > 0 do
     storage_node_rewards = fee * @storage_node_rate
     validation_node_rewards = fee * @validation_node_rate
     coordinator_node_rewards = fee * @coordinator_rate
     welcome_node_reward = fee * @welcome_rate
-    # network_pool_rewards = fee * @network_pool_rate
 
-    validation_nodes = Enum.filter(validation_nodes, &(&1 != coordinator))
-    # Split the storage node rewards among the previous storage nodes
-    storage_node_reward = storage_node_rewards / length(previous_storage_nodes)
+    # network_pool_rewards = fee * @network_pool_rate
 
     # Split the validation node rewards among the cross validation nodes
     validation_node_reward = validation_node_rewards / length(validation_nodes)
 
-    [{welcome_node, welcome_node_reward}, {coordinator, coordinator_node_rewards}]
-    ++ Enum.map(validation_nodes, fn n -> {n, validation_node_reward} end)
-    ++ Enum.map(previous_storage_nodes, fn n -> {n, storage_node_reward} end)
-  end
+    case length(previous_storage_nodes) do
+      0 ->
+        [{welcome_node, welcome_node_reward}, {coordinator, coordinator_node_rewards}] ++
+          Enum.map(validation_nodes, fn n -> {n, validation_node_reward} end)
 
+      nb_storage_nodes ->
+        # Split the storage node rewards among the previous storage nodes
+        storage_node_reward = storage_node_rewards / nb_storage_nodes
+
+        [{welcome_node, welcome_node_reward}, {coordinator, coordinator_node_rewards}] ++
+          Enum.map(validation_nodes, fn n -> {n, validation_node_reward} end) ++
+          Enum.map(previous_storage_nodes, fn n -> {n, storage_node_reward} end)
+    end
+  end
 end

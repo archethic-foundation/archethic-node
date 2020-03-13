@@ -9,12 +9,72 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
   alias UnirisValidation.DefaultImpl.Mining
   alias UnirisValidation.DefaultImpl.BinarySequence
   alias UnirisCrypto, as: Crypto
-  alias UnirisNetwork.Node
+  alias UnirisP2P.Node
 
   import Mox
 
   setup :set_mox_global
   setup :verify_on_exit!
+
+  setup do
+    Crypto.add_origin_seed("first_seed")
+
+    MockP2P
+    |> stub(:node_info, fn _ ->
+      {:ok,
+       %Node{
+         last_public_key: "node_key1",
+         first_public_key: "node_key1",
+         network_patch: "AF0",
+         ip: "88.100.0.10",
+         port: 3000,
+         geo_patch: "AAA",
+         average_availability: 1,
+         availability: 1
+       }}
+    end)
+
+    MockElection
+    |> stub(:storage_nodes, fn _ ->
+      [
+        %Node{
+          last_public_key: "storage_node_key1",
+          first_public_key: "storage_node_key1",
+          network_patch: "001",
+          availability: 1,
+          ip: "",
+          port: 3000,
+          average_availability: 1,
+          geo_patch: "AAA"
+        },
+        %Node{
+          last_public_key: "storage_node_key2",
+          first_public_key: "storage_node_key2",
+          network_patch: "AD0",
+          availability: 1,
+          ip: "",
+          port: 3000,
+          average_availability: 1,
+          geo_patch: "AAA"
+        },
+        %Node{
+          last_public_key: "storage_node_key3",
+          first_public_key: "storage_node_key3",
+          network_patch: "AD0",
+          availability: 1,
+          ip: "",
+          port: 3000,
+          average_availability: 1,
+          geo_patch: "AAA"
+        }
+      ]
+    end)
+
+    MockSharedSecrets
+    |> stub(:origin_public_keys, fn _ -> Crypto.origin_public_keys() end)
+
+    :ok
+  end
 
   test "start_link/1 should start the transaction mining process" do
     tx = %Transaction{
@@ -71,12 +131,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       origin_signature: ""
     }
 
-    MockNetwork
-    |> expect(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> expect(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-
     MockElection
-    |> expect(:validation_nodes, fn _, _, _, _ -> [%{last_public_key: "node_key2"}] end)
+    |> expect(:validation_nodes, fn _ -> [%{last_public_key: "node_key2"}] end)
 
     {:ok, pid} =
       Mining.start_link(
@@ -88,7 +144,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     assert {:invalid_welcome_node_election, _} = :sys.get_state(pid)
   end
 
-  test "start_link/1 should state as cross validation node and start retrievial of the transaction context" do
+  test "start_link/1 should retrievial of the transaction context" do
     tx = %Transaction{
       address:
         <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143, 71, 189, 178, 226,
@@ -107,25 +163,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       origin_signature: ""
     }
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        last_public_key: "node_key1",
-        first_public_key: "node_key1",
-        network_patch: "AF0",
-        ip: "88.100.0.10",
-        port: 3000,
-        geo_patch: "AAA",
-        average_availability: 1,
-        availability: 1
-      }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ ->
+    |> stub(:validation_nodes, fn _ ->
       [
         %Node{
           first_public_key: "coordinator_key",
@@ -147,19 +186,19 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         }
       ]
     end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node1",
-          first_public_key: "storage_node1",
-          availability: 1,
-          geo_patch: "FAC",
-          network_patch: "FAA",
-          ip: "127.0.0.1",
-          port: 3000,
-          average_availability: 1
-        }
-      ]
+
+    MockP2P
+    |> stub(:send_message, fn _, msg ->
+      case msg do
+        [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
+          [
+            {:error, :transaction_chain_not_exists},
+            {:error, :unspent_output_transactions_not_exists}
+          ]
+
+        {:add_context, _, _, _, _, _} ->
+          :ok
+      end
     end)
 
     {:ok, pid} =
@@ -169,130 +208,28 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         validation_node_public_keys: ["coordinator_key", "validator_key"]
       )
 
-    {state, data} = :sys.get_state(pid)
-    assert state == :cross_validator
-
-    %{
-      validation_nodes_view: validation_nodes_view,
-      storage_nodes_view: storage_nodes_view,
-      validation_nodes: validation_nodes,
-      context_building_task: %Task{}
-    } = data
+    {:cross_validator,
+     %{
+       validation_nodes_view: validation_nodes_view,
+       storage_nodes_view: storage_nodes_view,
+       validation_nodes: validation_nodes,
+       context_building_task: context_building_task = %Task{}
+     }} = :sys.get_state(pid)
 
     assert is_bitstring(validation_nodes_view)
     assert is_bitstring(storage_nodes_view)
 
     assert bit_size(validation_nodes_view) == 1
-    assert bit_size(storage_nodes_view) == 1
+    assert bit_size(storage_nodes_view) == 3
 
     assert Enum.map(validation_nodes, & &1.last_public_key) == [
              "coordinator_key",
              "validator_key"
            ]
 
-    assert length(Task.Supervisor.children(UnirisValidation.TaskSupervisor)) == 1
+    Process.sleep(200)
 
-    process =
-      Task.Supervisor.children(UnirisValidation.TaskSupervisor) |> Enum.map(&Process.info(&1))
-
-    assert {UnirisValidation.DefaultImpl.ContextBuilding, :with_confirmation, _} =
-             process |> List.first() |> get_in([:dictionary, :"$initial_call"])
-  end
-
-  test "start_link/1 should state as coordinator, state retrieval of information of the transaction context and start proof of work processing" do
-    tx = %Transaction{
-      address:
-        <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143, 71, 189, 178, 226,
-          124, 57, 18, 0, 115, 106, 182, 71, 149, 191, 76, 168, 248, 14, 164>>,
-      data: %{},
-      previous_public_key:
-        <<0, 110, 226, 20, 197, 55, 224, 165, 95, 201, 111, 210, 50, 138, 25, 142, 130, 140, 51,
-          143, 208, 228, 230, 150, 84, 161, 157, 32, 42, 55, 118, 226, 12>>,
-      previous_signature:
-        <<141, 38, 35, 252, 145, 124, 224, 234, 52, 113, 147, 7, 254, 45, 155, 16, 93, 218, 167,
-          254, 192, 171, 72, 45, 35, 228, 190, 53, 99, 157, 186, 69, 123, 129, 107, 234, 129, 135,
-          115, 243, 177, 225, 166, 248, 247, 88, 173, 221, 239, 60, 159, 22, 209, 223, 139, 253,
-          6, 210, 81, 143, 0, 118, 222, 15>>,
-      timestamp: 1_578_931_642,
-      type: :transfer,
-      origin_signature: ""
-    }
-
-    pub = Crypto.last_node_public_key()
-
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        last_public_key: "node_key1",
-        first_public_key: "node_key1",
-        network_patch: "AF0",
-        ip: "88.100.0.10",
-        port: 3000,
-        geo_patch: "AAA",
-        average_availability: 1,
-        availability: 1
-      }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-
-    MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          first_public_key: pub,
-          last_public_key: pub,
-          ip: '127.0.0.1',
-          port: 3000,
-          availability: 1,
-          geo_patch: "ADA",
-          average_availability: 1
-        },
-        %Node{
-          first_public_key: "validator_key",
-          last_public_key: "validator_key",
-          ip: '88.20.50.1',
-          port: 3000,
-          availability: 1,
-          geo_patch: "AFC",
-          average_availability: 1
-        }
-      ]
-    end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node1",
-          first_public_key: "storage_node1",
-          availability: 1,
-          geo_patch: "FAC",
-          network_patch: "FAA",
-          ip: "127.0.0.1",
-          port: 3000,
-          average_availability: 1
-        }
-      ]
-    end)
-
-    {:ok, pid} =
-      Mining.start_link(
-        transaction: tx,
-        welcome_node_public_key: "key1",
-        validation_node_public_keys: [pub, "validator_key"]
-      )
-
-    assert {:coordinator, %{pow_task: %Task{}}} = :sys.get_state(pid)
-    assert length(Task.Supervisor.children(UnirisValidation.TaskSupervisor)) == 2
-
-    processes =
-      Task.Supervisor.children(UnirisValidation.TaskSupervisor) |> Enum.map(&Process.info(&1))
-
-    assert {UnirisValidation.DefaultImpl.ContextBuilding, :with_confirmation, _} =
-             processes |> List.first() |> get_in([:dictionary, :"$initial_call"])
-
-    assert {UnirisValidation.DefaultImpl.ProofOfWork, :run, _} =
-             processes |> Enum.at(1) |> get_in([:dictionary, :"$initial_call"])
+    assert !Process.alive?(context_building_task.pid)
   end
 
   test "start_link/1 should receive transaction context building once done and data should be updated with previous chain downloaded, unspent outputs confirmed and storage nodes involved" do
@@ -345,26 +282,11 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       }
     ]
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        last_public_key: "node_key1",
-        first_public_key: "node_key1",
-        network_patch: "AF0",
-        ip: "88.100.0.10",
-        port: 3000,
-        geo_patch: "AAA",
-        average_availability: 1,
-        availability: 1
-      }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
+    MockP2P
     |> stub(:send_message, fn _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:ok, previous_chain}, {:ok, unspent_outputs}]}
+          [{:ok, previous_chain}, {:ok, unspent_outputs}]
 
         {:get_transaction, _} ->
           {:ok, List.first(unspent_outputs)}
@@ -372,13 +294,13 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         {:get_proof_of_integrity, _} ->
           {:ok, List.first(previous_chain).validation_stamp.proof_of_integrity}
 
-        {:add_context, _, _, _, _} ->
+        {:add_context, _, _, _, _, _} ->
           :ok
       end
     end)
 
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ ->
+    |> stub(:validation_nodes, fn _ ->
       [
         %Node{
           first_public_key: "coordinator_key",
@@ -400,7 +322,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         }
       ]
     end)
-    |> stub(:storage_nodes, fn addr, _, _, _ ->
+    |> stub(:storage_nodes, fn addr ->
       if addr == List.first(previous_chain).address do
         [
           %Node{
@@ -480,37 +402,24 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       origin_signature: ""
     }
 
-    pub = Crypto.last_node_public_key()
+    pub = Crypto.node_public_key()
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        last_public_key: "node_key1",
-        first_public_key: "node_key1",
-        network_patch: "AF0",
-        ip: "88.100.0.10",
-        port: 3000,
-        geo_patch: "AAA",
-        average_availability: 1,
-        availability: 1
-      }
-    end)
-    |> stub(:origin_public_keys, fn -> [] end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
+    MockP2P
     |> stub(:send_message, fn _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:error, :transaction_chain_not_exists}, {:error, :unspent_outputs_not_exists}]}
+          [
+            {:error, :transaction_chain_not_exists},
+            {:error, :unspent_output_transactions_not_exists}
+          ]
 
-        {:add_context, _, _, _, _} ->
+        {:add_context, _, _, _, _, _} ->
           :ok
       end
     end)
 
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ ->
+    |> stub(:validation_nodes, fn _ ->
       [
         %Node{
           first_public_key: pub,
@@ -541,30 +450,6 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         }
       ]
     end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node1",
-          first_public_key: "storage_node1",
-          geo_patch: "FAC",
-          network_patch: "FAA",
-          ip: "127.0.0.1",
-          port: 3000,
-          average_availability: 1,
-          availability: 1
-        },
-        %Node{
-          last_public_key: "storage_node2",
-          first_public_key: "storage_node2",
-          geo_patch: "FAC",
-          network_patch: "FAA",
-          ip: "127.0.0.1",
-          port: 3000,
-          average_availability: 1,
-          availability: 1
-        }
-      ]
-    end)
 
     {:ok, pid} =
       Mining.start_link(
@@ -580,7 +465,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key2",
       ["key10", "key23"],
       <<1::1, 1::1>>,
-      <<1::1, 1::1>>
+      <<0::1, 0::1, 1::1>>
     )
 
     {_,
@@ -593,7 +478,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
 
     assert confirm_validation_nodes == ["validator_key2"]
     assert BinarySequence.extract(validation_node_view) == [1, 1]
-    assert BinarySequence.extract(storage_nodes_view) == [1, 1]
+    assert BinarySequence.extract(storage_nodes_view) == [1, 1, 1]
     assert previous_storage_nodes == ["key10", "key23"]
   end
 
@@ -615,43 +500,31 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       type: :transfer,
       origin_signature: ""
     }
-    me  = self()
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-       %Node{
-         first_public_key: "node_key1",
-         last_public_key: "node_key1",
-         network_patch: "110",
-         availability: 1,
-         average_availability: 1,
-         geo_patch: "",
-         ip: "",
-         port: 3000
-       }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:origin_public_keys, fn -> [] end)
+    me = self()
+
+    MockP2P
     |> stub(:send_message, fn _, msg ->
-      
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:error, :transaction_chain_not_exists}, {:error, :unspent_outputs_not_exists}]}
+          [
+            {:error, :transaction_chain_not_exists},
+            {:error, :unspent_output_transactions_not_exists}
+          ]
 
-        {:add_context, _, _, _, _} ->
+        {:add_context, _, _, _, _, _} ->
           :ok
 
-        [{:cross_validate, _, stamp}, {:set_replication_tree, _, tree}] ->
+        [{:set_replication_tree, _, tree}, {:cross_validate, _, stamp}] ->
           send(me, {:stamp, stamp})
           send(me, {:tree, tree})
       end
     end)
-    pub = UnirisCrypto.last_node_public_key()
+
+    pub = Crypto.node_public_key()
 
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ ->
+    |> stub(:validation_nodes, fn _ ->
       [
         %Node{
           last_public_key: pub,
@@ -685,30 +558,6 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         }
       ]
     end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node_key1",
-          first_public_key: "storage_node_key1",
-          network_patch: "001",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        },
-        %Node{
-          last_public_key: "storage_node_key2",
-          first_public_key: "storage_node_key2",
-          network_patch: "D15",
-          availability: 1,
-          geo_patch: "AAA",
-          ip: "",
-          port: 3000,
-          average_availability: 1
-        }
-      ]
-    end)
 
     {:ok, pid} =
       Mining.start_link(
@@ -724,7 +573,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key2",
       ["key10", "key23"],
       <<1::1, 1::1>>,
-      <<1::1, 1::1>>
+      <<1::1, 1::1, 0::1>>
     )
 
     Mining.add_context(
@@ -732,7 +581,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key3",
       ["key3", "key5"],
       <<0::1, 1::1>>,
-      <<0::1, 1::1>>
+      <<0::1, 1::1, 1::1>>
     )
 
     {state,
@@ -746,7 +595,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     assert state == :waiting_cross_validation_stamps
     assert confirm_validation_nodes == ["validator_key2", "validator_key3"]
     assert BinarySequence.extract(validation_node_view) == [1, 1]
-    assert BinarySequence.extract(storage_nodes_view) == [1, 1]
+    assert BinarySequence.extract(storage_nodes_view) == [1, 1, 1]
     assert previous_storage_nodes == ["key10", "key23", "key3", "key5"]
 
     assert_received {:stamp, %ValidationStamp{}}
@@ -754,7 +603,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     receive do
       {:tree, replication_tree} ->
         assert Enum.all?(replication_tree, fn replicas ->
-                 is_bitstring(replicas) and bit_size(replicas) == 2
+                 is_bitstring(replicas) and bit_size(replicas) == 3
                end)
     end
   end
@@ -780,40 +629,27 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
 
     me = self()
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        first_public_key: "node_key1",
-        last_public_key: "node_key1",
-        network_patch: "110",
-        availability: 1,
-        geo_patch: "AAA",
-        ip: "",
-        port: 3000,
-        average_availability: 1
-      }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:origin_public_keys, fn -> [] end)
+    MockP2P
     |> stub(:send_message, fn _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:error, :transaction_chain_not_exists}, {:error, :unspent_outputs_not_exists}]}
+          [
+            {:error, :transaction_chain_not_exists},
+            {:error, :unspent_output_transactions_not_exists}
+          ]
 
-        {:add_context, _addr, _previous_nodes, _, _} ->
+        {:add_context, _addr, _node, _previous_nodes, _, _} ->
           :ok
 
-        {:cross_validation_done, _, {_, _inconsistencies}} ->
+        {:cross_validation_done, _, {_, _inconsistencies, _}} ->
           send(me, :cross_validation_done)
       end
     end)
 
     validation_nodes = [
       %Node{
-        last_public_key: Crypto.generate_random_keypair(),
-        first_public_key: Crypto.generate_random_keypair(),
+        last_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
+        first_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
         ip: '127.0.0.1',
         port: 3000,
         geo_patch: 'ADA',
@@ -822,8 +658,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         network_patch: "ADA"
       },
       %Node{
-        last_public_key: Crypto.generate_random_keypair(),
-        first_public_key: Crypto.generate_random_keypair(),
+        last_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
+        first_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
         ip: '127.0.0.1',
         port: 3000,
         geo_patch: 'ADA',
@@ -832,8 +668,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         network_patch: "DFD"
       },
       %Node{
-        last_public_key: Crypto.generate_random_keypair(),
-        first_public_key: Crypto.generate_random_keypair(),
+        last_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
+        first_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
         ip: '127.0.0.1',
         port: 3000,
         geo_patch: 'ADA',
@@ -844,31 +680,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     ]
 
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ -> validation_nodes end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node_key1",
-          first_public_key: "storage_node_key1",
-          network_patch: "001",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        },
-        %Node{
-          last_public_key: "storage_node_key2",
-          first_public_key: "storage_node_key2",
-          network_patch: "AD0",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        }
-      ]
-    end)
+    |> stub(:validation_nodes, fn _ -> validation_nodes end)
 
     {:ok, pid} =
       Mining.start_link(
@@ -890,15 +702,14 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     assert {:waiting_cross_validation_stamps,
             %{
               cross_validation_stamps: [
-                {_,
-                 {_,
-                  [
-                    :invalid_signature,
-                    :invalid_proof_of_integrity,
-                    :invalid_fee,
-                    :invalid_ledger_movements,
-                    :invalid_rewarded_nodes
-                  ]}}
+                {_sig,
+                 [
+                   :invalid_signature,
+                   :invalid_proof_of_integrity,
+                   :invalid_fee,
+                   :invalid_ledger_movements,
+                   :invalid_rewarded_nodes
+                 ], _public_key}
               ]
             }} = :sys.get_state(pid)
 
@@ -924,47 +735,36 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       origin_signature: ""
     }
 
-    pub = Crypto.last_node_public_key()
+    pub = Crypto.node_public_key()
 
     me = self()
 
-    MockNetwork
-    |> stub(:node_info, fn _ ->
-      %Node{
-        first_public_key: "node_key1",
-        last_public_key: "node_key1",
-        network_patch: "110",
-        availability: 1,
-        ip: "",
-        port: 3000,
-        average_availability: 1,
-        geo_patch: "AAA"
-     }
-    end)
-    |> stub(:daily_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:list_nodes, fn -> [%{last_public_key: "node_key2"}] end)
-    |> stub(:storage_nonce, fn -> :crypto.strong_rand_bytes(32) end)
-    |> stub(:origin_public_keys, fn -> [] end)
+    MockP2P
     |> stub(:send_message, fn _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:error, :transaction_chain_not_exists}, {:error, :unspent_outputs_not_exists}]}
+          [
+            {:error, :transaction_chain_not_exists},
+            {:error, :unspent_output_transactions_not_exists}
+          ]
 
-        {:add_context, _, _, _, _} ->
+        {:add_context, _, _, _, _, _} ->
           :ok
 
         {:cross_validation_done, address, stamp} ->
-          Mining.add_cross_validation_stamp(address, stamp, pub)
+          Mining.add_cross_validation_stamp(address, stamp)
 
         {:replicate_transaction, tx} ->
           send(me, {:replicate, tx})
       end
     end)
 
+    {other_pub, other_pv} = Crypto.generate_deterministic_keypair("other_validator_seed")
+
     validation_nodes = [
       %Node{
-        last_public_key: Crypto.generate_random_keypair(),
-        first_public_key: Crypto.generate_random_keypair(),
+        last_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
+        first_public_key: <<0>> <> :crypto.strong_rand_bytes(32),
         ip: '127.0.0.1',
         port: 3000,
         geo_patch: 'ADA',
@@ -983,8 +783,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         network_patch: "DFD"
       },
       %Node{
-        last_public_key: Crypto.generate_random_keypair(),
-        first_public_key: Crypto.generate_random_keypair(),
+        last_public_key: other_pub,
+        first_public_key: other_pub,
         ip: '127.0.0.1',
         port: 3000,
         geo_patch: 'ADA',
@@ -995,42 +795,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     ]
 
     MockElection
-    |> stub(:validation_nodes, fn _, _, _, _ -> validation_nodes end)
-    |> stub(:storage_nodes, fn _, _, _, _ ->
-      [
-        %Node{
-          last_public_key: "storage_node_key1",
-          first_public_key: "storage_node_key1",
-          network_patch: "001",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        },
-        %Node{
-          last_public_key: "storage_node_key2",
-          first_public_key: "storage_node_key2",
-          network_patch: "AD0",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        },
-        %Node{
-          last_public_key: "storage_node_key3",
-          first_public_key: "storage_node_key3",
-          network_patch: "AD0",
-          availability: 1,
-          ip: "",
-          port: 3000,
-          average_availability: 1,
-          geo_patch: "AAA"
-        },
-
-      ]
-    end)
+    |> stub(:validation_nodes, fn _ -> validation_nodes end)
 
     {:ok, pid} =
       Mining.start_link(
@@ -1047,13 +812,28 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       <<0::size(3)>>
     ])
 
-    Mining.cross_validate(tx.address, %ValidationStamp{
+    stamp = %ValidationStamp{
       proof_of_work: "",
       proof_of_integrity: "",
       ledger_movements: %LedgerMovements{uco: %UTXO{previous: %{from: [], amount: 0}, next: 0}},
       node_movements: %NodeMovements{fee: 100, rewards: []},
       signature: ""
-    })
+    }
+
+    Mining.cross_validate(tx.address, stamp)
+
+    inconsistencies = [
+      :invalid_signature,
+      :invalid_proof_of_integrity,
+      :invalid_fee,
+      :invalid_ledger_movements,
+      :invalid_rewarded_nodes
+    ]
+
+    Mining.add_cross_validation_stamp(
+      tx.address,
+      {Crypto.sign(inconsistencies, other_pv), inconsistencies, other_pub}
+    )
 
     Process.sleep(1000)
 

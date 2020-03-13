@@ -1,7 +1,7 @@
 defmodule UnirisValidation.Impl do
   @moduledoc false
 
-  @callback start_validation(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
+  @callback start_mining(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
               {:ok, pid()}
 
   @callback cross_validate(address :: binary(), stamp :: ValidationStamp.t()) ::
@@ -9,8 +9,9 @@ defmodule UnirisValidation.Impl do
 
   @callback add_cross_validation_stamp(
               address :: binary(),
-              stamp :: {signature :: binary(), inconsistencies :: list(atom)},
-              validation_node :: UnirisCrypto.key()
+              stamp ::
+                {signature :: binary(), inconsistencies :: list(atom),
+                 public_key :: UnirisCrypto.key()}
             ) :: :ok
 
   @callback add_context(
@@ -21,10 +22,8 @@ defmodule UnirisValidation.Impl do
               storage_node_views :: bitstring()
             ) :: :ok
 
+  @callback set_replication_tree(binary(), list(bitstring())) :: :ok
+
   @callback replicate_transaction(Transaction.validated()) ::
               :ok | {:error, :invalid_transaction} | {:error, :invalid_transaction_chain}
-
-  @callback mining?(binary()) :: boolean()
-
-  @callback mined_transaction(binary()) :: Transaction.pending()
 end

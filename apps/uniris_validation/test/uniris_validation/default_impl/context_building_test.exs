@@ -7,7 +7,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
   alias UnirisValidation.DefaultImpl.ContextBuilding
-  alias UnirisNetwork.Node
+  alias UnirisP2P.Node
   alias UnirisCrypto, as: Crypto
 
   import Mox
@@ -37,9 +37,9 @@ defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
       }
     ]
 
-    MockNetwork
+    MockP2P
     |> expect(:send_message, fn _, _ ->
-      {:ok, [{:ok, [%{}]}, {:ok, [%{}]}]}
+      [{:ok, [%{}]}, {:ok, [%{}]}]
     end)
 
     assert {:ok, chain, outputs, node} =
@@ -88,11 +88,11 @@ defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
       }
     ]
 
-    MockNetwork
+    MockP2P
     |> stub(:send_message, fn _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          {:ok, [{:ok, previous_chain}, {:ok, unspent_outputs}]}
+          [{:ok, previous_chain}, {:ok, unspent_outputs}]
 
         {:get_proof_of_integrity, _} ->
           {:ok, List.first(previous_chain).validation_stamp.proof_of_integrity}
@@ -102,24 +102,24 @@ defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
       end
     end)
 
-    MockNetwork
+    MockP2P
     |> stub(:list_nodes, fn -> [] end)
-    |> stub(:storage_nonce, fn -> "" end)
     |> stub(:node_info, fn _ ->
-      %Node{
-        last_public_key: "key1",
-        first_public_key: "key1",
-        network_patch: "AA0",
-        geo_patch: "AAA",
-        ip: "88.100.200.10",
-        port: 3000,
-        average_availability: 1,
-        availability: 1
-      }
+      {:ok,
+       %Node{
+         last_public_key: "key1",
+         first_public_key: "key1",
+         network_patch: "AA0",
+         geo_patch: "AAA",
+         ip: "88.100.200.10",
+         port: 3000,
+         average_availability: 1,
+         availability: 1
+       }}
     end)
 
     MockElection
-    |> stub(:storage_nodes, fn addr, _, _, _ ->
+    |> stub(:storage_nodes, fn addr ->
       if addr == List.first(previous_chain).address do
         [
           %Node{

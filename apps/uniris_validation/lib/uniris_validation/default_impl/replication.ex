@@ -2,6 +2,17 @@ defmodule UnirisValidation.DefaultImpl.Replication do
   @moduledoc false
 
   alias UnirisValidation.DefaultImpl.BinarySequence
+  alias UnirisValidation.DefaultImpl.ContextBuilding
+  alias UnirisValidation.DefaultImpl.Stamp
+  alias UnirisValidation.DefaultImpl.ProofOfIntegrity
+  alias UnirisValidation.DefaultImpl.ProofOfWork
+  alias UnirisCrypto, as: Crypto
+  alias UnirisElection, as: Election
+  alias UnirisChain.Transaction
+  alias UnirisChain.Transaction.ValidationStamp
+  alias UnirisChain.Transaction.ValidationStamp.NodeMovements
+
+  require Logger
 
   @doc ~S"""
   Define a tree from a list of storage nodes and validation nodes by grouping
@@ -88,21 +99,21 @@ defmodule UnirisValidation.DefaultImpl.Replication do
          %{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
          %{network_patch: "A63", first_public_key: "key_S7", last_public_key: "key_S7"},
          %{network_patch: "AA0", first_public_key: "key_S14", last_public_key: "key_S14"}
-       ],               
-       "key_v2" => [    
+       ],
+       "key_v2" => [
          %{network_patch: "D32", first_public_key: "key_S8", last_public_key: "key_S8"}
-       ],               
-       "key_v3" => [    
+       ],
+       "key_v3" => [
          %{network_patch: "BB2", first_public_key: "key_S6", last_public_key: "key_S6"},
          %{network_patch: "C2A", first_public_key: "key_S10", last_public_key: "key_S10"},
          %{network_patch: "C23", first_public_key: "key_S11", last_public_key: "key_S11"}
-       ],               
-       "key_v4" => [    
+       ],
+       "key_v4" => [
          %{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
          %{network_patch: "F22", first_public_key: "key_S12", last_public_key: "key_S12"},
          %{network_patch: "E2B", first_public_key: "key_S13", last_public_key: "key_S13"}
-       ],               
-       "key_v5" => [    
+       ],
+       "key_v5" => [
          %{network_patch: "2A9", first_public_key: "key_S4", last_public_key: "key_S4"},
          %{network_patch: "143", first_public_key: "key_S5", last_public_key: "key_S5"},
          %{network_patch: "19A", first_public_key: "key_S9", last_public_key: "key_S9"},
@@ -183,6 +194,128 @@ defmodule UnirisValidation.DefaultImpl.Replication do
     build_tree(validation_nodes, storage_nodes)
     |> Enum.map(fn {_, list} ->
       BinarySequence.from_subset(storage_nodes, list)
+    end)
+  end
+
+  @doc """
+  Run a full validation as a storage node before to store the transaction.
+
+  Pending transaction integrity is checked, then the context of the chain is rebuild and
+  the validation stamp is therefore validated as well as the atomic commitment.
+  """
+  @spec full_validation(Transaction.validated()) :: :ok | {:error, :invalid_transaction}
+  def full_validation(tx = %Transaction{}) do
+    with true <- Transaction.valid_pending_transaction?(tx),
+         {:ok, chain, unspent_outputs} <- check_with_context(tx),
+         :ok <- verify_transaction_stamp(tx, chain, unspent_outputs) do
+      {:ok, [tx | chain]}
+    else
+      false ->
+        {:error, :invalid_transaction}
+
+      {:error, _} = e ->
+        e
+    end
+  end
+
+  defp check_with_context(%Transaction{previous_public_key: prev_pub_key}) do
+    prev_address = Crypto.hash(prev_pub_key)
+
+    case ContextBuilding.closest_storage_nodes(prev_address) do
+      [] ->
+        {:ok, [], []}
+
+      nodes ->
+        case ContextBuilding.download_transaction_context(prev_address, nodes) do
+          {:ok, [], unspent_outputs} ->
+            {:ok, [], unspent_outputs}
+          {:ok, chain, unspent_outputs} ->
+            [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}} | _] = chain
+            if ProofOfIntegrity.from_chain(chain) == poi do
+              {:ok, chain, unspent_outputs}
+            else
+              {:error, :invalid_transaction_chain}
+            end
+          end
+    end
+
+
+  end
+
+  @doc """
+  Run a lite validation as additional storage node (utxo, beacon) by checking the
+  pending transaction integrity, the cryptography and the atomic commitment.
+  """
+  @spec lite_validation(Transaction.validated()) :: :ok | {:error, :invalid_transaction}
+  def lite_validation(
+        tx = %Transaction{
+          validation_stamp: stamp = %ValidationStamp{proof_of_work: pow},
+          cross_validation_stamps: stamps
+        }
+      ) do
+    with true <- Transaction.valid_pending_transaction?(tx),
+         true <- ProofOfWork.verify(tx, pow),
+         true <- Stamp.valid_cross_validation_stamps?(stamps, stamp),
+         {_, inconsistencies, _} <- List.first(stamps),
+         true <- atomic_commitment?(stamps, inconsistencies),
+         true <- pow != "",
+         true <- inconsistencies == [] do
+      :ok
+    else
+      _ ->
+        {:error, :invalid_transaction}
+    end
+  end
+
+  defp verify_transaction_stamp(
+         tx = %Transaction{
+           validation_stamp:
+             stamp = %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}},
+           cross_validation_stamps: cross_stamps
+         },
+         chain,
+         unspent_outputs
+       ) do
+    {coordinator_public_key, _} = Enum.at(rewards, 1)
+
+    validation_nodes =
+      tx
+      |> Election.validation_nodes()
+      |> Enum.map(& &1.last_public_key)
+
+    if Stamp.valid_cross_validation_stamps?(cross_stamps, stamp) do
+      case Stamp.check_validation_stamp(
+             tx,
+             stamp,
+             coordinator_public_key,
+             validation_nodes,
+             chain,
+             unspent_outputs
+           ) do
+        :ok ->
+          if atomic_commitment?(cross_stamps, []) do
+            :ok
+          else
+            Logger.info("Atomic commitment not respected")
+            {:error, :invalid_transaction}
+          end
+
+        {:error, inconsistencies} ->
+          if atomic_commitment?(cross_stamps, inconsistencies) do
+            {:error, :invalid_transaction}
+          else
+            Logger.info("Atomic commitment not respected")
+            {:error, :invalid_transaction}
+          end
+      end
+    else
+      {:error, :invalid_transaction}
+    end
+  end
+
+  defp atomic_commitment?(cross_stamps, expected_inconsistencies) do
+    Enum.all?(cross_stamps, fn {_, inconsistencies, _} ->
+      inconsistencies == expected_inconsistencies
     end)
   end
 end

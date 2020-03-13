@@ -2,7 +2,7 @@ defmodule UnirisValidation.DefaultImpl.ProofOfWork do
   @moduledoc false
 
   alias UnirisChain.Transaction
-  alias UnirisNetwork, as: Network
+  alias UnirisSharedSecrets, as: SharedSecrets
   alias UnirisCrypto, as: Crypto
 
   @doc """
@@ -11,7 +11,9 @@ defmodule UnirisValidation.DefaultImpl.ProofOfWork do
 
   Returns `{:error, :not_found}` when no keys successed in the signature verification
   """
-  def run(tx = %Transaction{}) do
+  def run(tx = %Transaction{}, family \\ :all) do
+    origin_public_keys = SharedSecrets.origin_public_keys(family)
+
     check_public_key(
       tx.origin_signature,
       Map.take(tx, [
@@ -22,7 +24,7 @@ defmodule UnirisValidation.DefaultImpl.ProofOfWork do
         :previous_public_key,
         :previous_signature
       ]),
-      Network.origin_public_keys()
+      origin_public_keys
     )
   end
 

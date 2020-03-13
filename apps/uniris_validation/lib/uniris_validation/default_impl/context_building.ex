@@ -5,7 +5,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
   alias UnirisChain.Transaction.ValidationStamp
   alias UnirisCrypto, as: Crypto
   alias UnirisElection, as: Election
-  alias UnirisNetwork, as: Network
+  alias UnirisP2P, as: P2P
   alias UnirisValidation.TaskSupervisor
 
   require Logger
@@ -13,8 +13,9 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
   @spec closest_storage_nodes(binary()) :: list(Node.t())
   def closest_storage_nodes(tx_address) do
     tx_address
-    |> Election.storage_nodes(Network.list_nodes(), Network.storage_nonce())
-    |> Network.nearest_nodes()
+    |> Election.storage_nodes()
+    |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
+    |> P2P.nearest_nodes()
   end
 
   @doc """
@@ -34,21 +35,21 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
     message = [{:get_transaction_chain, tx_address}, {:get_unspent_outputs, tx_address}]
 
     closest_storage_node
-    |> Network.send_message(message)
+    |> P2P.send_message(message)
     |> case do
-      {:ok, [{:ok, chain}, {:ok, unspent_outputs}]} ->
+      [{:ok, chain}, {:ok, unspent_outputs}] ->
         {:ok, chain, unspent_outputs, closest_storage_node}
 
-      {:ok, [{:ok, chain}, {:error, :unspent_outputs_not_exists}]} ->
+      [{:ok, chain}, {:error, :unspent_output_transactions_not_exists}] ->
         {:ok, chain, [], closest_storage_node}
 
-      {:ok, [{:error, :transaction_chain_not_exists}, {:ok, unspent_outputs}]} ->
+      [{:error, :transaction_chain_not_exists}, {:ok, unspent_outputs}] ->
         {:ok, [], unspent_outputs, closest_storage_node}
 
-      {:ok, [{:error, :transaction_chain_not_exists}, {:error, :unspent_outputs_not_exists}]} ->
+      [{:error, :transaction_chain_not_exists}, {:error, :unspent_output_transactions_not_exists}] ->
         {:ok, [], []}
 
-      _response ->
+      _ ->
         download_transaction_context(tx_address, rest)
     end
   end
@@ -73,45 +74,54 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
           {:ok, list(Transaction.validated()), list(Transction.validated()), list(Node.t())}
   def with_confirmation(%Transaction{previous_public_key: prev_public_key}) do
     previous_address = Crypto.hash(prev_public_key)
-    previous_storage_nodes = closest_storage_nodes(previous_address)
 
-    case download_transaction_context(previous_address, previous_storage_nodes) do
-      # Nothing to find, so no rewarded previous storage nodes
-      {:ok, [], []} ->
+    case closest_storage_nodes(previous_address) do
+      # When the network bootstrap no need to retrieve previous context
+      [] ->
         {:ok, [], [], []}
 
-      {:ok, [], unspent_outputs, prev_storage_node} ->
-        # Request to confirm the unspent ouutputs transactions
-        %{utxo: confirmed_unspent_outputs, nodes: utxo_storage_nodes} =
-          unspent_outputs
-          |> confirm_unspent_outputs
-          |> reduce_unspent_outputs_confirmation
+      previous_storage_nodes ->
+        case download_transaction_context(previous_address, previous_storage_nodes) do
+          # Nothing to find, so no rewarded previous storage nodes
+          {:ok, [], []} ->
+            {:ok, [], [], []}
 
-        {:ok, [], confirmed_unspent_outputs, utxo_storage_nodes ++ [prev_storage_node]}
+          {:ok, [], unspent_outputs, prev_storage_node} ->
+            # Request to confirm the unspent ouutputs transactions
+            %{utxo: confirmed_unspent_outputs, nodes: utxo_storage_nodes} =
+              unspent_outputs
+              |> confirm_unspent_outputs
+              |> reduce_unspent_outputs_confirmation
 
-      {:ok, chain = [last_tx | _], unspent_outputs, prev_storage_node} ->
-        # Request to confirm the transaction chain integrity retrieved
-        t1 =
-          Task.Supervisor.async(TaskSupervisor, fn ->
-            # Discard the previously used closest storage node
-            # and select new ones to confirm the chain integrity retrieved
-            other_previous_storage_nodes = previous_storage_nodes -- [prev_storage_node]
-            confirm_chain_integrity(last_tx, other_previous_storage_nodes)
-          end)
+            {:ok, [], confirmed_unspent_outputs, utxo_storage_nodes ++ [prev_storage_node]}
 
-        # Request to confirm the unspent outputs transactions
-        t2 =
-          Task.Supervisor.async(TaskSupervisor, fn -> confirm_unspent_outputs(unspent_outputs) end)
+          {:ok, chain = [last_tx | _], unspent_outputs, prev_storage_node} ->
+            # Request to confirm the transaction chain integrity retrieved
+            t1 =
+              Task.Supervisor.async(TaskSupervisor, fn ->
+                # Discard the previously used closest storage node
+                # and select new ones to confirm the chain integrity retrieved
+                other_previous_storage_nodes = previous_storage_nodes -- [prev_storage_node]
+                confirm_chain_integrity(last_tx, other_previous_storage_nodes)
+              end)
 
-        with {:ok, confirm_previous_storage_node} <- Task.await(t1),
-             confirmed_unspent_outputs <- Task.await(t2) do
-          nodes = [prev_storage_node, confirm_previous_storage_node]
+            # Request to confirm the unspent outputs transactions
+            t2 =
+              Task.Supervisor.async(TaskSupervisor, fn ->
+                confirm_unspent_outputs(unspent_outputs)
+              end)
 
-          %{utxo: unspent_outputs, nodes: utxo_storage_nodes} =
-            reduce_unspent_outputs_confirmation(confirmed_unspent_outputs)
+            with {:ok, confirm_previous_storage_node} <- Task.await(t1),
+                 confirmed_unspent_outputs <- Task.await(t2) do
+              nodes = [prev_storage_node, confirm_previous_storage_node]
 
-          {:ok, chain, unspent_outputs, nodes ++ utxo_storage_nodes}
-        end
+              %{utxo: unspent_outputs, nodes: utxo_storage_nodes} =
+                reduce_unspent_outputs_confirmation(confirmed_unspent_outputs)
+
+              {:ok, chain, unspent_outputs, nodes ++ utxo_storage_nodes}
+            end
+
+          end
     end
   end
 
@@ -130,7 +140,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
          },
          [storage_node | rest]
        ) do
-    case Network.send_message(storage_node, {:get_proof_of_integrity, tx_address}) do
+    case P2P.send_message(storage_node, {:get_proof_of_integrity, tx_address}) do
       {:ok, proof_of_integrity} when poi == proof_of_integrity ->
         {:ok, storage_node}
 
@@ -158,7 +168,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
   end
 
   defp confirm_unspent_output(unspent_output = %Transaction{}, [closest_node | rest]) do
-    case Network.send_message(closest_node, {:get_transaction, unspent_output.address}) do
+    case P2P.send_message(closest_node, {:get_transaction, unspent_output.address}) do
       {:ok, tx} when tx == unspent_output ->
         {:ok, tx, closest_node}
 
