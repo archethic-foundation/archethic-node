@@ -20,5 +20,5 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-uniris_p2p-*.tar
+uniris_p2p_server-*.tar
 

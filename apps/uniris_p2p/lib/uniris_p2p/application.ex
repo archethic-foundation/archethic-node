@@ -1,26 +1,19 @@
 defmodule UnirisP2P.Application do
   @moduledoc false
 
-  require Logger
-
   use Application
 
   def start(_type, _args) do
-    port = Application.get_env(:uniris_p2p, :port)
-
     children = [
-      {Registry, keys: :unique, name: UnirisP2P.ClientRegistry},
-      :ranch.child_spec(
-        :p2p_server,
-        :ranch_tcp,
-        [{:port, port}],
-        UnirisP2P.ConnectionHandler,
-        []
-      )
+      {Registry, keys: :unique, name: UnirisP2P.NodeRegistry},
+      {Registry, keys: :unique, name: UnirisP2P.ConnectionRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisP2P.NodeSupervisor},
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisP2P.ConnectionSupervisor},
+      UnirisP2P.GeoPatch,
+      {UnirisP2P.SeedLoader, [seed_file: Application.app_dir(:uniris_p2p, "priv/seed.txt")]}
     ]
 
-    Logger.info("P2P Server listening on port #{port}")
-
-    Supervisor.start_link(children, strategy: :one_for_one, name: UnirisP2P.Supervisor)
+    opts = [strategy: :one_for_one, name: UnirisP2P.Supervisor]
+    Supervisor.start_link(children, opts)
   end
 end
