@@ -15,7 +15,7 @@ defmodule UnirisP2P.DefaultImplTest do
 
   setup do
     MockClient
-    |> stub(:connect, fn _, _ ->
+    |> stub(:start_link, fn _, _, _ ->
       {:ok, ""}
     end)
 

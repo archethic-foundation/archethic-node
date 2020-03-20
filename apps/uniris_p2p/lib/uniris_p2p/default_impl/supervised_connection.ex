@@ -42,14 +42,12 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection do
     [:handle_event_function]
   end
 
-   def handle_event(:info, :connected, _, data = %{public_key: public_key, ip: ip, port: port}) do
-    Logger.info("Connection established to #{inspect(ip)}:#{port}")
+  def handle_event(:info, :connected, _, data = %{public_key: public_key, }) do
     Node.available(public_key)
     {:next_state, :connected, data}
   end
 
-  def handle_event(:info, :disconnected, _, data = %{public_key: public_key, ip: ip, port: port}) do
-    Logger.info("Disconnection from #{inspect(ip)}:#{port}")
+  def handle_event(:info, :disconnected, _, data = %{public_key: public_key}) do
     Node.unavailable(public_key)
     {:next_state, :disconnected, data}
   end
@@ -68,7 +66,7 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection do
     {:keep_state_and_data, :postpone}
   end
 
-  def terminate(reason, _, %{client_pid: client_pid}) do
+  def terminate(_reason, _, %{client_pid: client_pid}) do
     Process.exit(client_pid, :shutdown)
     :ok
   end

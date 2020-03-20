@@ -74,11 +74,6 @@ defmodule UnirisCrypto.LibSodiumPort do
     end
   end
 
-  def handle_info({_port, {:data, response}}, state) do
-    Logger.info(response)
-    {:noreply, state}
-  end
-
   def handle_info({_port, {:exit_status, status}}, _state) do
     :erlang.error({:port_exit, status})
   end

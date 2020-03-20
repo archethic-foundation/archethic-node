@@ -8,6 +8,8 @@ defmodule UnirisChain.DefaultImpl do
 
   defdelegate child_spec(opts), to: Store
 
+  require Logger
+
   @impl true
   @spec get_transaction(binary()) ::
           {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
@@ -47,13 +49,15 @@ defmodule UnirisChain.DefaultImpl do
   def store_transaction(tx = %Transaction{}) do
     DynamicSupervisor.start_child(TransactionSupervisor, {Transaction, tx})
     Store.store_transaction(tx)
+    Logger.debug("Transaction #{Base.encode16(tx.address)} stored")
   end
 
   @impl true
   @spec store_transaction_chain(list(Transaction.validated())) :: :ok
-  def store_transaction_chain(transactions) do
-    DynamicSupervisor.start_child(TransactionSupervisor, {Transaction, List.first(transactions)})
-    Store.store_transaction_chain(transactions)
+  def store_transaction_chain(chain) do
+    DynamicSupervisor.start_child(TransactionSupervisor, {Transaction, List.first(chain)})
+    Store.store_transaction_chain(chain)
+    Logger.debug("Transaction Chain #{Base.encode16(List.first(chain).address)} stored")
   end
 
   @impl true

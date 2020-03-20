@@ -5,11 +5,11 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client do
 
   @impl true
   @spec start_link(
-              ip :: :inet.ip_address(),
-              port :: :inet.port_number(),
-              parent :: pid()
-            ) ::
-              {:ok, pid()}
+          ip :: :inet.ip_address(),
+          port :: :inet.port_number(),
+          parent :: pid()
+        ) ::
+          {:ok, pid()}
   def start_link(ip, port, parent) do
     impl().start_link(ip, port, parent)
   end

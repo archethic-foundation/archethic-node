@@ -15,9 +15,11 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnectionTest do
       case ip do
         {127, 0, 0, 1} ->
           send(pid, :connected)
+
         _ ->
           send(pid, :disconnected)
       end
+
       {:ok, self()}
     end)
     |> stub(:send_message, fn _, _msg ->

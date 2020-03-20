@@ -101,6 +101,23 @@ defmodule UnirisCrypto do
     |> generate_deterministic_keypair(curve)
   end
 
+  @doc """
+  Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
+  and a date represented as timestamp.
+
+  The date can be either a specific datetime or a specific d@doc ""\"
+  Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
+  and a date represented as timestamp.
+
+  The date can be either a specific datetime or a specific day
+  """
+  @spec derivate_beacon_chain_address(subset :: binary(), date :: non_neg_integer()) ::
+          UnirisCrypto.key()
+  def derivate_beacon_chain_address(subset, date)
+      when is_binary(subset) and is_integer(date) do
+    Keystore.derivate_beacon_chain_address(subset, date)
+  end
+
   @spec add_origin_seed(seed :: binary()) :: :ok
   def add_origin_seed(seed) do
     Keystore.add_origin_seed(seed)

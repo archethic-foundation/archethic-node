@@ -185,11 +185,10 @@ defmodule UnirisP2P.Node do
     |> case do
       nil ->
         0.0
+
       available_times ->
         available_times / bit_size(history)
     end
-
-
   end
 
   @doc """

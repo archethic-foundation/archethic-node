@@ -1,8 +1,6 @@
 defmodule UnirisCrypto.Ed25519 do
   @moduledoc false
 
-  alias UnirisCrypto.LibSodiumPort, as: Ed25519Port
-
   def generate_keypair(seed)
       when byte_size(seed) < 32 and byte_size(seed) > 0,
       do:

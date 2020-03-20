@@ -8,7 +8,8 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
   @tcp_options [:binary, packet: 4, active: true]
 
   @impl true
-  @spec start_link(ip :: :inet.adress(), port :: :inet.port_number(), parent :: pid()) :: {:ok, pid()}
+  @spec start_link(ip :: :inet.adress(), port :: :inet.port_number(), parent :: pid()) ::
+          {:ok, pid()}
   def start_link(ip, port, parent) do
     GenServer.start_link(__MODULE__, [ip, port, parent])
   end
@@ -24,6 +25,7 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
         # Notify the supervised connection process (parent) about the connection
         send(parent, :connected)
         socket
+
       _ ->
         # Notify the supervised connection process (parent) about the disconnection
         send(parent, :disconnected)

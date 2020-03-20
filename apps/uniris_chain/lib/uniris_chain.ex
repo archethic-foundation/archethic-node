@@ -56,7 +56,7 @@ defmodule UnirisChain do
   Persist a new transaction chain
   """
   @spec store_transaction_chain(list(Transaction.validated())) :: :ok
-  def store_transaction_chain(txs) do
+  def store_transaction_chain(txs) when is_list(txs) do
     impl().store_transaction_chain(txs)
   end
 

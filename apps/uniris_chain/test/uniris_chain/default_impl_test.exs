@@ -58,12 +58,13 @@ defmodule UnirisChain.DefaultImplTest do
 
   test "store_ko_transaction/1 should persist it on ETS table" do
     tx = Transaction.from_seed("other_seed", :transfer)
+
     tx =
       Map.put(tx, :validation_stamp, %ValidationStamp{
         proof_of_work: "",
         proof_of_integrity: "",
         ledger_movements: %LedgerMovements{},
-        node_movements: %NodeMovements{ fee: 0, rewards: []},
+        node_movements: %NodeMovements{fee: 0, rewards: []},
         signature: ""
       })
 
@@ -88,12 +89,13 @@ defmodule UnirisChain.DefaultImplTest do
 
   test "get_transaction/1 should return an error when the transaction is ko" do
     tx = Transaction.from_node_seed(:transfer)
+
     tx =
       Map.put(tx, :validation_stamp, %ValidationStamp{
         proof_of_work: "",
         proof_of_integrity: "",
         ledger_movements: %LedgerMovements{},
-        node_movements: %NodeMovements{ fee: 0, rewards: []},
+        node_movements: %NodeMovements{fee: 0, rewards: []},
         signature: ""
       })
 

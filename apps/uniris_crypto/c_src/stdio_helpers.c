@@ -34,7 +34,7 @@ int _write_exact(unsigned char *buf, int len)
 int get_length() {
   unsigned char size_header[4];
   if (_read_exact(size_header, 4) != 4) {
-    err(EXIT_FAILURE, "invalid message. cannot read the size");
+    return 0;
   }
 
   int len = size_header[3] | size_header[2] << 8 | size_header[1] << 16 | size_header[0] << 24;

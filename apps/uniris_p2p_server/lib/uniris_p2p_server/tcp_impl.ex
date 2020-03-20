@@ -34,7 +34,6 @@ defmodule UnirisP2PServer.TCPImpl do
   def loop_acceptor(listen_socket) do
     {:ok, socket} = :gen_tcp.accept(listen_socket)
     {address, _port} = parse_socket(socket)
-    Logger.info("New connection from #{stringify_address(address)}")
 
     Node.available(address)
 
@@ -54,15 +53,12 @@ defmodule UnirisP2PServer.TCPImpl do
           recv_loop(socket, address)
       {:error, :closed} ->
         :gen_tcp.close(socket)
-        Logger.info("Disconnected from #{stringify_address(address)}")
         Node.unavailable(address)
       {:error, :enotconn} ->
         :gen_tcp.close(socket)
-        Logger.info("Disconnected from #{stringify_address(address)}")
         Node.unavailable(address)
     end
   end
-
 
   defp process_message(messages) when is_list(messages) do
     do_process_messages(messages, [])
@@ -83,11 +79,5 @@ defmodule UnirisP2PServer.TCPImpl do
   defp parse_socket(socket) do
     {:ok, {addr, port}} = :inet.peername(socket)
     {addr, port}
-  end
-
-  defp stringify_address(address) do
-    address
-    |> :inet_parse.ntoa()
-    |> to_string()
   end
 end
