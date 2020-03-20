@@ -50,11 +50,14 @@ defmodule UnirisElection do
   - a require number of storage replicas from the given availability of the nodes
   - a minimum of distinct geographical zones to distributed globally the validations
   - a minimum avergage availability by geographical zones
+
+  For a validation and mining perspective the storage election can be restricted
+  to the only authorized nodes to ensure security
   """
   @impl true
-  @spec storage_nodes(address :: binary()) :: [Node.t()]
-  def storage_nodes(address) when is_binary(address) do
-    impl().storage_nodes(address)
+  @spec storage_nodes(address :: binary(), only_authorized? :: boolean()) :: [Node.t()]
+  def storage_nodes(address, only_authorized? \\ false) when is_binary(address) and is_boolean(only_authorized?) do
+    impl().storage_nodes(address, only_authorized?)
   end
 
   defp impl(), do: Application.get_env(:uniris_election, :impl, __MODULE__.DefaultImpl)

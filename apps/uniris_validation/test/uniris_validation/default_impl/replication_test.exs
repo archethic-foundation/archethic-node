@@ -108,7 +108,7 @@ defmodule UnirisValidation.DefaultImpl.ReplicationTest do
     coordinator_pub = Crypto.node_public_key()
 
     MockElection
-    |> stub(:storage_nodes, fn _ ->
+    |> stub(:storage_nodes, fn _, _ ->
       [
         %Node{
           last_public_key: "storage_node_key1",
@@ -201,8 +201,6 @@ defmodule UnirisValidation.DefaultImpl.ReplicationTest do
           }
         }
       })
-
-    IO.inspect(Transaction.valid_pending_transaction?(tx))
 
     {:ok, pow} = ProofOfWork.run(tx)
     poi = ProofOfIntegrity.from_chain([tx])

@@ -119,7 +119,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuildingTest do
     end)
 
     MockElection
-    |> stub(:storage_nodes, fn addr ->
+    |> stub(:storage_nodes, fn addr, _ ->
       if addr == List.first(previous_chain).address do
         [
           %Node{

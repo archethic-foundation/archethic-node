@@ -167,7 +167,7 @@ defmodule UnirisValidation.DefaultImpl.StampTest do
     ]
 
     MockElection
-    |> expect(:storage_nodes, fn _ ->
+    |> expect(:storage_nodes, fn _, _ ->
       storage_nodes
     end)
 
@@ -384,7 +384,7 @@ defmodule UnirisValidation.DefaultImpl.StampTest do
     ]
 
     MockElection
-    |> expect(:storage_nodes, fn _ ->
+    |> expect(:storage_nodes, fn _, _ ->
       storage_nodes
     end)
 

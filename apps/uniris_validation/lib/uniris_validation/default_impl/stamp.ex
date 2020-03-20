@@ -252,7 +252,7 @@ defmodule UnirisValidation.DefaultImpl.Stamp do
       {:ok, expected_next_ledger = %LedgerMovements{}} when expected_next_ledger == next_ledger ->
         :ok
 
-      ledger ->
+      _ ->
         {:error, :invalid_ledger_movements}
     end
   end

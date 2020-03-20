@@ -18,6 +18,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
 
   setup do
     Crypto.add_origin_seed("first_seed")
+    Crypto.set_storage_nonce("storage_seed")
 
     MockP2P
     |> stub(:node_info, fn _ ->
@@ -35,7 +36,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     end)
 
     MockElection
-    |> stub(:storage_nodes, fn _ ->
+    |> stub(:storage_nodes, fn _, _ ->
       [
         %Node{
           last_public_key: "storage_node_key1",
@@ -196,7 +197,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
             {:error, :unspent_output_transactions_not_exists}
           ]
 
-        {:add_context, _, _, _, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
       end
     end)
@@ -211,16 +213,19 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     {:cross_validator,
      %{
        validation_nodes_view: validation_nodes_view,
-       storage_nodes_view: storage_nodes_view,
+       chain_storage_nodes_view: chain_storage_nodes_view,
+       beacon_storage_nodes_view: beacon_storage_nodes_view,
        validation_nodes: validation_nodes,
        context_building_task: context_building_task = %Task{}
      }} = :sys.get_state(pid)
 
     assert is_bitstring(validation_nodes_view)
-    assert is_bitstring(storage_nodes_view)
+    assert is_bitstring(chain_storage_nodes_view)
+    assert is_bitstring(beacon_storage_nodes_view)
 
     assert bit_size(validation_nodes_view) == 1
-    assert bit_size(storage_nodes_view) == 3
+    assert bit_size(chain_storage_nodes_view) == 3
+    assert bit_size(beacon_storage_nodes_view) == 3
 
     assert Enum.map(validation_nodes, & &1.last_public_key) == [
              "coordinator_key",
@@ -294,7 +299,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         {:get_proof_of_integrity, _} ->
           {:ok, List.first(previous_chain).validation_stamp.proof_of_integrity}
 
-        {:add_context, _, _, _, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
       end
     end)
@@ -322,7 +328,7 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
         }
       ]
     end)
-    |> stub(:storage_nodes, fn addr ->
+    |> stub(:storage_nodes, fn addr, _ ->
       if addr == List.first(previous_chain).address do
         [
           %Node{
@@ -413,7 +419,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
             {:error, :unspent_output_transactions_not_exists}
           ]
 
-        {:add_context, _, _, _, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
       end
     end)
@@ -465,20 +472,23 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key2",
       ["key10", "key23"],
       <<1::1, 1::1>>,
-      <<0::1, 0::1, 1::1>>
+      <<0::1, 0::1, 1::1>>,
+      <<1::1, 1::1, 1::1>>
     )
 
     {_,
      %{
        validation_nodes_view: validation_node_view,
-       storage_nodes_view: storage_nodes_view,
+       chain_storage_nodes_view: chain_storage_nodes_view,
+       beacon_storage_nodes_view: beacon_storage_nodes_view,
        confirm_validation_nodes: confirm_validation_nodes,
        previous_storage_nodes: previous_storage_nodes
      }} = :sys.get_state(pid)
 
     assert confirm_validation_nodes == ["validator_key2"]
     assert BinarySequence.extract(validation_node_view) == [1, 1]
-    assert BinarySequence.extract(storage_nodes_view) == [1, 1, 1]
+    assert BinarySequence.extract(chain_storage_nodes_view) == [1, 1, 1]
+    assert BinarySequence.extract(beacon_storage_nodes_view) == [1, 1, 1]
     assert previous_storage_nodes == ["key10", "key23"]
   end
 
@@ -512,12 +522,13 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
             {:error, :unspent_output_transactions_not_exists}
           ]
 
-        {:add_context, _, _, _, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
 
-        [{:set_replication_tree, _, tree}, {:cross_validate, _, stamp}] ->
+        [{:set_replication_trees, _, trees}, {:cross_validate, _, stamp}] ->
           send(me, {:stamp, stamp})
-          send(me, {:tree, tree})
+          send(me, {:trees, trees})
       end
     end)
 
@@ -573,7 +584,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key2",
       ["key10", "key23"],
       <<1::1, 1::1>>,
-      <<1::1, 1::1, 0::1>>
+      <<1::1, 1::1, 0::1>>,
+      <<1::1, 0::1, 1::1>>
     )
 
     Mining.add_context(
@@ -581,13 +593,15 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
       "validator_key3",
       ["key3", "key5"],
       <<0::1, 1::1>>,
-      <<0::1, 1::1, 1::1>>
+      <<0::1, 1::1, 1::1>>,
+      <<1::1, 1::1, 1::1>>
     )
 
     {state,
      %{
        validation_nodes_view: validation_node_view,
-       storage_nodes_view: storage_nodes_view,
+       chain_storage_nodes_view: chain_storage_nodes_view,
+       beacon_storage_nodes_view: beacon_storage_nodes_view,
        confirm_validation_nodes: confirm_validation_nodes,
        previous_storage_nodes: previous_storage_nodes
      }} = :sys.get_state(pid)
@@ -595,15 +609,20 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     assert state == :waiting_cross_validation_stamps
     assert confirm_validation_nodes == ["validator_key2", "validator_key3"]
     assert BinarySequence.extract(validation_node_view) == [1, 1]
-    assert BinarySequence.extract(storage_nodes_view) == [1, 1, 1]
+    assert BinarySequence.extract(chain_storage_nodes_view) == [1, 1, 1]
+    assert BinarySequence.extract(beacon_storage_nodes_view) == [1, 1, 1]
     assert previous_storage_nodes == ["key10", "key23", "key3", "key5"]
 
     assert_received {:stamp, %ValidationStamp{}}
 
     receive do
-      {:tree, replication_tree} ->
-        assert Enum.all?(replication_tree, fn replicas ->
-                 is_bitstring(replicas) and bit_size(replicas) == 3
+      {:trees, replication_trees} ->
+        assert length(replication_trees) == 2
+
+        assert Enum.all?(replication_trees, fn tree ->
+                 Enum.all?(tree, fn replicas ->
+                   is_bitstring(replicas) and bit_size(replicas) == 3
+                 end)
                end)
     end
   end
@@ -638,7 +657,8 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
             {:error, :unspent_output_transactions_not_exists}
           ]
 
-        {:add_context, _addr, _node, _previous_nodes, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
 
         {:cross_validation_done, _, {_, _inconsistencies, _}} ->
@@ -748,14 +768,18 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
             {:error, :unspent_output_transactions_not_exists}
           ]
 
-        {:add_context, _, _, _, _, _} ->
+        {:add_context, _addr, _validator_key, _previous_storage_nodes, _validation_node_view,
+         _chain_storage_nodes_view, _beacon_storage_nodes_view} ->
           :ok
 
         {:cross_validation_done, address, stamp} ->
           Mining.add_cross_validation_stamp(address, stamp)
 
-        {:replicate_transaction, tx} ->
-          send(me, {:replicate, tx})
+        {:replicate_chain, tx} ->
+          send(me, {:replicate_chain, tx})
+
+        {:replicate_address, address, timestamp} ->
+          send(me, {:replicate_address, address, timestamp})
       end
     end)
 
@@ -806,10 +830,13 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
 
     Process.sleep(200)
 
-    Mining.set_replication_tree(tx.address, [
-      <<0::size(3)>>,
-      <<5::size(3)>>,
-      <<0::size(3)>>
+    Mining.set_replication_trees(tx.address, [
+      [
+        <<0::size(3)>>,
+        <<5::size(3)>>,
+        <<0::size(3)>>
+      ],
+      [<<0::size(3)>>, <<5::size(3)>>, <<0::size(3)>>]
     ])
 
     stamp = %ValidationStamp{
@@ -841,9 +868,13 @@ defmodule UnirisValidation.DefaultImpl.Mining.Test do
     assert length(stamps) == 2
 
     receive do
-      {:replicate, tx} ->
+      {:replicate_chain, tx} ->
         assert match?(%ValidationStamp{}, tx.validation_stamp)
         assert length(tx.cross_validation_stamps) == 2
+
+      {:replicate_address, addr, timestamp} ->
+        assert addr == tx.address
+        assert timestamp == tx.timestamp
     end
   end
 end

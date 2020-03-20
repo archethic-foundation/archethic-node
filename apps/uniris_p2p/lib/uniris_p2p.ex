@@ -11,6 +11,12 @@ defmodule UnirisP2P do
   end
 
   @impl true
+  @spec authorized_nodes() :: list(Node.t())
+  def authorized_nodes() do
+    impl().authorized_nodes()
+  end
+
+  @impl true
   @spec add_node(Node.t()) :: :ok
   def add_node(node = %Node{}) do
     impl().add_node(node)

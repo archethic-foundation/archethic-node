@@ -30,6 +30,12 @@ defmodule UnirisP2P.DefaultImpl do
   end
 
   @impl true
+  @spec authorized_nodes() :: list(Node.t())
+  def authorized_nodes() do
+    Enum.filter(list_nodes(), &(&1.authorized?))
+  end
+
+  @impl true
   @spec add_node(Node.t()) :: :ok
   def add_node(%Node{
         first_public_key: first_public_key,

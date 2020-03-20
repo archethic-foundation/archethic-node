@@ -54,7 +54,7 @@ defmodule UnirisElection.DefaultImplTest do
               )
           ) do
       expect(MockP2P, :list_nodes, fn -> nodes end)
-      storage_nodes = Election.storage_nodes(address)
+      storage_nodes = Election.storage_nodes(address, false)
       assert length(storage_nodes) < length(nodes)
     end
   end
@@ -81,7 +81,7 @@ defmodule UnirisElection.DefaultImplTest do
               )
           ) do
       expect(MockP2P, :list_nodes, fn -> nodes end)
-      storage_nodes = Election.storage_nodes(address)
+      storage_nodes = Election.storage_nodes(address, false)
       assert length(storage_nodes) == length(nodes)
     end
   end

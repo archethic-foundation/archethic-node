@@ -16,5 +16,6 @@ defmodule UnirisP2P.Impl do
             ) :: :ok
 
   @callback list_seeds() :: list(Node.t())
+  @callback authorized_nodes() :: list(Node.t())
   @callback update_seeds(list(Node.t())) :: :ok
 end

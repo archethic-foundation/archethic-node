@@ -25,7 +25,7 @@ defmodule UnirisElection.DefaultImpl do
 
     nodes =
       P2P.list_nodes()
-      |> Enum.filter(&(&1.authorized?))
+      |> Enum.filter(& &1.authorized?)
       |> sort_nodes_by_key_rotation(
         :last_public_key,
         :daily_nonce,
@@ -85,8 +85,8 @@ defmodule UnirisElection.DefaultImpl do
   defp reduce_validation_node_election([], _, %{nodes: nodes}), do: nodes
 
   @impl true
-  @spec storage_nodes(binary()) :: [Node.t()]
-  def storage_nodes(address) when is_binary(address) do
+  @spec storage_nodes(binary(), boolean()) :: [Node.t()]
+  def storage_nodes(address, only_authorized?) when is_binary(address) do
     # Evaluate heuristics constraints
     %StorageConstraints{
       number_replicas: nb_replicas_fun,
@@ -94,7 +94,11 @@ defmodule UnirisElection.DefaultImpl do
       min_geo_patch_avg_availability: min_geo_patch_avg_availability_fun
     } = Constraints.for_storage()
 
-    nodes = P2P.list_nodes()
+    nodes = if only_authorized? do
+      Enum.filter(P2P.list_nodes(), &(&1.authorized?))
+    else
+      P2P.list_nodes()
+    end
 
     nb_replicas = nb_replicas_fun.(nodes)
     min_geo_patch = min_geo_patch_fun.()
@@ -189,4 +193,5 @@ defmodule UnirisElection.DefaultImpl do
   defp do_hash(:storage_nonce, data) do
     Crypto.hash_with_storage_nonce(data)
   end
+
 end

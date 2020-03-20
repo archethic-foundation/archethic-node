@@ -120,8 +120,7 @@ defmodule UnirisValidation.DefaultImpl.ContextBuilding do
 
               {:ok, chain, unspent_outputs, nodes ++ utxo_storage_nodes}
             end
-
-          end
+        end
     end
   end
 
