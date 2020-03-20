@@ -86,4 +86,10 @@ defmodule UnirisCrypto.Keystore do
   def decrypt_with_node_key!(cipher) do
     @keystore_impl.decrypt_with_node_key!(cipher)
   end
+
+  @impl true
+  def derivate_beacon_chain_address(subset, date) do
+    @keystore_impl.derivate_beacon_chain_address(subset, date)
+  end
+
 end

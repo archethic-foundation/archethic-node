@@ -1,9 +1,12 @@
-defmodule UnirisSync.TransactionSubscriber do
+defmodule UnirisSync.TransactionLoader do
+  @moduledoc false
+
   use GenServer
 
   alias UnirisChain.Transaction
   alias UnirisP2P, as: P2P
   alias UnirisP2P.Node
+  alias UnirisCrypto, as: Crypto
 
   require Logger
 
@@ -12,11 +15,10 @@ defmodule UnirisSync.TransactionSubscriber do
   end
 
   def init(_opts) do
-    UnirisSync.subscribe_new_transaction()
     {:ok, []}
   end
 
-  def handle_info({:new_transaction, %Transaction{type: :node, data: %{content: content}}}, state) do
+  def handle_cast({:new_transaction, %Transaction{type: :node, data: %{content: content}}}, state) do
     node = extract_node_from_content(content)
     :ok = P2P.add_node(node)
     :ok = P2P.connect_node(node)
@@ -24,7 +26,31 @@ defmodule UnirisSync.TransactionSubscriber do
     {:noreply, state}
   end
 
-  def handle_info({:new_transaction, %Transaction{}}, state) do
+  def handle_cast(
+        {:new_transaction,
+         %Transaction{
+           type: :node_shared_secrets,
+           data: %{keys: %{secret: secret, authorized_keys: auth_keys}}
+         }},
+        state
+      ) do
+    Enum.each(auth_keys, fn {key, enc_key} ->
+      Node.authorize(key)
+      Logger.info("Node #{Base.encode16(key)} authorized")
+
+      if key == Crypto.node_public_key() do
+        # Renew shared key
+        aes_key = Crypto.ec_decrypt_with_node_key!(enc_key)
+        %{daily_nonce_seed: daily_nonce_seed} = Crypto.aes_decrypt!(secret, aes_key)
+        Crypto.set_daily_nonce(daily_nonce_seed)
+        Logger.info("Node shared key updated")
+      end
+    end)
+
+    {:noreply, state}
+  end
+
+  def handle_cast({:new_transaction, %Transaction{}}, state) do
     {:noreply, state}
   end
 
@@ -67,5 +93,9 @@ defmodule UnirisSync.TransactionSubscriber do
       first_public_key: first_public_key,
       last_public_key: last_public_key
     }
+  end
+
+  def new_transaction(tx = %Transaction{}) do
+    GenServer.cast(__MODULE__, {:new_transaction, tx})
   end
 end

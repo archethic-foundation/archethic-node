@@ -14,4 +14,6 @@ defmodule UnirisCrypto.Keystore.Impl do
   @callback node_public_key(index :: number()) :: UnirisCyrpto.key()
   @callback increment_number_of_generate_node_keys() :: :ok
   @callback decrypt_with_node_key!(binary()) :: :ok
+  @callback derivate_beacon_chain_address(subset :: binary(), date :: non_neg_integer()) :: UnirisCrypto.key()
+
 end

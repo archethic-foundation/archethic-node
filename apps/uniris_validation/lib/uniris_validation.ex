@@ -66,50 +66,69 @@ defmodule UnirisValidation do
           tx_address :: binary(),
           validation_node_public_key :: UnirisCrypto.key(),
           previous_storage_node_public_keys :: list(UnirisCrypto.key()),
-          validation_node_views :: bitstring(),
-          storage_node_views :: bitstring()
+          validation_nodes_view :: bitstring(),
+          chain_storage_nodes_view :: bitstring(),
+          beacon_storage_nodes_view :: bitstring()
         ) :: :ok
   def add_context(
         tx_address,
         validation_node_public_key,
         previous_storage_node_public_keys,
-        validation_node_views,
-        storage_node_views
+        validation_nodes_view,
+        chain_storage_nodes_view,
+        beacon_storage_nodes_view
       ) do
     impl().add_context(
       tx_address,
       validation_node_public_key,
       previous_storage_node_public_keys,
-      validation_node_views,
-      storage_node_views
+      validation_nodes_view,
+      chain_storage_nodes_view,
+      beacon_storage_nodes_view
     )
   end
 
   @doc """
-  Add the replication tree computed by the coordinator to the mining process.
+  Add the replication trees (chain and beacon chain) computed by the coordinator to the mining process.
 
-  Based on the bitstring positionning, the validation node can find out which are the nodes he/she must replicate on
+  Based on the bitstring positionning, the validation node can find out which are the nodes to replicate on
   """
   @impl true
-  @spec set_replication_tree(binary(), list(bitstring())) :: :ok
-  def set_replication_tree(tx_address, tree) do
-    impl().set_replication_tree(tx_address, tree)
+  @spec set_replication_trees(binary(), list(list(bitstring()))) :: :ok
+  def set_replication_trees(tx_address, trees) do
+    impl().set_replication_trees(tx_address, trees)
   end
 
   @doc """
-  Validate a transaction and store the transaction in the chain storage if it's ok
+  Validate and store a transaction chain
 
-  Differents kinds of validation are made depending on the nature of the receiving node:
-  - Elected storage node: full validation (context building, ledger movements, node movements, chain integrity, etc..)
-  - Unspent outputs and Beacon chain node: lite validation (cryptographic integrity and atomic commitment)
-
+  A full validation is performed to check:
+  - context building, ledger movements, node movements, chain integrity, etc.
   """
-
   @impl true
-  @spec replicate_transaction(Transaction.validated()) ::
-          :ok | {:error, :invalid_transaction} | {:error, :invalid_transaction_chain}
+  @spec replicate_chain(Transaction.validated()) :: :ok
+  def replicate_chain(tx = %Transaction{}) do
+    impl().replicate_chain(tx)
+  end
+
+  @doc """
+  Validate and a store a single transaction. Used for unspent output transactions
+
+  A lite version of the validation is performed to ensure the cryptography integrity and atomic commitment
+  """
+  @impl true
+  @spec replicate_transaction(Transaction.validated()) :: :ok
   def replicate_transaction(tx = %Transaction{}) do
     impl().replicate_transaction(tx)
+  end
+
+  @doc """
+  Propose the address to the beacon chain
+  """
+  @impl true
+  @spec replicate_address(binary(), non_neg_integer()) :: :ok
+  def replicate_address(address, timestamp) do
+    impl().replicate_address(address, timestamp)
   end
 
   defp impl() do

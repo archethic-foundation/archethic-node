@@ -200,8 +200,12 @@ defmodule UnirisValidation.DefaultImpl.Replication do
   @doc """
   Run a full validation as a storage node before to store the transaction.
 
-  Pending transaction integrity is checked, then the context of the chain is rebuild and
-  the validation stamp is therefore validated as well as the atomic commitment.
+  Pending transaction integrity, Chain integrity, Validation Stamps
+  and Atomic commitments are checked
+
+  If the node is an authorized validation node, the node rewards
+  will be checked also
+
   """
   @spec full_validation(Transaction.validated()) :: :ok | {:error, :invalid_transaction}
   def full_validation(tx = %Transaction{}) do
@@ -227,19 +231,23 @@ defmodule UnirisValidation.DefaultImpl.Replication do
 
       nodes ->
         case ContextBuilding.download_transaction_context(prev_address, nodes) do
-          {:ok, [], unspent_outputs} ->
+          {:ok, [], []} ->
+            {:ok, [], []}
+
+          {:ok, [], unspent_outputs, _} ->
             {:ok, [], unspent_outputs}
-          {:ok, chain, unspent_outputs} ->
-            [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}} | _] = chain
+
+          {:ok, chain, unspent_outputs, _} ->
+            [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}} | _] =
+              chain
+
             if ProofOfIntegrity.from_chain(chain) == poi do
               {:ok, chain, unspent_outputs}
             else
               {:error, :invalid_transaction_chain}
             end
-          end
+        end
     end
-
-
   end
 
   @doc """
@@ -249,13 +257,21 @@ defmodule UnirisValidation.DefaultImpl.Replication do
   @spec lite_validation(Transaction.validated()) :: :ok | {:error, :invalid_transaction}
   def lite_validation(
         tx = %Transaction{
-          validation_stamp: stamp = %ValidationStamp{proof_of_work: pow},
+          validation_stamp:
+            stamp = %ValidationStamp{
+              proof_of_work: pow,
+              node_movements: %NodeMovements{fee: fee, rewards: rewards}
+            },
           cross_validation_stamps: stamps
         }
       ) do
+    {coordinator_public_key, _} = Enum.at(rewards, 1)
+
     with true <- Transaction.valid_pending_transaction?(tx),
          true <- ProofOfWork.verify(tx, pow),
          true <- Stamp.valid_cross_validation_stamps?(stamps, stamp),
+         :ok <- Stamp.check_validation_stamp_signature(stamp, coordinator_public_key),
+         :ok <- Stamp.check_validation_stamp_fee(tx, fee),
          {_, inconsistencies, _} <- List.first(stamps),
          true <- atomic_commitment?(stamps, inconsistencies),
          true <- pow != "",
@@ -270,7 +286,9 @@ defmodule UnirisValidation.DefaultImpl.Replication do
   defp verify_transaction_stamp(
          tx = %Transaction{
            validation_stamp:
-             stamp = %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}},
+             stamp = %ValidationStamp{
+               node_movements: %NodeMovements{rewards: rewards}
+             },
            cross_validation_stamps: cross_stamps
          },
          chain,

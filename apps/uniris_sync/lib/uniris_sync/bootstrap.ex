@@ -10,7 +10,6 @@ defmodule UnirisSync.Bootstrap do
   alias UnirisCrypto, as: Crypto
   alias UnirisChain.Transaction
   alias UnirisSharedSecrets, as: SharedSecrets
-  alias UnirisSync, as: Sync
 
   def start_link(opts) do
     ip = Keyword.get(opts, :ip)
@@ -38,6 +37,7 @@ defmodule UnirisSync.Bootstrap do
 
       previous_seeds ->
         initialize_node(node, previous_seeds)
+        Process.sleep(100)
     end
   end
 
@@ -74,10 +74,13 @@ defmodule UnirisSync.Bootstrap do
     # Create the first transaction on the node shared secrets
     init_shared_secrets_chain()
 
+    Process.sleep(2000)
+
     update_node_chain(node, {127, 0, 0, 1})
   end
 
   defp init_shared_secrets_chain() do
+    Logger.debug("Init node shared secrets")
     transaction_seed = :crypto.strong_rand_bytes(32)
 
     shared_secret_tx =
@@ -96,24 +99,15 @@ defmodule UnirisSync.Bootstrap do
     Crypto.set_daily_nonce(daily_nonce_seed)
     Crypto.set_storage_nonce(storage_nonce_seed)
 
-    UnirisSync.subscribe_to(shared_secret_tx.address)
+    # tx_address = shared_secret_tx.address
     P2P.send_message({127, 0, 0, 1}, {:new_transaction, shared_secret_tx})
-
-    receive do
-      {:acknowledge_storage, _} ->
-        Logger.info("Shared secret transaction stored")
-    end
   end
 
   defp update_node_chain(node = %Node{}, remote_node) do
+    Logger.debug("Update node chain...")
     node_tx = create_node_transaction(node)
-    UnirisSync.subscribe_to(node_tx.address)
+    # tx_address = node_tx.address
     P2P.send_message(remote_node, {:new_transaction, node_tx})
-
-    receive do
-      {:acknowledge_storage, _} ->
-        Logger.info("Node transaction stored")
-    end
   end
 
   @doc """
@@ -148,34 +142,28 @@ defmodule UnirisSync.Bootstrap do
     previous_seeds
     |> Enum.reject(fn n -> n in P2P.list_nodes() end)
     |> Enum.each(fn n ->
-      Logger.info("Adding the seed #{n.last_public_key |> Base.encode16()} to the P2P view")
+      Logger.debug("Adding the seed #{n.last_public_key |> Base.encode16()} to the P2P view")
       P2P.add_node(n)
       P2P.connect_node(n)
     end)
 
-    {new_seeds, closest_nodes, origin_keys_seeds, storage_nonce_seed, authorized_nodes} =
+    {new_seeds, closest_nodes, origin_keys_seeds, storage_nonce_seed} =
       request_init_data(previous_seeds, node.geo_patch)
 
     (new_seeds ++ closest_nodes)
     |> Enum.dedup_by(fn %Node{first_public_key: key} -> key end)
     |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
     |> Enum.each(fn n ->
-      if n.last_public_key in authorized_nodes do
-        Node.authorize(n)
-        Logger.info("Authorize node #{n.last_public_key |> Base.encode16()}")
-      else
-        P2P.add_node(n)
-        P2P.connect_node(n)
-        Node.authorize(n)
-        Logger.info("Add node #{n.last_public_key |> Base.encode16()} to the P2P view")
-      end
+      P2P.add_node(n)
+      P2P.connect_node(n)
+      Logger.debug("Add node #{n.last_public_key |> Base.encode16()} to the P2P view")
     end)
 
     Crypto.set_storage_nonce(storage_nonce_seed)
-    Logger.info("Storage nonce loaded")
+    Logger.debug("Storage nonce loaded")
 
     Enum.each(origin_keys_seeds, &Crypto.add_origin_seed(&1))
-    Logger.info("Origin seeds loaded")
+    Logger.debug("Origin seeds loaded")
 
     update_node_chain(node, Enum.random(new_seeds))
   end
@@ -186,15 +174,14 @@ defmodule UnirisSync.Bootstrap do
   the origin key seeds and storage nonce encrypted with the node key
   """
   def request_init_data(previous_seeds, geo_patch) do
-    Logger.info("Request new seeds and closest nodes")
+    Logger.debug("Request new seeds and closest nodes")
 
     [
       new_seeds,
       closest_nodes,
       %{
         origin_keys_seeds: origin_keys_seeds_encrypted,
-        storage_nonce_seed: storage_nonce_seed_encrypted,
-        authorized_nodes: authorized_nodes
+        storage_nonce_seed: storage_nonce_seed_encrypted
       }
     ] =
       P2P.send_message(Enum.random(previous_seeds), [
@@ -206,6 +193,6 @@ defmodule UnirisSync.Bootstrap do
     origin_keys_seeds = Crypto.ec_decrypt_with_node_key!(origin_keys_seeds_encrypted)
     storage_nonce_seed = Crypto.ec_decrypt_with_node_key!(storage_nonce_seed_encrypted)
 
-    {new_seeds, closest_nodes, origin_keys_seeds, storage_nonce_seed, authorized_nodes}
+    {new_seeds, closest_nodes, origin_keys_seeds, storage_nonce_seed}
   end
 end

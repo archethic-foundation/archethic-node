@@ -13,6 +13,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   alias UnirisP2P, as: P2P
   alias UnirisP2P.Node
   alias UnirisCrypto, as: Crypto
+  alias UnirisSync, as: Sync
 
   require Logger
 
@@ -69,12 +70,12 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
         {:keep_state, new_data, {:next_event, :internal, :start_mining}}
       else
-        Logger.error("invalid welcome node election #{tx.address |> Base.encode16()}")
+        Logger.info("invalid welcome node election #{tx.address |> Base.encode16()}")
 
         {:next_state, :invalid_welcome_node_election, data}
       end
     else
-      Logger.error("invalid pending transaction #{tx.address |> Base.encode16()}")
+      Logger.info("invalid pending transaction #{tx.address |> Base.encode16()}")
       {:next_state, :invalid_pending_transaction, data}
     end
   end
@@ -90,13 +91,19 @@ defmodule UnirisValidation.DefaultImpl.Mining do
             validation_nodes = [%Node{last_public_key: coordinator_public_key} | _]
         }
       ) do
-    # Compute the storage node and the P2P view in a binary format
-    storage_nodes = storage_nodes(tx)
+    # Compute the storage node
+    {chain_storage_nodes, beacon_storage_nodes} = storage_nodes(tx)
 
+    # Compute
     new_data =
       data
-      |> Map.put(:storage_nodes, storage_nodes)
-      |> Map.put(:storage_nodes_view, BinarySequence.from_availability(storage_nodes))
+      |> Map.put(:chain_storage_nodes, chain_storage_nodes)
+      |> Map.put(:beacon_storage_nodes, beacon_storage_nodes)
+      |> Map.put(:chain_storage_nodes_view, BinarySequence.from_availability(chain_storage_nodes))
+      |> Map.put(
+        :beacon_storage_nodes_view,
+        BinarySequence.from_availability(beacon_storage_nodes)
+      )
 
     # Run the context building phase
     context_building_task =
@@ -139,7 +146,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
           transaction: %Transaction{address: tx_address},
           context_building_task: %Task{ref: t_ref},
           validation_nodes: [coordinator | _],
-          storage_nodes_view: storage_nodes_view,
+          chain_storage_nodes_view: chain_storage_nodes_view,
+          beacon_storage_nodes_view: beacon_storage_nodes_view,
           validation_nodes_view: validation_nodes_view,
           node_public_key: node_public_key
         }
@@ -151,7 +159,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
       P2P.send_message(
         coordinator,
         {:add_context, tx_address, node_public_key, nodes, validation_nodes_view,
-         storage_nodes_view}
+         chain_storage_nodes_view, beacon_storage_nodes_view}
       )
     end)
 
@@ -225,38 +233,33 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
   def handle_event(
         :cast,
-        {:set_replication_tree, binary_tree},
+        {:set_replication_trees, [chain_binary_tree, beacon_binary_tree]},
         _,
         data = %{
           validation_nodes: validation_nodes,
-          storage_nodes: storage_nodes,
+          chain_storage_nodes: chain_storage_nodes,
+          beacon_storage_nodes: beacon_storage_nodes,
           node_public_key: node_public_key
         }
       ) do
     validator_index = Enum.find_index(validation_nodes, &(&1.last_public_key == node_public_key))
 
-    %{list: replication_nodes} =
-      binary_tree
-      |> Enum.at(validator_index)
-      |> BinarySequence.extract()
-      |> Enum.reduce(%{index: 0, list: []}, fn included, acc ->
-        case included do
-          0 ->
-            Map.update!(acc, :index, &(&1 + 1))
+    chain_replication_nodes =
+      extract_nodes_from_binary_tree(chain_binary_tree, validator_index, chain_storage_nodes)
 
-          1 ->
-            acc
-            |> Map.update!(:list, &(&1 ++ [Enum.at(storage_nodes, acc.index)]))
-            |> Map.update!(:index, &(&1 + 1))
-        end
-      end)
+    beacon_replication_nodes =
+      extract_nodes_from_binary_tree(beacon_binary_tree, validator_index, beacon_storage_nodes)
 
-    {:keep_state, Map.put(data, :replication_nodes, replication_nodes)}
+    {:keep_state,
+     data
+     |> Map.put(:chain_replication_nodes, chain_replication_nodes)
+     |> Map.put(:beacon_replication_nodes, beacon_replication_nodes)}
   end
 
   def handle_event(
         :cast,
-        {:add_context, from, previous_storage_nodes, validation_nodes_view, storage_nodes_view},
+        {:add_context, from, previous_storage_nodes, validation_nodes_view,
+         chain_storage_nodes_view, beacon_storage_nodes_view},
         state,
         data = %{
           validation_nodes: validation_nodes
@@ -267,7 +270,14 @@ defmodule UnirisValidation.DefaultImpl.Mining do
       data
       |> Map.update(:confirm_validation_nodes, [from], &(&1 ++ [from]))
       |> Map.update!(:validation_nodes_view, &BinarySequence.aggregate(&1, validation_nodes_view))
-      |> Map.update!(:storage_nodes_view, &BinarySequence.aggregate(&1, storage_nodes_view))
+      |> Map.update!(
+        :chain_storage_nodes_view,
+        &BinarySequence.aggregate(&1, chain_storage_nodes_view)
+      )
+      |> Map.update!(
+        :beacon_storage_nodes_view,
+        &BinarySequence.aggregate(&1, beacon_storage_nodes_view)
+      )
       |> Map.update(
         :previous_storage_nodes,
         previous_storage_nodes,
@@ -297,7 +307,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
           unspent_outputs: unspent_outputs,
           previous_chain: previous_chain,
           previous_storage_nodes: previous_storage_nodes,
-          storage_nodes: storage_nodes,
+          chain_storage_nodes: chain_storage_nodes,
+          beacon_storage_nodes: beacon_storage_nodes,
           welcome_node_public_key: welcome_node_public_key,
           validation_nodes:
             validation_nodes = [
@@ -324,14 +335,19 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         pow_result
       )
 
-    replication_tree = Replication.build_binary_tree(validation_nodes, storage_nodes)
+    # TODO: use the view of storages nodes to improve the replication tree
+
+    replication_trees = [
+      Replication.build_binary_tree(validation_nodes, chain_storage_nodes),
+      Replication.build_binary_tree(validation_nodes, beacon_storage_nodes)
+    ]
 
     # Send cross validation request and replication tree computation to the available
     # cross validation nodes
     Enum.each(cross_validation_nodes, fn n ->
       Task.Supervisor.start_child(TaskSupervisor, fn ->
         P2P.send_message(n, [
-          {:set_replication_tree, tx.address, replication_tree},
+          {:set_replication_trees, tx.address, replication_trees},
           {:cross_validate, tx.address, stamp}
         ])
       end)
@@ -340,7 +356,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     Logger.info("End validation stamp creation for #{tx_address |> Base.encode16()}")
 
     {:next_state, :waiting_cross_validation_stamps,
-     data |> Map.put(:stamp, stamp) |> Map.put(:replication_tree, replication_tree)}
+     data |> Map.put(:stamp, stamp) |> Map.put(:replication_trees, replication_trees)}
   end
 
   def handle_event(
@@ -377,7 +393,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         end
       end
     else
-      Logger.error("invalid cross validation stamp #{inspect cross_validation_stamp}")
+      Logger.info("invalid cross validation stamp #{inspect(cross_validation_stamp)}")
       :keep_state_and_data
     end
   end
@@ -388,7 +404,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         :atomic_commitment_not_reach,
         _data = %{transaction: %Transaction{address: tx_address}}
       ) do
-    Logger.error("Atomic commitment not reach for #{tx_address |> Base.encode16()}")
+    Logger.info("Atomic commitment not reach for #{tx_address |> Base.encode16()}")
 
     # TODO: Malicious detection
     :keep_state_and_data
@@ -398,7 +414,8 @@ defmodule UnirisValidation.DefaultImpl.Mining do
         transaction: tx,
         validation_stamp: stamp,
         cross_validation_stamps: cross_validation_stamps,
-        replication_nodes: replication_nodes
+        chain_replication_nodes: chain_replication_nodes,
+        beacon_replication_nodes: beacon_replication_nodes
       }) do
     Logger.info("Start replication")
 
@@ -407,9 +424,18 @@ defmodule UnirisValidation.DefaultImpl.Mining do
       |> Map.put(:validation_stamp, stamp)
       |> Map.put(:cross_validation_stamps, cross_validation_stamps)
 
-    Enum.each(replication_nodes, fn n ->
+    Enum.each(chain_replication_nodes, fn n ->
       Task.Supervisor.start_child(TaskSupervisor, fn ->
-        P2P.send_message(n, {:replicate_transaction, validated_transaction})
+        P2P.send_message(n, {:replicate_chain, validated_transaction})
+      end)
+    end)
+
+    Enum.each(beacon_replication_nodes, fn n ->
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        P2P.send_message(
+          n,
+          {:replicate_address, validated_transaction.address, validated_transaction.timestamp}
+        )
       end)
     end)
 
@@ -441,23 +467,25 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     )
   end
 
-  @spec set_replication_tree(binary(), list(bitstring())) :: :ok
-  def set_replication_tree(tx_address, tree) do
-    :gen_statem.cast(via_tuple(tx_address), {:set_replication_tree, tree})
+  @spec set_replication_trees(binary(), list(list(bitstring()))) :: :ok
+  def set_replication_trees(tx_address, trees) do
+    :gen_statem.cast(via_tuple(tx_address), {:set_replication_trees, trees})
   end
 
-  @spec add_context(binary(), Crypto.key(), list(binary()), bitstring(), bitstring()) :: :ok
+  @spec add_context(binary(), Crypto.key(), list(binary()), bitstring(), bitstring(), bitstring()) ::
+          :ok
   def add_context(
         tx_address,
         validation_node_public_key,
         previous_storage_node_public_keys,
         validation_nodes_view,
-        storage_nodes_view
+        chain_storage_nodes_view,
+        beacon_storage_nodes_view
       ) do
     :gen_statem.cast(
       via_tuple(tx_address),
       {:add_context, validation_node_public_key, previous_storage_node_public_keys,
-       validation_nodes_view, storage_nodes_view}
+       validation_nodes_view, chain_storage_nodes_view, beacon_storage_nodes_view}
     )
   end
 
@@ -477,12 +505,25 @@ defmodule UnirisValidation.DefaultImpl.Mining do
     |> Map.put(:previous_storage_nodes, nodes)
   end
 
-  defp storage_nodes(%Transaction{address: tx_address, type: type}) do
-    if type in [:node, :code] do
-      P2P.list_nodes()
-    else
-      Election.storage_nodes(tx_address)
-    end
+  defp storage_nodes(tx = %Transaction{}) do
+    {
+      chain_storage_nodes(tx),
+      beacon_storage_nodes(tx)
+    }
+  end
+
+  defp chain_storage_nodes(%Transaction{type: :node}), do: P2P.authorized_nodes()
+  defp chain_storage_nodes(%Transaction{type: :code}), do: P2P.authorized_nodes()
+  defp chain_storage_nodes(%Transaction{type: :node_shared_secrets}), do: P2P.authorized_nodes()
+
+  defp chain_storage_nodes(%Transaction{address: tx_address}),
+    do: Election.storage_nodes(tx_address, true)
+
+  defp beacon_storage_nodes(%Transaction{address: tx_address, timestamp: timestamp}) do
+    tx_address
+    |> Sync.beacon_subset_from_address
+    |> Crypto.derivate_beacon_chain_address(timestamp)
+    |> Election.storage_nodes()
   end
 
   defp cross_validation_nodes(validation_nodes = [_]) do
@@ -491,5 +532,25 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
   defp cross_validation_nodes([_ | cross_validation_nodes]) do
     cross_validation_nodes
+  end
+
+  defp extract_nodes_from_binary_tree(binary_tree, validator_index, storage_nodes) do
+    %{list: nodes} =
+      binary_tree
+      |> Enum.at(validator_index)
+      |> BinarySequence.extract()
+      |> Enum.reduce(%{index: 0, list: []}, fn included, acc ->
+        case included do
+          0 ->
+            Map.update!(acc, :index, &(&1 + 1))
+
+          1 ->
+            acc
+            |> Map.update!(:list, &(&1 ++ [Enum.at(storage_nodes, acc.index)]))
+            |> Map.update!(:index, &(&1 + 1))
+        end
+      end)
+
+    nodes
   end
 end

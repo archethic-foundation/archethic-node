@@ -18,12 +18,14 @@ defmodule UnirisValidation.Impl do
               address :: binary(),
               validation_node_public_key :: UnirisCrypto.key(),
               previous_storage_nodes :: list(UnirisCrypto.key()),
-              validation_node_views :: bitstring(),
-              storage_node_views :: bitstring()
+              validation_nodes_view :: bitstring(),
+              chain_storage_nodes_view :: bitstring(),
+              beacon_storage_nodes_view :: bitstring()
             ) :: :ok
 
-  @callback set_replication_tree(binary(), list(bitstring())) :: :ok
+  @callback set_replication_trees(binary(), list(list(bitstring()))) :: :ok
 
-  @callback replicate_transaction(Transaction.validated()) ::
-              :ok | {:error, :invalid_transaction} | {:error, :invalid_transaction_chain}
+  @callback replicate_chain(Transaction.validated()) :: :ok
+  @callback replicate_transaction(Transaction.validated()) :: :ok
+  @callback replicate_address(binary(), non_neg_integer()) :: :ok
 end

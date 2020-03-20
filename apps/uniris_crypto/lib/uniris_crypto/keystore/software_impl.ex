@@ -83,6 +83,17 @@ defmodule UnirisCrypto.Keystore.SoftwareImpl do
     end
   end
 
+  def handle_call(
+        {:derivate_beacon_chain_address, subset, date},
+        _,
+        state = %{storage_nonce_keys: {_, pv}}
+      ) do
+    {pub, _} =
+      Crypto.derivate_keypair(pv, Crypto.hash([subset, date]) |> :binary.decode_unsigned())
+
+    {:reply, Crypto.hash(pub), state}
+  end
+
   @impl true
   def handle_cast(:inc_node_key_counter, state) do
     {:noreply, Map.update!(state, :node_key_counter, &(&1 + 1))}
@@ -180,5 +191,10 @@ defmodule UnirisCrypto.Keystore.SoftwareImpl do
       result ->
         result
     end
+  end
+
+  @impl true
+  def derivate_beacon_chain_address(subset, date) do
+    GenServer.call(__MODULE__, {:derivate_beacon_chain_address, subset, date})
   end
 end

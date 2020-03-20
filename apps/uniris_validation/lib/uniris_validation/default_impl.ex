@@ -12,11 +12,9 @@ defmodule UnirisValidation.DefaultImpl do
   alias UnirisValidation.MiningSupervisor
   alias __MODULE__.Replication
   alias __MODULE__.Mining
-  alias UnirisElection, as: Election
-  alias UnirisCrypto, as: Crypto
   alias UnirisP2P, as: P2P
-  alias UnirisP2P.Node
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
+  alias UnirisSync, as: Sync
 
   @behaviour UnirisValidation.Impl
 
@@ -58,76 +56,73 @@ defmodule UnirisValidation.DefaultImpl do
           tx_address :: binary(),
           validation_node_public_key :: UnirisCrypto.key(),
           previous_storage_node_public_keys :: list(UnirisCrypto.key()),
-          validation_node_views :: bitstring(),
-          storage_node_views :: bitstring()
+          validation_nodes_view :: bitstring(),
+          chain_storage_nodes_view :: bitstring(),
+          beacon_storage_nodes_view :: bitstring()
         ) :: :ok
   def add_context(
         tx_address,
         validation_node_public_key,
         previous_storage_node_public_keys,
-        validation_node_views,
-        storage_node_views
+        validation_nodes_view,
+        chain_storage_nodes_view,
+        beacon_storage_nodes_view
       ) do
     Mining.add_context(
       tx_address,
       validation_node_public_key,
       previous_storage_node_public_keys,
-      validation_node_views,
-      storage_node_views
+      validation_nodes_view,
+      chain_storage_nodes_view,
+      beacon_storage_nodes_view
     )
   end
 
   @impl true
-  @spec set_replication_tree(binary(), list(bitstring())) :: :ok
-  def set_replication_tree(tx_address, tree) do
-    Mining.set_replication_tree(tx_address, tree)
+  @spec set_replication_trees(binary(), list(list(bitstring()))) :: :ok
+  def set_replication_trees(tx_address, trees) do
+    Mining.set_replication_trees(tx_address, trees)
   end
 
   @impl true
-  @spec replicate_transaction(Transaction.validated()) ::
-          :ok | {:error, :invalid_transaction}
-  def replicate_transaction(tx = %Transaction{}) do
-    storage_nodes_keys = Enum.map(Election.storage_nodes(tx.address), & &1.last_public_key)
-     %Node{authorized?: authorized_node?} = Node.details(Crypto.node_public_key())
+  @spec replicate_chain(Transaction.validated()) :: :ok
+  def replicate_chain(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}}
+        }
+      ) do
+    case Replication.full_validation(tx) do
+      {:error, :invalid_transaction} ->
+        Chain.store_ko_transaction(tx)
 
-    if Crypto.node_public_key() in storage_nodes_keys and authorized_node? do
-      # As next storage pool
-      case Replication.full_validation(tx) do
-        {:ok, [tx | []]} ->
-          Chain.store_transaction(tx)
-          acknowledge_storage(tx)
-          UnirisSync.publish_new_transaction(tx)
+      {:ok, chain} ->
+        Chain.store_transaction_chain(chain)
+        Sync.load_transaction(tx)
 
-        {:ok, chain = [_ | _]} ->
-          Chain.store_transaction_chain(chain)
-          acknowledge_storage(tx)
-          UnirisSync.publish_new_transaction(tx)
-
-        _ ->
-          {:error, :invalid_transaction}
-      end
-    else
-      # As unspent ouputs nodes or beacon chain nodes
-      case Replication.lite_validation(tx) do
-        :ok ->
-          Chain.store_transaction(tx)
-          UnirisSync.publish_new_transaction(tx)
-
-        _ ->
-          {:error, :invalid_transaction}
-      end
+        # Notify welcome node about the storage of the transaction
+        [{welcome_node_public_key, _} | _] = rewards
+        spawn fn ->
+          P2P.send_message(welcome_node_public_key, {:acknowledge_storage, tx.address})
+        end
     end
   end
 
-  defp acknowledge_storage(
-         tx = %Transaction{
-           validation_stamp: %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}}
-         }
-       ) do
-    [{welcome_node_public_key, _} | _] = rewards
+  @impl true
+  @spec replicate_transaction(Transaction.validated()) :: :ok
+  def replicate_transaction(tx = %Transaction{}) do
+    case Replication.lite_validation(tx) do
+      :ok ->
+        Chain.store_transaction(tx)
+        Sync.load_transaction(tx)
 
-    Task.start(fn ->
-      P2P.send_message(welcome_node_public_key, {:acknowledge_storage, tx.address})
-    end)
+      _ ->
+        Chain.store_ko_transaction(tx)
+    end
+  end
+
+  @impl true
+  @spec replicate_address(binary(), non_neg_integer()) :: :ok
+  def replicate_address(address, timestamp) do
+    Sync.add_transaction_to_beacon(address, timestamp)
   end
 end

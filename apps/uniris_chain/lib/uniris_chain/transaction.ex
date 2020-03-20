@@ -95,7 +95,8 @@ defmodule UnirisChain.Transaction do
     :transfer,
     :node,
     :node_shared_secrets,
-    :code
+    :code,
+    :beacon
   ]
 
   @doc """

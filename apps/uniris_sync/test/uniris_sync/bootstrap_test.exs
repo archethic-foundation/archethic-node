@@ -56,8 +56,7 @@ defmodule UnirisSync.BootstrapTest do
             ],
             %{
               origin_keys_seeds: Crypto.ec_encrypt(["origin_seed"], pub),
-              storage_nonce_seed: Crypto.ec_encrypt("storage_nonce_seed", pub),
-              authorized_nodes: [pub]
+              storage_nonce_seed: Crypto.ec_encrypt("storage_nonce_seed", pub)
             }
           ]
 
@@ -160,7 +159,7 @@ defmodule UnirisSync.BootstrapTest do
   test "request_init_data/ should return a list of new seeds, closest nodes and bootstraping seed decrypted" do
     previous_seeds = P2P.list_seeds()
 
-    {new_seeds, closest_nodes, origin_seeds, storage_nonce_seed, authorized_nodes} =
+    {new_seeds, closest_nodes, origin_seeds, storage_nonce_seed} =
       Bootstrap.request_init_data(previous_seeds, "AAA")
 
     assert Enum.map(new_seeds, & &1.last_public_key) == [
@@ -173,7 +172,6 @@ defmodule UnirisSync.BootstrapTest do
 
     assert origin_seeds == ["origin_seed"]
     assert storage_nonce_seed == "storage_nonce_seed"
-    assert length(authorized_nodes) == 1
   end
 
   test "initialize_node/2 initialize a node by retrieving initializing data, update the new sees and setup the chain" do
