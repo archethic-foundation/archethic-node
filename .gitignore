@@ -9,4 +9,5 @@ erl_crash.dump
 /config/*.secret.exs
 .elixir_ls
 **/doc
-.DS_Store
+.
+apps/uniris_crypto/priv/c/crypto
