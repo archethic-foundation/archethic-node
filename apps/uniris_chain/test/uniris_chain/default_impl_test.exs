@@ -4,12 +4,10 @@ defmodule UnirisChain.DefaultImplTest do
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
   alias UnirisChain.Transaction.ValidationStamp.LedgerMovements
-  alias UnirisChain.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
   alias UnirisChain.TransactionSupervisor
   alias UnirisChain.DefaultImpl, as: Chain
   alias UnirisChain.DefaultImpl.Store
-  alias UnirisChain.TransactionRegistry
   alias UnirisChain.TransactionSupervisor
   alias UnirisCrypto, as: Crypto
 
@@ -128,5 +126,22 @@ defmodule UnirisChain.DefaultImplTest do
     Store.store_transaction(tx)
     {:ok, shared_tx} = Chain.get_last_node_shared_secrets_transaction()
     assert shared_tx == tx
+  end
+
+  test "get_unspent_outputs/1 should lookup first to the in memory before storage" do
+    transfer_to = :crypto.strong_rand_bytes(32)
+    tx =
+      Transaction.from_seed("myseed", :transfer, %Transaction.Data{
+        ledger: %{
+          uco: %Transaction.Data.Ledger.UCO{
+            transfers: [
+              %Transaction.Data.Ledger.Transfer{to: transfer_to, amount: 10}
+            ]
+          }
+        }
+      })
+
+    Chain.store_transaction(tx)
+    Chain.get_unspent_output_transactions(transfer_to)
   end
 end

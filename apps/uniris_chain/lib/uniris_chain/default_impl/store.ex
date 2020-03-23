@@ -5,7 +5,7 @@ defmodule UnirisChain.DefaultImpl.Store do
   @behaviour __MODULE__.Impl
 
   defdelegate child_spec(opts),
-    to: Application.get_env(:uniris_chain, :store, __MODULE__.InMemoryImpl)
+    to: Application.get_env(:uniris_chain, :store, __MODULE__.FileImpl)
 
   @spec get_transaction(binary()) ::
           {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
@@ -42,6 +42,6 @@ defmodule UnirisChain.DefaultImpl.Store do
   end
 
   defp impl() do
-    Application.get_env(:uniris_chain, :store, __MODULE__.InMemoryImpl)
+    Application.get_env(:uniris_chain, :store, __MODULE__.FileImpl)
   end
 end

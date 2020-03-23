@@ -1,12 +1,23 @@
-defmodule UnirisChain.DefaultImpl.Store.InMemoryImplTest do
+defmodule UnirisChain.DefaultImpl.Store.FileImplTest do
   use ExUnit.Case
 
-  alias UnirisChain.DefaultImpl.Store.InMemoryImpl, as: Store
+  alias UnirisChain.DefaultImpl.Store.FileImpl, as: Store
   alias UnirisChain.Transaction
   alias UnirisCrypto, as: Crypto
 
-  setup do
+  setup_all do
     Crypto.add_origin_seed("origin_seed")
+
+    File.ls!(Application.app_dir(:uniris_chain, "priv/db/transactions"))
+    |> Enum.each(fn file ->
+      File.rm!(Application.app_dir(:uniris_chain, "priv/db/transactions") <> "/" <> file)
+    end)
+
+    File.ls!(Application.app_dir(:uniris_chain, "priv/db/indexes"))
+    |> Enum.each(fn file ->
+      File.rm!(Application.app_dir(:uniris_chain, "priv/db/indexes") <> "/" <> file)
+    end)
+
     :ok
   end
 
@@ -25,14 +36,13 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImplTest do
              Store.get_unspent_output_transactions(:crypto.strong_rand_bytes(32))
   end
 
-  test "store_transaction/1 should persist the transaction in its state and build the lookup" do
+  test "store_transaction/1 should persist the transaction in its state and build the indexes" do
     tx = Transaction.from_seed("myseed", :transfer)
     assert :ok = Store.store_transaction(tx)
     assert {:ok, %Transaction{}} = Store.get_transaction(tx.address)
-    assert {:ok, [%Transaction{}]} = Store.get_transaction_chain(tx.address)
   end
 
-  test "store_transaction_chain/1 should persist an entire chain in its state and build the lookup" do
+  test "store_transaction_chain/1 should persist an entire chain in its state and build the indexes" do
     tx = Transaction.from_seed("myseed", :transfer)
     tx2 = Transaction.from_seed("myseed", :transfer)
     assert :ok = Store.store_transaction_chain([tx2, tx])
@@ -42,19 +52,21 @@ defmodule UnirisChain.DefaultImpl.Store.InMemoryImplTest do
   end
 
   test "get_unspent_output_transactions/1 should return a list of transaction in link to the given address" do
+    transfer_to = :crypto.strong_rand_bytes(32)
+
     tx =
       Transaction.from_seed("myseed", :transfer, %Transaction.Data{
         ledger: %{
           uco: %Transaction.Data.Ledger.UCO{
             transfers: [
-              %Transaction.Data.Ledger.Transfer{to: "destination_address", amount: 10}
+              %Transaction.Data.Ledger.Transfer{to: transfer_to, amount: 10}
             ]
           }
         }
       })
 
     :ok = Store.store_transaction(tx)
-    {:ok, [_tx]} = Store.get_unspent_output_transactions("destination_address")
+    {:ok, [_tx]} = Store.get_unspent_output_transactions(transfer_to)
   end
 
   test "get_last_node_shared_secrets_transaction/1 should return the node shared secret transaction" do

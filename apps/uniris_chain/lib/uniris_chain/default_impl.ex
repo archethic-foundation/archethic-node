@@ -3,6 +3,8 @@ defmodule UnirisChain.DefaultImpl do
   alias UnirisChain.Transaction
   alias UnirisChain.TransactionSupervisor
   alias UnirisChain.TransactionRegistry
+  alias UnirisChain.UnspentOutputsRegistry
+
   alias __MODULE__.Store
   @behaviour UnirisChain.Impl
 
@@ -41,7 +43,12 @@ defmodule UnirisChain.DefaultImpl do
   @spec get_unspent_output_transactions(binary()) ::
           {:ok, list(Transaction.validated())} | {:error, :unspent_outputs_not_exists}
   def get_unspent_output_transactions(address) do
-    Store.get_unspent_output_transactions(address)
+    case Registry.lookup(UnspentOutputsRegistry, address) do
+      [] ->
+        Store.get_unspent_output_transactions(address)
+      pids ->
+        Enum.map(pids, fn {pid, _} -> Transaction.get(pid) end)
+    end
   end
 
   @impl true

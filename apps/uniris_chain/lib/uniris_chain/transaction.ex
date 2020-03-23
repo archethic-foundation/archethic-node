@@ -9,6 +9,7 @@ defmodule UnirisChain.Transaction do
   alias UnirisChain.Transaction.ValidationStamp
 
   alias UnirisChain.TransactionRegistry
+  alias UnirisChain.UnspentOutputsRegistry
 
   use Agent
 
@@ -221,7 +222,18 @@ defmodule UnirisChain.Transaction do
             tx
 
           _ ->
-            tx
+            case tx.data.ledger do
+              %{uco: %Data.Ledger.UCO{transfers: uco_transfers}} ->
+                Enum.map(uco_transfers, fn %Data.Ledger.Transfer{to: recipient} ->
+                  recipient
+                end)
+                |> Enum.each(&Registry.register(UnspentOutputsRegistry, &1, []))
+
+                tx
+
+              _ ->
+                tx
+            end
         end
       end,
       name: via_tuple(address)
