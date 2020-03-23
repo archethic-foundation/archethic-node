@@ -47,7 +47,7 @@ defmodule UnirisP2PServer.TCPImpl do
     case :gen_tcp.recv(socket, 0) do
         {:ok, data} ->
           result = data
-          |> :erlang.binary_to_term()
+          |> :erlang.binary_to_term([:safe])
           |> process_message
           :gen_tcp.send(socket, :erlang.term_to_binary(result, [:compressed]))
           recv_loop(socket, address)

@@ -36,7 +36,7 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
 
   def handle_info({:tcp, _socket, data}, state = %{queue: queue}) do
     # Decode the result
-    result = :erlang.binary_to_term(data)
+    result = :erlang.binary_to_term(data, [:safe])
 
     # Dequeue the next client
     {{:value, client}, new_queue} = :queue.out(queue)
