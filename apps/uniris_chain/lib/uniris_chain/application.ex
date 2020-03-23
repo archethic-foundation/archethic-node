@@ -6,10 +6,10 @@ defmodule UnirisChain.Application do
     :ets.new(:ko_transactions, [:named_table, :public])
 
     children = [
-      UnirisChain,
       {Registry, keys: :unique, name: UnirisChain.TransactionRegistry},
       {Registry, keys: :duplicate, name: UnirisChain.UnspentOutputsRegistry},
-      {DynamicSupervisor, strategy: :one_for_one, name: UnirisChain.TransactionSupervisor}
+      {DynamicSupervisor, strategy: :one_for_one, name: UnirisChain.TransactionSupervisor},
+      UnirisChain
     ]
 
     opts = [strategy: :one_for_one, name: UnirisChain.Supervisor]

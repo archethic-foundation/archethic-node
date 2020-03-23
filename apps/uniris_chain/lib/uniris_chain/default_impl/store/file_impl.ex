@@ -3,6 +3,7 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data.Ledger.UCO
   alias UnirisChain.Transaction.Data.Ledger.Transfer
+  alias UnirisChain.TransactionSupervisor
 
   use GenServer
 
@@ -19,7 +20,22 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
   def init(_) do
     File.mkdir_p!(@transactions_dir)
     File.mkdir_p!(@indexes_dir)
-    {:ok, %{}}
+    {:ok, %{}, {:continue, :load_transactions}}
+  end
+
+  @impl true
+  def handle_continue(:load_transactions, state) do
+    case File.ls(@transactions_dir) do
+      {:ok, files} ->
+        Enum.map(files, fn file ->
+          tx = File.read!(@transactions_dir <> "/" <> file)
+          |> :erlang.binary_to_term()
+          DynamicSupervisor.start_child(TransactionSupervisor, {Transaction, tx})
+        end)
+        {:noreply, state}
+      _ ->
+        {:noreply, state}
+    end
   end
 
   @impl true
