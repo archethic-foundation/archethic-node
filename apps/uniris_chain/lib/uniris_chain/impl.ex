@@ -1,6 +1,9 @@
 defmodule UnirisChain.Impl do
   @moduledoc false
 
+  alias UnirisChain.Transaction
+
+  @callback list_transactions() :: list(Transaction.validated())
   @callback get_transaction(binary()) ::
               {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
   @callback get_transaction_chain(binary()) ::

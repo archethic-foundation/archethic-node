@@ -41,6 +41,11 @@ defmodule UnirisChain.DefaultImpl.Store do
     impl().store_transaction(tx)
   end
 
+  @spec list_transactions() :: list(Transaction.validated())
+  def list_transactions() do
+    impl().list_transactions()
+  end
+
   defp impl() do
     Application.get_env(:uniris_chain, :store, __MODULE__.FileImpl)
   end

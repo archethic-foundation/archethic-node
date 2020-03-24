@@ -13,6 +13,12 @@ defmodule UnirisChain.DefaultImpl do
   require Logger
 
   @impl true
+  @spec list_transactions() :: list(Transaction.validated())
+  def list_transactions() do
+    Store.list_transactions()
+  end
+
+  @impl true
   @spec get_transaction(binary()) ::
           {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
   def get_transaction(address) do
@@ -46,6 +52,7 @@ defmodule UnirisChain.DefaultImpl do
     case Registry.lookup(UnspentOutputsRegistry, address) do
       [] ->
         Store.get_unspent_output_transactions(address)
+
       pids ->
         Enum.map(pids, fn {pid, _} -> Transaction.get(pid) end)
     end

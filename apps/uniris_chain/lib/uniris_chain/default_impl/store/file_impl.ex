@@ -28,11 +28,15 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
     case File.ls(@transactions_dir) do
       {:ok, files} ->
         Enum.map(files, fn file ->
-          tx = File.read!(@transactions_dir <> "/" <> file)
-          |> :erlang.binary_to_term()
+          tx =
+            File.read!(@transactions_dir <> "/" <> file)
+            |> :erlang.binary_to_term()
+
           DynamicSupervisor.start_child(TransactionSupervisor, {Transaction, tx})
         end)
+
         {:noreply, state}
+
       _ ->
         {:noreply, state}
     end
@@ -54,7 +58,7 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
         state
       ) do
     with {:ok, data} <- File.read("#{@indexes_dir}/chain_#{Base.encode16(address)}"),
-         addresses when is_list(addresses) <- :erlang.binary_to_term(data, [:safe]) do
+         addresses when is_list(addresses) <- :erlang.binary_to_term(data) do
       transactions = Enum.map(addresses, &read_transaction!/1)
       {:reply, transactions, state}
     else
@@ -72,7 +76,7 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
       txs =
         "#{@indexes_dir}/utxo_#{Base.encode16(address)}"
         |> File.read!()
-        |> :erlang.binary_to_term([:safe])
+        |> :erlang.binary_to_term()
         |> Enum.map(&read_transaction!/1)
 
       {:reply, txs, state}
@@ -87,13 +91,35 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
         _from,
         state
       ) do
-    tx =
-      "#{@indexes_dir}/node_shared_secrets_tx"
-      |> File.read!()
-      |> :erlang.binary_to_term([:safe])
-      |> read_transaction!
 
-    {:reply, tx, state}
+    case File.read("#{@indexes_dir}/node_shared_secrets_tx") do
+      {:ok, data} ->
+        tx_address = :erlang.binary_to_term(data)
+        try do
+          {:reply, read_transaction!(tx_address), state}
+        rescue
+          _ ->
+            {:reply, nil, state}
+        end
+      _ ->
+        {:reply, nil, state}
+    end
+  end
+
+  def handle_call(:list_transactions, _from, state) do
+    case File.ls(@transactions_dir) do
+      {:ok, files} ->
+        txs =
+          Enum.map(files, fn file ->
+            File.read!(@transactions_dir <> "/" <> file)
+            |> :erlang.binary_to_term()
+          end)
+
+        {:reply, txs, state}
+
+      _ ->
+        {:reply, [], state}
+    end
   end
 
   @impl true
@@ -160,7 +186,7 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
 
           case File.read(utxo_file) do
             {:ok, data} ->
-              utxos = :erlang.binary_to_term(data, [:safe]) ++ unspent_outputs
+              utxos = :erlang.binary_to_term(data) ++ unspent_outputs
               File.write!(utxo_file, :erlang.term_to_binary(utxos))
 
             _ ->
@@ -176,7 +202,7 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
   defp read_transaction!(address) do
     "#{@transactions_dir}/#{Base.encode16(address)}"
     |> File.read!()
-    |> :erlang.binary_to_term([:safe])
+    |> :erlang.binary_to_term()
   end
 
   @impl true
@@ -241,5 +267,9 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
   @spec store_transaction_chain(list(Transaction.validated())) :: :ok
   def store_transaction_chain(txs) when is_list(txs) do
     GenServer.cast(__MODULE__, {:store_transaction_chain, txs})
+  end
+
+  def list_transactions() do
+    GenServer.call(__MODULE__, :list_transactions)
   end
 end
