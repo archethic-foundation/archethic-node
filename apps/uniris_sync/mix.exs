@@ -31,6 +31,7 @@ defmodule UnirisSync.MixProject do
       {:uniris_chain, in_umbrella: true},
       {:uniris_shared_secrets, in_umbrella: true},
       {:uniris_election, in_umbrella: true},
+      {:uniris_interpreter, in_umbrella: true},
       {:mox, "~> 0.5.2"}
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},

@@ -146,16 +146,6 @@ defmodule UnirisSync.BootstrapTest do
            } = tx
   end
 
-  test "initialize_first_node/0 should create a new node shared secret transaction and new node transaction with auto mining" do
-    assert :ok =
-             Bootstrap.initialize_first_node(%Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               first_public_key: Crypto.node_public_key(),
-               last_public_key: Crypto.node_public_key()
-             })
-  end
-
   test "request_init_data/ should return a list of new seeds, closest nodes and bootstraping seed decrypted" do
     previous_seeds = P2P.list_seeds()
 

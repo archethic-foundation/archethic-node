@@ -71,8 +71,12 @@ defmodule UnirisSync.TransactionLoader do
     end)
   end
 
-  defp handle_transaction(_) do
-    :ok
+  defp handle_transaction(tx = %Transaction{data: %Transaction.Data{code: code}}) do
+    if code == "" do
+      :ok
+    else
+      UnirisInterpreter.new_contract(tx)
+    end
   end
 
   defp extract_node_from_content(content) do

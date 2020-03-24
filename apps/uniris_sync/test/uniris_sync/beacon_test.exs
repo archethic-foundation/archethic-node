@@ -7,7 +7,7 @@ defmodule UnirisSync.BeaconTest do
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data
 
-  @beacon_slot_interval 1000
+  @beacon_slot_interval Application.get_env(:uniris_sync, :beacon_slot_interval)
 
   setup do
     Crypto.add_origin_seed("origin_seed")
@@ -29,7 +29,7 @@ defmodule UnirisSync.BeaconTest do
            ]
   end
 
-  test "new block is created after 1000 ms" do
+  test "new block is created after delay" do
     tx_time = get_time()
     tx_address = :crypto.strong_rand_bytes(32)
     BeaconSubset.add_transaction(tx_address, tx_time)
