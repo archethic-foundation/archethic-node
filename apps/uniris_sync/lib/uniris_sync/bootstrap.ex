@@ -10,34 +10,38 @@ defmodule UnirisSync.Bootstrap do
   alias UnirisCrypto, as: Crypto
   alias UnirisChain.Transaction
   alias UnirisSharedSecrets, as: SharedSecrets
+  alias __MODULE__.IPLookup
+  alias UnirisSync.TransactionLoader
+
+  alias UnirisChain, as: Chain
 
   def start_link(opts) do
-    ip = Keyword.get(opts, :ip)
     port = Keyword.get(opts, :port)
-    Task.start_link(__MODULE__, :run, [ip, port])
+    Task.start_link(__MODULE__, :run, [port])
   end
 
   @doc """
   Run the node bootstraping process to setup the node
   and retrieve the necessary items to start the synchronization
   """
-  def run(ip_address, port) do
+  def run(port) do
     Logger.info("Bootstraping starting")
+
+    TransactionLoader.preload_transactions()
+    Logger.info("Preload stored transactions")
+
 
     first_public_key = Crypto.node_public_key(0)
     last_public_key = Crypto.node_public_key()
 
-    node = create_local_node(ip_address, port, first_public_key, last_public_key)
+    ip = IPLookup.get_public_ip()
+    node = create_local_node(ip, port, first_public_key, last_public_key)
 
-    case P2P.list_seeds() do
-      # Being the first seed no need to retrieve from other
-      # But initialize the shared secrets
-      [%Node{first_public_key: seed_key} | _] when seed_key == first_public_key ->
+    case UnirisChain.get_last_node_shared_secrets_transaction() do
+      {:error, :transaction_not_exists} ->
         initialize_first_node(node)
-
-      previous_seeds ->
-        initialize_node(node, previous_seeds)
-        Process.sleep(100)
+      _ ->
+        initialize_node(node, P2P.list_seeds())
     end
   end
 
@@ -45,9 +49,7 @@ defmodule UnirisSync.Bootstrap do
   Create a new node instance by geolooking the ip address to retrieve the geopatch
   and add the node the P2P view
   """
-  def create_local_node(ip_address, port, first_public_key, last_public_key) do
-    {:ok, ip} = :inet.parse_address(String.to_charlist(ip_address))
-
+  def create_local_node(ip, port, first_public_key, last_public_key) do
     self = %Node{
       ip: ip,
       port: port,
@@ -56,7 +58,6 @@ defmodule UnirisSync.Bootstrap do
     }
 
     :ok = P2P.add_node(self)
-    :ok = P2P.connect_node(self)
 
     {:ok, node} = P2P.node_info(first_public_key)
 
@@ -68,15 +69,9 @@ defmodule UnirisSync.Bootstrap do
   Build the first node shared secret transaction and autovalidate it as well as the node transaction
   """
   def initialize_first_node(node) do
-    # Authorize the first node as it will hold the daily nonce
-    Node.authorize(node.first_public_key)
-
     # Create the first transaction on the node shared secrets
     init_shared_secrets_chain()
-
-    Process.sleep(2000)
-
-    update_node_chain(node, {127, 0, 0, 1})
+    update_node_chain(node)
   end
 
   defp init_shared_secrets_chain() do
@@ -99,14 +94,49 @@ defmodule UnirisSync.Bootstrap do
     Crypto.set_daily_nonce(daily_nonce_seed)
     Crypto.set_storage_nonce(storage_nonce_seed)
 
-    # tx_address = shared_secret_tx.address
-    P2P.send_message({127, 0, 0, 1}, {:new_transaction, shared_secret_tx})
+    {:ok, pow} = UnirisValidation.DefaultImpl.ProofOfWork.run(shared_secret_tx)
+    poi = UnirisValidation.DefaultImpl.ProofOfIntegrity.from_transaction(shared_secret_tx)
+    ledger_movements = %Transaction.ValidationStamp.LedgerMovements{}
+    node_movements = %Transaction.ValidationStamp.NodeMovements{
+      rewards: UnirisValidation.DefaultImpl.Reward.distribute_fee(0, Crypto.node_public_key(), Crypto.node_public_key(), [Crypto.node_public_key()], []),
+      fee: 0
+    }
+
+    stamp = Transaction.ValidationStamp.new(pow, poi, ledger_movements, node_movements)
+    cross_stamp = UnirisValidation.DefaultImpl.Stamp.create_cross_validation_stamp(stamp, [], Crypto.node_public_key())
+
+    [%{shared_secret_tx | validation_stamp: stamp, cross_validation_stamps: [cross_stamp]}]
+    |> Chain.store_transaction_chain()
+
+    UnirisSync.add_transaction_to_beacon(shared_secret_tx.address, shared_secret_tx.timestamp)
+
+    TransactionLoader.new_transaction(shared_secret_tx)
+  end
+
+  defp update_node_chain(node) do
+    node_tx = create_node_transaction(node)
+    {:ok, pow} = UnirisValidation.DefaultImpl.ProofOfWork.run(node_tx)
+    poi = UnirisValidation.DefaultImpl.ProofOfIntegrity.from_transaction(node_tx)
+    ledger_movements = %Transaction.ValidationStamp.LedgerMovements{}
+    node_movements = %Transaction.ValidationStamp.NodeMovements{
+      rewards: UnirisValidation.DefaultImpl.Reward.distribute_fee(0, Crypto.node_public_key(), Crypto.node_public_key(), [Crypto.node_public_key()], []),
+      fee: 0
+    }
+
+    stamp = Transaction.ValidationStamp.new(pow, poi, ledger_movements, node_movements)
+    cross_stamp = UnirisValidation.DefaultImpl.Stamp.create_cross_validation_stamp(stamp, [], Crypto.node_public_key())
+
+    [%{node_tx | validation_stamp: stamp, cross_validation_stamps: [cross_stamp]}]
+    |> Chain.store_transaction_chain()
+
+    UnirisSync.add_transaction_to_beacon(node_tx.address, node_tx.timestamp)
+
+    TransactionLoader.new_transaction(node_tx)
   end
 
   defp update_node_chain(node = %Node{}, remote_node) do
     Logger.debug("Update node chain...")
     node_tx = create_node_transaction(node)
-    # tx_address = node_tx.address
     P2P.send_message(remote_node, {:new_transaction, node_tx})
   end
 

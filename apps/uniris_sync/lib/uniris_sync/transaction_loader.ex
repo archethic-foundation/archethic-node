@@ -18,21 +18,44 @@ defmodule UnirisSync.TransactionLoader do
     {:ok, []}
   end
 
-  def handle_cast({:new_transaction, %Transaction{type: :node, data: %{content: content}}}, state) do
+  def handle_call(:preload_transactions, _from, state) do
+    Logger.info("Preloading transactions...")
+    transactions = UnirisChain.list_transactions()
+
+    transactions
+    |> Enum.filter(&(&1.type == :node))
+    |> Enum.each(&handle_transaction/1)
+
+    transactions
+    |> Enum.filter(&(&1.type == :node_shared_secrets))
+    |> Enum.sort_by(&(&1.timestamp))
+    |> List.first()
+    |> handle_transaction()
+
+    transactions
+    |> Enum.reject(&(&1.type in [:node, :node_shared_secrets]))
+    |> Enum.each(&handle_transaction/1)
+
+    {:reply, :ok, state}
+  end
+
+  def handle_cast({:new_transaction, tx = %Transaction{}}, state) do
+    handle_transaction(tx)
+    {:noreply, state}
+  end
+
+  defp handle_transaction(%Transaction{type: :node, data: %{content: content}}) do
     node = extract_node_from_content(content)
     :ok = P2P.add_node(node)
     :ok = P2P.connect_node(node)
     Logger.info("New node registered")
-    {:noreply, state}
   end
 
-  def handle_cast(
-        {:new_transaction,
+  defp handle_transaction(
          %Transaction{
            type: :node_shared_secrets,
            data: %{keys: %{secret: secret, authorized_keys: auth_keys}}
-         }},
-        state
+         }
       ) do
     Enum.each(auth_keys, fn {key, enc_key} ->
       Node.authorize(key)
@@ -46,12 +69,10 @@ defmodule UnirisSync.TransactionLoader do
         Logger.info("Node shared key updated")
       end
     end)
-
-    {:noreply, state}
   end
 
-  def handle_cast({:new_transaction, %Transaction{}}, state) do
-    {:noreply, state}
+  defp handle_transaction(_) do
+    :ok
   end
 
   defp extract_node_from_content(content) do
@@ -97,5 +118,9 @@ defmodule UnirisSync.TransactionLoader do
 
   def new_transaction(tx = %Transaction{}) do
     GenServer.cast(__MODULE__, {:new_transaction, tx})
+  end
+
+  def preload_transactions() do
+    GenServer.call(__MODULE__, :preload_transactions)
   end
 end
