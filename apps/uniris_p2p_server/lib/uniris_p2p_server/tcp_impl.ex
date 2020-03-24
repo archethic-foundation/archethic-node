@@ -46,10 +46,11 @@ defmodule UnirisP2PServer.TCPImpl do
   def recv_loop(socket, address) do
     case :gen_tcp.recv(socket, 0) do
         {:ok, data} ->
+          # TODO: include safe binary decoding, disabled because unexpected error arguments. To resolve !
           result = data
-          |> :erlang.binary_to_term([:safe])
+          |> :erlang.binary_to_term()
           |> process_message
-          :gen_tcp.send(socket, :erlang.term_to_binary(result, [:compressed]))
+          :gen_tcp.send(socket, :erlang.term_to_binary(result))
           recv_loop(socket, address)
       {:error, :closed} ->
         :gen_tcp.close(socket)

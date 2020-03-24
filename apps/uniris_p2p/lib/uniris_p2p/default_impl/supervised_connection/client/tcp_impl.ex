@@ -15,8 +15,12 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
   end
 
   def init([ip, port, parent]) do
+    {:ok, %{ip: ip, port: port, parent: parent, queue: :queue.new()}, {:continue, :connect}}
+  end
+
+  def handle_continue(:connect, state = %{ip: ip, port: port, parent: parent}) do
     socket = connect(ip, port, parent)
-    {:ok, %{ip: ip, port: port, socket: socket, parent: parent, queue: :queue.new()}}
+    {:noreply, Map.put(state, :socket, socket)}
   end
 
   defp connect(ip, port, parent) do
@@ -36,7 +40,7 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
 
   def handle_info({:tcp, _socket, data}, state = %{queue: queue}) do
     # Decode the result
-    result = :erlang.binary_to_term(data, [:safe])
+    result = :erlang.binary_to_term(data)
 
     # Dequeue the next client
     {{:value, client}, new_queue} = :queue.out(queue)
@@ -65,7 +69,8 @@ defmodule UnirisP2P.DefaultImpl.SupervisedConnection.Client.TCPImpl do
 
   def handle_call({:send_message, message}, from, state = %{socket: socket, queue: queue}) do
     # Encode and send the message
-    :gen_tcp.send(socket, :erlang.term_to_binary(message))
+    message = :erlang.term_to_binary(message)
+    :gen_tcp.send(socket, message)
 
     # Enqueue the client
     state = %{state | queue: :queue.in(from, queue)}
