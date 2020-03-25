@@ -29,8 +29,12 @@ defmodule UnirisSync.TransactionLoader do
     transactions
     |> Enum.filter(&(&1.type == :node_shared_secrets))
     |> Enum.sort_by(&(&1.timestamp))
-    |> List.first()
-    |> handle_transaction()
+    |> case do
+      [tx | _] ->
+        handle_transaction(tx)
+      _ ->
+        :ok
+    end
 
     transactions
     |> Enum.reject(&(&1.type in [:node, :node_shared_secrets]))

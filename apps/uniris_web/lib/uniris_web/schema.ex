@@ -3,7 +3,7 @@ defmodule UnirisWeb.Schema do
 
   use Absinthe.Schema
 
-  import_types __MODULE__.TransactionType
+  import_types(__MODULE__.TransactionType)
 
   query do
     field :transaction, :transaction do
@@ -11,11 +11,12 @@ defmodule UnirisWeb.Schema do
 
       resolve(fn %{address: address}, _ ->
         case UnirisElection.storage_nodes(address)
-        |> UnirisP2P.nearest_nodes()
-        |> List.first()
-        |> UnirisP2P.send_message({:get_transaction, address}) do
+             |> UnirisP2P.nearest_nodes()
+             |> List.first()
+             |> UnirisP2P.send_message({:get_transaction, address}) do
           {:ok, tx} ->
             {:ok, format_transaction(tx)}
+
           _ ->
             {:error, :transaction_not_exists}
         end
@@ -24,7 +25,35 @@ defmodule UnirisWeb.Schema do
 
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
-        {:ok, UnirisChain.list_transactions() |> Enum.map(&format_transaction/1) }
+        {:ok, UnirisChain.list_transactions() |> Enum.map(&format_transaction/1)}
+      end)
+    end
+  end
+
+  mutation do
+    field :new_transaction, :boolean do
+      arg(:address, non_null(:hash))
+      arg(:timestamp, non_null(:integer))
+      arg(:type, non_null(:transaction_type))
+      arg(:data, non_null(:transaction_data_input))
+      arg(:previous_public_key, non_null(:public_key))
+      arg(:previous_signature, non_null(:signature))
+      arg(:origin_signature, non_null(:signature))
+
+      resolve(fn tx, _ ->
+        tx = struct(UnirisChain.Transaction, tx)
+        validation_nodes = UnirisElection.validation_nodes(tx)
+
+        Enum.each(validation_nodes, fn node ->
+          Task.start(fn ->
+            UnirisP2P.send_message(
+              node,
+              {:start_mining, tx, UnirisCrypto.node_public_key(),
+               Enum.map(validation_nodes, & &1.last_public_key)}
+            )
+          end)
+        end)
+        {:ok, true}
       end)
     end
   end
@@ -52,22 +81,24 @@ defmodule UnirisWeb.Schema do
         },
         node_movements: %{
           fee: tx.validation_stamp.node_movements.fee,
-          rewards: Enum.map(tx.validation_stamp.node_movements.rewards, fn {key, amount} ->
-            %{
-              node: key,
-              amount: amount
-            }
-          end)
+          rewards:
+            Enum.map(tx.validation_stamp.node_movements.rewards, fn {key, amount} ->
+              %{
+                node: key,
+                amount: amount
+              }
+            end)
         },
         signature: tx.validation_stamp.signature
       },
-      cross_validation_stamps: Enum.map(tx.cross_validation_stamps, fn {sig, inconsistencies, public_key} ->
-        %{
-          node: public_key,
-          signature: sig,
-          inconsistencies: inconsistencies
-        }
-      end)
+      cross_validation_stamps:
+        Enum.map(tx.cross_validation_stamps, fn {sig, inconsistencies, public_key} ->
+          %{
+            node: public_key,
+            signature: sig,
+            inconsistencies: inconsistencies
+          }
+        end)
     }
   end
 end

@@ -543,6 +543,8 @@ defmodule UnirisCrypto do
     do_valid_public_key?(curve, key)
   end
 
+  def valid_public_key?(_), do: false
+
   defp do_valid_public_key?(:ed25519, key) when byte_size(key) == 32 do
     true
   end

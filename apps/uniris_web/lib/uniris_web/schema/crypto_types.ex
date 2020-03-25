@@ -32,7 +32,7 @@ defmodule UnirisWeb.Schema.CryptoTypes do
   """
   scalar :signature do
     serialize(&Base.encode16/1)
-    parse(&Base.decode16/1)
+    parse(&parse_signature/1)
   end
 
   @desc """
@@ -70,4 +70,11 @@ defmodule UnirisWeb.Schema.CryptoTypes do
   end
 
   defp parse_public_key(_), do: :error
+
+  @spec parse_signature(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
+  defp parse_signature(%Absinthe.Blueprint.Input.String{value: key}) do
+    Base.decode16(key)
+  end
+
+  defp parse_signature(_), do: :error
 end
