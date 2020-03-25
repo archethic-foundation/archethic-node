@@ -68,8 +68,12 @@ defmodule UnirisSync.TransactionLoader do
       if key == Crypto.node_public_key() do
         # Renew shared key
         aes_key = Crypto.ec_decrypt_with_node_key!(enc_key)
-        %{daily_nonce_seed: daily_nonce_seed} = Crypto.aes_decrypt!(secret, aes_key)
+        %{daily_nonce_seed: daily_nonce_seed, origin_keys_seeds: origin_keys_seeds} = Crypto.aes_decrypt!(secret, aes_key)
         Crypto.set_daily_nonce(daily_nonce_seed)
+        Enum.each(origin_keys_seeds, fn seed ->
+          {pub, _} = Crypto.generate_deterministic_keypair(seed)
+          UnirisSharedSecrets.add_origin_public_key(:software, pub)
+        end)
         Logger.info("Node shared key updated")
       end
     end)
