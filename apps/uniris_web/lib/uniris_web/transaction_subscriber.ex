@@ -13,7 +13,10 @@ defmodule UnirisWeb.TransactionSubscriber do
   end
 
   def handle_info({:new_transaction, address}, state) do
-    Absinthe.Subscription.publish(UnirisWeb.Endpoint, address, new_transaction: "*")
+    Absinthe.Subscription.publish(UnirisWeb.Endpoint, address, [
+      new_transaction: "*",
+      acknowledge_storage: address
+    ])
     {:noreply, state}
   end
 end

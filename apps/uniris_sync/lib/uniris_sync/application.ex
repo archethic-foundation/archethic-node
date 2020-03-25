@@ -20,6 +20,7 @@ defmodule UnirisSync.Application do
     subsets = UnirisSync.Beacon.all_subsets()
 
     [
+      {Registry, keys: :duplicate, name: UnirisSync.PubSub},
       {Registry, keys: :unique, name: UnirisSync.BeaconSubsetRegistry},
       UnirisSync.TransactionLoader,
       {UnirisSync.Bootstrap,

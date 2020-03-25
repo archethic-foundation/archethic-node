@@ -118,8 +118,7 @@ defmodule UnirisP2PServer.MessageHandler do
   end
 
   def process({:acknowledge_storage, tx_address}) do
-    Logger.debug("Transaction #{Base.encode16(tx_address)} storage acknowledge")
-    :ok
+    UnirisSync.notify_new_transaction(tx_address)
   end
 
   def process({:cross_validate, tx_address, stamp = %ValidationStamp{}})

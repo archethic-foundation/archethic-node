@@ -46,7 +46,8 @@ defmodule UnirisWeb.MixProject do
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:absinthe, "~> 1.4.0"},
-      {:absinthe_plug, "~> 1.4"}
+      {:absinthe_plug, "~> 1.4"},
+      {:absinthe_phoenix, "~> 1.4.0"},
     ]
   end
 end

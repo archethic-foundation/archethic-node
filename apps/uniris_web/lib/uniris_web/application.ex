@@ -6,7 +6,9 @@ defmodule UnirisWeb.Application do
   def start(_type, _args) do
     children = [
       # Start the endpoint when the application starts
-      UnirisWeb.Endpoint
+      UnirisWeb.Endpoint,
+      {Absinthe.Subscription, [UnirisWeb.Endpoint]},
+      UnirisWeb.TransactionSubscriber
     ]
 
     opts = [strategy: :one_for_one, name: UnirisWeb.Supervisor]

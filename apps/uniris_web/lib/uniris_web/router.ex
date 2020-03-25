@@ -11,7 +11,7 @@ defmodule UnirisWeb.Router do
     forward "/graphiql",
             Absinthe.Plug.GraphiQL,
             schema: UnirisWeb.Schema,
-            interface: :simple
+            socket: UnirisWeb.UserSocket
 
     forward "/",
             Absinthe.Plug,

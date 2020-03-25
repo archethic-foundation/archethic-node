@@ -32,6 +32,8 @@ defmodule UnirisSync.Beacon.Subset do
   def handle_cast({:add_transaction, address, timestamp}, state) do
     Logger.debug("Transaction #{Base.encode16(address)} added to the beacon chain (subset #{state.subset |> Base.encode16})")
 
+    UnirisSync.notify_new_transaction(address)
+
     {:noreply,
      Map.update!(
        state,

@@ -9,6 +9,16 @@ defmodule UnirisSync do
   alias __MODULE__.Beacon.Subset, as: BeaconSubset
   alias __MODULE__.TransactionLoader
 
+  def notify_new_transaction(address) do
+    Registry.dispatch(UnirisSync.PubSub, "new_transaction", fn entries ->
+      for {pid, _} <- entries, do: send(pid, {:new_transaction, address})
+    end)
+  end
+
+  def register_to_new_transaction() do
+    Registry.register(UnirisSync.PubSub, "new_transaction", [])
+  end
+
   @doc """
   Load the new stored transaction in the system with specific behaviour regarding its type:
   - Node transaction: add and start supervised connection to the new node

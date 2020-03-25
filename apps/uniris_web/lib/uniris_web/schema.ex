@@ -58,6 +58,42 @@ defmodule UnirisWeb.Schema do
     end
   end
 
+  subscription do
+    field :new_transaction, :transaction do
+      config fn _args, _info ->
+        {:ok, topic: "*"}
+      end
+      resolve fn address, _, _ ->
+        UnirisElection.storage_nodes(address)
+        |> UnirisP2P.nearest_nodes()
+        |> List.first()
+        |> UnirisP2P.send_message({:get_transaction, address})
+        |> case do
+          {:ok, tx} ->
+            {:ok, format_transaction(tx)}
+        end
+      end
+    end
+
+    field :acknowledge_storage, :transaction do
+      arg :address, non_null(:hash)
+      config fn args, _info ->
+        IO.inspect args
+        {:ok, topic: args.address}
+      end
+      resolve fn address, _, _ ->
+        UnirisElection.storage_nodes(address)
+        |> UnirisP2P.nearest_nodes()
+        |> List.first()
+        |> UnirisP2P.send_message({:get_transaction, address})
+        |> case do
+          {:ok, tx} ->
+            {:ok, format_transaction(tx)}
+        end
+      end
+    end
+  end
+
   defp format_transaction(tx = %UnirisChain.Transaction{}) do
     %{
       address: tx.address,
