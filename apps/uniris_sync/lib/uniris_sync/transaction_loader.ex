@@ -1,90 +1,97 @@
 defmodule UnirisSync.TransactionLoader do
   @moduledoc false
 
-  use GenServer
-
+  alias UnirisChain, as: Chain
   alias UnirisChain.Transaction
   alias UnirisP2P, as: P2P
   alias UnirisP2P.Node
   alias UnirisCrypto, as: Crypto
+  alias UnirisSharedSecrets, as: SharedSecrets
+  alias UnirisPubSub, as: PubSub
 
   require Logger
+
+  use GenServer
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def init(_opts) do
-    {:ok, []}
+  def init(_) do
+    PubSub.register_to_new_transaction()
+    {:ok, [], {:continue, :load_transactions}}
   end
 
-  def handle_call(:preload_transactions, _from, state) do
-    Logger.info("Preloading transactions...")
-    transactions = UnirisChain.list_transactions()
+  def handle_continue(:load_transactions, state) do
+    Logger.info("Load transactions...")
+    Enum.map(Chain.node_transactions(), &load_transaction/1)
 
-    transactions
-    |> Enum.filter(&(&1.type == :node))
-    |> Enum.each(&handle_transaction/1)
+    case Chain.get_last_node_shared_secrets_transaction() do
+      {:ok, tx} ->
+        load_transaction(tx)
+        {:noreply, state}
 
-    transactions
-    |> Enum.filter(&(&1.type == :node_shared_secrets))
-    |> Enum.sort_by(&(&1.timestamp))
-    |> case do
-      [tx | _] ->
-        handle_transaction(tx)
       _ ->
-        :ok
+        {:noreply, state}
     end
-
-    transactions
-    |> Enum.reject(&(&1.type in [:node, :node_shared_secrets]))
-    |> Enum.each(&handle_transaction/1)
-
-    {:reply, :ok, state}
   end
 
-  def handle_cast({:new_transaction, tx = %Transaction{}}, state) do
-    handle_transaction(tx)
+  def handle_info({:new_transaction, tx = %Transaction{}}, state) do
+    load_transaction(tx)
     {:noreply, state}
   end
 
-  defp handle_transaction(%Transaction{type: :node, data: %{content: content}}) do
-    node = extract_node_from_content(content)
-    :ok = P2P.add_node(node)
-    :ok = P2P.connect_node(node)
-    Logger.info("New node registered")
+  def handle_info({:new_transaction, _}, state) do
+    {:noreply, state}
   end
 
-  defp handle_transaction(
-         %Transaction{
-           type: :node_shared_secrets,
-           data: %{keys: %{secret: secret, authorized_keys: auth_keys}}
-         }
-      ) do
+  defp load_transaction(%Transaction{type: :node, data: %{content: content}}) do
+    node = extract_node_from_content(content)
+    P2P.add_node(node)
+    Logger.info("New node added #{Base.encode16(node.first_public_key)}")
+    if Crypto.node_public_key() != node.last_public_key do
+      P2P.connect_node(node)
+    end
+  end
+
+  defp load_transaction(%Transaction{
+        type: :node_shared_secrets,
+        data: %{keys: %{authorized_keys: auth_keys, secret: secret}}
+      }) do
     Enum.each(auth_keys, fn {key, enc_key} ->
       Node.authorize(key)
       Logger.info("Node #{Base.encode16(key)} authorized")
 
       if key == Crypto.node_public_key() do
-        # Renew shared key
         aes_key = Crypto.ec_decrypt_with_node_key!(enc_key)
-        %{daily_nonce_seed: daily_nonce_seed, origin_keys_seeds: origin_keys_seeds} = Crypto.aes_decrypt!(secret, aes_key)
+
+        %{
+          daily_nonce_seed: daily_nonce_seed,
+          storage_nonce_seed: storage_nonce_seed,
+          origin_keys_seeds: origin_keys_seeds
+        } = Crypto.aes_decrypt!(secret, aes_key)
+
         Crypto.set_daily_nonce(daily_nonce_seed)
+        Logger.info("Daily nonce updated")
+
+        Crypto.set_storage_nonce(storage_nonce_seed)
+        Logger.info("Storage nonce updated")
+
         Enum.each(origin_keys_seeds, fn seed ->
           {pub, _} = Crypto.generate_deterministic_keypair(seed)
-          UnirisSharedSecrets.add_origin_public_key(:software, pub)
+          SharedSecrets.add_origin_public_key(:software, pub)
+          Logger.info("Origin public key #{Base.encode16(pub)} added")
         end)
-        Logger.info("Node shared key updated")
       end
     end)
   end
 
-  defp handle_transaction(tx = %Transaction{data: %Transaction.Data{code: code}}) do
-    if code == "" do
-      :ok
-    else
-      UnirisInterpreter.new_contract(tx)
-    end
+  defp load_transaction(tx = %Transaction{data: %{code: contract_code}}) when contract_code != "" do
+    UnirisInterpreter.new_contract(tx)
+  end
+
+  defp load_transaction(_) do
+    :ok
   end
 
   defp extract_node_from_content(content) do
@@ -126,13 +133,5 @@ defmodule UnirisSync.TransactionLoader do
       first_public_key: first_public_key,
       last_public_key: last_public_key
     }
-  end
-
-  def new_transaction(tx = %Transaction{}) do
-    GenServer.cast(__MODULE__, {:new_transaction, tx})
-  end
-
-  def preload_transactions() do
-    GenServer.call(__MODULE__, :preload_transactions)
   end
 end

@@ -4,7 +4,8 @@ defmodule UnirisSync.Bootstrap.IPLookup.EnvImpl do
    @behaviour UnirisSync.Bootstrap.IPLookup.Impl
 
    @impl true
-   def get_public_ip() do
+   @spec get_ip() :: :inet.ip_address()
+   def get_ip() do
       {:ok, ip} = System.get_env("IP", "127.0.0.1")
       |> String.to_charlist()
       |> :inet.parse_address()

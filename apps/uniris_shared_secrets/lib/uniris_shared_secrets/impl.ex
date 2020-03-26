@@ -6,5 +6,5 @@ defmodule UnirisSharedSecrets.Impl do
               family :: :all | UnirisSharedSecrets.origin_family(),
               public_key :: UnirisCrypto.key()
             ) :: :ok
-  @callback new_shared_secrets_transaction(seed :: binary()) :: UnirisChain.Transaction.pending()
+  @callback new_shared_secrets_transaction(seed :: binary(), list(binary())) :: UnirisChain.Transaction.pending()
 end

@@ -32,7 +32,8 @@ defmodule UnirisValidation.MixProject do
       {:uniris_election, in_umbrella: true},
       {:uniris_p2p, in_umbrella: true},
       {:uniris_shared_secrets, in_umbrella: true},
-      {:uniris_sync, in_umbrella: true},
+      {:uniris_beacon, in_umbrella: true},
+      {:uniris_pubsub, in_umbrella: true},
       {:mox, "~> 0.5.1"}
     ]
   end

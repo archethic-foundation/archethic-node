@@ -10,6 +10,15 @@ defmodule UnirisChain do
   defdelegate child_spec(opts), to: __MODULE__.DefaultImpl
 
   @doc """
+  Return the list of node transactions
+  """
+  @impl true
+  @spec node_transactions() :: list(Transaction.validated())
+  def node_transactions() do
+    impl().node_transactions()
+  end
+
+  @doc """
   Return the list of transactions stored
   """
   @impl true

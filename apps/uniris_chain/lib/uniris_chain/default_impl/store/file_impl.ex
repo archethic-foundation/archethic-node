@@ -91,16 +91,17 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
         _from,
         state
       ) do
-
     case File.read("#{@indexes_dir}/node_shared_secrets_tx") do
       {:ok, data} ->
         tx_address = :erlang.binary_to_term(data)
+
         try do
           {:reply, read_transaction!(tx_address), state}
         rescue
           _ ->
             {:reply, nil, state}
         end
+
       _ ->
         {:reply, nil, state}
     end
@@ -116,6 +117,20 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
           end)
 
         {:reply, txs, state}
+
+      _ ->
+        {:reply, [], state}
+    end
+  end
+
+  def handle_call(:node_transactions, _from, state) do
+    case File.read("#{@indexes_dir}/node_transactions") do
+      {:ok, data} ->
+        nodes =
+          :erlang.binary_to_term(data)
+          |> Enum.map(&read_transaction!/1)
+
+        {:reply, nodes, state}
 
       _ ->
         {:reply, [], state}
@@ -169,6 +184,25 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
         File.write("#{@indexes_dir}/node_shared_secrets_tx", :erlang.term_to_binary(tx_address), [
           :write
         ])
+
+      :node ->
+        case File.read("#{@indexes_dir}/node_transactions") do
+          {:ok, data} ->
+            node_txs =
+              data
+              |> :erlang.binary_to_term()
+              |> Kernel.++([tx.address])
+              |> :erlang.term_to_binary()
+
+            File.write("#{@indexes_dir}/node_transactions", node_txs, [:write])
+
+          _ ->
+            File.write(
+              "#{@indexes_dir}/node_transactions",
+              :erlang.term_to_binary([tx.address]),
+              [:write]
+            )
+        end
 
       _ ->
         :ok
@@ -269,7 +303,15 @@ defmodule UnirisChain.DefaultImpl.Store.FileImpl do
     GenServer.cast(__MODULE__, {:store_transaction_chain, txs})
   end
 
+  @impl true
+  @spec list_transactions() :: list(Transaction.validated())
   def list_transactions() do
     GenServer.call(__MODULE__, :list_transactions)
+  end
+
+  @spec node_transactions() :: list(Transaction.validated())
+  @impl true
+  def node_transactions() do
+    GenServer.call(__MODULE__, :node_transactions)
   end
 end

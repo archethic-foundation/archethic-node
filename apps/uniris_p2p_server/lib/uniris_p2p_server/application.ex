@@ -4,7 +4,7 @@ defmodule UnirisP2PServer.Application do
   use Application
 
   def start(_type, _args) do
-    port = Application.get_env(:uniris_p2p, :port)
+    port = Application.get_env(:uniris_p2p_server, :port)
 
     children = [
       {Task.Supervisor, name: UnirisP2PServer.TaskSupervisor},

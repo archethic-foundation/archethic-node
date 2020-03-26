@@ -2,6 +2,11 @@ defmodule UnirisWeb.Schema do
   @moduledoc false
 
   use Absinthe.Schema
+  alias UnirisP2P, as: P2P
+  alias UnirisElection, as: Election
+  alias UnirisCrypto, as: Crypto
+  alias UnirisChain, as: Chain
+  alias UnirisChain.Transaction
 
   import_types(__MODULE__.TransactionType)
 
@@ -10,10 +15,10 @@ defmodule UnirisWeb.Schema do
       arg(:address, :hash)
 
       resolve(fn %{address: address}, _ ->
-        case UnirisElection.storage_nodes(address)
-             |> UnirisP2P.nearest_nodes()
+        case Election.storage_nodes(address)
+             |> P2P.nearest_nodes()
              |> List.first()
-             |> UnirisP2P.send_message({:get_transaction, address}) do
+             |> P2P.send_message({:get_transaction, address}) do
           {:ok, tx} ->
             {:ok, format_transaction(tx)}
 
@@ -25,7 +30,7 @@ defmodule UnirisWeb.Schema do
 
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
-        {:ok, UnirisChain.list_transactions() |> Enum.map(&format_transaction/1)}
+        {:ok, Chain.list_transactions() |> Enum.map(&format_transaction/1)}
       end)
     end
   end
@@ -41,14 +46,14 @@ defmodule UnirisWeb.Schema do
       arg(:origin_signature, non_null(:signature))
 
       resolve(fn tx, _ ->
-        tx = struct(UnirisChain.Transaction, tx)
-        validation_nodes = UnirisElection.validation_nodes(tx)
+        tx = struct(Transaction, tx)
+        validation_nodes = Election.validation_nodes(tx)
 
         Enum.each(validation_nodes, fn node ->
           Task.start(fn ->
-            UnirisP2P.send_message(
+            P2P.send_message(
               node,
-              {:start_mining, tx, UnirisCrypto.node_public_key(),
+              {:start_mining, tx, Crypto.node_public_key(),
                Enum.map(validation_nodes, & &1.last_public_key)}
             )
           end)
@@ -64,10 +69,10 @@ defmodule UnirisWeb.Schema do
         {:ok, topic: "*"}
       end
       resolve fn address, _, _ ->
-        UnirisElection.storage_nodes(address)
-        |> UnirisP2P.nearest_nodes()
+        Election.storage_nodes(address)
+        |> P2P.nearest_nodes()
         |> List.first()
-        |> UnirisP2P.send_message({:get_transaction, address})
+        |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
             {:ok, format_transaction(tx)}
@@ -78,14 +83,13 @@ defmodule UnirisWeb.Schema do
     field :acknowledge_storage, :transaction do
       arg :address, non_null(:hash)
       config fn args, _info ->
-        IO.inspect args
         {:ok, topic: args.address}
       end
       resolve fn address, _, _ ->
-        UnirisElection.storage_nodes(address)
-        |> UnirisP2P.nearest_nodes()
+        Election.storage_nodes(address)
+        |> P2P.nearest_nodes()
         |> List.first()
-        |> UnirisP2P.send_message({:get_transaction, address})
+        |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
             {:ok, format_transaction(tx)}
@@ -94,7 +98,7 @@ defmodule UnirisWeb.Schema do
     end
   end
 
-  defp format_transaction(tx = %UnirisChain.Transaction{}) do
+  defp format_transaction(tx = %Transaction{}) do
     %{
       address: tx.address,
       type: tx.type,

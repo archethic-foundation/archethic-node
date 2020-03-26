@@ -3,6 +3,7 @@ defmodule UnirisChain.Impl do
 
   alias UnirisChain.Transaction
 
+  @callback node_transactions() :: list(Transaction.validated())
   @callback list_transactions() :: list(Transaction.validated())
   @callback get_transaction(binary()) ::
               {:ok, Transaction.validated()} | {:error, :transaction_not_exists}

@@ -13,7 +13,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
   alias UnirisP2P, as: P2P
   alias UnirisP2P.Node
   alias UnirisCrypto, as: Crypto
-  alias UnirisSync, as: Sync
+  alias UnirisBeacon, as: Beacon
 
   require Logger
 
@@ -439,7 +439,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
       end)
     end)
 
-    :keep_state_and_data
+    {:stop, :normal}
   end
 
   def handle_event({:call, from}, :transaction, _, %{transaction: tx}) do
@@ -521,7 +521,7 @@ defmodule UnirisValidation.DefaultImpl.Mining do
 
   defp beacon_storage_nodes(%Transaction{address: tx_address, timestamp: timestamp}) do
     tx_address
-    |> Sync.beacon_subset_from_address
+    |> Beacon.subset_from_address
     |> Crypto.derivate_beacon_chain_address(timestamp)
     |> Election.storage_nodes()
   end

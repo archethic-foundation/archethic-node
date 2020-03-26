@@ -74,4 +74,12 @@ defmodule UnirisChain.DefaultImpl.Store.FileImplTest do
     :ok = Store.store_transaction(tx)
     {:ok, _tx} = Store.get_last_node_shared_secrets_transaction()
   end
+
+  test "node_transactions/0 should return the node transactions" do
+    tx = Transaction.from_seed("myseed", :node)
+    :ok = Store.store_transaction(tx)
+    transactions = Store.node_transactions()
+    assert tx in transactions
+    assert Enum.all?(transactions, &(&1.type == :node))
+  end
 end

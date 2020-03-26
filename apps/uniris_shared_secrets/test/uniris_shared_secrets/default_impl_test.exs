@@ -4,29 +4,9 @@ defmodule UnirisSharedSecrets.DefaultImplTest do
   alias UnirisCrypto, as: Crypto
   alias UnirisSharedSecrets.DefaultImpl, as: SharedSecrets
   alias UnirisChain.Transaction
-  alias UnirisP2P.Node
 
-  import Mox
-
-  setup :verify_on_exit!
-
-  test "new_shared_secrets_transaction/1 should generate a transaction for node shared secrets keys" do
+  test "new_shared_secrets_transaction/2 should generate a transaction for node shared secrets keys" do
     pub = Crypto.node_public_key()
-
-    MockP2P
-    |> expect(:list_nodes, fn ->
-      [
-        %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          first_public_key: pub,
-          last_public_key: pub
-        }
-      ]
-    end)
-
-    MockSharedSecrets
-    |> stub(:add_origin_public_key, fn _, _ -> :ok end)
 
     shared_secret_seed = :crypto.strong_rand_bytes(32)
 
@@ -38,7 +18,7 @@ defmodule UnirisSharedSecrets.DefaultImplTest do
           authorized_keys: keys
         }
       }
-    } = SharedSecrets.new_shared_secrets_transaction(shared_secret_seed)
+    } = SharedSecrets.new_shared_secrets_transaction(shared_secret_seed, [pub])
 
     enc_aes = Map.get(keys, pub)
     aes_key = Crypto.ec_decrypt_with_node_key!(enc_aes)

@@ -11,7 +11,8 @@ defmodule UnirisP2PServer.MessageHandler do
   alias UnirisValidation, as: Validation
   alias UnirisCrypto, as: Crypto
   alias UnirisP2PServer.TaskSupervisor
-  alias UnirisSync, as: Sync
+  alias UnirisPubSub, as: PubSub
+  alias UnirisBeacon, as: Beacon
 
   @doc """
   Process message coming from a P2P request by acting as a message controller/broker
@@ -118,7 +119,7 @@ defmodule UnirisP2PServer.MessageHandler do
   end
 
   def process({:acknowledge_storage, tx_address}) do
-    UnirisSync.notify_new_transaction(tx_address)
+    PubSub.notify_new_transaction(tx_address)
   end
 
   def process({:cross_validate, tx_address, stamp = %ValidationStamp{}})
@@ -133,7 +134,7 @@ defmodule UnirisP2PServer.MessageHandler do
   end
 
   def process({:beacon_addresses, subset, last_sync_date}) when is_binary(subset) and is_integer(last_sync_date) do
-    Sync.get_beacon_addresses(subset, last_sync_date)
+    Beacon.get_addresses(subset, last_sync_date)
   end
 
 end

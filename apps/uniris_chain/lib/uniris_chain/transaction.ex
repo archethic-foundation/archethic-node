@@ -9,7 +9,7 @@ defmodule UnirisChain.Transaction do
   alias UnirisChain.Transaction.ValidationStamp
 
   alias UnirisChain.TransactionRegistry
-  alias UnirisChain.UnspentOutputsRegistry
+  alias UnirisChain.MetadataRegistry
 
   use Agent
 
@@ -218,16 +218,19 @@ defmodule UnirisChain.Transaction do
       fn ->
         case type do
           :node_shared_secret ->
-            Registry.register(TransactionRegistry, :node_shared_secrets, [])
+            Registry.register(MetadataRegistry, :node_shared_secrets, [])
             tx
 
+          :node ->
+            Registry.register(MetadataRegistry, :node, [])
+            tx
           _ ->
             case tx.data.ledger do
               %{uco: %Data.Ledger.UCO{transfers: uco_transfers}} ->
                 Enum.map(uco_transfers, fn %Data.Ledger.Transfer{to: recipient} ->
                   recipient
                 end)
-                |> Enum.each(&Registry.register(UnspentOutputsRegistry, &1, []))
+                |> Enum.each(&Registry.register(MetadataRegistry, {:unspent_output, &1}, []))
 
                 tx
 

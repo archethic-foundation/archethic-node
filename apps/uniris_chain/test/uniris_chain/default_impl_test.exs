@@ -130,6 +130,7 @@ defmodule UnirisChain.DefaultImplTest do
 
   test "get_unspent_outputs/1 should lookup first to the in memory before storage" do
     transfer_to = :crypto.strong_rand_bytes(32)
+
     tx =
       Transaction.from_seed("myseed", :transfer, %Transaction.Data{
         ledger: %{
@@ -143,5 +144,15 @@ defmodule UnirisChain.DefaultImplTest do
 
     Chain.store_transaction(tx)
     Chain.get_unspent_output_transactions(transfer_to)
+  end
+
+  test "node_transactions/0 should retrieve the node transaction in memory first" do
+    tx =
+      Transaction.from_seed("myseed", :node, %Transaction.Data{
+        content: "ip: 127.0.0.1"
+      })
+
+    Chain.store_transaction(tx)
+    assert tx in Chain.node_transactions()
   end
 end

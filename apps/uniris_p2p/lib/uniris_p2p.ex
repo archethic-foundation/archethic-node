@@ -1,8 +1,18 @@
 defmodule UnirisP2P do
   alias __MODULE__.Node
+  alias __MODULE__.GeoPatch
+
   alias UnirisCrypto, as: Crypto
 
   @behaviour __MODULE__.Impl
+
+  @doc """
+  Lookup a patch from an ip
+  """
+  @spec get_geo_patch(:inet.ip_address()) :: binary()
+  def get_geo_patch({_, _, _, _} = ip) do
+    GeoPatch.from_ip(ip)
+  end
 
   @impl true
   @spec list_nodes() :: list(Node.t())

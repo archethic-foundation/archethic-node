@@ -33,9 +33,9 @@ defmodule UnirisSharedSecrets do
   Create the new node shared keys including chain seed, daily nonce, storage nonce and origin keys
   """
   @impl true
-  @spec new_shared_secrets_transaction(seed :: binary()) :: UnirisChain.Transaction.pending()
-  def new_shared_secrets_transaction(seed) do
-    impl().new_shared_secrets_transaction(seed)
+  @spec new_shared_secrets_transaction(seed :: binary(), authorized_node_public_keys :: list(binary())) :: UnirisChain.Transaction.pending()
+  def new_shared_secrets_transaction(seed, authorized_nodes) do
+    impl().new_shared_secrets_transaction(seed, authorized_nodes)
   end
 
   defp impl() do

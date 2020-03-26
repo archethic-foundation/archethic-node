@@ -4,7 +4,8 @@ defmodule UnirisSync.Bootstrap.IPLookup.IPFYImpl do
   @behaviour UnirisSync.Bootstrap.IPLookup.Impl
 
   @impl true
-  def get_public_ip() do
+  @spec get_ip() :: :inet.ip_address()
+  def get_ip() do
     :inets.start()
     {:ok, {_, _,inet_addr}} = :httpc.request('http://api.ipify.org')
     :inets.stop()

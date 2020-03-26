@@ -7,7 +7,7 @@ defmodule UnirisChain.Application do
 
     children = [
       {Registry, keys: :unique, name: UnirisChain.TransactionRegistry},
-      {Registry, keys: :duplicate, name: UnirisChain.UnspentOutputsRegistry},
+      {Registry, keys: :duplicate, name: UnirisChain.MetadataRegistry},
       {DynamicSupervisor, strategy: :one_for_one, name: UnirisChain.TransactionSupervisor},
       UnirisChain
     ]

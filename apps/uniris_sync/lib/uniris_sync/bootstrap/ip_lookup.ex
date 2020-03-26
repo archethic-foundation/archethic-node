@@ -4,12 +4,13 @@ defmodule UnirisSync.Bootstrap.IPLookup do
   @behaviour __MODULE__.Impl
 
   @impl true
-  def get_public_ip() do
-    impl().get_public_ip()
+  @spec get_ip() :: :inet.ip_address()
+  def get_ip() do
+    impl().get_ip()
   end
 
   defp impl() do
-    Application.get_env(:uniris_sync, :public_ip_provider, __MODULE__.IPFYImpl)
+    Application.get_env(:uniris_sync, :ip_provider, __MODULE__.IPFYImpl)
   end
 
 end

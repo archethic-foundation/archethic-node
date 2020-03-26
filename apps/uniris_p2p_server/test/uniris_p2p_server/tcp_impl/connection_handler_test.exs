@@ -12,7 +12,7 @@ defmodule UnirisP2PServer.TCPImpl.ConnectionHandlerTest do
   @tcp_options [:binary, packet: 4, active: false]
 
   setup do
-    port = Application.get_env(:uniris_p2p, :port)
+    port = Application.get_env(:uniris_p2p_server, :port)
     {public_key, _} = Crypto.generate_deterministic_keypair("myseed")
 
     node = %Node{

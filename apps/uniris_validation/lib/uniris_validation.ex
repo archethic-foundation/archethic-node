@@ -131,6 +131,36 @@ defmodule UnirisValidation do
     impl().replicate_address(address, timestamp)
   end
 
+  @impl true
+  @spec get_proof_of_work(Transaction.pending()) :: {:ok, UnirisCrypto.key()} | {:error, :not_found}
+  def get_proof_of_work(tx = %Transaction{}) do
+    impl().get_proof_of_work(tx)
+  end
+
+  @impl true
+  @spec get_proof_of_integrity(list(Transaction.pending())) :: binary()
+  def get_proof_of_integrity(transaction_chain) do
+    impl().get_proof_of_integrity(transaction_chain)
+  end
+
+  @impl true
+  @spec get_transaction_fee(Transaction.pending()) :: float()
+  def get_transaction_fee(tx = %Transaction{}) do
+    impl().get_transaction_fee(tx)
+  end
+
+  @impl true
+  @spec get_node_rewards(float(), UnirisCrypto.key(), UnirisCrypto.key(), list(UnirisCrypto.key()), list(UnirisCrypto.key())) :: list({UnirisCrypto.key(), float()})
+  def get_node_rewards(fee, welcome_node, coordinator_node, validation_nodes, storage_nodes) do
+    impl().get_node_rewards(fee, welcome_node, coordinator_node, validation_nodes, storage_nodes)
+  end
+
+  @impl true
+  @spec get_cross_validation_stamp(ValidationStamp.t(), list(atom())) :: {binary(), list(atom()), UnirisCrypto.key()}
+  def get_cross_validation_stamp(stamp = %ValidationStamp{}, inconsistencies) do
+    impl().get_cross_validation_stamp(stamp, inconsistencies)
+  end
+
   defp impl() do
     Application.get_env(:uniris_validation, :impl, __MODULE__.DefaultImpl)
   end

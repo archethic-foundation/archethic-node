@@ -40,7 +40,7 @@ defmodule UnirisWeb.MixProject do
       {:uniris_p2p, in_umbrella: true},
       {:uniris_crypto, in_umbrella: true},
       {:uniris_chain, in_umbrella: true},
-      {:uniris_sync, in_umbrella: true},
+      {:uniris_pubsub, in_umbrella: true},
       {:phoenix, "~> 1.4.16"},
       {:phoenix_pubsub, "~> 1.1"},
       {:jason, "~> 1.0"},

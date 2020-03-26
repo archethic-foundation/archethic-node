@@ -10,18 +10,24 @@ defmodule UnirisValidation.DefaultImpl do
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.ValidationStamp
   alias UnirisValidation.MiningSupervisor
-  alias __MODULE__.Replication
-  alias __MODULE__.Mining
   alias UnirisP2P, as: P2P
   alias UnirisChain.Transaction.ValidationStamp.NodeMovements
-  alias UnirisSync, as: Sync
+  alias UnirisBeacon, as: Beacon
+  alias UnirisPubSub, as: PubSub
+  alias __MODULE__.Replication
+  alias __MODULE__.Mining
+  alias __MODULE__.Reward
+  alias __MODULE__.ProofOfWork
+  alias __MODULE__.ProofOfIntegrity
+  alias __MODULE__.Stamp
+  alias __MODULE__.Fee
 
   @behaviour UnirisValidation.Impl
 
   require Logger
 
   @impl true
-  @spec start_mining(Transaction.pending(), UnirisCrypto.key(), list(UnirisCrypto.key())) ::
+  @spec start_mining(Transaction.pending(), UnirisUnirisCrypto.key(), list(UnirisUnirisCrypto.key())) ::
           {:ok, pid()}
   def start_mining(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
     DynamicSupervisor.start_child(
@@ -45,7 +51,7 @@ defmodule UnirisValidation.DefaultImpl do
           tx_address :: binary(),
           stamp ::
             {signature :: binary(), inconsistencies :: list(atom),
-             public_key :: UnirisCrypto.key()}
+             public_key :: UnirisUnirisCrypto.key()}
         ) :: :ok
   def add_cross_validation_stamp(tx_address, stamp = {_sig, _inconsistencies, _public_key}) do
     Mining.add_cross_validation_stamp(tx_address, stamp)
@@ -54,8 +60,8 @@ defmodule UnirisValidation.DefaultImpl do
   @impl true
   @spec add_context(
           tx_address :: binary(),
-          validation_node_public_key :: UnirisCrypto.key(),
-          previous_storage_node_public_keys :: list(UnirisCrypto.key()),
+          validation_node_public_key :: UnirisUnirisCrypto.key(),
+          previous_storage_node_public_keys :: list(UnirisUnirisCrypto.key()),
           validation_nodes_view :: bitstring(),
           chain_storage_nodes_view :: bitstring(),
           beacon_storage_nodes_view :: bitstring()
@@ -97,7 +103,7 @@ defmodule UnirisValidation.DefaultImpl do
 
       {:ok, chain} ->
         Chain.store_transaction_chain(chain)
-        Sync.load_transaction(tx)
+        PubSub.notify_new_transaction(tx)
 
         # Notify welcome node about the storage of the transaction
         [{welcome_node_public_key, _} | _] = rewards
@@ -113,7 +119,7 @@ defmodule UnirisValidation.DefaultImpl do
     case Replication.lite_validation(tx) do
       :ok ->
         Chain.store_transaction(tx)
-        Sync.load_transaction(tx)
+        PubSub.notify_new_transaction(tx)
 
       _ ->
         Chain.store_ko_transaction(tx)
@@ -123,6 +129,40 @@ defmodule UnirisValidation.DefaultImpl do
   @impl true
   @spec replicate_address(binary(), non_neg_integer()) :: :ok
   def replicate_address(address, timestamp) do
-    Sync.add_transaction_to_beacon(address, timestamp)
+    Beacon.add_transaction(address, timestamp)
+  end
+
+  @impl true
+  @spec get_proof_of_work(Transaction.pending()) :: {:ok, UnirisCrypto.key()} | {:error, :not_found}
+  def get_proof_of_work(tx = %Transaction{}) do
+    ProofOfWork.run(tx)
+  end
+
+  @impl true
+  @spec get_proof_of_integrity(list(Transaction.pending())) :: binary()
+  def get_proof_of_integrity([tx | []]) do
+    ProofOfIntegrity.from_transaction(tx)
+  end
+
+  def get_proof_of_integrity(transaction_chain) do
+    ProofOfIntegrity.from_chain(transaction_chain)
+  end
+
+  @impl true
+  @spec get_transaction_fee(Transaction.pending()) :: float()
+  def get_transaction_fee(tx = %Transaction{}) do
+    Fee.from_transaction(tx)
+  end
+
+  @impl true
+  @spec get_node_rewards(float(), UnirisCrypto.key(), UnirisCrypto.key(), list(UnirisCrypto.key()), list(UnirisCrypto.key())) :: list({UnirisCrypto.key(), float()})
+  def get_node_rewards(fee, welcome_node, coordinator_node, validation_nodes, storage_nodes) do
+    Reward.distribute_fee(fee, welcome_node, coordinator_node, validation_nodes, storage_nodes)
+  end
+
+  @impl true
+  @spec get_cross_validation_stamp(ValidationStamp.t(), list(atom())) :: {binary(), list(atom()), UnirisCrypto.key()}
+  def get_cross_validation_stamp(stamp = %ValidationStamp{}, inconsistencies) do
+    Stamp.create_cross_validation_stamp(stamp, inconsistencies, UnirisCrypto.node_public_key())
   end
 end

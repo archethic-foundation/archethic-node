@@ -3,7 +3,7 @@ defmodule UnirisChain.DefaultImpl do
   alias UnirisChain.Transaction
   alias UnirisChain.TransactionSupervisor
   alias UnirisChain.TransactionRegistry
-  alias UnirisChain.UnspentOutputsRegistry
+  alias UnirisChain.MetadataRegistry
 
   alias __MODULE__.Store
   @behaviour UnirisChain.Impl
@@ -11,6 +11,20 @@ defmodule UnirisChain.DefaultImpl do
   defdelegate child_spec(opts), to: Store
 
   require Logger
+
+  @impl true
+  @spec node_transactions() :: list(Transaction.validated())
+  def node_transactions() do
+    case Registry.lookup(MetadataRegistry, :node) do
+      [] ->
+        Store.node_transactions()
+
+      pids ->
+        Enum.map(pids, fn {pid, _} ->
+          Transaction.get(pid)
+        end)
+    end
+  end
 
   @impl true
   @spec list_transactions() :: list(Transaction.validated())
@@ -49,7 +63,7 @@ defmodule UnirisChain.DefaultImpl do
   @spec get_unspent_output_transactions(binary()) ::
           {:ok, list(Transaction.validated())} | {:error, :unspent_outputs_not_exists}
   def get_unspent_output_transactions(address) do
-    case Registry.lookup(UnspentOutputsRegistry, address) do
+    case Registry.lookup(MetadataRegistry, {:unspent_output, address}) do
       [] ->
         Store.get_unspent_output_transactions(address)
 
@@ -85,7 +99,7 @@ defmodule UnirisChain.DefaultImpl do
   @spec get_last_node_shared_secrets_transaction() ::
           {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
   def get_last_node_shared_secrets_transaction() do
-    case Registry.lookup(TransactionRegistry, :node_shared_secrets) do
+    case Registry.lookup(MetadataRegistry, :node_shared_secrets) do
       [] ->
         Store.get_last_node_shared_secrets_transaction()
 

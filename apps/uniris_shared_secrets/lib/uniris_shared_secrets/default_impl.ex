@@ -8,7 +8,6 @@ defmodule UnirisSharedSecrets.DefaultImpl do
   alias UnirisCrypto, as: Crypto
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data
-  alias UnirisP2P, as: P2P
 
   defdelegate child_spec(opts), to: Store
 
@@ -32,17 +31,17 @@ defmodule UnirisSharedSecrets.DefaultImpl do
   end
 
   @impl true
-  @spec new_shared_secrets_transaction(binary()) :: Transaction.pending()
-  def new_shared_secrets_transaction(transaction_seed) do
+  @spec new_shared_secrets_transaction(binary, list(binary())) :: Transaction.pending()
+  def new_shared_secrets_transaction(transaction_seed, authorized_node_public_keys) do
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
     {daily_nonce_public_key, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
     aes_key = :crypto.strong_rand_bytes(32)
 
     encrypted_keys =
-      Enum.reduce(P2P.list_nodes(), %{}, fn n, acc ->
-        encrypted_key = Crypto.ec_encrypt(aes_key, n.last_public_key)
-        Map.put(acc, n.last_public_key, encrypted_key)
+      Enum.reduce(authorized_node_public_keys, %{}, fn key, acc ->
+        encrypted_key = Crypto.ec_encrypt(aes_key, key)
+        Map.put(acc, key, encrypted_key)
       end)
 
     {origin_key_seeds, origin_public_keys} = create_origin_keys()

@@ -28,4 +28,11 @@ defmodule UnirisValidation.Impl do
   @callback replicate_chain(Transaction.validated()) :: :ok
   @callback replicate_transaction(Transaction.validated()) :: :ok
   @callback replicate_address(binary(), non_neg_integer()) :: :ok
+
+  @callback get_proof_of_work(Transaction.pending()) :: {:ok, UnirisCrypto.key()} | {:error, :not_found}
+  @callback get_proof_of_integrity(list(Transaction.pending())) :: binary()
+  @callback get_transaction_fee(Transaction.pending()) :: float()
+  @callback get_node_rewards(float(), UnirisCrypto.key(), UnirisCrypto.key(), list(UnirisCrypto.key()), list(UnirisCrypto.key())) :: list({UnirisCrypto.key(), float()})
+  @callback get_cross_validation_stamp(ValidationStamp.t(), list(atom())) :: {binary(), list(atom()), UnirisCrypto.key()}
+
 end

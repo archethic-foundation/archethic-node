@@ -1,9 +1,11 @@
-defmodule UnirisSync.Beacon.Subset do
+defmodule UnirisBeacon.Subset do
   @moduledoc false
 
   alias UnirisChain.Transaction
   alias UnirisChain.Transaction.Data
-  alias UnirisSync.BeaconSubsetRegistry
+  alias UnirisBeacon, as: Beacon
+  alias UnirisBeacon.SubsetRegistry
+  alias UnirisPubSub, as: PubSub
 
   use GenServer
 
@@ -12,8 +14,11 @@ defmodule UnirisSync.Beacon.Subset do
   def start_link(opts) do
     subset = Keyword.get(opts, :subset)
     slot_interval = Keyword.get(opts, :slot_interval)
-    startup_date = Keyword.get(opts, :startup_date)
-    GenServer.start_link(__MODULE__, [subset, slot_interval, startup_date], name: via_tuple(subset))
+    startup_date = DateTime.utc_now()
+
+    GenServer.start_link(__MODULE__, [subset, slot_interval, startup_date],
+      name: via_tuple(subset)
+    )
   end
 
   def init([subset, slot_interval, startup_date]) do
@@ -30,9 +35,13 @@ defmodule UnirisSync.Beacon.Subset do
   end
 
   def handle_cast({:add_transaction, address, timestamp}, state) do
-    Logger.debug("Transaction #{Base.encode16(address)} added to the beacon chain (subset #{state.subset |> Base.encode16})")
+    Logger.debug(
+      "Transaction #{Base.encode16(address)} added to the beacon chain (subset #{
+        state.subset |> Base.encode16()
+      })"
+    )
 
-    UnirisSync.notify_new_transaction(address)
+    PubSub.notify_new_transaction(address)
 
     {:noreply,
      Map.update!(
@@ -75,20 +84,23 @@ defmodule UnirisSync.Beacon.Subset do
   end
 
   def handle_call({:list_addresses, last_sync_date}, _, state = %{slots: slots}) do
-    addresses = slots
-    |> Enum.filter(fn {time, _} -> time <= last_sync_date end)
-    |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
-      content
-      |> String.split("\n")
-      |> Enum.map(fn line ->
-        [_, address] = String.split(line, " - ")
-        Base.decode16!(address)
+    addresses =
+      slots
+      |> Enum.filter(fn {time, _} -> time <= last_sync_date end)
+      |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
+        content
+        |> String.split("\n")
+        |> Enum.map(fn line ->
+          [_, address] = String.split(line, " - ")
+          Base.decode16!(address)
+        end)
       end)
-    end)
-    |> Enum.flat_map(&(&1))
+      |> Enum.flat_map(& &1)
 
     {:reply, addresses, state}
   end
+
+  defp schedule_slot(0), do: :ok
 
   defp schedule_slot(interval) do
     Process.send_after(self(), :create_slot, interval)
@@ -97,7 +109,7 @@ defmodule UnirisSync.Beacon.Subset do
   @spec add_transaction(binary(), integer()) :: :ok
   def add_transaction(address, timestamp) do
     address
-    |> from_address()
+    |> Beacon.subset_from_address
     |> via_tuple
     |> GenServer.cast({:add_transaction, address, timestamp})
   end
@@ -110,11 +122,7 @@ defmodule UnirisSync.Beacon.Subset do
   end
 
   defp via_tuple(subset) do
-    {:via, Registry, {BeaconSubsetRegistry, subset}}
+    {:via, Registry, {SubsetRegistry, subset}}
   end
 
-  @spec from_address(binary()) :: binary()
-  def from_address(address) do
-    :binary.part(address, 1, 1)
-  end
 end
