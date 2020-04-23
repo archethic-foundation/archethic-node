@@ -24,11 +24,12 @@ Current implemented features:
 - TransactionChain: basic struct and transaction generation
 - Smart Contract: interpreter coded with Elixir DSL through Metaprogramming and AST
 - Node election: heurisitic validation and storage node selection
-- P2P: Inter-node communication, supervised connection to detect the P2P view of nodes
+- P2P: Inter-node communication, supervised connection to detect the P2P view of nodes in almost real-time
 - Transaction mining: ARCH consensus
 - Node bootstraping
 - Beacon chain: Track new transactions
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
+- Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
 
 
 ## Contribution
