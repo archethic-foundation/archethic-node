@@ -36,18 +36,14 @@ defmodule UnirisWeb.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:uniris_election, in_umbrella: true},
-      {:uniris_p2p, in_umbrella: true},
-      {:uniris_crypto, in_umbrella: true},
-      {:uniris_chain, in_umbrella: true},
-      {:uniris_pubsub, in_umbrella: true},
+      {:uniris_core, in_umbrella: true},
       {:phoenix, "~> 1.4.16"},
       {:phoenix_pubsub, "~> 1.1"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:absinthe, "~> 1.4.0"},
       {:absinthe_plug, "~> 1.4"},
-      {:absinthe_phoenix, "~> 1.4.0"},
+      {:absinthe_phoenix, "~> 1.4.0"}
     ]
   end
 end

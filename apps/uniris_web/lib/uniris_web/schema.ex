@@ -2,11 +2,13 @@ defmodule UnirisWeb.Schema do
   @moduledoc false
 
   use Absinthe.Schema
-  alias UnirisP2P, as: P2P
-  alias UnirisElection, as: Election
-  alias UnirisCrypto, as: Crypto
-  alias UnirisChain, as: Chain
-  alias UnirisChain.Transaction
+
+  alias UnirisCore.Election
+  alias UnirisCore.Crypto
+  alias UnirisCore.Storage
+  alias UnirisCore.Transaction
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
 
   import_types(__MODULE__.TransactionType)
 
@@ -15,10 +17,10 @@ defmodule UnirisWeb.Schema do
       arg(:address, :hash)
 
       resolve(fn %{address: address}, _ ->
-        case Election.storage_nodes(address)
-             |> P2P.nearest_nodes()
-             |> List.first()
-             |> P2P.send_message({:get_transaction, address}) do
+
+        nearest_storage_nodes(address)
+        |> P2P.send_message({:get_transaction, address})
+        |> case do
           {:ok, tx} ->
             {:ok, format_transaction(tx)}
 
@@ -30,7 +32,7 @@ defmodule UnirisWeb.Schema do
 
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
-        {:ok, Chain.list_transactions() |> Enum.map(&format_transaction/1)}
+        {:ok, Storage.list_transactions() |> Enum.map(&format_transaction/1)}
       end)
     end
   end
@@ -69,9 +71,7 @@ defmodule UnirisWeb.Schema do
         {:ok, topic: "*"}
       end
       resolve fn address, _, _ ->
-        Election.storage_nodes(address)
-        |> P2P.nearest_nodes()
-        |> List.first()
+        nearest_storage_nodes(address)
         |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
@@ -86,9 +86,7 @@ defmodule UnirisWeb.Schema do
         {:ok, topic: args.address}
       end
       resolve fn address, _, _ ->
-        Election.storage_nodes(address)
-        |> P2P.nearest_nodes()
-        |> List.first()
+        nearest_storage_nodes(address)
         |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
@@ -96,6 +94,14 @@ defmodule UnirisWeb.Schema do
         end
       end
     end
+  end
+
+  defp nearest_storage_nodes(address) do
+    %Node{network_patch: patch} = P2P.node_info()
+    address
+    |> Election.storage_nodes
+    |> P2P.nearest_nodes(patch)
+    |> List.first()
   end
 
   defp format_transaction(tx = %Transaction{}) do

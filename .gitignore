@@ -10,4 +10,7 @@ erl_crash.dump
 .elixir_ls
 **/doc
 .
-/apps/uniris_crypto/priv/c/crypto
+
+/apps/uniris_core/priv/crypto/c_dist
+/apps/uniris_core/priv/storage
+/apps/uniris_core/priv/last_sync

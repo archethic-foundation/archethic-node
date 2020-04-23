@@ -3,7 +3,7 @@ defmodule UnirisWeb.TransactionSubscriber do
 
   use GenServer
 
-  alias UnirisPubSub, as: PubSub
+  alias UnirisCore.PubSub
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

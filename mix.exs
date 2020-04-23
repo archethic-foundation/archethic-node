@@ -7,25 +7,7 @@ defmodule Uniris.MixProject do
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      releases: [
-        uniris: [
-          include_executables_for: [:unix],
-          applications: [
-            uniris_chain: :permanent,
-            uniris_crypto: :permanent,
-            uniris_election: :permanent,
-            uniris_interpreter: :permanent,
-            uniris_p2p: :permanent,
-            uniris_p2p_server: :permanent,
-            uniris_shared_secrets: :permanent,
-            uniris_beacon: :permanent,
-            uniris_pubsub: :permanent,
-            uniris_sync: :permanent,
-            uniris_validation: :permanent,
-            uniris_web: :permanent
-          ]
-        ]
-      ]
+      elixirc_options: [warnings_as_errors: true]
     ]
   end
 

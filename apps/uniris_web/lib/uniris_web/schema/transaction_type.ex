@@ -15,6 +15,7 @@ defmodule UnirisWeb.Schema.TransactionType do
     value(:keychain, as: :keychain)
     value(:node, as: :node)
     value(:node_shared_secrets, as: :node_shared_secrets)
+    value(:origin_shared_secrets, as: :origin_shared_secrets)
     value(:beacon, as: :beacon)
   end
 
