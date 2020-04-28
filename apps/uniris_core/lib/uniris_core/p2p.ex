@@ -29,29 +29,14 @@ defmodule UnirisCore.P2P do
   Add a new node process under supervision
   """
   @spec add_node(Node.t()) :: :ok
-  def add_node(
-        node = %Node{
-          first_public_key: first_public_key,
-          last_public_key: last_public_key,
-          ip: ip,
-          port: port
-        }
-      ) do
-    case Registry.lookup(NodeRegistry, first_public_key) do
-      [{_, _}] ->
-        Node.update_basics(first_public_key, last_public_key, ip, port)
+  def add_node(node = %Node{}) do
+    {:ok, _} =
+      DynamicSupervisor.start_child(
+        NodeSupervisor,
+        {Node, node}
+      )
 
-      _ ->
-        {:ok, _} =
-          DynamicSupervisor.start_child(
-            NodeSupervisor,
-            {Node, node}
-          )
-
-        Logger.debug("New node added #{Base.encode16(first_public_key)}")
-    end
-
-    :ok
+    Logger.debug("New node added #{Base.encode16(node.first_public_key)}")
   end
 
   @doc """
