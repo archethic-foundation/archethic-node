@@ -7,6 +7,8 @@ defmodule UnirisCore.BeaconSlotTimer do
   alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubsetRegistry
 
+  require Logger
+
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -21,12 +23,8 @@ defmodule UnirisCore.BeaconSlotTimer do
 
   def init(opts) do
     interval = Keyword.get(opts, :slot_interval)
-    {:ok, %{last_slot_time: DateTime.utc_now(), interval: interval}}
-  end
-
-  def handle_call(:start_scheduling, _from, state = %{interval: interval}) do
     schedule_new_slot(Utils.time_offset(interval))
-    {:reply, :ok, state}
+    {:ok, %{last_slot_time: DateTime.utc_now(), interval: interval}}
   end
 
   def handle_call(:last_slot_time, _from, state = %{last_slot_time: slot_time}) do
@@ -37,7 +35,7 @@ defmodule UnirisCore.BeaconSlotTimer do
     {:reply, interval, state}
   end
 
-  def handle_info(:new_slot, state) do
+  def handle_info(:new_slot, state = %{interval: interval}) do
     slot_time = DateTime.utc_now()
 
     BeaconSubsets.all()
@@ -45,6 +43,8 @@ defmodule UnirisCore.BeaconSlotTimer do
       [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
       send(pid, {:create_slot, slot_time})
     end)
+
+    schedule_new_slot(interval)
 
     {:noreply, Map.put(state, :last_slot_time, slot_time)}
   end
