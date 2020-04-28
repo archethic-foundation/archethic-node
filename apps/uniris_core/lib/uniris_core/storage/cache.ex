@@ -161,15 +161,4 @@ defmodule UnirisCore.Storage.Cache do
         nil
     end
   end
-
-  def first_node_shared_secrets_transaction() do
-    case :ets.lookup(@shared_secrets_table, :first_node_shared_secrets) do
-      [{_, address}] ->
-        [{_, tx}] = :ets.lookup(@transaction_table, address)
-        tx
-
-      _ ->
-        nil
-    end
-  end
 end
