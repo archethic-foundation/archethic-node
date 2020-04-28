@@ -7,8 +7,11 @@ defmodule UnirisCore.Interpreter.Contract do
 
   alias UnirisCore.ContractRegistry
   alias UnirisCore.Transaction
+  alias UnirisCore.Utils
 
   use GenServer
+
+  require Logger
 
   defstruct triggers: [],
             conditions: [
@@ -67,9 +70,10 @@ defmodule UnirisCore.Interpreter.Contract do
       case trigger_type do
         :datetime ->
           now = DateTime.utc_now() |> DateTime.to_unix()
-          Process.send_after(self(), :time_trigger, abs(now - value))
+          Process.send_after(self(), :datetime_trigger, abs(now - value))
 
-        _ ->
+        :interval ->
+          schedule_time_trigger(Utils.time_offset(value))
           :ok
       end
     end)
@@ -82,6 +86,7 @@ defmodule UnirisCore.Interpreter.Contract do
     do: %__MODULE__{
       actions: actions,
       constants: [
+        address: tx.address,
         keys: tx.data.keys,
         ledger: tx.data.ledger
       ]
@@ -102,6 +107,7 @@ defmodule UnirisCore.Interpreter.Contract do
     |> Enum.reduce(
       %__MODULE__{
         constants: [
+          address: tx.address,
           keys: tx.data.keys,
           ledger: tx.data.ledger
         ]
@@ -145,13 +151,14 @@ defmodule UnirisCore.Interpreter.Contract do
     case Keyword.get(conditions, :response) do
       nil ->
         with {output, _} <- Code.eval_quoted(actions, context) do
+          handle_output(output, state)
           {:ok, output}
         end
 
       condition ->
         with {true, _} <- Code.eval_quoted(condition, context),
-             {_output, _} <- Code.eval_quoted(actions, context) do
-          # TODO: do something with the output
+             {output, _} <- Code.eval_quoted(actions, context) do
+          handle_output(output, state)
           {:reply, :ok, state}
         else
           _ ->
@@ -160,15 +167,32 @@ defmodule UnirisCore.Interpreter.Contract do
     end
   end
 
-  def handle_info(:time, state = %__MODULE__{actions: actions, constants: constants}) do
+  def handle_info(:datetime_trigger, state = %__MODULE__{actions: actions, constants: constants}) do
     case Code.eval_quoted(actions, constants) do
-      {_output, _} ->
-        # TODO: do someting with the output
+      {output, _} ->
+        handle_output(output, state)
         {:noreply, state}
 
       _ ->
         {:noreply, state}
     end
+  end
+
+  def handle_info({:time_trigger, time}, state = %__MODULE__{actions: actions, constants: constants}) do
+    case Code.eval_quoted(actions, constants) do
+      {output, _} ->
+        schedule_time_trigger(time)
+        handle_output(output, state)
+        {:noreply, state}
+
+      _ ->
+        {:noreply, state}
+    end
+  end
+
+  defp handle_output(%__MODULE__{constants: [address: tx_address]}, output) do
+    Logger.info("Smart contract output #{inspect(output)} for #{Base.encode16(tx_address)}")
+    # TODO: do someting with the output
   end
 
   @spec execute(binary(), Transaction.validated()) :: :ok | {:error, :condition_not_respected}
@@ -178,5 +202,9 @@ defmodule UnirisCore.Interpreter.Contract do
 
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
+  end
+
+  defp schedule_time_trigger(time) do
+    Process.send_after(self(), { :time_trigger, time}, time * 1000)
   end
 end

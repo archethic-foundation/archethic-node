@@ -65,6 +65,12 @@ defmodule UnirisCore.Interpreter.AST do
     end
   end
 
+  ## Whitelist the trigger 'interval' by checking the time interval (seconds)
+  defp filter_ast({:trigger, _, [[interval: interval]]} = node, {:ok, :root} = acc)
+       when is_integer(interval) and interval > 0 do
+    {node, acc}
+  end
+
   ## Whitelist the condition 'origin_family' by checking its support
   defp filter_ast(
          {:condition, _, [[origin_family: {:@, _, [{family, _, nil}]}]]} = node,
