@@ -91,6 +91,8 @@ defmodule UnirisCore.Mining.Worker do
 
     Registry.register(MiningRegistry, tx.address, [])
 
+    Logger.info("New transaction mining for #{Base.encode16(tx.address)}")
+
     {:ok, :idle,
      %{
        transaction: tx,
@@ -98,7 +100,7 @@ defmodule UnirisCore.Mining.Worker do
        node_public_key: node_public_key
      },
      [
-       {:timeout, 5000, :stop_after_five_seconds},
+       {{:timeout, :stop_after_five_seconds}, 3000, :any},
        {:next_event, :internal, {:preliminary_verifications, validation_node_public_keys}}
      ]}
   end
@@ -507,7 +509,7 @@ defmodule UnirisCore.Mining.Worker do
     }
 
     Replication.run(validated_tx, chain_replication_nodes, beacon_replication_nodes)
-    :keep_state_and_data
+    :stop
   end
 
   def handle_event(
@@ -522,18 +524,18 @@ defmodule UnirisCore.Mining.Worker do
     :stop
   end
 
-  def handle_event(:timeout, :stop_after_five_seconds, _state, _data) do
+  def handle_event({:timeout, :stop_after_five_seconds}, :any, _state, _data) do
     :stop
   end
 
-  def handle_event(_, msg, state, _data = %{transaction: %Transaction{address: tx_address}}) do
+  def handle_event(_, msg, state, data = %{transaction: %Transaction{address: tx_address}}) do
     Logger.debug(
-      "Unexpected message: #{inspect(msg)} in state #{inspect(state)} for #{
+      "Unexpected message: #{inspect(msg)} in state #{inspect(state)} in #{inspect(data)} for #{
         Base.encode16(tx_address)
       }"
     )
 
-    :keep_state_and_data
+    :stop
   end
 
   def terminate(:normal, _, _), do: :ok
