@@ -16,29 +16,15 @@ defmodule UnirisCore.BeaconSubset do
 
   def start_link(opts) do
     subset = Keyword.get(opts, :subset)
-    slot_interval = Keyword.get(opts, :slot_interval)
-    startup_date = DateTime.utc_now()
-
-    GenServer.start_link(__MODULE__, [subset, slot_interval, startup_date],
-      name: via_tuple(subset)
-    )
+    GenServer.start_link(__MODULE__, [subset], name: via_tuple(subset))
   end
 
-  def init([subset, slot_interval, startup_date]) do
-    current_time = Time.utc_now().second * 1000
-    last_interval = slot_interval * trunc(current_time / slot_interval)
-    next_interval = last_interval + slot_interval
-    offset = next_interval - current_time
-
-    schedule_slot(offset)
-
+  def init([subset]) do
     {:ok,
      %{
        subset: subset,
        current_slot: %BeaconSlot{},
-       slots: %{},
-       slot_time: startup_date,
-       slot_interval: slot_interval
+       slots: %{}
      }}
   end
 
@@ -64,37 +50,22 @@ defmodule UnirisCore.BeaconSubset do
   end
 
   def handle_info(
-        :create_slot,
-        state = %{
-          current_slot: %BeaconSlot{transactions: [], nodes: []},
-          slot_time: slot_time,
-          slot_interval: interval
-        }
+        {:create_slot, _slot_time},
+        state = %{current_slot: %BeaconSlot{transactions: [], nodes: []}}
       ) do
-    schedule_slot(interval)
-    {:noreply, Map.put(state, :slot_time, DateTime.add(slot_time, interval))}
+    {:noreply, state}
   end
 
-  def handle_info(
-        :create_slot,
-        state = %{
-          current_slot: current_slot,
-          slot_time: slot_time,
-          slot_interval: interval
-        }
-      ) do
+  def handle_info({:create_slot, slot_time}, state = %{current_slot: current_slot}) do
     tx = Transaction.new(:beacon, %TransactionData{content: output_slot(current_slot)})
     Storage.write_transaction(tx)
 
     new_state =
       state
       |> Map.put(:current_slot, %BeaconSlot{})
-      |> put_in([:slots, slot_time |> DateTime.to_unix()], tx)
-      |> Map.put(:slot_time, DateTime.add(slot_time, interval))
+      |> put_in([:slots, DateTime.to_unix(slot_time)], tx)
 
-    Logger.debug("Beacon slot created")
-
-    schedule_slot(interval)
+    Logger.debug("Beacon slot created with #{inspect(current_slot)}")
     {:noreply, new_state}
   end
 
@@ -111,7 +82,7 @@ defmodule UnirisCore.BeaconSubset do
             ["T", type, timestamp, address] ->
               BeaconSlot.add_transaction_info(slot, %TransactionInfo{
                 address: Base.decode16!(address),
-                timestamp: timestamp |> String.to_integer() |> DateTime.from_unix(),
+                timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!(),
                 type: Transaction.parse_type(String.to_integer(type))
               })
 
@@ -125,12 +96,6 @@ defmodule UnirisCore.BeaconSubset do
       end)
 
     {:reply, previous_slots, state}
-  end
-
-  defp schedule_slot(0), do: :ok
-
-  defp schedule_slot(interval) do
-    Process.send_after(self(), :create_slot, interval)
   end
 
   defp output_slot(%BeaconSlot{transactions: [], nodes: nodes}) do
