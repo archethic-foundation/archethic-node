@@ -8,25 +8,19 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
   alias UnirisCore.Crypto
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.SharedSecrets
+  alias UnirisCore.Utils
 
   use GenServer
 
   require Logger
 
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-
-    current_time = Time.utc_now().second * 1000
-    last_interval = interval * trunc(current_time / interval)
-    next_interval = last_interval + interval
-    offset = next_interval - current_time
-
-    schedule_renewal(offset)
-
+    schedule_renewal(Utils.time_offset(interval))
     {:ok, %{interval: interval}}
   end
 
@@ -46,10 +40,6 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
       schedule_renewal(interval)
       {:noreply, state}
     end
-  end
-
-  def handle_info(:renew, state) do
-    {:noreply, state}
   end
 
   defp do_renewal() do

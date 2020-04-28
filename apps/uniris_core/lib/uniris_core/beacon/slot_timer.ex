@@ -13,10 +13,6 @@ defmodule UnirisCore.BeaconSlotTimer do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def start_scheduling() do
-    GenServer.call(__MODULE__, :start_scheduling)
-  end
-
   def slot_interval() do
     GenServer.call(__MODULE__, :slot_interval)
   end
