@@ -478,7 +478,7 @@ defmodule UnirisCore.Mining.Worker do
           if Stamp.atomic_commitment?(cross_stamps) do
             {:next_state, :replication, new_data, {:next_event, :internal, :start}}
           else
-            {:next_state, :consenus_not_reached, new_data,
+            {:next_state, :consensus_not_reached, new_data,
              {:next_event, :internal, :detect_malicious}}
           end
         end

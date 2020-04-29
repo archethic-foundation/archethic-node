@@ -29,8 +29,7 @@ defmodule UnirisCore.Application do
         seeds_file: Application.get_env(:uniris_core, UnirisCore.Bootstrap)[:seeds_file]
       ),
       configure(UnirisCore.SelfRepair,
-        repair_interval:
-          Application.get_env(:uniris_core, UnirisCore.SelfRepair)[:repair_interval]
+        interval: Application.get_env(:uniris_core, UnirisCore.SelfRepair)[:interval]
       )
     ]
     |> List.flatten()
