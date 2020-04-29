@@ -44,7 +44,7 @@ defmodule UnirisCore.P2P.NodeTest do
                ip: {127, 0, 0, 1},
                port: 3000,
                last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
+               first_public_key: "first_public_key"
              } = :sys.get_state(pid)
 
       assert [{_pid, _}] = Registry.lookup(NodeRegistry, {127, 0, 0, 1})
@@ -87,14 +87,14 @@ defmodule UnirisCore.P2P.NodeTest do
       Process.sleep(100)
 
       assert %Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "last_public_key",
-        first_public_key: "first_public_key",
-        availability: 0,
-        availability_history: <<0::1, 1::1>>,
-        average_availability: 0.5
-      } = :sys.get_state(pid)
+               ip: {127, 0, 0, 1},
+               port: 3000,
+               last_public_key: "last_public_key",
+               first_public_key: "first_public_key",
+               availability: 0,
+               availability_history: <<0::1, 1::1>>,
+               average_availability: 0.5
+             } = :sys.get_state(pid)
 
       Process.sleep(1000)
 
@@ -158,7 +158,7 @@ defmodule UnirisCore.P2P.NodeTest do
 
     assert %Node{
              ip: {88, 100, 50, 30},
-             port: 3005,
+             port: 3005
            } = Node.details("first_public_key")
   end
 
@@ -190,7 +190,7 @@ defmodule UnirisCore.P2P.NodeTest do
     Process.sleep(100)
 
     assert %Node{average_availability: 0.5, availability_history: <<0::1, 1::1>>} =
-      Node.details("first_public_key")
+             Node.details("first_public_key")
 
     Process.sleep(1000)
 
@@ -236,5 +236,20 @@ defmodule UnirisCore.P2P.NodeTest do
     )
 
     assert :hello = Node.send_message("last_public_key", :hello)
+  end
+
+  test "set_enrollment_date/2 should set the enrollment date to the node" do
+    {:ok, pid} =
+      Node.start_link(
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      )
+
+    now = DateTime.utc_now()
+    :ok = Node.set_enrollment_date("first_public_key", now)
+    %Node{enrollment_date: date} = :sys.get_state(pid)
+    assert date == now
   end
 end

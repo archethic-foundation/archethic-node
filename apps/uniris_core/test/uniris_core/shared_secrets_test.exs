@@ -14,8 +14,8 @@ defmodule UnirisCore.SharedSecretsTest do
       data: %TransactionData{
         keys: %{
           authorized_keys: authorized_keys,
-          daily_nonce_seed: encrypted_daily_nonce_seed,
-          transaction_seed: encrypted_transaction_seed
+          daily_nonce_seed: _,
+          transaction_seed: _
         }
       }
     } =
@@ -26,9 +26,5 @@ defmodule UnirisCore.SharedSecretsTest do
       )
 
     assert Map.has_key?(authorized_keys, Crypto.node_public_key())
-    encrypted_aes_key = Map.get(authorized_keys, Crypto.node_public_key())
-    aes_key = Crypto.ec_decrypt_with_node_key!(encrypted_aes_key)
-    Crypto.aes_decrypt!(encrypted_daily_nonce_seed, aes_key)
-    Crypto.aes_decrypt!(encrypted_transaction_seed, aes_key)
   end
 end

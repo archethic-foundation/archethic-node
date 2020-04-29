@@ -1,5 +1,5 @@
 defmodule UnirisCore.P2P.NodeTCPClientTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   alias UnirisCore.P2P.NodeTCPClient
 

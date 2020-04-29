@@ -1,5 +1,5 @@
 defmodule UnirisCore.SharedSecrets.CacheTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   alias UnirisCore.Crypto
   alias UnirisCore.SharedSecrets.Cache

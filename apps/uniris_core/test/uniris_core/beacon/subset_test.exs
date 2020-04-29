@@ -4,33 +4,48 @@ defmodule UnirisCore.BeaconSubsetTest do
   alias UnirisCore.BeaconSubset
   alias UnirisCore.BeaconSlot
   alias UnirisCore.BeaconSlot.TransactionInfo
+  alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.Transaction
 
-  test "add_transaction_info/2 should publish a transaction into the next beacon block" do
-    tx_time = get_time()
-    tx_address = :crypto.strong_rand_bytes(32)
-    subset = :binary.part(tx_address, 1, 1)
+  setup do
+    pid = start_supervised!({BeaconSubset, subset: <<0>>})
+    start_supervised!(UnirisCore.Storage.Cache)
+    {:ok, subset: <<0>>, pid: pid}
+  end
 
-    {:ok, pid} = BeaconSubset.start_link(subset: subset, slot_interval: 1000)
+  test "add_transaction_info/2 should publish a transaction into the next beacon block", %{
+    subset: subset,
+    pid: pid
+  } do
+    tx_time = DateTime.utc_now()
+    tx_address = :crypto.strong_rand_bytes(32)
 
     BeaconSubset.add_transaction_info(subset, %TransactionInfo{
       address: tx_address,
-      timestamp: tx_time
+      timestamp: tx_time,
+      type: :node
     })
 
-    %{current_slot: %BeaconSlot{transactions: txs}} = :sys.get_state(pid)
-
-    assert txs == [
-             %TransactionInfo{address: tx_address, timestamp: tx_time}
-           ]
+    assert %{
+             current_slot: %BeaconSlot{
+               transactions: [
+                 %TransactionInfo{address: tx_address, timestamp: tx_time, type: :node}
+               ]
+             }
+           } = :sys.get_state(pid)
   end
 
-  test "new slot is created when receive a :create_slot message" do
-    tx_time = get_time()
-    tx_address = :crypto.strong_rand_bytes(32)
-    subset = :binary.part(tx_address, 1, 1)
+  test "add_node_info/2 should insert node info in the beacon slot", %{subset: subset, pid: pid} do
+    public_key = :crypto.strong_rand_bytes(32)
+    :ok = BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true})
 
-    {:ok, pid} = BeaconSubset.start_link(subset: subset, slot_interval: 1000)
+    assert %{current_slot: %BeaconSlot{nodes: [%NodeInfo{public_key: public_key, ready?: true}]}} =
+             :sys.get_state(pid)
+  end
+
+  test "new slot is created when receive a :create_slot message", %{subset: subset, pid: pid} do
+    tx_time = DateTime.utc_now()
+    tx_address = :crypto.strong_rand_bytes(32)
 
     BeaconSubset.add_transaction_info(subset, %TransactionInfo{
       address: tx_address,
@@ -38,19 +53,62 @@ defmodule UnirisCore.BeaconSubsetTest do
       type: :keychain
     })
 
-    send(pid, :create_slot)
+    public_key = :crypto.strong_rand_bytes(32)
+    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true})
 
-    slot_time = get_time()
+    send(pid, {:create_slot, DateTime.utc_now()})
+
     %{slots: slots} = :sys.get_state(pid)
 
-    %Transaction{
-      data: %{
-        content: tx_content
+    [
+      %Transaction{
+        data: %{
+          content: tx_content
+        }
       }
-    } = Map.get(slots, DateTime.to_unix(slot_time))
+    ] = Map.values(slots)
 
-    assert tx_content == "T - 1 - #{DateTime.to_unix(tx_time)} - #{Base.encode16(tx_address)}"
+    assert tx_content ==
+             Enum.join(
+               [
+                 "T - 1 - #{DateTime.to_unix(tx_time)} - #{Base.encode16(tx_address)}",
+                 "N - #{Base.encode16(public_key)} - R"
+               ],
+               "\n"
+             )
   end
 
-  defp get_time(), do: DateTime.utc_now()
+  test "previous_slots/2 should retrieve the previous beacon slots after the given date", %{
+    subset: subset,
+    pid: pid
+  } do
+    tx_time = DateTime.utc_now()
+    tx_address = :crypto.strong_rand_bytes(32)
+
+    BeaconSubset.add_transaction_info(subset, %TransactionInfo{
+      address: tx_address,
+      timestamp: tx_time,
+      type: :keychain
+    })
+
+    public_key = :crypto.strong_rand_bytes(32)
+    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true})
+    send(pid, {:create_slot, DateTime.utc_now() |> DateTime.add(60)})
+
+    slots = BeaconSubset.previous_slots(subset, DateTime.utc_now())
+    assert length(slots) == 1
+
+    assert %BeaconSlot{
+             transactions: [
+               %TransactionInfo{
+                 address: tx_address,
+                 timestamp: tx_time,
+                 type: :keychain
+               }
+             ],
+             nodes: [
+               %NodeInfo{public_key: public_key, ready?: true}
+             ]
+           } = List.first(slots)
+  end
 end

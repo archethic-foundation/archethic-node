@@ -3,57 +3,73 @@ defmodule UnirisCoreCase do
 
   alias UnirisCore.P2P.NodeSupervisor
   alias UnirisCore.Crypto
+  alias UnirisCore.Crypto.ECDSA
 
   import Mox
 
-  def set_storage_nonce(_) do
-    Crypto.decrypt_and_set_storage_nonce(
-      Crypto.ec_encrypt(
-        "storage_seed",
-        Crypto.node_public_key()
-      )
-    )
-  end
-
-  def set_daily_nonce(_) do
-    aes_key = :crypto.strong_rand_bytes(32)
-    encrypted_aes_key = Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
-
-    Crypto.decrypt_and_set_daily_nonce_seed(
-      Crypto.aes_encrypt("daily_seed", aes_key),
-      encrypted_aes_key
-    )
-  end
-
-  def set_shared_secrets_transaction_seed(_) do
-    aes_key = :crypto.strong_rand_bytes(32)
-    encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), aes_key)
-    encrypted_aes_key = Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
-
-    Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
-      encrypted_transaction_seed,
-      encrypted_aes_key
-    )
-  end
-
-  setup :set_storage_nonce
-  setup :set_daily_nonce
-  setup :set_shared_secrets_transaction_seed
   setup :verify_on_exit!
   setup :set_mox_global
 
   setup do
+    File.rm_rf(Application.app_dir(:uniris_core, "priv/last_sync"))
+    File.rm_rf(Application.app_dir(:uniris_core, "priv/storage"))
+
     MockNodeClient
     |> stub(:start_link, fn _ -> {:ok, self()} end)
 
-    Application.put_env(:uniris_core, UnirisCore.Storage, backend: MockStorage)
-    Mox.defmock(MockStorage, for: UnirisCore.Storage.BackendImpl)
-
     MockStorage
+    |> stub(:list_transactions, fn -> [] end)
     |> stub(:write_transaction, fn _ -> :ok end)
     |> stub(:write_transaction_chain, fn _ -> :ok end)
-    |> stub(:get_transaction, fn _ -> {:ok, %{}} end)
+    |> stub(:get_transaction, fn _ -> {:error, :transaction_not_exists} end)
     |> stub(:node_transactions, fn -> [] end)
+    |> stub(:get_last_node_shared_secrets_transaction, fn -> {:error, :transaction_not_exists} end)
+
+    MockCrypto
+    |> stub(:sign_with_node_key, fn data ->
+      {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:sign_with_node_key, fn data, index ->
+      {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", index, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:sign_with_node_shared_secrets_key, fn data ->
+      {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:sign_with_node_shared_secrets_key, fn data, index ->
+      {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", index, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:hash_with_daily_nonce, fn _ -> "hash" end)
+    |> stub(:hash_with_storage_nonce, fn _ -> "hash" end)
+    |> stub(:node_public_key, fn ->
+      {pub, _} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:node_public_key, fn index ->
+      {pub, _} = Crypto.derivate_keypair("seed", index, :secp256r1)
+      pub
+    end)
+    |> stub(:node_shared_secrets_public_key, fn index ->
+      {pub, _} = Crypto.derivate_keypair("seed", index, :secp256r1)
+      pub
+    end)
+    |> stub(:increment_number_of_generate_node_keys, fn -> :ok end)
+    |> stub(:increment_number_of_generate_node_shared_secrets_keys, fn -> :ok end)
+    |> stub(:decrypt_with_node_key!, fn _ -> :crypto.strong_rand_bytes(32) end)
+    |> stub(:decrypt_with_node_key!, fn _, _ -> :crypto.strong_rand_bytes(32) end)
+    |> stub(:derivate_beacon_chain_address, fn _, _ -> :crypto.strong_rand_bytes(32) end)
+    |> stub(:number_of_node_keys, fn -> 0 end)
+    |> stub(:number_of_node_shared_secrets_keys, fn -> 0 end)
+    |> stub(:encrypt_node_shared_secrets_transaction_seed, fn _ ->
+      :crypto.strong_rand_bytes(32)
+    end)
+    |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ -> :ok end)
+    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ -> :ok end)
+    |> stub(:decrypt_and_set_storage_nonce, fn _ -> :ok end)
+    |> stub(:encrypt_storage_nonce, fn _ -> :crypto.strong_rand_bytes(32) end)
 
     on_exit(fn ->
       DynamicSupervisor.which_children(NodeSupervisor)

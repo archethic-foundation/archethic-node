@@ -1,5 +1,5 @@
 defmodule UnirisCore.P2PTest do
-  use ExUnit.Case, async: false
+  use UnirisCoreCase, async: false
   doctest UnirisCore.P2P
 
   alias UnirisCore.P2P
@@ -29,18 +29,7 @@ defmodule UnirisCore.P2PTest do
     end)
     |> stub(:send_message, fn _, msg -> msg end)
 
-    on_exit(fn ->
-      clean_supervisor()
-    end)
-
     :ok
-  end
-
-  defp clean_supervisor do
-    DynamicSupervisor.which_children(NodeSupervisor)
-    |> Enum.each(fn {_, pid, _, _} ->
-      DynamicSupervisor.terminate_child(NodeSupervisor, pid)
-    end)
   end
 
   test "add_node/1 should add the node in the supervision tree" do

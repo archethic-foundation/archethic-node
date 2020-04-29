@@ -10,7 +10,6 @@ defmodule UnirisCore.Mining.ContextTest do
   alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
   alias UnirisCore.Mining.Context
-  alias UnirisCore.P2P.NodeSupervisor
 
   import Mox
 

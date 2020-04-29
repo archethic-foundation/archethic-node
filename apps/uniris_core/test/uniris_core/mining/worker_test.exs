@@ -1,6 +1,8 @@
 defmodule UnirisCore.MiningWorkerTest do
   use UnirisCoreCase, async: false
 
+  @moduletag capture_log: true
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.Transaction.ValidationStamp
@@ -11,10 +13,17 @@ defmodule UnirisCore.MiningWorkerTest do
   alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
   alias UnirisCore.Election
+  alias UnirisCore.BeaconSlotTimer
+  alias UnirisCore.BeaconSubsets
+  alias UnirisCore.BeaconSubsetRegistry
 
   import Mox
 
   setup do
+    start_supervised!(UnirisCore.Storage.Cache)
+    start_supervised!({BeaconSlotTimer, slot_interval: 5000})
+    Enum.each(BeaconSubsets.all(), &Registry.register(BeaconSubsetRegistry, &1, []))
+
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -23,7 +32,8 @@ defmodule UnirisCore.MiningWorkerTest do
       ready?: true,
       authorized?: true,
       availability: 1,
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
@@ -36,7 +46,8 @@ defmodule UnirisCore.MiningWorkerTest do
       ready?: true,
       authorized?: true,
       availability: 1,
-      network_patch: "BBB"
+      network_patch: "BBB",
+      enrollment_date: DateTime.utc_now()
     })
 
     MockStorage
@@ -157,8 +168,6 @@ defmodule UnirisCore.MiningWorkerTest do
 
   describe "add_context/6 " do
     test "aggregate context and wait enough confirmed validation nodes context building" do
-      tx = Transaction.new(:node, %TransactionData{})
-
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -167,8 +176,11 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         authorized?: true,
         availability: 1,
-        network_patch: "AAA"
+        network_patch: "AAA",
+        enrollment_date: DateTime.utc_now()
       })
+
+      tx = Transaction.new(:node, %TransactionData{})
 
       validation_nodes = Election.validation_nodes(tx)
 
@@ -322,7 +334,8 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         authorized?: true,
         availability: 1,
-        network_patch: "AAA"
+        network_patch: "AAA",
+        enrollment_date: DateTime.utc_now()
       })
 
       validation_nodes = Election.validation_nodes(tx)
@@ -457,8 +470,8 @@ defmodule UnirisCore.MiningWorkerTest do
           {:replicate_chain, _} ->
             send(me, :replication_chain)
 
-          {:replicate_transaction, _} ->
-            send(me, :replicate_transaction)
+          {:replicate_transaction, tx} ->
+            send(me, {:replicate_transaction, tx})
         end
       end)
 
@@ -486,7 +499,8 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         network_patch: "AAA",
         geo_patch: "AAA",
-        availability: 1
+        availability: 1,
+        enrollment_date: DateTime.utc_now()
       })
 
       P2P.add_node(%Node{
@@ -497,7 +511,8 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         network_patch: "AAA",
         geo_patch: "AAA",
-        availability: 1
+        availability: 1,
+        enrollment_date: DateTime.utc_now()
       })
 
       Worker.add_context(
@@ -516,10 +531,13 @@ defmodule UnirisCore.MiningWorkerTest do
           Worker.set_replication_trees(cross_validator_pid, chain_tree, beacon_tree)
           Worker.cross_validate(cross_validator_pid, stamp)
 
-          {:replication, %{cross_validation_stamps: cross_validation_stamps}} =
-            :sys.get_state(cross_validator_pid)
+          receive do
+            {:replicate_transaction, %Transaction{cross_validation_stamps: stamps}} ->
+              assert length(stamps) == 1
+          end
 
-          assert length(cross_validation_stamps) == 1
+          Process.sleep(200)
+          assert !Process.alive?(cross_validator_pid)
       end
 
       receive do
@@ -535,10 +553,16 @@ defmodule UnirisCore.MiningWorkerTest do
             Worker.add_cross_validation_stamp(coordinator_pid, stamp)
           end
 
-          {:replication, _} = :sys.get_state(coordinator_pid)
+          Process.sleep(200)
+          assert !Process.alive?(coordinator_pid)
 
           {:messages, messages} = :erlang.process_info(me, :messages)
-          assert Enum.any?(messages, &(&1 == :replicate_transaction))
+
+          receive do
+            {:replicate_transaction, %Transaction{cross_validation_stamps: stamps}} ->
+              assert length(stamps) == 1
+          end
+
           assert Enum.any?(messages, &(&1 == :replicate_address))
       end
     end

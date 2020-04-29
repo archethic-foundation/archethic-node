@@ -8,7 +8,6 @@ defmodule UnirisCore.Mining.StampTest do
   alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
-  alias UnirisCore.P2P.NodeSupervisor
   alias UnirisCore.Crypto
   alias UnirisCore.Mining.Stamp
   alias UnirisCore.Mining.Fee
