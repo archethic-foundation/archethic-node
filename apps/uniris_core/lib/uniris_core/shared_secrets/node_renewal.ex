@@ -82,7 +82,6 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
   # to embark new validation nodes in the network
   defp authorized_nodes() do
     authorized_nodes = Enum.filter(P2P.list_nodes(), & &1.authorized?)
-    Election.validation_constraints()
 
     %ValidationConstraints{
       min_validation_number: min_validation_number,
@@ -90,7 +89,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
     } = Election.validation_constraints()
 
     (Enum.filter(P2P.list_nodes(), & &1.ready?) -- authorized_nodes)
-    |> select_new_authorized_nodes(min_validation_number, min_geo_patch, authorized_nodes)
+    |> select_new_authorized_nodes(min_validation_number, min_geo_patch.(), authorized_nodes)
     |> Enum.map(& &1.last_public_key)
   end
 
