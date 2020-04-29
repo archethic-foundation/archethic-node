@@ -14,7 +14,6 @@ defmodule UnirisCore.Crypto.KeystoreImpl do
   @callback increment_number_of_generate_node_shared_secrets_keys() :: :ok
   @callback decrypt_with_node_key!(cipher :: binary()) :: term()
   @callback decrypt_with_node_key!(cipher :: binary(), index :: non_neg_integer()) :: term()
-  @callback decrypt_with_first_node_key!(cipher :: binary()) :: term()
   @callback derivate_beacon_chain_address(subset :: binary(), date :: non_neg_integer()) ::
               UnirisCore.Crypto.key()
   @callback number_of_node_keys() :: index :: non_neg_integer()

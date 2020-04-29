@@ -1,4 +1,4 @@
 defmodule UnirisCore.CryptoTest do
-  use ExUnit.Case
+  use UnirisCoreCase, async: false
   doctest UnirisCore.Crypto
 end

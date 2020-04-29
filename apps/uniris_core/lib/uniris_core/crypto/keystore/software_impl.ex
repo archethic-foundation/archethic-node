@@ -321,17 +321,6 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def decrypt_with_first_node_key!(cipher) do
-    case GenServer.call(__MODULE__, {:decrypt_with_first_node_key, cipher}) do
-      {:error, :decryption_failed} ->
-        raise "Decryption failed"
-
-      result ->
-        result
-    end
-  end
-
-  @impl true
   def derivate_beacon_chain_address(subset, date) do
     GenServer.call(__MODULE__, {:derivate_beacon_chain_address, subset, date})
   end

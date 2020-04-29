@@ -486,14 +486,6 @@ defmodule UnirisCore.Crypto do
     Keystore.decrypt_with_node_key!(cipher, index)
   end
 
-  @doc """
-  Decrypt the cipher using the first node private key
-  """
-  @spec ec_decrypt_with_first_node_key!(binary()) :: term()
-  def ec_decrypt_with_first_node_key!(cipher) do
-    Keystore.decrypt_with_first_node_key!(cipher)
-  end
-
   defp do_ec_decrypt!(:ed25519, cipher, key), do: Ed25519.decrypt(key, cipher)
   defp do_ec_decrypt!(curve, cipher, key), do: ECDSA.decrypt(curve, key, cipher)
 

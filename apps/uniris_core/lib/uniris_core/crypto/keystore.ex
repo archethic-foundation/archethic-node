@@ -3,6 +3,9 @@ defmodule UnirisCore.Crypto.Keystore do
 
   @behaviour UnirisCore.Crypto.KeystoreImpl
 
+  @default_impl UnirisCore.Crypto.SoftwareKeystore
+  defdelegate child_spec(opts), to: @default_impl
+
   @impl true
   @spec sign_with_node_key(data :: binary()) :: binary()
   def sign_with_node_key(data) do
@@ -61,12 +64,6 @@ defmodule UnirisCore.Crypto.Keystore do
   @spec decrypt_with_node_key!(binary()) :: term()
   def decrypt_with_node_key!(cipher, index) do
     impl().decrypt_with_node_key!(cipher, index)
-  end
-
-  @impl true
-  @spec decrypt_with_first_node_key!(binary()) :: term()
-  def decrypt_with_first_node_key!(cipher) do
-    impl().decrypt_with_first_node_key!(cipher)
   end
 
   @impl true
@@ -146,7 +143,9 @@ defmodule UnirisCore.Crypto.Keystore do
 
   defp impl() do
     :uniris_core
-    |> Application.get_env(UnirisCore.Crypto, keystore: UnirisCore.Crypto.SoftwareKeystore)
+    |> Application.get_env(UnirisCore.Crypto,
+      keystore: @default_impl
+    )
     |> Keyword.fetch!(:keystore)
   end
 end
