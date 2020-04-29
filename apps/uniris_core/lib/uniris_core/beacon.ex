@@ -10,7 +10,7 @@ defmodule UnirisCore.Beacon do
   alias UnirisCore.P2P
 
   @doc """
-  List of all transaction subsets
+  List of all transaction subsets (255 subsets for a byte capacity)
   """
   @spec all_subsets() :: list(binary())
   def all_subsets() do
@@ -25,15 +25,17 @@ defmodule UnirisCore.Beacon do
   @spec get_pools(DateTime.t()) :: list({subset :: binary(), nodes: list(Node.t())})
   def get_pools(last_sync_date = %DateTime{}) do
     slot_interval = BeaconSlotTimer.slot_interval()
-    sync_offset_time = DateTime.diff(DateTime.utc_now(), last_sync_date)
+    sync_offset_time = DateTime.diff(DateTime.utc_now(), last_sync_date, :millisecond)
     sync_times = trunc(sync_offset_time / slot_interval)
 
     slot_times =
       Enum.map(0..sync_times, fn i ->
-        DateTime.add(last_sync_date, i * slot_interval)
+        DateTime.add(last_sync_date, i * slot_interval, :millisecond)
       end)
 
-    Enum.reduce(all_subsets(), %{}, fn subset, acc ->
+    Flow.from_enumerable(all_subsets())
+    |> Flow.partition(stages: 256)
+    |> Flow.reduce(fn -> %{} end, fn subset, acc ->
       nodes =
         slot_times
         |> Enum.map(&get_pool(subset, &1))
@@ -42,6 +44,7 @@ defmodule UnirisCore.Beacon do
 
       Map.update(acc, subset, nodes, &Enum.uniq(&1 ++ nodes))
     end)
+    |> Enum.to_list()
   end
 
   @doc """
@@ -50,9 +53,10 @@ defmodule UnirisCore.Beacon do
   @spec get_pool(subset :: binary(), date :: DateTime.t()) :: list(Node.t())
   def get_pool(subset, date = %DateTime{}) when is_binary(subset) do
     authorized_nodes =
-      P2P.list_nodes()
-      # |> Enum.filter(& &1.authorized?)
-      |> Enum.filter(&(&1.availability == 1))
+      Enum.filter(P2P.list_nodes(), fn node ->
+        DateTime.compare(node.enrollment_date, date) == :lt && node.ready? && node.authorized? &&
+          node.availability == 1
+      end)
 
     subset
     |> Crypto.derivate_beacon_chain_address(next_slot(date))
@@ -70,9 +74,8 @@ defmodule UnirisCore.Beacon do
   @doc """
   Get the last informations regarding a beacon subset slot before the last synchronized date for the given subset.
   """
-  @spec previous_slots(binary(), integer()) :: BeaconSlot.t()
-  def previous_slots(subset, last_sync_date)
-      when is_binary(subset) and is_integer(last_sync_date) do
+  @spec previous_slots(subset :: <<_::8>>, DateTime.t()) :: BeaconSlot.t()
+  def previous_slots(subset, last_sync_date = %DateTime{}) when is_binary(subset) do
     BeaconSubset.previous_slots(subset, last_sync_date)
   end
 

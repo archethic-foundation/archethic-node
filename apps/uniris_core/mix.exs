@@ -31,6 +31,7 @@ defmodule UnirisCore.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:flow, "~> 1.0"},
       {:elixir_make, "~> 0.6.0", only: [:dev, :test]},
       {:ex_doc, "~> 0.21.2", only: [:dev]},
       {:mox, "~> 0.5.2", only: [:test]},
