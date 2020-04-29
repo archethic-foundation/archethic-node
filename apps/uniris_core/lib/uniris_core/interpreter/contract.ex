@@ -32,6 +32,7 @@ defmodule UnirisCore.Interpreter.Contract do
   - Triggers: Nodes are able to self trigger smart contract based on the extraction of
   these elements and stored locally.
     - Datetime: Timestamp when the action will be executed
+    - Interval: Time interval in seconds when the action will be executed (i.e `60` => each minute, `86400` => each day (midnight))
   - Conditions: Requirements to be true before execute the contract
     - Response: Define the rules to accept the incoming transaction response
     - Origin Family: Define the accepted family of devices originating the transactions
@@ -44,7 +45,7 @@ defmodule UnirisCore.Interpreter.Contract do
   inside triggers, conditions or actions
   """
   @type t :: %__MODULE__{
-          triggers: [] | [datetime: integer()],
+          triggers: [] | [datetime: integer(), interval: integer()],
           conditions: [
             response: Macro.t(),
             origin_family: origin_family(),
@@ -73,7 +74,7 @@ defmodule UnirisCore.Interpreter.Contract do
           Process.send_after(self(), :datetime_trigger, abs(now - value))
 
         :interval ->
-          schedule_time_trigger(Utils.time_offset(value))
+          schedule_time_trigger(Utils.time_offset(value * 1000))
           :ok
       end
     end)
@@ -178,7 +179,10 @@ defmodule UnirisCore.Interpreter.Contract do
     end
   end
 
-  def handle_info({:time_trigger, time}, state = %__MODULE__{actions: actions, constants: constants}) do
+  def handle_info(
+        {:time_trigger, time},
+        state = %__MODULE__{actions: actions, constants: constants}
+      ) do
     case Code.eval_quoted(actions, constants) do
       {output, _} ->
         schedule_time_trigger(time)
@@ -205,6 +209,6 @@ defmodule UnirisCore.Interpreter.Contract do
   end
 
   defp schedule_time_trigger(time) do
-    Process.send_after(self(), { :time_trigger, time}, time * 1000)
+    Process.send_after(self(), {:time_trigger, time}, time)
   end
 end
