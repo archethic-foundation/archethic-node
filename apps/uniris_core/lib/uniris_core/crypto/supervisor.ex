@@ -2,40 +2,27 @@ defmodule UnirisCore.CryptoSupervisor do
   @moduledoc false
   use Supervisor
 
+  alias UnirisCore.Utils
+
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def init(_opts) do
-    keystore = Application.get_env(:uniris_core, UnirisCore.Crypto)[:keystore]
+    renewal_interval =
+      :uniris_core
+      |> Application.get_env(UnirisCore.SharedSecrets.NodeRenewal)
+      |> Keyword.fetch!(:interval)
 
     children =
       [
-        UnirisCore.Crypto.LibSodiumPort,
-        keystore
-      ] ++ configurable_children()
+        UnirisCore.Crypto.LibSodiumPort
+      ] ++
+        Utils.configurable_children([
+          {UnirisCore.Crypto.Keystore, [], []},
+          {UnirisCore.Crypto.TransactionLoader, [renewal_interval: renewal_interval], []}
+        ])
 
     Supervisor.init(children, strategy: :rest_for_one)
-  end
-
-  defp configurable_children() do
-    [
-      configure(UnirisCore.Crypto.TransactionLoader)
-    ]
-    |> List.flatten()
-  end
-
-  defp configure(process, args \\ [], opts \\ []) do
-    if should_start?(process) do
-      Supervisor.child_spec({process, args}, opts)
-    else
-      []
-    end
-  end
-
-  defp should_start?(process) do
-    :uniris_core
-    |> Application.get_env(process, enabled: true)
-    |> Keyword.fetch!(:enabled)
   end
 end

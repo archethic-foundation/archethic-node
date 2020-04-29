@@ -1,6 +1,8 @@
 defmodule UnirisCore.StorageSupervisor do
   @moduledoc false
 
+  alias UnirisCore.Utils
+
   use Supervisor
 
   def start_link(opts) do
@@ -8,10 +10,11 @@ defmodule UnirisCore.StorageSupervisor do
   end
 
   def init(_opts) do
-    children = [
-      UnirisCore.Storage.FileBackend,
-      UnirisCore.Storage.Cache
-    ]
+    children =
+      Utils.configurable_children([
+        {UnirisCore.Storage.FileBackend, [], []},
+        {UnirisCore.Storage.Cache, [], []}
+      ])
 
     Supervisor.init(children, strategy: :rest_for_one)
   end
