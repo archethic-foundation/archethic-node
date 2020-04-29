@@ -97,18 +97,22 @@ defmodule UnirisCore.Storage do
       _ ->
         :ok = Backend.write_transaction(tx)
         :ok = Cache.store_transaction(tx)
+
         if load_transaction? do
           PubSub.notify_new_transaction(tx)
         end
-        Logger.debug("Transaction #{Base.encode16(tx.address)} stored")
+
+        Logger.debug("Transaction #{tx.type}@#{Base.encode16(tx.address)} stored")
     end
   end
 
   @doc """
   Persist a new transaction chain
   """
-  @spec write_transaction_chain(list(Transaction.validated()), load_transaction? :: boolean()) :: :ok
-  def write_transaction_chain([last_tx | _] = chain, load_transaction? \\ false) when is_list(chain) do
+  @spec write_transaction_chain(list(Transaction.validated()), load_transaction? :: boolean()) ::
+          :ok
+  def write_transaction_chain([last_tx | _] = chain, load_transaction? \\ false)
+      when is_list(chain) do
     case get_transaction(last_tx) do
       {:ok, _} ->
         :ok
@@ -116,9 +120,11 @@ defmodule UnirisCore.Storage do
       _ ->
         :ok = Backend.write_transaction_chain(chain)
         :ok = Cache.store_transaction(last_tx)
+
         if load_transaction? do
           PubSub.notify_new_transaction(last_tx)
         end
+
         Logger.debug("Transaction Chain #{Base.encode16(last_tx.address)} stored")
     end
   end

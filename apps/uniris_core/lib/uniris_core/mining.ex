@@ -13,6 +13,8 @@ defmodule UnirisCore.Mining do
   alias __MODULE__.Stamp
   alias __MODULE__.Context
 
+  require Logger
+
   @doc """
   Start mining process for a given transaction.
   """
@@ -150,9 +152,11 @@ defmodule UnirisCore.Mining do
     case Replication.transaction_validation_only(tx) do
       :ok ->
         Storage.write_transaction(tx)
+        Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
 
       _ ->
         Storage.write_ko_transaction(tx)
+        Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
 
@@ -163,6 +167,7 @@ defmodule UnirisCore.Mining do
 
       _ ->
         Storage.write_ko_transaction(tx)
+        Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
 
@@ -179,6 +184,7 @@ defmodule UnirisCore.Mining do
 
       _ ->
         Storage.write_ko_transaction(tx)
+        Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
 
