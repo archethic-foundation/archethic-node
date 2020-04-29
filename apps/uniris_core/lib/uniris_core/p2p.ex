@@ -30,13 +30,19 @@ defmodule UnirisCore.P2P do
   """
   @spec add_node(Node.t()) :: :ok
   def add_node(node = %Node{}) do
-    {:ok, _} =
-      DynamicSupervisor.start_child(
-        NodeSupervisor,
-        {Node, node}
-      )
+    case node_info(node.first_public_key) do
+      {:ok, _} ->
+        :ok
 
-    Logger.debug("New node added #{Base.encode16(node.first_public_key)}")
+      _ ->
+        {:ok, _} =
+          DynamicSupervisor.start_child(
+            NodeSupervisor,
+            {Node, node}
+          )
+
+        Logger.debug("New node added #{Base.encode16(node.first_public_key)}")
+    end
   end
 
   @doc """
