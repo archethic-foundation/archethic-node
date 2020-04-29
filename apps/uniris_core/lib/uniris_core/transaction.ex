@@ -118,13 +118,7 @@ defmodule UnirisCore.Transaction do
   @spec new(transaction_type(), TransactionData.t(), binary(), non_neg_integer()) ::
           __MODULE__.pending()
   def new(type, data = %TransactionData{}, seed, index) when type in @transaction_types do
-    {previous_public_key, previous_private_key} =
-      if index > 0 do
-        Crypto.derivate_keypair(seed, index - 1)
-      else
-        Crypto.derivate_keypair(seed, 0)
-      end
-
+    {previous_public_key, previous_private_key} = Crypto.derivate_keypair(seed, index)
     {next_public_key, _} = Crypto.derivate_keypair(seed, index + 1)
 
     %{
