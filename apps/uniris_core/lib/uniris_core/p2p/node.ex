@@ -7,8 +7,8 @@ defmodule UnirisCore.P2P.Node do
   P2P view freshness are computed through a supervised connection to identify the availability and the
   average of availability of the node.
 
-  Each node by default are not authorized, there become autorized and able to be a validator
-  when a shared secret transaction involve it.
+  Each node by default are not authorized and become come when a node shared secrets transaction involve it.
+  Each node by default is not ready, and become it when a beacon pool receive a readyness message after the node bootstraping
   """
 
   use GenServer
@@ -37,7 +37,8 @@ defmodule UnirisCore.P2P.Node do
     availability_history: <<>>,
     authorized?: false,
     ready?: false,
-    client_pid: nil
+    client_pid: nil,
+    enrollment_date: nil
   ]
 
   @type t() :: %__MODULE__{
@@ -52,7 +53,8 @@ defmodule UnirisCore.P2P.Node do
           availability_history: bitstring(),
           authorized?: boolean(),
           ready?: boolean(),
-          client_pid: pid()
+          client_pid: pid(),
+          enrollment_date: DateTime.t()
         }
 
   @doc """
@@ -119,8 +121,9 @@ defmodule UnirisCore.P2P.Node do
     {:ok, %{node | client_pid: pid}}
   end
 
-  def handle_cast(
+  def handle_call(
         {:update_basics, last_public_key, ip, port},
+        _from,
         state = %{first_public_key: first_public_key, last_public_key: previous_public_key}
       ) do
     new_state =
@@ -136,39 +139,38 @@ defmodule UnirisCore.P2P.Node do
 
     Registry.register(NodeRegistry, last_public_key, [])
 
-    {:noreply, new_state}
+    {:reply, :ok, new_state}
   end
 
-  def handle_cast({:update_network_patch, network_patch}, state) do
-    {:noreply, Map.put(state, :network_patch, network_patch)}
+  def handle_call({:update_network_patch, network_patch}, _from, state) do
+    {:reply, :ok, Map.put(state, :network_patch, network_patch)}
   end
 
-  def handle_cast({:update_average_availability, avg_availability}, state) do
+  def handle_call({:update_average_availability, avg_availability}, _from, state) do
     new_state =
       state
       |> Map.put(:availability_history, <<>>)
       |> Map.put(:average_availability, avg_availability)
 
-    {:noreply, new_state}
+    {:reply, :ok, new_state}
   end
 
-  def handle_cast(:authorize, state = %{authorized?: false}) do
+  def handle_call(:authorize, _from, state = %{authorized?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is authorized")
-    {:noreply, Map.put(state, :authorized?, true)}
+    {:reply, :ok, Map.put(state, :authorized?, true)}
   end
 
-  def handle_cast(:authorize, state), do: {:noreply, state}
+  def handle_call(:authorize, _from, state), do: {:reply, :ok, state}
 
-  def handle_cast(:is_ready, state = %{ready?: false}) do
+  def handle_call(:is_ready, _from, state = %{ready?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is ready")
-    {:noreply, Map.put(state, :ready?, true)}
+    {:reply, :ok, Map.put(state, :ready?, true)}
   end
 
-  def handle_cast(:is_ready, state), do: {:noreply, state}
+  def handle_call(:is_ready, _from, state), do: {:reply, :ok, state}
 
-  def handle_cast({:schedule_ready, seconds}, state) do
-    Process.send_after(self(), :is_ready, seconds)
-    {:noreply, state}
+  def handle_call({:set_enrollment_date, date}, _from, state) do
+    {:reply, :ok, Map.put(state, :enrollment_date, date)}
   end
 
   def handle_call(:details, _from, state) do
@@ -241,10 +243,6 @@ defmodule UnirisCore.P2P.Node do
     {:noreply, new_state}
   end
 
-  def handle_info(:is_ready, state) do
-    {:noreply, Map.put(state, :ready?, true)}
-  end
-
   defp new_average_availability(history) do
     list = for <<view::1 <- history>>, do: view
 
@@ -289,7 +287,7 @@ defmodule UnirisCore.P2P.Node do
           node_port :: :inet.port_number()
         ) :: :ok
   def update_basics(first_public_key, last_public_key, ip, port) do
-    GenServer.cast(via_tuple(first_public_key), {:update_basics, last_public_key, ip, port})
+    GenServer.call(via_tuple(first_public_key), {:update_basics, last_public_key, ip, port})
   end
 
   @doc """
@@ -298,7 +296,7 @@ defmodule UnirisCore.P2P.Node do
   @spec update_network_patch(node_public_key :: UnirisCrypto.key(), geo_patch :: binary()) :: :ok
   def update_network_patch(public_key, network_patch) do
     [{pid, _}] = Registry.lookup(NodeRegistry, public_key)
-    GenServer.cast(pid, {:update_network_patch, network_patch})
+    GenServer.call(pid, {:update_network_patch, network_patch})
   end
 
   @doc """
@@ -311,7 +309,7 @@ defmodule UnirisCore.P2P.Node do
   def update_average_availability(public_key, avg_availability)
       when is_float(avg_availability) and avg_availability >= 0 and
              avg_availability <= 1 do
-    GenServer.cast(via_tuple(public_key), {:update_average_availability, avg_availability})
+    GenServer.call(via_tuple(public_key), {:update_average_availability, avg_availability})
   end
 
   @doc """
@@ -319,27 +317,28 @@ defmodule UnirisCore.P2P.Node do
   """
   @spec authorize(UnirisCrypto.key() | __MODULE__.t()) :: :ok
   def authorize(public_key) when is_binary(public_key) do
-    GenServer.cast(via_tuple(public_key), :authorize)
+    GenServer.call(via_tuple(public_key), :authorize)
   end
 
   def authorize(%__MODULE__{first_public_key: public_key}) do
-    GenServer.cast(via_tuple(public_key), :authorize)
+    GenServer.call(via_tuple(public_key), :authorize)
   end
 
   @doc """
   Mark the node as ready
   """
-  @spec set_ready(public_key :: binary()) :: :ok
+  @spec set_ready(public_key :: UnirisCore.Crypto.key()) :: :ok
   def set_ready(public_key) when is_binary(public_key) do
-    GenServer.cast(via_tuple(public_key), :is_ready)
+    GenServer.call(via_tuple(public_key), :is_ready)
   end
 
-  @doc """
-  Schedule the readyness of the node in the given seconds
-  """
-  @spec schedule_ready(UnirisCrypto.key(), :second) :: :ok
-  def schedule_ready(public_key, seconds) when is_binary(public_key) do
-    GenServer.cast(via_tuple(public_key), {:schedule_ready, seconds})
+  @spec set_enrollment_date(public_key :: UnirisCore.Crypto.key(), DateTime.t()) :: :ok
+  def set_enrollment_date(public_key, date = %DateTime{}) when is_binary(public_key) do
+    GenServer.call(via_tuple(public_key), {:set_enrollment_date, date})
+  end
+
+  def set_enrollment_date(public_key, nil) when is_binary(public_key) do
+    :ok
   end
 
   @doc """
