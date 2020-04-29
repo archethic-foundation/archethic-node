@@ -8,19 +8,63 @@ defmodule UnirisCore.P2P.TransactionLoader do
   alias UnirisCore.P2P.Node
   alias UnirisCore.Storage
   alias UnirisCore.PubSub
+  alias UnirisCore.Utils
 
   use GenServer
+
+  require Logger
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  def init(_opts) do
-    Enum.each(Storage.node_transactions(), &load_transaction/1)
-
+  def init(opts) do
     PubSub.register_to_new_transaction()
 
-    {:ok, []}
+    renewal_interval = Keyword.get(opts, :renewal_interval)
+
+    initial_state = %{renewal_interval: renewal_interval}
+
+    Enum.each(Storage.node_transactions(), &load_transaction/1)
+
+    case Storage.get_last_node_shared_secrets_transaction() do
+      {:ok, tx} ->
+        load_transaction(tx)
+        {:ok, initial_state}
+
+      _ ->
+        {:ok, initial_state}
+    end
+
+    {:ok, initial_state}
+  end
+
+  def handle_info(
+        {:new_transaction,
+         %Transaction{
+           type: :node_shared_secrets,
+           data: %TransactionData{
+             keys: %{authorized_keys: authorized_keys}
+           }
+         }},
+        state = %{renewal_interval: renewal_interval}
+      ) do
+    renewal_offset = Utils.time_offset(renewal_interval)
+
+    unless !Map.has_key?(state, :ref_authorized_scheduler) do
+      Process.cancel_timer(state.ref_authorized_scheduler)
+    end
+
+    # Schedule the set of authorized nodes at the renewal interval
+    ref_authorized_scheduler =
+      Process.send_after(
+        self(),
+        {:authorize_nodes, Map.keys(authorized_keys)},
+        renewal_offset
+      )
+
+    new_state = Map.put(state, :ref_authorized_scheduler, ref_authorized_scheduler)
+    {:noreply, new_state}
   end
 
   def handle_info({:new_transaction, tx = %Transaction{}}, state) do
@@ -28,10 +72,18 @@ defmodule UnirisCore.P2P.TransactionLoader do
     {:noreply, state}
   end
 
+  def handle_info({:authorize_nodes, nodes}, state) do
+    Logger.debug("new authorized nodes #{inspect(nodes)}")
+
+    Enum.each(nodes, &Node.authorize/1)
+    {:noreply, state}
+  end
+
   def handle_info(_, state), do: {:noreply, state}
 
   defp load_transaction(%Transaction{
          type: :node,
+         timestamp: timestamp,
          data: %TransactionData{content: content},
          previous_public_key: previous_public_key
        }) do
@@ -49,16 +101,27 @@ defmodule UnirisCore.P2P.TransactionLoader do
           ip: ip,
           port: port,
           first_public_key: previous_public_key,
-          last_public_key: previous_public_key
+          last_public_key: previous_public_key,
+          enrollment_date: timestamp
         })
     end
   end
 
-  defp load_transaction(_), do: :ok
+  defp load_transaction(%Transaction{
+         type: :node_shared_secrets,
+         data: %TransactionData{
+           keys: %{
+             authorized_keys: authorized_keys
+           }
+         }
+       }) do
+    Enum.map(Map.keys(authorized_keys), &Node.authorize/1)
+  end
+
+  defp load_transaction(_tx), do: :ok
 
   defp extract_node_from_content(content) do
-    [ip_match, port_match] =
-      Regex.scan(~r/(?<=ip:|port:|first_public_key:|last_public_key:).*/, content)
+    [ip_match, port_match] = Regex.scan(~r/(?<=ip:|port:).*/, content)
 
     {:ok, ip} =
       ip_match

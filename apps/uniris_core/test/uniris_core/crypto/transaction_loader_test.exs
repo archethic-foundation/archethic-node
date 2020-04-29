@@ -4,39 +4,63 @@ defmodule UnirisCore.Crypto.TransactionLoaderTest do
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+  alias UnirisCore.Crypto.ECDSA
   alias UnirisCore.Crypto.TransactionLoader
-  alias UnirisCore.Crypto.SoftwareKeystore
 
   import Mox
 
   setup do
-    MockStorage
-    |> stub(:node_transactions, fn -> [] end)
-    |> stub(:get_last_node_shared_secrets_transaction, fn -> {:error, :transaction_not_exists} end)
-
-    pid = start_supervised!(TransactionLoader)
+    start_supervised!(UnirisCore.Storage.Cache)
+    pid = start_supervised!({TransactionLoader, renewal_interval: 100})
 
     {:ok, %{pid: pid}}
   end
 
   test "when get a {:new_transaction, %Transaction{type: node} should increment crypto key if the node public key match the previous public key of the transaction",
        %{pid: pid} do
-    previous_index_of_keys = Crypto.number_of_node_keys()
+    {:ok, agent_pid} = Agent.start_link(fn -> %{number_of_node_keys: 0} end)
 
     MockStorage
     |> stub(:get_transaction, fn _ -> {:error, :transaction_not_exists} end)
+
+    MockCrypto
+    |> expect(:increment_number_of_generate_node_keys, fn ->
+      Agent.update(agent_pid, fn state -> Map.update!(state, :number_of_node_keys, &(&1 + 1)) end)
+    end)
 
     tx = Transaction.new(:node, %TransactionData{content: "ip: 127.0.0.1\nport: 3000"})
     send(pid, {:new_transaction, tx})
     Process.sleep(100)
 
-    assert Crypto.number_of_node_keys() > previous_index_of_keys
+    assert Agent.get(agent_pid, & &1.number_of_node_keys) == 1
   end
 
-  test "when get {:new_transaction, %Transaction{type: :node_shared_secrets} should set node as authorized if presents in the shared secrets and decrypt the seeds",
+  test "when get {:new_transaction, %Transaction{type: :node_shared_secrets} should decrypt and load the seeds",
        %{pid: pid} do
+    {:ok, agent_pid} = Agent.start_link(fn -> %{} end)
+
     aes_key = :crypto.strong_rand_bytes(32)
     seed = :crypto.strong_rand_bytes(32)
+
+    MockCrypto
+    |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn encrypted_seed,
+                                                                      encrypted_aes_key ->
+      Agent.update(agent_pid, fn state ->
+        {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+        aes_key = ECDSA.decrypt(:secp256r1, pv, encrypted_aes_key)
+        transaction_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
+        Map.put(state, :node_secrets_transaction_seed, transaction_seed)
+      end)
+    end)
+    |> stub(:decrypt_and_set_daily_nonce_seed, fn encrypted_seed, encrypted_aes_key ->
+      Agent.update(agent_pid, fn state ->
+        {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+        aes_key = ECDSA.decrypt(:secp256r1, pv, encrypted_aes_key)
+        daily_nonce_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
+        keys = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+        Map.put(state, :daily_nonce_keys, keys)
+      end)
+    end)
 
     Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
       Crypto.aes_encrypt(seed, aes_key),
@@ -57,9 +81,8 @@ defmodule UnirisCore.Crypto.TransactionLoaderTest do
       })
 
     send(pid, {:new_transaction, tx})
-    Process.sleep(100)
+    Process.sleep(200)
 
-    assert %{daily_nonce_keys: _, node_secrets_transaction_seed: _} =
-             :sys.get_state(SoftwareKeystore)
+    assert %{daily_nonce_keys: _, node_secrets_transaction_seed: seed} = Agent.get(agent_pid, & &1)
   end
 end

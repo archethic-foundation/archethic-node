@@ -2,11 +2,8 @@ defmodule UnirisCore.SharedSecrets.TransactionLoader do
   @moduledoc false
 
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
   alias UnirisCore.SharedSecrets
   alias UnirisCore.PubSub
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.Crypto
 
   require Logger
 
@@ -19,62 +16,9 @@ defmodule UnirisCore.SharedSecrets.TransactionLoader do
   def init(_opts) do
     PubSub.register_to_new_transaction()
 
-    renewal_interval =
-      :uniris_core
-      |> Application.get_env(UnirisCore.SharedSecrets.NodeRenewal)
-      |> Keyword.fetch!(:interval)
-
     # TODO: when the origin key renewal implemented , load from the storage the origin shared secrets transactions
 
-    {:ok, %{renewal_interval: renewal_interval}}
-  end
-
-  def handle_info(
-        {:new_transaction,
-         %Transaction{
-           type: :node_shared_secrets,
-           timestamp: timestamp,
-           data: %TransactionData{
-             keys: %{
-               daily_nonce_seed: encrypted_daily_nonce_seed,
-               transaction_seed: encrypted_transaction_seed,
-               authorized_keys: authorized_keys
-             }
-           }
-         }},
-        state = %{renewal_interval: renewal_interval}
-      ) do
-    Crypto.increment_number_of_generate_node_shared_keys()
-    IO.inspect "#{Crypto.number_of_node_shared_secrets_keys()}"
-
-    # Schedule the set of authorized nodes at the renewal interval
-    Process.send_after(
-      self(),
-      {:authorize_nodes, Map.keys(authorized_keys)},
-      get_renewal_offset(renewal_interval)
-    )
-
-    case Map.get(authorized_keys, Crypto.node_public_key()) do
-      nil ->
-        {:noreply, state}
-
-      encrypted_key ->
-        Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
-          encrypted_transaction_seed,
-          encrypted_key
-        )
-
-        Logger.info("Node shared secrets seed loaded")
-
-        # Schedule the loading of the daily nonce for the renewal interval
-        Process.send_after(
-          self(),
-          {:set_daily_nonce, encrypted_daily_nonce_seed, encrypted_key},
-          get_renewal_offset(renewal_interval)
-        )
-
-        {:noreply, state}
-    end
+    {:ok, %{}}
   end
 
   def handle_info(
@@ -94,26 +38,8 @@ defmodule UnirisCore.SharedSecrets.TransactionLoader do
     {:noreply, state}
   end
 
-  def handle_info({:set_daily_nonce, encrypted_daily_nonce_seed, encrypted_key}, state) do
-    Crypto.decrypt_and_set_daily_nonce_seed(encrypted_daily_nonce_seed, encrypted_key)
-    Logger.info("Node shared secrets daily nonce updated")
-    {:noreply, state}
-  end
-
-  def handle_info({:authorize_nodes, nodes}, state) do
-    Enum.each(nodes, &Node.authorize/1)
-    {:noreply, state}
-  end
-
   def handle_info(_, state) do
     {:noreply, state}
-  end
-
-  defp get_renewal_offset(renewal_interval) do
-    current_time = Time.utc_now().second * 1000
-    last_interval = renewal_interval * trunc(current_time / renewal_interval)
-    next_interval = last_interval + renewal_interval
-    next_interval - current_time
   end
 
   defp extract_origin_public_keys_from_content(content) do
