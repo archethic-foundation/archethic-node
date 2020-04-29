@@ -28,7 +28,11 @@ defmodule UnirisCore.BeaconSubset do
      }}
   end
 
-  def handle_cast({:add_transaction_info, tx_info = %TransactionInfo{address: address}}, state) do
+  def handle_call(
+        {:add_transaction_info, tx_info = %TransactionInfo{address: address}},
+        _from,
+        state
+      ) do
     Logger.debug(
       "Transaction #{inspect(tx_info)} added to the beacon chain (subset #{
         Base.encode16(state.subset)
@@ -36,17 +40,19 @@ defmodule UnirisCore.BeaconSubset do
     )
 
     PubSub.notify_new_transaction(address)
-    {:noreply, Map.update!(state, :current_slot, &BeaconSlot.add_transaction_info(&1, tx_info))}
+
+    {:reply, :ok,
+     Map.update!(state, :current_slot, &BeaconSlot.add_transaction_info(&1, tx_info))}
   end
 
-  def handle_cast({:add_node_info, node_info = %NodeInfo{}}, state) do
+  def handle_call({:add_node_info, node_info = %NodeInfo{}}, _from, state) do
     Logger.debug(
       "Node #{inspect(node_info)} info added to the beacon chain subset(#{
         Base.encode16(state.subset)
       })"
     )
 
-    {:noreply, Map.update!(state, :current_slot, &BeaconSlot.add_node_info(&1, node_info))}
+    {:reply, :ok, Map.update!(state, :current_slot, &BeaconSlot.add_node_info(&1, node_info))}
   end
 
   def handle_info(
@@ -56,23 +62,23 @@ defmodule UnirisCore.BeaconSubset do
     {:noreply, state}
   end
 
-  def handle_info({:create_slot, slot_time}, state = %{current_slot: current_slot}) do
+  def handle_info({:create_slot, slot_time = %DateTime{}}, state = %{current_slot: current_slot}) do
     tx = Transaction.new(:beacon, %TransactionData{content: output_slot(current_slot)})
     Storage.write_transaction(tx)
 
     new_state =
       state
       |> Map.put(:current_slot, %BeaconSlot{})
-      |> put_in([:slots, DateTime.to_unix(slot_time)], tx)
+      |> put_in([:slots, slot_time], tx)
 
     Logger.debug("Beacon slot created with #{inspect(current_slot)}")
     {:noreply, new_state}
   end
 
-  def handle_call({:previous_slots, last_sync_date}, _, state = %{slots: slots}) do
+  def handle_call({:previous_slots, last_sync_date = %DateTime{}}, _, state = %{slots: slots}) do
     previous_slots =
       slots
-      |> Enum.filter(fn {time, _} -> time >= last_sync_date end)
+      |> Enum.filter(fn {time, _} -> DateTime.compare(time, last_sync_date) == :gt end)
       |> Enum.sort_by(fn {time, _} -> time end)
       |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
         content
@@ -139,16 +145,16 @@ defmodule UnirisCore.BeaconSubset do
 
   @spec add_transaction_info(sbuset :: binary(), Transaction.info()) :: :ok
   def add_transaction_info(subset, tx_info = %TransactionInfo{}) do
-    GenServer.cast(via_tuple(subset), {:add_transaction_info, tx_info})
+    GenServer.call(via_tuple(subset), {:add_transaction_info, tx_info})
   end
 
   @spec add_node_info(subset :: binary(), NodeInfo.t()) :: :ok
   def add_node_info(subset, node_info = %NodeInfo{}) do
-    GenServer.cast(via_tuple(subset), {:add_node_info, node_info})
+    GenServer.call(via_tuple(subset), {:add_node_info, node_info})
   end
 
-  @spec previous_slots(binary(), integer()) :: BeaconSlot.t()
-  def previous_slots(subset, last_sync_date) do
+  @spec previous_slots(binary(), DateTime.t()) :: BeaconSlot.t()
+  def previous_slots(subset, last_sync_date = %DateTime{}) do
     subset
     |> via_tuple
     |> GenServer.call({:previous_slots, last_sync_date})
