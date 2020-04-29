@@ -210,7 +210,7 @@ defmodule UnirisCore.P2PServer do
 
   defp process_message({:get_beacon_slots, subset, last_sync_date})
        when is_binary(subset) and is_integer(last_sync_date) do
-    Beacon.previous_slots(subset, last_sync_date)
+    Beacon.previous_slots(subset, DateTime.from_unix!(last_sync_date))
   end
 
   defp process_message({:add_node_info, subset, node_info = %NodeInfo{}})

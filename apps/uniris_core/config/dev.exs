@@ -22,19 +22,33 @@ config :uniris_core, UnirisCore.P2P,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer(),
   node_client: UnirisCore.P2P.NodeTCPClient
 
-config :uniris_core, UnirisCore.Beacon, slot_interval: 5_000
+config :uniris_core, UnirisCore.BeaconSlotTimer,
+  enabled: true,
+  slot_interval: 58_000
 
 config :uniris_core, UnirisCore.SharedSecrets.NodeRenewal,
-  interval: 15_000,
-  trigger_interval: 8_000,
+  interval: 60_000,
+  trigger_interval: 50_000,
   enabled: true
 
 config :uniris_core, UnirisCore.SharedSecrets.TransactionLoader, enabled: true
 
 config :uniris_core, UnirisCore.SelfRepair,
   enabled: true,
-  repair_interval: 6_000,
-  network_startup_date: DateTime.from_naive!(~N[2020-04-22 00:00:00], "Etc/UTC")
+  interval: 60_000,
+  network_startup_date: %DateTime{
+    year: DateTime.utc_now().year,
+    month: DateTime.utc_now().month,
+    day: DateTime.utc_now().day,
+    hour: DateTime.utc_now().hour,
+    minute: DateTime.utc_now().minute - 1,
+    second: 0,
+    microsecond: {0, 0},
+    utc_offset: 0,
+    std_offset: 0,
+    time_zone: "Etc/UTC",
+    zone_abbr: "UTC"
+  }
 
 config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.FileBackend
 

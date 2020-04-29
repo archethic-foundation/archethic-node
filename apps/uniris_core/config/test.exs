@@ -16,11 +16,14 @@ config :uniris_core, UnirisCore.Crypto,
   default_curve: :ed25519,
   default_hash: :sha256,
   seed: "fake seed",
-  keystore: UnirisCore.Crypto.SoftwareKeystore
+  keystore: MockCrypto
 
+config :uniris_core, UnirisCore.Crypto.Keystore, enabled: false
 config :uniris_core, UnirisCore.Crypto.TransactionLoader, enabled: false
 
-config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.FileBackend
+config :uniris_core, UnirisCore.Storage, backend: MockStorage
+config :uniris_core, UnirisCore.Storage.FileBackend, enabled: false
+config :uniris_core, UnirisCore.Storage.Cache, enabled: false
 
 config :uniris_core, UnirisCore.P2P,
   port: 3005,
@@ -28,19 +31,24 @@ config :uniris_core, UnirisCore.P2P,
 
 config :uniris_core, UnirisCore.P2P.TransactionLoader, enabled: false
 
-config :uniris_core, UnirisCore.Beacon, slot_interval: 1000
 config :uniris_core, UnirisCore.BeaconSubset, enabled: false
+
+config :uniris_core, UnirisCore.BeaconSlotTimer, enabled: false
 
 config :uniris_core, UnirisCore.SharedSecrets.TransactionLoader, enabled: false
 
 config :uniris_core, UnirisCore.SharedSecrets.NodeRenewal,
-  interval: 0,
+  enabled: false,
   trigger_interval: 0,
-  enabled: false
+  interval: 0
 
-config :uniris_core, UnirisCore.SelfRepair, enabled: false
+config :uniris_core, UnirisCore.SelfRepair,
+  enabled: false,
+  network_startup_date: DateTime.utc_now()
 
 config :uniris_core, UnirisCore.Bootstrap,
-  seeds_file: "priv/p2p/seeds",
+  seeds_file: "priv/p2p/test_seeds",
   ip_lookup_provider: MockIPLookup,
   enabled: false
+
+config :uniris_core, UnirisCore.Interpreter.TransactionLoader, enabled: false

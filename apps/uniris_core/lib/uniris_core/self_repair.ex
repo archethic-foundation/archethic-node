@@ -11,6 +11,7 @@ defmodule UnirisCore.SelfRepair do
   alias UnirisCore.Storage
   alias UnirisCore.Crypto
   alias UnirisCore.Transaction
+  alias UnirisCore.Utils
 
   @last_sync_dir Application.app_dir(:uniris_core, "priv/last_sync")
 
@@ -20,38 +21,69 @@ defmodule UnirisCore.SelfRepair do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  def start_sync(node_patch, fire_sync \\ true)
+      when is_binary(node_patch) and is_boolean(fire_sync) do
+    GenServer.call(__MODULE__, {:start_sync, node_patch, fire_sync})
+  end
+
+  def last_sync_date() do
+    file = last_sync_file()
+
+    if File.exists?(file) do
+      file
+      |> File.read!()
+      |> String.to_integer()
+      |> DateTime.from_unix!()
+    else
+      Application.get_env(:uniris_core, UnirisCore.SelfRepair)[:network_startup_date]
+    end
+  end
+
   def init(opts) do
     File.mkdir_p(@last_sync_dir)
 
-    repair_interval = Keyword.get(opts, :repair_interval)
+    interval = Keyword.get(opts, :interval)
 
     {:ok,
      %{
-       repair_interval: repair_interval,
-       last_sync_date: last_sync_date(),
-       node_patch: nil
+       interval: interval,
+       last_sync_date: last_sync_date()
      }}
   end
 
-  def handle_cast({:start_sync, node_patch}, state = %{repair_interval: interval}) do
-    current_time = Time.utc_now().second * 1000
-    last_interval = interval * trunc(current_time / interval)
-    next_interval = last_interval + interval
-    offset = next_interval - current_time
-    schedule_sync(offset)
+  def handle_call(
+        {:start_sync, node_patch, fire_sync?},
+        {from_pid, _ref},
+        state = %{interval: interval}
+      ) do
+    if fire_sync? do
+      {:reply, :ok, Map.put(state, :node_patch, node_patch), {:continue, {:first_sync, from_pid}}}
+    else
+      schedule_sync(Utils.time_offset(interval))
 
-    {:noreply, Map.put(state, :node_patch, node_patch)}
+      new_state =
+        state
+        |> update_last_sync_date()
+        |> Map.put(:node_patch, node_patch)
+
+      {:reply, :ok, new_state}
+    end
   end
 
-  def handle_info(:sync, state = %{node_patch: nil, repair_interval: interval}) do
-    schedule_sync(interval)
-    {:noreply, state}
+  def handle_continue(
+        {:first_sync, from_pid},
+        state = %{node_patch: node_patch, last_sync_date: last_sync_date, interval: interval}
+      ) do
+    synchronize(last_sync_date, node_patch)
+    send(from_pid, :sync_finished)
+    schedule_sync(Utils.time_offset(interval))
+    {:noreply, update_last_sync_date(state)}
   end
 
   def handle_info(
         :sync,
         state = %{
-          repair_interval: interval,
+          interval: interval,
           last_sync_date: last_sync_date,
           node_patch: node_patch
         }
@@ -59,10 +91,13 @@ defmodule UnirisCore.SelfRepair do
     Logger.info("Self-repair synchronization started")
     synchronize(last_sync_date, node_patch)
     schedule_sync(interval)
+    {:noreply, update_last_sync_date(state)}
+  end
+
+  defp update_last_sync_date(state) do
     next_sync_date = DateTime.utc_now()
     store_last_sync_date(next_sync_date)
-
-    {:noreply, Map.put(state, :last_sync_date, next_sync_date)}
+    Map.put(state, :last_sync_date, next_sync_date)
   end
 
   defp schedule_sync(0), do: :ok
@@ -71,10 +106,10 @@ defmodule UnirisCore.SelfRepair do
     Process.send_after(self(), :sync, interval)
   end
 
-  @doc """
-  Proceed to the synchronization of the missing informations from the beacon chains
-  """
-  def synchronize(last_sync_date = %DateTime{}, node_patch) when is_binary(node_patch) do
+  # Retreive missing transactions from the missing beacon chain slots
+  # Beacon chain pools are retrieved from the given latest synchronization date including all the beacon subsets (i.e <<0>>, <<1>>, etc.)
+  # Once retrieved, the transactions are downloaded and stored if not exists locally
+  defp synchronize(last_sync_date, node_patch) do
     Beacon.get_pools(last_sync_date)
     |> slots_to_sync(last_sync_date, node_patch)
     |> synchronize_missing_slots(node_patch)
@@ -85,12 +120,10 @@ defmodule UnirisCore.SelfRepair do
     File.write!(last_sync_file(), data, [:write])
   end
 
-  @doc """
-  Request beacon pools the slot informations before a last synchronization time
-  """
-  def slots_to_sync([], _, _), do: []
+  # Request beacon pools the slot informations before a last synchronization time
+  defp slots_to_sync([], _, _), do: []
 
-  def slots_to_sync(pools, last_sync_date, node_patch) do
+  defp slots_to_sync(pools, last_sync_date, node_patch) do
     Task.async_stream(pools, &query_beacon_slot_data(&1, last_sync_date, node_patch))
     |> Enum.into([], fn {:ok, res} -> res end)
     |> Enum.flat_map(& &1)
@@ -106,50 +139,49 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp synchronize_missing_slots(slots, node_patch) do
-    %BeaconSlot{transactions: transactions, nodes: nodes} =
-      Enum.reduce(slots, %BeaconSlot{}, fn %BeaconSlot{transactions: transactions, nodes: nodes},
-                                           acc ->
-        acc = Enum.reduce(nodes, acc, &BeaconSlot.add_node_info(&2, &1))
-        Enum.reduce(transactions, acc, &BeaconSlot.add_transaction_info(&2, &1))
-      end)
-
+    %BeaconSlot{transactions: transactions, nodes: nodes} = reduce_slots(slots)
     synchronize_transactions(transactions, node_patch)
     update_node_infos(nodes)
   end
 
+  defp reduce_slots(slots) do
+    Enum.reduce(slots, %BeaconSlot{}, fn %BeaconSlot{transactions: transactions, nodes: nodes},
+                                         acc ->
+      acc = Enum.reduce(nodes, acc, &BeaconSlot.add_node_info(&2, &1))
+      Enum.reduce(transactions, acc, &BeaconSlot.add_transaction_info(&2, &1))
+    end)
+  end
+
   defp synchronize_transactions(transaction_infos, node_patch) do
     transaction_infos
-    |> Enum.reject(fn %TransactionInfo{address: address} -> transaction_exists?(address) end)
+    |> Enum.reject(&transaction_exists?(&1.address))
     # Prioritize node transactions
     # TODO: same with other network type transactions
+    |> Enum.sort_by(& &1.timestamp, :desc)
     |> Enum.sort_by(fn %TransactionInfo{type: type} -> type end, fn type, _ -> type == :node end)
-    |> Enum.each(fn %TransactionInfo{address: address, type: type} ->
-      storage_nodes =
-        if Transaction.network_type?(type) do
-          P2P.list_nodes()
-        else
-          Election.storage_nodes(address)
-        end
-        |> P2P.nearest_nodes(node_patch)
-        |> Enum.map(& &1.first_public_key)
+    |> Enum.each(&handle_transaction_info(&1, node_patch))
+  end
 
-      if Crypto.node_public_key(0) in storage_nodes do
-        case type do
-          :node_shared_secrets ->
-            Crypto.increment_number_of_generate_node_shared_keys()
-            IO.inspect "#{Crypto.number_of_node_shared_secrets_keys()}"
-            tx = download_transaction(storage_nodes, address)
-            Storage.write_transaction(tx, false)
-          :node ->
-            tx = download_transaction(storage_nodes, address)
-            Storage.write_transaction(tx)
-          _ ->
-            # TODO: build the transaction history to create a tree to fetch the latest transaction chain
-            chain = download_transaction_chain(storage_nodes, address)
-            Storage.write_transaction_chain(chain)
-        end
+  defp handle_transaction_info(%TransactionInfo{address: address, type: type}, node_patch) do
+    storage_nodes =
+      if Transaction.network_type?(type) do
+        P2P.list_nodes()
+      else
+        Election.storage_nodes(address)
       end
-    end)
+      |> P2P.nearest_nodes(node_patch)
+      |> Enum.map(& &1.first_public_key)
+
+    if Crypto.node_public_key(0) in storage_nodes do
+      if Transaction.network_type?(type) do
+        tx = download_transaction(storage_nodes, address)
+        Storage.write_transaction(tx)
+      else
+        # TODO: build the transaction history to create a tree to fetch the latest transaction chain
+        chain = download_transaction_chain(storage_nodes, address)
+        Storage.write_transaction_chain(chain)
+      end
+    end
   end
 
   defp update_node_infos(node_infos) do
@@ -180,10 +212,6 @@ defmodule UnirisCore.SelfRepair do
 
   defp do_download([], _), do: {:error, :network_issue}
 
-  def start_sync(node_patch) when is_binary(node_patch) do
-    GenServer.cast(__MODULE__, {:start_sync, node_patch})
-  end
-
   defp transaction_exists?(address) do
     case Storage.get_transaction(address) do
       {:ok, _} ->
@@ -191,19 +219,6 @@ defmodule UnirisCore.SelfRepair do
 
       _ ->
         false
-    end
-  end
-
-  def last_sync_date() do
-    file = last_sync_file()
-
-    if File.exists?(file) do
-      file
-      |> File.read!()
-      |> String.to_integer()
-      |> DateTime.from_unix!()
-    else
-      Application.get_env(:uniris_core, UnirisCore.SelfRepair)[:network_startup_date]
     end
   end
 
