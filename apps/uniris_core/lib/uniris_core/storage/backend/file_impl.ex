@@ -1,5 +1,7 @@
 defmodule UnirisCore.Storage.FileBackend do
   @moduledoc false
+
+  alias UnirisCore.Crypto
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
@@ -17,7 +19,9 @@ defmodule UnirisCore.Storage.FileBackend do
     root_dir =
       Path.join(
         Application.app_dir(:uniris_core, "priv/storage"),
-        System.get_env("UNIRIS_CRYPTO_SEED", "")
+        Application.get_env(:uniris_core, UnirisCore.Crypto)[:seed]
+        |> Crypto.hash()
+        |> Base.encode16()
       )
 
     transactions_dir = Path.join(root_dir, "transactions")
