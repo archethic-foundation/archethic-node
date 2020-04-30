@@ -3,8 +3,9 @@ defmodule UnirisCore.TransactionData do
   Represents any transaction data block
   """
   alias __MODULE__.Ledger
+  alias __MODULE__.Keys
 
-  defstruct recipients: [], ledger: %Ledger{}, code: "", keys: %{}, content: ""
+  defstruct recipients: [], ledger: %Ledger{}, code: "", keys: %Keys{}, content: ""
 
   @typedoc """
   Transaction data is composed from:

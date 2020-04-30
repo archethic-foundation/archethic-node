@@ -14,8 +14,7 @@ defmodule UnirisCore.SharedSecretsTest do
       data: %TransactionData{
         keys: %{
           authorized_keys: authorized_keys,
-          daily_nonce_seed: _,
-          transaction_seed: _
+          secret: _
         }
       }
     } =

@@ -3,8 +3,8 @@ defmodule UnirisCore.Crypto.TransactionLoaderTest do
 
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Keys
   alias UnirisCore.Crypto
-  alias UnirisCore.Crypto.ECDSA
   alias UnirisCore.Crypto.TransactionLoader
 
   import Mox
@@ -46,43 +46,43 @@ defmodule UnirisCore.Crypto.TransactionLoaderTest do
     |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn encrypted_seed,
                                                                       encrypted_aes_key ->
       Agent.update(agent_pid, fn state ->
-        {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
-        aes_key = ECDSA.decrypt(:secp256r1, pv, encrypted_aes_key)
+        {_, pv} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+        aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
         transaction_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
         Map.put(state, :node_secrets_transaction_seed, transaction_seed)
       end)
     end)
     |> stub(:decrypt_and_set_daily_nonce_seed, fn encrypted_seed, encrypted_aes_key ->
       Agent.update(agent_pid, fn state ->
-        {_, <<_::8, pv::binary>>} = Crypto.derivate_keypair("seed", 0, :secp256r1)
-        aes_key = ECDSA.decrypt(:secp256r1, pv, encrypted_aes_key)
+        {_, pv} = Crypto.derivate_keypair("seed", 0, :secp256r1)
+        aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
         daily_nonce_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
         keys = Crypto.generate_deterministic_keypair(daily_nonce_seed)
         Map.put(state, :daily_nonce_keys, keys)
       end)
     end)
 
-    Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
-      Crypto.aes_encrypt(seed, aes_key),
-      Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
-    )
+    {pub, _} = Crypto.derivate_keypair("seed", 0, :secp256r1)
 
-    authorized_keys =
-      %{}
-      |> Map.put(Crypto.node_public_key(), Crypto.ec_encrypt(aes_key, Crypto.node_public_key()))
+    encrypted_daily_nonce = Crypto.aes_encrypt(seed, aes_key)
+    encrypted_transaction_seed = Crypto.aes_encrypt(seed, aes_key)
+
+    secret = encrypted_daily_nonce <> encrypted_transaction_seed
 
     tx =
       Transaction.new(:node_shared_secrets, %TransactionData{
-        keys: %{
-          daily_nonce_seed: Crypto.aes_encrypt(seed, aes_key),
-          transaction_seed: Crypto.aes_encrypt(seed, aes_key),
-          authorized_keys: authorized_keys
-        }
+        keys:
+          Keys.new(
+            [pub],
+            aes_key,
+            secret
+          )
       })
 
     send(pid, {:new_transaction, tx})
     Process.sleep(200)
 
-    assert %{daily_nonce_keys: _, node_secrets_transaction_seed: seed} = Agent.get(agent_pid, & &1)
+    assert %{daily_nonce_keys: _, node_secrets_transaction_seed: seed} =
+             Agent.get(agent_pid, & &1)
   end
 end

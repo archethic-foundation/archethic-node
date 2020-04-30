@@ -3,6 +3,7 @@ defmodule UnirisCore.Crypto.TransactionLoader do
 
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Keys
   alias UnirisCore.Storage
   alias UnirisCore.PubSub
   alias UnirisCore.Crypto
@@ -95,9 +96,8 @@ defmodule UnirisCore.Crypto.TransactionLoader do
   defp load_transaction(%Transaction{
          type: :node_shared_secrets,
          data: %TransactionData{
-           keys: %{
-             daily_nonce_seed: encrypted_daily_nonce_seed,
-             transaction_seed: encrypted_transaction_seed,
+           keys: %Keys{
+             secret: secret,
              authorized_keys: authorized_keys
            }
          }
@@ -109,6 +109,12 @@ defmodule UnirisCore.Crypto.TransactionLoader do
         :skip
 
       encrypted_key ->
+
+        # 80 == byte size of the aes encryption of 32 byte of seed
+        encrypted_daily_nonce_seed = :binary.part(secret, 0, 80)
+        encrypted_transaction_seed = :binary.part(secret, 80, 80)
+
+
         Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
           encrypted_transaction_seed,
           encrypted_key

@@ -3,6 +3,7 @@ defmodule UnirisCore.SharedSecrets do
   alias UnirisCore.Crypto
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Keys
 
   @type origin_family :: :software | :usb | :biometric
 
@@ -67,21 +68,14 @@ defmodule UnirisCore.SharedSecrets do
   defp create_node_shared_secrets_data(daily_nonce_seed, aes_key, authorized_public_keys) do
     {daily_nonce_public_key, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
+    secret =
+      Crypto.aes_encrypt(daily_nonce_seed, aes_key) <>
+        Crypto.encrypt_node_shared_secrets_transaction_seed(aes_key)
+
     %TransactionData{
       content: stringify_content(%{daily_nonce_public_key: daily_nonce_public_key}),
-      keys: %{
-        daily_nonce_seed: Crypto.aes_encrypt(daily_nonce_seed, aes_key),
-        transaction_seed: Crypto.encrypt_node_shared_secrets_transaction_seed(aes_key),
-        authorized_keys: encrypt_aes_key_with_public_keys(aes_key, authorized_public_keys)
-      }
+      keys: Keys.new(authorized_public_keys, aes_key, secret)
     }
-  end
-
-  defp encrypt_aes_key_with_public_keys(aes_key, public_keys) do
-    Enum.reduce(public_keys, %{}, fn key, acc ->
-      encrypted_key = Crypto.ec_encrypt(aes_key, key)
-      Map.put(acc, key, encrypted_key)
-    end)
   end
 
   defp stringify_content(content) when is_map(content) do
