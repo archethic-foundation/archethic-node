@@ -16,7 +16,7 @@ defmodule UnirisCore.UtilsTests do
       shift = Utils.time_offset(60_000)
       next_time = DateTime.add(current_time, trunc(shift / 1000))
       assert next_time.second == 0
-      assert next_time.minute == current_time.minute + 1
+      assert next_time.minute == DateTime.add(current_time, 60).minute
     end
 
     test "each day" do
@@ -24,7 +24,7 @@ defmodule UnirisCore.UtilsTests do
       shift = Utils.time_offset(86_400_000)
       next_time = DateTime.add(current_time, trunc(shift / 1000))
       assert next_time.second == 0
-      assert next_time.day == current_time.day + 1
+      assert next_time.day == DateTime.add(current_time, 86400).day
     end
   end
 end
