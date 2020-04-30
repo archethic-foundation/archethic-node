@@ -15,10 +15,11 @@ defmodule UnirisWeb.TransactionSubscriber do
   end
 
   def handle_info({:new_transaction, address}, state) when is_binary(address) do
-    Absinthe.Subscription.publish(UnirisWeb.Endpoint, address, [
+    Absinthe.Subscription.publish(UnirisWeb.Endpoint, address,
       new_transaction: "*",
       acknowledge_storage: address
-    ])
+    )
+
     {:noreply, state}
   end
 

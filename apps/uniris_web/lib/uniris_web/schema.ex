@@ -7,6 +7,15 @@ defmodule UnirisWeb.Schema do
   alias UnirisCore.Crypto
   alias UnirisCore.Storage
   alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.UCOLedger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.Keys
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
+  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
+  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
 
@@ -17,12 +26,11 @@ defmodule UnirisWeb.Schema do
       arg(:address, :hash)
 
       resolve(fn %{address: address}, _ ->
-
         nearest_storage_nodes(address)
         |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
-            {:ok, format_transaction(tx)}
+            {:ok, format(tx)}
 
           _ ->
             {:error, :transaction_not_exists}
@@ -32,7 +40,7 @@ defmodule UnirisWeb.Schema do
 
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
-        {:ok, Storage.list_transactions() |> Enum.map(&format_transaction/1)}
+        {:ok, Storage.list_transactions() |> Enum.map(&format/1)}
       end)
     end
   end
@@ -60,6 +68,7 @@ defmodule UnirisWeb.Schema do
             )
           end)
         end)
+
         {:ok, true}
       end)
     end
@@ -67,84 +76,161 @@ defmodule UnirisWeb.Schema do
 
   subscription do
     field :new_transaction, :transaction do
-      config fn _args, _info ->
+      config(fn _args, _info ->
         {:ok, topic: "*"}
-      end
-      resolve fn address, _, _ ->
+      end)
+
+      resolve(fn address, _, _ ->
         nearest_storage_nodes(address)
         |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
-            {:ok, format_transaction(tx)}
+            {:ok, format(tx)}
         end
-      end
+      end)
     end
 
     field :acknowledge_storage, :transaction do
-      arg :address, non_null(:hash)
-      config fn args, _info ->
+      arg(:address, non_null(:hash))
+
+      config(fn args, _info ->
         {:ok, topic: args.address}
-      end
-      resolve fn address, _, _ ->
+      end)
+
+      resolve(fn address, _, _ ->
         nearest_storage_nodes(address)
         |> P2P.send_message({:get_transaction, address})
         |> case do
           {:ok, tx} ->
-            {:ok, format_transaction(tx)}
+            {:ok, format(tx)}
         end
-      end
+      end)
     end
   end
 
   defp nearest_storage_nodes(address) do
     %Node{network_patch: patch} = P2P.node_info()
+
     address
-    |> Election.storage_nodes
+    |> Election.storage_nodes()
     |> P2P.nearest_nodes(patch)
     |> List.first()
   end
 
-  defp format_transaction(tx = %Transaction{}) do
+  defp format(tx = %Transaction{}) do
+    IO.inspect tx
     %{
       address: tx.address,
       type: tx.type,
       timestamp: tx.timestamp,
-      data: tx.data,
+      data: format(tx.data),
       previous_public_key: tx.previous_public_key,
       previous_signature: tx.previous_signature,
       origin_signature: tx.origin_signature,
-      validation_stamp: %{
-        proof_of_work: tx.validation_stamp.proof_of_work,
-        proof_of_integrity: tx.validation_stamp.proof_of_integrity,
-        ledger_movements: %{
-          uco: %{
-            previous: %{
-              from: tx.validation_stamp.ledger_movements.uco.previous.from,
-              amount: tx.validation_stamp.ledger_movements.uco.previous.amount
-            },
-            next: tx.validation_stamp.ledger_movements.uco.next
-          }
-        },
-        node_movements: %{
-          fee: tx.validation_stamp.node_movements.fee,
-          rewards:
-            Enum.map(tx.validation_stamp.node_movements.rewards, fn {key, amount} ->
-              %{
-                node: key,
-                amount: amount
-              }
-            end)
-        },
-        signature: tx.validation_stamp.signature
-      },
-      cross_validation_stamps:
-        Enum.map(tx.cross_validation_stamps, fn {sig, inconsistencies, public_key} ->
-          %{
-            node: public_key,
-            signature: sig,
-            inconsistencies: inconsistencies
-          }
+      validation_stamp: format(tx.validation_stamp),
+      cross_validation_stamps: format(tx.cross_validation_stamps)
+    }
+  end
+
+  defp format(%TransactionData{
+         content: content,
+         code: code,
+         ledger: ledger,
+         keys: keys
+       }) do
+    %{
+      content: content,
+      code: code,
+      ledger: format(ledger),
+      keys: format(keys)
+    }
+  end
+
+  defp format(%Ledger{uco: uco}) do
+    %{
+      uco: format(uco)
+    }
+  end
+
+  defp format(%UCOLedger{fee: fee, transfers: transfers}) do
+    %{
+      fee: fee,
+      transfers: format(transfers)
+    }
+  end
+
+  defp format(%Transfer{to: to, amount: amount}) do
+    %{
+      to: to,
+      amount: amount
+    }
+  end
+
+  defp format(%Keys{secret: secret, authorized_keys: authorized_keys}) do
+    %{
+      secret: secret,
+      authorized_keys:
+        Enum.reduce(authorized_keys, [], fn {public_key, encrypted_key}, acc ->
+          acc ++ [%{public_key: public_key, encrypted_key: encrypted_key}]
         end)
+    }
+  end
+
+  defp format(%ValidationStamp{
+         proof_of_work: pow,
+         proof_of_integrity: poi,
+         ledger_movements: ledger_movements,
+         node_movements: node_movements,
+         signature: signature
+       }) do
+    %{
+      proof_of_work: pow,
+      proof_of_integrity: poi,
+      ledger_movements: format(ledger_movements),
+      node_movements: format(node_movements),
+      signature: signature
+    }
+  end
+
+  defp format(%LedgerMovements{uco: uco_ledger}) do
+    %{
+      uco: format(uco_ledger)
+    }
+  end
+
+  defp format(%UTXO{previous: %{from: from, amount: amount}, next: next}) do
+    %{
+      previous: %{
+        from: from,
+        amount: amount
+      },
+      next: next
+    }
+  end
+
+  defp format(%NodeMovements{fee: fee, rewards: rewards}) do
+    %{
+      fee: fee,
+      rewards: format(rewards)
+    }
+  end
+
+  defp format(list) when is_list(list) do
+    Enum.map(list, &format(&1))
+  end
+
+  defp format({key, amount}) do
+    %{
+      node: key,
+      amount: amount
+    }
+  end
+
+  defp format({sig, inconsistencies, public_key}) do
+    %{
+      node: public_key,
+      signature: sig,
+      inconsistencies: inconsistencies
     }
   end
 end

@@ -34,14 +34,14 @@ defmodule UnirisWeb.Schema.TransactionType do
 
   object :transaction_data do
     field(:ledger, :transaction_ledger)
-    field(:contract, :string)
+    field(:code, :string)
     field(:content, :string)
     field(:keys, :transaction_secret_keys)
   end
 
   input_object :transaction_data_input do
     field(:ledger, :transaction_ledger_input)
-    field(:contract, :string)
+    field(:code, :string)
     field(:content, :string)
     field(:keys, :transaction_secret_keys_input)
   end
