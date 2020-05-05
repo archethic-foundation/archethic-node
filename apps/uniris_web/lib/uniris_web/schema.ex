@@ -3,8 +3,6 @@ defmodule UnirisWeb.Schema do
 
   use Absinthe.Schema
 
-  alias UnirisCore.Election
-  alias UnirisCore.Crypto
   alias UnirisCore.Storage
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
@@ -16,8 +14,6 @@ defmodule UnirisWeb.Schema do
   alias UnirisCore.Transaction.ValidationStamp.NodeMovements
   alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
   alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
 
   import_types(__MODULE__.TransactionType)
 
@@ -26,14 +22,8 @@ defmodule UnirisWeb.Schema do
       arg(:address, :hash)
 
       resolve(fn %{address: address}, _ ->
-        nearest_storage_nodes(address)
-        |> P2P.send_message({:get_transaction, address})
-        |> case do
-          {:ok, tx} ->
-            {:ok, format(tx)}
-
-          _ ->
-            {:error, :transaction_not_exists}
+        with {:ok, tx} <- UnirisCore.search_transaction(address) do
+          {:ok, format(tx)}
         end
       end)
     end
@@ -57,18 +47,7 @@ defmodule UnirisWeb.Schema do
 
       resolve(fn tx, _ ->
         tx = struct(Transaction, tx)
-        validation_nodes = Election.validation_nodes(tx)
-
-        Enum.each(validation_nodes, fn node ->
-          Task.start(fn ->
-            P2P.send_message(
-              node,
-              {:start_mining, tx, Crypto.node_public_key(),
-               Enum.map(validation_nodes, & &1.last_public_key)}
-            )
-          end)
-        end)
-
+        :ok = UnirisCore.send_new_transaction(tx)
         {:ok, true}
       end)
     end
@@ -81,9 +60,7 @@ defmodule UnirisWeb.Schema do
       end)
 
       resolve(fn address, _, _ ->
-        nearest_storage_nodes(address)
-        |> P2P.send_message({:get_transaction, address})
-        |> case do
+        case UnirisCore.search_transaction(address) do
           {:ok, tx} ->
             {:ok, format(tx)}
         end
@@ -98,9 +75,7 @@ defmodule UnirisWeb.Schema do
       end)
 
       resolve(fn address, _, _ ->
-        nearest_storage_nodes(address)
-        |> P2P.send_message({:get_transaction, address})
-        |> case do
+        case UnirisCore.search_transaction(address) do
           {:ok, tx} ->
             {:ok, format(tx)}
         end
@@ -108,17 +83,7 @@ defmodule UnirisWeb.Schema do
     end
   end
 
-  defp nearest_storage_nodes(address) do
-    %Node{network_patch: patch} = P2P.node_info()
-
-    address
-    |> Election.storage_nodes()
-    |> P2P.nearest_nodes(patch)
-    |> List.first()
-  end
-
   defp format(tx = %Transaction{}) do
-    IO.inspect tx
     %{
       address: tx.address,
       type: tx.type,
