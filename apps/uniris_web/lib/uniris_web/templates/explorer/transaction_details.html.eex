@@ -1,0 +1,198 @@
+<div class="row" style="margin-top: 50px">
+    <section class="column">
+        <header>
+            <h3>Transaction details</h3>
+        </header>
+
+            <div class="row">
+                <div class="column column-10">Address:</div>
+                <div class="column"><%= Base.encode16(@transaction.address) %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Type:</div>
+                <div class="column"><%= @transaction.type %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Date:</div>
+                <div class="column"><%= @transaction.timestamp %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Data:</div>
+                <div class="column">
+                    <div class="row">
+                        <div class="column column-10">Code:</div>
+                        <div class="column">"<%= @transaction.data.code %>"</div>
+                    </div>
+                    <div class="row">
+                        <div class="column column-10">Content:</div>
+                        <div class="column">"<%= @transaction.data.content %>"</div>
+                    </div>
+                    <div class="row">
+                        <div class="column column-10">Ledger:</div>
+                        <div class="column">
+                            <div class="row">
+                                <div class="column column-10">UCO Ledger:</div>
+                                <div class="column">
+                                    <div class="row">
+                                        <div class="column">TBD</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="column column-10">Keys:</div>
+                        <div class="column">
+                            <div class="row">
+                                <div class="column column-10">Secret:</div>
+                                <div class="column column-40">
+                                    <span style="word-wrap: break-word">
+                                        <%=Base.encode16(@transaction.data.keys.secret) %>
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="column column-10">Authorized keys: </div>
+                                <div class="column">
+                                    <%= for { public_key, encrypted_key} <- @transaction.data.keys.authorized_keys do %>
+                                    <div class="row">
+                                        <div class="column column-10">Public key</div>
+                                        <div class="column">
+                                            <%= Base.encode16(public_key) %>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="column column-10">Encrypted key</div>
+                                        <div class="column column-40">
+                                            <span style="word-wrap: break-word">
+                                                <%= Base.encode16(encrypted_key) %>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <% end %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Previous public key</div>
+                <div class="column"><%= Base.encode16(@transaction.previous_public_key) %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Previous signature</div>
+                <div class="column"><%= Base.encode16(@transaction.previous_signature) %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Origin signature</div>
+                <div class="column"><%= Base.encode16(@transaction.origin_signature) %></div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Validation stamp</div>
+                <div class="column">
+                    <div class="row">
+                        <div class="column column-10">Proof of work</div>
+                        <div class="column"><%= Base.encode16(@transaction.validation_stamp.proof_of_work) %></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="column column-10">Proof of integrity</div>
+                        <div class="column"><%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="column column-10">Ledger movements</div>
+                        <div class="column">
+                            <div class="row">
+                                <div class="column column-10">UCO: </div>
+                                <div class="column">
+                                    <div class="row">
+                                        <div class="column column-10">Previous: </div>
+                                        <div class="column">
+                                            <div class="row">
+                                                <div class="column column-10">From: </div>
+                                                <div class="column">
+                                                    <%= for sender <- @transaction.validation_stamp.ledger_movements.uco.previous.from do %>
+                                                    <div class="row">
+                                                        <div class="column"><%= Base.encode16(sender) %></div>
+                                                    </div>
+                                                    <% end %>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="column column-10">Amount: </div>
+                                                <div class="column"><% @transaction.validation_stamp.ledger_movements.uco.previous.amount %></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="column column-10">Next: </div>
+                                        <div class="column"><%= @transaction.validation_stamp.ledger_movements.uco.next %></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="column column-10">Node movements</div>
+                        <div class="column">
+                            <div class="row">
+                                <div class="column column-10">Fee: </div>
+                                <div class="column column"><%= @transaction.validation_stamp.node_movements.fee %></div>
+                            </div>
+                            <div class="row">
+                                <div class="column column-10">Rewards</div>
+                                <div class="column">
+                                    <%= for {node_public_key, amount} <- @transaction.validation_stamp.node_movements.rewards do %>
+                                    <div class="row">
+                                        <div class="column column-10">Node public key</div>
+                                        <div class="column"><%= Base.encode16(node_public_key) %></div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="column column-10">Amount</div>
+                                        <div class="column"><%= amount %></div>
+                                    </div>
+                                    <% end %>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="column column-10">Signature</div>
+                        <div class="column"><%= Base.encode16(@transaction.validation_stamp.signature) %></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="column column-10">Cross validation stamps</div>
+                <div class="column">
+                    <%= for {signature, inconsistencies, node_public_key} <- @transaction.cross_validation_stamps do %>
+                    <div class="row">
+                        <div class="column column-10">Node public key</div>
+                        <div class="column"><%= Base.encode16(node_public_key) %></div>
+                    </div>
+                    <div class="row">
+                        <div class="column column-10">Signature</div>
+                        <div class="column column"><%= Base.encode16(signature) %></div>
+                    </div>
+                    <div class="row">
+                        <div class="column column-10">Inconsistencies</div>
+                        <div class="column"><%= inconsistencies %></div>
+                    </div>
+                    <% end %>
+                </div>
+            </div>
+
+    </section>
+</div>

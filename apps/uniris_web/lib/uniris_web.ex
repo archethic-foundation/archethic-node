@@ -22,6 +22,7 @@ defmodule UnirisWeb do
       use Phoenix.Controller, namespace: UnirisWeb
 
       import Plug.Conn
+      import Phoenix.LiveView.Controller
       alias UnirisWeb.Router.Helpers, as: Routes
     end
   end
@@ -35,8 +36,13 @@ defmodule UnirisWeb do
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 1, get_flash: 2, view_module: 1]
 
+      # Use all HTML functionality (forms, tags, etc)
+      use Phoenix.HTML
+
       import UnirisWeb.ErrorHelpers
       alias UnirisWeb.Router.Helpers, as: Routes
+
+      import Phoenix.LiveView.Helpers
     end
   end
 
@@ -45,6 +51,7 @@ defmodule UnirisWeb do
       use Phoenix.Router
       import Plug.Conn
       import Phoenix.Controller
+      import Phoenix.LiveView.Router
     end
   end
 

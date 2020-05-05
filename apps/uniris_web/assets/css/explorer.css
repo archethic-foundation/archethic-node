@@ -1,0 +1,39 @@
+@import "../node_modules/milligram/dist/milligram.min.css";
+
+
+.explorer {
+    padding: 0px!important;
+    max-width: 100%!important;
+}
+
+.explorer-header {
+    background-color: #2a91ff;
+    color: #fff;
+    padding: 10px;
+}
+
+.explorer-header .search-form {
+    margin-bottom: 0;
+}
+
+.explorer-header .search-form input::placeholder {
+    color: #fff;
+}
+
+.explorer-header .search-form input {
+    color: #fff;
+    border: none;
+    border-bottom: thin solid #fff;
+    border-radius: 0;
+}
+
+.explorer-header .search-form button {
+    margin-left: 10px;
+    background-color: #fff;
+    color: #000;
+    border: none;
+}
+
+.explorer table tr:last-child td {
+    border-bottom: 0;
+}

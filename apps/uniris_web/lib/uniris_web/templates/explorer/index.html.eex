@@ -1,0 +1,15 @@
+<section class="row" style="margin-top: 50px">
+    <div class="column column-40">
+        <header>
+            <h3>Transactions (10th last)</h3>
+        </header>
+        <%= live_render(@conn, UnirisWeb.TransactionLive) %>
+    </div>
+
+    <div class="column column-40 column-offset-10">
+        <header>
+            <h3>P2P view</h3>
+        </header>
+        <%= live_render(@conn, UnirisWeb.NodeLive) %>
+    </div>
+</section>

@@ -1,0 +1,20 @@
+
+<div class="row">
+    <div class="column column-40"><strong>Address</strong></div>
+    <div class="column column-40"><strong>Date</strong></div>
+    <div class="column column-20"><strong>Type</strong></div>
+</div>
+<%= for tx <- @transactions do %>
+<div class="row">
+    <div class="column column-40">
+        <%= link to: Routes.explorer_path(@socket, :search, address: Base.encode16(tx.address)), title: Base.encode16(tx.address) do%>
+            <span style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden; display: block;">
+                <%= Base.encode16(tx.address) %>
+            </span>
+        <% end %>
+    </div>
+    <div class="column column-40"><%= tx.timestamp %></div>
+    <div class="column column-20"><%= tx.type %></div>
+</div>
+<% end %>
+

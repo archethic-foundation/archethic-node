@@ -39,6 +39,8 @@ defmodule UnirisWeb.MixProject do
       {:uniris_core, in_umbrella: true},
       {:phoenix, "~> 1.4.16"},
       {:phoenix_pubsub, "~> 1.1"},
+      {:phoenix_html, "~> 2.14"},
+      {:phoenix_live_view, "~> 0.11.1"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:absinthe, "~> 1.4.0"},
