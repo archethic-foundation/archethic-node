@@ -45,19 +45,25 @@ defmodule UnirisCore.Mining.Context do
 
     # Retrieve previous transaction context by querying the network about the previous transaction chain,
     # received unspent outputs and involve the storages nodes which replied.
-    {:ok, previous_chain, unspent_outputs, invovled_storage_node} =
+    {:ok, previous_chain, unspent_outputs, involved_storage_node} =
       download(previous_address, previous_storage_nodes)
 
     if with_confirmation do
-      {:ok, previous_chain, unspent_outputs, invovled_storage_nodes} =
+      {:ok, previous_chain, unspent_outputs, involved_confirmation_nodes} =
         confirm(
-          {:ok, previous_chain, unspent_outputs, invovled_storage_node},
-          previous_storage_nodes
+          previous_chain,
+          unspent_outputs,
+          previous_storage_nodes -- [involved_storage_node]
         )
 
-      {previous_chain, unspent_outputs, invovled_storage_nodes}
+      involved_nodes =
+        [involved_storage_node | involved_confirmation_nodes]
+        |> Enum.filter(& &1)
+        |> Enum.uniq()
+
+      {previous_chain, unspent_outputs, involved_nodes}
     else
-      {previous_chain, unspent_outputs, [invovled_storage_node]}
+      {previous_chain, unspent_outputs, Enum.filter([involved_storage_node], & &1)}
     end
   end
 
@@ -106,7 +112,7 @@ defmodule UnirisCore.Mining.Context do
         {:ok, [], unspent_outputs, closest_storage_node}
 
       [{:error, :transaction_chain_not_exists}, {:error, :unspent_output_transactions_not_exists}] ->
-        {:ok, [], nil}
+        {:ok, [], [], nil}
 
       _ ->
         download(tx_address, rest)
@@ -125,54 +131,41 @@ defmodule UnirisCore.Mining.Context do
   In any cases, the additional involved nodes are added to the list of storage nodes to reward.
   """
   @spec confirm(
-          {:ok, list(Transaction.validated()), list(Transaction.validated()), Node.t()},
+          list(Transaction.validated()),
+          list(Transaction.validated()),
           list(Node.t())
         ) ::
           {:ok, list(Transaction.validated()), list(Transaction.validated()), list(Node.t())}
-  def confirm({:ok, [], nil}, _), do: {:ok, [], [], []}
+  def confirm([], [], nil, _), do: {:ok, [], [], []}
 
-  def confirm({:ok, [], unspent_outputs, prev_storage_node}, _) do
+  def confirm([], unspent_outputs, _) when is_list(unspent_outputs) do
     # Request to confirm the unspent ouutputs transactions
     %{utxo: confirmed_unspent_outputs, nodes: utxo_storage_nodes} =
       unspent_outputs
       |> confirm_unspent_outputs
       |> reduce_unspent_outputs_confirmation
 
-    {:ok, [], confirmed_unspent_outputs, Enum.uniq(utxo_storage_nodes ++ [prev_storage_node])}
+    {:ok, [], confirmed_unspent_outputs, utxo_storage_nodes}
   end
 
-  def confirm(
-        {:ok, chain = [last_tx | _], unspent_outputs, prev_storage_node},
-        previous_storage_nodes
-      ) do
+  def confirm(chain = [last_tx | _], unspent_outputs, previous_storage_nodes)
+      when is_list(unspent_outputs) and is_list(previous_storage_nodes) do
     # Request to confirm the transaction chain integrity retrieved
     t1 =
-      Task.Supervisor.async(TaskSupervisor, fn ->
-        # Discard the previously used closest storage node
-        # and select new ones to confirm the chain integrity retrieved
-        case previous_storage_nodes -- [prev_storage_node] do
-          [] ->
-            {:ok, prev_storage_node}
-
-          other_previous_storage_nodes ->
-            confirm_chain_integrity(last_tx, other_previous_storage_nodes)
-        end
-      end)
+      Task.Supervisor.async(
+        TaskSupervisor,
+        fn -> confirm_chain_integrity(last_tx, previous_storage_nodes) end
+      )
 
     # Request to confirm the unspent outputs transactions
-    t2 =
-      Task.Supervisor.async(TaskSupervisor, fn ->
-        confirm_unspent_outputs(unspent_outputs)
-      end)
+    t2 = Task.Supervisor.async(TaskSupervisor, fn -> confirm_unspent_outputs(unspent_outputs) end)
 
     with {:ok, confirm_previous_storage_node} <- Task.await(t1),
          confirmed_unspent_outputs <- Task.await(t2) do
-      nodes = [prev_storage_node, confirm_previous_storage_node]
-
       %{utxo: unspent_outputs, nodes: utxo_storage_nodes} =
         reduce_unspent_outputs_confirmation(confirmed_unspent_outputs)
 
-      {:ok, chain, unspent_outputs, Enum.uniq(nodes ++ utxo_storage_nodes)}
+      {:ok, chain, unspent_outputs, [confirm_previous_storage_node | utxo_storage_nodes]}
     end
   end
 
@@ -185,7 +178,7 @@ defmodule UnirisCore.Mining.Context do
   end
 
   defp confirm_chain_integrity(
-         %Transaction{
+         tx = %Transaction{
            address: tx_address,
            validation_stamp: %ValidationStamp{proof_of_integrity: poi}
          },
@@ -198,8 +191,8 @@ defmodule UnirisCore.Mining.Context do
       {:ok, _} ->
         {:error, :invalid_transaction_chain}
 
-      {:error, :network_issue} ->
-        confirm_chain_integrity(tx_address, rest)
+      _ ->
+        confirm_chain_integrity(tx, rest)
     end
   end
 
