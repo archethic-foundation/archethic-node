@@ -3,12 +3,14 @@ defmodule UnirisCore.Storage.Cache do
 
   alias UnirisCore.Transaction
   alias UnirisCore.Storage.Backend
+  alias UnirisCore.Crypto
 
   @transaction_table :uniris_transactions
   @node_table :uniris_node_txs_lookup
   @unspent_outputs_table :uniris_unspent_outputs_txs_lookup
   @shared_secrets_table :uniris_shared_secrets_txs_lookup
   @ko_transaction_table :uniris_ko_txs_lookup
+  @chain_track_table :uniris_chain_tracking
 
   use GenServer
 
@@ -22,9 +24,11 @@ defmodule UnirisCore.Storage.Cache do
     :ets.new(@unspent_outputs_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@ko_transaction_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@shared_secrets_table, [:bag, :named_table, :public, read_concurrency: true])
+    :ets.new(@chain_track_table, [:set, :named_table, :public, read_concurrency: true])
 
     Enum.each(Backend.list_transactions(), fn tx ->
       :ets.insert(@transaction_table, {tx.address, tx})
+      track_transaction(tx)
       index_transaction(tx)
     end)
 
@@ -75,8 +79,18 @@ defmodule UnirisCore.Storage.Cache do
 
   defp index_transaction(_), do: :ok
 
+  defp track_transaction(%Transaction{
+         address: next_address,
+         previous_public_key: previous_public_key
+       }) do
+    previous_address = Crypto.hash(previous_public_key)
+    :ets.insert(@chain_track_table, {previous_address, next_address})
+    :ets.insert(@chain_track_table, {next_address, next_address})
+  end
+
   def store_transaction(tx = %Transaction{address: tx_address}) do
     true = :ets.insert(@transaction_table, {tx_address, tx})
+    track_transaction(tx)
     index_transaction(tx)
     :ok
   end
@@ -159,6 +173,19 @@ defmodule UnirisCore.Storage.Cache do
 
       _ ->
         nil
+    end
+  end
+
+  def last_transaction_address(address) do
+    case :ets.lookup(@chain_track_table, address) do
+      [] ->
+        {:error, :not_found}
+
+      [{previous, next}] when previous == next ->
+        {:ok, address}
+
+      [{_, next}] ->
+        last_transaction_address(next)
     end
   end
 end

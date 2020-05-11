@@ -19,7 +19,7 @@ defmodule UnirisWeb.Schema do
 
   query do
     field :transaction, :transaction do
-      arg(:address, :hash)
+      arg(:address, non_null(:hash))
 
       resolve(fn %{address: address}, _ ->
         with {:ok, tx} <- UnirisCore.search_transaction(address) do
@@ -28,9 +28,20 @@ defmodule UnirisWeb.Schema do
       end)
     end
 
+    field :last_transaction, :transaction do
+      arg(:address, non_null(:hash))
+
+      resolve(fn %{address: address}, _ ->
+        with {:ok, tx} <- UnirisCore.get_last_transaction(address) do
+          {:ok, format(tx)}
+        end
+      end)
+    end
+
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
-        {:ok, Storage.list_transactions() |> Enum.map(&format/1)}
+        {:ok,
+         Storage.list_transactions() |> Enum.reject(&(&1.type == :beacon)) |> Enum.map(&format/1)}
       end)
     end
   end

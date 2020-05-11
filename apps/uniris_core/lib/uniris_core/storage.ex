@@ -111,7 +111,7 @@ defmodule UnirisCore.Storage do
   """
   @spec write_transaction_chain(list(Transaction.validated()), load_transaction? :: boolean()) ::
           :ok
-  def write_transaction_chain([last_tx | _] = chain, load_transaction? \\ false)
+  def write_transaction_chain([last_tx | _] = chain, load_transaction? \\ true)
       when is_list(chain) do
     case get_transaction(last_tx) do
       {:ok, _} ->
@@ -151,4 +151,7 @@ defmodule UnirisCore.Storage do
         {:ok, tx}
     end
   end
+
+  @spec last_transaction_address(binary()) :: {:ok, binary()} | {:error, :not_found}
+  def last_transaction_address(address), do: Cache.last_transaction_address(address)
 end
