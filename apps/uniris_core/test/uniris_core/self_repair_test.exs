@@ -16,8 +16,8 @@ defmodule UnirisCore.SelfRepairTest do
 
   setup do
     start_supervised!(UnirisCore.Storage.Cache)
-    start_supervised!({UnirisCore.BeaconSlotTimer, slot_interval: 1000})
-    pid = start_supervised!({SelfRepair, interval: 1000})
+    start_supervised!({UnirisCore.BeaconSlotTimer, slot_interval: 10_000})
+    pid = start_supervised!({SelfRepair, interval: 10_000})
     {:ok, %{pid: pid}}
   end
 
@@ -35,7 +35,7 @@ defmodule UnirisCore.SelfRepairTest do
     end)
 
     MockNodeClient
-    |> stub(:send_message, fn _, msg ->
+    |> stub(:send_message, fn _, _, msg ->
       case msg do
         {:get_beacon_slots, _subset, _last_sync_date} ->
           [
@@ -91,7 +91,7 @@ defmodule UnirisCore.SelfRepairTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       ready?: true,
-      availability: 1,
+      available?: true,
       authorized?: true,
       enrollment_date: DateTime.utc_now() |> DateTime.add(-60)
     })

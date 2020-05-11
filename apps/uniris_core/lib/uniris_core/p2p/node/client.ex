@@ -4,17 +4,10 @@ defmodule UnirisCore.P2P.NodeClient do
   @behaviour UnirisCore.P2P.NodeClientImpl
 
   @impl true
-  @spec start_link(opts :: [ip: :inet.ip_address(), port: :inet.port_number(), parent_pid: pid()]) ::
-          {:ok, pid()}
-  def start_link(opts) do
-    impl().start_link(opts)
-  end
-
-  @impl true
-  @spec send_message(client :: pid(), message :: term()) ::
-          response :: term()
-  def send_message(pid, message) do
-    impl().send_message(pid, message)
+  @spec send_message(ip :: :inet.ip_address(), port :: :inet.port_number(), message :: term()) ::
+          result :: term()
+  def send_message(ip, port, message) do
+    impl().send_message(ip, port, message)
   end
 
   defp impl() do

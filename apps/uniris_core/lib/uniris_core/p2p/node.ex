@@ -18,6 +18,7 @@ defmodule UnirisCore.P2P.Node do
   alias UnirisCore.P2P.NodeRegistry
   alias UnirisCore.P2P.GeoPatch
   alias UnirisCore.P2P.NodeClient
+  alias UnirisCore.PubSub
 
   @enforce_keys [
     :first_public_key,
@@ -32,12 +33,11 @@ defmodule UnirisCore.P2P.Node do
     :port,
     :geo_patch,
     :network_patch,
-    availability: 0,
-    average_availability: 0,
-    availability_history: <<>>,
+    available?: true,
+    average_availability: 1.0,
+    availability_history: <<1::1>>,
     authorized?: false,
     ready?: false,
-    client_pid: nil,
     enrollment_date: nil
   ]
 
@@ -48,12 +48,11 @@ defmodule UnirisCore.P2P.Node do
           port: :inet.port_number(),
           geo_patch: binary(),
           network_patch: binary(),
-          availability: boolean(),
+          available?: boolean(),
           average_availability: float(),
           availability_history: bitstring(),
           authorized?: boolean(),
           ready?: boolean(),
-          client_pid: pid(),
           enrollment_date: DateTime.t()
         }
 
@@ -61,20 +60,13 @@ defmodule UnirisCore.P2P.Node do
   Create a new process for the node registered it with its public keys and IP address
   A new process is spawwned and linked to establish the connection with the node.
   """
-  def start_link(opts) when is_list(opts) do
-    GenServer.start_link(__MODULE__, opts)
-  end
-
   def start_link(node = %__MODULE__{}) do
     GenServer.start_link(__MODULE__, node)
   end
 
-  def init(opts \\ [])
-
   def init(
         node = %__MODULE__{
           ip: ip,
-          port: port,
           first_public_key: first_public_key,
           last_public_key: last_public_key,
           geo_patch: geo_patch
@@ -84,41 +76,16 @@ defmodule UnirisCore.P2P.Node do
     Registry.register(NodeRegistry, ip, [])
     Registry.register(NodeRegistry, first_public_key, [])
 
-    {:ok, pid} = NodeClient.start_link(ip: ip, port: port, parent_pid: self())
-    Process.monitor(pid)
+    node =
+      if geo_patch == nil do
+        patch = GeoPatch.from_ip(ip)
+        %{node | geo_patch: patch, network_patch: patch}
+      else
+        node
+      end
 
-    if geo_patch == nil do
-      patch = GeoPatch.from_ip(ip)
-      {:ok, %{node | client_pid: pid, geo_patch: patch, network_patch: patch}}
-    else
-      {:ok, %{node | client_pid: pid}}
-    end
-  end
-
-  def init(opts) do
-    first_public_key = Keyword.get(opts, :first_public_key)
-    last_public_key = Keyword.get(opts, :last_public_key)
-    ip = Keyword.get(opts, :ip)
-    port = Keyword.get(opts, :port)
-
-    Registry.register(NodeRegistry, first_public_key, [])
-    Registry.register(NodeRegistry, last_public_key, [])
-    Registry.register(NodeRegistry, ip, [])
-    patch = GeoPatch.from_ip(ip)
-
-    node = %__MODULE__{
-      first_public_key: first_public_key,
-      last_public_key: last_public_key,
-      ip: ip,
-      port: port,
-      geo_patch: patch,
-      network_patch: patch
-    }
-
-    {:ok, pid} = NodeClient.start_link(ip: ip, port: port, parent_pid: self())
-    Process.monitor(pid)
-
-    {:ok, %{node | client_pid: pid}}
+    PubSub.notify_node_update(node)
+    {:ok, node}
   end
 
   def handle_call(
@@ -138,12 +105,15 @@ defmodule UnirisCore.P2P.Node do
     end
 
     Registry.register(NodeRegistry, last_public_key, [])
+    PubSub.notify_node_update(new_state)
 
     {:reply, :ok, new_state}
   end
 
   def handle_call({:update_network_patch, network_patch}, _from, state) do
-    {:reply, :ok, Map.put(state, :network_patch, network_patch)}
+    new_state = Map.put(state, :network_patch, network_patch)
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call({:update_average_availability, avg_availability}, _from, state) do
@@ -152,116 +122,119 @@ defmodule UnirisCore.P2P.Node do
       |> Map.put(:availability_history, <<>>)
       |> Map.put(:average_availability, avg_availability)
 
+    PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
   end
 
   def handle_call(:authorize, _from, state = %{authorized?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is authorized")
-    {:reply, :ok, Map.put(state, :authorized?, true)}
+    new_state = %{state | authorized?: true}
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call(:authorize, _from, state), do: {:reply, :ok, state}
 
   def handle_call(:is_ready, _from, state = %{ready?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is ready")
-    {:reply, :ok, Map.put(state, :ready?, true)}
+    new_state = %{state | ready?: true}
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call(:is_ready, _from, state), do: {:reply, :ok, state}
 
   def handle_call({:set_enrollment_date, date}, _from, state) do
-    {:reply, :ok, Map.put(state, :enrollment_date, date)}
+    new_state = %{state | enrollment_date: date}
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
   end
 
   def handle_call(:details, _from, state) do
     {:reply, state, state}
   end
 
-  def handle_call({:send_message, message}, from, state = %{client_pid: client_pid}) do
-    Task.start(fn ->
-      response = NodeClient.send_message(client_pid, message)
-      GenServer.reply(from, response)
-    end)
+  def handle_call({:send_message, message}, from, state = %{ip: ip, port: port}) do
+    %Task{ref: ref} = Task.async(fn -> NodeClient.send_message(ip, port, message) end)
+    request = %{} |> Map.put(ref, from)
+    {:noreply, Map.update(state, :requests, request, &Map.put(&1, ref, from))}
+  end
 
+  def handle_call(:available, _from, state) do
+    new_state = %{state | available?: true}
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_call(:unavailable, _from, state) do
+    new_state = %{state | available?: false}
+    PubSub.notify_node_update(new_state)
+    {:reply, :ok, new_state}
+  end
+
+  def handle_info({ref, result}, state = %{requests: requests}) do
+    from = Map.get(requests, ref)
+    GenServer.reply(from, result)
     {:noreply, state}
   end
 
-  def handle_info(:connected, state = %{availability_history: history}) do
-    new_history =
-      case history do
-        <<>> ->
-          <<1::1>>
-
-        <<1::1, _::bitstring>> ->
-          history
-
-        <<0::1, _::bitstring>> ->
-          <<1::1, history::bitstring>>
-      end
-
+  def handle_info({:DOWN, ref, :process, _pid, :normal}, state) do
     new_state =
       state
-      |> Map.put(:availability_history, new_history)
-      |> Map.put(:availability, 1)
-      |> Map.put(:average_availability, new_average_availability(new_history))
+      |> increase_availability
+      |> Map.update!(:requests, &Map.delete(&1, ref))
 
     {:noreply, new_state}
   end
 
-  def handle_info(
-        {:DOWN, _ref, :process, _pid, _reason},
-        state = %__MODULE__{
-          client_pid: _client_pid,
-          ip: ip,
-          port: port,
-          availability_history: history
-        }
-      ) do
-    new_history =
-      case history do
-        <<>> ->
-          <<0::1>>
-
-        <<0::1, _::bitstring>> ->
-          history
-
-        <<1::1, _::bitstring>> ->
-          <<0::1, history::bitstring>>
-      end
-
-    Process.sleep(1000)
-    {:ok, pid} = NodeClient.start_link(ip: ip, port: port, parent_pid: self())
-    Process.monitor(pid)
+  def handle_info({:DOWN, ref, :process, _pid, reason}, state) do
+    Logger.error(reason)
 
     new_state =
       state
-      |> Map.put(:availability_history, new_history)
-      |> Map.put(:availability, 0)
-      |> Map.put(:average_availability, new_average_availability(new_history))
-      |> Map.put(:client_pid, pid)
+      |> reduce_availability
+      |> Map.update!(:requests, &Map.delete(&1, ref))
 
     {:noreply, new_state}
   end
 
-  defp new_average_availability(history) do
-    list = for <<view::1 <- history>>, do: view
-
-    list
-    |> Enum.frequencies()
-    |> Map.get(1)
-    |> case do
-      nil ->
-        0.0
-
-      available_times ->
-        Float.floor(available_times / bit_size(history), 1)
-    end
+  defp increase_availability(state = %{availability_history: <<1::1, _::bitstring>>}) do
+    state
   end
+
+  defp increase_availability(state = %{availability_history: history = <<0::1, _::bitstring>>}) do
+    new_history = <<1::1, history::bitstring>>
+    Map.put(state, :availability_history, new_history)
+  end
+
+  defp reduce_availability(state = %{availability_history: <<0::1, _::bitstring>>}) do
+    state
+  end
+
+  defp reduce_availability(state = %{availability_history: history = <<1::1, _::bitstring>>}) do
+    new_history = <<0::1, history::bitstring>>
+    Map.put(state, :availability_history, new_history)
+  end
+
+  # defp new_average_availability(history) do
+  #   list = for <<view::1 <- history>>, do: view
+
+  #   list
+  #   |> Enum.frequencies()
+  #   |> Map.get(1)
+  #   |> case do
+  #     nil ->
+  #       0.0
+
+  #     available_times ->
+  #       Float.floor(available_times / bit_size(history), 1)
+  #   end
+  # end
 
   @doc """
   Get the details of a node
   """
-  @spec details(node_public_key :: UnirisCrypto.key()) :: __MODULE__.t()
+  @spec details(node_public_key :: UnirisCore.Crypto.key()) :: __MODULE__.t()
   def details(node_public_key) when is_binary(node_public_key) do
     GenServer.call(via_tuple(node_public_key), :details)
   end
@@ -281,8 +254,8 @@ defmodule UnirisCore.P2P.Node do
   A geo IP lookup will be perform to change the GeoPatch
   """
   @spec update_basics(
-          node_first_public_key :: UnirisCrypto.key(),
-          node_last_public_key :: UnirisCrypto.key(),
+          node_first_public_key :: UnirisCore.Crypto.key(),
+          node_last_public_key :: UnirisCore.Crypto.key(),
           node_ip :: :inet.ip_address(),
           node_port :: :inet.port_number()
         ) :: :ok
@@ -291,19 +264,35 @@ defmodule UnirisCore.P2P.Node do
   end
 
   @doc """
+  Mark the node as available
+  """
+  @spec available(UnirisCore.Crypto.key()) :: :ok
+  def available(public_key) when is_binary(public_key) do
+    GenServer.call(via_tuple(public_key), :available)
+  end
+
+  @doc """
+  Mark the node as unavailable
+  """
+  @spec unavailable(UnirisCore.Crypto.key()) :: :ok
+  def unavailable(public_key) when is_binary(public_key) do
+    GenServer.call(via_tuple(public_key), :unavailable)
+  end
+
+  @doc """
   Update the network patch for a given node
   """
-  @spec update_network_patch(node_public_key :: UnirisCrypto.key(), geo_patch :: binary()) :: :ok
+  @spec update_network_patch(node_public_key :: UnirisCore.Crypto.key(), geo_patch :: binary()) ::
+          :ok
   def update_network_patch(public_key, network_patch) do
-    [{pid, _}] = Registry.lookup(NodeRegistry, public_key)
-    GenServer.call(pid, {:update_network_patch, network_patch})
+    GenServer.call(via_tuple(public_key), {:update_network_patch, network_patch})
   end
 
   @doc """
   Update the average availability of the node and reset the history
   """
   @spec update_average_availability(
-          node_public_key :: UnirisCrypto.key(),
+          node_public_key :: UnirisCore.Crypto.key(),
           average_availability :: float()
         ) :: :ok
   def update_average_availability(public_key, avg_availability)
@@ -315,7 +304,7 @@ defmodule UnirisCore.P2P.Node do
   @doc """
   Mark the node as validator.
   """
-  @spec authorize(UnirisCrypto.key() | __MODULE__.t()) :: :ok
+  @spec authorize(UnirisCore.Crypto.key() | __MODULE__.t()) :: :ok
   def authorize(public_key) when is_binary(public_key) do
     GenServer.call(via_tuple(public_key), :authorize)
   end
@@ -349,7 +338,7 @@ defmodule UnirisCore.P2P.Node do
     GenServer.call(via_tuple(public_key), {:send_message, message})
   end
 
-  @spec via_tuple(id :: UnirisCrypto.key() | :inet.ip_address()) :: tuple()
+  @spec via_tuple(id :: UnirisCore.Crypto.key() | :inet.ip_address()) :: tuple()
   defp via_tuple(id) do
     {:via, Registry, {NodeRegistry, id}}
   end

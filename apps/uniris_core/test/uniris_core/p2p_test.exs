@@ -12,23 +12,7 @@ defmodule UnirisCore.P2PTest do
   setup :set_mox_global
 
   setup do
-    MockNodeClient
-    |> stub(:start_link, fn opts ->
-      pid = Keyword.get(opts, :parent_pid)
-      send(pid, :connected)
-
-      client_pid =
-        spawn(fn ->
-          receive do
-            msg ->
-              msg
-          end
-        end)
-
-      {:ok, client_pid}
-    end)
-    |> stub(:send_message, fn _, msg -> msg end)
-
+    stub(MockNodeClient, :send_message, fn _, _, msg -> msg end)
     :ok
   end
 

@@ -170,7 +170,7 @@ defmodule UnirisCore.Mining.StampTest do
       port: 3000,
       last_public_key: "storage_key1",
       first_public_key: "storage_key1",
-      availability: 1,
+      available?: true,
       ready?: true
     })
 
@@ -362,7 +362,7 @@ defmodule UnirisCore.Mining.StampTest do
       port: 3000,
       last_public_key: "storage_key1",
       first_public_key: "storage_key1",
-      availability: 1,
+      available?: true,
       ready?: true
     })
 

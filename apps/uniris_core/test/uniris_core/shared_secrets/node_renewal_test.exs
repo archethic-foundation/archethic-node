@@ -22,8 +22,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
     me = self()
 
     MockNodeClient
-    |> stub(:start_link, fn _ -> {:ok, self()} end)
-    |> stub(:send_message, fn _, msg ->
+    |> stub(:send_message, fn _, _, msg ->
       case msg do
         {:start_mining, tx, _, _} ->
           send(me, tx)
@@ -40,7 +39,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       ready?: true,
-      availability: 1
+      available?: true
     })
 
     P2P.add_node(%Node{
@@ -51,7 +50,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       ready?: true,
-      availability: 1,
+      available?: true,
       authorized?: true
     })
 

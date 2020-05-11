@@ -20,8 +20,8 @@ defmodule UnirisCore.BootstrapTest do
 
   setup do
     start_supervised!(UnirisCore.Storage.Cache)
-    start_supervised!({UnirisCore.SelfRepair, interval: 5000})
-    start_supervised!({BeaconSlotTimer, slot_interval: 5000})
+    start_supervised!({UnirisCore.SelfRepair, interval: 10_000})
+    start_supervised!({BeaconSlotTimer, slot_interval: 10_000})
     Enum.each(BeaconSubsets.all(), &start_supervised!({BeaconSubset, subset: &1}, id: &1))
     :ok
   end
@@ -59,7 +59,7 @@ defmodule UnirisCore.BootstrapTest do
       me = self()
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:closest_nodes, _}, :new_seeds] ->
             [
@@ -77,7 +77,7 @@ defmodule UnirisCore.BootstrapTest do
                   network_patch: "AAA",
                   ready?: true,
                   authorized?: true,
-                  availability: 1,
+                  available?: true,
                   enrollment_date: DateTime.utc_now()
                 }
               ],
@@ -97,7 +97,7 @@ defmodule UnirisCore.BootstrapTest do
                   network_patch: "BBB",
                   ready?: true,
                   authorized?: true,
-                  availability: 1,
+                  available?: true,
                   enrollment_date: DateTime.utc_now()
                 }
               ]

@@ -44,7 +44,7 @@ defmodule UnirisCore.Election do
 
     P2P.list_nodes()
     |> Enum.filter(& &1.ready?)
-    |> Enum.filter(&(&1.availability == 1))
+    |> Enum.filter(& &1.available?)
     |> Enum.filter(& &1.authorized?)
     |> sort_nodes_by_key_rotation(:last_public_key, :daily_nonce, Crypto.hash(tx))
     |> do_validation_nodes(nb_validations, min_geo_patch)
@@ -147,7 +147,7 @@ defmodule UnirisCore.Election do
       :storage_nonce,
       address
     )
-    |> Enum.filter(&(&1.availability == 1))
+    |> Enum.filter(& &1.available?)
     |> reduce_storage_node_election(
       nb_replicas: nb_replicas,
       min_geo_patch: min_geo_patch,

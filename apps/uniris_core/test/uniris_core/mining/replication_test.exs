@@ -140,7 +140,7 @@ defmodule UnirisCore.Mining.ReplicationTest do
     previous_chain = [previous_tx]
 
     MockNodeClient
-    |> stub(:send_message, fn _, msg ->
+    |> stub(:send_message, fn _, _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
           [{:ok, previous_chain}, {:ok, unspent_outputs}]
@@ -152,7 +152,7 @@ defmodule UnirisCore.Mining.ReplicationTest do
     [
       %Node{
         last_public_key: "storage_node_key1",
-        availability: 1,
+        available?: true,
         network_patch: "AFA",
         first_public_key: "storage_node_key1",
         ip: {127, 0, 0, 1},
@@ -164,7 +164,7 @@ defmodule UnirisCore.Mining.ReplicationTest do
       %Node{
         last_public_key: "storage_node_key2",
         first_public_key: "storage_node_key2",
-        availability: 1,
+        available?: true,
         network_patch: "DCA",
         average_availability: 1,
         ip: {127, 0, 0, 1},
@@ -175,7 +175,7 @@ defmodule UnirisCore.Mining.ReplicationTest do
       %Node{
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(),
-        availability: 1,
+        available?: true,
         network_patch: "ACA",
         geo_patch: "",
         average_availability: 1,
@@ -187,7 +187,7 @@ defmodule UnirisCore.Mining.ReplicationTest do
       %Node{
         first_public_key: validator_pub,
         last_public_key: validator_pub,
-        availability: 1,
+        available?: true,
         network_patch: "ADA",
         ip: {127, 0, 0, 1},
         port: 3000,

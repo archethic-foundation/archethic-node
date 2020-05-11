@@ -27,9 +27,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
   def handle_info(:renew, state = %{interval: interval}) do
     authorized_node_public_keys =
       P2P.list_nodes()
-      |> Enum.filter(& &1.ready?)
-      |> Enum.filter(&(&1.availability == 1))
-      |> Enum.filter(& &1.authorized?)
+      |> Enum.filter(&(&1.ready? && &1.available? && &1.authorized?))
       |> Enum.map(& &1.last_public_key)
 
     if Crypto.node_public_key() in authorized_node_public_keys do
@@ -53,9 +51,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
     # Determine if the current node is in charge to the send the new transaction
     [%Node{last_public_key: key} | _] =
       P2P.list_nodes()
-      |> Enum.filter(& &1.ready?)
-      |> Enum.filter(& &1.authorized?)
-      |> Enum.filter(&(&1.availability == 1))
+      |> Enum.filter(&(&1.ready? && &1.available? && &1.authorized?))
       |> Election.sort_nodes_by_key_rotation(
         :first_public_key,
         :storage_nonce,

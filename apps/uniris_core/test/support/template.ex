@@ -14,9 +14,6 @@ defmodule UnirisCoreCase do
     File.rm_rf(Application.app_dir(:uniris_core, "priv/last_sync"))
     File.rm_rf(Application.app_dir(:uniris_core, "priv/storage"))
 
-    MockNodeClient
-    |> stub(:start_link, fn _ -> {:ok, self()} end)
-
     MockStorage
     |> stub(:list_transactions, fn -> [] end)
     |> stub(:write_transaction, fn _ -> :ok end)

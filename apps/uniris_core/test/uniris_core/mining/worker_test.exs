@@ -21,7 +21,7 @@ defmodule UnirisCore.MiningWorkerTest do
 
   setup do
     start_supervised!(UnirisCore.Storage.Cache)
-    start_supervised!({BeaconSlotTimer, slot_interval: 5000})
+    start_supervised!({BeaconSlotTimer, slot_interval: 10_000})
     Enum.each(BeaconSubsets.all(), &Registry.register(BeaconSubsetRegistry, &1, []))
 
     P2P.add_node(%Node{
@@ -31,7 +31,7 @@ defmodule UnirisCore.MiningWorkerTest do
       last_public_key: Crypto.node_public_key(),
       ready?: true,
       authorized?: true,
-      availability: 1,
+      available?: true,
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now()
     })
@@ -45,7 +45,7 @@ defmodule UnirisCore.MiningWorkerTest do
       last_public_key: pub,
       ready?: true,
       authorized?: true,
-      availability: 1,
+      available?: true,
       network_patch: "BBB",
       enrollment_date: DateTime.utc_now()
     })
@@ -129,7 +129,7 @@ defmodule UnirisCore.MiningWorkerTest do
       ]
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
             [{:ok, previous_chain}, {:ok, unspent_outputs}]
@@ -175,7 +175,7 @@ defmodule UnirisCore.MiningWorkerTest do
         first_public_key: "other_validator_key",
         ready?: true,
         authorized?: true,
-        availability: 1,
+        available?: true,
         network_patch: "AAA",
         enrollment_date: DateTime.utc_now()
       })
@@ -185,7 +185,7 @@ defmodule UnirisCore.MiningWorkerTest do
       validation_nodes = Election.validation_nodes(tx)
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
             [
@@ -235,7 +235,7 @@ defmodule UnirisCore.MiningWorkerTest do
       validation_nodes = Election.validation_nodes(tx)
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
             [
@@ -288,7 +288,7 @@ defmodule UnirisCore.MiningWorkerTest do
     validation_nodes = Election.validation_nodes(tx)
 
     MockNodeClient
-    |> stub(:send_message, fn _, msg ->
+    |> stub(:send_message, fn _, _, msg ->
       case msg do
         [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
           [
@@ -333,7 +333,7 @@ defmodule UnirisCore.MiningWorkerTest do
         first_public_key: pub,
         ready?: true,
         authorized?: true,
-        availability: 1,
+        available?: true,
         network_patch: "AAA",
         enrollment_date: DateTime.utc_now()
       })
@@ -342,7 +342,7 @@ defmodule UnirisCore.MiningWorkerTest do
       me = self()
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
             [
@@ -385,7 +385,7 @@ defmodule UnirisCore.MiningWorkerTest do
         ["key10", "key23"],
         <<1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1, 1::1>>
+        <<1::1, 1::1>>
       )
 
       Worker.add_context(
@@ -394,7 +394,7 @@ defmodule UnirisCore.MiningWorkerTest do
         ["key10", "key23"],
         <<1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1, 1::1>>
+        <<1::1, 1::1>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
@@ -445,7 +445,7 @@ defmodule UnirisCore.MiningWorkerTest do
       me = self()
 
       MockNodeClient
-      |> stub(:send_message, fn _, msg ->
+      |> stub(:send_message, fn _, _, msg ->
         case msg do
           [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
             [
@@ -499,7 +499,7 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         network_patch: "AAA",
         geo_patch: "AAA",
-        availability: 1,
+        available?: true,
         enrollment_date: DateTime.utc_now()
       })
 
@@ -511,7 +511,7 @@ defmodule UnirisCore.MiningWorkerTest do
         ready?: true,
         network_patch: "AAA",
         geo_patch: "AAA",
-        availability: 1,
+        available?: true,
         enrollment_date: DateTime.utc_now()
       })
 
@@ -519,9 +519,9 @@ defmodule UnirisCore.MiningWorkerTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         ["key10", "key23"],
-        <<1::1, 1::1>>,
+        <<1::1>>,
         <<0::1, 1::1, 0::1, 1::1>>,
-        <<1::1, 1::1, 1::1, 1::1>>
+        <<1::1, 1::1>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)

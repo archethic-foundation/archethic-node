@@ -10,23 +10,7 @@ defmodule UnirisCore.P2P.NodeTest do
   setup :set_mox_global
 
   setup do
-    MockNodeClient
-    |> stub(:start_link, fn opts ->
-      pid = Keyword.get(opts, :parent_pid)
-      send(pid, :connected)
-
-      client_pid =
-        spawn(fn ->
-          receive do
-            msg ->
-              msg
-          end
-        end)
-
-      {:ok, client_pid}
-    end)
-    |> stub(:send_message, fn _, msg -> msg end)
-
+    stub(MockNodeClient, :send_message, fn _, _, msg -> msg end)
     :ok
   end
 
@@ -34,10 +18,12 @@ defmodule UnirisCore.P2P.NodeTest do
     test "should spawn a process with node information registered by its keys and IP" do
       {:ok, pid} =
         Node.start_link(
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          last_public_key: "last_public_key",
-          first_public_key: "first_public_key"
+          %Node{
+            ip: {127, 0, 0, 1},
+            port: 3000,
+            last_public_key: "last_public_key",
+            first_public_key: "first_public_key"
+          }
         )
 
       assert %Node{
@@ -51,107 +37,54 @@ defmodule UnirisCore.P2P.NodeTest do
       assert [{_pid, _}] = Registry.lookup(NodeRegistry, "first_public_key")
       assert [{_pid, _}] = Registry.lookup(NodeRegistry, "last_public_key")
     end
-
-    test "should spawn a connection process as well and state as available when a connected message is received" do
-      {:ok, pid} =
-        Node.start_link(
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          last_public_key: "last_public_key",
-          first_public_key: "first_public_key"
-        )
-
-      assert %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
-               availability: 1
-             } = :sys.get_state(pid)
-    end
-  end
-
-  describe "when node client process dies" do
-    test "should set availability as 0, reconnect after 1 sec and update the availability history" do
-      {:ok, pid} =
-        Node.start_link(
-          ip: {127, 0, 0, 1},
-          port: 3000,
-          last_public_key: "last_public_key",
-          first_public_key: "first_public_key"
-        )
-
-      %{client_pid: client_pid} = :sys.get_state(pid)
-      Process.exit(client_pid, :kill)
-
-      Process.sleep(100)
-
-      assert %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
-               availability: 0,
-               availability_history: <<0::1, 1::1>>,
-               average_availability: 0.5
-             } = :sys.get_state(pid)
-
-      Process.sleep(1000)
-
-      assert %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
-               availability: 1,
-               availability_history: <<1::1, 0::1, 1::1>>,
-               average_availability: 0.6
-             } = :sys.get_state(pid)
-    end
   end
 
   describe "node_details/1" do
     test "should get node information based on the public key" do
       Node.start_link(
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "last_public_key",
-        first_public_key: "first_public_key"
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          last_public_key: "last_public_key",
+          first_public_key: "first_public_key"
+        }
       )
 
       assert %Node{
                ip: {127, 0, 0, 1},
                port: 3000,
                last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
-               availability: 1
+               first_public_key: "first_public_key"
              } = Node.details("first_public_key")
     end
 
     test "should get node information based on the ip address" do
       Node.start_link(
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "last_public_key",
-        first_public_key: "first_public_key"
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          last_public_key: "last_public_key",
+          first_public_key: "first_public_key"
+        }
       )
 
       assert %Node{
                ip: {127, 0, 0, 1},
                port: 3000,
                last_public_key: "last_public_key",
-               first_public_key: "first_public_key",
-               availability: 1
+               first_public_key: "first_public_key"
              } = Node.details({127, 0, 0, 1})
     end
   end
 
   test "update_basics/4 should update the last public key, ip, port, and performed a new GeoIP lookup" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
     Node.update_basics("first_public_key", "new_public_key", {88, 100, 50, 30}, 3005)
@@ -164,10 +97,12 @@ defmodule UnirisCore.P2P.NodeTest do
 
   test "update_network_patch/2 should update the network patch" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
     Node.update_network_patch("first_public_key", "AAC")
@@ -179,36 +114,28 @@ defmodule UnirisCore.P2P.NodeTest do
 
   test "update_average_availability/2 should change the average availability and reset the history" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
-    %Node{client_pid: pid} = Node.details("first_public_key")
-    Process.exit(pid, :kill)
-    Process.sleep(100)
+    Node.update_average_availability("first_public_key", 0.8)
 
-    assert %Node{average_availability: 0.5, availability_history: <<0::1, 1::1>>} =
-             Node.details("first_public_key")
-
-    Process.sleep(1000)
-
-    assert %Node{average_availability: 0.6, availability_history: <<1::1, 0::1, 1::1>>} =
-             Node.details("first_public_key")
-
-    Node.update_average_availability("first_public_key", 1.0)
-
-    assert %Node{average_availability: 1.0, availability_history: <<>>} =
+    assert %Node{average_availability: 0.8, availability_history: <<>>} =
              Node.details("first_public_key")
   end
 
   test "authorize/1 should mark the node as authorized validator node" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
     Node.authorize("first_public_key")
@@ -217,10 +144,12 @@ defmodule UnirisCore.P2P.NodeTest do
 
   test "set_ready/1 should mark the node as ready" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
     Node.set_ready("first_public_key")
@@ -229,10 +158,12 @@ defmodule UnirisCore.P2P.NodeTest do
 
   test "send_message/2 should send message to the client and get response" do
     Node.start_link(
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "last_public_key",
-      first_public_key: "first_public_key"
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
     )
 
     assert :hello = Node.send_message("last_public_key", :hello)
@@ -241,15 +172,46 @@ defmodule UnirisCore.P2P.NodeTest do
   test "set_enrollment_date/2 should set the enrollment date to the node" do
     {:ok, pid} =
       Node.start_link(
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        last_public_key: "last_public_key",
-        first_public_key: "first_public_key"
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          last_public_key: "last_public_key",
+          first_public_key: "first_public_key"
+        }
       )
 
     now = DateTime.utc_now()
     :ok = Node.set_enrollment_date("first_public_key", now)
     %Node{enrollment_date: date} = :sys.get_state(pid)
     assert date == now
+  end
+
+  test "available/1 should mark the available" do
+    Node.start_link(
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key",
+        available?: false
+      }
+    )
+
+    :ok = Node.available("first_public_key")
+    %Node{available?: true} = Node.details("first_public_key")
+  end
+
+  test "unavailable/1 should mark the node as unavailable" do
+    Node.start_link(
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "last_public_key",
+        first_public_key: "first_public_key"
+      }
+    )
+
+    :ok = Node.unavailable("first_public_key")
+    %Node{available?: false} = Node.details("first_public_key")
   end
 end

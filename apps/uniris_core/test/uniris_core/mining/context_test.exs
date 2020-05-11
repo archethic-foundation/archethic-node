@@ -34,7 +34,7 @@ defmodule UnirisCore.Mining.ContextTest do
       ip: {88, 100, 200, 15},
       port: 3000,
       average_availability: 1,
-      availability: 1,
+      available?: true,
       geo_patch: "AAC",
       ready?: true
     })
@@ -46,7 +46,7 @@ defmodule UnirisCore.Mining.ContextTest do
       ip: {150, 10, 20, 32},
       port: 3000,
       average_availability: 1,
-      availability: 1,
+      available?: true,
       geo_patch: "AAA",
       ready?: true
     })
@@ -56,7 +56,7 @@ defmodule UnirisCore.Mining.ContextTest do
 
   test "download/2 should get a list of transaction and unspent outputs and the storage node used" do
     MockNodeClient
-    |> stub(:send_message, fn _, _ ->
+    |> stub(:send_message, fn _, _, _ ->
       [{:ok, [%{}]}, {:ok, [%{}]}]
     end)
 
@@ -64,7 +64,7 @@ defmodule UnirisCore.Mining.ContextTest do
              Context.download(:crypto.strong_rand_bytes(32), P2P.list_nodes())
   end
 
-  test "confirm/2 should return previous chain, unspent outputs with storage nodes used for data retrieeval and data confirmation" do
+  test "confirm/4 should return previous chain, unspent outputs with storage nodes used for data retrieeval and data confirmation" do
     tx = %Transaction{
       address: "",
       type: :transfer,
@@ -107,7 +107,7 @@ defmodule UnirisCore.Mining.ContextTest do
     ]
 
     MockNodeClient
-    |> stub(:send_message, fn _, msg ->
+    |> stub(:send_message, fn _, _, msg ->
       case msg do
         {:get_proof_of_integrity, _} ->
           {:ok, List.first(previous_chain).validation_stamp.proof_of_integrity}
@@ -119,18 +119,20 @@ defmodule UnirisCore.Mining.ContextTest do
 
     {:ok, chain, unspent_output_transactions, nodes} =
       Context.confirm(
-        {:ok, previous_chain, unspent_outputs, "key3"},
-        ["key3", "key1"]
+        previous_chain,
+        unspent_outputs,
+        ["key1"]
       )
 
     assert chain == previous_chain
     assert unspent_outputs == unspent_output_transactions
 
     assert nodes == [
-             # previous storage node used to retreive the chain and utxo
-             "key3",
              # previous storage node used to confirm the chain integrity
-             "key1"
+             "key1",
+
+             # previous storage node used to confirm the UTXOs
+             Crypto.node_public_key(0)
            ]
   end
 end

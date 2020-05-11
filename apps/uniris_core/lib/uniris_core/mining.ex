@@ -25,41 +25,37 @@ defmodule UnirisCore.Mining do
         ) :: {:ok, pid()} | :ok
 
   def start(tx = %Transaction{}, _, []) do
-    case self_mining(tx) do
-      nil ->
-        :ok
+    Task.start(fn ->
+      %Transaction{} = tx = self_mining(tx)
 
-      tx ->
-        UnirisCore.Storage.write_transaction(tx)
+      UnirisCore.Storage.write_transaction(tx)
 
-        tx.address
-        |> Beacon.subset_from_address()
-        |> Beacon.add_transaction_info(%TransactionInfo{
-          address: tx.address,
-          type: tx.type,
-          timestamp: tx.timestamp
-        })
-    end
+      tx.address
+      |> Beacon.subset_from_address()
+      |> Beacon.add_transaction_info(%TransactionInfo{
+        address: tx.address,
+        type: tx.type,
+        timestamp: tx.timestamp
+      })
+    end)
   end
 
   def start(tx = %Transaction{}, _, [_ | []]) do
-    case self_mining(tx) do
-      nil ->
-        :ok
+    Task.start(fn ->
+      %Transaction{} = tx = self_mining(tx)
 
-      tx ->
-        chain_storage_nodes =
-          P2P.list_nodes()
-          |> Enum.filter(&(&1.availability == 1))
-          |> Enum.filter(& &1.ready?)
+      chain_storage_nodes =
+        P2P.list_nodes()
+        |> Enum.filter(& &1.available?)
+        |> Enum.filter(& &1.ready?)
 
-        beacon_storage_nodes =
-          tx.address
-          |> Beacon.subset_from_address()
-          |> Beacon.get_pool(tx.timestamp)
+      beacon_storage_nodes =
+        tx.address
+        |> Beacon.subset_from_address()
+        |> Beacon.get_pool(tx.timestamp)
 
-        Task.start(fn -> Replication.run(tx, chain_storage_nodes, beacon_storage_nodes) end)
-    end
+      Replication.run(tx, chain_storage_nodes, beacon_storage_nodes)
+    end)
   end
 
   def start(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys) do
@@ -149,25 +145,37 @@ defmodule UnirisCore.Mining do
   end
 
   def replicate_transaction(tx = %Transaction{}) do
-    case Replication.transaction_validation_only(tx) do
-      :ok ->
-        Storage.write_transaction(tx)
-        Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
+    case Storage.get_transaction(tx.address) do
+      {:error, :transaction_not_exists} ->
+        case Replication.transaction_validation_only(tx) do
+          :ok ->
+            Storage.write_transaction(tx)
+            Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
+
+          _ ->
+            Storage.write_ko_transaction(tx)
+            Logger.info("KO transaction #{Base.encode16(tx.address)}")
+        end
 
       _ ->
-        Storage.write_ko_transaction(tx)
-        Logger.info("KO transaction #{Base.encode16(tx.address)}")
+        :ok
     end
   end
 
   def replicate_transaction_chain(tx = %Transaction{}) do
-    case Replication.chain_validation(tx) do
-      {:ok, chain} ->
-        Storage.write_transaction_chain(chain)
+    case Storage.get_transaction(tx.address) do
+      {:error, :transaction_not_exists} ->
+        case Replication.chain_validation(tx) do
+          {:ok, chain} ->
+            Storage.write_transaction_chain(chain)
+
+          _ ->
+            Storage.write_ko_transaction(tx)
+            Logger.info("KO transaction #{Base.encode16(tx.address)}")
+        end
 
       _ ->
-        Storage.write_ko_transaction(tx)
-        Logger.info("KO transaction #{Base.encode16(tx.address)}")
+        :ok
     end
   end
 

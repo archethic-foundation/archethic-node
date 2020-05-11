@@ -24,7 +24,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: true,
       ready?: true,
       enrollment_date: DateTime.utc_now(),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"
@@ -38,7 +38,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: false,
       ready?: true,
       enrollment_date: DateTime.utc_now(),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"
@@ -52,7 +52,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: true,
       ready?: true,
       enrollment_date: DateTime.utc_now() |> DateTime.add(86400),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"
@@ -70,7 +70,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: true,
       ready?: true,
       enrollment_date: DateTime.utc_now(),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"
@@ -84,7 +84,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: true,
       ready?: true,
       enrollment_date: DateTime.utc_now() |> DateTime.add(1),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"
@@ -98,7 +98,7 @@ defmodule UnirisCore.BeaconTest do
       authorized?: true,
       ready?: true,
       enrollment_date: DateTime.utc_now() |> DateTime.add(2),
-      availability: 1,
+      available?: true,
       average_availability: 1,
       geo_patch: "AAA",
       network_patch: "AAA"

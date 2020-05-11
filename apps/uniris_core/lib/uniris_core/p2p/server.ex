@@ -83,15 +83,13 @@ defmodule UnirisCore.P2PServer do
 
   defp process_message(:new_seeds) do
     P2P.list_nodes()
-    |> Enum.filter(& &1.authorized?)
-    |> Enum.reject(&(&1.availability == 0))
+    |> Enum.filter(&(&1.authorized? && &1.available?))
     |> Enum.take_random(5)
   end
 
   defp process_message({:closest_nodes, network_patch}) do
     P2P.list_nodes()
-    |> Enum.filter(& &1.authorized?)
-    |> Enum.reject(&(&1.availability == 0))
+    |> Enum.filter(&(&1.authorized? && &1.available?))
     |> P2P.nearest_nodes(network_patch)
     |> Enum.take(5)
   end
@@ -216,6 +214,10 @@ defmodule UnirisCore.P2PServer do
   defp process_message({:add_node_info, subset, node_info = %NodeInfo{}})
        when is_binary(subset) do
     Beacon.add_node_info(subset, node_info)
+  end
+
+  defp process_message({:get_last_transaction, last_address}) when is_binary(last_address) do
+    UnirisCore.get_last_transaction(last_address)
   end
 
   defp do_process_messages([message | rest], acc) do

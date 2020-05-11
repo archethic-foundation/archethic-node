@@ -55,7 +55,7 @@ defmodule UnirisCore.Beacon do
     authorized_nodes =
       Enum.filter(P2P.list_nodes(), fn node ->
         DateTime.compare(node.enrollment_date, date) == :lt && node.ready? && node.authorized? &&
-          node.availability == 1
+          node.available?
       end)
 
     subset

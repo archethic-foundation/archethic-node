@@ -32,35 +32,7 @@ defmodule UnirisCore.P2P.NodeTCPClientTest do
     {:ok, %{port: 7777}}
   end
 
-  test "start_link/3 should establish a connection and notify the connection", %{port: port} do
-    {:ok, pid} = NodeTCPClient.start_link(ip: {127, 0, 0, 1}, port: port, parent_pid: self())
-
-    %{socket: socket, ip: {127, 0, 0, 1}, port: port, parent_pid: _, queue: _} =
-      :sys.get_state(pid)
-
-    {:ok, {remote_addr, remote_port}} = :inet.peername(socket)
-    assert remote_addr == {127, 0, 0, 1}
-    assert remote_port == port
-
-    assert_receive :connected
-
-    :gen_tcp.close(socket)
-  end
-
-  test "send_message/2 should send a message and get results", %{port: port} do
-    {:ok, socket} = NodeTCPClient.start_link(ip: {127, 0, 0, 1}, port: port, parent_pid: self())
-    msg = :hello
-    assert :hello == NodeTCPClient.send_message(socket, msg)
-  end
-
-  test "a connection closed should stop the process", %{port: port} do
-    {:ok, pid} = NodeTCPClient.start_link(ip: {127, 0, 0, 1}, port: port, parent_pid: self())
-    assert_receive :connected
-
-    %{socket: socket} = :sys.get_state(pid)
-    :gen_tcp.shutdown(socket, :read_write)
-    Process.sleep(200)
-
-    assert !Process.alive?(pid)
+  test "send_message/3 should send a message and get results", %{port: port} do
+    assert :hello == NodeTCPClient.send_message({127, 0, 0, 1}, port, :hello)
   end
 end
