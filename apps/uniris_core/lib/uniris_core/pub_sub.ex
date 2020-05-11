@@ -9,6 +9,7 @@ defmodule UnirisCore.PubSub do
   """
 
   alias UnirisCore.Transaction
+  alias UnirisCore.P2P.Node
   alias UnirisCore.PubSubRegistry
 
   @doc """
@@ -32,10 +33,28 @@ defmodule UnirisCore.PubSub do
   end
 
   @doc """
+  Notify the registered processes than a node has been either updated or joined the network
+  """
+  @spec notify_node_update(Node.t()) :: :ok
+  def notify_node_update(node = %Node{}) do
+    Registry.dispatch(PubSubRegistry, "node_update", fn entries ->
+      for {pid, _} <- entries, do: send(pid, {:node_update, node})
+    end)
+  end
+
+  @doc """
   Register a process to a new transaction publication
   """
   @spec register_to_new_transaction() :: {:ok, pid()}
   def register_to_new_transaction() do
     Registry.register(PubSubRegistry, "new_transaction", [])
+  end
+
+  @doc """
+  Register a process to a node update publication
+  """
+  @spec register_to_node_update() :: :ok
+  def register_to_node_update() do
+    Registry.register(PubSubRegistry, "node_update", [])
   end
 end
