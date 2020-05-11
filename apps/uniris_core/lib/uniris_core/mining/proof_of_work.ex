@@ -40,9 +40,9 @@ defmodule UnirisCore.Mining.ProofOfWork do
     find_public_key(origin_signature, origin_signature_data_fields(tx), origin_node_keys)
   end
 
-  def run(tx = %Transaction{}) do
+  def run(tx = %Transaction{origin_signature: origin_signature}) do
     find_public_key(
-      tx.origin_signature,
+      origin_signature,
       origin_signature_data_fields(tx),
       SharedSecrets.origin_public_keys()
     )
