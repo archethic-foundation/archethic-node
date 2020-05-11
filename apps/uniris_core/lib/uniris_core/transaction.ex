@@ -238,19 +238,21 @@ defmodule UnirisCore.Transaction do
 
   def serialize_type(:identity), do: 0
   def serialize_type(:keychain), do: 1
-  def serialize_type(:node), do: 2
-  def serialize_type(:node_shared_secrets), do: 3
-  def serialize_type(:origin_shared_secrets), do: 4
-  def serialize_type(:code), do: 5
-  def serialize_type(:beacon), do: 6
+  def serialize_type(:transfer), do: 2
+  def serialize_type(:node), do: 3
+  def serialize_type(:node_shared_secrets), do: 4
+  def serialize_type(:origin_shared_secrets), do: 5
+  def serialize_type(:code), do: 6
+  def serialize_type(:beacon), do: 7
 
   def parse_type(0), do: :identity
   def parse_type(1), do: :keychain
-  def parse_type(2), do: :node
-  def parse_type(3), do: :node_shared_secrets
-  def parse_type(4), do: :origin_shared_secrets
-  def parse_type(5), do: :code
-  def parse_type(6), do: :beacon
+  def parse_type(2), do: :transfer
+  def parse_type(3), do: :node
+  def parse_type(4), do: :node_shared_secrets
+  def parse_type(5), do: :origin_shared_secrets
+  def parse_type(6), do: :code
+  def parse_type(7), do: :beacon
 
   def network_type?(:node), do: true
   def network_type?(:node_shared_secrets), do: true
