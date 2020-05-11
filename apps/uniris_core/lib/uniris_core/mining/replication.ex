@@ -18,6 +18,7 @@ defmodule UnirisCore.Mining.Replication do
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
   alias UnirisCore.Election
+  alias UnirisCore.Crypto
 
   require Logger
 
@@ -147,9 +148,8 @@ defmodule UnirisCore.Mining.Replication do
     |> Stream.run()
 
     utxo_nodes =
-      transfers_recipients(uco_transfers)
-      |> Kernel.++(recipients)
-      |> Kernel.++(rewarded_nodes(node_movements))
+      [transfers_recipients(uco_transfers), recipients, rewarded_nodes(node_movements)]
+      |> Enum.concat()
       |> Enum.uniq()
 
     Task.Supervisor.async_stream_nolink(
@@ -199,7 +199,7 @@ defmodule UnirisCore.Mining.Replication do
         {:ok, [], unspent_outputs}
 
       {chain, unspent_outputs, _} ->
-        if valid_chain?(chain) do
+        if valid_chain?([tx | chain]) do
           {:ok, chain, unspent_outputs}
         else
           {:error, :invalid_transaction}
@@ -208,12 +208,23 @@ defmodule UnirisCore.Mining.Replication do
   end
 
   defp valid_chain?(
-         chain = [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}} | _]
+         chain = [
+           %Transaction{
+             previous_public_key: previous_public_key,
+             validation_stamp: %ValidationStamp{proof_of_integrity: poi}
+           }
+           | [%Transaction{address: previous_address} | _]
+         ]
        ) do
-    if ProofOfIntegrity.compute(chain) == poi do
-      true
-    else
-      false
+    cond do
+      ProofOfIntegrity.compute(chain) != poi ->
+        false
+
+      Crypto.hash(previous_public_key) != previous_address ->
+        false
+
+      true ->
+        true
     end
   end
 
