@@ -9,14 +9,14 @@ defmodule UnirisCore.Mining.BinarySequence do
   Create a binary sequence from a list of node and a subset by set the bit on the subset node
   """
   @spec from_subset(node_list :: list(Node.t()), subset :: list(Node.t())) :: bitstring()
-  def from_subset(node_list, subset) do
+  def from_subset(node_list, subset) when is_list(node_list) and is_list(subset) do
     nb_nodes = length(node_list)
     sequence = <<0::size(nb_nodes)>>
     do_from_subset(node_list, subset, sequence)
   end
 
-  defp do_from_subset(list, [node | subset], sequence) do
-    index = Enum.find_index(list, &(&1.last_public_key == node.last_public_key))
+  defp do_from_subset(list, [%Node{last_public_key: last_public_key} | subset], sequence) do
+    index = Enum.find_index(list, &(&1.last_public_key == last_public_key))
     <<prefix::size(index), _::size(1), rest::bitstring>> = sequence
     new_sequence = <<prefix::size(index), 1::size(1), rest::bitstring>>
     do_from_subset(list, subset, new_sequence)
@@ -28,15 +28,22 @@ defmodule UnirisCore.Mining.BinarySequence do
   Create a binary sequence from a list node and set bit regarding their availability
   """
   @spec from_availability(list(Node.t())) :: bitstring()
-  def from_availability(node_list) do
+  def from_availability(node_list) when is_list(node_list) do
     nb_nodes = length(node_list)
     sequence = <<0::size(nb_nodes)>>
     do_from_availability(node_list, sequence, 0)
   end
 
-  defp do_from_availability([node | list], sequence, index) do
+  defp do_from_availability([%Node{available?: available?} | list], sequence, index) do
     <<prefix::size(index), _::size(1), rest::bitstring>> = sequence
-    new_sequence = <<prefix::size(index), node.availability::size(1), rest::bitstring>>
+
+    new_sequence =
+      if available? do
+        <<prefix::size(index), 1::1, rest::bitstring>>
+      else
+        <<prefix::size(index), 0::1, rest::bitstring>>
+      end
+
     do_from_availability(list, new_sequence, index + 1)
   end
 
@@ -46,7 +53,8 @@ defmodule UnirisCore.Mining.BinarySequence do
   Aggregate two bitstring using an OR bitwise operation
   """
   @spec aggregate(bitstring(), bitstring()) :: bitstring()
-  def aggregate(seq1, seq2) do
+  def aggregate(seq1, seq2)
+      when is_bitstring(seq1) and is_bitstring(seq2) and bit_size(seq1) == bit_size(seq2) do
     aggregate(seq1, seq2, 0)
   end
 
@@ -67,7 +75,7 @@ defmodule UnirisCore.Mining.BinarySequence do
   Represents a bitstring in a list of 0 and 1
   """
   @spec extract(bitstring()) :: list()
-  def extract(sequence) do
+  def extract(sequence) when is_bitstring(sequence) do
     extract(sequence, [])
   end
 
