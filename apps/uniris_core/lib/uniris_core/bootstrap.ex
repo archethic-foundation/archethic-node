@@ -257,7 +257,6 @@ defmodule UnirisCore.Bootstrap do
   defp update_seeds(seeds_file, seeds) when is_list(seeds) do
     seeds_str =
       seeds
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
       |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
         acc ++ ["#{stringify_ip(ip)}:#{port}:#{public_key |> Base.encode16()}"]
       end)
@@ -266,11 +265,7 @@ defmodule UnirisCore.Bootstrap do
     File.write!(seeds_file, seeds_str, [:write])
   end
 
-  defp stringify_ip(ip) do
-    ip
-    |> Tuple.to_list()
-    |> Enum.join(".")
-  end
+  defp stringify_ip(ip), do: :inet_parse.ntoa(ip)
 
   defp send_message(msg, [closest_node | rest]) do
     try do
