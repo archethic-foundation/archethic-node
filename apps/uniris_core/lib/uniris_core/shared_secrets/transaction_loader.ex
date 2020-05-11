@@ -4,6 +4,9 @@ defmodule UnirisCore.SharedSecrets.TransactionLoader do
   alias UnirisCore.Transaction
   alias UnirisCore.SharedSecrets
   alias UnirisCore.PubSub
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
+  alias UnirisCore.Storage
 
   require Logger
 
@@ -18,29 +21,43 @@ defmodule UnirisCore.SharedSecrets.TransactionLoader do
 
     # TODO: when the origin key renewal implemented , load from the storage the origin shared secrets transactions
 
+    Enum.each(Storage.node_transactions(), &load_transaction/1)
+
     {:ok, %{}}
   end
 
-  def handle_info(
-        {:new_transaction,
-         %Transaction{
-           type: :origin_shared_secrets,
-           data: %{content: content}
-         }},
-        state
-      ) do
-    content
-    |> extract_origin_public_keys_from_content
-    |> Enum.each(fn {family, keys} ->
-      Enum.each(keys, &SharedSecrets.add_origin_public_key(family, &1))
-    end)
-
+  def handle_info({:new_transaction, tx = %Transaction{}}, state) do
+    load_transaction(tx)
     {:noreply, state}
   end
 
   def handle_info(_, state) do
     {:noreply, state}
   end
+
+  defp load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
+    case P2P.node_info(previous_public_key) do
+      {:error, :not_found} ->
+        SharedSecrets.add_origin_public_key(:software, previous_public_key)
+
+      {:ok, %Node{first_public_key: first_public_key}}
+      when first_public_key == previous_public_key ->
+        SharedSecrets.add_origin_public_key(:software, previous_public_key)
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp load_transaction(%Transaction{type: :origin_shared_secrets, data: %{content: content}}) do
+    content
+    |> extract_origin_public_keys_from_content
+    |> Enum.each(fn {family, keys} ->
+      Enum.each(keys, &SharedSecrets.add_origin_public_key(family, &1))
+    end)
+  end
+
+  defp load_transaction(_), do: :ok
 
   defp extract_origin_public_keys_from_content(content) do
     Regex.scan(~r/(?<=origin_public_keys:).*/, content)
