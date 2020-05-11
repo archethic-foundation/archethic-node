@@ -1,9 +1,17 @@
 <div class="row" style="margin-top: 50px">
-    <section class="column">
+    <div class="column">
         <header>
-            <h3>Transaction details</h3>
+            <div class="row">
+                <h3 class="column column-20">Transaction details</h3>
+                <div class="column column-70"></div>
+                <span class="column column-10">
+                <%= link to: Routes.explorer_path(@conn, :search, address: Base.encode16(@previous_address)) do%>
+                    Previous address
+                <% end %>
+                </span>
+            </div>
         </header>
-
+        <section style="margin-top: 30px">
             <div class="row">
                 <div class="column column-10">Address:</div>
                 <div class="column"><%= Base.encode16(@transaction.address) %></div>
@@ -193,6 +201,6 @@
                     <% end %>
                 </div>
             </div>
-
-    </section>
+        </section>
+    </div>
 </div>

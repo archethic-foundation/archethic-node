@@ -1,7 +1,7 @@
 <section class="row" style="margin-top: 50px">
     <div class="column column-40">
         <header>
-            <h3>Transactions (10th last)</h3>
+            <h3>Transactions</h3>
         </header>
         <%= live_render(@conn, UnirisWeb.TransactionLive) %>
     </div>

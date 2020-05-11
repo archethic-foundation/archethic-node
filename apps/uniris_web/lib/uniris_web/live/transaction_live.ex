@@ -13,7 +13,7 @@ defmodule UnirisWeb.TransactionLive do
     transactions =
       Storage.list_transactions()
       |> Enum.reject(&(&1.type == :beacon))
-      |> Enum.sort_by(& &1.timestamp, :desc)
+      |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
 
     {:ok, assign(socket, transactions: transactions)}
   end
@@ -28,8 +28,8 @@ defmodule UnirisWeb.TransactionLive do
   def handle_info({:new_transaction, tx = %Transaction{}}, socket) do
     new_socket =
       update(socket, :transactions, fn transactions ->
-        [ tx | transactions]
-        |> Enum.sort_by(& &1.timestamp, :desc)
+        [tx | transactions]
+        |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
       end)
 
     {:noreply, new_socket}
