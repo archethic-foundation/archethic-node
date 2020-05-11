@@ -55,26 +55,6 @@ defmodule UnirisCore.BeaconSubset do
     {:reply, :ok, Map.update!(state, :current_slot, &BeaconSlot.add_node_info(&1, node_info))}
   end
 
-  def handle_info(
-        {:create_slot, _slot_time},
-        state = %{current_slot: %BeaconSlot{transactions: [], nodes: []}}
-      ) do
-    {:noreply, state}
-  end
-
-  def handle_info({:create_slot, slot_time = %DateTime{}}, state = %{current_slot: current_slot}) do
-    tx = Transaction.new(:beacon, %TransactionData{content: output_slot(current_slot)})
-    Storage.write_transaction(tx)
-
-    new_state =
-      state
-      |> Map.put(:current_slot, %BeaconSlot{})
-      |> put_in([:slots, slot_time], tx)
-
-    Logger.debug("Beacon slot created with #{inspect(current_slot)}")
-    {:noreply, new_state}
-  end
-
   def handle_call({:previous_slots, last_sync_date = %DateTime{}}, _, state = %{slots: slots}) do
     previous_slots =
       slots
@@ -102,6 +82,26 @@ defmodule UnirisCore.BeaconSubset do
       end)
 
     {:reply, previous_slots, state}
+  end
+
+  def handle_info(
+        {:create_slot, _slot_time},
+        state = %{current_slot: %BeaconSlot{transactions: [], nodes: []}}
+      ) do
+    {:noreply, state}
+  end
+
+  def handle_info({:create_slot, slot_time = %DateTime{}}, state = %{current_slot: current_slot}) do
+    tx = Transaction.new(:beacon, %TransactionData{content: output_slot(current_slot)})
+    Storage.write_transaction(tx)
+
+    new_state =
+      state
+      |> Map.put(:current_slot, %BeaconSlot{})
+      |> put_in([:slots, slot_time], tx)
+
+    Logger.debug("Beacon slot created with #{inspect(current_slot)}")
+    {:noreply, new_state}
   end
 
   defp output_slot(%BeaconSlot{transactions: [], nodes: nodes}) do
