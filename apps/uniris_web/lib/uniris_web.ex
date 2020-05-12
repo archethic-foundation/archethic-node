@@ -40,6 +40,8 @@ defmodule UnirisWeb do
       use Phoenix.HTML
 
       import UnirisWeb.ErrorHelpers
+      import UnirisWeb.LayoutHelpers
+      
       alias UnirisWeb.Router.Helpers, as: Routes
 
       import Phoenix.LiveView.Helpers
