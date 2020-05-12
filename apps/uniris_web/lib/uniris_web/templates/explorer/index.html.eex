@@ -1,12 +1,16 @@
 <section class="row" style="margin-top: 50px">
-    <div class="column column-40">
+    <div class="column column-50">
         <header>
             <h3>Transactions</h3>
         </header>
-        <%= live_render(@conn, UnirisWeb.TransactionLive) %>
+        <div style="max-height: 200px; overflow-y: scroll; overflow-x: hidden;">
+            <%= live_render(@conn, UnirisWeb.TransactionLive) %>
+        </div>
     </div>
+</section>
 
-    <div class="column column-40 column-offset-10">
+<section class="row" style="margin-top: 20px">
+    <div class="column">
         <header>
             <h3>P2P view</h3>
         </header>

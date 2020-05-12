@@ -13,7 +13,7 @@
             </span>
         <% end %>
     </div>
-    <div class="column column-40"><%= tx.timestamp %></div>
+    <div class="column column-40"><%= format_date(tx.timestamp) %></div>
     <div class="column column-20"><%= tx.type %></div>
 </div>
 <% end %>
