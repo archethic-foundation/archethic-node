@@ -7,7 +7,18 @@ defmodule Uniris.MixProject do
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      elixirc_options: [warnings_as_errors: true]
+      elixirc_options: [warnings_as_errors: true],
+
+      releases: [
+        uniris_node: [
+          include_executables_for: [:unix],
+          applications: [
+            runtime_tools: :permanent,
+            uniris_core: :permanent,
+            uniris_web: :temporary
+          ]
+        ],
+      ]
     ]
   end
 
