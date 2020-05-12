@@ -22,7 +22,7 @@ defmodule UnirisCore.Mining do
           transaction :: Transaction.pending(),
           welcome_node_public_key :: UnirisCore.Crypto.key(),
           validation_node_public_keys :: list(UnirisCore.Crypto.key())
-        ) :: {:ok, pid()} | :ok
+        ) :: {:ok, pid()}
 
   def start(tx = %Transaction{}, _, []) do
     Task.start(fn ->
@@ -144,6 +144,15 @@ defmodule UnirisCore.Mining do
     Worker.add_cross_validation_stamp(get_worker_pid(tx_address), stamp)
   end
 
+  @doc """
+  Performs transaction only validation before store.
+
+  The validation includes: 
+  - run pending transaction integrity
+  - run cryptography integrity
+  - ensure atomic commitment
+  """
+  @spec replicate_transaction(Transaction.validated()) :: :ok
   def replicate_transaction(tx = %Transaction{}) do
     case Storage.get_transaction(tx.address) do
       {:error, :transaction_not_exists} ->
@@ -162,6 +171,17 @@ defmodule UnirisCore.Mining do
     end
   end
 
+  @doc """
+  Performs full transaction chain validation before storage.
+
+  The validation includes:
+  - retrieved the previous chain
+  - run pending transaction integrity
+  - run chain integrity
+  - run cryptography integrity
+  - ensure atomic commitment
+  """
+  @spec replicate_transaction_chain(Transaction.validated()) :: :ok
   def replicate_transaction_chain(tx = %Transaction{}) do
     case Storage.get_transaction(tx.address) do
       {:error, :transaction_not_exists} ->
@@ -179,6 +199,15 @@ defmodule UnirisCore.Mining do
     end
   end
 
+  @doc """
+  Performs transaction only validation before adding to the beacon chain.
+    
+  The validation includes: 
+  - run pending transaction integrity
+  - run cryptography integrity
+  - ensure atomic commitment
+  """
+  @spec replicate_address(Transaction.validated()) :: :ok
   def replicate_address(tx = %Transaction{}) do
     case Replication.transaction_validation_only(tx) do
       :ok ->
