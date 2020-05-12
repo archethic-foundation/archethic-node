@@ -32,7 +32,7 @@ defmodule UnirisCore.MixProject do
   defp deps do
     [
       {:flow, "~> 1.0"},
-      {:elixir_make, "~> 0.6.0", only: [:dev, :test]},
+      {:elixir_make, "~> 0.6.0"},
       {:ex_doc, "~> 0.21.2", only: [:dev]},
       {:mox, "~> 0.5.2", only: [:test]},
       {:stream_data, "~> 0.4.3", only: [:test]}
