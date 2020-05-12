@@ -206,9 +206,10 @@ defmodule UnirisCore.P2PServer do
     Mining.add_cross_validation_stamp(tx_address, {signature, inconsistencies, public_key})
   end
 
-  defp process_message({:get_beacon_slots, subset, last_sync_date})
-       when is_binary(subset) and is_integer(last_sync_date) do
-    Beacon.previous_slots(subset, DateTime.from_unix!(last_sync_date))
+  defp process_message({:get_beacon_slots, slots}) when is_list(slots) do
+    slots
+    |> Enum.map(fn {subset, dates} -> Beacon.previous_slots(subset, dates) end)
+    |> Enum.flat_map(& &1)
   end
 
   defp process_message({:add_node_info, subset, node_info = %NodeInfo{}})

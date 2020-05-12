@@ -8,6 +8,7 @@ defmodule UnirisCore.Beacon do
   alias UnirisCore.Crypto
   alias UnirisCore.Election
   alias UnirisCore.P2P
+  alias UnirisCore.Utils
 
   @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
@@ -30,19 +31,24 @@ defmodule UnirisCore.Beacon do
 
     slot_times =
       Enum.map(0..sync_times, fn i ->
-        DateTime.add(last_sync_date, i * slot_interval, :millisecond)
+        last_sync_date
+        |> DateTime.add(i * slot_interval, :millisecond)
+        |> Utils.truncate_datetime()
       end)
 
     Flow.from_enumerable(all_subsets())
     |> Flow.partition(stages: 256)
     |> Flow.reduce(fn -> %{} end, fn subset, acc ->
-      nodes =
-        slot_times
-        |> Enum.map(&get_pool(subset, &1))
-        |> Enum.flat_map(& &1)
-        |> Enum.uniq()
+      slot_times
+      |> Enum.map(fn slot_time -> {slot_time, get_pool(subset, slot_time)} end)
+      |> Enum.reject(fn {_, nodes} -> nodes == [] end)
+      |> case do
+        [] ->
+          acc
 
-      Map.update(acc, subset, nodes, &Enum.uniq(&1 ++ nodes))
+        nodes ->
+          Map.update(acc, subset, nodes, &Enum.uniq(&1 ++ nodes))
+      end
     end)
     |> Enum.to_list()
   end
@@ -50,13 +56,16 @@ defmodule UnirisCore.Beacon do
   @doc """
   Retrieve the beacon storage nodes from a given subset and datetime
   """
-  @spec get_pool(subset :: binary(), date :: DateTime.t()) :: list(Node.t())
+  @spec get_pool(subset :: binary(), last_sync_date :: DateTime.t()) :: list(Node.t())
   def get_pool(subset, date = %DateTime{}) when is_binary(subset) do
+
+    # Need to select the beacon authorized nodes at the last sync date
     authorized_nodes =
-      Enum.filter(P2P.list_nodes(), fn node ->
-        DateTime.compare(node.enrollment_date, date) == :lt && node.ready? && node.authorized? &&
-          node.available?
-      end)
+      Enum.filter(
+        P2P.list_nodes(),
+        &(&1.ready? && &1.available? && &1.authorized? &&
+            DateTime.compare(&1.authorization_date, date) == :lt)
+      )
 
     subset
     |> Crypto.derivate_beacon_chain_address(next_slot(date))
@@ -69,14 +78,15 @@ defmodule UnirisCore.Beacon do
     else
       BeaconSlotTimer.last_slot_time()
     end
+    |> Utils.truncate_datetime()
   end
 
   @doc """
-  Get the last informations regarding a beacon subset slot before the last synchronized date for the given subset.
+  Get the last informations regarding a beacon subset slot before the last synchronized dates for the given subset.
   """
-  @spec previous_slots(subset :: <<_::8>>, DateTime.t()) :: BeaconSlot.t()
-  def previous_slots(subset, last_sync_date = %DateTime{}) when is_binary(subset) do
-    BeaconSubset.previous_slots(subset, last_sync_date)
+  @spec previous_slots(subset :: <<_::8>>, dates :: list(DateTime.t())) :: BeaconSlot.t()
+  def previous_slots(subset, dates) when is_binary(subset) and is_list(dates) do
+    BeaconSubset.previous_slots(subset, dates)
   end
 
   @doc """

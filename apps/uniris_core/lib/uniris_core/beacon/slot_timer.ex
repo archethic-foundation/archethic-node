@@ -13,14 +13,20 @@ defmodule UnirisCore.BeaconSlotTimer do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec slot_interval() :: non_neg_integer()
   def slot_interval() do
     GenServer.call(__MODULE__, :slot_interval)
+  end
+
+  @spec last_slot_time() :: DateTime.t()
+  def last_slot_time() do
+    GenServer.call(__MODULE__, :last_slot_time)
   end
 
   def init(opts) do
     interval = Keyword.get(opts, :slot_interval)
     schedule_new_slot(Utils.time_offset(interval))
-    {:ok, %{last_slot_time: DateTime.utc_now(), interval: interval}}
+    {:ok, %{last_slot_time: Utils.truncate_datetime(DateTime.utc_now()), interval: interval}}
   end
 
   def handle_call(:last_slot_time, _from, state = %{last_slot_time: slot_time}) do
@@ -32,7 +38,7 @@ defmodule UnirisCore.BeaconSlotTimer do
   end
 
   def handle_info(:new_slot, state = %{interval: interval}) do
-    slot_time = DateTime.utc_now()
+    slot_time = Utils.truncate_datetime(DateTime.utc_now())
 
     BeaconSubsets.all()
     |> Enum.each(fn subset ->
@@ -49,7 +55,4 @@ defmodule UnirisCore.BeaconSlotTimer do
     Process.send_after(__MODULE__, :new_slot, interval)
   end
 
-  def last_slot_time() do
-    GenServer.call(__MODULE__, :last_slot_time)
-  end
 end

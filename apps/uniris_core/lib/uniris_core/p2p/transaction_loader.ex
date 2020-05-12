@@ -43,6 +43,7 @@ defmodule UnirisCore.P2P.TransactionLoader do
         {:new_transaction,
          %Transaction{
            type: :node_shared_secrets,
+           timestamp: timestamp,
            data: %TransactionData{
              keys: %{authorized_keys: authorized_keys}
            }
@@ -59,7 +60,7 @@ defmodule UnirisCore.P2P.TransactionLoader do
     ref_authorized_scheduler =
       Process.send_after(
         self(),
-        {:authorize_nodes, Map.keys(authorized_keys)},
+        {:authorize_nodes, Map.keys(authorized_keys), timestamp},
         renewal_offset
       )
 
@@ -72,10 +73,10 @@ defmodule UnirisCore.P2P.TransactionLoader do
     {:noreply, state}
   end
 
-  def handle_info({:authorize_nodes, nodes}, state) do
+  def handle_info({:authorize_nodes, nodes, date}, state) do
     Logger.debug("new authorized nodes #{inspect(nodes)}")
 
-    Enum.each(nodes, &Node.authorize/1)
+    Enum.each(nodes, &Node.authorize(&1, date))
     {:noreply, state}
   end
 
@@ -102,7 +103,7 @@ defmodule UnirisCore.P2P.TransactionLoader do
           port: port,
           first_public_key: previous_public_key,
           last_public_key: previous_public_key,
-          enrollment_date: timestamp
+          enrollment_date: Utils.truncate_datetime(timestamp)
         })
     end
   end
@@ -113,9 +114,10 @@ defmodule UnirisCore.P2P.TransactionLoader do
            keys: %{
              authorized_keys: authorized_keys
            }
-         }
+         },
+         timestamp: timestamp
        }) do
-    Enum.map(Map.keys(authorized_keys), &Node.authorize/1)
+    Enum.map(Map.keys(authorized_keys), &Node.authorize(&1, timestamp))
   end
 
   defp load_transaction(_tx), do: :ok

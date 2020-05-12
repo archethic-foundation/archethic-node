@@ -1,8 +1,9 @@
 defmodule UnirisCore.BeaconSlot.NodeInfo do
-  defstruct [:public_key, :ready?]
+  defstruct [:public_key, :ready?, :timestamp]
 
   @type t :: %__MODULE__{
           public_key: UnirisCore.Crypto.key(),
-          ready?: boolean()
+          ready?: boolean(),
+          timestamp: DateTime.t()
         }
 end

@@ -54,7 +54,8 @@ defmodule UnirisCore.BeaconSubsetTest do
     })
 
     public_key = :crypto.strong_rand_bytes(32)
-    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true})
+    ready_time = DateTime.utc_now()
+    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true, timestamp: ready_time})
 
     send(pid, {:create_slot, DateTime.utc_now()})
 
@@ -72,7 +73,7 @@ defmodule UnirisCore.BeaconSubsetTest do
              Enum.join(
                [
                  "T - 1 - #{DateTime.to_unix(tx_time)} - #{Base.encode16(tx_address)}",
-                 "N - #{Base.encode16(public_key)} - R"
+                 "N - #{Base.encode16(public_key)} - #{DateTime.to_unix(ready_time)} - R"
                ],
                "\n"
              )
@@ -92,10 +93,10 @@ defmodule UnirisCore.BeaconSubsetTest do
     })
 
     public_key = :crypto.strong_rand_bytes(32)
-    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true})
+    BeaconSubset.add_node_info(subset, %NodeInfo{public_key: public_key, ready?: true, timestamp: DateTime.utc_now()})
     send(pid, {:create_slot, DateTime.utc_now() |> DateTime.add(60)})
 
-    slots = BeaconSubset.previous_slots(subset, DateTime.utc_now())
+    slots = BeaconSubset.previous_slots(subset, [DateTime.utc_now()])
     assert length(slots) == 1
 
     assert %BeaconSlot{

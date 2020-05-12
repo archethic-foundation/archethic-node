@@ -21,6 +21,7 @@ defmodule UnirisCore.Bootstrap do
   alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.SelfRepair
   alias UnirisCore.Mining
+  alias UnirisCore.Utils
   alias __MODULE__.IPLookup
 
   def start_link(opts) do
@@ -84,7 +85,7 @@ defmodule UnirisCore.Bootstrap do
     Mining.start(tx, "", [])
     Process.sleep(100)
 
-    Node.set_ready(Crypto.node_public_key(0))
+    Node.set_ready(Crypto.node_public_key(0), tx.timestamp)
 
     init_node_shared_secrets_chain()
     SelfRepair.start_sync(P2P.get_geo_patch(ip), false)
@@ -111,7 +112,7 @@ defmodule UnirisCore.Bootstrap do
 
     Mining.start(tx, "", [])
 
-    Node.authorize(Crypto.node_public_key(0))
+    Node.authorize(Crypto.node_public_key(0), tx.timestamp)
 
     Crypto.decrypt_and_set_daily_nonce_seed(
       Crypto.aes_encrypt(daily_nonce_seed, aes_key),
@@ -182,12 +183,15 @@ defmodule UnirisCore.Bootstrap do
   defp publish_readyness() do
     subset = Beacon.subset_from_address(Crypto.node_public_key(0))
 
+    ready_date = DateTime.utc_now()
+
     subset
-    |> Beacon.get_pool(DateTime.utc_now())
+    |> Beacon.get_pool(ready_date)
     |> Task.async_stream(fn node ->
       P2P.send_message(
         node,
-        {:add_node_info, subset, %NodeInfo{public_key: Crypto.node_public_key(), ready?: true}}
+        {:add_node_info, subset,
+         %NodeInfo{public_key: Crypto.node_public_key(), ready?: true, timestamp: ready_date}}
       )
     end)
     |> Stream.run()
@@ -213,7 +217,9 @@ defmodule UnirisCore.Bootstrap do
            port: port,
            enrollment_date: enrollment_date,
            authorized?: authorized?,
-           ready?: ready?
+           authorization_date: authorization_date,
+           ready?: ready?,
+           ready_date: ready_date
          } ->
         case P2P.node_info(first_public_key) do
           {:error, :not_found} ->
@@ -224,11 +230,11 @@ defmodule UnirisCore.Bootstrap do
             Node.set_enrollment_date(first_public_key, enrollment_date)
 
             if ready? do
-              Node.set_ready(first_public_key)
+              Node.set_ready(first_public_key, ready_date)
             end
 
             if authorized? do
-              Node.authorize(first_public_key)
+              Node.authorize(first_public_key, authorization_date)
             end
         end
       end

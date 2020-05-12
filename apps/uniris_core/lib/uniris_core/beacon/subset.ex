@@ -55,10 +55,10 @@ defmodule UnirisCore.BeaconSubset do
     {:reply, :ok, Map.update!(state, :current_slot, &BeaconSlot.add_node_info(&1, node_info))}
   end
 
-  def handle_call({:previous_slots, last_sync_date = %DateTime{}}, _, state = %{slots: slots}) do
+  def handle_call({:previous_slots, dates}, _, state = %{slots: slots}) do
     previous_slots =
       slots
-      |> Enum.filter(fn {time, _} -> DateTime.compare(time, last_sync_date) == :gt end)
+      |> Enum.filter(fn {time, _} -> Enum.any?(dates, &(DateTime.compare(time, &1) == :gt)) end)
       |> Enum.sort_by(fn {time, _} -> time end)
       |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
         content
@@ -72,10 +72,11 @@ defmodule UnirisCore.BeaconSubset do
                 type: Transaction.parse_type(String.to_integer(type))
               })
 
-            ["N", public_key, "R"] ->
+            ["N", public_key, timestamp, "R"] ->
               BeaconSlot.add_node_info(slot, %NodeInfo{
                 public_key: Base.decode16!(public_key),
-                ready?: true
+                ready?: true,
+                timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!()
               })
           end
         end)
@@ -93,7 +94,6 @@ defmodule UnirisCore.BeaconSubset do
 
   def handle_info({:create_slot, slot_time = %DateTime{}}, state = %{current_slot: current_slot}) do
     tx = Transaction.new(:beacon, %TransactionData{content: output_slot(current_slot)})
-    Storage.write_transaction(tx)
 
     new_state =
       state
@@ -130,7 +130,7 @@ defmodule UnirisCore.BeaconSubset do
   end
 
   defp output_nodes(nodes) do
-    Enum.map(nodes, fn %NodeInfo{public_key: public_key, ready?: ready?} ->
+    Enum.map(nodes, fn %NodeInfo{public_key: public_key, ready?: ready?, timestamp: timestamp} ->
       infos = []
 
       infos =
@@ -138,7 +138,9 @@ defmodule UnirisCore.BeaconSubset do
           infos ++ ["R"]
         end
 
-      "N - #{Base.encode16(public_key)} - #{Enum.join(infos, " - ")}"
+      "N - #{Base.encode16(public_key)} - #{DateTime.to_unix(timestamp)} - #{
+        Enum.join(infos, " - ")
+      }"
     end)
     |> Enum.join("\n")
   end
@@ -153,11 +155,11 @@ defmodule UnirisCore.BeaconSubset do
     GenServer.call(via_tuple(subset), {:add_node_info, node_info})
   end
 
-  @spec previous_slots(binary(), DateTime.t()) :: BeaconSlot.t()
-  def previous_slots(subset, last_sync_date = %DateTime{}) do
+  @spec previous_slots(binary(), dates :: list(DateTime.t())) :: BeaconSlot.t()
+  def previous_slots(subset, dates) when is_list(dates) do
     subset
     |> via_tuple
-    |> GenServer.call({:previous_slots, last_sync_date})
+    |> GenServer.call({:previous_slots, dates})
   end
 
   defp via_tuple(subset) do

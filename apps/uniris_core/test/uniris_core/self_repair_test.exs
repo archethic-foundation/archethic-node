@@ -37,7 +37,7 @@ defmodule UnirisCore.SelfRepairTest do
     MockNodeClient
     |> stub(:send_message, fn _, _, msg ->
       case msg do
-        {:get_beacon_slots, _subset, _last_sync_date} ->
+        {:get_beacon_slots, _slots} ->
           [
             %BeaconSlot{
               transactions: [
@@ -93,6 +93,19 @@ defmodule UnirisCore.SelfRepairTest do
       ready?: true,
       available?: true,
       authorized?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-60),
+      enrollment_date: DateTime.utc_now() |> DateTime.add(-60)
+    })
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      last_public_key: :crypto.strong_rand_bytes(32),
+      first_public_key: :crypto.strong_rand_bytes(32),
+      network_patch: "AAA",
+      geo_patch: "AAA",
+      ready?: true,
+      available?: true,
       enrollment_date: DateTime.utc_now() |> DateTime.add(-60)
     })
 

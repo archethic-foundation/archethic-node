@@ -50,8 +50,8 @@ defmodule UnirisCore.P2PTest do
       last_public_key: "key3"
     })
 
-    Node.authorize("key")
-    Node.set_ready("key2")
+    Node.authorize("key", DateTime.utc_now())
+    Node.set_ready("key2", DateTime.utc_now())
 
     assert length(P2P.list_nodes()) == 3
   end

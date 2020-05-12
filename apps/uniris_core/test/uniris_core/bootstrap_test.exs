@@ -76,7 +76,9 @@ defmodule UnirisCore.BootstrapTest do
                   geo_patch: "AAA",
                   network_patch: "AAA",
                   ready?: true,
+                  ready_date: DateTime.utc_now(),
                   authorized?: true,
+                  authorization_date: DateTime.utc_now(),
                   available?: true,
                   enrollment_date: DateTime.utc_now()
                 }
@@ -96,7 +98,9 @@ defmodule UnirisCore.BootstrapTest do
                   geo_patch: "BBB",
                   network_patch: "BBB",
                   ready?: true,
+                  ready_date: DateTime.utc_now(),
                   authorized?: true,
+                  authorization_date: DateTime.utc_now(),
                   available?: true,
                   enrollment_date: DateTime.utc_now()
                 }

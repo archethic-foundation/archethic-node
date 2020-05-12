@@ -1,5 +1,6 @@
 defmodule UnirisCore.UtilsTests do
   use ExUnit.Case
+  doctest UnirisCore.Utils
 
   alias UnirisCore.Utils
 

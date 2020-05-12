@@ -19,6 +19,7 @@ defmodule UnirisCore.P2P.Node do
   alias UnirisCore.P2P.GeoPatch
   alias UnirisCore.P2P.NodeClient
   alias UnirisCore.PubSub
+  alias UnirisCore.Utils
 
   @enforce_keys [
     :first_public_key,
@@ -36,9 +37,11 @@ defmodule UnirisCore.P2P.Node do
     available?: true,
     average_availability: 1.0,
     availability_history: <<1::1>>,
+    enrollment_date: nil,
     authorized?: false,
     ready?: false,
-    enrollment_date: nil
+    ready_date: nil,
+    authorization_date: nil
   ]
 
   @type t() :: %__MODULE__{
@@ -53,7 +56,9 @@ defmodule UnirisCore.P2P.Node do
           availability_history: bitstring(),
           authorized?: boolean(),
           ready?: boolean(),
-          enrollment_date: DateTime.t()
+          enrollment_date: DateTime.t(),
+          ready_date: DateTime.t(),
+          authorization_date: DateTime.t()
         }
 
   @doc """
@@ -84,7 +89,6 @@ defmodule UnirisCore.P2P.Node do
         node
       end
 
-    PubSub.notify_node_update(node)
     {:ok, node}
   end
 
@@ -126,29 +130,31 @@ defmodule UnirisCore.P2P.Node do
     {:reply, :ok, new_state}
   end
 
-  def handle_call(:authorize, _from, state = %{authorized?: false}) do
+  def handle_call({:authorize, date}, _from, state = %{authorized?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is authorized")
-    new_state = %{state | authorized?: true}
+    new_state = %{state | authorized?: true, authorization_date: Utils.truncate_datetime(date)}
     PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
   end
 
-  def handle_call(:authorize, _from, state), do: {:reply, :ok, state}
+  def handle_call({:authorize, _date}, _from, state), do: {:reply, :ok, state}
 
-  def handle_call(:is_ready, _from, state = %{ready?: false}) do
+  def handle_call({:set_ready, date}, _from, state = %{ready?: false}) do
     Logger.debug("Node #{Base.encode16(state.first_public_key)} is ready")
-    new_state = %{state | ready?: true}
+    new_state = %{state | ready?: true, ready_date: Utils.truncate_datetime(date)}
     PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
   end
 
-  def handle_call(:is_ready, _from, state), do: {:reply, :ok, state}
+  def handle_call({:set_ready, _date}, _from, state), do: {:reply, :ok, state}
 
-  def handle_call({:set_enrollment_date, date}, _from, state) do
-    new_state = %{state | enrollment_date: date}
+  def handle_call({:set_enrollment_date, date}, _from, state = %{enrollment_date: nil}) do
+    new_state = %{state | enrollment_date: Utils.truncate_datetime(date)}
     PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
   end
+
+  def handle_call({:set_enrollment_date, _date}, _from, state), do: {:reply, :ok, state}
 
   def handle_call(:details, _from, state) do
     {:reply, state, state}
@@ -304,21 +310,18 @@ defmodule UnirisCore.P2P.Node do
   @doc """
   Mark the node as validator.
   """
-  @spec authorize(UnirisCore.Crypto.key() | __MODULE__.t()) :: :ok
-  def authorize(public_key) when is_binary(public_key) do
-    GenServer.call(via_tuple(public_key), :authorize)
-  end
-
-  def authorize(%__MODULE__{first_public_key: public_key}) do
-    GenServer.call(via_tuple(public_key), :authorize)
+  @spec authorize(node_public_key :: UnirisCore.Crypto.key(), authorization_date :: DateTime.t()) ::
+          :ok
+  def authorize(public_key, date = %DateTime{}) when is_binary(public_key) do
+    GenServer.call(via_tuple(public_key), {:authorize, date})
   end
 
   @doc """
   Mark the node as ready
   """
-  @spec set_ready(public_key :: UnirisCore.Crypto.key()) :: :ok
-  def set_ready(public_key) when is_binary(public_key) do
-    GenServer.call(via_tuple(public_key), :is_ready)
+  @spec set_ready(public_key :: UnirisCore.Crypto.key(), enrollment_date: DateTime.t()) :: :ok
+  def set_ready(public_key, date = %DateTime{}) when is_binary(public_key) do
+    GenServer.call(via_tuple(public_key), {:set_ready, date})
   end
 
   @spec set_enrollment_date(public_key :: UnirisCore.Crypto.key(), DateTime.t()) :: :ok

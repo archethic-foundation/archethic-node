@@ -12,6 +12,7 @@ defmodule UnirisCore.SelfRepair do
   alias UnirisCore.Crypto
   alias UnirisCore.Transaction
   alias UnirisCore.Utils
+  alias UnirisCore.TaskSupervisor
 
   @last_sync_dir Application.app_dir(:uniris_core, "priv/last_sync")
 
@@ -34,6 +35,7 @@ defmodule UnirisCore.SelfRepair do
       |> File.read!()
       |> String.to_integer()
       |> DateTime.from_unix!()
+      |> Utils.truncate_datetime()
     else
       Application.get_env(:uniris_core, UnirisCore.SelfRepair)[:network_startup_date]
     end
@@ -63,8 +65,8 @@ defmodule UnirisCore.SelfRepair do
 
       new_state =
         state
-        |> update_last_sync_date()
         |> Map.put(:node_patch, node_patch)
+        |> Map.put(:last_sync_date, update_last_sync_date())
 
       {:reply, :ok, new_state}
     end
@@ -77,7 +79,7 @@ defmodule UnirisCore.SelfRepair do
     synchronize(last_sync_date, node_patch)
     send(from_pid, :sync_finished)
     schedule_sync(Utils.time_offset(interval))
-    {:noreply, update_last_sync_date(state)}
+    {:noreply, state}
   end
 
   def handle_info(
@@ -88,16 +90,16 @@ defmodule UnirisCore.SelfRepair do
           node_patch: node_patch
         }
       ) do
-    Logger.info("Self-repair synchronization started")
+    Logger.info("Self-repair synchronization started from #{last_sync_date}")
     synchronize(last_sync_date, node_patch)
     schedule_sync(interval)
-    {:noreply, update_last_sync_date(state)}
+    {:noreply, Map.put(state, :last_sync_date, update_last_sync_date())}
   end
 
-  defp update_last_sync_date(state) do
-    next_sync_date = DateTime.utc_now()
+  defp update_last_sync_date() do
+    next_sync_date = Utils.truncate_datetime(DateTime.utc_now())
     store_last_sync_date(next_sync_date)
-    Map.put(state, :last_sync_date, next_sync_date)
+    next_sync_date
   end
 
   defp schedule_sync(0), do: :ok
@@ -111,7 +113,8 @@ defmodule UnirisCore.SelfRepair do
   # Once retrieved, the transactions are downloaded and stored if not exists locally
   defp synchronize(last_sync_date, node_patch) do
     Beacon.get_pools(last_sync_date)
-    |> slots_to_sync(last_sync_date, node_patch)
+    |> batch_slots(node_patch)
+    |> get_beacon_slots()
     |> synchronize_missing_slots(node_patch)
   end
 
@@ -120,22 +123,84 @@ defmodule UnirisCore.SelfRepair do
     File.write!(last_sync_file(), data, [:write])
   end
 
-  # Request beacon pools the slot informations before a last synchronization time
-  defp slots_to_sync([], _, _), do: []
+  # Batch and group the slot by nodes and date before the last synchronization time
+  defp batch_slots([], _), do: []
 
-  defp slots_to_sync(pools, last_sync_date, node_patch) do
-    Task.async_stream(pools, &query_beacon_slot_data(&1, last_sync_date, node_patch))
-    |> Enum.into([], fn {:ok, res} -> res end)
-    |> Enum.flat_map(& &1)
+  defp batch_slots(pools, node_patch) do
+    pools
+    |> group_pools_by_subset_and_date()
+    |> group_subset_by_closest_nodes(node_patch)
   end
 
-  defp query_beacon_slot_data({_, []}, _, _), do: []
+  # Request beacon pools the slot informations before the last synchronization time
+  defp get_beacon_slots(slot_batches) do
+    TaskSupervisor
+    |> Task.Supervisor.async_stream_nolink(slot_batches, fn {node, subset_map} ->
+      P2P.send_message(node, {:get_beacon_slots, Map.to_list(subset_map)})
+    end)
+    |> Enum.into([], fn {:ok, res} -> res end)
+    |> Enum.flat_map(& &1)
+    |> Enum.uniq()
+  end
 
-  defp query_beacon_slot_data({subset, nodes}, last_sync_date, node_patch) do
-    nodes
-    |> P2P.nearest_nodes(node_patch)
-    |> List.first()
-    |> P2P.send_message({:get_beacon_slots, subset, DateTime.to_unix(last_sync_date)})
+  # Group the nodes by date of sync and by subset
+  # 
+  # Examples
+  #
+  # { "01", [ { "01/01/2020", [ "nodeA", "nodeB"] }, { "01/02/2020", ["nodeB", "nodeC"] } ] }
+  # => %{
+  #  "01" => %{
+  #    "01/01/2020" => ["nodeA", "nodeB"],
+  #    "02/01/2020" => ["nodeB", "nodeC"]
+  #  }
+  # }
+  defp group_pools_by_subset_and_date(pools) do
+    Enum.reduce(pools, %{}, fn {subset, nodes_by_slots}, acc ->
+      Enum.reduce(nodes_by_slots, acc, fn {date, nodes}, acc ->
+        Map.update(acc, subset, %{date => nodes}, fn prev ->
+          Map.update(prev, date, nodes, &Enum.uniq(&1 ++ nodes))
+        end)
+      end)
+    end)
+  end
+
+  # Group closest nodes 
+  #
+  # Examples
+  #
+  # %{
+  #   "01" => %{
+  #      "01/01/2020" => ["nodeA", "nodeB"],
+  #      "02/01/2020" => ["nodeB", "nodeC"]
+  #   }
+  # }
+  # => %{
+  #   "nodeA" => %{
+  #      "01" => ["01/01/2020"]  
+  #    },
+  #    "nodeB" => {
+  #      "01" => ["01/01/2020", "02/01/2020"]
+  #    }
+  # }
+  defp group_subset_by_closest_nodes(subsets, node_patch) do
+    Enum.reduce(subsets, %{}, fn {subset, nodes_by_date}, acc ->
+      nodes_by_date
+      |> Enum.map(fn {date, nodes} ->
+        {
+          date,
+          nodes
+          |> P2P.nearest_nodes(node_patch)
+          |> Enum.take(5)
+        }
+      end)
+      |> Enum.reduce(acc, fn {date, nodes}, acc ->
+        Enum.reduce(nodes, acc, fn node, acc ->
+          Map.update(acc, node, %{subset => [date]}, fn prev ->
+            Map.update(prev, subset, [date], &Enum.uniq([date | &1]))
+          end)
+        end)
+      end)
+    end)
   end
 
   defp synchronize_missing_slots(slots, node_patch) do
@@ -153,57 +218,73 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp synchronize_transactions(transaction_infos, node_patch) do
-    transaction_infos
-    |> Enum.reject(&transaction_exists?(&1.address))
-    # Prioritize node transactions
-    # TODO: same with other network type transactions
-    |> Enum.sort_by(& &1.timestamp, :desc)
-    |> Enum.sort_by(fn %TransactionInfo{type: type} -> type end, fn type, _ -> type == :node end)
-    |> Enum.each(&handle_transaction_info(&1, node_patch))
+    transaction_infos =
+      transaction_infos
+      |> Enum.reject(&transaction_exists?(&1.address))
+      # Prioritize node transactions
+      # TODO: same with other network type transactions
+      |> Enum.sort_by(& &1.timestamp, :desc)
+      |> Enum.sort_by(fn %TransactionInfo{type: type} -> type end, fn type, _ -> type == :node end)
+
+    TaskSupervisor
+    |> Task.Supervisor.async_stream(
+      transaction_infos,
+      &download_transaction(&1, storage_nodes(&1), node_patch)
+    )
+    |> Stream.run()
   end
 
-  defp handle_transaction_info(%TransactionInfo{address: address, type: type}, node_patch) do
-    storage_nodes =
-      if Transaction.network_type?(type) do
-        P2P.list_nodes()
-      else
-        Election.storage_nodes(address)
-      end
-      |> P2P.nearest_nodes(node_patch)
-      |> Enum.map(& &1.first_public_key)
+  defp storage_nodes(%TransactionInfo{address: address, type: type}) do
+    if Transaction.network_type?(type) do
+      P2P.list_nodes()
+    else
+      Election.storage_nodes(address, P2P.list_nodes())
+    end
+  end
 
-    if Crypto.node_public_key(0) in storage_nodes do
+  defp download_transaction(
+         %TransactionInfo{address: address, type: type},
+         storage_nodes,
+         node_patch
+       ) do
+    # Only elected storage nodes must download the transactions
+    if Enum.any?(storage_nodes, &(&1.first_public_key == Crypto.node_public_key(0))) do
+      downloading_nodes =
+        storage_nodes
+        |> Enum.filter(& &1.ready?)
+        |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+        |> P2P.nearest_nodes(node_patch)
+
       if Transaction.network_type?(type) do
-        tx = download_transaction(storage_nodes, address)
+        Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
+        {:ok, tx} = do_download(downloading_nodes, {:get_transaction, address})
         Storage.write_transaction(tx)
       else
+        Logger.info("Download transaction chain #{Base.encode16(address)}")
+
         # TODO: build the transaction history to create a tree to fetch the latest transaction chain
-        chain = download_transaction_chain(storage_nodes, address)
+        {:ok, chain} = do_download(downloading_nodes, {:get_transaction_chain, address})
         Storage.write_transaction_chain(chain)
       end
     end
   end
 
   defp update_node_infos(node_infos) do
-    Enum.each(node_infos, fn %NodeInfo{public_key: public_key, ready?: ready?} ->
+    Enum.each(node_infos, fn %NodeInfo{
+                               public_key: public_key,
+                               ready?: ready?,
+                               timestamp: timestamp
+                             } ->
       if ready? do
-        Node.set_ready(public_key)
+        Node.set_ready(public_key, timestamp)
       end
     end)
-  end
-
-  defp download_transaction(nodes, address) do
-    do_download(nodes, {:get_transaction, address})
-  end
-
-  defp download_transaction_chain(nodes, address) do
-    do_download(nodes, {:get_transaction_chain, address})
   end
 
   defp do_download([node | rest], message) do
     case P2P.send_message(node, message) do
       {:ok, result} ->
-        result
+        {:ok, result}
 
       _ ->
         do_download(rest, message)
