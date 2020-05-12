@@ -13,35 +13,7 @@ defmodule UnirisWeb.NodeLive do
   end
 
   def render(assigns) do
-    ~L"""
-    <div class="row" style="justify-content: space-between">
-      <div class="column column-20">Node public key</div>
-      <div class="column column-10">IP</div>
-      <div class="column column-10">Port</div>
-      <div class="column column-10">Available</div>
-      <div class="column column-10">Average availability</div>
-      <div class="column column-10">Geo patch</div>
-      <div class="column column-10">Authorized</div>
-      <div class="column column-10">Enrollment date</div>
-    </div>
-
-    <%= for node <- @nodes do %>
-    <div class="row" style="justify-content: space-between">
-      <div class="column column-20">
-        <span style="text-overflow: ellipsis; white-space: nowrap; overflow: hidden; display: block;">
-          <%= Base.encode16(node.last_public_key) %>
-        </span>
-      </div>
-      <div class="column column-10"><%= :inet_parse.ntoa(node.ip) %></div>
-      <div class="column column-10"><%= node.port %></div>
-      <div class="column column-10"><%= node.available? %></div>
-      <div class="column column-10"><%= node.average_availability %></div>
-      <div class="column column-10"><%= node.geo_patch %></div>
-      <div class="column column-10"><%= node.authorized? %></div>
-      <div class="column column-10"><%= :io_lib.format("~4..0B/~2..0B/~2..0B", [node.enrollment_date.year, node.enrollment_date.month, node.enrollment_date.day]) %></div>
-    </div>
-    <% end %>
-    """
+    Phoenix.View.render(UnirisWeb.ExplorerView, "node_list.html", assigns)
   end
 
   def handle_info({:node_update, node = %Node{}}, socket) do
@@ -50,4 +22,5 @@ defmodule UnirisWeb.NodeLive do
     end)
     {:noreply, new_socket}
   end
+
 end
