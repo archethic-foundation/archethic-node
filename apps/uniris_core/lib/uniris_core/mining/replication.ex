@@ -288,11 +288,17 @@ defmodule UnirisCore.Mining.Replication do
         do_verify_transaction_stamp(tx, chain, unspent_outputs, coordinator, cross_validators)
 
       _ ->
-        [coordinator | cross_validators] =
-          tx
-          |> Transaction.pending()
-          |> Election.validation_nodes()
-          |> Enum.map(& &1.last_public_key)
+        {coordinator, cross_validators} =
+          case tx
+               |> Transaction.pending()
+               |> Election.validation_nodes()
+               |> Enum.map(& &1.last_public_key) do
+            [coordinator | []] ->
+              {coordinator, [coordinator]}
+
+            [coordinator | cross_validators] ->
+              {coordinator, cross_validators}
+          end
 
         if Enum.all?(cross_validation_stamps, fn {_, _, pub} -> pub in cross_validators end) do
           do_verify_transaction_stamp(
