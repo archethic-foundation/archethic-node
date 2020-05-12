@@ -26,7 +26,7 @@ config :uniris_core, UnirisCore.Storage.FileBackend, enabled: false
 config :uniris_core, UnirisCore.Storage.Cache, enabled: false
 
 config :uniris_core, UnirisCore.P2P,
-  port: 3005,
+  port: 10_000,
   node_client: MockNodeClient
 
 config :uniris_core, UnirisCore.P2P.TransactionLoader, enabled: false
@@ -44,7 +44,7 @@ config :uniris_core, UnirisCore.SharedSecrets.NodeRenewal,
 
 config :uniris_core, UnirisCore.SelfRepair,
   enabled: false,
-  network_startup_date: DateTime.utc_now()
+  network_startup_date: DateTime.utc_now() |> DateTime.add(-5)
 
 config :uniris_core, UnirisCore.Bootstrap,
   seeds_file: "priv/p2p/test_seeds",
