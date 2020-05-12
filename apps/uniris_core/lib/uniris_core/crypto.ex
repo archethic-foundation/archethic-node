@@ -60,7 +60,7 @@ defmodule UnirisCore.Crypto do
   @typedoc """
   Binary representing an encrypted data using AES authenticated encryption.
   The binary is split following this rule:
-  - 32 bytes for the IV (Initialization Vector)
+  - 12 bytes for the IV (Initialization Vector)
   - 16 bytes for the Authentication tag
   - The rest for the ciphertext
   """
@@ -424,9 +424,6 @@ defmodule UnirisCore.Crypto do
     do_ec_encrypt(curve, message, key)
   end
 
-  def ec_encrypt(message, public_key),
-    do: ec_encrypt(:erlang.term_to_binary(message), public_key)
-
   defp do_ec_encrypt(:ed25519, message, public_key), do: Ed25519.encrypt(public_key, message)
   defp do_ec_encrypt(curve, message, public_key), do: ECDSA.encrypt(curve, public_key, message)
 
@@ -459,15 +456,7 @@ defmodule UnirisCore.Crypto do
   """
   @spec ec_decrypt!(cipher :: binary(), private_key :: key()) :: term()
   def ec_decrypt!(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
-    ID.curve_from_id(curve_id)
-    |> do_ec_decrypt!(cipher, key)
-    |> case do
-      <<131::8, _::binary>> = data ->
-        :erlang.binary_to_term(data)
-
-      data ->
-        data
-    end
+    do_ec_decrypt!(ID.curve_from_id(curve_id), cipher, key)
   end
 
   @doc """
@@ -496,13 +485,10 @@ defmodule UnirisCore.Crypto do
 
   @spec aes_encrypt(data :: binary(), key :: binary) :: aes_cipher
   def aes_encrypt(data, <<key::binary-32>>) when is_binary(data) do
-    iv = :crypto.strong_rand_bytes(32)
+    iv = :crypto.strong_rand_bytes(12)
     {cipher, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", true)
     iv <> tag <> cipher
   end
-
-  def aes_encrypt(data, key),
-    do: aes_encrypt(:erlang.term_to_binary(data), key)
 
   @doc """
   Decrypt a ciphertext using the AES authenticated decryption.
@@ -525,8 +511,8 @@ defmodule UnirisCore.Crypto do
 
   """
   @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
-  def aes_decrypt!(<<iv::32*8, tag::8*16, cipher::binary>>, <<key::binary-32>>) do
-    case :crypto.crypto_one_time_aead(
+  def aes_decrypt!(<<iv::8*12, tag::8*16, cipher::binary>>, <<key::binary-32>>) do
+      case :crypto.crypto_one_time_aead(
            :aes_256_gcm,
            key,
            :binary.encode_unsigned(iv),
@@ -537,9 +523,6 @@ defmodule UnirisCore.Crypto do
          ) do
       :error ->
         raise "Decryption failed"
-
-      <<131::8, _::binary>> = data ->
-        :erlang.binary_to_term(data)
 
       data ->
         data
