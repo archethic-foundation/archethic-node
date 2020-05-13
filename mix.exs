@@ -11,6 +11,10 @@ defmodule Uniris.MixProject do
 
       releases: [
         uniris_node: [
+          steps: [
+            :assemble,
+            :tar
+          ],
           include_executables_for: [:unix],
           applications: [
             runtime_tools: :permanent,
