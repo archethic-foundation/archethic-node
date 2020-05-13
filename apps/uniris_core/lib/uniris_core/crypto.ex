@@ -481,8 +481,6 @@ defmodule UnirisCore.Crypto do
   @doc """
   Encrypt a data using AES authenticated encryption.
   """
-  @spec aes_encrypt(data :: term(), key :: binary) :: aes_cipher
-
   @spec aes_encrypt(data :: binary(), key :: binary) :: aes_cipher
   def aes_encrypt(data, <<key::binary-32>>) when is_binary(data) do
     iv = :crypto.strong_rand_bytes(12)
@@ -511,14 +509,14 @@ defmodule UnirisCore.Crypto do
 
   """
   @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
-  def aes_decrypt!(<<iv::8*12, tag::8*16, cipher::binary>>, <<key::binary-32>>) do
+  def aes_decrypt!(<<iv::binary-12, tag::binary-16, cipher::binary>>, <<key::binary-32>>) do
     case :crypto.crypto_one_time_aead(
            :aes_256_gcm,
            key,
-           :binary.encode_unsigned(iv),
+           iv,
            cipher,
            "",
-           :binary.encode_unsigned(tag),
+           tag,
            false
          ) do
       :error ->
