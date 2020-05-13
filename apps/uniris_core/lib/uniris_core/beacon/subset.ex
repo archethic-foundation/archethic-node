@@ -7,7 +7,6 @@ defmodule UnirisCore.BeaconSubset do
   alias UnirisCore.BeaconSlot
   alias UnirisCore.BeaconSlot.TransactionInfo
   alias UnirisCore.BeaconSlot.NodeInfo
-  alias UnirisCore.Storage
   alias UnirisCore.PubSub
 
   use GenServer

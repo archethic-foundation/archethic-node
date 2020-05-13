@@ -32,7 +32,7 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
+
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -47,7 +47,7 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
+
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -62,8 +62,9 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
-      assert [%Node{first_public_key: "key1"}, %Node{first_public_key: "key3"}] = Beacon.get_pool(<<0>>, DateTime.utc_now())
+
+      assert [%Node{first_public_key: "key1"}, %Node{first_public_key: "key3"}] =
+               Beacon.get_pool(<<0>>, DateTime.utc_now())
     end
 
     test "with 3 authorized nodes before the given date" do
@@ -81,7 +82,7 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
+
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -96,7 +97,7 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
+
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -111,15 +112,18 @@ defmodule UnirisCore.BeaconTest do
         geo_patch: "AAA",
         network_patch: "AAA"
       })
-  
-      assert [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}] = Beacon.get_pool(<<0>>, DateTime.utc_now())
+
+      assert [
+               %Node{first_public_key: "key1"},
+               %Node{first_public_key: "key2"},
+               %Node{first_public_key: "key3"}
+             ] = Beacon.get_pool(<<0>>, DateTime.utc_now())
     end
-    
   end
 
   test "get_pools/1 should get all the subsets nodes from a last date" do
     date_ref = Utils.truncate_datetime(DateTime.utc_now())
-    
+
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -170,22 +174,34 @@ defmodule UnirisCore.BeaconTest do
     assert current_slot_beacon_pool == []
 
     assert Enum.all?(next_slot_beacon_pool, fn {_, slots} ->
-      assert length(slots) == 1
-      {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 0)
-    end)
+             assert length(slots) == 1
+             {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 0)
+           end)
 
     assert Enum.all?(next_slot_beacon_pool2, fn {_, slots} ->
-      assert length(slots) == 2
-      {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} = Enum.at(slots, 0)
-      {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 1)
-    end)
+             assert length(slots) == 2
+
+             {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} =
+               Enum.at(slots, 0)
+
+             {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 1)
+           end)
 
     assert Enum.all?(next_slot_beacon_pool3, fn {_, slots} ->
-      assert length(slots) == 3
-      {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}]} = Enum.at(slots, 0)
-      {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} = Enum.at(slots, 1)
-      {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 2)
-    end)
+             assert length(slots) == 3
+
+             {_,
+              [
+                %Node{first_public_key: "key1"},
+                %Node{first_public_key: "key2"},
+                %Node{first_public_key: "key3"}
+              ]} = Enum.at(slots, 0)
+
+             {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} =
+               Enum.at(slots, 1)
+
+             {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 2)
+           end)
 
     assert length(next_slot_beacon_pool) == length(next_slot_beacon_pool2)
     assert length(next_slot_beacon_pool) == length(next_slot_beacon_pool3)

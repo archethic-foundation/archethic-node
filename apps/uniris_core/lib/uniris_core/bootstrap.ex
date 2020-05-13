@@ -21,7 +21,6 @@ defmodule UnirisCore.Bootstrap do
   alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.SelfRepair
   alias UnirisCore.Mining
-  alias UnirisCore.Utils
   alias __MODULE__.IPLookup
 
   def start_link(opts) do

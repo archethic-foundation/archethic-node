@@ -512,7 +512,7 @@ defmodule UnirisCore.Crypto do
   """
   @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
   def aes_decrypt!(<<iv::8*12, tag::8*16, cipher::binary>>, <<key::binary-32>>) do
-      case :crypto.crypto_one_time_aead(
+    case :crypto.crypto_one_time_aead(
            :aes_256_gcm,
            key,
            :binary.encode_unsigned(iv),

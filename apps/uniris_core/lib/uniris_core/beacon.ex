@@ -58,7 +58,6 @@ defmodule UnirisCore.Beacon do
   """
   @spec get_pool(subset :: binary(), last_sync_date :: DateTime.t()) :: list(Node.t())
   def get_pool(subset, date = %DateTime{}) when is_binary(subset) do
-
     # Need to select the beacon authorized nodes at the last sync date
     authorized_nodes =
       Enum.filter(

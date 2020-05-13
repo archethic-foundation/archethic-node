@@ -17,9 +17,9 @@ defmodule UnirisCore.BootstrapTest do
   setup_all do
     {:ok, %{seeds_file: Application.app_dir(:uniris_core, "priv/p2p/test_seeds")}}
 
-    on_exit fn ->
+    on_exit(fn ->
       File.rm(Application.app_dir(:uniris_core, "priv/p2p/test_seeds"))
-    end
+    end)
   end
 
   setup do

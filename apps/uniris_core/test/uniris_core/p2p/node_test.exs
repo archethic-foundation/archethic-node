@@ -126,7 +126,9 @@ defmodule UnirisCore.P2P.NodeTest do
 
     auth_date = DateTime.utc_now()
     Node.authorize("first_public_key", auth_date)
-    assert %Node{authorized?: true, authorization_date: auth_date} = Node.details("first_public_key")
+
+    assert %Node{authorized?: true, authorization_date: auth_date} =
+             Node.details("first_public_key")
   end
 
   test "set_ready/2 should mark the node as ready" do
