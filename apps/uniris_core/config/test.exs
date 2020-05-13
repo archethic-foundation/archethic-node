@@ -1,20 +1,6 @@
 use Mix.Config
 
 config :uniris_core, UnirisCore.Crypto,
-  supported_curves: [
-    :ed25519,
-    :secp256r1,
-    :secp256k1
-  ],
-  supported_hashes: [
-    :sha256,
-    :sha512,
-    :sha3_256,
-    :sha3_512,
-    :blake2b
-  ],
-  default_curve: :ed25519,
-  default_hash: :sha256,
   seed: "fake seed",
   keystore: MockCrypto
 
@@ -25,9 +11,7 @@ config :uniris_core, UnirisCore.Storage, backend: MockStorage
 config :uniris_core, UnirisCore.Storage.FileBackend, enabled: false
 config :uniris_core, UnirisCore.Storage.Cache, enabled: false
 
-config :uniris_core, UnirisCore.P2P,
-  port: 10_000,
-  node_client: MockNodeClient
+config :uniris_core, UnirisCore.P2P, port: 10_000
 
 config :uniris_core, UnirisCore.P2P.TransactionLoader, enabled: false
 

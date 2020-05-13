@@ -14,8 +14,6 @@ defmodule UnirisCore.SelfRepair do
   alias UnirisCore.Utils
   alias UnirisCore.TaskSupervisor
 
-  @last_sync_dir Application.app_dir(:uniris_core, "priv/last_sync")
-
   require Logger
 
   def start_link(opts \\ []) do
@@ -42,8 +40,6 @@ defmodule UnirisCore.SelfRepair do
   end
 
   def init(opts) do
-    File.mkdir_p(@last_sync_dir)
-
     interval = Keyword.get(opts, :interval)
 
     {:ok,
@@ -304,6 +300,8 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp last_sync_file() do
-    Path.join(@last_sync_dir, Base.encode16(Crypto.node_public_key(0)))
+    last_sync_dir = Application.app_dir(:uniris_core, "priv/last_sync")
+    File.mkdir_p(last_sync_dir)
+    Path.join(last_sync_dir, Base.encode16(Crypto.node_public_key(0)))
   end
 end

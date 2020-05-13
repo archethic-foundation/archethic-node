@@ -27,9 +27,12 @@ defmodule UnirisCore.Utils do
   end
 
   defp should_start?(process) do
-    :uniris_core
-    |> Application.get_env(process, enabled: true)
-    |> Keyword.fetch!(:enabled)
+    case Application.get_env(:uniris_core, process) do
+      nil ->
+        true
+      conf ->
+        Keyword.get(conf, :enabled, true)
+    end
   end
 
   @doc """
@@ -55,9 +58,11 @@ defmodule UnirisCore.Utils do
     Enum.reduce(opts, date, fn opt, acc ->
       case opt do
         {:second?, true} ->
-          %{ acc | second: 0}
+          %{acc | second: 0}
+
         {:microsecond?, true} ->
-          %{ acc | microsecond: {0, 0}}
+          %{acc | microsecond: {0, 0}}
+
         _ ->
           acc
       end
