@@ -74,7 +74,7 @@ defmodule UnirisCore.P2P.TransactionLoader do
   end
 
   def handle_info({:authorize_nodes, nodes, date}, state) do
-    Logger.debug("new authorized nodes #{inspect(nodes)}")
+    Logger.info("new authorized nodes #{inspect(nodes)}")
 
     Enum.each(nodes, &Node.authorize(&1, date))
     {:noreply, state}

@@ -102,7 +102,7 @@ defmodule UnirisCore.Storage do
           PubSub.notify_new_transaction(tx)
         end
 
-        Logger.debug("Transaction #{tx.type}@#{Base.encode16(tx.address)} stored")
+        Logger.info("Transaction #{tx.type}@#{Base.encode16(tx.address)} stored")
     end
   end
 
@@ -125,7 +125,7 @@ defmodule UnirisCore.Storage do
           PubSub.notify_new_transaction(last_tx)
         end
 
-        Logger.debug("Transaction Chain #{Base.encode16(last_tx.address)} stored")
+        Logger.info("Transaction Chain #{Base.encode16(last_tx.address)} stored")
     end
   end
 

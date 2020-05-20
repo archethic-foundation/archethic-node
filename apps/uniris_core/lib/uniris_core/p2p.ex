@@ -41,7 +41,7 @@ defmodule UnirisCore.P2P do
             {Node, node}
           )
 
-        Logger.debug("New node added #{Base.encode16(node.first_public_key)}")
+        Logger.info("New node added #{Base.encode16(node.first_public_key)}")
     end
   end
 

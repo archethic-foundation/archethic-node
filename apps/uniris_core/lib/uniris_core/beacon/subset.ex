@@ -32,7 +32,7 @@ defmodule UnirisCore.BeaconSubset do
         _from,
         state
       ) do
-    Logger.debug(
+    Logger.info(
       "Transaction #{inspect(tx_info)} added to the beacon chain (subset #{
         Base.encode16(state.subset)
       })"
@@ -45,7 +45,7 @@ defmodule UnirisCore.BeaconSubset do
   end
 
   def handle_call({:add_node_info, node_info = %NodeInfo{}}, _from, state) do
-    Logger.debug(
+    Logger.info(
       "Node #{inspect(node_info)} info added to the beacon chain subset(#{
         Base.encode16(state.subset)
       })"
@@ -99,7 +99,7 @@ defmodule UnirisCore.BeaconSubset do
       |> Map.put(:current_slot, %BeaconSlot{})
       |> put_in([:slots, slot_time], tx)
 
-    Logger.debug("Beacon slot created with #{inspect(current_slot)}")
+    Logger.info("Beacon slot created with #{inspect(current_slot)}")
     {:noreply, new_state}
   end
 

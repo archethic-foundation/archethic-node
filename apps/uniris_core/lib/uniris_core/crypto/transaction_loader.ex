@@ -118,7 +118,7 @@ defmodule UnirisCore.Crypto.TransactionLoader do
           encrypted_key
         )
 
-        Logger.debug("Node shared secrets seed loaded")
+        Logger.info("Node shared secrets seed loaded")
 
         {:authorized, encrypted_key, encrypted_daily_nonce_seed}
     end
@@ -128,6 +128,6 @@ defmodule UnirisCore.Crypto.TransactionLoader do
 
   defp load_daily_nonce_seed(encrypted_daily_nonce_seed, encrypted_key) do
     Crypto.decrypt_and_set_daily_nonce_seed(encrypted_daily_nonce_seed, encrypted_key)
-    Logger.debug("Node shared secrets daily nonce updated")
+    Logger.info("Node shared secrets daily nonce updated")
   end
 end

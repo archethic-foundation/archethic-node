@@ -57,12 +57,12 @@ defmodule UnirisCore.Bootstrap do
 
         case P2P.node_info() do
           nil ->
-            Logger.debug("Node initialization...")
+            Logger.info("Node initialization...")
             first_initialization(ip, port, patch, network_seeds, seeds_file)
 
           %Node{ip: prev_ip, port: prev_port}
           when ip != prev_ip or port != prev_port or diff_sync > 3 ->
-            Logger.debug("Update node chain...")
+            Logger.info("Update node chain...")
             update_node(ip, port, patch, network_seeds, seeds_file)
 
           _ ->
@@ -74,12 +74,12 @@ defmodule UnirisCore.Bootstrap do
   end
 
   defp init_network(ip, port) do
-    Logger.debug("Create storage nonce")
+    Logger.info("Create storage nonce")
     storage_nonce_seed = :crypto.strong_rand_bytes(32)
     {_, pv} = Crypto.generate_deterministic_keypair(storage_nonce_seed)
     Crypto.decrypt_and_set_storage_nonce(Crypto.ec_encrypt(pv, Crypto.node_public_key()))
 
-    Logger.debug("Create first node transaction")
+    Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
     Mining.start(tx, "", [])
     Process.sleep(100)
@@ -128,7 +128,7 @@ defmodule UnirisCore.Bootstrap do
     load_nodes(new_seeds ++ closest_nodes)
     update_seeds(seeds_file, new_seeds)
 
-    Logger.debug("Create first node transaction")
+    Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
     send_message({:new_transaction, tx}, closest_nodes)
 
@@ -138,13 +138,13 @@ defmodule UnirisCore.Bootstrap do
          ) do
       {:ok, encrypted_nonce} ->
         Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
-        Logger.debug("Storage nonce set")
+        Logger.info("Storage nonce set")
 
         nodes = P2P.send_message(List.first(closest_nodes), :list_nodes)
         load_nodes(nodes)
-        Logger.debug("Node list refreshed")
+        Logger.info("Node list refreshed")
 
-        Logger.debug("Start synchronization")
+        Logger.info("Start synchronization")
 
         SelfRepair.start_sync(patch)
 
@@ -170,7 +170,7 @@ defmodule UnirisCore.Bootstrap do
     tx = create_node_transaction(ip, port)
     send_message({:new_transaction, tx}, closest_nodes)
 
-    Logger.debug("Start synchronization")
+    Logger.info("Start synchronization")
     SelfRepair.start_sync(patch)
 
     receive do

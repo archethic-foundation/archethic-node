@@ -131,7 +131,7 @@ defmodule UnirisCore.P2P.Node do
   end
 
   def handle_call({:authorize, date}, _from, state = %{authorized?: false}) do
-    Logger.debug("Node #{Base.encode16(state.first_public_key)} is authorized")
+    Logger.info("Node #{Base.encode16(state.first_public_key)} is authorized")
     new_state = %{state | authorized?: true, authorization_date: Utils.truncate_datetime(date)}
     PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
@@ -140,7 +140,7 @@ defmodule UnirisCore.P2P.Node do
   def handle_call({:authorize, _date}, _from, state), do: {:reply, :ok, state}
 
   def handle_call({:set_ready, date}, _from, state = %{ready?: false}) do
-    Logger.debug("Node #{Base.encode16(state.first_public_key)} is ready")
+    Logger.info("Node #{Base.encode16(state.first_public_key)} is ready")
     new_state = %{state | ready?: true, ready_date: Utils.truncate_datetime(date)}
     PubSub.notify_node_update(new_state)
     {:reply, :ok, new_state}
