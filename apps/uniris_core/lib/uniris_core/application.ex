@@ -13,8 +13,8 @@ defmodule UnirisCore.Application do
         UnirisCore.StorageSupervisor,
         UnirisCore.CryptoSupervisor,
         UnirisCore.ElectionSupervisor,
-        UnirisCore.SharedSecretsSupervisor,
         UnirisCore.P2PSupervisor,
+        UnirisCore.SharedSecretsSupervisor,
         UnirisCore.MiningSupervisor,
         UnirisCore.InterpreterSupervisor,
         UnirisCore.BeaconSupervisor

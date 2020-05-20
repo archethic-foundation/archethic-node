@@ -9,8 +9,6 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
 
   @behaviour UnirisCore.Crypto.KeystoreImpl
 
-  @storage_nonce_file Application.app_dir(:uniris_core, "priv/crypto/storage_nonce")
-
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -28,13 +26,17 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
       node_shared_key_counter: 0
     }
 
-    case File.read(@storage_nonce_file) do
+    case File.read(storage_nonce_file()) do
       {:ok, storage_nonce} ->
         {:ok, Map.put(initial_data, :storage_nonce, storage_nonce)}
 
       _ ->
         {:ok, initial_data}
     end
+  end
+
+  defp storage_nonce_file() do
+    Application.app_dir(:uniris_core, "priv/crypto/storage_nonce")
   end
 
   @impl true
@@ -191,7 +193,7 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
       ) do
     {_, pv} = previous_keypair(node_seed, index)
     storage_nonce = Crypto.ec_decrypt!(encrypted_nonce, pv)
-    File.write(@storage_nonce_file, storage_nonce, [:write])
+    File.write(storage_nonce_file(), storage_nonce, [:write])
     {:reply, :ok, Map.put(state, :storage_nonce, storage_nonce)}
   end
 
