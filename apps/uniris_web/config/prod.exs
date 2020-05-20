@@ -11,11 +11,12 @@ use Mix.Config
 # before starting your production server.
 config :uniris_web, UnirisWeb.Endpoint,
   http: [:inet6, port: System.get_env("UNIRIS_WEB_PORT") || 80],
-  url: [port: System.get_env("UNIRIS_WEB_PORT") || 80],
+  url: [host: "*", port: System.get_env("UNIRIS_WEB_PORT") || 80],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
-  version: Application.spec(:phoenix_app, :vsn)
+  version: Application.spec(:phoenix_app, :vsn),
+  check_origin: false
 
 # Do not print debug messages in production
 config :logger, level: :info
