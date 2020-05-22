@@ -27,5 +27,7 @@ config :uniris_core, UnirisCore.SelfRepair,
   }
 
 config :uniris_core, UnirisCore.Bootstrap,
+  # First node crypto seed is "node1"
+  seeds: "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8",
   ip_lookup_provider: UnirisCore.Bootstrap.IPLookup.LocalImpl,
   interface: "lo"

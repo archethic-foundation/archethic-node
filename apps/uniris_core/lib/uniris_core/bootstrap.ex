@@ -47,7 +47,7 @@ defmodule UnirisCore.Bootstrap do
 
     with {:error, :transaction_not_exists} <-
            Storage.get_last_node_shared_secrets_transaction(),
-         [%Node{first_public_key: key}] when key == first_public_key <- network_seeds do
+         [%Node{first_public_key: key} | _] when key == first_public_key <- network_seeds do
       Logger.info("Network initialization...")
       init_network(ip, port)
     else
@@ -241,8 +241,19 @@ defmodule UnirisCore.Bootstrap do
   end
 
   defp bootstraping_seeds(seeds_file) do
-    seeds_file
-    |> File.read!()
+    case Application.get_env(:uniris_core, __MODULE__)[:seeds] do
+      nil ->
+        seeds_file
+        |> File.read!()
+        |> extract_seeds
+
+      seeds ->
+        extract_seeds(seeds)
+    end
+  end
+
+  defp extract_seeds(seeds_str) do
+    seeds_str
     |> String.split("\n", trim: true)
     |> Enum.map(fn seed ->
       [ip, port, public_key] = String.split(seed, ":")
