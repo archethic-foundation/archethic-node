@@ -22,9 +22,6 @@ defmodule UnirisWeb.TransactionLive do
     Phoenix.View.render(UnirisWeb.ExplorerView, "transaction_summary.html", assigns)
   end
 
-  def handle_info({:new_transaction, tx = %Transaction{type: :beacon}}, socket),
-    do: {:noreply, socket}
-
   def handle_info({:new_transaction, tx = %Transaction{}}, socket) do
     new_socket =
       update(socket, :transactions, fn transactions ->

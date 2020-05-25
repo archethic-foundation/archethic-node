@@ -86,10 +86,8 @@ defmodule UnirisWeb.Schema do
       end)
 
       resolve(fn address, _, _ ->
-        case UnirisCore.search_transaction(address) do
-          {:ok, tx} ->
-            {:ok, format(tx)}
-        end
+        {:ok, tx} = UnirisCore.search_transaction(address)
+        {:ok, format(tx)}
       end)
     end
   end
