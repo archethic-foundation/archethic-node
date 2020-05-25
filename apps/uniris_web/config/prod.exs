@@ -10,13 +10,22 @@ use Mix.Config
 # which you should run after static files are built and
 # before starting your production server.
 config :uniris_web, UnirisWeb.Endpoint,
-  http: [:inet6, port: System.get_env("UNIRIS_WEB_PORT") || 80],
-  url: [host: "*", port: System.get_env("UNIRIS_WEB_PORT") || 80],
+  http: [:inet6, port: 80],
+  url: [host: "*", port: 443],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
   version: Application.spec(:phoenix_app, :vsn),
-  check_origin: false
+  check_origin: false,
+  https: [
+    port: 443,
+    cipher_suite: :strong,
+    keyfile: System.get_env("UNIRIS_WEB_SSL_KEY_PATH"),
+    certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH"),
+    transport_options: [socket_opts: [:inet6]]
+  ],
+  force_ssl: [hsts: true]
+
 
 # Do not print debug messages in production
 config :logger, level: :info
