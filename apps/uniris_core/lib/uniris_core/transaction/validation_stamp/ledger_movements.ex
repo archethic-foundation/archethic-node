@@ -56,7 +56,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerMovements do
        )
        when length(uco_transfers) > 0 do
     %{senders: senders, uco_received: uco_received} = reduce_unspent_outputs(unspent_outputs)
-    uco_to_spend = Enum.reduce(uco_transfers, 0, fn %{amount: amount}, acc -> acc + amount end)
+    uco_to_spend = Enum.reduce(uco_transfers, 0.0, fn %{amount: amount}, acc -> acc + amount end)
 
     current_balance = uco_received + previous_balance
     uco_to_spend = uco_to_spend + fee
@@ -94,7 +94,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerMovements do
 
   # Aggregate a list of unspent outputs to extract the senders and the
   # total amount transfers
-  defp reduce_unspent_outputs(utxos, acc \\ %{senders: [], uco_received: 0})
+  defp reduce_unspent_outputs(utxos, acc \\ %{senders: [], uco_received: 0.0})
 
   defp reduce_unspent_outputs([utxo | rest], acc) do
     uco_received = sum_of_transfered_uco(utxo)
@@ -116,8 +116,8 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerMovements do
            }
          }
        }) do
-    Enum.reduce(transfers, 0, fn %Transfer{amount: amount}, acc -> acc + amount end)
+    Enum.reduce(transfers, 0.0, fn %Transfer{amount: amount}, acc -> acc + amount end)
   end
 
-  defp sum_of_transfered_uco(_), do: 0
+  defp sum_of_transfered_uco(_), do: 0.0
 end

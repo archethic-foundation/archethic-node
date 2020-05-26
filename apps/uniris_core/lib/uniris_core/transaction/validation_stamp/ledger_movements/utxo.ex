@@ -3,7 +3,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO do
   Represents the UTXO model for a ledger with a previous status and a next status
   """
 
-  defstruct previous: %{from: [], amount: 0}, next: 0
+  defstruct previous: %{from: [], amount: 0.0}, next: 0.0
 
   @type balance :: float()
   @type utxo_senders :: list(binary())
