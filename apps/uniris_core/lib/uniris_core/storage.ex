@@ -13,7 +13,7 @@ defmodule UnirisCore.Storage do
   def node_transactions() do
     case Cache.node_transactions() do
       [] ->
-        Backend.node_transactions()
+        []
 
       transactions ->
         transactions
@@ -64,7 +64,7 @@ defmodule UnirisCore.Storage do
   def get_unspent_output_transactions(address) do
     case Cache.get_unspent_outputs(address) do
       [] ->
-        Backend.get_unspent_output_transactions(address)
+        {:error, :unspent_outputs_not_exists}
 
       unspent_outputs ->
         {:ok, unspent_outputs}
@@ -78,7 +78,7 @@ defmodule UnirisCore.Storage do
   def origin_shared_secrets_transactions() do
     case Cache.origin_shared_secrets_transactions() do
       [] ->
-        Backend.origin_shared_secrets_transactions()
+        []
 
       transactions ->
         {:ok, transactions}
@@ -88,7 +88,7 @@ defmodule UnirisCore.Storage do
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.t(), load_transaction? :: boolean()) :: :ok
+  @spec write_transaction(Transaction.validated(), load_transaction? :: boolean()) :: :ok
   def write_transaction(tx = %Transaction{}, load_transaction? \\ true) do
     case get_transaction(tx.address) do
       {:ok, _} ->
@@ -111,9 +111,9 @@ defmodule UnirisCore.Storage do
   """
   @spec write_transaction_chain(list(Transaction.validated()), load_transaction? :: boolean()) ::
           :ok
-  def write_transaction_chain([last_tx | _] = chain, load_transaction? \\ true)
+  def write_transaction_chain([last_tx = %Transaction{} | _] = chain, load_transaction? \\ true)
       when is_list(chain) do
-    case get_transaction(last_tx) do
+    case get_transaction(last_tx.address) do
       {:ok, _} ->
         :ok
 
@@ -145,7 +145,7 @@ defmodule UnirisCore.Storage do
   def get_last_node_shared_secrets_transaction() do
     case Cache.last_node_shared_secrets_transaction() do
       nil ->
-        Backend.get_last_node_shared_secrets_transaction()
+        {:error, :transaction_not_exists}
 
       tx ->
         {:ok, tx}

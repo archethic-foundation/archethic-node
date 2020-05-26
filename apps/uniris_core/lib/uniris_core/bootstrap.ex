@@ -82,7 +82,7 @@ defmodule UnirisCore.Bootstrap do
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
     Mining.start(tx, "", [])
-    Process.sleep(100)
+    Process.sleep(1000)
 
     Node.set_ready(Crypto.node_public_key(0), tx.timestamp)
 

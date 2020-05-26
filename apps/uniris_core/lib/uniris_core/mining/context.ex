@@ -18,25 +18,11 @@ defmodule UnirisCore.Mining.Context do
   def fetch(tx, with_confirmation \\ false)
 
   def fetch(%Transaction{type: :node, previous_public_key: previous_public_key}, _) do
-    case Enum.find(Storage.node_transactions(), fn %Transaction{address: addr} ->
-           Crypto.hash(previous_public_key) == addr
-         end) do
-      nil ->
-        {[], [], []}
-
-      tx ->
-        {[tx], [], [Crypto.node_public_key()]}
-    end
+    do_fetch_network_transaction_chain(previous_public_key)
   end
 
-  def fetch(%Transaction{type: :node_shared_secrets}, _) do
-    case Storage.get_last_node_shared_secrets_transaction() do
-      {:ok, tx} ->
-        {[tx], [], [Crypto.node_public_key()]}
-
-      _ ->
-        {[], [], []}
-    end
+  def fetch(%Transaction{type: :node_shared_secrets, previous_public_key: previous_public_key}, _) do
+    do_fetch_network_transaction_chain(previous_public_key)
   end
 
   def fetch(%Transaction{previous_public_key: previous_public_key}, with_confirmation) do
@@ -64,6 +50,16 @@ defmodule UnirisCore.Mining.Context do
       {previous_chain, unspent_outputs, involved_nodes}
     else
       {previous_chain, unspent_outputs, Enum.filter([involved_storage_node], & &1)}
+    end
+  end
+
+  defp do_fetch_network_transaction_chain(previous_public_key) do
+    previous_address = Crypto.hash(previous_public_key)
+    case Storage.get_transaction_chain(previous_address) do
+      {:error, :transaction_chain_not_exists} ->
+        {[], [], []}
+      {:ok, chain} ->
+        {chain, [], [Crypto.node_public_key()]}
     end
   end
 

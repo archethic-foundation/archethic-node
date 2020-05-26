@@ -132,11 +132,7 @@ defmodule UnirisCore.Mining.Replication do
         beacon_replication_nodes
       ) do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, chain_replication_nodes, fn node ->
-      if Transaction.network_type?(tx.type) do
-        P2P.send_message(node, {:replicate_transaction, tx})
-      else
-        P2P.send_message(node, {:replicate_chain, tx})
-      end
+      P2P.send_message(node, {:replicate_chain, tx})
     end)
     |> Stream.run()
 

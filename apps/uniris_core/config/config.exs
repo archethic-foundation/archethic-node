@@ -20,10 +20,9 @@ config :uniris_core, UnirisCore.P2P,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer(),
   node_client: UnirisCore.P2P.NodeTCPClient
 
-config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.FileBackend
+config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.CassandraBackend
 
-config :uniris_core, UnirisCore.Bootstrap,
-  seeds_file: "priv/p2p/seeds"
+config :uniris_core, UnirisCore.Bootstrap, seeds_file: "priv/p2p/seeds"
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

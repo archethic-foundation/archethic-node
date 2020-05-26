@@ -35,7 +35,8 @@ defmodule UnirisCore.MixProject do
       {:elixir_make, "~> 0.6.0"},
       {:ex_doc, "~> 0.21.2", only: [:dev]},
       {:mox, "~> 0.5.2", only: [:test]},
-      {:stream_data, "~> 0.4.3", only: [:test]}
+      {:stream_data, "~> 0.4.3", only: [:test]},
+      {:xandra, "~> 0.11"}
     ]
   end
 end

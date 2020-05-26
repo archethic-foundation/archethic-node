@@ -28,7 +28,7 @@ defmodule UnirisCore.Mining do
     Task.start(fn ->
       %Transaction{} = tx = self_mining(tx)
 
-      UnirisCore.Storage.write_transaction(tx)
+      UnirisCore.Storage.write_transaction_chain([tx])
 
       tx.address
       |> Beacon.subset_from_address()
@@ -147,7 +147,7 @@ defmodule UnirisCore.Mining do
   @doc """
   Performs transaction only validation before store.
 
-  The validation includes: 
+  The validation includes:
   - run pending transaction integrity
   - run cryptography integrity
   - ensure atomic commitment
@@ -201,8 +201,8 @@ defmodule UnirisCore.Mining do
 
   @doc """
   Performs transaction only validation before adding to the beacon chain.
-    
-  The validation includes: 
+
+  The validation includes:
   - run pending transaction integrity
   - run cryptography integrity
   - ensure atomic commitment
@@ -253,10 +253,9 @@ defmodule UnirisCore.Mining do
           node_public_key,
           [node_public_key],
           [node_public_key]
-        )
+          )
 
       cross_validation_stamp = Stamp.create_cross_validation_stamp(validation_stamp, [])
-
       %{
         tx
         | validation_stamp: validation_stamp,
