@@ -25,8 +25,6 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
   end
 
   defp create_keyspace() do
-    {:ok, _} = Xandra.execute(:xandra_conn, "DROP KEYSPACE IF EXISTS uniris;")
-
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE KEYSPACE IF NOT EXISTS uniris WITH replication = {

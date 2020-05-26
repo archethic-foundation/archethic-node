@@ -225,79 +225,11 @@ defmodule UnirisCore.Storage.CassandraBackend do
   end
 
   defp transaction_chain_write_parameters(chain_address, day_number, tx = %Transaction{}) do
-    %{
-      "chain_address" => chain_address |> Base.encode16(),
-      "day_number" => day_number,
-      "transaction_address" => tx.address |> Base.encode16(),
-      "type" => Atom.to_string(tx.type),
-      "timestamp" => tx.timestamp,
-      "data" => %{
-        "content" => tx.data.content,
-        "code" => tx.data.code,
-        "keys" => %{
-          "authorized_keys" =>
-            tx.data.keys.authorized_keys
-            |> Enum.map(fn {k, v} ->
-              {Base.encode16(k), Base.encode16(v)}
-            end)
-            |> Enum.into(%{}),
-          "secret" => tx.data.keys.secret |> Base.encode16
-        },
-        "ledger" => %{
-          "uco" => %{
-            "transfers" =>
-              Enum.map(tx.data.ledger.uco.transfers, fn %{to: to, amount: amount} ->
-                %{
-                  "recipient" => to |> Base.encode16,
-                  "amount" => amount
-                }
-              end)
-          }
-        },
-        "recipients" => Enum.map(tx.data.recipients, &Base.encode16/1)
-      },
-      "previous_public_key" => tx.previous_public_key |> Base.encode16(),
-      "previous_signature" => tx.previous_signature |> Base.encode16(),
-      "origin_signature" => tx.origin_signature |> Base.encode16(),
-      "validation_stamp" => %{
-        "proof_of_work" => tx.validation_stamp.proof_of_work |> Base.encode16(),
-        "proof_of_integrity" => tx.validation_stamp.proof_of_integrity |> Base.encode16(),
-        "ledger_movements" => %{
-          "uco" => %{
-            "previous_ledger_summary" => %{
-              "senders" =>
-                Enum.map(
-                  tx.validation_stamp.ledger_movements.uco.previous.from,
-                  &Base.encode16/1
-                ),
-              "amount" => tx.validation_stamp.ledger_movements.uco.previous.amount
-            },
-            "next_ledger_summary" => %{
-              "amount" => tx.validation_stamp.ledger_movements.uco.next
-            }
-          }
-        },
-        "node_movements" => %{
-          "fee" => tx.validation_stamp.node_movements.fee,
-          "rewards" =>
-            Enum.map(tx.validation_stamp.node_movements.rewards, fn {node, amount} ->
-              %{
-                "node" => node |> Base.encode16(),
-                "amount" => amount
-              }
-            end)
-        },
-        "signature" => tx.validation_stamp.signature |> Base.encode16()
-      },
-      "cross_validation_stamps" =>
-        Enum.map(tx.cross_validation_stamps, fn {signature, inconsistencies, node_public_key} ->
-          %{
-            "node" => node_public_key |> Base.encode16(),
-            "signature" => signature |> Base.encode16(),
-            "inconsistencies" => Enum.map(inconsistencies, &Atom.to_string/1)
-          }
-        end)
-    }
+    transaction_write_parameters(tx)
+    |> Map.put("chain_address", chain_address |> Base.encode16)
+    |> Map.put("day_number", day_number)
+    |> Map.delete("address")
+    |> Map.put("transaction_address", tx.address |> Base.encode16)
   end
 
   defp format_result_to_transaction(%{
@@ -353,7 +285,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
           authorized_keys: Enum.map(authorized_keys, fn {k, v} ->
             { Base.decode16!(k), Base.decode16!(v)}
           end) |> Enum.into(%{}),
-          secret: secret
+          secret: secret |> Base.decode16!()
         },
         ledger: %Ledger{
           uco: %UCOLedger{
