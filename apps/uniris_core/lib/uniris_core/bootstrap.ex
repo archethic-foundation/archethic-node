@@ -55,18 +55,18 @@ defmodule UnirisCore.Bootstrap do
         load_nodes(network_seeds)
         diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
 
-        case P2P.node_info() do
-          nil ->
-            Logger.info("Node initialization...")
-            first_initialization(ip, port, patch, network_seeds, seeds_file)
-
-          %Node{ip: prev_ip, port: prev_port}
-          when ip != prev_ip or port != prev_port or diff_sync > 3 ->
-            Logger.info("Update node chain...")
-            update_node(ip, port, patch, network_seeds, seeds_file)
-
-          _ ->
-            :ok
+        if Crypto.number_of_node_keys() == 0 do
+          Logger.info("Node initialization...")
+          first_initialization(ip, port, patch, network_seeds, seeds_file)
+        else
+          case P2P.node_info() do
+            # TODO: change the diff sync parameter when the self repair will be moved to daily
+            %Node{ip: prev_ip, port: prev_port} when ip != prev_ip or port != prev_port or diff_sync > 3 ->
+              Logger.info("Update node chain...")
+              update_node(ip, port, patch, network_seeds, seeds_file)
+            _ ->
+              :ok
+          end
         end
     end
 
@@ -82,7 +82,7 @@ defmodule UnirisCore.Bootstrap do
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
     Mining.start(tx, "", [])
-    Process.sleep(1000)
+    Process.sleep(3000)
 
     Node.set_ready(Crypto.node_public_key(0), tx.timestamp)
 
@@ -166,6 +166,7 @@ defmodule UnirisCore.Bootstrap do
 
     update_seeds(seeds_file, new_seeds)
     load_nodes(new_seeds ++ closest_nodes)
+    Logger.info("Node list refreshed")
 
     tx = create_node_transaction(ip, port)
     send_message({:new_transaction, tx}, closest_nodes)
@@ -271,14 +272,18 @@ defmodule UnirisCore.Bootstrap do
   defp update_seeds(_, []), do: :ok
 
   defp update_seeds(seeds_file, seeds) when is_list(seeds) do
-    seeds_str =
       seeds
+      |> Enum.reject(& &1.first_public_key == Crypto.node_public_key(0))
       |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
         acc ++ ["#{stringify_ip(ip)}:#{port}:#{public_key |> Base.encode16()}"]
       end)
       |> Enum.join("\n")
-
-    File.write!(seeds_file, seeds_str, [:write])
+      |> case do
+        "" ->
+          :ok
+        seeds_str ->
+          File.write!(seeds_file, seeds_str, [:write])
+      end
   end
 
   defp stringify_ip(ip), do: :inet_parse.ntoa(ip)

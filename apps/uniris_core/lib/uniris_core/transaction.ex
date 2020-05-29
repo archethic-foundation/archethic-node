@@ -87,6 +87,7 @@ defmodule UnirisCore.Transaction do
           | :origin_shared_secrets
           | :code
           | :beacon
+          | :hosting
 
   @transaction_types [
     :identity,
@@ -96,7 +97,8 @@ defmodule UnirisCore.Transaction do
     :node_shared_secrets,
     :origin_shared_secrets,
     :code,
-    :beacon
+    :beacon,
+    :hosting
   ]
 
   @spec new(transaction_type(), TransactionData.t()) :: __MODULE__.pending()
@@ -244,6 +246,7 @@ defmodule UnirisCore.Transaction do
   def serialize_type(:origin_shared_secrets), do: 5
   def serialize_type(:code), do: 6
   def serialize_type(:beacon), do: 7
+  def serialize_type(:hosting), do: 8
 
   def parse_type(0), do: :identity
   def parse_type(1), do: :keychain
@@ -253,6 +256,7 @@ defmodule UnirisCore.Transaction do
   def parse_type(5), do: :origin_shared_secrets
   def parse_type(6), do: :code
   def parse_type(7), do: :beacon
+  def parse_type(8), do: :hosting
 
   def network_type?(:node), do: true
   def network_type?(:node_shared_secrets), do: true

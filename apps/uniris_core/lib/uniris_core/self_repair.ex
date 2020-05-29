@@ -140,7 +140,7 @@ defmodule UnirisCore.SelfRepair do
   end
 
   # Group the nodes by date of sync and by subset
-  # 
+  #
   # Examples
   #
   # { "01", [ { "01/01/2020", [ "nodeA", "nodeB"] }, { "01/02/2020", ["nodeB", "nodeC"] } ] }
@@ -160,7 +160,7 @@ defmodule UnirisCore.SelfRepair do
     end)
   end
 
-  # Group closest nodes 
+  # Group closest nodes
   #
   # Examples
   #
@@ -172,7 +172,7 @@ defmodule UnirisCore.SelfRepair do
   # }
   # => %{
   #   "nodeA" => %{
-  #      "01" => ["01/01/2020"]  
+  #      "01" => ["01/01/2020"]
   #    },
   #    "nodeB" => {
   #      "01" => ["01/01/2020", "02/01/2020"]

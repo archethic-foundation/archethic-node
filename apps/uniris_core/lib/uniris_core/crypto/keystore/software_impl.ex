@@ -17,7 +17,7 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   def init(_opts) do
     node_seed =
       :uniris_core
-      |> Application.get_env(Crypto)
+      |> Application.get_env(__MODULE__)
       |> Keyword.fetch!(:seed)
 
     initial_data = %{

@@ -15,7 +15,7 @@ defmodule UnirisCore.Mining.Fee do
   def compute(_tx = %Transaction{type: :node_shared_secrets}), do: 0.0
 
   def compute(_tx = %Transaction{}) do
-    0.1
+    0.0
   end
 
   @spec distribute(
