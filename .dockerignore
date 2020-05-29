@@ -16,4 +16,6 @@ erl_crash.dump
 /apps/uniris_core/priv/storage
 /apps/uniris_core/priv/last_sync
 /apps/uniris_core/priv/p2p/test_seeds
-/rel/artifacts
+
+/create_release.sh
+/docker

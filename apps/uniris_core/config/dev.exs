@@ -1,8 +1,10 @@
 use Mix.Config
 
 config :uniris_core, UnirisCore.Crypto,
-  seed: System.get_env("UNIRIS_CRYPTO_SEED", :crypto.strong_rand_bytes(32)),
   keystore: UnirisCore.Crypto.SoftwareKeystore
+
+config :uniris_core, UnirisCore.Crypto.SoftwareKeystore,
+  seed: System.get_env("UNIRIS_CRYPTO_SEED", :crypto.strong_rand_bytes(32))
 
 config :uniris_core, UnirisCore.BeaconSlotTimer, slot_interval: 58_000
 
