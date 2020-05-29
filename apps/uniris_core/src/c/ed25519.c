@@ -3,11 +3,7 @@
 
 #include "stdio_helpers.h"
 
-#define HARD_SIZE_LIMIT 1000000
-
 enum { GENERATE_ED25519 = 1, GENERATE_ED25519_SEED = 2, ENCRYPT = 3, DECRYPT = 4, SIGN = 5, VERIFY = 6 };
-
-
 
 void write_error(unsigned char* buf, char* error_message, int error_message_len);
 void generate_ed25519(unsigned char* buf);
@@ -162,16 +158,11 @@ void encrypt(unsigned char* buf, int pos, int len) {
                 int message_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
                 pos+=4;
 
-                if (message_len > HARD_SIZE_LIMIT) {
+                if (len < pos + message_len) {
+                    write_error(buf, "missing message", 15);
                     sodium_memzero(pk, sizeof pk);
                     sodium_memzero(x25519_pk, sizeof x25519_pk);
-                    write_error(buf, "message size reach hard limit", 29);
                 } else {
-                    if (len < pos + message_len) {
-                        write_error(buf, "missing message", 15);
-                        sodium_memzero(pk, sizeof pk);
-                        sodium_memzero(x25519_pk, sizeof x25519_pk);
-                    } else {
                         unsigned char message[message_len];
                         for (int i = 0; i < message_len; i++) {
                             message[i] = buf[pos+i];
@@ -211,9 +202,9 @@ void encrypt(unsigned char* buf, int pos, int len) {
                             sodium_memzero(x25519_pk, sizeof x25519_pk);
                         }
                     }
-                }
             }
         }
+        
     }
 }
 
@@ -313,14 +304,11 @@ void sign(unsigned char* buf, int pos, int len) {
         int message_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
         pos+=4;
 
-        if (message_len > HARD_SIZE_LIMIT) {
+        
+        if (len < pos + message_len) {
             sodium_memzero(sk, sizeof(sk));
-            write_error(buf, "message size reach hard limit", 29);
+            write_error(buf, "missing message", 15);
         } else {
-            if (len < pos + message_len) {
-                sodium_memzero(sk, sizeof(sk));
-                write_error(buf, "missing message", 15);
-            } else {
                 unsigned char message[message_len];
                 for (int i = 0; i < message_len; i++) {
                     message[i] = buf[i+pos];
@@ -354,7 +342,6 @@ void sign(unsigned char* buf, int pos, int len) {
                     sodium_memzero(sig, sizeof sig);
                 }
             }
-        }
     }
 }
 
@@ -375,14 +362,11 @@ void verify(unsigned char* buf, int pos, int len) {
             int message_len = (int)buf[pos+3] | (int)buf[pos+2] << 8 | (int)buf[pos+1] << 16 | (int)buf[pos] << 24;
             pos+=4;
 
-            if (message_len > HARD_SIZE_LIMIT) {
+            
+            if (len < pos + message_len) {
                 sodium_memzero(pk, sizeof(pk));
-                write_error(buf, "message size reach hard limit", 29);
+                write_error(buf, "missing message", 15);
             } else {
-                if (len < pos + message_len) {
-                    sodium_memzero(pk, sizeof(pk));
-                    write_error(buf, "missing message", 15);
-                } else {
                     unsigned char message[message_len];
                     for (int i = 0; i < message_len; i++) {
                         message[i] = buf[pos+i];
@@ -420,7 +404,6 @@ void verify(unsigned char* buf, int pos, int len) {
                         sodium_memzero(sig, sizeof sig);
                     }
                 }
-            }
         }
     }
 }
