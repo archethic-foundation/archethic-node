@@ -24,9 +24,11 @@ defmodule UnirisWeb.Router do
   scope "/api" do
     pipe_through :api
 
+    get "/last_transaction/:address/content", UnirisWeb.TransactionController, :last_transaction_content
+
     forward "/graphiql",
             Absinthe.Plug.GraphiQL,
-            schema: UnirisWeb.Schema,
+            schema: Schema,
             socket: UnirisWeb.UserSocket
 
     forward "/",
