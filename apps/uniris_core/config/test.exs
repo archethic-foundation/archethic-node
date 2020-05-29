@@ -1,8 +1,10 @@
 use Mix.Config
 
 config :uniris_core, UnirisCore.Crypto,
-  seed: "fake seed",
   keystore: MockCrypto
+
+config :uniris_core, UnirisCore.Crypto.SoftwareKeystore,
+  seed: "fake seed"
 
 config :uniris_core, UnirisCore.Crypto.Keystore, enabled: false
 config :uniris_core, UnirisCore.Crypto.TransactionLoader, enabled: false
