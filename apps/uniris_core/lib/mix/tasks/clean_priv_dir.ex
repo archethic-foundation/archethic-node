@@ -5,5 +5,6 @@ defmodule Mix.Tasks.CleanPrivDir do
   def run(_) do
     File.rm_rf!(Application.app_dir(:uniris_core, "priv/storage"))
     File.rm_rf!(Application.app_dir(:uniris_core, "priv/last_sync"))
+    File.rm(Application.app_dir(:uniris_core, "priv/crypto/storage_nonce"))
   end
 end
