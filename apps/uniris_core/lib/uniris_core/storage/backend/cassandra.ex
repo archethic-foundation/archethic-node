@@ -1,6 +1,7 @@
 defmodule UnirisCore.Storage.CassandraBackend do
   @moduledoc false
 
+
   @insert_transaction_stmt """
   INSERT INTO uniris.transactions(
       address,
@@ -28,7 +29,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
   @insert_transaction_chain_stmt """
   INSERT INTO uniris.transaction_chains(
       chain_address,
-      day_number,
+      bucket,
       transaction_address,
       type,
       timestamp,
@@ -40,7 +41,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
       cross_validation_stamps)
     VALUES(
       :chain_address,
-      :day_number,
+      :bucket,
       :transaction_address,
       :type,
       :timestamp,
@@ -63,6 +64,8 @@ defmodule UnirisCore.Storage.CassandraBackend do
   alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
   alias UnirisCore.Transaction.ValidationStamp.NodeMovements
   alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
+  alias __MODULE__.ChainQueryWorker
+  alias __MODULE__.ChainQuerySupervisor
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
@@ -93,36 +96,13 @@ defmodule UnirisCore.Storage.CassandraBackend do
 
   @impl true
   def get_transaction_chain(address) do
-    prepared =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT
-          transaction_address as address,
-          type,
-          timestamp,
-          data,
-          previous_public_key,
-          previous_signature,
-          origin_signature,
-          validation_stamp,
-          cross_validation_stamps
-        FROM uniris.transaction_chains
-        WHERE chain_address=? and day_number=?"
-      )
-
-    1..365
-    |> Flow.from_enumerable()
-    |> Flow.flat_map(fn day_number ->
-      Xandra.stream_pages!(:xandra_conn, prepared, _params = [address |> Base.encode16(), day_number])
-      |> Stream.flat_map(& &1)
-      |> Stream.map(&format_result_to_transaction/1)
-      |> Enum.to_list()
-    end)
-    |> Enum.to_list()
+    Supervisor.which_children(ChainQuerySupervisor)
+    |> Enum.map(fn {_, pid, _, _} -> pid end)
+    |> Task.async_stream(&ChainQueryWorker.get(&1, address))
+    |> Enum.flat_map(fn {:ok, res} -> res end)
     |> case do
       [] ->
         {:error, :transaction_chain_not_exists}
-
       chain ->
         {:ok, chain}
     end
@@ -139,13 +119,13 @@ defmodule UnirisCore.Storage.CassandraBackend do
   def write_transaction_chain(
         chain = [%Transaction{address: chain_address, timestamp: timestamp} | _]
       ) do
-    day_number = timestamp |> DateTime.to_date() |> Date.day_of_year()
+    bucket = rem(DateTime.to_unix(timestamp), 10)
     transaction_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_stmt)
     chain_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_chain_stmt)
 
     Task.async_stream(chain, fn tx ->
       {:ok, _} = Xandra.execute(:xandra_conn, transaction_prepared, transaction_write_parameters(tx))
-      {:ok, _} = Xandra.execute(:xandra_conn, chain_prepared, transaction_chain_write_parameters(chain_address, day_number, tx))
+      {:ok, _} = Xandra.execute(:xandra_conn, chain_prepared, transaction_chain_write_parameters(chain_address, bucket, tx))
     end)
     |> Stream.run()
   end
@@ -224,15 +204,15 @@ defmodule UnirisCore.Storage.CassandraBackend do
     }
   end
 
-  defp transaction_chain_write_parameters(chain_address, day_number, tx = %Transaction{}) do
+  defp transaction_chain_write_parameters(chain_address, bucket, tx = %Transaction{}) do
     transaction_write_parameters(tx)
     |> Map.put("chain_address", chain_address |> Base.encode16)
-    |> Map.put("day_number", day_number)
+    |> Map.put("bucket", bucket)
     |> Map.delete("address")
     |> Map.put("transaction_address", tx.address |> Base.encode16)
   end
 
-  defp format_result_to_transaction(%{
+  def format_result_to_transaction(%{
          "address" => address,
          "type" => type,
          "timestamp" => timestamp,

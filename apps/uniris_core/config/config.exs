@@ -22,8 +22,11 @@ config :uniris_core, UnirisCore.P2P,
 
 config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.CassandraBackend
 
+config :uniris_core, UnirisCore.Storage.CassandraBackend,
+    nodes: ["127.0.0.1:9042"]
+
 config :uniris_core, UnirisCore.Bootstrap, seeds_file: "priv/p2p/seeds"
 
-# Import environment specific config. This must remain at the bottom
+# Import environment specific config. This must remain at the bottmo
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

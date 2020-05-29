@@ -5,7 +5,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
   use GenServer
 
   def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def init(_opts) do
@@ -179,7 +179,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       Xandra.execute(:xandra_conn, """
       CREATE TABLE IF NOT EXISTS uniris.transaction_chains(
         chain_address varchar,
-        day_number int,
+        bucket int,
         transaction_address varchar,
         type varchar,
         timestamp timestamp,
@@ -189,7 +189,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
         origin_signature varchar,
         validation_stamp frozen<validation_stamp>,
         cross_validation_stamps LIST<frozen<cross_validation_stamp>>,
-        PRIMARY KEY ((chain_address, day_number), timestamp)
+        PRIMARY KEY ((chain_address, bucket), timestamp)
       )
       WITH CLUSTERING ORDER BY (timestamp DESC);
       """)
