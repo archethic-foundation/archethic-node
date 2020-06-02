@@ -303,13 +303,12 @@ void sign(unsigned char* buf, int pos, int len) {
 
         int message_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
         pos+=4;
-
         
         if (len < pos + message_len) {
             sodium_memzero(sk, sizeof(sk));
             write_error(buf, "missing message", 15);
         } else {
-                unsigned char message[message_len];
+                unsigned char *message = (unsigned char *) malloc(message_len);
                 for (int i = 0; i < message_len; i++) {
                     message[i] = buf[i+pos];
                 }
@@ -327,6 +326,7 @@ void sign(unsigned char* buf, int pos, int len) {
                     for (int i = 0; i < 4; i++) {
                         response[i] = buf[i];
                     }
+
 
                     //Encode response success type
                     response[4] = 1;
@@ -367,7 +367,7 @@ void verify(unsigned char* buf, int pos, int len) {
                 sodium_memzero(pk, sizeof(pk));
                 write_error(buf, "missing message", 15);
             } else {
-                    unsigned char message[message_len];
+                    unsigned char *message = (unsigned char *) malloc(message_len);
                     for (int i = 0; i < message_len; i++) {
                         message[i] = buf[pos+i];
                     }
