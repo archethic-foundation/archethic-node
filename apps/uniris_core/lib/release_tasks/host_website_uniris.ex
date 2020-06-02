@@ -32,22 +32,12 @@ defmodule UnirisCore.ReleaseTasks.HostWebsiteUniris do
     Application.app_dir(:uniris_core, "priv/uniris.io/biometric_animation.js") => "uniris_biometricanim_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/blockchain_animation.js") => "uniris_blockchainanim_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/form_validator.min.js") => "formvalidator_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/logo_uniris.svg") => "uniris_logo_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/banner_curve.svg") => "banner_curve_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/jo2024.svg") => "jo2024_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/polytechnique.png") => "polytechnique_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/hec.png") => "hec_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/stationf.png") => "stationf_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/gicat.png") => "gicat_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/bpi.png") => "bpi_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/uniris_token_split.svg") => "uniris_token_split_seed",
-    Application.app_dir(:uniris_core, "priv/uniris.io/uniris_token_growth.svg") => "uniris_token_growth_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index.html") => "uniris_index_seed",
   }
   end
 
 
-  def run() do
+  def run(index \\ 0) do
     Enum.map(assets_seeds(), fn {file, seed} ->
       content = File.read!(file)
       tx =
@@ -57,7 +47,7 @@ defmodule UnirisCore.ReleaseTasks.HostWebsiteUniris do
             content: content
           },
           seed,
-          0
+          index
         )
 
       UnirisCore.send_new_transaction(tx)
