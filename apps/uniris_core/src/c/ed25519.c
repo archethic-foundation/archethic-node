@@ -23,20 +23,23 @@ int main() {
 
     while(len > 0 ) {
 
-        unsigned char buf[len];
+        unsigned char *buf = (unsigned char *) malloc(len);
         int read_bytes = read_message(buf, len);
 
         if (read_bytes != len) {
+            free(buf);
             err(EXIT_FAILURE, "missing message");
         }
 
         if (len < 4) {
+            free(buf);
             err(EXIT_FAILURE, "missing request id");
         }
         int pos = 4; //After the 32 bytes of the request id
 
         if (len < 5) {
-             err(EXIT_FAILURE, "missing fun id");
+            free(buf);
+            err(EXIT_FAILURE, "missing fun id");
         }
 
         unsigned char fun_id = buf[pos];
@@ -63,6 +66,7 @@ int main() {
                 break;
         }
 
+        free(buf);
         len = get_length();
     }
 }
@@ -163,21 +167,23 @@ void encrypt(unsigned char* buf, int pos, int len) {
                     sodium_memzero(pk, sizeof pk);
                     sodium_memzero(x25519_pk, sizeof x25519_pk);
                 } else {
-                        unsigned char message[message_len];
+                        unsigned char *message = (unsigned char *) malloc(message_len);
                         for (int i = 0; i < message_len; i++) {
                             message[i] = buf[pos+i];
                         }
                         pos += message_len;
 
                         int cipher_len = crypto_box_SEALBYTES + message_len;
-                        unsigned char ciphertext[cipher_len];
+                        unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
                         if (crypto_box_seal(ciphertext, message, message_len, x25519_pk) != 0) {
                             sodium_memzero(pk, sizeof pk);
                             sodium_memzero(x25519_pk, sizeof x25519_pk);
-                            sodium_memzero(message, sizeof message);
+                            sodium_memzero(message, message_len);
+                            sodium_memzero(ciphertext, cipher_len);
                             write_error(buf, "encryption failed", 17);
                         } else {
-                            unsigned char response[5+4+cipher_len];
+                            int response_len = 5+4+cipher_len;
+                            unsigned char *response = (unsigned char *) malloc(response_len);
                             for (int i = 0; i < 4; i++) {
                                 response[i] = buf[i];
                             }
@@ -195,11 +201,12 @@ void encrypt(unsigned char* buf, int pos, int len) {
                                 response[9+i] = ciphertext[i];
                             }
 
-                            write_response(response, sizeof(response));
+                            write_response(response, response_len);
                             sodium_memzero(ciphertext, sizeof ciphertext);
                             sodium_memzero(message, sizeof message);
                             sodium_memzero(pk, sizeof pk);
                             sodium_memzero(x25519_pk, sizeof x25519_pk);
+                            sodium_memzero(response, response_len);
                         }
                     }
             }
@@ -247,7 +254,8 @@ void decrypt(unsigned char* buf, int pos, int len) {
                         sodium_memzero(pk, sizeof(pk));
                         write_error(buf, "missing cipher", 14);
                     } else {
-                        unsigned char ciphertext[cipher_len];
+                        unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
+                        
                         for (int i = 0; i < cipher_len; i++) {
                             ciphertext[i] = buf[pos+i];
                         }
@@ -255,14 +263,16 @@ void decrypt(unsigned char* buf, int pos, int len) {
 
                         int message_size = cipher_len - crypto_box_SEALBYTES;
 
-                        unsigned char decrypted[message_size];
+                        unsigned char *decrypted = (unsigned char *) malloc(message_size);
                         if(crypto_box_seal_open(decrypted, ciphertext, cipher_len, x25519_pk, x25519_sk) != 0) {
                             sodium_memzero(sk, sizeof(sk));
                             sodium_memzero(pk, sizeof(pk));
-                            sodium_memzero(ciphertext, sizeof(ciphertext));
+                            sodium_memzero(ciphertext, cipher_len);
+                            sodium_memzero(decrypted, message_size);
                             write_error(buf, "decryption failed", 17);
                         } else {
-                            unsigned char response[5+message_size];
+                            int response_len = 5+message_size;
+                            unsigned char *response = (unsigned char *) malloc(response_len);
 
                             //Encode request id
                             for (int i = 0; i < 4; i++) {
@@ -276,12 +286,13 @@ void decrypt(unsigned char* buf, int pos, int len) {
                             for (int i = 0; i < message_size; i++){
                                 response[5+i] = decrypted[i];
                             }
-                            write_response(response, sizeof(response));
+                            write_response(response, response_len);
 
                             sodium_memzero(sk, sizeof(sk));
                             sodium_memzero(pk, sizeof(pk));
-                            sodium_memzero(ciphertext, sizeof(ciphertext));
-                            sodium_memzero(decrypted, sizeof decrypted);
+                            sodium_memzero(ciphertext, cipher_len);
+                            sodium_memzero(decrypted, message_size);
+                            sodium_memzero(response, response_len);
                         }
                     }
                 }
@@ -317,7 +328,7 @@ void sign(unsigned char* buf, int pos, int len) {
                 unsigned char sig[crypto_sign_BYTES];
                 if (crypto_sign_detached(sig, NULL, message, message_len, sk) != 0) {
                     sodium_memzero(sk, sizeof(sk));
-                    sodium_memzero(sk, sizeof(message));
+                    sodium_memzero(sk, message_len);
                     write_error(buf, "signing failed", 14);
                 } else {
                     unsigned char response[5+crypto_sign_BYTES];
@@ -362,7 +373,6 @@ void verify(unsigned char* buf, int pos, int len) {
             int message_len = (int)buf[pos+3] | (int)buf[pos+2] << 8 | (int)buf[pos+1] << 16 | (int)buf[pos] << 24;
             pos+=4;
 
-            
             if (len < pos + message_len) {
                 sodium_memzero(pk, sizeof(pk));
                 write_error(buf, "missing message", 15);
@@ -375,7 +385,7 @@ void verify(unsigned char* buf, int pos, int len) {
 
                     if (len < pos + crypto_sign_BYTES) {
                         sodium_memzero(pk, sizeof(pk));
-                        sodium_memzero(message, sizeof(message));
+                        sodium_memzero(message, message_len);
                         write_error(buf, "missing signature", 17);
                     } else {
                         unsigned char sig[crypto_sign_BYTES];
