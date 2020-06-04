@@ -35,6 +35,10 @@ defmodule UnirisCore.ReleaseTasks.HostWebsiteUniris do
     Application.app_dir(:uniris_core, "priv/uniris.io/index.html") => "uniris_index_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index_fr.html") => "uniris_index_fr_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index_ru.html") => "uniris_index_ru_seed",
+    Application.app_dir(:uniris_core, "priv/uniris.io/UNIRIS-White-Paper.pdf") => "uniris_whitepaper_seed",
+    Application.app_dir(:uniris_core, "priv/uniris.io/UNIRIS-White-Paper-FR.pdf") => "uniris_whitepaper_fr_seed",
+    Application.app_dir(:uniris_core, "priv/uniris.io/UNIRIS-YellowPaper-Season1-Network.pdf") => "uniris_yellowpaper_s1_seed",
+    Application.app_dir(:uniris_core, "priv/uniris.io/UNIRIS-YellowPaper-Saison1-Reseau.pdf") => "uniris_yellowpaper_s1_fr_seed",
   }
   end
 
@@ -53,6 +57,7 @@ defmodule UnirisCore.ReleaseTasks.HostWebsiteUniris do
         )
 
       UnirisCore.send_new_transaction(tx)
+      Process.sleep(500)
       {file, Base.encode16(tx.address)}
     end)
   end
