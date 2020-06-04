@@ -76,7 +76,6 @@ defmodule UnirisCore.Storage.CassandraBackend do
     Xandra.stream_pages!(:xandra_conn, "SELECT * FROM uniris.transactions", _params = [])
     |> Stream.flat_map(& &1)
     |> Stream.map(&format_result_to_transaction/1)
-    |> Enum.to_list()
   end
 
   @impl true

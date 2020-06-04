@@ -32,7 +32,7 @@ defmodule UnirisCore.Storage.Backend do
   end
 
   @impl true
-  @spec list_transactions() :: list(Transaction.validated())
+  @spec list_transactions() :: Enumerable.t()
   def list_transactions() do
     impl().list_transactions()
   end
