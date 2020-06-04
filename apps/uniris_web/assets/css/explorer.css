@@ -2,38 +2,141 @@
 
 
 .explorer {
+    background: linear-gradient(-30deg,#006cd2 30%,#00a4db 70%);
     padding: 0px!important;
     max-width: 100%!important;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 16px;
+    font-weight: 300;
+}
+
+.explorer h1, h2 {
+    color: white;
+}
+
+.explorer a {
+    color: #44719e;
 }
 
 .explorer-header {
-    background-color: #2a91ff;
     color: #fff;
-    padding: 10px;
+    align-items: center;
 }
 
-.explorer-header .search-form {
+.explorer-header nav {
+    align-items: center;
+}
+
+.explorer-header nav ul {
+    margin: 0;
+}
+
+.explorer-header nav ul li {
+    display: inline-block;
+    line-height: 68px;
+    padding-left: 10px;
+    padding-right: 10px;
     margin-bottom: 0;
 }
 
-.explorer-header .search-form input::placeholder {
+.explorer-header nav ul li a {
     color: #fff;
+    transition: all .3s;
+    font-weight: 500;
 }
 
-.explorer-header .search-form input {
+.explorer-header nav ul li a:hover {
+    font-weight: 700;
+    color: #f1f6fb;
+}
+
+.search-form {
+    margin-bottom: 0;
+    background: transparent!important;
+    border: none!important;
+}
+
+.search-form input{
+    background: #fff;
+    color: #44719e!important;
+    font-size: 1.1em;
+    border: thin solid #f5f5f5!important;
+    height: 4.8rem!important;
+}
+
+.search-form input::placeholder {
+    color: #44719e;
+}
+
+.search-form input {
     color: #fff;
     border: none;
     border-bottom: thin solid #fff;
     border-radius: 0;
 }
 
-.explorer-header .search-form button {
+.search-form button {
     margin-left: 10px;
     background-color: #fff;
     color: #000;
     border: none;
 }
 
-.explorer table tr:last-child td {
-    border-bottom: 0;
+.explorer-main {
+    padding-top: 50px;
+    min-height: 100vh;
+    padding-bottom: 50px;
+}
+
+.explorer-card {
+    background: #fff;
+    border-radius: 5px;
+    padding: 30px 20px 30px 20px!important;
+}
+
+.transaction_details {
+    background: #f5f5f5;
+    padding-left: 30px;
+    padding-top: 10px;
+    padding-right: 30px;
+    padding-bottom: 10px;
+}
+
+.transaction_details .row {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+    margin-top: 5px;
+    background: #fff;
+    border-radius: 3px;
+    border: thin solid #f5f5f5;
+}
+
+.transaction_details .row .title {
+    margin: 0;
+    font-weight: bold;
+}
+
+.transaction_details .row .column {
+    overflow-wrap: break-word;
+}
+
+.transaction_list .row:first-child {
+    background: #fff!important;
+    font-weight: bold;
+}
+
+.transaction_list .row {
+    padding: 10px 0px 10px 0px;
+    background: #fff;
+}
+
+.transaction_list .row:first-child  {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+.transaction_list .row:last-child  {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
 }

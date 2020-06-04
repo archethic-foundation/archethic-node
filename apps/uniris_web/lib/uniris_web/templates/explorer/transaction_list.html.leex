@@ -1,0 +1,26 @@
+<div class="row">
+    <div class="column">
+        <h2>Transaction list</h2>
+    </div>
+</div>
+
+<div class="transaction_list" phx-hook="InfiniteScroll" data-page="<%= @page %>">
+    <div class="row">
+        <div class="column column-70">Address</div>
+        <div class="column column-10">Date</div>
+        <div class="column column-20">Type</div>
+    </div>
+    <%= for tx <- Enum.slice(@transactions, 0, @page * 8) do %>
+        <div class="row">
+            <div class="column column-70">
+                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(tx.address)), title: "Details about #{Base.encode16(tx.address)}" do%>
+                    <span>
+                        <%= Base.encode16(tx.address) %>
+                    </span>
+                <% end %>
+            </div>
+            <div class="column column-10"><%= format_date(tx.timestamp) %></div>
+            <div class="column column-20"><%= tx.type %></div>
+        </div>
+    <% end %>
+</div>

@@ -13,7 +13,10 @@ config :uniris_web, UnirisWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",
   render_errors: [view: UnirisWeb.ErrorView, accepts: ~w(json)],
   pubsub: [name: UnirisWeb.PubSub, adapter: Phoenix.PubSub.PG2],
-  live_view: [signing_salt: "3D6jYvx3"]
+  live_view: [
+    signing_salt: "3D6jYvx3",
+    layout: { UnirisWeb.LayoutView, "live.html" }
+  ]
 
 # Configures Elixir's Logger
 config :logger, :console,

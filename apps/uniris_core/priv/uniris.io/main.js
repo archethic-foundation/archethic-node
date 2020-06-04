@@ -308,3 +308,11 @@ function submitMSG(valid, msg){
     }
     $("#msgSubmit").removeClass().addClass(msgClasses).text(msg);
 }
+
+$(window).scroll(function() {
+    if ($(this).scrollTop() > 0) {
+      $('.transaction_info').fadeOut();
+    } else {
+      $('.transaction_info').fadeIn();
+    }
+  });

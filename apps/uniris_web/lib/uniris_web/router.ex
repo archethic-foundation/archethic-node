@@ -7,6 +7,8 @@ defmodule UnirisWeb.Router do
     plug :fetch_live_flash
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :put_root_layout, {UnirisWeb.LayoutView, :root}
+
   end
 
   pipeline :api do
@@ -17,8 +19,8 @@ defmodule UnirisWeb.Router do
     pipe_through :browser
 
     get "/", ExplorerController, :index
-    get "/transaction/:address", ExplorerController, :show
-    get "/search", ExplorerController, :search
+    live "/search", TransactionDetailsLive
+    live "/transactions", TransactionListLive
   end
 
   scope "/api" do
