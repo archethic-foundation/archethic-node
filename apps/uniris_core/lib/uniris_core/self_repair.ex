@@ -86,7 +86,7 @@ defmodule UnirisCore.SelfRepair do
           node_patch: node_patch
         }
       ) do
-    Logger.info("Self-repair synchronization started from #{last_sync_date}")
+    Logger.info("Self-repair synchronization started from #{inspect last_sync_date}")
     synchronize(last_sync_date, node_patch)
     schedule_sync(interval)
     {:noreply, Map.put(state, :last_sync_date, update_last_sync_date())}
