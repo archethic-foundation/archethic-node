@@ -161,7 +161,8 @@ defmodule UnirisCore.Mining.StampTest do
                previous_signature: :crypto.strong_rand_bytes(64),
                origin_signature: :crypto.strong_rand_bytes(64)
              }
-             |> Stamp.check_validation_stamp_fee(0.1)
+             |> Stamp.check_validation_stamp_fee(0.0)
+             # TODO: replace when the fee will be applied (with P2P payments)
   end
 
   test "check_validation_stamp_rewards/3 should return :ok when the rewards are the same as expected" do
@@ -194,7 +195,8 @@ defmodule UnirisCore.Mining.StampTest do
 
     rewards =
       Fee.distribute(
-        0.1,
+        # TODO: replace when the fee will be applied (with P2P payments)
+        0.0,
         "welcome_key1",
         "coordinator_key1",
         ["validator_key1", "validator_key2"],

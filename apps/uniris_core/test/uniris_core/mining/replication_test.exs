@@ -207,10 +207,12 @@ defmodule UnirisCore.Mining.ReplicationTest do
         origin_pub,
         ProofOfIntegrity.compute([tx | previous_chain]),
         %NodeMovements{
-          fee: 0.1,
+          # TODO: replace when the fee will be applied (with P2P payments)
+          fee: 0.0,
           rewards:
             Fee.distribute(
-              0.1,
+              # TODO: replace when the fee will be applied (with P2P payments)
+              0.0,
               Crypto.node_public_key(),
               coordinator,
               cross_validation_nodes,
@@ -220,7 +222,8 @@ defmodule UnirisCore.Mining.ReplicationTest do
         },
         %LedgerMovements{
           uco: %UTXO{
-            next: 10.9,
+            # TODO: replace when the fee will be applied (with P2P payments)
+            next: 11.0,
             previous: %{
               amount: 11,
               from: [
@@ -255,10 +258,12 @@ defmodule UnirisCore.Mining.ReplicationTest do
         Crypto.node_public_key(0),
         Crypto.hash(tx),
         %NodeMovements{
-          fee: 0.1,
+          # TODO: replace when the fee will be applied (with P2P payments)
+          fee: 0.0,
           rewards:
             Fee.distribute(
-              0.1,
+              # TODO: replace when the fee will be applied (with P2P payments)
+              0.0,
               Crypto.node_public_key(),
               Crypto.node_public_key(),
               [Crypto.node_public_key()],

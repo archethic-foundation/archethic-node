@@ -11,9 +11,12 @@ config :uniris_core, UnirisCore.Crypto.TransactionLoader, enabled: false
 
 config :uniris_core, UnirisCore.Storage, backend: MockStorage
 config :uniris_core, UnirisCore.Storage.FileBackend, enabled: false
+config :uniris_core, UnirisCore.Storage.CassandraBackend, enabled: false
 config :uniris_core, UnirisCore.Storage.Cache, enabled: false
 
-config :uniris_core, UnirisCore.P2P, port: 10_000
+config :uniris_core, UnirisCore.P2P,
+  port: 10_000,
+  node_client: MockNodeClient
 
 config :uniris_core, UnirisCore.P2P.TransactionLoader, enabled: false
 

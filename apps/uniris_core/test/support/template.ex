@@ -19,8 +19,7 @@ defmodule UnirisCoreCase do
     |> stub(:write_transaction, fn _ -> :ok end)
     |> stub(:write_transaction_chain, fn _ -> :ok end)
     |> stub(:get_transaction, fn _ -> {:error, :transaction_not_exists} end)
-    |> stub(:node_transactions, fn -> [] end)
-    |> stub(:get_last_node_shared_secrets_transaction, fn -> {:error, :transaction_not_exists} end)
+    |> stub(:get_transaction_chain, fn _ -> {:error, :transaction_chain_not_exists} end)
 
     MockCrypto
     |> stub(:sign_with_node_key, fn data ->

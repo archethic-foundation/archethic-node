@@ -20,32 +20,24 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
   test "start_link/1 should start the transaction loader and preload stored transactions" do
     {public_key, _} = Crypto.derivate_keypair("seed", 0)
 
-    MockStorage
-    |> expect(:node_transactions, fn ->
-      [
-        Transaction.new(
-          :node,
-          %TransactionData{
-            content: """
-            ip: 127.0.0.1
-            port: 3000
-            """
-          },
-          "seed",
-          0
-        )
-      ]
-    end)
-    |> expect(:get_last_node_shared_secrets_transaction, fn ->
-      auth_keys = %{} |> Map.put(public_key, "")
+    UnirisCore.Storage.Cache.store_transaction(Transaction.new(
+      :node,
+      %TransactionData{
+        content: """
+        ip: 127.0.0.1
+        port: 3000
+        """
+      },
+      "seed",
+      0
+    ))
 
-      {:ok,
-       Transaction.new(:node_shared_secrets, %TransactionData{
-         keys: %{
-           authorized_keys: auth_keys
-         }
-       })}
-    end)
+    UnirisCore.Storage.Cache.store_transaction(Transaction.new(:node_shared_secrets, %TransactionData{
+      keys: %{
+        authorized_keys: %{} |> Map.put(public_key, "")
+      }
+    }))
+
 
     TransactionLoader.start_link([])
     Process.sleep(100)

@@ -54,9 +54,6 @@ defmodule UnirisCore.MiningWorkerTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    MockStorage
-    |> stub(:node_transactions, fn -> [] end)
-
     :ok
   end
 

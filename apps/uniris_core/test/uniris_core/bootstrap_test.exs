@@ -9,32 +9,31 @@ defmodule UnirisCore.BootstrapTest do
   alias UnirisCore.BeaconSlotTimer
   alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubset
+  alias UnirisCore.Transaction
 
   import Mox
 
+  setup :verify_on_exit!
   setup :set_mox_global
-
-  setup_all do
-    {:ok, %{seeds_file: Application.app_dir(:uniris_core, "priv/p2p/test_seeds")}}
-
-    on_exit(fn ->
-      File.rm(Application.app_dir(:uniris_core, "priv/p2p/test_seeds"))
-    end)
-  end
 
   setup do
     start_supervised!(UnirisCore.Storage.Cache)
     start_supervised!({UnirisCore.SelfRepair, interval: 10_000})
     start_supervised!({BeaconSlotTimer, slot_interval: 10_000})
     Enum.each(BeaconSubsets.all(), &start_supervised!({BeaconSubset, subset: &1}, id: &1))
-    :ok
+
+    on_exit(fn ->
+      File.rm(Application.app_dir(:uniris_core, "priv/p2p/test_seeds"))
+    end)
+
+    {:ok, %{seeds_file: Application.app_dir(:uniris_core, "priv/p2p/test_seeds")}}
   end
 
   describe "run/4" do
     test "network initialization when the first seed node is the equal to the first node public key",
          %{seeds_file: seeds_file} do
       MockStorage
-      |> stub(:write_transaction, fn _tx ->
+      |> stub(:write_transaction_chain, fn [%Transaction{type: :node}] ->
         P2P.add_node(%Node{
           ip: {127, 0, 0, 1},
           port: 3002,
@@ -131,16 +130,12 @@ defmodule UnirisCore.BootstrapTest do
       end)
 
       MockStorage
-      |> stub(:get_last_node_shared_secrets_transaction, fn ->
-        {:error, :transaction_not_exists}
-      end)
-      |> stub(:write_transaction_chain, fn _ -> :ok end)
-      |> stub(:write_transaction, fn tx ->
+      |> stub(:write_transaction_chain, fn [%Transaction{type: :node, previous_public_key: previous_public_key}] ->
         P2P.add_node(%Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          last_public_key: tx.previous_public_key,
-          first_public_key: tx.previous_public_key,
+          last_public_key: previous_public_key,
+          first_public_key: previous_public_key,
           enrollment_date: DateTime.utc_now()
         })
 

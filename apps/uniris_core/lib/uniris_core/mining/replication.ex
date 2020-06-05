@@ -341,7 +341,7 @@ defmodule UnirisCore.Mining.Replication do
          true <- next_uco_ledger != :unsufficient_funds do
       :ok
     else
-      _ ->
+      _reason ->
         {:error, :invalid_transaction}
     end
   end

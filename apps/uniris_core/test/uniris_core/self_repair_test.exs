@@ -72,7 +72,7 @@ defmodule UnirisCore.SelfRepairTest do
         {:get_transaction, _} ->
           {:ok,
            %Transaction{
-             address: "fake_address",
+             address: "another_address",
              timestamp: DateTime.utc_now(),
              type: :node,
              data: %{},
