@@ -65,4 +65,28 @@ defmodule UnirisCore.Storage.CacheTest do
     :ok = Cache.store_ko_transaction(tx)
     assert true == Cache.ko_transaction?(tx.address)
   end
+
+  test "last_transaction_address/1 should retrieve the last transaction on a chain" do
+    tx1 = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+    tx2 = Transaction.new(:transfer, %TransactionData{}, "seed", 1)
+    tx3 = Transaction.new(:transfer, %TransactionData{}, "seed", 2)
+
+    Cache.store_transaction(tx1)
+    Cache.store_transaction(tx2)
+    Cache.store_transaction(tx3)
+
+    assert {:ok, tx3.address} == Cache.last_transaction_address(tx1.address)
+    assert {:ok, tx3.address} == Cache.last_transaction_address(tx2.address)
+    assert {:ok, tx3.address} == Cache.last_transaction_address(tx3.address)
+  end
+
+  test "list_transactions/1 should return a stream of transaction" do
+    Enum.each(1..50, fn i ->
+      Cache.store_transaction(Transaction.new(:transfer, %TransactionData{}, "seed", i))
+    end)
+
+    assert 50 == Enum.count(Cache.list_transactions(0))
+    assert 20 == Enum.count(Cache.list_transactions(20))
+  end
+
 end

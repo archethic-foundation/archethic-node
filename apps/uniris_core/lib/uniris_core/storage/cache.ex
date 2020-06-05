@@ -89,7 +89,7 @@ defmodule UnirisCore.Storage.Cache do
     previous_address = Crypto.hash(previous_public_key)
     :ets.insert(@chain_track_table, {previous_address, next_address})
     :ets.insert(@chain_track_table, {next_address, next_address})
-    :ets.insert(@latest_transactions_table, {DateTime.to_unix(timestamp), next_address})
+    :ets.insert(@latest_transactions_table, {DateTime.to_unix(timestamp, :microsecond), next_address})
   end
 
   def store_transaction(tx = %Transaction{address: tx_address}) do

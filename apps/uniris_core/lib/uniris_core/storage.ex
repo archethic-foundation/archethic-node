@@ -23,9 +23,29 @@ defmodule UnirisCore.Storage do
   @doc """
   Return the list of transactions stored
   """
-  @spec list_transactions() :: list(Transaction.validated())
-  def list_transactions() do
-    Backend.list_transactions()
+  @spec list_transactions(limit :: non_neg_integer()) :: Enumerable.t()
+  def list_transactions(limit \\ 0) do
+    case Cache.list_transactions(limit) do
+      [] ->
+        if limit > 0 do
+          Backend.list_transactions()
+          |> Enum.sort_by(& &1.timestamp)
+          |> Stream.take(limit)
+        else
+          Backend.list_transactions()
+        end
+      transactions ->
+        if limit > 0 do
+          Stream.resource(
+            fn -> 0 end,
+            fn last_pos ->
+              {Enum.slice(transactions, last_pos, limit), last_pos + limit}
+            end,
+            fn _ -> :ok end)
+        else
+          transactions
+        end
+    end
   end
 
   @doc """
