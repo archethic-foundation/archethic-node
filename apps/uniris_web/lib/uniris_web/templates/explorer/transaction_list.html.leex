@@ -10,7 +10,7 @@
         <div class="column column-10">Date</div>
         <div class="column column-20">Type</div>
     </div>
-    <%= for tx <- Enum.slice(@transactions, 0, @page * 8) do %>
+    <%= for tx <- Enum.slice(@transactions, 0, @page * 12) do %>
         <div class="row">
             <div class="column column-70">
                 <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(tx.address)), title: "Details about #{Base.encode16(tx.address)}" do%>

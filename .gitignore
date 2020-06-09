@@ -11,9 +11,4 @@ erl_crash.dump
 **/doc
 .
 
-/apps/uniris_core/priv/crypto/c_dist
-/apps/uniris_core/priv/crypto/storage_nonce
-/apps/uniris_core/priv/storage
-/apps/uniris_core/priv/last_sync
-/apps/uniris_core/priv/p2p/test_seeds
 /rel/artifacts

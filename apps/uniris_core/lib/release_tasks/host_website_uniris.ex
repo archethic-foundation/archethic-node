@@ -32,6 +32,7 @@ defmodule UnirisCore.ReleaseTasks.HostWebsiteUniris do
     Application.app_dir(:uniris_core, "priv/uniris.io/biometric_animation.js") => "uniris_biometricanim_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/blockchain_animation.js") => "uniris_blockchainanim_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/form_validator.min.js") => "formvalidator_seed",
+    Application.app_dir(:uniris_core, "priv/uniris.io/world-110m.json") => "world-110_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index.html") => "uniris_index_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index_fr.html") => "uniris_index_fr_seed",
     Application.app_dir(:uniris_core, "priv/uniris.io/index_ru.html") => "uniris_index_ru_seed",

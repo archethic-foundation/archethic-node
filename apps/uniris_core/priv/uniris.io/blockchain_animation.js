@@ -63,12 +63,96 @@
           /******************
           * Load map and cities
           ********************/
+          places = [
+          {
+              "name": "Los Angeles",
+              "coordinates": [
+                  -118.181926369940413,
+                  33.991924108765431
+              ]
+          },
+          {
+              "name": "Moscow",
+              "coordinates": [
+                  37.613576967271399,
+                  55.754109981248178
+              ]
+          },
+          { 
+              "name": "Mexico City",
+              "coordinates": [
+                  -99.132934060293906,
+                  19.444388301415472
+              ]
+          },
+          {
+              "name": "Lagos",
+              "coordinates": [
+                  3.389585212598433,
+                  6.445207512093191
+              ]
+          },
+          {
+              "name": "Kolkata",
+              "coordinates": [
+                  88.32272979950551,
+                  22.496915156896421
+              ]
+          },
+          {
+              "name": "Washington, D.C.",
+              "coordinates": [
+                  -77.011364439437159,
+                  38.901495235087054
+              ]
+          },
+          {
+              "name": "Casablanca",
+              "coordinates": [ 
+                  -7.618313291698712, 
+                  33.601922074258482
+              ]
+          },
+          {
+              "name": "Paris",
+              "coordinates": [
+                  2.33138946713035, 
+                  48.868638789814611
+              ]
+          },
+          {
+              "name": "Cap Town",
+              "coordinates": [
+                  18.433042299226031, 
+                  -33.918065108628753
+              ]
+          },
+          {
+              "name": "Madrid",
+              "coordinates": [
+                  -3.685297544612524, 
+                  40.401972123113808 
+              ]
+          },
+          {
+              "name": "Rio Janero",
+              "coordinates": [
+                  -43.226966652843657, 
+                  -22.923077315615956
+              ]
+          },
+          {
+              "name": "Cairo",
+              "coordinates": [
+                  31.248022361126118, 
+                  30.051906205103705
+              ]
+          }
+          ]
+
           queue()
-            .defer(d3.json, "assets/json/world-110m.json")
-            .defer(d3.json, "assets/json/places.json")
-            .await(function(err, world, places) {
-        
-        
+            .defer(d3.json, "https://blockchain.uniris.io/api/last_transaction/0052568AC0E83BFF82629B0B7F8CB7570CBDF566739C935840C53AEF74D852167A/content?mime=application/json")
+            .await(function(err, world) {
               
                 /**************
                  * Create earth lands

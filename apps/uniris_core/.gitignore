@@ -23,4 +23,7 @@ erl_crash.dump
 uniris_core-*.tar
 
 /priv/crypto/c_dist
-
+/priv/crypto/storage_nonce
+/priv/storage
+/priv/last_sync
+/priv/p2p/test_seeds
