@@ -17,7 +17,7 @@ defmodule UnirisCore.Storage.FileBackend do
     root_dir =
       Path.join(
         Application.app_dir(:uniris_core, "priv/storage"),
-        Application.get_env(:uniris_core, UnirisCore.Crypto)[:seed]
+        Application.get_env(:uniris_core, UnirisCore.Crypto.SoftwareKeystore)[:seed]
         |> Crypto.hash()
         |> Base.encode16()
       )

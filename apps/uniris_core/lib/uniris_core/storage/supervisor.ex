@@ -12,7 +12,7 @@ defmodule UnirisCore.StorageSupervisor do
   def init(_opts) do
     children =
       Utils.configurable_children([
-        {UnirisCore.Storage.CassandraBackend, [], []},
+        {Application.get_env(:uniris_core, UnirisCore.Storage)[:backend], [], []},
         {UnirisCore.Storage.Cache, [], []}
       ])
 

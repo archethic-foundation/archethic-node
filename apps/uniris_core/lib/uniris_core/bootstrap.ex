@@ -45,32 +45,48 @@ defmodule UnirisCore.Bootstrap do
 
     network_seeds = bootstraping_seeds(seeds_file)
 
-    with {:error, :transaction_not_exists} <-
-           Storage.get_last_node_shared_secrets_transaction(),
-         [%Node{first_public_key: key} | _] when key == first_public_key <- network_seeds do
+    if initialized_network?(first_public_key, network_seeds) do
       Logger.info("Network initialization...")
       init_network(ip, port)
     else
-      _ ->
-        load_nodes(network_seeds)
-        diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
-
-        if Crypto.number_of_node_keys() == 0 do
-          Logger.info("Node initialization...")
-          first_initialization(ip, port, patch, network_seeds, seeds_file)
+      network_seeds = Enum.reject(network_seeds, & &1.first_public_key == Crypto.node_public_key(0))
+      load_nodes(network_seeds)
+      if Crypto.number_of_node_keys() == 0 do
+        Logger.info("Node initialization...")
+        first_initialization(ip, port, patch, network_seeds, seeds_file)
+      else
+        if require_node_update?(ip, port, last_sync_date) do
+          Logger.info("Update node chain...")
+          update_node(ip, port, patch, network_seeds, seeds_file)
         else
-          case P2P.node_info() do
-            # TODO: change the diff sync parameter when the self repair will be moved to daily
-            %Node{ip: prev_ip, port: prev_port} when ip != prev_ip or port != prev_port or diff_sync > 3 ->
-              Logger.info("Update node chain...")
-              update_node(ip, port, patch, network_seeds, seeds_file)
-            _ ->
-              :ok
-          end
+          :ok
         end
+      end
     end
 
     Logger.info("Bootstraping finished!")
+  end
+
+  defp initialized_network?(first_public_key, network_seeds) do
+    with {:error, :transaction_not_exists} <-
+      Storage.get_last_node_shared_secrets_transaction(),
+      [%Node{first_public_key: key} | _] when key == first_public_key <- network_seeds do
+        true
+      else
+        _ ->
+          false
+      end
+  end
+
+  defp require_node_update?(ip, port, last_sync_date) do
+    diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
+    case P2P.node_info() do
+      # TODO: change the diff sync parameter when the self repair will be moved to daily
+      %Node{ip: prev_ip, port: prev_port} when ip != prev_ip or port != prev_port or diff_sync > 3 ->
+        true
+      _ ->
+        false
+    end
   end
 
   defp init_network(ip, port) do

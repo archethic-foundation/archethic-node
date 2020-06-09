@@ -12,6 +12,7 @@ config :uniris_core, UnirisCore.Crypto.TransactionLoader, enabled: false
 config :uniris_core, UnirisCore.Storage, backend: MockStorage
 config :uniris_core, UnirisCore.Storage.FileBackend, enabled: false
 config :uniris_core, UnirisCore.Storage.CassandraBackend, enabled: false
+config :uniris_core, MockStorage, enabled: false
 config :uniris_core, UnirisCore.Storage.Cache, enabled: false
 
 config :uniris_core, UnirisCore.P2P,

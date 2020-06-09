@@ -203,7 +203,11 @@ defmodule UnirisCore.Mining.Replication do
     end
   end
 
-  defp valid_chain?(
+  @doc """
+  Determines if a chain is valid in its integrity
+  """
+  @spec valid_chain?([UnirisCore.Transaction.validated(), ...]) :: boolean
+  def valid_chain?(
          chain = [
            %Transaction{
              previous_public_key: previous_public_key,

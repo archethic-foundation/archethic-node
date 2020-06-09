@@ -13,6 +13,7 @@ defmodule UnirisCore.SelfRepair do
   alias UnirisCore.Transaction
   alias UnirisCore.Utils
   alias UnirisCore.TaskSupervisor
+  alias UnirisCore.Mining.Replication
 
   require Logger
 
@@ -120,7 +121,9 @@ defmodule UnirisCore.SelfRepair do
   end
 
   # Batch and group the slot by nodes and date before the last synchronization time
-  defp batch_slots([], _), do: []
+  defp batch_slots([], _) do
+    []
+  end
 
   defp batch_slots(pools, node_patch) do
     pools
@@ -217,10 +220,19 @@ defmodule UnirisCore.SelfRepair do
     transaction_infos =
       transaction_infos
       |> Enum.reject(&transaction_exists?(&1.address))
-      # Prioritize node transactions
-      # TODO: same with other network type transactions
       |> Enum.sort_by(& &1.timestamp, :desc)
-      |> Enum.sort_by(fn %TransactionInfo{type: type} -> type end, fn type, _ -> type == :node end)
+      |> Enum.sort_by(& &1.type, fn type, _ -> Transaction.network_type?(type) end)
+      |> Enum.sort_by(& &1.type, fn type_a, type_b ->
+        # TODO: same with other network type transactions
+        cond do
+          type_a == :node and type_b == :node_shared_secrets ->
+            true
+            type_a == :node_shared_secrets and type_b == :node ->
+              false
+              true ->
+                true
+              end
+            end)
 
     TaskSupervisor
     |> Task.Supervisor.async_stream(
@@ -254,13 +266,20 @@ defmodule UnirisCore.SelfRepair do
       if Transaction.network_type?(type) do
         Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
         {:ok, tx} = do_download(downloading_nodes, {:get_transaction, address})
-        Storage.write_transaction(tx)
+        case Storage.get_transaction_chain(Crypto.hash(tx.previous_public_key)) do
+          {:ok, chain} ->
+            if Replication.valid_chain?([ tx | chain]) do
+              Storage.write_transaction_chain([ tx | chain])
+            end
+          _ ->
+            Storage.write_transaction_chain([tx])
+        end
       else
         Logger.info("Download transaction chain #{Base.encode16(address)}")
-
-        # TODO: build the transaction history to create a tree to fetch the latest transaction chain
         {:ok, chain} = do_download(downloading_nodes, {:get_transaction_chain, address})
-        Storage.write_transaction_chain(chain)
+        if Replication.valid_chain?(chain) do
+          Storage.write_transaction_chain(chain)
+        end
       end
     end
   end
