@@ -207,6 +207,10 @@ defmodule UnirisCore.Mining.Replication do
   Determines if a chain is valid in its integrity
   """
   @spec valid_chain?([UnirisCore.Transaction.validated(), ...]) :: boolean
+  def valid_chain?([ tx = %Transaction{ validation_stamp: %ValidationStamp{proof_of_integrity: poi}} ]) do
+    poi == ProofOfIntegrity.compute([tx])
+  end
+
   def valid_chain?(
          chain = [
            %Transaction{

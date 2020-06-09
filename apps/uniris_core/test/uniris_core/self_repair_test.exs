@@ -25,10 +25,6 @@ defmodule UnirisCore.SelfRepairTest do
     me = self()
 
     MockStorage
-    |> stub(:write_transaction, fn tx ->
-      send(me, tx)
-      :ok
-    end)
     |> stub(:write_transaction_chain, fn chain ->
       send(me, chain)
       :ok
@@ -55,31 +51,44 @@ defmodule UnirisCore.SelfRepairTest do
             }
           ]
 
-        {:get_transaction_chain, _} ->
-          {:ok,
-           [
-             %Transaction{
-               address: "fake_address",
-               timestamp: DateTime.utc_now(),
-               type: :transfer,
-               data: %{},
-               previous_public_key: "",
-               previous_signature: "",
-               origin_signature: ""
-             }
-           ]}
+        {:get_transaction, address} ->
+          {:ok, %Transaction{
+            address: "another_address",
+            timestamp: DateTime.utc_now(),
+            type: :node,
+            data: %{},
+            previous_public_key: "",
+            previous_signature: "",
+            origin_signature: ""
+          }}
 
-        {:get_transaction, _} ->
-          {:ok,
-           %Transaction{
-             address: "another_address",
-             timestamp: DateTime.utc_now(),
-             type: :node,
-             data: %{},
-             previous_public_key: "",
-             previous_signature: "",
-             origin_signature: ""
-           }}
+        {:get_transaction_chain, address} ->
+          case address do
+            "fake_address" ->
+              {:ok,
+              [
+                %Transaction{
+                  address: "fake_address",
+                  timestamp: DateTime.utc_now(),
+                  type: :transfer,
+                  data: %{},
+                  previous_public_key: "",
+                  previous_signature: "",
+                  origin_signature: ""
+                }
+              ]}
+            "another_address" ->
+              {:ok,
+                [%Transaction{
+                  address: "another_address",
+                  timestamp: DateTime.utc_now(),
+                  type: :node,
+                  data: %{},
+                  previous_public_key: "",
+                  previous_signature: "",
+                  origin_signature: ""
+                }]}
+          end
       end
     end)
 
@@ -112,7 +121,7 @@ defmodule UnirisCore.SelfRepairTest do
     SelfRepair.start_sync("AAA")
     Process.sleep(500)
 
-    assert_received %Transaction{type: :node}, 500
+    assert_received [%Transaction{type: :node}], 500
     assert_received [%Transaction{type: :transfer}], 500
   end
 end

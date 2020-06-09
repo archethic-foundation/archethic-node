@@ -50,19 +50,7 @@ defmodule UnirisCore do
   def get_last_transaction(address) do
     case Storage.last_transaction_address(address) do
       {:ok, last_address} ->
-        case Storage.get_transaction(last_address) do
-          {:ok, tx} ->
-            {:ok, tx}
-
-          _ ->
-            %Node{network_patch: patch} = P2P.node_info()
-
-            last_address
-            |> Election.storage_nodes()
-            |> P2P.nearest_nodes(patch)
-            |> List.first()
-            |> P2P.send_message({:get_last_transaction, last_address})
-        end
+        search_transaction(last_address)
 
       {:error, :not_found} ->
         {:error, :not_found}
