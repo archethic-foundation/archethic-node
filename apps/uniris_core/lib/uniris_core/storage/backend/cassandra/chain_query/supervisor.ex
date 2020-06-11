@@ -10,9 +10,10 @@ defmodule UnirisCore.Storage.CassandraBackend.ChainQuerySupervisor do
   end
 
   def init(_init_arg) do
-    children = Enum.map(0..10, fn i ->
-      Supervisor.child_spec({ChainQueryWorker, [bucket: i]}, [id: i])
-    end)
+    children =
+      Enum.map(0..10, fn i ->
+        Supervisor.child_spec({ChainQueryWorker, [bucket: i]}, id: i)
+      end)
 
     Supervisor.init(children, strategy: :one_for_one)
   end

@@ -17,6 +17,7 @@ defmodule UnirisWeb.Schema.TransactionType do
     value(:node_shared_secrets, as: :node_shared_secrets)
     value(:origin_shared_secrets, as: :origin_shared_secrets)
     value(:beacon, as: :beacon)
+    value(:hosting, as: :hosting)
   end
 
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
@@ -30,6 +31,18 @@ defmodule UnirisWeb.Schema.TransactionType do
     field(:origin_signature, :signature)
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
+
+    field :inputs, list_of(:unspent_output) do
+      resolve(fn _, %{source: %{previous_public_key: previous_public_key}} ->
+        {:ok, UnirisCore.get_transaction_inputs(previous_public_key)}
+      end)
+    end
+
+    field :balance, :float do
+      resolve(fn _, %{source: %{address: address}} ->
+        {:ok, UnirisCore.get_balance(address)}
+      end)
+    end
   end
 
   object :transaction_data do
@@ -95,38 +108,29 @@ defmodule UnirisWeb.Schema.TransactionType do
   object :validation_stamp do
     field(:proof_of_work, :public_key)
     field(:proof_of_integrity, :hash)
-    field(:ledger_movements, :ledger_movements)
-    field(:node_movements, :node_movements)
+    field(:ledger_operations, :ledger_operations)
     field(:signature, :signature)
   end
 
-  object :ledger_movements do
-    field(:uco, :utxo)
+  object :ledger_operations do
+    field(:transaction_movements, list_of(:movement))
+    field(:node_movements, list_of(:movement))
+    field(:unspent_outputs, list_of(:unspent_output))
+    field(:fee, :float)
   end
 
-  object :utxo do
-    field(:previous, :previous_utxo)
-    field(:next, :float)
-  end
-
-  object :previous_utxo do
-    field(:from, list_of(:public_key))
+  object :unspent_output do
+    field(:from, :hash)
     field(:amount, :float)
   end
 
-  object :node_movements do
-    field(:fee, :float)
-    field(:rewards, list_of(:node_reward))
-  end
-
-  object :node_reward do
-    field(:node, :public_key)
+  object :movement do
+    field(:to, :hash)
     field(:amount, :float)
   end
 
   object :cross_validation_stamp do
     field(:signature, :signature)
-    field(:inconsistencies, list_of(:string))
     field(:node, :public_key)
   end
 end

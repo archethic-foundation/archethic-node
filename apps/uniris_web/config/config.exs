@@ -15,7 +15,7 @@ config :uniris_web, UnirisWeb.Endpoint,
   pubsub: [name: UnirisWeb.PubSub, adapter: Phoenix.PubSub.PG2],
   live_view: [
     signing_salt: "3D6jYvx3",
-    layout: { UnirisWeb.LayoutView, "live.html" }
+    layout: {UnirisWeb.LayoutView, "live.html"}
   ]
 
 # Configures Elixir's Logger

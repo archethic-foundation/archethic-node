@@ -30,18 +30,22 @@ defmodule UnirisCore.BeaconSubset do
   def handle_call(
         {:add_transaction_info, tx_info = %TransactionInfo{address: address}},
         _from,
-        state
+        state = %{current_slot: %BeaconSlot{transactions: transactions}}
       ) do
-    Logger.info(
-      "Transaction #{inspect(tx_info)} added to the beacon chain (subset #{
-        Base.encode16(state.subset)
-      })"
-    )
+    if Enum.any?(transactions, &(&1.address == address)) do
+      {:reply, :ok, state}
+    else
+      Logger.info(
+        "Transaction #{inspect(tx_info)} added to the beacon chain (subset #{
+          Base.encode16(state.subset)
+        })"
+      )
 
-    PubSub.notify_new_transaction(address)
+      PubSub.notify_new_transaction(address)
 
-    {:reply, :ok,
-     Map.update!(state, :current_slot, &BeaconSlot.add_transaction_info(&1, tx_info))}
+      {:reply, :ok,
+       Map.update!(state, :current_slot, &BeaconSlot.add_transaction_info(&1, tx_info))}
+    end
   end
 
   def handle_call({:add_node_info, node_info = %NodeInfo{}}, _from, state) do
@@ -64,11 +68,12 @@ defmodule UnirisCore.BeaconSubset do
         |> String.split("\n")
         |> Enum.reduce(%BeaconSlot{}, fn line, slot ->
           case String.split(line, " - ") do
-            ["T", type, timestamp, address] ->
+            ["T", type, timestamp, address | movements_addresses] ->
               BeaconSlot.add_transaction_info(slot, %TransactionInfo{
                 address: Base.decode16!(address),
                 timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!(),
-                type: Transaction.parse_type(String.to_integer(type))
+                type: Transaction.parse_type(String.to_integer(type)),
+                movements_addresses: Enum.map(movements_addresses, &Base.decode16!/1)
               })
 
             ["N", public_key, timestamp, "R"] ->
@@ -119,11 +124,17 @@ defmodule UnirisCore.BeaconSubset do
     Enum.map(transactions, fn %TransactionInfo{
                                 address: address,
                                 timestamp: timestamp,
-                                type: type
+                                type: type,
+                                movements_addresses: movements_addresses
                               } ->
+      movements_addresses_str =
+        movements_addresses
+        |> Enum.map(&Base.encode16/1)
+        |> Enum.join(" - ")
+
       "T - #{Transaction.serialize_type(type)} - #{DateTime.to_unix(timestamp)} - #{
         address |> Base.encode16()
-      }"
+      } - #{movements_addresses_str}"
     end)
     |> Enum.join("\n")
   end

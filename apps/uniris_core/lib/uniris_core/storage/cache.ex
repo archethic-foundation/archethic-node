@@ -2,16 +2,19 @@ defmodule UnirisCore.Storage.Cache do
   @moduledoc false
 
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias UnirisCore.Storage.Backend
   alias UnirisCore.Crypto
 
-  @transaction_table :uniris_transactions
-  @node_table :uniris_node_txs_lookup
-  @unspent_outputs_table :uniris_unspent_outputs_txs_lookup
-  @shared_secrets_table :uniris_shared_secrets_txs_lookup
-  @ko_transaction_table :uniris_ko_txs_lookup
+  @transaction_table :uniris_txs
+  @node_table :uniris_node_tx
+  @ledger_table :uniris_ledger
+  @shared_secrets_table :uniris_shared_secrets_txs
+  @ko_transaction_table :uniris_ko_txs
   @chain_track_table :uniris_chain_tracking
-  @latest_transactions_table :uniris_latest_transaction_lookup
+  @latest_transactions_table :uniris_latest_tx
 
   use GenServer
 
@@ -22,16 +25,23 @@ defmodule UnirisCore.Storage.Cache do
   def init(_opts) do
     :ets.new(@transaction_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@node_table, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@unspent_outputs_table, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@ledger_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@ko_transaction_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@shared_secrets_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@chain_track_table, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@latest_transactions_table, [:ordered_set, :named_table, :public, read_concurrency: true])
+
+    :ets.new(@latest_transactions_table, [
+      :ordered_set,
+      :named_table,
+      :public,
+      read_concurrency: true
+    ])
 
     Enum.each(Backend.list_transactions(), fn tx ->
       :ets.insert(@transaction_table, {tx.address, tx})
       track_transaction(tx)
       index_transaction(tx)
+      set_ledger(tx)
     end)
 
     {:ok, []}
@@ -67,19 +77,48 @@ defmodule UnirisCore.Storage.Cache do
     :ets.insert(@shared_secrets_table, {:origin_shared_secrets, tx_address})
   end
 
-  defp index_transaction(%Transaction{address: tx_address, data: %{ledger: ledger}}) do
-    case ledger do
-      %{uco: %{transfers: uco_transfers}} ->
-        Enum.each(uco_transfers, fn %{to: recipient} ->
-          :ets.insert(@unspent_outputs_table, {recipient, tx_address})
-        end)
+  defp index_transaction(%Transaction{}), do: :ok
 
-      _ ->
-        :ok
-    end
+  defp set_ledger(%Transaction{
+         address: address,
+         previous_public_key: previous_public_key,
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{
+             unspent_outputs: utxos,
+             node_movements: node_movements,
+             transaction_movements: transaction_movements
+           }
+         }
+       }) do
+    previous_address = Crypto.hash(previous_public_key)
+    previous_unspent_outputs = :ets.lookup(@ledger_table, previous_address)
+    :ets.delete(@ledger_table, previous_address)
+
+    Enum.each(previous_unspent_outputs, fn {_, utxo, _} ->
+      :ets.insert(@ledger_table, {previous_address, utxo, true})
+    end)
+
+    # Set transfers unspent outputs
+    Enum.map(
+      transaction_movements,
+      &:ets.insert(
+        @ledger_table,
+        {&1.to, %UnspentOutput{amount: &1.amount, from: address}, false}
+      )
+    )
+
+    # Set transaction chain unspent outputs
+    Enum.map(utxos, &:ets.insert(@ledger_table, {address, &1, false}))
+
+    # Set node rewards
+    Enum.map(
+      node_movements,
+      &:ets.insert(
+        @ledger_table,
+        {Crypto.hash(&1.to), %UnspentOutput{amount: &1.amount, from: address}, false}
+      )
+    )
   end
-
-  defp index_transaction(_), do: :ok
 
   defp track_transaction(%Transaction{
          address: next_address,
@@ -89,16 +128,24 @@ defmodule UnirisCore.Storage.Cache do
     previous_address = Crypto.hash(previous_public_key)
     :ets.insert(@chain_track_table, {previous_address, next_address})
     :ets.insert(@chain_track_table, {next_address, next_address})
-    :ets.insert(@latest_transactions_table, {DateTime.to_unix(timestamp, :microsecond), next_address})
+
+    :ets.insert(
+      @latest_transactions_table,
+      {DateTime.to_unix(timestamp, :microsecond), next_address}
+    )
   end
 
+  @spec store_transaction(Transaction.validated()) :: :ok
   def store_transaction(tx = %Transaction{address: tx_address}) do
+    :ets.delete(@ko_transaction_table, tx.address)
     true = :ets.insert(@transaction_table, {tx_address, tx})
     track_transaction(tx)
     index_transaction(tx)
+    set_ledger(tx)
     :ok
   end
 
+  @spec store_ko_transaction(Transaction.validated()) :: :ok
   def store_ko_transaction(%Transaction{
         address: tx_address,
         validation_stamp: validation_stamp,
@@ -106,13 +153,14 @@ defmodule UnirisCore.Storage.Cache do
       }) do
     inconsistencies =
       stamps
-      |> Enum.map(fn {_, inconsistencies, _} -> inconsistencies end)
+      |> Enum.map(& &1.inconsistencies)
       |> Enum.uniq()
 
     true = :ets.insert(@ko_transaction_table, {tx_address, validation_stamp, inconsistencies})
     :ok
   end
 
+  @spec get_transaction(binary()) :: Transaction.validated() | nil
   def get_transaction(tx_address) do
     case :ets.lookup(@transaction_table, tx_address) do
       [{_, tx}] ->
@@ -123,6 +171,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec node_transactions() :: list(Transaction.validated())
   def node_transactions() do
     case :ets.select(@node_table, [{{:_, :"$1"}, [], [:"$1"]}]) do
       [] ->
@@ -133,6 +182,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec origin_shared_secrets_transactions() :: list(Transaction.validated())
   def origin_shared_secrets_transactions() do
     case :ets.lookup(@shared_secrets_table, :origin_shared_secrets) do
       [] ->
@@ -146,6 +196,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec ko_transaction?(binary()) :: boolean()
   def ko_transaction?(address) do
     case :ets.lookup(@ko_transaction_table, address) do
       [] ->
@@ -156,19 +207,20 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
   def get_unspent_outputs(address) do
-    case :ets.lookup(@unspent_outputs_table, address) do
+    case :ets.lookup(@ledger_table, address) do
       [] ->
         []
 
       unspent_outputs ->
-        Enum.map(unspent_outputs, fn {_, address} ->
-          [{_, tx}] = :ets.lookup(@transaction_table, address)
-          tx
-        end)
+        unspent_outputs
+        |> Enum.filter(fn {_, _, spent} -> spent == false end)
+        |> Enum.map(fn {_, utxo, _} -> utxo end)
     end
   end
 
+  @spec last_node_shared_secrets_transaction() :: Transaction.validated() | nil
   def last_node_shared_secrets_transaction() do
     case :ets.lookup(@shared_secrets_table, :last_node_shared_secrets) do
       [{_, address}] ->
@@ -180,6 +232,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec last_transaction_address(binary()) :: {:ok, binary()} | {:error, :not_found}
   def last_transaction_address(address) do
     case :ets.lookup(@chain_track_table, address) do
       [] ->
@@ -193,6 +246,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
+  @spec list_transactions(limit :: non_neg_integer()) :: Enumerable.t()
   def list_transactions(0) do
     stream_transactions_per_date()
     |> Stream.map(&get_transaction/1)
@@ -207,12 +261,30 @@ defmodule UnirisCore.Storage.Cache do
   defp stream_transactions_per_date() do
     Stream.resource(
       fn -> :ets.last(@latest_transactions_table) end,
-      fn :"$end_of_table" -> {:halt, nil}
-         previous_key ->
+      fn
+        :"$end_of_table" ->
+          {:halt, nil}
+
+        previous_key ->
           [{_, address}] = :ets.lookup(@latest_transactions_table, previous_key)
           {[address], :ets.prev(@latest_transactions_table, previous_key)}
-        end,
+      end,
       fn _ -> :ok end
     )
+  end
+
+  @spec get_ledger_balance(binary()) :: float()
+  def get_ledger_balance(address) do
+    @ledger_table
+    |> :ets.lookup(address)
+    |> Enum.filter(fn {_, _, spent} -> spent == false end)
+    |> Enum.reduce(0.0, fn {_, %UnspentOutput{amount: amount}, _}, acc -> acc + amount end)
+  end
+
+  @spec get_ledger_inputs(binary()) :: list(UnspentOutput.t())
+  def get_ledger_inputs(address) do
+    @ledger_table
+    |> :ets.lookup(address)
+    |> Enum.map(fn {_, utxo, _} -> utxo end)
   end
 end

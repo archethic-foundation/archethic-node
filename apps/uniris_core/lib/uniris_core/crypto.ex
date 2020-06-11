@@ -142,6 +142,20 @@ defmodule UnirisCore.Crypto do
   end
 
   @doc """
+  Store the encrypted network pool seed in the keystore by decrypting with the given aes key
+  """
+  @spec decrypt_and_set_node_shared_secrets_network_pool_seed(
+          encrypted_seed :: binary(),
+          encrypted_aes_key :: binary()
+        ) :: :ok
+  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
+    Keystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+      encrypted_seed,
+      encrypted_aes_key
+    )
+  end
+
+  @doc """
   Encrypt the storage nonce in the keystore using the given public key
   """
   @spec encrypt_storage_nonce(UnirisCore.Crypto.key()) :: binary()

@@ -3,8 +3,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
 
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Mining.ProofOfIntegrity
   alias UnirisCore.Crypto
 
@@ -12,8 +11,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
     chain = [generate_pending_transaction()]
 
     assert ProofOfIntegrity.compute(chain) ==
-             <<0, 115, 157, 85, 192, 127, 253, 230, 88, 26, 84, 149, 167, 167, 104, 245, 105, 111,
-               151, 120, 45, 240, 113, 66, 30, 105, 172, 216, 161, 91, 157, 141, 219>>
+             <<0, 124, 218, 7, 251, 132, 31, 68, 160, 11, 89, 35, 220, 108, 29, 176, 147, 26, 131,
+               183, 181, 139, 2, 118, 197, 222, 231, 164, 155, 111, 109, 31, 186>>
   end
 
   test "compute/1 should produce a hash of the pending transaction with the previous proof of integrity when there is chain" do
@@ -21,11 +20,21 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
 
     assert ProofOfIntegrity.compute(chain) ==
              Crypto.hash([
-               <<0, 115, 157, 85, 192, 127, 253, 230, 88, 26, 84, 149, 167, 167, 104, 245, 105,
-                 111, 151, 120, 45, 240, 113, 66, 30, 105, 172, 216, 161, 91, 157, 141, 219>>,
+               <<0, 124, 218, 7, 251, 132, 31, 68, 160, 11, 89, 35, 220, 108, 29, 176, 147, 26,
+                 131, 183, 181, 139, 2, 118, 197, 222, 231, 164, 155, 111, 109, 31, 186>>,
                <<6, 228, 101, 3, 9, 194, 111, 2, 16, 36, 134, 76, 42, 82, 18, 231, 226, 104, 55,
                  36, 66, 121, 135, 4, 126, 193, 156, 134, 50, 78, 167, 45>>
              ])
+  end
+
+  test "verify?/2 should return true when the proof of integrity is the same" do
+    chain = [generate_pending_transaction(), generate_previous_transaction()]
+    assert ProofOfIntegrity.compute(chain) |> ProofOfIntegrity.verify?(chain)
+  end
+
+  test "verify?/2 should false true when the proof of integrity is different" do
+    chain = [generate_pending_transaction(), generate_previous_transaction()]
+    assert false == ProofOfIntegrity.verify?("", chain)
   end
 
   defp generate_pending_transaction() do
@@ -78,8 +87,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
         proof_of_integrity:
           <<6, 228, 101, 3, 9, 194, 111, 2, 16, 36, 134, 76, 42, 82, 18, 231, 226, 104, 55, 36,
             66, 121, 135, 4, 126, 193, 156, 134, 50, 78, 167, 45>>,
-        ledger_movements: %LedgerMovements{},
-        node_movements: %NodeMovements{fee: 0, rewards: []},
+        ledger_operations: %LedgerOperations{},
         signature: ""
       }
     }

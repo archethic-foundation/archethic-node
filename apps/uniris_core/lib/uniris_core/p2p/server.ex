@@ -6,9 +6,11 @@ defmodule UnirisCore.P2PServer do
 
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.P2P
   alias UnirisCore.Election
   alias UnirisCore.Mining
+  alias UnirisCore.Mining.Context
   alias UnirisCore.Crypto
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.PubSub
@@ -122,7 +124,7 @@ defmodule UnirisCore.P2PServer do
   end
 
   defp process_message({:get_unspent_outputs, tx_address}) do
-    Storage.get_unspent_output_transactions(tx_address)
+    Storage.get_unspent_outputs(tx_address)
   end
 
   defp process_message({:get_proof_of_integrity, tx_address}) do
@@ -141,69 +143,32 @@ defmodule UnirisCore.P2PServer do
     Mining.start(tx, welcome_node_public_key, validation_nodes)
   end
 
-  defp process_message(
-         {:add_context, tx_address, validation_node, previous_storage_nodes,
-          validation_nodes_view, chain_storage_nodes_view, beacon_storage_nodes_view}
-       ) do
+  defp process_message({:add_context, tx_address, validation_node, context = %Context{}}) do
     Mining.add_context(
       tx_address,
       validation_node,
-      previous_storage_nodes,
-      validation_nodes_view,
-      chain_storage_nodes_view,
-      beacon_storage_nodes_view
+      context
     )
   end
 
-  defp process_message(
-         {:replicate_chain,
-          tx = %Transaction{
-            validation_stamp: %ValidationStamp{},
-            cross_validation_stamps: stamps
-          }}
-       )
-       when is_list(stamps) and length(stamps) >= 0 do
-    Mining.replicate_transaction_chain(tx)
-  end
-
-  defp process_message(
-         {:replicate_transaction,
-          tx = %Transaction{
-            validation_stamp: %ValidationStamp{},
-            cross_validation_stamps: stamps
-          }}
-       )
-       when is_list(stamps) and length(stamps) >= 0 do
+  defp process_message({:replicate_transaction, tx = %Transaction{}}) do
     Mining.replicate_transaction(tx)
-  end
-
-  defp process_message({:replicate_address, tx = %Transaction{}}) do
-    Mining.replicate_address(tx)
   end
 
   defp process_message({:acknowledge_storage, tx_address}) when is_binary(tx_address) do
     PubSub.notify_new_transaction(tx_address)
   end
 
-  defp process_message({:cross_validate, tx_address, stamp = %ValidationStamp{}})
+  defp process_message(
+         {:cross_validate, tx_address, stamp = %ValidationStamp{}, replication_tree}
+       )
+       when is_binary(tx_address) and is_list(replication_tree) do
+    Mining.cross_validate(tx_address, stamp, replication_tree)
+  end
+
+  defp process_message({:cross_validation_done, tx_address, stamp = %CrossValidationStamp{}})
        when is_binary(tx_address) do
-    Mining.cross_validate(tx_address, stamp)
-  end
-
-  defp process_message(
-         {:set_replication_trees, tx_address, chain_storage_trees, beacon_storage_trees}
-       )
-       when is_binary(tx_address) and is_list(chain_storage_trees) and
-              is_list(beacon_storage_trees) do
-    Mining.set_replication_trees(tx_address, chain_storage_trees, beacon_storage_trees)
-  end
-
-  defp process_message(
-         {:cross_validation_done, tx_address, {signature, inconsistencies, public_key}}
-       )
-       when is_binary(tx_address) and is_binary(signature) and is_list(inconsistencies) and
-              is_binary(public_key) do
-    Mining.add_cross_validation_stamp(tx_address, {signature, inconsistencies, public_key})
+    Mining.add_cross_validation_stamp(tx_address, stamp)
   end
 
   defp process_message({:get_beacon_slots, slots}) when is_list(slots) do
@@ -219,6 +184,10 @@ defmodule UnirisCore.P2PServer do
 
   defp process_message({:get_last_transaction, last_address}) when is_binary(last_address) do
     UnirisCore.get_last_transaction(last_address)
+  end
+
+  defp process_message({:get_balance, address}) when is_binary(address) do
+    Storage.balance(address)
   end
 
   defp do_process_messages([message | rest], acc) do

@@ -10,7 +10,7 @@ defmodule UnirisCore.BeaconSlotTimerTest do
       Registry.register(BeaconSubsetRegistry, subset, [])
     end)
 
-    start_supervised!({BeaconSlotTimer, slot_interval: 500})
+    start_supervised!({BeaconSlotTimer, interval: 500, trigger_offset: 400})
     {:ok, %{interval: 500}}
   end
 

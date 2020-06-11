@@ -1,6 +1,7 @@
 defmodule UnirisCore.P2P do
   alias __MODULE__.GeoPatch
   alias __MODULE__.Node
+  alias __MODULE__.BootstrapingSeeds
   alias UnirisCore.Crypto
   alias UnirisCore.P2P.NodeRegistry
   alias UnirisCore.P2P.NodeSupervisor
@@ -75,15 +76,9 @@ defmodule UnirisCore.P2P do
   @doc """
   Returns information about the running node
   """
-  @spec node_info() :: Node.t() | nil
+  @spec node_info() :: {:ok, Node.t()} | {:error, :not_found}
   def node_info() do
-    case node_info(Crypto.node_public_key(0)) do
-      {:ok, node} ->
-        node
-
-      _ ->
-        nil
-    end
+    node_info(Crypto.node_public_key(0))
   end
 
   @doc """
@@ -138,5 +133,21 @@ defmodule UnirisCore.P2P do
 
       abs(storage_node_position - from_node_position)
     end)
+  end
+
+  @doc """
+  Retrieve the bootstraping seeds
+  """
+  @spec list_boostraping_seeds() :: list(Node.t())
+  def list_boostraping_seeds() do
+    BootstrapingSeeds.list()
+  end
+
+  @doc """
+  Update the list of bootstraping seeds for the next bootstraping
+  """
+  @spec update_bootstraping_seeds(list(Node.t())) :: :ok
+  def update_bootstraping_seeds(seeds) do
+    BootstrapingSeeds.update(seeds)
   end
 end

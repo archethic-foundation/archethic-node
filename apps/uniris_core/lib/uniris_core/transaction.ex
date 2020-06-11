@@ -5,6 +5,7 @@ defmodule UnirisCore.Transaction do
   Blocks are reduce to its unitary form to provide high scalability, avoiding double spending attack and chain integrity
   """
   alias __MODULE__.ValidationStamp
+  alias __MODULE__.CrossValidationStamp
   alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
 
@@ -32,47 +33,38 @@ defmodule UnirisCore.Transaction do
   @typedoc """
   Represent a transaction in pending validation
   - Address: hash of the new generated public key for the given transaction
-  - Type: transaction type (`UnirisChain.Transaction.types()`)
+  - Type: transaction type
   - Timestamp: creation date of the transaction
   - Data: transaction data zone (identity, keychain, smart contract, etc.)
   - Previous signature: signature from the previous public key
   - Previous public key: previous generated public key matching the previous signature
   - Origin signature: signature from the device which originated the transaction (used in the Proof of work)
   """
-  @type pending :: %{
+  @type pending :: %__MODULE__{
           address: binary(),
           type: transaction_type(),
-          timestamp: non_neg_integer(),
+          timestamp: DateTime.t(),
           data: Data.t(),
-          previous_public_key: binary(),
+          previous_public_key: Crypto.key(),
           previous_signature: binary(),
           origin_signature: binary()
         }
-
-  @typedoc """
-  Represent a cross validation stamp coming from a cross validation node
-  - Signature is made from the validation stamp if no inconsistencies or made from the list of inconsistencies
-  - Inconsistencies is a list of errors found by a cross validation node from the validation stamp
-  """
-  @type cross_validation_stamp ::
-          {signature :: binary(), inconsistencies :: list(atom()),
-           public_key :: UnirisCrypto.key()}
 
   @typedoc """
   Represent a transaction been validated by coordinator and cross validation nodes.
   - Validation stamp: coordinator work result
   - Cross validation stamps: endorsements of the validation stamp from the coordinator
   """
-  @type validated :: %{
+  @type validated :: %__MODULE__{
           address: binary(),
           type: transaction_type(),
-          timestamp: non_neg_integer(),
+          timestamp: DateTime.t(),
           data: Data.t(),
-          previous_public_key: binary(),
+          previous_public_key: Crypto.key(),
           previous_signature: binary(),
           origin_signature: binary(),
           validation_stamp: ValidationStamp.t(),
-          cross_validation_stamps: list(cross_validation_stamp())
+          cross_validation_stamps: list(CrossValidationStamp.t())
         }
 
   @typedoc """
@@ -101,6 +93,10 @@ defmodule UnirisCore.Transaction do
     :hosting
   ]
 
+  @doc """
+  Create a new pending transaction using the Crypto keystore to find out
+  the seed and the transaction index
+  """
   @spec new(transaction_type(), TransactionData.t()) :: __MODULE__.pending()
   def new(type, data = %TransactionData{}) when type in [:node, :node_shared_secrets, :beacon] do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
@@ -117,6 +113,9 @@ defmodule UnirisCore.Transaction do
     |> cast()
   end
 
+  @doc """
+  Create a new pending transaction
+  """
   @spec new(transaction_type(), TransactionData.t(), binary(), non_neg_integer()) ::
           __MODULE__.pending()
   def new(type, data = %TransactionData{}, seed, index) when type in @transaction_types do
@@ -213,6 +212,9 @@ defmodule UnirisCore.Transaction do
     struct(__MODULE__, fields)
   end
 
+  @doc """
+  Determines if a pending transaction is valid
+  """
   @spec valid_pending_transaction?(Transaction.pending()) :: boolean()
   def valid_pending_transaction?(tx = %__MODULE__{}) do
     cond do
@@ -238,6 +240,10 @@ defmodule UnirisCore.Transaction do
     end
   end
 
+  @doc """
+  Serialize transaction type
+  """
+  @spec serialize_type(transaction_type()) :: non_neg_integer()
   def serialize_type(:identity), do: 0
   def serialize_type(:keychain), do: 1
   def serialize_type(:transfer), do: 2
@@ -248,6 +254,10 @@ defmodule UnirisCore.Transaction do
   def serialize_type(:beacon), do: 7
   def serialize_type(:hosting), do: 8
 
+  @doc """
+  Parse a serialize transaction type
+  """
+  @spec parse_type(non_neg_integer()) :: transaction_type()
   def parse_type(0), do: :identity
   def parse_type(1), do: :keychain
   def parse_type(2), do: :transfer
@@ -258,13 +268,21 @@ defmodule UnirisCore.Transaction do
   def parse_type(7), do: :beacon
   def parse_type(8), do: :hosting
 
+  @doc """
+  Determines if a transaction type is a network one
+  """
+  @spec network_type?(transaction_type()) :: boolean()
   def network_type?(:node), do: true
   def network_type?(:node_shared_secrets), do: true
   def network_type?(:origin_shared_secrets), do: true
   def network_type?(:code), do: true
   def network_type?(_), do: false
 
-  def pending(tx = %__MODULE__{}) do
+  @doc """
+  Extract the pending transaction fields from a transaction
+  """
+  @spec to_pending(__MODULE__.validated()) :: __MODULE__.pending()
+  def to_pending(tx = %__MODULE__{}) do
     struct!(
       __MODULE__,
       Map.take(tx, [
@@ -277,5 +295,30 @@ defmodule UnirisCore.Transaction do
         :origin_signature
       ])
     )
+  end
+
+  @doc """
+  Check if the cross validation stamps are valid
+  """
+  @spec valid_cross_validation_stamps?(Transaction.validated()) :: boolean
+  def valid_cross_validation_stamps?(%__MODULE__{
+        validation_stamp: validation_stamp,
+        cross_validation_stamps: cross_validation_stamps
+      }) do
+    Enum.all?(cross_validation_stamps, &CrossValidationStamp.valid?(&1, validation_stamp))
+  end
+
+  @doc """
+  Determines if the atomic commitment is reached for the cross validate stamps
+  """
+  @spec atomic_commitment?(__MODULE__.validated()) :: boolean()
+  def atomic_commitment?(%__MODULE__{cross_validation_stamps: cross_validation_stamps}) do
+    case Enum.dedup_by(cross_validation_stamps, & &1.inconsistencies) do
+      [_ | []] ->
+        true
+
+      [_ | _] ->
+        false
+    end
   end
 end

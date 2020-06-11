@@ -13,8 +13,7 @@ defmodule UnirisCore.Storage.Backend do
   end
 
   @impl true
-  @spec get_transaction_chain(binary()) ::
-          {:ok, list(Transaction.validated())} | {:error, :transaction_chain_not_exists}
+  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
   def get_transaction_chain(address) when is_binary(address) do
     impl().get_transaction_chain(address)
   end

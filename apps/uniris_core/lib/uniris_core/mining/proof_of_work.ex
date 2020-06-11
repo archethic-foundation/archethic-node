@@ -8,8 +8,16 @@ defmodule UnirisCore.Mining.ProofOfWork do
   alias UnirisCore.P2P.Node
   alias UnirisCore.Storage
 
-  @spec run(Transaction.pending()) :: binary()
-  def run(
+  @doc """
+  Performs a lookup to find out the public key matching the signature created by
+  the device which originated the transaction
+
+  Different lookups for different transaction types:
+  - Network: lookup is based on the Node first public key
+  - Other: the lookup is based on the known list of authorized origin device public keys
+  """
+  @spec find_origin_public_key(Transaction.pending()) :: proof_of_work :: binary()
+  def find_origin_public_key(
         tx = %Transaction{
           type: :node,
           previous_public_key: previous_public_key,
@@ -35,13 +43,15 @@ defmodule UnirisCore.Mining.ProofOfWork do
     end
   end
 
-  def run(tx = %Transaction{type: :node_shared_secrets, origin_signature: origin_signature}) do
+  def find_origin_public_key(
+        tx = %Transaction{type: :node_shared_secrets, origin_signature: origin_signature}
+      ) do
     origin_node_keys = Enum.map(P2P.list_nodes(), & &1.first_public_key)
-    find_public_key(origin_signature, origin_signature_data_fields(tx), origin_node_keys)
+    do_find_public_key(origin_signature, origin_signature_data_fields(tx), origin_node_keys)
   end
 
-  def run(tx = %Transaction{origin_signature: origin_signature}) do
-    find_public_key(
+  def find_origin_public_key(tx = %Transaction{origin_signature: origin_signature}) do
+    do_find_public_key(
       origin_signature,
       origin_signature_data_fields(tx),
       SharedSecrets.origin_public_keys()
@@ -50,18 +60,18 @@ defmodule UnirisCore.Mining.ProofOfWork do
 
   ## Check recursively all the public key with the origin signature.
   ## Once the public key is found, the iteration is stopped
-  @spec find_public_key(binary(), map(), list(binary())) :: binary()
-  defp find_public_key(sig, data, [public_key | rest]) do
+  @spec do_find_public_key(binary(), Transaction.pending(), list(Crypto.key())) :: Crypto.key()
+  defp do_find_public_key(sig, data, [public_key | rest]) do
     if Crypto.verify(sig, data, public_key) do
       public_key
     else
-      find_public_key(sig, data, rest)
+      do_find_public_key(sig, data, rest)
     end
   end
 
-  defp find_public_key(_sig, _data, []), do: ""
+  defp do_find_public_key(_sig, _data, []), do: ""
 
-  defp find_public_key(sig, data, public_key) do
+  defp do_find_public_key(sig, data, public_key) do
     if Crypto.verify(sig, data, public_key) do
       public_key
     else
@@ -69,15 +79,19 @@ defmodule UnirisCore.Mining.ProofOfWork do
     end
   end
 
-  def verify?(tx = %Transaction{}, "") do
-    if run(tx) == "" do
+  @doc """
+  Verify the proof of work lookup for the given transaction
+  """
+  @spec verify?(proof_of_work :: binary(), Transaction.pending()) :: boolean()
+  def verify?("", tx = %Transaction{}) do
+    if find_origin_public_key(tx) == "" do
       true
     else
       false
     end
   end
 
-  def verify?(tx = %Transaction{}, proof_of_work) when is_binary(proof_of_work) do
+  def verify?(proof_of_work, tx = %Transaction{}) when is_binary(proof_of_work) do
     Crypto.verify(
       tx.origin_signature,
       origin_signature_data_fields(tx),

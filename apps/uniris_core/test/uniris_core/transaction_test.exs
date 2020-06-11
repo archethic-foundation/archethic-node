@@ -4,6 +4,7 @@ defmodule UnirisCore.TransactionTest do
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+  alias UnirisCore.Transaction.CrossValidationStamp
 
   describe "new/2" do
     test "with type ':node' create a new transaction using the node keys" do
@@ -61,5 +62,58 @@ defmodule UnirisCore.TransactionTest do
     tx2 = Transaction.new(:node, %TransactionData{}, "seed", 1)
 
     assert Crypto.hash(tx2.previous_public_key) == tx.address
+  end
+
+  describe "atomic_commitment?/1" do
+    test "should return true when all the cross validation stamps inconsistencies are identical" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      assert %{
+               tx
+               | cross_validation_stamps: [
+                   %CrossValidationStamp{inconsistencies: []},
+                   %CrossValidationStamp{inconsistencies: []},
+                   %CrossValidationStamp{inconsistencies: []}
+                 ]
+             }
+             |> Transaction.atomic_commitment?()
+    end
+
+    test "should return false when event one of the cross validation stamps inconsistencies is not identical" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      assert false ==
+               %{
+                 tx
+                 | cross_validation_stamps: [
+                     %CrossValidationStamp{inconsistencies: [:invalid_signature]},
+                     %CrossValidationStamp{inconsistencies: []},
+                     %CrossValidationStamp{inconsistencies: []}
+                   ]
+               }
+               |> Transaction.atomic_commitment?()
+
+      assert false ==
+               %{
+                 tx
+                 | cross_validation_stamps: [
+                     %CrossValidationStamp{inconsistencies: []},
+                     %CrossValidationStamp{inconsistencies: [:invalid_proof_of_work]},
+                     %CrossValidationStamp{inconsistencies: [:invalid_proof_of_work]}
+                   ]
+               }
+               |> Transaction.atomic_commitment?()
+
+      assert false ==
+               %{
+                 tx
+                 | cross_validation_stamps: [
+                     %CrossValidationStamp{inconsistencies: [:invalid_signature]},
+                     %CrossValidationStamp{inconsistencies: [:invalid_proof_of_work]},
+                     %CrossValidationStamp{inconsistencies: [:invalid_proof_of_integrity]}
+                   ]
+               }
+               |> Transaction.atomic_commitment?()
+    end
   end
 end

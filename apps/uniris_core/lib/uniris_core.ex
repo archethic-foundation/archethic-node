@@ -17,7 +17,7 @@ defmodule UnirisCore do
         {:ok, tx}
 
       _ ->
-        %Node{network_patch: patch} = P2P.node_info()
+        {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
         address
         |> Election.storage_nodes()
@@ -53,7 +53,73 @@ defmodule UnirisCore do
         search_transaction(last_address)
 
       {:error, :not_found} ->
-        {:error, :not_found}
+        {:ok, %Node{network_patch: patch}} = P2P.node_info()
+
+        address
+        |> Election.storage_nodes()
+        |> P2P.nearest_nodes(patch)
+        |> List.first()
+        |> P2P.send_message({:get_last_transaction, address})
+    end
+  end
+
+  @doc """
+  Retrieve the balance from an address.
+
+  If the current node is a storage of this address, it will perform a fast lookup
+  Otherwise it will request the closest storage node about it
+  """
+  @spec get_balance(binary) :: float()
+  def get_balance(address) do
+    storage_nodes = Election.storage_nodes(address)
+
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+      Storage.balance(address)
+    else
+      {:ok, %Node{network_patch: patch}} = P2P.node_info()
+
+      storage_nodes
+      |> P2P.nearest_nodes(patch)
+      |> List.first()
+      |> P2P.send_message({:get_balance, address})
+    end
+  end
+
+  @doc """
+  Request to fetch the unspent
+  """
+  @spec get_transaction_inputs(Crypto.key()) :: list(UnspentOutput.t())
+  def get_transaction_inputs(address) do
+    storage_nodes = Election.storage_nodes(address)
+
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+      Storage.get_inputs(address)
+    else
+      {:ok, %Node{network_patch: patch}} = P2P.node_info()
+
+      storage_nodes
+      |> P2P.nearest_nodes(patch)
+      |> List.first()
+      |> P2P.send_message({:get_inputs, address})
+    end
+  end
+
+  @doc """
+  Retrieve a transaction chain based on an address
+  """
+  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
+  def get_transaction_chain(address) do
+    storage_nodes = Election.storage_nodes(address)
+
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+      Storage.get_transaction_chain(address)
+    else
+      {:ok, %Node{network_patch: patch}} = P2P.node_info()
+
+      storage_nodes
+      |> P2P.nearest_nodes(patch)
+      |> List.first()
+      |> P2P.send_message({:get_transaction_chain, address})
     end
   end
 end

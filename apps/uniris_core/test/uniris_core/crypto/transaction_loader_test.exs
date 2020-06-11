@@ -10,7 +10,6 @@ defmodule UnirisCore.Crypto.TransactionLoaderTest do
   import Mox
 
   setup do
-    start_supervised!(UnirisCore.Storage.Cache)
     pid = start_supervised!({TransactionLoader, renewal_interval: 100})
 
     {:ok, %{pid: pid}}

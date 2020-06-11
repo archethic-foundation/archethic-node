@@ -45,7 +45,6 @@ defmodule UnirisCore.Crypto.ECDSA do
         private_key,
         _encoded_cipher = <<ephemeral_public_key::binary-65, tag::binary-16, cipher::binary>>
       ) do
-        
     # Derivate shared key using ECDH with the given ephermal public key and the private key
     shared_key = generate_dh_key(curve, ephemeral_public_key, private_key)
 

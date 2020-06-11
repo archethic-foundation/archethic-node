@@ -1,7 +1,6 @@
 defmodule UnirisCore.Storage.CassandraBackend do
   @moduledoc false
 
-
   @insert_transaction_stmt """
   INSERT INTO uniris.transactions(
       address,
@@ -61,9 +60,10 @@ defmodule UnirisCore.Storage.CassandraBackend do
   alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
-  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias __MODULE__.ChainQueryWorker
   alias __MODULE__.ChainQuerySupervisor
 
@@ -88,8 +88,8 @@ defmodule UnirisCore.Storage.CassandraBackend do
       [] ->
         {:error, :transaction_not_exists}
 
-      [page] ->
-        {:ok, format_result_to_transaction(page)}
+      [tx] ->
+        {:ok, format_result_to_transaction(tx)}
     end
   end
 
@@ -99,12 +99,6 @@ defmodule UnirisCore.Storage.CassandraBackend do
     |> Enum.map(fn {_, pid, _, _} -> pid end)
     |> Task.async_stream(&ChainQueryWorker.get(&1, address))
     |> Enum.flat_map(fn {:ok, res} -> res end)
-    |> case do
-      [] ->
-        {:error, :transaction_chain_not_exists}
-      chain ->
-        {:ok, chain}
-    end
   end
 
   @impl true
@@ -123,8 +117,15 @@ defmodule UnirisCore.Storage.CassandraBackend do
     chain_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_chain_stmt)
 
     Task.async_stream(chain, fn tx ->
-      {:ok, _} = Xandra.execute(:xandra_conn, transaction_prepared, transaction_write_parameters(tx))
-      {:ok, _} = Xandra.execute(:xandra_conn, chain_prepared, transaction_chain_write_parameters(chain_address, bucket, tx))
+      {:ok, _} =
+        Xandra.execute(:xandra_conn, transaction_prepared, transaction_write_parameters(tx))
+
+      {:ok, _} =
+        Xandra.execute(
+          :xandra_conn,
+          chain_prepared,
+          transaction_chain_write_parameters(chain_address, bucket, tx)
+        )
     end)
     |> Stream.run()
   end
@@ -165,39 +166,41 @@ defmodule UnirisCore.Storage.CassandraBackend do
       "validation_stamp" => %{
         "proof_of_work" => tx.validation_stamp.proof_of_work |> Base.encode16(),
         "proof_of_integrity" => tx.validation_stamp.proof_of_integrity |> Base.encode16(),
-        "ledger_movements" => %{
-          "uco" => %{
-            "previous_ledger_summary" => %{
-              "senders" =>
-                Enum.map(
-                  tx.validation_stamp.ledger_movements.uco.previous.from,
-                  &Base.encode16/1
-                ),
-              "amount" => tx.validation_stamp.ledger_movements.uco.previous.amount
-            },
-            "next_ledger_summary" => %{
-              "amount" => tx.validation_stamp.ledger_movements.uco.next
-            }
-          }
-        },
-        "node_movements" => %{
-          "fee" => tx.validation_stamp.node_movements.fee,
-          "rewards" =>
-            Enum.map(tx.validation_stamp.node_movements.rewards, fn {node, amount} ->
-              %{
-                "node" => node |> Base.encode16(),
-                "amount" => amount
-              }
-            end)
+        "ledger_operations" => %{
+          "fee" => tx.validation_stamp.ledger_operations.fee,
+          "transaction_movements" =>
+            Enum.map(tx.validation_stamp.ledger_operations.transaction_movements, fn %Movement{
+                                                                                       to: to,
+                                                                                       amount:
+                                                                                         amount
+                                                                                     } ->
+              %{"recipient" => to |> Base.encode16(), "amount" => amount}
+            end),
+          "node_movements" =>
+            Enum.map(tx.validation_stamp.ledger_operations.node_movements, fn %Movement{
+                                                                                to: to,
+                                                                                amount: amount
+                                                                              } ->
+              %{"recipient" => to |> Base.encode16(), "amount" => amount}
+            end),
+          "unspent_outputs" =>
+            Enum.map(
+              tx.validation_stamp.ledger_operations.unspent_outputs,
+              fn %UnspentOutput{from: from, amount: amount} ->
+                %{"origin" => from |> Base.encode16(), "amount" => amount}
+              end
+            )
         },
         "signature" => tx.validation_stamp.signature |> Base.encode16()
       },
       "cross_validation_stamps" =>
-        Enum.map(tx.cross_validation_stamps, fn {signature, inconsistencies, node_public_key} ->
+        Enum.map(tx.cross_validation_stamps, fn %CrossValidationStamp{
+                                                  signature: signature,
+                                                  node_public_key: node_public_key
+                                                } ->
           %{
             "node" => node_public_key |> Base.encode16(),
-            "signature" => signature |> Base.encode16(),
-            "inconsistencies" => Enum.map(inconsistencies, &Atom.to_string/1)
+            "signature" => signature |> Base.encode16()
           }
         end)
     }
@@ -205,55 +208,46 @@ defmodule UnirisCore.Storage.CassandraBackend do
 
   defp transaction_chain_write_parameters(chain_address, bucket, tx = %Transaction{}) do
     transaction_write_parameters(tx)
-    |> Map.put("chain_address", chain_address |> Base.encode16)
+    |> Map.put("chain_address", chain_address |> Base.encode16())
     |> Map.put("bucket", bucket)
     |> Map.delete("address")
-    |> Map.put("transaction_address", tx.address |> Base.encode16)
+    |> Map.put("transaction_address", tx.address |> Base.encode16())
   end
 
   def format_result_to_transaction(%{
-         "address" => address,
-         "type" => type,
-         "timestamp" => timestamp,
-         "data" => %{
-           "content" => content,
-           "code" => code,
-           "keys" => %{
-             "authorized_keys" => authorized_keys,
-             "secret" => secret
-           },
-           "ledger" => %{
-             "uco" => %{
-               "transfers" => transfers
-             }
-           },
-           "recipients" => recipients
-         },
-         "previous_public_key" => previous_public_key,
-         "previous_signature" => previous_signature,
-         "origin_signature" => origin_signature,
-         "validation_stamp" => %{
-           "proof_of_work" => pow,
-           "proof_of_integrity" => poi,
-           "ledger_movements" => %{
-             "uco" => %{
-               "previous_ledger_summary" => %{
-                 "senders" => previous_senders,
-                 "amount" => previous_amount
-               },
-               "next_ledger_summary" => %{
-                 "amount" => next_amount
-               }
-             }
-           },
-           "node_movements" => %{
-             "fee" => fee,
-             "rewards" => rewards
-           },
-           "signature" => signature
-         },
-         "cross_validation_stamps" => cross_validation_stamps
-       }) do
+        "address" => address,
+        "type" => type,
+        "timestamp" => timestamp,
+        "data" => %{
+          "content" => content,
+          "code" => code,
+          "keys" => %{
+            "authorized_keys" => authorized_keys,
+            "secret" => secret
+          },
+          "ledger" => %{
+            "uco" => %{
+              "transfers" => transfers
+            }
+          },
+          "recipients" => recipients
+        },
+        "previous_public_key" => previous_public_key,
+        "previous_signature" => previous_signature,
+        "origin_signature" => origin_signature,
+        "validation_stamp" => %{
+          "proof_of_work" => pow,
+          "proof_of_integrity" => poi,
+          "ledger_operations" => %{
+            "fee" => fee,
+            "transaction_movements" => transaction_movements,
+            "node_movements" => node_movements,
+            "unspent_outputs" => utxo
+          },
+          "signature" => signature
+        },
+        "cross_validation_stamps" => cross_validation_stamps
+      }) do
     %Transaction{
       address: address |> Base.decode16!(),
       type: String.to_atom(type),
@@ -261,19 +255,22 @@ defmodule UnirisCore.Storage.CassandraBackend do
         content: content,
         code: code,
         keys: %Keys{
-          authorized_keys: Enum.map(authorized_keys, fn {k, v} ->
-            { Base.decode16!(k), Base.decode16!(v)}
-          end) |> Enum.into(%{}),
+          authorized_keys:
+            Enum.map(authorized_keys, fn {k, v} ->
+              {Base.decode16!(k), Base.decode16!(v)}
+            end)
+            |> Enum.into(%{}),
           secret: secret |> Base.decode16!()
         },
         ledger: %Ledger{
           uco: %UCOLedger{
-            transfers: Enum.map(transfers, fn %{"recipient" => to, "amount" => amount} ->
-              %Transfer{
-                amount: amount,
-                to: to |> Base.decode16!()
-              }
-            end)
+            transfers:
+              Enum.map(transfers, fn %{"recipient" => to, "amount" => amount} ->
+                %Transfer{
+                  amount: amount,
+                  to: to |> Base.decode16!()
+                }
+              end)
           }
         },
         recipients: Enum.map(recipients, &Base.decode16!/1)
@@ -285,26 +282,37 @@ defmodule UnirisCore.Storage.CassandraBackend do
       validation_stamp: %ValidationStamp{
         proof_of_work: pow |> Base.decode16!(),
         proof_of_integrity: poi |> Base.decode16!(),
-        ledger_movements: %LedgerMovements{
-          uco: %UTXO{
-            previous: %{
-              from: Enum.map(previous_senders, &Base.decode16!/1),
-              amount: previous_amount
-            },
-            next: next_amount
-          }
-        },
-        node_movements: %NodeMovements{
+        ledger_operations: %LedgerOperations{
           fee: fee,
-          rewards: Enum.map(rewards, fn %{ "node" => node, "amount" => amount} ->
-            {node |> Base.decode16!(), amount}
-          end)
+          transaction_movements:
+            Enum.map(transaction_movements, fn %{"recipient" => to, "amount" => amount} ->
+              %Movement{to: to |> Base.decode16!(), amount: amount}
+            end),
+          node_movements:
+            Enum.map(node_movements, fn %{"recipient" => to, "amount" => amount} ->
+              %Movement{to: to |> Base.decode16!(), amount: amount}
+            end),
+          unspent_outputs:
+            Enum.map(utxo, fn %{"origin" => from, "amount" => amount} ->
+              %UnspentOutput{
+                from: from |> Base.decode16!(),
+                amount: amount
+              }
+            end)
         },
-        signature: signature |> Base.decode16!
+        signature: signature |> Base.decode16!()
       },
-      cross_validation_stamps: Enum.map(cross_validation_stamps, fn %{"node" => node, "signature" => signature, "inconsistencies" => inconsistencies} ->
-        { signature |> Base.decode16!(), Enum.map(inconsistencies, &String.to_atom/1), node |> Base.decode16!() }
-      end)
+      cross_validation_stamps:
+        Enum.map(cross_validation_stamps, fn %{
+                                               "node" => node,
+                                               "signature" => signature
+                                             } ->
+          %CrossValidationStamp{
+            signature: signature |> Base.decode16!(),
+            node_public_key: node |> Base.decode16!(),
+            inconsistencies: []
+          }
+        end)
     }
   end
 end

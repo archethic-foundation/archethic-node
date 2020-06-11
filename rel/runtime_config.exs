@@ -1,8 +1,5 @@
 import Config
 
-config :uniris_core, UnirisCore.Crypto.SoftwareKeystore,
-  seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")
-
 config :uniris_core, UnirisCore.P2P,
   port: 3002
 

@@ -9,6 +9,7 @@ defmodule UnirisWeb.NodeLive do
     if connected?(socket) do
       PubSub.register_to_node_update()
     end
+
     {:ok, assign(socket, :nodes, P2P.list_nodes() |> Enum.filter(& &1.ready?))}
   end
 
@@ -17,10 +18,11 @@ defmodule UnirisWeb.NodeLive do
   end
 
   def handle_info({:node_update, node = %Node{}}, socket) do
-    new_socket = update(socket, :nodes, fn nodes ->
-      Enum.uniq_by([node | nodes], & &1.first_public_key)
-    end)
+    new_socket =
+      update(socket, :nodes, fn nodes ->
+        Enum.uniq_by([node | nodes], & &1.first_public_key)
+      end)
+
     {:noreply, new_socket}
   end
-
 end

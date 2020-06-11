@@ -1,22 +1,26 @@
 defmodule UnirisCore.Mining.ReplicationTest do
   use UnirisCoreCase, async: false
 
+  @moduletag capture_log: true
+
   alias UnirisCore.Mining.Replication
-  alias UnirisCore.Mining.Fee
-  alias UnirisCore.Mining.ProofOfIntegrity
+  alias UnirisCore.Mining.Context
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Crypto
+  alias UnirisCore.Beacon
+  alias UnirisCore.BeaconSlot.TransactionInfo
+  alias UnirisCore.BeaconSlotTimer
+  alias UnirisCore.BeaconSubsets
+  alias UnirisCore.BeaconSubset
+  alias UnirisCore.BeaconSubsetRegistry
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
-  alias UnirisCore.Election
 
   import Mox
 
@@ -81,207 +85,375 @@ defmodule UnirisCore.Mining.ReplicationTest do
              }
   end
 
-  test "chain_validation/1 should performs the transaction chain validation" do
-    tx = %{
-      address:
-        <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
-          135, 104, 16, 239, 82, 32, 33, 7, 240, 127, 111, 29, 27>>,
-      type: :transfer,
-      timestamp: 1_600_562_750,
-      data: %{}
-    }
+  describe "valid_transaction?/2" do
+    test "should return false when the proof of work is not found" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
-    {previous_pub, previous_pv} = Crypto.generate_deterministic_keypair("transaction_seed")
-    tx = Map.put(tx, :previous_signature, Crypto.sign(tx, previous_pv))
-    tx = Map.put(tx, :previous_public_key, previous_pub)
-
-    {origin_pub, origin_pv} = Crypto.generate_deterministic_keypair("origin_seed")
-    tx = struct(Transaction, Map.put(tx, :origin_signature, Crypto.sign(tx, origin_pv)))
-
-    unspent_outputs = [
-      %Transaction{
-        address: :crypto.strong_rand_bytes(32),
-        type: :transfer,
-        timestamp: DateTime.utc_now(),
-        data: %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %Transfer{to: tx.address, amount: 11}
-              ]
-            }
+      tx = %{
+        tx
+        | validation_stamp: %ValidationStamp{
+            proof_of_work: "",
+            proof_of_integrity: "",
+            ledger_operations: %LedgerOperations{},
+            signature: ""
           }
+      }
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the proof of integrity is empty" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      tx = %{
+        tx
+        | validation_stamp: %ValidationStamp{
+            proof_of_work: :crypto.strong_rand_bytes(32),
+            proof_of_integrity: "",
+            ledger_operations: %LedgerOperations{},
+            signature: ""
+          }
+      }
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when there less than 2 node movements" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      tx = %{
+        tx
+        | validation_stamp: %ValidationStamp{
+            proof_of_work: :crypto.strong_rand_bytes(32),
+            proof_of_integrity: :crypto.strong_rand_bytes(32),
+            ledger_operations: %LedgerOperations{
+              fee: 1.0,
+              node_movements: []
+            },
+            signature: ""
+          }
+      }
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the validation stamp signature is invalid" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      stamp = %ValidationStamp{
+        proof_of_work: :crypto.strong_rand_bytes(32),
+        proof_of_integrity: :crypto.strong_rand_bytes(32),
+        ledger_operations: %LedgerOperations{
+          node_movements: [
+            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+          ]
         },
-        previous_public_key: "",
-        previous_signature: "",
-        origin_signature: ""
+        signature: ""
+      }
+
+      cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
+
+      tx = %{
+        tx
+        | validation_stamp: stamp,
+          cross_validation_stamps: cross_validation_stamps
+      }
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the the proof of work is invalid" do
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+      stamp = %{
+        proof_of_work: <<0>> <> :crypto.strong_rand_bytes(32),
+        proof_of_integrity: :crypto.strong_rand_bytes(32),
+        ledger_operations: %LedgerOperations{
+          node_movements: [
+            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+          ]
+        }
+      }
+
+      sig = Crypto.sign_with_node_key(stamp)
+      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
+
+      tx = %{
+        tx
+        | validation_stamp: stamp,
+          cross_validation_stamps: cross_validation_stamps
+      }
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the fee is invalid" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp = %{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: :crypto.strong_rand_bytes(32),
+        ledger_operations: %LedgerOperations{
+          fee: 5.5,
+          node_movements: [
+            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+          ]
+        }
+      }
+
+      sig = Crypto.sign_with_node_key(stamp)
+      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the total rewards is invalid" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp = %{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: :crypto.strong_rand_bytes(32),
+        ledger_operations: %LedgerOperations{
+          fee: 0.0,
+          node_movements: [
+            %Movement{to: :crypto.strong_rand_bytes(32), amount: 1},
+            %Movement{to: Crypto.node_public_key(), amount: 3}
+          ]
+        }
+      }
+
+      sig = Crypto.sign_with_node_key(stamp)
+      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when cross validation stamp are invalid" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp =
+        ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
+          "cross_validation_node"
+        ])
+
+      cross_validation_stamps = [
+        %CrossValidationStamp{
+          signature: "",
+          inconsistencies: [],
+          node_public_key: Crypto.node_public_key()
+        }
+      ]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when atomic commitment is not reached" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp =
+        ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
+          "cross_validation_node"
+        ])
+
+      cross_validation_stamps = [
+        CrossValidationStamp.new(stamp, []),
+        CrossValidationStamp.new(stamp, [:proof_of_work])
+      ]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when cross validation nodes are not rewarded" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp =
+        ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
+          "cross_validation_node"
+        ])
+
+      {pub, pv} = Crypto.generate_deterministic_keypair("other_seed", :secp256r1)
+
+      cross_validation_stamps = [
+        %CrossValidationStamp{
+          signature: Crypto.sign(stamp, pv),
+          inconsistencies: [],
+          node_public_key: pub
+        }
+      ]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false == Replication.valid_transaction?(tx)
+    end
+
+    test "should return false when the proof of integrity is invalid" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      stamp =
+        ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
+          "cross_validation_node"
+        ])
+
+      cross_validation_stamps = [
+        CrossValidationStamp.new(stamp, [])
+      ]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+
+      assert false ==
+               Replication.valid_transaction?(tx,
+                 context: %Context{
+                   previous_chain: [
+                     %{
+                       Transaction.new(:node, %TransactionData{})
+                       | validation_stamp: %ValidationStamp{
+                           proof_of_integrity: :crypto.strong_rand_bytes(32),
+                           proof_of_work: :crypto.strong_rand_bytes(32),
+                           ledger_operations: %LedgerOperations{},
+                           signature: ""
+                         }
+                     }
+                   ]
+                 }
+               )
+    end
+
+    test "should return false when the ledger operations are invalid" do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      P2P.add_node(%Node{
+        first_public_key: Crypto.node_public_key(),
+        last_public_key: Crypto.node_public_key(),
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        ready?: true
+      })
+
+      stamp = %{
+        proof_of_work: Crypto.node_public_key(),
+        proof_of_integrity: Crypto.hash(tx),
+        ledger_operations: %LedgerOperations{
+          fee: 0.0,
+          node_movements: [
+            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+          ],
+          unspent_outputs: [
+            %UnspentOutput{
+              amount: 10,
+              from: tx.address
+            }
+          ]
+        }
+      }
+
+      stamp =
+        struct!(ValidationStamp, Map.put(stamp, :signature, Crypto.sign_with_node_key(stamp)))
+
+      cross_validation_stamps = [
+        CrossValidationStamp.new(stamp, [])
+      ]
+
+      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+      assert false == Replication.valid_transaction?(tx, context: %Context{})
+    end
+  end
+
+  test "run/1 should validate transaction, store it and notify the beacon chain" do
+    start_supervised!({BeaconSlotTimer, interval: 0, trigger_offset: 0})
+    Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
+
+    P2P.add_node(%Node{
+      first_public_key: Crypto.node_public_key(),
+      last_public_key: Crypto.node_public_key(),
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      ready?: true,
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    {pub, pv} = Crypto.generate_deterministic_keypair("seed")
+
+    P2P.add_node(%Node{
+      first_public_key: pub,
+      last_public_key: pub,
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      ready?: true,
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    tx = Transaction.new(:node, %TransactionData{})
+
+    validation_stamp =
+      ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
+        pub
+      ])
+
+    cross_validation_stamps = [
+      CrossValidationStamp.new(validation_stamp, []),
+      %CrossValidationStamp{
+        signature: Crypto.sign(validation_stamp, pv),
+        node_public_key: pub,
+        inconsistencies: []
       }
     ]
 
-    previous_tx = %Transaction{
-      address: Crypto.hash(tx.previous_public_key),
-      type: :transfer,
-      timestamp: DateTime.utc_now(),
-      data: %{},
-      previous_public_key: "",
-      previous_signature: "",
-      origin_signature: ""
+    validated_tx = %{
+      tx
+      | validation_stamp: validation_stamp,
+        cross_validation_stamps: cross_validation_stamps
     }
 
-    previous_tx =
-      Map.put(previous_tx, :validation_stamp, %ValidationStamp{
-        proof_of_work: :crypto.strong_rand_bytes(32),
-        proof_of_integrity: ProofOfIntegrity.compute([previous_tx]),
-        ledger_movements: %LedgerMovements{},
-        node_movements: %NodeMovements{fee: 1, rewards: []},
-        signature: ""
-      })
+    me = self()
 
-    previous_chain = [previous_tx]
+    MockStorage
+    |> expect(:write_transaction_chain, fn _ ->
+      send(me, :replicated)
+      :ok
+    end)
 
     MockNodeClient
     |> stub(:send_message, fn _, _, msg ->
       case msg do
-        [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-          [{:ok, previous_chain}, {:ok, unspent_outputs}]
+        {:get_unspent_outputs, _} ->
+          []
       end
     end)
 
-    {validator_pub, validator_pv} = Crypto.generate_deterministic_keypair("other_seed")
+    Replication.run(validated_tx)
 
-    [
-      %Node{
-        last_public_key: "storage_node_key1",
-        available?: true,
-        network_patch: "AFA",
-        first_public_key: "storage_node_key1",
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        geo_patch: "",
-        average_availability: 1,
-        ready?: true
-      },
-      %Node{
-        last_public_key: "storage_node_key2",
-        first_public_key: "storage_node_key2",
-        available?: true,
-        network_patch: "DCA",
-        average_availability: 1,
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        geo_patch: "",
-        ready?: true
-      },
-      %Node{
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(),
-        available?: true,
-        network_patch: "ACA",
-        geo_patch: "",
-        average_availability: 1,
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        ready?: true,
-        authorized?: true
-      },
-      %Node{
-        first_public_key: validator_pub,
-        last_public_key: validator_pub,
-        available?: true,
-        network_patch: "ADA",
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        average_availability: 1,
-        geo_patch: "AAA",
-        ready?: true,
-        authorized?: true
-      }
-    ]
-    |> Enum.each(&P2P.add_node/1)
+    Process.sleep(200)
 
-    [coordinator | cross_validation_nodes] =
-      Election.validation_nodes(tx) |> Enum.map(& &1.last_public_key)
+    assert_received :replicated
 
-    validation_stamp =
-      ValidationStamp.new(
-        origin_pub,
-        ProofOfIntegrity.compute([tx | previous_chain]),
-        %NodeMovements{
-          # TODO: replace when the fee will be applied (with P2P payments)
-          fee: 0.0,
-          rewards:
-            Fee.distribute(
-              # TODO: replace when the fee will be applied (with P2P payments)
-              0.0,
-              Crypto.node_public_key(),
-              coordinator,
-              cross_validation_nodes,
-              Election.storage_nodes(List.first(previous_chain).address)
-              |> Enum.map(& &1.last_public_key)
-            )
-        },
-        %LedgerMovements{
-          uco: %UTXO{
-            # TODO: replace when the fee will be applied (with P2P payments)
-            next: 11.0,
-            previous: %{
-              amount: 11,
-              from: [
-                List.first(unspent_outputs).address
-              ]
-            }
-          }
-        }
-      )
+    subset = Beacon.subset_from_address(tx.address)
+    [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
 
-    cross_validation_stamp =
-      if List.first(cross_validation_nodes) == Crypto.node_public_key() do
-        {Crypto.sign_with_node_key(validation_stamp), [], Crypto.node_public_key()}
-      else
-        {Crypto.sign(validation_stamp, validator_pv), [], validator_pub}
-      end
-
-    validated_tx = %{
-      tx
-      | validation_stamp: validation_stamp,
-        cross_validation_stamps: [cross_validation_stamp]
-    }
-
-    assert {:ok, [validated_tx | previous_chain]} = Replication.chain_validation(validated_tx)
-  end
-
-  test "transaction_validation_only/1 should validate the validated transaction itself" do
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-
-    validation_stamp =
-      ValidationStamp.new(
-        Crypto.node_public_key(0),
-        Crypto.hash(tx),
-        %NodeMovements{
-          # TODO: replace when the fee will be applied (with P2P payments)
-          fee: 0.0,
-          rewards:
-            Fee.distribute(
-              # TODO: replace when the fee will be applied (with P2P payments)
-              0.0,
-              Crypto.node_public_key(),
-              Crypto.node_public_key(),
-              [Crypto.node_public_key()],
-              []
-            )
-        },
-        %LedgerMovements{}
-      )
-
-    cross_validation_stamp =
-      {Crypto.sign_with_node_key(validation_stamp), [], Crypto.node_public_key()}
-
-    validated_tx = %{
-      tx
-      | validation_stamp: validation_stamp,
-        cross_validation_stamps: [cross_validation_stamp]
-    }
-
-    assert :ok = Replication.transaction_validation_only(validated_tx)
+    assert %{
+             current_slot: %{
+               transactions: [
+                 %TransactionInfo{}
+               ]
+             }
+           } = :sys.get_state(pid)
   end
 end

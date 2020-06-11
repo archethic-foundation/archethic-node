@@ -1,16 +1,30 @@
 defmodule UnirisCore.Mining do
+  @moduledoc """
+  Provide functions to perform steps of the transaction mining delegating the work
+  to a mining FSM.
+
+  Every transaction mining follows these steps:
+  - Pending transaction verification
+  - Validation node election verification
+  - Context retreival (previous chain, unspent outputs)
+  - Validation stamp and replication tree creation (coordinator)
+  - Stamp and replication tree validation (cross validator)
+  - Replication (once the atomic commitment is reached)
+  """
+
   alias UnirisCore.MiningRegistry
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Beacon
-  alias UnirisCore.BeaconSlot.TransactionInfo
-  alias UnirisCore.Storage
   alias UnirisCore.Crypto
   alias UnirisCore.P2P
+  alias UnirisCore.Bootstrap.NetworkInit
+  alias UnirisCore.TaskSupervisor
   alias __MODULE__.Worker
   alias __MODULE__.WorkerSupervisor
   alias __MODULE__.Replication
-  alias __MODULE__.Stamp
   alias __MODULE__.Context
 
   require Logger
@@ -24,25 +38,11 @@ defmodule UnirisCore.Mining do
           validation_node_public_keys :: list(UnirisCore.Crypto.key())
         ) :: {:ok, pid()}
 
-  def start(tx = %Transaction{}, _, []) do
-    Task.start(fn ->
-      %Transaction{} = tx = self_mining(tx)
-
-      UnirisCore.Storage.write_transaction_chain([tx])
-
-      tx.address
-      |> Beacon.subset_from_address()
-      |> Beacon.add_transaction_info(%TransactionInfo{
-        address: tx.address,
-        type: tx.type,
-        timestamp: tx.timestamp
-      })
-    end)
-  end
-
   def start(tx = %Transaction{}, _, [_ | []]) do
     Task.start(fn ->
-      %Transaction{} = tx = self_mining(tx)
+      tx =
+        %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ledger_ops}} =
+        NetworkInit.self_validation!(tx, Context.fetch_history(%Context{}, tx))
 
       chain_storage_nodes =
         P2P.list_nodes()
@@ -54,7 +54,15 @@ defmodule UnirisCore.Mining do
         |> Beacon.subset_from_address()
         |> Beacon.get_pool(tx.timestamp)
 
-      Replication.run(tx, chain_storage_nodes, beacon_storage_nodes)
+      io_storage_nodes = LedgerOperations.io_storage_nodes(ledger_ops)
+      storage_nodes = Enum.uniq(chain_storage_nodes ++ beacon_storage_nodes ++ io_storage_nodes)
+
+      TaskSupervisor
+      |> Task.Supervisor.async_stream(
+        storage_nodes,
+        &P2P.send_message(&1, {:replicate_transaction, tx})
+      )
+      |> Stream.run()
     end)
   end
 
@@ -74,58 +82,34 @@ defmodule UnirisCore.Mining do
   @spec add_context(
           address :: binary(),
           validation_node_public_key :: Crypto.key(),
-          previous_storage_node_public_keys :: list(Crypto.key()),
-          validation_nodes_view :: bitstring(),
-          chain_storage_nodes_view :: bitstring(),
-          beacon_storage_nodes_view :: bitstring()
+          context :: Context.t()
         ) ::
           :ok
   def add_context(
         tx_address,
         validation_node_public_key,
-        previous_storage_node_public_keys,
-        validation_nodes_view,
-        chain_storage_nodes_view,
-        beacon_storage_nodes_view
+        context = %Context{}
       ) do
     Worker.add_context(
       get_worker_pid(tx_address),
       validation_node_public_key,
-      previous_storage_node_public_keys,
-      validation_nodes_view,
-      chain_storage_nodes_view,
-      beacon_storage_nodes_view
+      context
     )
   end
 
   @doc """
-  Cross validate the validation stamp produced by the coordinator
+  Cross validate the validation stamp and the replication tree produced by the coordinator
 
   If no inconsistencies, the validation stamp is stamped by the the node public key.
   Otherwise the inconsistencies will be signed.
-
   """
-  @spec cross_validate(address :: binary(), ValidateStamp.t()) :: :ok
-  def cross_validate(tx_address, stamp = %ValidationStamp{}) do
-    Worker.cross_validate(get_worker_pid(tx_address), stamp)
-  end
-
-  @doc """
-  Set chain storage nodes and beacon storage nodes replication tree according to the position in the replication tree and
-   extract the replication nodes is in charge with.
-  """
-  @spec set_replication_trees(
+  @spec cross_validate(
           address :: binary(),
-          chain_storage_tree :: list(bitstring()),
-          beacon_storage_tree :: list(bitstring())
+          ValidateStamp.t(),
+          replication_tree :: list(bitstring())
         ) :: :ok
-  def set_replication_trees(tx_address, chain_storage_tree, beacon_storage_tree)
-      when is_list(chain_storage_tree) and is_list(beacon_storage_tree) do
-    Worker.set_replication_trees(
-      get_worker_pid(tx_address),
-      chain_storage_tree,
-      beacon_storage_tree
-    )
+  def cross_validate(tx_address, stamp = %ValidationStamp{}, replication_tree) do
+    Worker.cross_validate(get_worker_pid(tx_address), stamp, replication_tree)
   end
 
   @doc """
@@ -133,102 +117,29 @@ defmodule UnirisCore.Mining do
   """
   @spec add_cross_validation_stamp(
           binary(),
-          stamp ::
-            {signature :: binary(), inconsistencies :: list(atom), public_key :: Crypto.key()}
+          stamp :: CrossValidationStamp.t()
         ) ::
           :ok
   def add_cross_validation_stamp(
         tx_address,
-        stamp = {_sig, _inconsistencies, _public_key}
+        stamp = %CrossValidationStamp{}
       ) do
     Worker.add_cross_validation_stamp(get_worker_pid(tx_address), stamp)
   end
 
   @doc """
-  Performs transaction only validation before store.
+  Execute the transaction replication according to the election storage node rules performing
+  the necessary checks depending on the storage node role.
 
-  The validation includes:
-  - run pending transaction integrity
-  - run cryptography integrity
-  - ensure atomic commitment
+  Election algorithms are used to determine if the transaction must be validated as
+  - chain storage node
+  - unspent output/movement node
+  - beacon node
+
+  And the underlaying storage rules
   """
   @spec replicate_transaction(Transaction.validated()) :: :ok
-  def replicate_transaction(tx = %Transaction{}) do
-    Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
-
-    case Storage.get_transaction(tx.address) do
-      {:error, :transaction_not_exists} ->
-        case Replication.transaction_validation_only(tx) do
-          :ok ->
-            Storage.write_transaction(tx)
-
-          _ ->
-            Storage.write_ko_transaction(tx)
-            Logger.info("KO transaction #{Base.encode16(tx.address)}")
-        end
-
-      _ ->
-        :ok
-    end
-  end
-
-  @doc """
-  Performs full transaction chain validation before storage.
-
-  The validation includes:
-  - retrieved the previous chain
-  - run pending transaction integrity
-  - run chain integrity
-  - run cryptography integrity
-  - ensure atomic commitment
-  """
-  @spec replicate_transaction_chain(Transaction.validated()) :: :ok
-  def replicate_transaction_chain(tx = %Transaction{}) do
-    Logger.info("Replicate transaction chain #{Base.encode16(tx.address)}")
-
-    case Storage.get_transaction(tx.address) do
-      {:error, :transaction_not_exists} ->
-        case Replication.chain_validation(tx) do
-          {:ok, chain} ->
-            Storage.write_transaction_chain(chain)
-
-          _ ->
-            Storage.write_ko_transaction(tx)
-            Logger.info("KO transaction #{Base.encode16(tx.address)}")
-        end
-
-      _ ->
-        :ok
-    end
-  end
-
-  @doc """
-  Performs transaction only validation before adding to the beacon chain.
-
-  The validation includes:
-  - run pending transaction integrity
-  - run cryptography integrity
-  - ensure atomic commitment
-  """
-  @spec replicate_address(Transaction.validated()) :: :ok
-  def replicate_address(tx = %Transaction{}) do
-    Logger.info("Replicate address #{Base.encode16(tx.address)}")
-
-    case Replication.transaction_validation_only(tx) do
-      :ok ->
-        tx.address
-        |> Beacon.subset_from_address()
-        |> Beacon.add_transaction_info(%TransactionInfo{
-          address: tx.address,
-          timestamp: tx.timestamp,
-          type: tx.type
-        })
-
-      _ ->
-        Storage.write_ko_transaction(tx)
-        Logger.info("KO transaction #{Base.encode16(tx.address)}")
-    end
-  end
+  def replicate_transaction(tx = %Transaction{}), do: Replication.run(tx)
 
   defp get_worker_pid(tx_address, attemps \\ 0) do
     case Registry.lookup(MiningRegistry, tx_address) do
@@ -240,33 +151,6 @@ defmodule UnirisCore.Mining do
           Process.sleep(100)
           get_worker_pid(tx_address, attemps + 1)
         end
-    end
-  end
-
-  # Called when the network is bootstraping when no nodes or only one in the network
-  defp self_mining(tx = %Transaction{}) do
-    if Transaction.valid_pending_transaction?(tx) do
-      {previous_chain, unspent_outputs, _} = Context.fetch(tx)
-      node_public_key = Crypto.node_public_key()
-
-      validation_stamp =
-        Stamp.create_validation_stamp(
-          tx,
-          previous_chain,
-          unspent_outputs,
-          node_public_key,
-          node_public_key,
-          [node_public_key],
-          [node_public_key]
-        )
-
-      cross_validation_stamp = Stamp.create_cross_validation_stamp(validation_stamp, [])
-
-      %{
-        tx
-        | validation_stamp: validation_stamp,
-          cross_validation_stamps: [cross_validation_stamp]
-      }
     end
   end
 end

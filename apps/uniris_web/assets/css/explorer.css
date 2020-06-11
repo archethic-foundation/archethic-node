@@ -1,6 +1,5 @@
 @import "../node_modules/milligram/dist/milligram.min.css";
 
-
 .explorer {
     background: linear-gradient(-30deg,#006cd2 30%,#00a4db 70%);
     padding: 0px!important;
@@ -15,7 +14,7 @@
 }
 
 .explorer a {
-    color: #44719e;
+    color: #0ca4ff;
 }
 
 .explorer-header {

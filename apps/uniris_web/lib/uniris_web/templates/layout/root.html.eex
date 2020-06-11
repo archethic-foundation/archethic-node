@@ -21,6 +21,7 @@
             <div class="column column-offset-10 column-60">
               <ul>
                 <li><a href="<%= Routes.live_path(@conn, UnirisWeb.TransactionListLive) %>">Transactions</a></li>
+                <li><a href="<%= Routes.explorer_path(@conn, :chain) %>">Chains</a></li>
               </ul>
             </div>
           </nav>

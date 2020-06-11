@@ -1,10 +1,15 @@
 defmodule UnirisCore.Bootstrap do
   @moduledoc """
-  Bootstrap a node in the Uniris network
+  Uniris node bootstraping
 
-  If the first node, the first node shared transaction is created and the transactions are self validated.
+  The first node in the network will initialized the first node shared secrets and genesis wallets as well as his own
+  node transactions. Those transactions will self validated and self replicated.
 
-  Otherwise it will retrieve the necessary items to start the synchronization and send its new transaction to the closest node.
+  Other nodes initialize or update (if ip, port change or disconnected from long time) their own node transaction chain.
+  They start to synchronize from the Beacon chain to retreive the necessary items to be part of the network.
+
+  Once the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its ready and completion.
+  After the self repair/sync others nodes will be able to communicate with him and start validate other transactions.
   """
   use Task
 
@@ -16,48 +21,46 @@ defmodule UnirisCore.Bootstrap do
   alias UnirisCore.Storage
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.SharedSecrets
   alias UnirisCore.Beacon
   alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.SelfRepair
-  alias UnirisCore.Mining
   alias __MODULE__.IPLookup
+  alias __MODULE__.NetworkInit
 
   def start_link(opts) do
     ip = IPLookup.get_ip()
 
     port = Keyword.get(opts, :port)
-    seeds_file = Keyword.get(opts, :seeds_file)
 
     Task.start_link(__MODULE__, :run, [
       ip,
       port,
       SelfRepair.last_sync_date(),
-      Application.app_dir(:uniris_core, seeds_file)
+      P2P.list_boostraping_seeds()
     ])
   end
 
-  def run(ip, port, last_sync_date, seeds_file) do
+  def run(ip, port, last_sync_date, bootstraping_seeds) do
     Logger.info("Bootstraping starting")
 
     first_public_key = Crypto.node_public_key(0)
     patch = P2P.get_geo_patch(ip)
 
-    network_seeds = bootstraping_seeds(seeds_file)
-
-    if initialized_network?(first_public_key, network_seeds) do
-      Logger.info("Network initialization...")
+    if !initialized_network?(first_public_key, bootstraping_seeds) do
       init_network(ip, port)
     else
-      network_seeds = Enum.reject(network_seeds, & &1.first_public_key == Crypto.node_public_key(0))
-      load_nodes(network_seeds)
+      bootstraping_seeds =
+        Enum.reject(bootstraping_seeds, &(&1.first_public_key == Crypto.node_public_key(0)))
+
+      load_nodes(bootstraping_seeds)
+
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
-        first_initialization(ip, port, patch, network_seeds, seeds_file)
+        first_initialization(ip, port, patch, bootstraping_seeds)
       else
         if require_node_update?(ip, port, last_sync_date) do
           Logger.info("Update node chain...")
-          update_node(ip, port, patch, network_seeds, seeds_file)
+          update_node(ip, port, patch, bootstraping_seeds)
         else
           :ok
         end
@@ -67,82 +70,64 @@ defmodule UnirisCore.Bootstrap do
     Logger.info("Bootstraping finished!")
   end
 
-  defp initialized_network?(first_public_key, network_seeds) do
+  defp initialized_network?(first_public_key, bootstraping_seeds) do
     with {:error, :transaction_not_exists} <-
-      Storage.get_last_node_shared_secrets_transaction(),
-      [%Node{first_public_key: key} | _] when key == first_public_key <- network_seeds do
+           Storage.get_last_node_shared_secrets_transaction(),
+         [%Node{first_public_key: key} | _] when key == first_public_key <- bootstraping_seeds do
+      false
+    else
+      _ ->
         true
-      else
-        _ ->
-          false
-      end
+    end
   end
 
   defp require_node_update?(ip, port, last_sync_date) do
     diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
+
     case P2P.node_info() do
       # TODO: change the diff sync parameter when the self repair will be moved to daily
-      %Node{ip: prev_ip, port: prev_port} when ip != prev_ip or port != prev_port or diff_sync > 3 ->
+      {:ok, %Node{ip: prev_ip, port: prev_port}}
+      when ip != prev_ip or port != prev_port or diff_sync > 3 ->
         true
+
       _ ->
         false
     end
   end
 
   defp init_network(ip, port) do
-    Logger.info("Create storage nonce")
-    storage_nonce_seed = :crypto.strong_rand_bytes(32)
-    {_, pv} = Crypto.generate_deterministic_keypair(storage_nonce_seed)
-    Crypto.decrypt_and_set_storage_nonce(Crypto.ec_encrypt(pv, Crypto.node_public_key()))
+    Logger.info("Network initialization...")
+    NetworkInit.create_storage_nonce()
 
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
-    Mining.start(tx, "", [])
-    Process.sleep(3000)
+
+    tx
+    |> NetworkInit.self_validation!()
+    |> NetworkInit.self_replication()
+
+    Process.sleep(200)
 
     Node.set_ready(Crypto.node_public_key(0), tx.timestamp)
 
-    init_node_shared_secrets_chain()
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+    NetworkInit.init_node_shared_secrets_chain(network_pool_seed)
+
+    {pub, _} = Crypto.derivate_keypair(network_pool_seed, 0)
+    network_pool_address = Crypto.hash(pub)
+    NetworkInit.init_genesis_wallets(network_pool_address)
+
     SelfRepair.start_sync(P2P.get_geo_patch(ip), false)
   end
 
-  defp init_node_shared_secrets_chain() do
-    aes_key = :crypto.strong_rand_bytes(32)
-
-    encrypted_aes_key = Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
-
-    :crypto.strong_rand_bytes(32)
-    |> Crypto.aes_encrypt(aes_key)
-    |> Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_aes_key)
-
-    daily_nonce_seed = :crypto.strong_rand_bytes(32)
-    authorized_public_keys = [Crypto.node_public_key(0)]
-
-    tx =
-      SharedSecrets.new_node_shared_secrets_transaction(
-        authorized_public_keys,
-        daily_nonce_seed,
-        aes_key
-      )
-
-    Mining.start(tx, "", [])
-
-    Node.authorize(Crypto.node_public_key(0), tx.timestamp)
-
-    Crypto.decrypt_and_set_daily_nonce_seed(
-      Crypto.aes_encrypt(daily_nonce_seed, aes_key),
-      Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
-    )
-  end
-
-  defp first_initialization(ip, port, patch, network_seeds, seeds_file) do
+  defp first_initialization(ip, port, patch, bootstraping_seeds) do
     [closest_nodes, new_seeds] =
-      network_seeds
+      bootstraping_seeds
       |> Enum.random()
       |> P2P.send_message([{:closest_nodes, patch}, :new_seeds])
 
     load_nodes(new_seeds ++ closest_nodes)
-    update_seeds(seeds_file, new_seeds)
+    P2P.update_bootstraping_seeds(new_seeds)
 
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
@@ -174,13 +159,13 @@ defmodule UnirisCore.Bootstrap do
     end
   end
 
-  defp update_node(ip, port, patch, network_seeds, seeds_file) do
+  defp update_node(ip, port, patch, bootstraping_seeds) do
     [closest_nodes, new_seeds] =
-      network_seeds
+      bootstraping_seeds
       |> Enum.random()
       |> P2P.send_message([{:closest_nodes, patch}, :new_seeds])
 
-    update_seeds(seeds_file, new_seeds)
+    P2P.update_bootstraping_seeds(new_seeds)
     load_nodes(new_seeds ++ closest_nodes)
     Logger.info("Node list refreshed")
 
@@ -255,51 +240,6 @@ defmodule UnirisCore.Bootstrap do
         end
       end
     )
-  end
-
-  defp bootstraping_seeds(seeds_file) do
-    case Application.get_env(:uniris_core, __MODULE__)[:seeds] do
-      nil ->
-        seeds_file
-        |> File.read!()
-        |> extract_seeds
-
-      seeds ->
-        extract_seeds(seeds)
-    end
-  end
-
-  defp extract_seeds(seeds_str) do
-    seeds_str
-    |> String.split("\n", trim: true)
-    |> Enum.map(fn seed ->
-      [ip, port, public_key] = String.split(seed, ":")
-      {:ok, ip} = ip |> String.to_charlist() |> :inet.parse_address()
-
-      %Node{
-        ip: ip,
-        port: String.to_integer(port),
-        last_public_key: public_key |> Base.decode16!(),
-        first_public_key: public_key |> Base.decode16!()
-      }
-    end)
-  end
-
-  defp update_seeds(_, []), do: :ok
-
-  defp update_seeds(seeds_file, seeds) when is_list(seeds) do
-      seeds
-      |> Enum.reject(& &1.first_public_key == Crypto.node_public_key(0))
-      |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
-        acc ++ ["#{stringify_ip(ip)}:#{port}:#{public_key |> Base.encode16()}"]
-      end)
-      |> Enum.join("\n")
-      |> case do
-        "" ->
-          :ok
-        seeds_str ->
-          File.write!(seeds_file, seeds_str, [:write])
-      end
   end
 
   defp stringify_ip(ip), do: :inet_parse.ntoa(ip)

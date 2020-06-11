@@ -18,10 +18,8 @@ defmodule UnirisCore.P2P.TransactionLoader do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  def init(opts) do
+  def init(renewal_interval: renewal_interval) do
     PubSub.register_to_new_transaction()
-
-    renewal_interval = Keyword.get(opts, :renewal_interval)
 
     initial_state = %{renewal_interval: renewal_interval}
 

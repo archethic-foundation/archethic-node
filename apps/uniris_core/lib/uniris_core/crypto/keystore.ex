@@ -141,6 +141,18 @@ defmodule UnirisCore.Crypto.Keystore do
     impl().encrypt_node_shared_secrets_transaction_seed(key)
   end
 
+  @impl true
+  @spec decrypt_and_set_node_shared_secrets_network_pool_seed(
+          encrypted_seed :: binary(),
+          encrypted_aes_key :: binary()
+        ) :: :ok
+  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
+    impl().decrypt_and_set_node_shared_secrets_network_pool_seed(
+      encrypted_seed,
+      encrypted_aes_key
+    )
+  end
+
   defp impl() do
     :uniris_core
     |> Application.get_env(UnirisCore.Crypto,

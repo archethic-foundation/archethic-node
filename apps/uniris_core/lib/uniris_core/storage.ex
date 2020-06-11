@@ -1,23 +1,25 @@
 defmodule UnirisCore.Storage do
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.PubSub
   alias __MODULE__.Backend
   alias __MODULE__.Cache
-  alias UnirisCore.PubSub
+  alias UnirisCore.Crypto
 
   require Logger
+
+  @type unspent_output_options :: [
+          transaction_movements: boolean(),
+          node_movements: boolean(),
+          unspent_outputs: boolean()
+        ]
 
   @doc """
   Return the list of node transactions
   """
   @spec node_transactions() :: list(Transaction.validated())
   def node_transactions() do
-    case Cache.node_transactions() do
-      [] ->
-        []
-
-      transactions ->
-        transactions
-    end
+    Cache.node_transactions()
   end
 
   @doc """
@@ -31,18 +33,21 @@ defmodule UnirisCore.Storage do
   @doc """
   Retrieve a transaction by its address
   """
-  @spec get_transaction(binary()) :: {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  def get_transaction(address) do
-    case Cache.get_transaction(address) do
-      nil ->
-        if Cache.ko_transaction?(address) do
-          {:error, :invalid_transaction}
-        else
+  @spec get_transaction(address :: binary(), detect_ko? :: boolean()) ::
+          {:ok, Transaction.validated()}
+          | {:error, :transaction_not_exists}
+          | {:error, :invalid_transaction}
+  def get_transaction(address, detect_ko? \\ true) do
+    if detect_ko? and Cache.ko_transaction?(address) do
+      {:error, :invalid_transaction}
+    else
+      case Cache.get_transaction(address) do
+        nil ->
           Backend.get_transaction(address)
-        end
 
-      transaction ->
-        {:ok, transaction}
+        transaction ->
+          {:ok, transaction}
+      end
     end
   end
 
@@ -50,25 +55,22 @@ defmodule UnirisCore.Storage do
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
-  @spec get_transaction_chain(binary()) ::
-          {:ok, list(Transaction.t())} | {:error, :transaction_chain_not_exists}
+  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
   def get_transaction_chain(address) do
     Backend.get_transaction_chain(address)
   end
 
   @doc """
-  Retrieve unspent outputs with destination of transfers for the given address
+  Retrieve unspent outputs for the given address
   """
-  @spec get_unspent_output_transactions(binary()) ::
-          {:ok, list(Transaction.validated())} | {:error, :unspent_outputs_not_exists}
-  def get_unspent_output_transactions(address) do
-    case Cache.get_unspent_outputs(address) do
-      [] ->
-        {:error, :unspent_outputs_not_exists}
+  @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
+  def get_unspent_outputs(address) do
+    Cache.get_unspent_outputs(address)
+  end
 
-      unspent_outputs ->
-        {:ok, unspent_outputs}
-    end
+  @spec get_inputs(Crypto.key()) :: list(UnspentOutput.t())
+  def get_inputs(public_key) do
+    Cache.get_ledger_inputs(public_key)
   end
 
   @doc """
@@ -76,31 +78,24 @@ defmodule UnirisCore.Storage do
   """
   @spec origin_shared_secrets_transactions() :: list(Transaction.validated())
   def origin_shared_secrets_transactions() do
-    case Cache.origin_shared_secrets_transactions() do
-      [] ->
-        []
-
-      transactions ->
-        {:ok, transactions}
-    end
+    Cache.origin_shared_secrets_transactions()
   end
 
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.validated(), load_transaction? :: boolean()) :: :ok
-  def write_transaction(tx = %Transaction{}, load_transaction? \\ true) do
+  @spec write_transaction(Transaction.validated()) :: :ok
+  def write_transaction(tx = %Transaction{}) do
     case get_transaction(tx.address) do
       {:ok, _} ->
+        Logger.info("Transaction #{Base.encode16(tx.address)} already stored")
         :ok
 
       _ ->
         :ok = Backend.write_transaction(tx)
         :ok = Cache.store_transaction(tx)
 
-        if load_transaction? do
-          PubSub.notify_new_transaction(tx)
-        end
+        PubSub.notify_new_transaction(tx)
 
         Logger.info("Transaction #{tx.type}@#{Base.encode16(tx.address)} stored")
     end
@@ -109,21 +104,20 @@ defmodule UnirisCore.Storage do
   @doc """
   Persist a new transaction chain
   """
-  @spec write_transaction_chain(list(Transaction.validated()), load_transaction? :: boolean()) ::
+  @spec write_transaction_chain(list(Transaction.validated())) ::
           :ok
-  def write_transaction_chain([last_tx = %Transaction{} | _] = chain, load_transaction? \\ true)
+  def write_transaction_chain([last_tx = %Transaction{} | _] = chain)
       when is_list(chain) do
-    case get_transaction(last_tx.address) do
+    case get_transaction(last_tx.address, false) do
       {:ok, _} ->
+        Logger.info("Transaction #{Base.encode16(last_tx.address)} already stored")
         :ok
 
       _ ->
         :ok = Backend.write_transaction_chain(chain)
         :ok = Cache.store_transaction(last_tx)
 
-        if load_transaction? do
-          PubSub.notify_new_transaction(last_tx)
-        end
+        PubSub.notify_new_transaction(last_tx)
 
         Logger.info("Transaction Chain #{Base.encode16(last_tx.address)} stored")
     end
@@ -153,5 +147,17 @@ defmodule UnirisCore.Storage do
   end
 
   @spec last_transaction_address(binary()) :: {:ok, binary()} | {:error, :not_found}
-  def last_transaction_address(address), do: Cache.last_transaction_address(address)
+  def last_transaction_address(address) do
+    Cache.last_transaction_address(address)
+  end
+
+  @doc """
+  Returns the balance of an public key using its unspent output transactions
+  """
+  @spec balance(binary()) :: float()
+  def balance(address) do
+    address
+    |> Cache.get_ledger_inputs()
+    |> Enum.reduce(0.0, &(&2 + &1.amount))
+  end
 end

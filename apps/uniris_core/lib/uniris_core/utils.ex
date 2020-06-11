@@ -13,6 +13,8 @@ defmodule UnirisCore.Utils do
     next_interval - current_time
   end
 
+  def time_offset(0), do: 0
+
   @spec configurable_children(list({process :: atom(), args :: list(), opts :: list()})) ::
           list(Supervisor.child_spec())
   def configurable_children(children) do
@@ -30,6 +32,7 @@ defmodule UnirisCore.Utils do
     case Application.get_env(:uniris_core, process) do
       nil ->
         true
+
       conf ->
         Keyword.get(conf, :enabled, true)
     end

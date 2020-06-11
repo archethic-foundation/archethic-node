@@ -97,46 +97,27 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
   defp create_validation_stamp_user_type() do
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.rewards(
-        node varchar,
+      CREATE TYPE IF NOT EXISTS uniris.ledger_operations_movement(
+        recipient varchar,
         amount float
       );
       """)
 
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.node_movements(
+      CREATE TYPE IF NOT EXISTS uniris.ledger_operations_utxo(
+        origin varchar,
+        amount float
+      )
+      """)
+
+    {:ok, _} =
+      Xandra.execute(:xandra_conn, """
+      CREATE TYPE IF NOT EXISTS uniris.ledger_operations(
         fee float,
-        rewards LIST<frozen<rewards>>
-      );
-      """)
-
-    {:ok, _} =
-      Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.previous_ledger_summary(
-        amount float,
-        senders LIST<varchar>
-      );
-      """)
-
-    {:ok, _} =
-      Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.next_ledger_summary(
-        amount float
-      );
-      """)
-
-    {:ok, _} = Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.utxo_ledger(
-        previous_ledger_summary frozen<previous_ledger_summary>,
-        next_ledger_summary frozen<next_ledger_summary>
-      );
-    """)
-
-    {:ok, _} =
-      Xandra.execute(:xandra_conn, """
-      CREATE TYPE IF NOT EXISTS uniris.ledger_movements(
-        uco frozen<utxo_ledger>
+        transaction_movements LIST<frozen<ledger_operations_movement>>,
+        node_movements LIST<frozen<ledger_operations_movement>>,
+        unspent_outputs LIST<frozen<ledger_operations_utxo>>
       );
       """)
 
@@ -145,8 +126,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       CREATE TYPE IF NOT EXISTS uniris.validation_stamp(
         proof_of_work varchar,
         proof_of_integrity varchar,
-        node_movements frozen<node_movements>,
-        ledger_movements frozen<ledger_movements>,
+        ledger_operations frozen<ledger_operations>,
         signature varchar
       );
       """)
@@ -157,8 +137,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       Xandra.execute(:xandra_conn, """
       CREATE TYPE IF NOT EXISTS uniris.cross_validation_stamp(
         node varchar,
-        signature varchar,
-        inconsistencies LIST<varchar>
+        signature varchar
       )
       """)
   end
@@ -167,7 +146,8 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
     # Cassandra impose a query design scheme
     # And to avoid its limitation (< 2B cells and < 100MB per partition)
     # We need to split transaction chain by buckets
-    # Using day number of the year we scan scale for a long running service
+
+    # First attempt: using day number of the year we scan scale for a long running service
     # and with a lot of big transactions
     #
     # Examples:
@@ -175,6 +155,10 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
     #    1K contract, 1M content, 100K secrets) over 50 years with 1 transaction per minute
     #   We can reach 32M cells and 41MB per partition using this design
     #   NOTE: clients will need to perform 365 queries to retrived the entire chain
+    #   NOTE: too much work on the clients
+
+    ## 2nd attempt: To have good performance for reading from clients, using a mod 10 on timestamp of the transaction
+    ## NOTE: Client will only need to perform 10 queries to lookup an entire transaction chain
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE TABLE IF NOT EXISTS uniris.transaction_chains(

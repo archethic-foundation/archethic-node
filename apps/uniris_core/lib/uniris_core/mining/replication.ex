@@ -2,15 +2,9 @@ defmodule UnirisCore.Mining.Replication do
   @moduledoc false
 
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
-  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
-  alias UnirisCore.TaskSupervisor
-  alias UnirisCore.Mining.Stamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
   alias UnirisCore.Mining.Fee
   alias UnirisCore.Mining.Context
   alias UnirisCore.Mining.ProofOfWork
@@ -19,6 +13,9 @@ defmodule UnirisCore.Mining.Replication do
   alias UnirisCore.P2P.Node
   alias UnirisCore.Election
   alias UnirisCore.Crypto
+  alias UnirisCore.Beacon
+  alias UnirisCore.Storage
+  alias UnirisCore.Election
 
   require Logger
 
@@ -101,130 +98,33 @@ defmodule UnirisCore.Mining.Replication do
   end
 
   @doc """
-  Starts the process of replication of the given transactions towards to next storage pool of the transaction chain, beacon chain, as well
-  as the node involved inside the validations and the recipient of the transfers or smart contract.
-
-  This replication involves the sending of the validated transaction to those differents pools.
-
-  Once received the nodes will performed either chain validation or transaction only validation depending on their storage role
-  (unspent outputs, validation nodes, chain storage nodes, beacon storage node, etc..)
-  """
-  @spec run(
-          tx :: Transaction.validated(),
-          chain_replication_nodes :: list(Node.t()),
-          beacon_replication_nodes :: list(Node.t())
-        ) :: :ok
-  def run(
-        tx = %Transaction{
-          data: %TransactionData{
-            ledger: %Ledger{
-              uco: %UCOLedger{
-                transfers: uco_transfers
-              }
-            },
-            recipients: recipients
-          },
-          validation_stamp: %ValidationStamp{
-            node_movements: node_movements
-          }
-        },
-        chain_replication_nodes,
-        beacon_replication_nodes
-      ) do
-    Task.Supervisor.async_stream_nolink(TaskSupervisor, chain_replication_nodes, fn node ->
-      P2P.send_message(node, {:replicate_chain, tx})
-    end)
-    |> Stream.run()
-
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      beacon_replication_nodes,
-      &P2P.send_message(&1, {:replicate_address, tx})
-    )
-    |> Stream.run()
-
-    utxo_nodes =
-      [transfers_recipients(uco_transfers), recipients, rewarded_nodes(node_movements)]
-      |> Enum.concat()
-      |> Enum.uniq()
-
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      utxo_nodes,
-      &P2P.send_message(&1, {:replicate_transaction, tx})
-    )
-    |> Stream.run()
-  end
-
-  defp transfers_recipients(transfers) do
-    Enum.map(transfers, fn %Transfer{to: recipient} -> recipient end)
-  end
-
-  defp rewarded_nodes(%NodeMovements{rewards: rewards}) do
-    Enum.map(rewards, fn {node, _} -> node end)
-  end
-
-  @doc """
-  Checks the entire integrity of the chain by rebuilding the context of the transaction and validating:
-  - Pending transaction integrity
-  - Validation Stamp and Cross validation stamp integrity
-  - Chain integrity
-  - ARCH consensus atomic commitment
-  """
-  @spec chain_validation(Transaction.validated()) :: :ok | {:error, :invalid_transaction}
-  def chain_validation(tx = %Transaction{}) do
-    with true <- Transaction.valid_pending_transaction?(tx),
-         {:ok, chain, unspent_outputs} <- check_with_context(tx),
-         :ok <- verify_transaction_stamp(tx, chain, unspent_outputs) do
-      {:ok, [tx | chain]}
-    else
-      false ->
-        {:error, :invalid_transaction}
-
-      {:error, _} = e ->
-        e
-    end
-  end
-
-  defp check_with_context(tx = %Transaction{}) do
-    case Context.fetch(tx) do
-      {[], [], _} ->
-        {:ok, [], []}
-
-      {[], unspent_outputs, _} ->
-        {:ok, [], unspent_outputs}
-
-      {chain, unspent_outputs, _} ->
-        if valid_chain?([tx | chain]) do
-          {:ok, chain, unspent_outputs}
-        else
-          {:error, :invalid_transaction}
-        end
-    end
-  end
-
-  @doc """
   Determines if a chain is valid in its integrity
   """
-  @spec valid_chain?([UnirisCore.Transaction.validated(), ...]) :: boolean
-  def valid_chain?([ tx = %Transaction{ validation_stamp: %ValidationStamp{proof_of_integrity: poi}} ]) do
+  @spec valid_chain?([Transaction.validated(), ...]) :: boolean
+  def valid_chain?([
+        tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
+      ]) do
     poi == ProofOfIntegrity.compute([tx])
   end
 
   def valid_chain?(
-         chain = [
-           %Transaction{
-             previous_public_key: previous_public_key,
-             validation_stamp: %ValidationStamp{proof_of_integrity: poi}
-           }
-           | [%Transaction{address: previous_address} | _]
-         ]
-       ) do
+        chain = [
+          %Transaction{
+            previous_public_key: previous_public_key,
+            timestamp: timestamp,
+            validation_stamp: %ValidationStamp{proof_of_integrity: poi}
+          }
+          | [%Transaction{address: previous_address, timestamp: previous_timestamp} | _]
+        ]
+      ) do
     cond do
       ProofOfIntegrity.compute(chain) != poi ->
         false
 
       Crypto.hash(previous_public_key) != previous_address ->
+        false
+
+      DateTime.diff(timestamp, previous_timestamp, :microsecond) <= 0 ->
         false
 
       true ->
@@ -233,124 +133,221 @@ defmodule UnirisCore.Mining.Replication do
   end
 
   @doc """
-  Check the transaction only without require its chain by validating:
-  - pending transaction integrity
-  - validation stamp and cross validation stamp integrity
-  - ARCH consensus atomic commitment.
+  Verify the transaction integrity and mining including the validation stamp,
+  the atomic commitment and the cross validation stamps integrity, node movements
   """
-  @spec transaction_validation_only(Transaction.validated()) ::
-          :ok | {:error, :invalid_transaction}
-  def transaction_validation_only(
+  @spec valid_transaction?(Transaction.validated(), opts :: [context: Context.t()]) :: boolean()
+  def valid_transaction?(_tx, opts \\ [])
+
+  def valid_transaction?(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{proof_of_work: ""}
+        },
+        _opts
+      ) do
+    Logger.error("Invalid proof of work (empty) for #{Base.encode16(tx.address)}")
+    false
+  end
+
+  def valid_transaction?(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{proof_of_integrity: ""}
+        },
+        _opts
+      ) do
+    Logger.error("Invalid proof of integrity (empty) for #{Base.encode16(tx.address)}")
+    false
+  end
+
+  # Each transaction must at least contains a welcome node and validator reward
+  def valid_transaction?(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: %LedgerOperations{node_movements: node_movements}
+          }
+        },
+        _opts
+      )
+      when length(node_movements) < 2 do
+    Logger.error("Invalid node movements (less than 2) for #{Base.encode16(tx.address)}")
+    false
+  end
+
+  def valid_transaction?(
         tx = %Transaction{
           validation_stamp:
             stamp = %ValidationStamp{
               proof_of_work: pow,
-              ledger_movements: ledger_movements,
-              node_movements: %NodeMovements{fee: fee, rewards: rewards}
+              ledger_operations:
+                ledger_ops = %LedgerOperations{fee: fee, node_movements: node_movements}
             },
-          cross_validation_stamps: stamps
-        }
+          cross_validation_stamps: cross_stamps
+        },
+        opts
       ) do
-    {coordinator_public_key, _} = Enum.at(rewards, 1)
+    rewarded_nodes = Enum.map(node_movements, & &1.to)
+    coordinator_public_key = Enum.at(rewarded_nodes, 1)
+    total_rewards = Enum.reduce(node_movements, 0.0, &(&2 + &1.amount))
+    cross_validation_nodes = Enum.map(cross_stamps, & &1.node_public_key)
 
-    with true <- Transaction.valid_pending_transaction?(tx),
-         true <-
-           ProofOfWork.verify?(
-             tx,
-             pow
-           ),
-         true <- Stamp.valid_cross_validation_stamps?(stamps, stamp),
-         true <- Fee.compute(tx) == fee,
-         # TODO: activate when the network pool will be implemented
-         #  true <-
-         #    Enum.reduce(rewards, 0, fn {_, amount}, acc -> acc + amount end) == fee,
-         true <- ValidationStamp.valid_signature?(stamp, coordinator_public_key),
-         true <- Stamp.atomic_commitment?(stamps),
-         true <- pow != "",
-         {_, inconsistencies, _} <- List.first(stamps),
-         true <- inconsistencies == [],
-         true <- ledger_movements != :unsufficient_funds do
-      :ok
-    else
-      _reason ->
-        {:error, :invalid_transaction}
-    end
-  end
+    cond do
+      !Transaction.valid_pending_transaction?(tx) ->
+        Logger.error("Invalid pending transaction for #{Base.encode16(tx.address)}")
+        false
 
-  defp verify_transaction_stamp(
-         tx = %Transaction{
-           cross_validation_stamps: cross_validation_stamps,
-           validation_stamp: %ValidationStamp{node_movements: %NodeMovements{rewards: rewards}}
-         },
-         chain,
-         unspent_outputs
-       ) do
-    case P2P.node_info() do
-      %Node{authorized?: false} ->
-        {coordinator, _} = Enum.at(rewards, 1)
-        cross_validators = Enum.map(cross_validation_stamps, fn {_, _, pub} -> pub end)
-        do_verify_transaction_stamp(tx, chain, unspent_outputs, coordinator, cross_validators)
+      !ValidationStamp.valid_signature?(stamp, coordinator_public_key) ->
+        Logger.error("Invalid validation stamp signature for #{Base.encode16(tx.address)}")
+        false
 
-      _ ->
-        {coordinator, cross_validators} =
-          case tx
-               |> Transaction.pending()
-               |> Election.validation_nodes()
-               |> Enum.map(& &1.last_public_key) do
-            [coordinator | []] ->
-              {coordinator, [coordinator]}
+      !ProofOfWork.verify?(pow, tx) ->
+        Logger.error("Invalid proof of work for #{Base.encode16(tx.address)}")
+        false
 
-            [coordinator | cross_validators] ->
-              {coordinator, cross_validators}
-          end
+      Fee.compute(tx) != fee ->
+        Logger.error("Invalid fee for #{Base.encode16(tx.address)}")
+        false
 
-        if Enum.all?(cross_validation_stamps, fn {_, _, pub} -> pub in cross_validators end) do
-          do_verify_transaction_stamp(
-            tx,
-            chain,
-            unspent_outputs,
-            coordinator,
-            cross_validators
-          )
-        else
-          {:error, :invalid_transaction}
+      total_rewards != fee ->
+        Logger.error("Invalid rewards for #{Base.encode16(tx.address)}")
+        false
+
+      !Transaction.valid_cross_validation_stamps?(tx) ->
+        Logger.error("Invalid cross validation stamps for #{Base.encode16(tx.address)}")
+        false
+
+      !Transaction.atomic_commitment?(tx) ->
+        Logger.error("Atomic commtiment not reached #{Base.encode16(tx.address)}")
+        false
+
+      !Enum.all?(cross_validation_nodes, &(&1 in rewarded_nodes)) ->
+        Logger.error("Invalid rewarded nodes for #{Base.encode16(tx.address)}")
+        false
+
+      true ->
+        case Keyword.get(opts, :context) do
+          nil ->
+            true
+
+          %Context{previous_chain: chain, unspent_outputs: unspent_outputs} ->
+            if valid_chain?([tx | chain]) do
+              {:ok, node_info} = P2P.node_info()
+
+              if LedgerOperations.verify?(
+                   ledger_ops,
+                   tx,
+                   unspent_outputs,
+                   validation_nodes(node_info, tx)
+                 ) do
+                true
+              else
+                Logger.error("Invalid ledger operations for #{Base.encode16(tx.address)}")
+                false
+              end
+            else
+              Logger.error("Invalid chain integrity for #{Base.encode16(tx.address)}")
+              false
+            end
         end
     end
   end
 
-  defp do_verify_transaction_stamp(
-         tx = %Transaction{
-           validation_stamp:
-             stamp = %ValidationStamp{
-               proof_of_work: pow,
-               ledger_movements: %LedgerMovements{uco: next_uco_ledger}
-             },
-           cross_validation_stamps: cross_stamps
-         },
-         chain,
-         unspent_outputs,
-         coordinator,
-         cross_validation_nodes
-       ) do
-    with true <- Stamp.valid_cross_validation_stamps?(cross_stamps, stamp),
-         :ok <-
-           Stamp.check_validation_stamp(
-             tx,
-             stamp,
-             coordinator,
-             cross_validation_nodes,
-             chain,
-             unspent_outputs
-           ),
-         true <- Stamp.atomic_commitment?(cross_stamps),
-         true <- pow != "",
-         {_, inconsistencies, _} <- List.first(cross_stamps),
-         true <- inconsistencies == [],
-         true <- next_uco_ledger != :unsufficient_funds do
-      :ok
-    else
-      _reason ->
-        {:error, :invalid_transaction}
+  # Return the validation depending on the node authorization.
+  # Authorized node will performs the election algorithms
+  # while non authorized will get them from the node movements and cross validation stamps
+  defp validation_nodes(%Node{authorized?: true}, tx) do
+    case tx
+         |> Transaction.to_pending()
+         |> Election.validation_nodes()
+         |> Enum.map(& &1.last_public_key) do
+      [coordinator_node | []] ->
+        [coordinator_node | [coordinator_node]]
+
+      nodes ->
+        nodes
     end
+  end
+
+  defp validation_nodes(%Node{authorized?: false}, %Transaction{
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{node_movements: node_movements}
+         },
+         cross_validation_stamps: cross_validation_stamps
+       }) do
+    [_ | [%Movement{to: coordinator_node} | _]] = node_movements
+    cross_validation_nodes = Enum.map(cross_validation_stamps, & &1.node_public_key)
+    [coordinator_node | cross_validation_nodes]
+  end
+
+  @spec run(Transaction.validated()) :: :ok
+  def run(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: ledger_ops
+          }
+        }
+      ) do
+    chain_storage_nodes = Election.storage_nodes(tx.address) |> Enum.map(& &1.first_public_key)
+    io_storage_nodes = LedgerOperations.io_storage_nodes(ledger_ops)
+
+    cond do
+      Crypto.node_public_key(0) in chain_storage_nodes ->
+        replicate_chain(tx)
+
+      Crypto.node_public_key(0) in io_storage_nodes ->
+        replicate_io(tx)
+
+      Crypto.node_public_key(0) in beacon_storage_nodes(tx) ->
+        replicate_beacon(tx)
+    end
+  end
+
+  # Perform full verification of the transaction before chain storage including the transaction integrity,
+  # the chain integrity and the cross validation stamps expectations
+  defp replicate_chain(tx) do
+    context = %Context{previous_chain: chain} = Context.fetch_history(%Context{}, tx)
+
+    if valid_transaction?(tx, context: context) do
+      Storage.write_transaction_chain([tx | chain])
+
+      if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
+        Beacon.add_transaction(tx)
+      end
+    else
+      Storage.write_ko_transaction(tx)
+      Logger.info("KO transaction #{Base.encode16(tx.address)}")
+    end
+  end
+
+  # Verify the transaction integrity before to store. This method is used
+  # for the replication of transaction movements (recipients unspent outputs) and node movements (rewards)
+  defp replicate_io(tx) do
+    if valid_transaction?(tx) do
+      Storage.write_transaction(tx)
+
+      if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
+        Beacon.add_transaction(tx)
+      end
+    else
+      Storage.write_ko_transaction(tx)
+      Logger.info("KO transaction #{Base.encode16(tx.address)}")
+    end
+  end
+
+  # Verify the transaction integrity before to store. This method is used
+  # for the replication of transaction address towards the beacon chain
+  defp replicate_beacon(tx) do
+    if valid_transaction?(tx) do
+      Beacon.add_transaction(tx)
+    else
+      Storage.write_ko_transaction(tx)
+      Logger.info("KO transaction #{Base.encode16(tx.address)}")
+    end
+  end
+
+  defp beacon_storage_nodes(tx) do
+    tx.address
+    |> Beacon.subset_from_address()
+    |> Beacon.get_pool(tx.timestamp)
+    |> Enum.map(& &1.first_public_key)
   end
 end

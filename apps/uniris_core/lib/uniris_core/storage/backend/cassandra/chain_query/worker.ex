@@ -36,13 +36,15 @@ defmodule UnirisCore.Storage.CassandraBackend.ChainQueryWorker do
     Task.start(fn ->
       prepared = Xandra.prepare!(:xandra_conn, @query_statement)
 
-      res = Xandra.stream_pages!(:xandra_conn, prepared, _params = [Base.encode16(address), bucket])
-      |> Stream.flat_map(& &1)
-      |> Stream.map(&CassandraBackend.format_result_to_transaction/1)
-      |> Enum.to_list()
+      res =
+        Xandra.stream_pages!(:xandra_conn, prepared, _params = [Base.encode16(address), bucket])
+        |> Stream.flat_map(& &1)
+        |> Stream.map(&CassandraBackend.format_result_to_transaction/1)
+        |> Enum.to_list()
 
       GenServer.reply(from, res)
     end)
+
     {:noreply, bucket}
   end
 end

@@ -19,7 +19,7 @@ defmodule UnirisCoreCase do
     |> stub(:write_transaction, fn _ -> :ok end)
     |> stub(:write_transaction_chain, fn _ -> :ok end)
     |> stub(:get_transaction, fn _ -> {:error, :transaction_not_exists} end)
-    |> stub(:get_transaction_chain, fn _ -> {:error, :transaction_chain_not_exists} end)
+    |> stub(:get_transaction_chain, fn _ -> [] end)
 
     MockCrypto
     |> stub(:sign_with_node_key, fn data ->
@@ -65,7 +65,10 @@ defmodule UnirisCoreCase do
     |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_storage_nonce, fn _ -> :ok end)
+    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
     |> stub(:encrypt_storage_nonce, fn _ -> :crypto.strong_rand_bytes(32) end)
+
+    start_supervised!(UnirisCore.Storage.Cache)
 
     on_exit(fn ->
       DynamicSupervisor.which_children(NodeSupervisor)

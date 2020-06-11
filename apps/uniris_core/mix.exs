@@ -4,7 +4,7 @@ defmodule UnirisCore.MixProject do
   def project do
     [
       app: :uniris_core,
-      version: "0.3.1",
+      version: "0.4.0",
       build_path: "../../_build",
       config_path: "../../config/config.exs",
       deps_path: "../../deps",

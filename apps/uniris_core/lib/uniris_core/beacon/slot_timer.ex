@@ -63,6 +63,8 @@ defmodule UnirisCore.BeaconSlotTimer do
     {:noreply, Map.put(state, :last_slot_time, slot_time)}
   end
 
+  defp schedule_new_slot(0), do: :ok
+
   defp schedule_new_slot(interval) do
     Process.send_after(__MODULE__, :new_slot, interval)
   end

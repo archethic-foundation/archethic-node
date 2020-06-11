@@ -2,8 +2,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
   use Phoenix.LiveView
 
   alias UnirisCore.Transaction
-  alias UnirisCore.Storage
-  alias UnirisCore.PubSub
   alias UnirisCore.Crypto
 
   def mount(_params, _session, socket) do
@@ -11,37 +9,42 @@ defmodule UnirisWeb.TransactionDetailsLive do
      assign(socket, %{exists: false, previous_address: nil, transaction: nil, hide_content: true})}
   end
 
+  def handle_params(opts = %{"address" => address}, _uri, socket) do
+    address = Base.decode16!(address)
 
-  def handle_params(%{"address" => address, "latest" => "true"}, _uri, socket) do
-    case address
-         |> Base.decode16!()
-         |> UnirisCore.get_last_transaction() do
-      {:ok, tx = %Transaction{}} ->
-        {:noreply, assign_transaction(socket, tx)}
-
-      _ ->
-        {:noreply, assign(socket, exists: false)}
-    end
-  end
-
-  def handle_params(%{"address" => address}, _uri, socket) do
-    case address
-         |> Base.decode16!()
-         |> UnirisCore.search_transaction() do
-      {:ok, tx = %Transaction{}} ->
-        {:noreply, assign_transaction(socket, tx)}
+    case Map.get(opts, "latest") do
+      "true" ->
+        UnirisCore.get_last_transaction(address)
 
       _ ->
-        {:noreply, assign(socket, exists: false)}
+        UnirisCore.search_transaction(address)
     end
-  end
+    |> case do
+      {:ok, tx = %Transaction{previous_public_key: previous_public_key}} ->
+        balance = UnirisCore.get_balance(address)
+        previous_address = Crypto.hash(previous_public_key)
+        inputs = UnirisCore.get_transaction_inputs(previous_address)
 
-  defp assign_transaction(socket, tx = %Transaction{previous_public_key: previous_public_key}) do
-    previous_address = Crypto.hash(previous_public_key)
-    socket
-      |> assign(:transaction, tx)
-      |> assign(:previous_address, previous_address)
-      |> assign(:exists, true)
+        new_socket =
+          socket
+          |> assign(:transaction, tx)
+          |> assign(:previous_address, previous_address)
+          |> assign(:balance, balance)
+          |> assign(:inputs, inputs)
+          |> assign(:address, address)
+
+        {:noreply, new_socket}
+
+      _ ->
+        inputs = UnirisCore.get_transaction_inputs(address)
+
+        new_socket =
+          socket
+          |> assign(:address, address)
+          |> assign(:inputs, inputs)
+
+        {:noreply, new_socket}
+    end
   end
 
   def handle_event("toggle_content", _value, socket = %{assigns: %{hide_content: false}}) do

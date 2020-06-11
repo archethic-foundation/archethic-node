@@ -21,9 +21,10 @@ defmodule UnirisWeb.TransactionListLive do
   def handle_info({:new_transaction, tx = %Transaction{}}, socket) do
     {:noreply, update(socket, :transactions, &Stream.concat(&1, [tx]))}
   end
+
   def handle_info(_, socket), do: {:noreply, socket}
 
   def handle_event("load-more", _, socket) do
-    {:noreply, update(socket, :page, & &1 + 1)}
+    {:noreply, update(socket, :page, &(&1 + 1))}
   end
 end

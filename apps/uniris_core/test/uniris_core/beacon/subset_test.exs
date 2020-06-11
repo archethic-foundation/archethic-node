@@ -9,7 +9,6 @@ defmodule UnirisCore.BeaconSubsetTest do
 
   setup do
     pid = start_supervised!({BeaconSubset, subset: <<0>>})
-    start_supervised!(UnirisCore.Storage.Cache)
     {:ok, subset: <<0>>, pid: pid}
   end
 
@@ -50,7 +49,13 @@ defmodule UnirisCore.BeaconSubsetTest do
     BeaconSubset.add_transaction_info(subset, %TransactionInfo{
       address: tx_address,
       timestamp: tx_time,
-      type: :keychain
+      type: :keychain,
+      movements_addresses: [
+        <<109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232, 210,
+          105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+        <<8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40, 24, 44,
+          170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
+      ]
     })
 
     public_key = :crypto.strong_rand_bytes(32)
@@ -77,7 +82,7 @@ defmodule UnirisCore.BeaconSubsetTest do
     assert tx_content ==
              Enum.join(
                [
-                 "T - 1 - #{DateTime.to_unix(tx_time)} - #{Base.encode16(tx_address)}",
+                 "T - 1 - #{DateTime.to_unix(tx_time)} - #{Base.encode16(tx_address)} - 6D023F7CEE65D5D6403ADA0A233ECA0C400BE8D26966C1C118362AC8E20D2645 - 08FDC98EB64EA9841D134A038ECFDB7F9328182CAAD6ABE01DB1CDE2583EF854",
                  "N - #{Base.encode16(public_key)} - #{DateTime.to_unix(ready_time)} - R"
                ],
                "\n"

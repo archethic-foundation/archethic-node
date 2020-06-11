@@ -17,9 +17,7 @@ defmodule UnirisCore.Crypto.TransactionLoader do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  def init(opts) do
-    renewal_interval = Keyword.get(opts, :renewal_interval)
-
+  def init(renewal_interval: renewal_interval) do
     Enum.each(Storage.node_transactions(), &load_transaction/1)
 
     with {:ok, tx} <- Storage.get_last_node_shared_secrets_transaction(),

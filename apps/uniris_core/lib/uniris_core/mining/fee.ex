@@ -2,22 +2,37 @@ defmodule UnirisCore.Mining.Fee do
   @moduledoc false
 
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
 
   @storage_node_rate 0.5
-  @validation_node_rate 0.4
+  @cross_validation_node_rate 0.4
   @coordinator_rate 0.095
   @welcome_rate 0.005
 
-  # TODO: use the network pool in the rewards and the fee rate
+  @doc """
+  Determines the fee for a given transaction
 
+  Network transactions cost 0.0
+  For others a dedicated algorithm is used depending on the complexity of the transaction
+  """
   @spec compute(Transaction.pending()) :: float()
-  def compute(_tx = %Transaction{type: :node}), do: 0.0
-  def compute(_tx = %Transaction{type: :node_shared_secrets}), do: 0.0
-
-  def compute(_tx = %Transaction{}) do
-    0.0
+  def compute(tx = %Transaction{type: type}) do
+    if Transaction.network_type?(type) do
+      0.0
+    else
+      do_compute(tx)
+    end
   end
 
+  defp do_compute(_tx) do
+    # TODO: implement the fee computation algorithm
+    0.1
+  end
+
+  @doc """
+  Distribute fees to reward nodes involved during the transaction mining
+  (welcome node, coordinator, cross validator, previous storage nodes)
+  """
   @spec distribute(
           fee :: float(),
           welcome_node :: UnirisCore.Crypto.key(),
@@ -25,36 +40,60 @@ defmodule UnirisCore.Mining.Fee do
           validation_node_public_keys :: nonempty_list(UnirisCore.Crypto.key()),
           previous_storage_node_public_keys :: list(UnirisCore.Crypto.key())
         ) ::
-          rewards :: nonempty_list({node_public_key :: binary(), amount :: float()})
+          rewards :: list(Movement.t())
   def distribute(
         fee,
         welcome_node,
         coordinator,
-        validation_nodes,
+        cross_validation_nodes,
         previous_storage_nodes
       )
-      when is_list(validation_nodes) and is_list(previous_storage_nodes) and
-             length(validation_nodes) > 0 do
+      when is_list(cross_validation_nodes) and is_list(previous_storage_nodes) and
+             length(cross_validation_nodes) > 0 do
     storage_node_rewards = fee * @storage_node_rate
-    validation_node_rewards = fee * @validation_node_rate
+    cross_validation_nodes_rewards = fee * @cross_validation_node_rate
     coordinator_node_rewards = fee * @coordinator_rate
     welcome_node_reward = fee * @welcome_rate
 
-    # Split the validation node rewards among the cross validation nodes
-    validation_node_reward = validation_node_rewards / length(validation_nodes)
+    # Split the cross validation node rewards among the cross validation nodes
+    cross_validation_nodes_reward =
+      cross_validation_nodes_rewards / length(cross_validation_nodes)
 
     case length(previous_storage_nodes) do
       0 ->
-        [{welcome_node, welcome_node_reward}, {coordinator, coordinator_node_rewards}] ++
-          Enum.map(validation_nodes, fn n -> {n, validation_node_reward} end)
+        # Add the reward for the previous storage nodes because the previous chain does not exists
+        # and the validation nodes made the request with nothing returned
+        # An additional reward equal of the storage node rewards is split among validation nodes
+        additional_reward = storage_node_rewards / (length(cross_validation_nodes) + 1)
+
+        [
+          [
+            %Movement{to: welcome_node, amount: welcome_node_reward},
+            %Movement{to: coordinator, amount: coordinator_node_rewards + additional_reward}
+          ],
+          Enum.map(
+            cross_validation_nodes,
+            &%Movement{to: &1, amount: cross_validation_nodes_reward + additional_reward}
+          )
+        ]
+        |> :lists.flatten()
 
       nb_storage_nodes ->
         # Split the storage node rewards among the previous storage nodes
         storage_node_reward = storage_node_rewards / nb_storage_nodes
 
-        [{welcome_node, welcome_node_reward}, {coordinator, coordinator_node_rewards}] ++
-          Enum.map(validation_nodes, fn n -> {n, validation_node_reward} end) ++
-          Enum.map(previous_storage_nodes, fn n -> {n, storage_node_reward} end)
+        [
+          [
+            %Movement{to: welcome_node, amount: welcome_node_reward},
+            %Movement{to: coordinator, amount: coordinator_node_rewards}
+          ],
+          Enum.map(
+            cross_validation_nodes,
+            &%Movement{to: &1, amount: cross_validation_nodes_reward}
+          ),
+          Enum.map(previous_storage_nodes, &%Movement{to: &1, amount: storage_node_reward})
+        ]
+        |> :lists.flatten()
     end
   end
 end

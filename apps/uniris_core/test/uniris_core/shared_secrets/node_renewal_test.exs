@@ -14,7 +14,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
   setup :set_mox_global
 
   setup do
-    %{pid: start_supervised!({NodeRenewal, interval: 1000})}
+    %{pid: start_supervised!({NodeRenewal, interval: 1000, trigger_offset: 800})}
   end
 
   test "handle_info should accept :renew message to create a new transaction with new authorized nodes",

@@ -13,15 +13,15 @@ defmodule UnirisCore.SharedSecretsSupervisor do
   end
 
   def init(_opts) do
-    renewal_interval = Application.get_env(:uniris_core, NodeRenewal)[:interval]
-    renewal_trigger_offset = Application.get_env(:uniris_core, NodeRenewal)[:trigger_offset]
+    interval = Application.get_env(:uniris_core, NodeRenewal)[:interval]
+    trigger_offset = Application.get_env(:uniris_core, NodeRenewal)[:trigger_offset]
 
     children =
       [
         Cache
       ] ++
         Utils.configurable_children([
-          {NodeRenewal, [interval: renewal_interval, trigger_offset: renewal_trigger_offset], []},
+          {NodeRenewal, [interval: interval, trigger_offset: trigger_offset], []},
           {TransactionLoader, [], []}
         ])
 

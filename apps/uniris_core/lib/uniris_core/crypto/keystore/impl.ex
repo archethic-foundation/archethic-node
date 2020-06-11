@@ -32,4 +32,8 @@ defmodule UnirisCore.Crypto.KeystoreImpl do
 
   @callback decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   @callback encrypt_storage_nonce(public_key :: UnirisCore.Crypto.key()) :: binary()
+  @callback decrypt_and_set_node_shared_secrets_network_pool_seed(
+              encrypted_seed :: binary(),
+              encrypted_aes_key :: binary()
+            ) :: :ok
 end

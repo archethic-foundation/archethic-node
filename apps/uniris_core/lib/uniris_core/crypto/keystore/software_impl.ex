@@ -184,6 +184,19 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   end
 
   def handle_call(
+        {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed,
+         encrypted_aes_key},
+        _from,
+        state = %{node_seed: node_seed, node_key_counter: index}
+      ) do
+    {_, pv} = previous_keypair(node_seed, index)
+    aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
+    network_pool_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
+
+    {:reply, :ok, Map.put(state, :network_pool_seed, network_pool_seed)}
+  end
+
+  def handle_call(
         {:decrypt_and_set_storage_nonce, encrypted_nonce},
         _from,
         state = %{
@@ -272,6 +285,14 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
     GenServer.call(
       __MODULE__,
       {:decrypt_and_set_node_shared_secrets_transaction_seed, encrypted_seed, encrypted_aes_key}
+    )
+  end
+
+  @impl true
+  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
+    GenServer.call(
+      __MODULE__,
+      {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed, encrypted_aes_key}
     )
   end
 

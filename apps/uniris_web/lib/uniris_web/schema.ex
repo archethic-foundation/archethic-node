@@ -11,11 +11,14 @@ defmodule UnirisWeb.Schema do
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.TransactionData.Keys
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.NodeMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements
-  alias UnirisCore.Transaction.ValidationStamp.LedgerMovements.UTXO
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.Transaction.CrossValidationStamp
 
-  import_types(__MODULE__.TransactionType)
+  alias __MODULE__.TransactionType
+
+  import_types(TransactionType)
 
   query do
     field :transaction, :transaction do
@@ -153,39 +156,42 @@ defmodule UnirisWeb.Schema do
   defp format(%ValidationStamp{
          proof_of_work: pow,
          proof_of_integrity: poi,
-         ledger_movements: ledger_movements,
-         node_movements: node_movements,
+         ledger_operations: ledger_operations,
          signature: signature
        }) do
     %{
       proof_of_work: pow,
       proof_of_integrity: poi,
-      ledger_movements: format(ledger_movements),
-      node_movements: format(node_movements),
+      ledger_operations: format(ledger_operations),
       signature: signature
     }
   end
 
-  defp format(%LedgerMovements{uco: uco_ledger}) do
+  defp format(%LedgerOperations{
+         transaction_movements: transaction_movements,
+         node_movements: node_movements,
+         unspent_outputs: unspent_outputs,
+         fee: fee
+       }) do
     %{
-      uco: format(uco_ledger)
+      transaction_movements: format(transaction_movements),
+      node_movements: format(node_movements),
+      unspent_outputs: format(unspent_outputs),
+      fee: fee
     }
   end
 
-  defp format(%UTXO{previous: %{from: from, amount: amount}, next: next}) do
+  defp format(%Movement{to: to, amount: amount}) do
     %{
-      previous: %{
-        from: from,
-        amount: amount
-      },
-      next: next
+      to: to,
+      amount: amount
     }
   end
 
-  defp format(%NodeMovements{fee: fee, rewards: rewards}) do
+  defp format(%UnspentOutput{from: from, amount: amount}) do
     %{
-      fee: fee,
-      rewards: format(rewards)
+      from: from,
+      amount: amount
     }
   end
 
@@ -193,18 +199,10 @@ defmodule UnirisWeb.Schema do
     Enum.map(list, &format(&1))
   end
 
-  defp format({key, amount}) do
-    %{
-      node: key,
-      amount: amount
-    }
-  end
-
-  defp format({sig, inconsistencies, public_key}) do
+  defp format(%CrossValidationStamp{signature: signature, node_public_key: public_key}) do
     %{
       node: public_key,
-      signature: sig,
-      inconsistencies: inconsistencies
+      signature: signature
     }
   end
 end

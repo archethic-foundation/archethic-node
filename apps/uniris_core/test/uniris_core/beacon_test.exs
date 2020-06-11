@@ -12,7 +12,7 @@ defmodule UnirisCore.BeaconTest do
 
   setup do
     Enum.map(BeaconSubsets.all(), &start_supervised({BeaconSubset, subset: &1}, id: &1))
-    start_supervised!({BeaconSlotTimer, slot_interval: 10_000})
+    start_supervised!({BeaconSlotTimer, interval: 10_000, trigger_offset: 100})
     :ok
   end
 

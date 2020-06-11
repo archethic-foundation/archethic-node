@@ -71,12 +71,16 @@ defmodule UnirisCore.SelfRepair do
 
   def handle_continue(
         {:first_sync, from_pid},
-        state = %{node_patch: node_patch, last_sync_date: last_sync_date, interval: interval}
+        state = %{
+          node_patch: node_patch,
+          last_sync_date: last_sync_date,
+          interval: interval
+        }
       ) do
     synchronize(last_sync_date, node_patch)
     send(from_pid, :sync_finished)
     schedule_sync(Utils.time_offset(interval))
-    {:noreply, state}
+    {:noreply, Map.put(state, :last_sync_date, update_last_sync_date())}
   end
 
   def handle_info(
@@ -117,7 +121,9 @@ defmodule UnirisCore.SelfRepair do
 
   defp store_last_sync_date(date) do
     data = DateTime.to_unix(date) |> Integer.to_string()
-    File.write!(last_sync_file(), data, [:write])
+    filename = last_sync_file()
+    File.mkdir_p!(Path.dirname(filename))
+    File.write!(filename, data, [:write])
   end
 
   # Batch and group the slot by nodes and date before the last synchronization time
@@ -238,10 +244,10 @@ defmodule UnirisCore.SelfRepair do
         end
       end)
 
-    Enum.each(transaction_infos, &download_transaction(&1, storage_nodes(&1), node_patch))
+    Enum.each(transaction_infos, &download_transaction(&1, node_patch))
   end
 
-  defp storage_nodes(%TransactionInfo{address: address, type: type}) do
+  defp transaction_storage_nodes(%TransactionInfo{address: address, type: type}) do
     if Transaction.network_type?(type) do
       P2P.list_nodes()
     else
@@ -250,39 +256,58 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp download_transaction(
-         %TransactionInfo{address: address, type: type},
-         storage_nodes,
+         tx_info = %TransactionInfo{
+           type: type,
+           address: address,
+           movements_addresses: movements_addresses
+         },
          node_patch
        ) do
     # Only elected storage nodes must download the transactions
-    if Enum.any?(storage_nodes, &(&1.first_public_key == Crypto.node_public_key(0))) do
-      downloading_nodes =
-        storage_nodes
-        |> Enum.filter(& &1.ready?)
-        |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-        |> P2P.nearest_nodes(node_patch)
+    storage_nodes = transaction_storage_nodes(tx_info)
 
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
       Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
+      do_download(address, storage_nodes, node_patch)
+    end
 
-      {:ok, tx = %Transaction{previous_public_key: previous_public_key}} =
-        do_download(downloading_nodes, {:get_transaction, address})
+    if !transaction_exists?(address) do
+      # Determines if your are IO storage node for transaction and node movements
+      Enum.each(movements_addresses, fn address ->
+        storage_nodes = Election.storage_nodes(address, P2P.list_nodes())
 
-      next_chain =
-        case Storage.get_transaction_chain(Crypto.hash(previous_public_key)) do
-          {:ok, previous_chain} ->
-            [tx | previous_chain]
-
-          _ ->
-            [tx]
+        if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+          do_download(tx_info.address, storage_nodes, node_patch)
         end
+      end)
+    end
+  end
 
-      Logger.debug("New transaction chain to store: #{inspect Enum.map(next_chain, & Base.encode16(&1.address))}")
+  defp do_download(address, storage_nodes, node_patch) do
+    downloading_nodes =
+      storage_nodes
+      |> Enum.filter(& &1.ready?)
+      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> P2P.nearest_nodes(node_patch)
 
-      if Replication.valid_chain?(next_chain) do
-        Storage.write_transaction_chain(next_chain)
-      else
+    {:ok, tx = %Transaction{previous_public_key: previous_public_key}} =
+      request_nodes(downloading_nodes, {:get_transaction, address})
+
+    previous_chain = Storage.get_transaction_chain(Crypto.hash(previous_public_key))
+    next_chain = [tx | previous_chain]
+
+    Logger.debug(
+      "New transaction chain to store: #{
+        inspect(Enum.map(next_chain, &Base.encode16(&1.address)))
+      }"
+    )
+
+    with true <- Replication.valid_transaction?(tx),
+         true <- Replication.valid_chain?(next_chain) do
+      Storage.write_transaction_chain(next_chain)
+    else
+      _ ->
         Logger.error("Invalid transaction chain #{Base.encode16(tx.address)}")
-      end
     end
   end
 
@@ -298,17 +323,17 @@ defmodule UnirisCore.SelfRepair do
     end)
   end
 
-  defp do_download([node | rest], message) do
+  defp request_nodes([node | rest], message) do
     case P2P.send_message(node, message) do
       {:ok, result} ->
         {:ok, result}
 
       _ ->
-        do_download(rest, message)
+        request_nodes(rest, message)
     end
   end
 
-  defp do_download([], _), do: {:error, :network_issue}
+  defp request_nodes([], _), do: {:error, :network_issue}
 
   defp transaction_exists?(address) do
     case Storage.get_transaction(address) do
@@ -321,8 +346,11 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp last_sync_file() do
-    last_sync_dir = Application.app_dir(:uniris_core, "priv/last_sync")
-    File.mkdir_p(last_sync_dir)
-    Path.join(last_sync_dir, Base.encode16(Crypto.node_public_key(0)))
+    relative_filepath =
+      :uniris_core
+      |> Application.get_env(__MODULE__)
+      |> Keyword.get(:last_sync_file, "priv/p2p/last_sync")
+
+    Application.app_dir(:uniris_core, relative_filepath)
   end
 end

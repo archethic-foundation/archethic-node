@@ -9,6 +9,9 @@ defmodule UnirisCore.Beacon do
   alias UnirisCore.Election
   alias UnirisCore.P2P
   alias UnirisCore.Utils
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
 
   @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
@@ -36,7 +39,7 @@ defmodule UnirisCore.Beacon do
         |> Utils.truncate_datetime()
       end)
 
-    Flow.from_enumerable(all_subsets())
+    Flow.from_enumerable(BeaconSubsets.all())
     |> Flow.partition(stages: 256)
     |> Flow.reduce(fn -> %{} end, fn subset, acc ->
       slot_times
@@ -72,10 +75,12 @@ defmodule UnirisCore.Beacon do
   end
 
   defp next_slot(date) do
-    if DateTime.diff(date, BeaconSlotTimer.last_slot_time()) > 0 do
+    last_slot_time = BeaconSlotTimer.last_slot_time()
+
+    if DateTime.diff(date, last_slot_time) > 0 do
       DateTime.add(date, BeaconSlotTimer.slot_interval())
     else
-      BeaconSlotTimer.last_slot_time()
+      last_slot_time
     end
     |> Utils.truncate_datetime()
   end
@@ -83,7 +88,7 @@ defmodule UnirisCore.Beacon do
   @doc """
   Get the last informations regarding a beacon subset slot before the last synchronized dates for the given subset.
   """
-  @spec previous_slots(subset :: <<_::8>>, dates :: list(DateTime.t())) :: BeaconSlot.t()
+  @spec previous_slots(subset :: <<_::8>>, dates :: list(DateTime.t())) :: list(BeaconSlot.t())
   def previous_slots(subset, dates) when is_binary(subset) and is_list(dates) do
     BeaconSubset.previous_slots(subset, dates)
   end
@@ -104,18 +109,38 @@ defmodule UnirisCore.Beacon do
   end
 
   @doc """
-  Add the transaction information to the current slot for the given subset
-  """
-  @spec add_transaction_info(subset :: binary(), TransactionInfo.t()) :: :ok
-  def add_transaction_info(subset, info = %TransactionInfo{}) when is_binary(subset) do
-    BeaconSubset.add_transaction_info(subset, info)
-  end
-
-  @doc """
   Add node informations to the current block of the given subset
   """
   @spec add_node_info(subset :: binary(), NodeInfo.t()) :: :ok
   def add_node_info(subset, info = %NodeInfo{}) do
     BeaconSubset.add_node_info(subset, info)
+  end
+
+  @doc """
+  Add a transaction to the beacon chain
+  """
+  @spec add_transaction(Transaction.validated()) :: :ok
+  def add_transaction(%Transaction{
+        address: address,
+        timestamp: timestamp,
+        type: type,
+        validation_stamp: %ValidationStamp{
+          ledger_operations: %LedgerOperations{
+            node_movements: node_movements,
+            transaction_movements: transaction_movements
+          }
+        }
+      }) do
+    movements_addresses =
+      Enum.map(node_movements, &Crypto.hash(&1.to)) ++ Enum.map(transaction_movements, & &1.to)
+
+    address
+    |> subset_from_address()
+    |> BeaconSubset.add_transaction_info(%TransactionInfo{
+      address: address,
+      timestamp: timestamp,
+      movements_addresses: movements_addresses,
+      type: type
+    })
   end
 end

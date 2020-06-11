@@ -11,10 +11,11 @@ defmodule UnirisCore.Storage.CassandraBackend.Supervisor do
 
   def init(_opts) do
     nodes = Application.get_env(:uniris_core, UnirisCore.Storage.CassandraBackend)[:nodes]
+
     children = [
       {Xandra, name: :xandra_conn, nodes: nodes, pool_size: 10},
       SchemaMigrator,
-      ChainQuerySupervisor,
+      ChainQuerySupervisor
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
