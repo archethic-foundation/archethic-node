@@ -20,6 +20,7 @@ defmodule Uniris.MixProject do
     [
       {:ex_doc, "~> 0.21.2", only: :dev},
       {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:observer_cli, "~> 1.5"},
       {:distillery, "~> 2.0"}
     ]
   end

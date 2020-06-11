@@ -87,7 +87,7 @@ defmodule UnirisCore.SelfRepair do
           node_patch: node_patch
         }
       ) do
-    Logger.info("Self-repair synchronization started from #{inspect last_sync_date}")
+    Logger.info("Self-repair synchronization started from #{inspect(last_sync_date)}")
     synchronize(last_sync_date, node_patch)
     schedule_sync(interval)
     {:noreply, Map.put(state, :last_sync_date, update_last_sync_date())}
@@ -220,26 +220,25 @@ defmodule UnirisCore.SelfRepair do
     transaction_infos =
       transaction_infos
       |> Enum.reject(&transaction_exists?(&1.address))
-      |> Enum.sort_by(& &1.timestamp, :desc)
+      # Need to download the latest transactions and the the newest
+      # to ensure transaction chain integrity verification
+      |> Enum.sort_by(& &1.timestamp, :asc)
       |> Enum.sort_by(& &1.type, fn type, _ -> Transaction.network_type?(type) end)
       |> Enum.sort_by(& &1.type, fn type_a, type_b ->
         # TODO: same with other network type transactions
         cond do
           type_a == :node and type_b == :node_shared_secrets ->
             true
-            type_a == :node_shared_secrets and type_b == :node ->
-              false
-              true ->
-                true
-              end
-            end)
 
-    TaskSupervisor
-    |> Task.Supervisor.async_stream(
-      transaction_infos,
-      &download_transaction(&1, storage_nodes(&1), node_patch)
-    )
-    |> Stream.run()
+          type_a == :node_shared_secrets and type_b == :node ->
+            false
+
+          true ->
+            true
+        end
+      end)
+
+    Enum.each(transaction_infos, &download_transaction(&1, storage_nodes(&1), node_patch))
   end
 
   defp storage_nodes(%TransactionInfo{address: address, type: type}) do
@@ -263,23 +262,26 @@ defmodule UnirisCore.SelfRepair do
         |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
         |> P2P.nearest_nodes(node_patch)
 
-      if Transaction.network_type?(type) do
-        Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
-        {:ok, tx} = do_download(downloading_nodes, {:get_transaction, address})
-        case Storage.get_transaction_chain(Crypto.hash(tx.previous_public_key)) do
-          {:ok, chain} ->
-            if Replication.valid_chain?([ tx | chain]) do
-              Storage.write_transaction_chain([ tx | chain])
-            end
+      Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
+
+      {:ok, tx = %Transaction{previous_public_key: previous_public_key}} =
+        do_download(downloading_nodes, {:get_transaction, address})
+
+      next_chain =
+        case Storage.get_transaction_chain(Crypto.hash(previous_public_key)) do
+          {:ok, previous_chain} ->
+            [tx | previous_chain]
+
           _ ->
-            Storage.write_transaction_chain([tx])
+            [tx]
         end
+
+      Logger.debug("New transaction chain to store: #{inspect Enum.map(next_chain, & Base.encode16(&1.address))}")
+
+      if Replication.valid_chain?(next_chain) do
+        Storage.write_transaction_chain(next_chain)
       else
-        Logger.info("Download transaction chain #{Base.encode16(address)}")
-        {:ok, chain} = do_download(downloading_nodes, {:get_transaction_chain, address})
-        if Replication.valid_chain?(chain) do
-          Storage.write_transaction_chain(chain)
-        end
+        Logger.error("Invalid transaction chain #{Base.encode16(tx.address)}")
       end
     end
   end

@@ -154,12 +154,13 @@ defmodule UnirisCore.Mining do
   """
   @spec replicate_transaction(Transaction.validated()) :: :ok
   def replicate_transaction(tx = %Transaction{}) do
+    Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
+
     case Storage.get_transaction(tx.address) do
       {:error, :transaction_not_exists} ->
         case Replication.transaction_validation_only(tx) do
           :ok ->
             Storage.write_transaction(tx)
-            Logger.info("Replicate transaction #{Base.encode16(tx.address)}")
 
           _ ->
             Storage.write_ko_transaction(tx)
@@ -183,6 +184,8 @@ defmodule UnirisCore.Mining do
   """
   @spec replicate_transaction_chain(Transaction.validated()) :: :ok
   def replicate_transaction_chain(tx = %Transaction{}) do
+    Logger.info("Replicate transaction chain #{Base.encode16(tx.address)}")
+
     case Storage.get_transaction(tx.address) do
       {:error, :transaction_not_exists} ->
         case Replication.chain_validation(tx) do
@@ -209,6 +212,8 @@ defmodule UnirisCore.Mining do
   """
   @spec replicate_address(Transaction.validated()) :: :ok
   def replicate_address(tx = %Transaction{}) do
+    Logger.info("Replicate address #{Base.encode16(tx.address)}")
+
     case Replication.transaction_validation_only(tx) do
       :ok ->
         tx.address
@@ -253,9 +258,10 @@ defmodule UnirisCore.Mining do
           node_public_key,
           [node_public_key],
           [node_public_key]
-          )
+        )
 
       cross_validation_stamp = Stamp.create_cross_validation_stamp(validation_stamp, [])
+
       %{
         tx
         | validation_stamp: validation_stamp,

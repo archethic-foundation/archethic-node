@@ -18,13 +18,12 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def init(opts) do
-    interval = Keyword.get(opts, :interval)
-    schedule_renewal(Utils.time_offset(interval))
-    {:ok, %{interval: interval}}
+  def init(interval: interval, trigger_offset: trigger_offset) do
+    schedule_renewal(Utils.time_offset(interval - trigger_offset))
+    {:ok, %{interval: interval, trigger_offset: trigger_offset}}
   end
 
-  def handle_info(:renew, state = %{interval: interval}) do
+  def handle_info(:renew, state = %{interval: interval, trigger_offset: trigger_offset}) do
     authorized_node_public_keys =
       P2P.list_nodes()
       |> Enum.filter(&(&1.ready? && &1.available? && &1.authorized?))
@@ -32,10 +31,10 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
 
     if Crypto.node_public_key() in authorized_node_public_keys do
       do_renewal()
-      schedule_renewal(interval)
+      schedule_renewal(interval - trigger_offset)
       {:noreply, state}
     else
-      schedule_renewal(interval)
+      schedule_renewal(interval - trigger_offset)
       {:noreply, state}
     end
   end

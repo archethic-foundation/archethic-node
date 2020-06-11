@@ -99,7 +99,7 @@ defmodule UnirisCore.BeaconSubset do
       |> Map.put(:current_slot, %BeaconSlot{})
       |> put_in([:slots, slot_time], tx)
 
-    Logger.info("Beacon slot created with #{inspect(current_slot)}")
+    Logger.info("Beacon slot created with #{inspect(current_slot)} at #{inspect(slot_time)}")
     {:noreply, new_state}
   end
 
@@ -154,7 +154,7 @@ defmodule UnirisCore.BeaconSubset do
     GenServer.call(via_tuple(subset), {:add_node_info, node_info})
   end
 
-  @spec previous_slots(binary(), dates :: list(DateTime.t())) :: BeaconSlot.t()
+  @spec previous_slots(binary(), dates :: list(DateTime.t())) :: list(BeaconSlot.t())
   def previous_slots(subset, dates) when is_list(dates) do
     subset
     |> via_tuple

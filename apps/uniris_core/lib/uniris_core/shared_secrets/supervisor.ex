@@ -2,6 +2,9 @@ defmodule UnirisCore.SharedSecretsSupervisor do
   @moduledoc false
 
   alias UnirisCore.Utils
+  alias UnirisCore.SharedSecrets.NodeRenewal
+  alias UnirisCore.SharedSecrets.TransactionLoader
+  alias UnirisCore.SharedSecrets.Cache
 
   use Supervisor
 
@@ -10,18 +13,16 @@ defmodule UnirisCore.SharedSecretsSupervisor do
   end
 
   def init(_opts) do
-    renewal_trigger_interval =
-      :uniris_core
-      |> Application.get_env(UnirisCore.SharedSecrets.NodeRenewal)
-      |> Keyword.fetch!(:trigger_interval)
+    renewal_interval = Application.get_env(:uniris_core, NodeRenewal)[:interval]
+    renewal_trigger_offset = Application.get_env(:uniris_core, NodeRenewal)[:trigger_offset]
 
     children =
       [
-        UnirisCore.SharedSecrets.Cache
+        Cache
       ] ++
         Utils.configurable_children([
-          {UnirisCore.SharedSecrets.NodeRenewal, [interval: renewal_trigger_interval], []},
-          {UnirisCore.SharedSecrets.TransactionLoader, [], []}
+          {NodeRenewal, [interval: renewal_interval, trigger_offset: renewal_trigger_offset], []},
+          {TransactionLoader, [], []}
         ])
 
     Supervisor.init(children, strategy: :one_for_one)

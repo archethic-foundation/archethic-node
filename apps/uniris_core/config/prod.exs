@@ -4,13 +4,14 @@ config :uniris_core, UnirisCore.Bootstrap,
   ip_lookup_provider: UnirisCore.Bootstrap.IPLookup.IPFYImpl
 
 config :uniris_core, UnirisCore.BeaconSlotTimer,
-  # TODO: change to day when the ready
-  slot_interval: 58_000
+  # TODO: change to 10 minute when the ready and beacon day summary implemented
+  interval: 60_000,
+  trigger_offset: 2_000
 
 config :uniris_core, UnirisCore.SharedSecrets.NodeRenewal,
   # TODO: change to day when the ready
   interval: 60_000,
-  trigger_interval: 50_000
+  trigger_offset: 10_000
 
 config :uniris_core, UnirisCore.SelfRepair,
   # TODO: change to day when the ready
@@ -31,5 +32,4 @@ config :uniris_core, UnirisCore.SelfRepair,
   }
 
 # TODO: specify the crypto implementation using hardware when developed
-config :uniris_core, UnirisCore.Crypto,
-  keystore: UnirisCore.Crypto.SoftwareKeystore
+config :uniris_core, UnirisCore.Crypto, keystore: UnirisCore.Crypto.SoftwareKeystore
