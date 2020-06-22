@@ -27,9 +27,19 @@ Current implemented features:
 - P2P: Inter-node communication, supervised connection to detect the P2P view of nodes in almost real-time
 - Transaction mining: ARCH consensus
 - Node bootstraping
-- Beacon chain: Track new transactions
+- Beacon chain: Track new transactions and node readyness
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
 - Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
+- P2P transfers and genesis pools allocation
+- Transaction explorer
+
+## Next features to appear very soon:
+- Binary Protocol Serialization of messages and transaction
+- Client Line Interpreter
+- Sampling P2P view on the Beacon chain
+- Summary of the Beacon chain
+- Smart Contract Standard library functions
+- P2P messages encryption
 
 
 ## Contribution
