@@ -1,14 +1,17 @@
 defmodule UnirisCore.Election.Constraints do
-  @moduledoc false
+  @moduledoc """
+  Election algorithms are based on constrains with heuristics aims to the best case.
 
-  # Election algorithms are based on constrains with heuristics aims to the best case.
-
-  # However this function can overrided in the election function to provide the most accurate
-  # tuning through the network evolution and monitor for example via the Prediction module.
+  However this function can overrided in the election function to provide the most accurate
+  tuning through the network evolution and monitor for example via the Prediction module.
+  """
 
   use GenServer
 
   alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Election.ValidationConstraints
   alias UnirisCore.Election.StorageConstraints
 
@@ -72,13 +75,13 @@ defmodule UnirisCore.Election.Constraints do
   def min_storage_geo_patch, do: 4
 
   @doc """
-  Require number of average availability by distinc geographical patches.
+  Require number of average availability by distinct geographical patches.
 
   This property ensures than each patch of the sharding will support a certain availability
   from these nodes.
   """
-  @spec min_storage_geo_patch_avg_availability() :: non_neg_integer()
-  def min_storage_geo_patch_avg_availability, do: 8
+  @spec min_storage_geo_patch_avg_availability() :: float()
+  def min_storage_geo_patch_avg_availability, do: 0.8
 
   @doc """
   Require number of validation nodes for a given transaction.
@@ -87,7 +90,7 @@ defmodule UnirisCore.Election.Constraints do
   a logarithmic progression is done to increase the number of validations
   """
   @spec validation_number(Transaction.pending()) :: non_neg_integer()
-  def validation_number(%Transaction{data: %{ledger: %{uco: %{transfers: transfers}}}})
+  def validation_number(%Transaction{data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}})
       when length(transfers) > 0 do
     total_transfers = Enum.map(transfers, & &1.amount) |> Enum.sum()
 

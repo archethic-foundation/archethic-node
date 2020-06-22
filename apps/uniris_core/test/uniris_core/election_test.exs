@@ -1,0 +1,188 @@
+defmodule UnirisCore.ElectionTest do
+  use UnirisCoreCase
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
+  alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
+  alias UnirisCore.Election
+  alias UnirisCore.Crypto
+
+  import Mox
+
+  describe "validation_nodes/1" do
+    test "should return available and authorized nodes" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node0",
+        last_public_key: "Node0",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node1",
+        last_public_key: "Node1",
+        authorized?: false,
+        ready?: true,
+        available?: true,
+        geo_patch: "CCC"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node2",
+        last_public_key: "Node2",
+        authorized?: true,
+        ready?: true,
+        available?: false,
+        geo_patch: "BBB"
+      })
+
+      assert [%Node{first_public_key: "Node0"}] = Election.validation_nodes(Transaction.new(:transfer, %TransactionData{}, "seed", 0))
+    end
+
+    test "should change for new transaction" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node0",
+        last_public_key: "Node0",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node1",
+        last_public_key: "Node1",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "CCC"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node2",
+        last_public_key: "Node2",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "BBB"
+      })
+
+      MockCrypto
+      |> stub(:hash_with_daily_nonce, fn data -> Crypto.hash(data) end)
+
+      first_election = Election.validation_nodes(Transaction.new(:transfer, %TransactionData{}, "seed", 0))
+      second_election = Election.validation_nodes(Transaction.new(:transfer, %TransactionData{}, "seed", 0))
+
+      assert Enum.map(first_election, & &1.last_public_key) != Enum.map(second_election, & &1.last_public_key)
+    end
+
+    test "should select validation nodes with a least 3 geo zones and 3 validation nodes" do
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node0",
+        last_public_key: "Node0",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node1",
+        last_public_key: "Node1",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "CCC"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node2",
+        last_public_key: "Node2",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "CCC"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node3",
+        last_public_key: "Node3",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "F24"
+      })
+
+      assert [
+        %Node{geo_patch: "AAA"},
+        %Node{geo_patch: "CCC"},
+        %Node{geo_patch: "F24"}
+      ] = Election.validation_nodes(Transaction.new(:transfer, %TransactionData{}, "seed", 0))
+    end
+  end
+
+  describe "storage_nodes/1" do
+    test "should return available ready nodes" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node0",
+        last_public_key: "Node0",
+        authorized?: true,
+        ready?: true,
+        available?: true,
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node1",
+        last_public_key: "Node1",
+        authorized?: false,
+        ready?: false,
+        available?: true,
+        geo_patch: "CCC"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "Node2",
+        last_public_key: "Node2",
+        authorized?: false,
+        ready?: true,
+        available?: true,
+        geo_patch: "BBB"
+      })
+
+      assert [%Node{first_public_key: "Node0"}, %Node{first_public_key: "Node2"}] = Election.storage_nodes(:crypto.strong_rand_bytes(32))
+    end
+
+  end
+
+end

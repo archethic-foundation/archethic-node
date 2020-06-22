@@ -2,7 +2,6 @@ defmodule UnirisCore.Election do
   @moduledoc """
   Uniris provides a random and rotating node election based on heuristic algorithms
   and constraints to ensure a fair distributed processing and data storage among its network.
-
   """
 
   alias UnirisCore.Transaction
@@ -31,7 +30,7 @@ defmodule UnirisCore.Election do
   (ie: sum of UCO to transfer - a high UCO transfer will require a high number of validations)
 
   """
-  @spec validation_nodes(UnirisChain.Transaction.pending()) :: [Node.t()]
+  @spec validation_nodes(Transaction.pending()) :: [Node.t()]
   def validation_nodes(tx = %Transaction{}) do
     # Evaluate heuristics constraints
     %ValidationConstraints{
@@ -232,7 +231,7 @@ defmodule UnirisCore.Election do
   @doc """
   Return the actual constraints for the transaction validation
   """
-  @spec validation_constraints() :: ValidationConstraints
+  @spec validation_constraints() :: ValidationConstraints.t()
   def validation_constraints() do
     Constraints.for_validation()
   end
