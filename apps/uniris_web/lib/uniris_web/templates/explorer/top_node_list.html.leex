@@ -10,9 +10,9 @@
 <%= for node <- @nodes do %>
     <div class="row" style="justify-content: space-between">
         <div class="column column-20">
-            <span>
+            <%= link to: Routes.node_path(@socket, :show, Base.encode16(node.last_public_key)) do%>
                 <%= Base.encode16(:binary.part(node.last_public_key, 0, 5)) %>...
-            </span>
+            <% end %>
         </div>
       <div class="column column-20"><%= :inet_parse.ntoa(node.ip) %></div>
         <div class="column column-10"><%= node.port %></div>

@@ -1,0 +1,19 @@
+<div class="row explorer-card">
+    <div class="column">
+        <header class="row">
+            <div class="column"><h3>Node list</h3></div>
+        </header>
+
+        <%= for node <- @nodes do %>
+        <div class="row">
+            <div class="column">
+                <span>
+                    <%= link to: Routes.node_path(@conn, :show, Base.encode16(node.last_public_key)) do%>
+                        <%= Base.encode16(node.last_public_key) %>
+                    <% end %>
+                </span>
+            </div>
+        </div>
+        <% end %>
+    </div>
+</div>

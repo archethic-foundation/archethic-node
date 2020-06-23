@@ -26,12 +26,14 @@
                     N/A
                 <% else %>
                     <%= for input <- @inputs do %>
-                    <div class="column column-50">
-                        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(input.from)) do%>
-                            <%= Base.encode16(input.from) %>
-                        <% end %>
+                    <div class="row">
+                        <div class="column column-80">
+                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(input.from)) do%>
+                                <%= Base.encode16(input.from) %>
+                            <% end %>
+                        </div>
+                        <div class="column column-20"><%= input.amount %></div>
                     </div>
-                    <div class="column column-20 column-offset-40"><%= input.amount %></div>
                     <% end %>
                 <% end %>
                 </div>
@@ -288,7 +290,11 @@
                                                                     <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
                                                                         <div class="row">
                                                                             <div class="column">
-                                                                                <p class="title"><%= Base.encode16(movement.to) %></p>
+                                                                                <p class="title">
+                                                                                <%= link to: Routes.node_path(@socket, :show, Base.encode16(movement.to)) do%>
+                                                                                    <%= Base.encode16(movement.to) %>
+                                                                                <% end %>
+                                                                                </p>
                                                                                 <%= movement.amount %>
                                                                             </div>
                                                                         </div>

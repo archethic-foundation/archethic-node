@@ -29,6 +29,8 @@ defmodule UnirisWeb.Router do
     live("/search", TransactionDetailsLive)
     live("/transactions", TransactionListLive)
     get("/chain", ExplorerController, :chain)
+    get("/node", NodeController, :index)
+    get("/node/:public_key", NodeController, :show)
   end
 
   scope "/api" do

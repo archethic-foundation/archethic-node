@@ -25,8 +25,8 @@
 
     <section class="column column-50 explorer-card" style="margin-left: 5%">
         <header>
-            <h3>Node list</h3>
+            <h3>Top nodes</h3>
         </header>
-        <%= live_render(@conn, UnirisWeb.NodeLive) %>
+        <%= live_render(@conn, UnirisWeb.TopNodeLive) %>
     </section>
 </div>
