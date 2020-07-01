@@ -72,7 +72,7 @@ defmodule UnirisCore.Crypto do
 
   The seed generates a master key and an entropy used in the child keys generation.
 
-                                                               / (256 bytes) Next key (next_seed) --> GenKey(next_seed)
+                                                               / (256 bytes) Next private key
                           (256 bytes) Master key  --> HMAC-512
                         /                              Key: Master entropy,
       seed --> HMAC-512                                Data: Master key + index)
@@ -312,10 +312,10 @@ defmodule UnirisCore.Crypto do
 
       iex> {pub, pv} = UnirisCore.Crypto.generate_deterministic_keypair("myseed")
       iex> UnirisCore.Crypto.sign("myfakedata", pv)
-      <<240, 207, 59, 29, 236, 164, 157, 87, 84, 62, 177, 26, 76, 69, 209, 125, 110,
-      136, 168, 113, 112, 243, 155, 254, 59, 214, 193, 191, 112, 55, 194, 220, 2,
-      190, 0, 1, 214, 104, 252, 133, 3, 112, 19, 27, 129, 231, 237, 59, 174, 4, 82,
-      210, 110, 204, 219, 237, 197, 26, 140, 63, 97, 67, 27, 8>>
+      <<134, 75, 169, 39, 40, 35, 4, 109, 28, 62, 145, 46, 45, 77, 191, 123, 29, 101,
+      180, 36, 66, 91, 161, 126, 70, 126, 30, 211, 24, 76, 95, 8, 229, 20, 121, 19,
+      151, 44, 109, 111, 189, 183, 201, 77, 90, 254, 53, 197, 139, 58, 190, 118, 73,
+      220, 57, 50, 205, 241, 100, 197, 243, 213, 171, 1>>
   """
   @spec sign(data :: iodata(), private_key :: binary()) :: signature :: binary()
   def sign(data, _private_key = <<curve_id::8, key::binary>>)
