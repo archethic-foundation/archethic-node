@@ -91,7 +91,7 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
         address:
           <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143, 71, 189, 178, 226,
             124, 57, 18, 0, 115, 106, 182, 71, 149, 191, 76, 168, 248, 14, 164>>,
-        data: %{},
+        data: %TransactionData{},
         previous_public_key:
           <<0, 110, 226, 20, 197, 55, 224, 165, 95, 201, 111, 210, 50, 138, 25, 142, 130, 140, 51,
             143, 208, 228, 230, 150, 84, 161, 157, 32, 42, 55, 118, 226, 12>>,
@@ -100,23 +100,15 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
             254, 192, 171, 72, 45, 35, 228, 190, 53, 99, 157, 186, 69, 123, 129, 107, 234, 129,
             135, 115, 243, 177, 225, 166, 248, 247, 88, 173, 221, 239, 60, 159, 22, 209, 223, 139,
             253, 6, 210, 81, 143, 0, 118, 222, 15>>,
-        timestamp: 1_578_931_642,
-        type: :transfer,
-        origin_signature: ""
+        timestamp: ~U[2020-01-13 16:07:22Z],
+        type: :transfer
       }
 
       sig =
-        Crypto.sign(
-          Map.take(tx, [
-            :address,
-            :type,
-            :timestamp,
-            :data,
-            :previous_public_key,
-            :previous_signature
-          ]),
-          origin_pv
-        )
+        tx
+        |> Transaction.extract_for_origin_signature()
+        |> Transaction.serialize()
+        |> Crypto.sign(origin_pv)
 
       tx = %{tx | origin_signature: sig}
 
@@ -129,7 +121,7 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
         address:
           <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143, 71, 189, 178, 226,
             124, 57, 18, 0, 115, 106, 182, 71, 149, 191, 76, 168, 248, 14, 164>>,
-        data: %{},
+        data: %TransactionData{},
         previous_public_key:
           <<0, 110, 226, 20, 197, 55, 224, 165, 95, 201, 111, 210, 50, 138, 25, 142, 130, 140, 51,
             143, 208, 228, 230, 150, 84, 161, 157, 32, 42, 55, 118, 226, 12>>,
@@ -138,7 +130,7 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
             254, 192, 171, 72, 45, 35, 228, 190, 53, 99, 157, 186, 69, 123, 129, 107, 234, 129,
             135, 115, 243, 177, 225, 166, 248, 247, 88, 173, 221, 239, 60, 159, 22, 209, 223, 139,
             253, 6, 210, 81, 143, 0, 118, 222, 15>>,
-        timestamp: 1_578_931_642,
+        timestamp: ~U[2020-01-13 16:07:22Z],
         type: :transfer,
         origin_signature: ""
       }
@@ -160,7 +152,7 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
         address:
           <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143, 71, 189, 178, 226,
             124, 57, 18, 0, 115, 106, 182, 71, 149, 191, 76, 168, 248, 14, 164>>,
-        data: %{},
+        data: %TransactionData{},
         previous_public_key:
           <<0, 110, 226, 20, 197, 55, 224, 165, 95, 201, 111, 210, 50, 138, 25, 142, 130, 140, 51,
             143, 208, 228, 230, 150, 84, 161, 157, 32, 42, 55, 118, 226, 12>>,
@@ -169,7 +161,7 @@ defmodule UnirisCore.Mining.ProofOfWorkTest do
             254, 192, 171, 72, 45, 35, 228, 190, 53, 99, 157, 186, 69, 123, 129, 107, 234, 129,
             135, 115, 243, 177, 225, 166, 248, 247, 88, 173, 221, 239, 60, 159, 22, 209, 223, 139,
             253, 6, 210, 81, 143, 0, 118, 222, 15>>,
-        timestamp: 1_578_931_642,
+        timestamp: ~U[2020-01-13 16:07:22Z],
         type: :transfer,
         origin_signature: ""
       }

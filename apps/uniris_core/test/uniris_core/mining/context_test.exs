@@ -14,6 +14,13 @@ defmodule UnirisCore.Mining.ContextTest do
   alias UnirisCore.Crypto
   alias UnirisCore.Mining.Context
   alias UnirisCore.BeaconSlotTimer
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetTransactionHistory
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.UnspentOutputList
 
   import Mox
 
@@ -199,7 +206,7 @@ defmodule UnirisCore.Mining.ContextTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_transaction, _} ->
+          %GetTransaction{} ->
             utxo =
               Transaction.new(
                 :transfer,
@@ -226,15 +233,19 @@ defmodule UnirisCore.Mining.ContextTest do
                 }
             }
 
-            {:ok, utxo}
+            utxo
 
-          {:get_unspent_outputs, _} ->
-            [
-              %UnspentOutput{from: :crypto.strong_rand_bytes(32), amount: 10}
-            ]
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{
+              unspent_outputs: [
+                %UnspentOutput{from: :crypto.strong_rand_bytes(32), amount: 10}
+              ]
+            }
 
-          {:get_proof_of_integrity, _} ->
-            {:ok, tx1.validation_stamp.proof_of_integrity}
+          %GetProofOfIntegrity{} ->
+            %ProofOfIntegrity{
+              digest: tx1.validation_stamp.proof_of_integrity
+            }
         end
       end)
 
@@ -301,17 +312,19 @@ defmodule UnirisCore.Mining.ContextTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-            [
-              [tx1],
-              [%UnspentOutput{from: utxo.address, amount: 10}]
-            ]
+          %GetTransactionHistory{} ->
+            %TransactionHistory{
+              transaction_chain: [tx1],
+              unspent_outputs: [%UnspentOutput{from: utxo.address, amount: 10}]
+            }
 
-          {:get_transaction, _} ->
-            {:ok, utxo}
+          %GetTransaction{} ->
+            utxo
 
-          {:get_proof_of_integrity, _} ->
-            {:ok, tx1.validation_stamp.proof_of_integrity}
+          %GetProofOfIntegrity{} ->
+            %ProofOfIntegrity{
+              digest: tx1.validation_stamp.proof_of_integrity
+            }
         end
       end)
 
@@ -347,11 +360,16 @@ defmodule UnirisCore.Mining.ContextTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          [{:get_transaction_chain, _}, {:get_unspent_outputs, _}] ->
-            [[tx1], []]
+          %GetTransactionHistory{} ->
+            %TransactionHistory{
+              transaction_chain: [tx1],
+              unspent_outputs: []
+            }
 
-          {:get_proof_of_integrity, _} ->
-            {:ok, tx1.validation_stamp.proof_of_integrity}
+          %GetProofOfIntegrity{} ->
+            %ProofOfIntegrity{
+              digest: tx1.validation_stamp.proof_of_integrity
+            }
         end
       end)
 

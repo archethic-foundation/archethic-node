@@ -2,6 +2,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
   use ExUnit.Case
 
   alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Mining.ProofOfIntegrity
@@ -11,8 +12,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
     chain = [generate_pending_transaction()]
 
     assert ProofOfIntegrity.compute(chain) ==
-             <<0, 124, 218, 7, 251, 132, 31, 68, 160, 11, 89, 35, 220, 108, 29, 176, 147, 26, 131,
-               183, 181, 139, 2, 118, 197, 222, 231, 164, 155, 111, 109, 31, 186>>
+             <<0, 79, 248, 40, 124, 60, 154, 114, 49, 189, 142, 181, 181, 9, 221, 248, 118, 28,
+               228, 249, 237, 143, 227, 27, 0, 225, 49, 206, 107, 243, 165, 207, 138>>
   end
 
   test "compute/1 should produce a hash of the pending transaction with the previous proof of integrity when there is chain" do
@@ -20,8 +21,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
 
     assert ProofOfIntegrity.compute(chain) ==
              Crypto.hash([
-               <<0, 124, 218, 7, 251, 132, 31, 68, 160, 11, 89, 35, 220, 108, 29, 176, 147, 26,
-                 131, 183, 181, 139, 2, 118, 197, 222, 231, 164, 155, 111, 109, 31, 186>>,
+               <<0, 79, 248, 40, 124, 60, 154, 114, 49, 189, 142, 181, 181, 9, 221, 248, 118, 28,
+                 228, 249, 237, 143, 227, 27, 0, 225, 49, 206, 107, 243, 165, 207, 138>>,
                <<6, 228, 101, 3, 9, 194, 111, 2, 16, 36, 134, 76, 42, 82, 18, 231, 226, 104, 55,
                  36, 66, 121, 135, 4, 126, 193, 156, 134, 50, 78, 167, 45>>
              ])
@@ -43,8 +44,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
           135, 104, 16, 239, 82, 32, 33, 7, 240, 127, 111, 29, 27>>,
       type: :transfer,
-      timestamp: 1_585_562_790,
-      data: %{},
+      timestamp: ~U[2020-03-30 10:06:30Z],
+      data: %TransactionData{},
       previous_public_key:
         <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
           212, 99, 55, 72, 11, 248, 250, 11, 140, 137, 167, 118, 253>>,
@@ -67,8 +68,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
           135, 104, 16, 239, 82, 32, 33, 7, 240, 127, 111, 29, 27>>,
       type: :transfer,
-      timestamp: 1_585_562_790,
-      data: %{},
+      timestamp: ~U[2020-03-30 10:06:30Z],
+      data: %TransactionData{},
       previous_public_key:
         <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
           212, 99, 55, 72, 11, 248, 250, 11, 140, 137, 167, 118, 253>>,

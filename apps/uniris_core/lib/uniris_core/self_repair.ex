@@ -14,6 +14,8 @@ defmodule UnirisCore.SelfRepair do
   alias UnirisCore.Utils
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.Mining.Replication
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetBeaconSlots
 
   require Logger
 
@@ -141,10 +143,10 @@ defmodule UnirisCore.SelfRepair do
   defp get_beacon_slots(slot_batches) do
     TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(slot_batches, fn {node, subset_map} ->
-      P2P.send_message(node, {:get_beacon_slots, Map.to_list(subset_map)})
+      P2P.send_message(node, %GetBeaconSlots{subsets_slots: subset_map})
     end)
     |> Enum.into([], fn {:ok, res} -> res end)
-    |> Enum.flat_map(& &1)
+    |> Enum.flat_map(& &1.slots)
     |> Enum.uniq()
   end
 
@@ -290,8 +292,9 @@ defmodule UnirisCore.SelfRepair do
       |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
       |> P2P.nearest_nodes(node_patch)
 
-    {:ok, tx = %Transaction{previous_public_key: previous_public_key}} =
-      request_nodes(downloading_nodes, {:get_transaction, address})
+    tx =
+      %Transaction{previous_public_key: previous_public_key} =
+      request_nodes(downloading_nodes, %GetTransaction{address: address})
 
     previous_chain = Storage.get_transaction_chain(Crypto.hash(previous_public_key))
     next_chain = [tx | previous_chain]
@@ -325,8 +328,8 @@ defmodule UnirisCore.SelfRepair do
 
   defp request_nodes([node | rest], message) do
     case P2P.send_message(node, message) do
-      {:ok, result} ->
-        {:ok, result}
+      tx = %Transaction{} ->
+        tx
 
       _ ->
         request_nodes(rest, message)

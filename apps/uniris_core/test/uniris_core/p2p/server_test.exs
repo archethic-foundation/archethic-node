@@ -8,6 +8,10 @@ defmodule UnirisCore.P2PServerTest do
 
   @tcp_options [:binary, packet: 4, active: false]
 
+  alias UnirisCore.P2P.Message
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+
   setup do
     port = Application.get_env(:uniris_core, UnirisCore.P2P) |> Keyword.fetch!(:port)
     {:ok, %{port: port}}
@@ -15,10 +19,10 @@ defmodule UnirisCore.P2PServerTest do
 
   test "send message node should retrieve data", %{port: port} do
     {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, @tcp_options)
-    :ok = :gen_tcp.send(socket, :erlang.term_to_binary(:new_seeds))
+    :ok = :gen_tcp.send(socket, Message.encode(%GetBootstrappingNodes{patch: "AAA"}))
 
     {:ok, data} = :gen_tcp.recv(socket, 0)
-    assert [] = :erlang.binary_to_term(data)
+    assert %BootstrappingNodes{} = Message.decode(data)
     :gen_tcp.close(socket)
   end
 end

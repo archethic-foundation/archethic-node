@@ -9,7 +9,8 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
             unspent_outputs: [],
             fee: 0.0
 
-  alias __MODULE__.Movement
+  alias __MODULE__.TransactionMovement
+  alias __MODULE__.NodeMovement
   alias __MODULE__.UnspentOutput
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
@@ -21,8 +22,8 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
   alias UnirisCore.Election
 
   @type t() :: %__MODULE__{
-          transaction_movements: list(Movement.t()),
-          node_movements: list(Movement.t()),
+          transaction_movements: list(TransactionMovement.t()),
+          node_movements: list(NodeMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
           fee: float()
         }
@@ -93,7 +94,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
     else
       transfers_movements =
         Enum.map(transfers, fn %Transfer{to: to, amount: amount} ->
-          %Movement{to: to, amount: amount}
+          %TransactionMovement{to: to, amount: amount}
         end)
 
       ops = %__MODULE__{fee: fee, transaction_movements: transfers_movements}
@@ -187,7 +188,10 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
          validation_nodes
        ) do
     expected_storage_nodes = expected_storage_nodes(tx.previous_public_key)
-    [%Movement{to: welcome_node}, %Movement{to: coordinator_node}] = Enum.take(node_movements, 2)
+
+    [%NodeMovement{to: welcome_node}, %NodeMovement{to: coordinator_node}] =
+      Enum.take(node_movements, 2)
+
     %{nodes: rewarded_nodes, rewards: rewards} = reduce_rewards(node_movements)
 
     cross_validation_nodes =
@@ -236,7 +240,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
   end
 
   defp reduce_rewards(rewards) do
-    Enum.reduce(rewards, %{nodes: [], rewards: []}, fn %Movement{
+    Enum.reduce(rewards, %{nodes: [], rewards: []}, fn %NodeMovement{
                                                          to: node_public_key,
                                                          amount: reward
                                                        },
@@ -271,5 +275,174 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
     |> Enum.map(&Election.storage_nodes/1)
     |> :lists.flatten()
     |> Enum.uniq()
+  end
+
+  @doc """
+  Serialize a ledger operations
+
+  ## Examples
+
+      iex> UnirisCore.Transaction.ValidationStamp.LedgerOperations.serialize(%UnirisCore.Transaction.ValidationStamp.LedgerOperations{
+      ...>   fee: 0.1,
+      ...>   transaction_movements: [
+      ...>     %UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement{
+      ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+      ...>       amount: 10.2
+      ...>     }
+      ...>   ],
+      ...>   node_movements: [
+      ...>     %UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement{
+      ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+      ...>       amount: 0.3
+      ...>     }
+      ...>   ],
+      ...>   unspent_outputs: [
+      ...>     %UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput{
+      ...>       from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+      ...>       amount: 2.0
+      ...>     }
+      ...>   ]
+      ...> })
+      <<
+      # Fee
+      63, 185, 153, 153, 153, 153, 153, 154,
+      # Nb of transaction movements
+      1,
+      # Transaction movement recipient
+      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      # Transaction movement amount
+      "@$ffffff",
+      # Nb of node movements
+      1,
+      # Node public key
+      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      # Node reward
+      63, 211, 51, 51, 51, 51, 51, 51,
+      # Nb of unspent outputs
+      1,
+      # Unspent output origin
+      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      # Unspent output amount
+      64, 0, 0, 0, 0, 0, 0, 0
+      >>
+  """
+  def serialize(%__MODULE__{
+        fee: fee,
+        transaction_movements: transaction_movements,
+        node_movements: node_movements,
+        unspent_outputs: unspent_outputs
+      }) do
+    bin_transaction_movements =
+      transaction_movements
+      |> Enum.map(&TransactionMovement.serialize/1)
+      |> :erlang.list_to_binary()
+
+    bin_node_movements =
+      node_movements |> Enum.map(&NodeMovement.serialize/1) |> :erlang.list_to_binary()
+
+    bin_unspent_outputs =
+      unspent_outputs |> Enum.map(&UnspentOutput.serialize/1) |> :erlang.list_to_binary()
+
+    <<fee::float, length(transaction_movements)::8, bin_transaction_movements::binary,
+      length(node_movements)::8, bin_node_movements::binary, length(unspent_outputs)::8,
+      bin_unspent_outputs::binary>>
+  end
+
+  @doc """
+  Deserialize an encoded ledger operations
+
+  ## Examples
+
+      iex> <<63, 185, 153, 153, 153, 153, 153, 154, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195,
+      ...> 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47,
+      ...> 158, 139, 207, "@$ffffff", 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
+      ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      ...> 63, 211, 51, 51, 51, 51, 51, 51, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
+      ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      ...> 64, 0, 0, 0, 0, 0, 0, 0 >>
+      ...> |> UnirisCore.Transaction.ValidationStamp.LedgerOperations.deserialize()
+      {
+        %UnirisCore.Transaction.ValidationStamp.LedgerOperations{
+          fee: 0.1,
+          transaction_movements: [
+            %UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement{
+              to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+              amount: 10.2
+            }
+          ],
+          node_movements: [
+            %UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement{
+              to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+              amount: 0.3
+            }
+          ],
+          unspent_outputs: [
+            %UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput{
+              from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+                86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
+              amount: 2.0
+            }
+          ]
+        },
+        ""
+      }
+  """
+  def deserialize(<<fee::float, nb_transaction_movements::8, rest::bitstring>>) do
+    {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
+    <<nb_node_movements::8, rest::bitstring>> = rest
+    {node_movements, rest} = reduce_node_movements(rest, nb_node_movements, [])
+    <<nb_utxos::8, rest::bitstring>> = rest
+    {utxos, rest} = reduce_unspent_outputs(rest, nb_utxos, [])
+
+    {
+      %__MODULE__{
+        fee: fee,
+        transaction_movements: tx_movements,
+        node_movements: node_movements,
+        unspent_outputs: utxos
+      },
+      rest
+    }
+  end
+
+  defp reduce_transaction_movements(rest, 0, _), do: {[], rest}
+
+  defp reduce_transaction_movements(rest, nb, acc) when length(acc) == nb do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp reduce_transaction_movements(rest, nb, acc) do
+    {tx_movement, rest} = TransactionMovement.deserialize(rest)
+    reduce_transaction_movements(rest, nb, [tx_movement | acc])
+  end
+
+  defp reduce_node_movements(rest, 0, _), do: {[], rest}
+
+  defp reduce_node_movements(rest, nb, acc) when length(acc) == nb do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp reduce_node_movements(rest, nb, acc) do
+    {node_movement, rest} = NodeMovement.deserialize(rest)
+    reduce_node_movements(rest, nb, [node_movement | acc])
+  end
+
+  defp reduce_unspent_outputs(rest, 0, _), do: {[], rest}
+
+  defp reduce_unspent_outputs(rest, nb, acc) when length(acc) == nb do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp reduce_unspent_outputs(rest, nb, acc) do
+    {utxo, rest} = UnspentOutput.deserialize(rest)
+    reduce_unspent_outputs(rest, nb, [utxo | acc])
   end
 end

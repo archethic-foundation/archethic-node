@@ -5,12 +5,13 @@ defmodule UnirisCore.Mining.ReplicationTest do
 
   alias UnirisCore.Mining.Replication
   alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.ProofOfIntegrity
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Crypto
   alias UnirisCore.Beacon
@@ -21,6 +22,8 @@ defmodule UnirisCore.Mining.ReplicationTest do
   alias UnirisCore.BeaconSubsetRegistry
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.UnspentOutputList
 
   import Mox
 
@@ -145,8 +148,8 @@ defmodule UnirisCore.Mining.ReplicationTest do
         proof_of_integrity: :crypto.strong_rand_bytes(32),
         ledger_operations: %LedgerOperations{
           node_movements: [
-            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
-            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+            %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %NodeMovement{to: Crypto.node_public_key(), amount: 0.0}
           ]
         },
         signature: ""
@@ -166,24 +169,27 @@ defmodule UnirisCore.Mining.ReplicationTest do
     test "should return false when the the proof of work is invalid" do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
-      stamp = %{
+      stamp = %ValidationStamp{
         proof_of_work: <<0>> <> :crypto.strong_rand_bytes(32),
         proof_of_integrity: :crypto.strong_rand_bytes(32),
         ledger_operations: %LedgerOperations{
           node_movements: [
-            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
-            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+            %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %NodeMovement{to: Crypto.node_public_key(), amount: 0.0}
           ]
         }
       }
 
-      sig = Crypto.sign_with_node_key(stamp)
-      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      sig =
+        stamp
+        |> ValidationStamp.serialize()
+        |> Crypto.sign_with_node_key()
+
       cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
 
       tx = %{
         tx
-        | validation_stamp: stamp,
+        | validation_stamp: %{stamp | signature: sig},
           cross_validation_stamps: cross_validation_stamps
       }
 
@@ -193,23 +199,30 @@ defmodule UnirisCore.Mining.ReplicationTest do
     test "should return false when the fee is invalid" do
       tx = Transaction.new(:node, %TransactionData{})
 
-      stamp = %{
+      stamp = %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: :crypto.strong_rand_bytes(32),
         ledger_operations: %LedgerOperations{
           fee: 5.5,
           node_movements: [
-            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
-            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+            %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %NodeMovement{to: Crypto.node_public_key(), amount: 0.0}
           ]
         }
       }
 
-      sig = Crypto.sign_with_node_key(stamp)
-      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      sig =
+        stamp
+        |> ValidationStamp.serialize()
+        |> Crypto.sign_with_node_key()
+
       cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
 
-      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+      tx = %{
+        tx
+        | validation_stamp: %{stamp | signature: sig},
+          cross_validation_stamps: cross_validation_stamps
+      }
 
       assert false == Replication.valid_transaction?(tx)
     end
@@ -217,23 +230,30 @@ defmodule UnirisCore.Mining.ReplicationTest do
     test "should return false when the total rewards is invalid" do
       tx = Transaction.new(:node, %TransactionData{})
 
-      stamp = %{
+      stamp = %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: :crypto.strong_rand_bytes(32),
         ledger_operations: %LedgerOperations{
           fee: 0.0,
           node_movements: [
-            %Movement{to: :crypto.strong_rand_bytes(32), amount: 1},
-            %Movement{to: Crypto.node_public_key(), amount: 3}
+            %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 1},
+            %NodeMovement{to: Crypto.node_public_key(), amount: 3}
           ]
         }
       }
 
-      sig = Crypto.sign_with_node_key(stamp)
-      stamp = struct!(ValidationStamp, Map.put(stamp, :signature, sig))
+      sig =
+        stamp
+        |> ValidationStamp.serialize()
+        |> Crypto.sign_with_node_key()
+
       cross_validation_stamps = [CrossValidationStamp.new(stamp, [])]
 
-      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+      tx = %{
+        tx
+        | validation_stamp: %{stamp | signature: sig},
+          cross_validation_stamps: cross_validation_stamps
+      }
 
       assert false == Replication.valid_transaction?(tx)
     end
@@ -287,9 +307,14 @@ defmodule UnirisCore.Mining.ReplicationTest do
 
       {pub, pv} = Crypto.generate_deterministic_keypair("other_seed", :secp256r1)
 
+      cross_validation_stamp_sig =
+        stamp
+        |> ValidationStamp.serialize()
+        |> Crypto.sign(pv)
+
       cross_validation_stamps = [
         %CrossValidationStamp{
-          signature: Crypto.sign(stamp, pv),
+          signature: cross_validation_stamp_sig,
           inconsistencies: [],
           node_public_key: pub
         }
@@ -343,14 +368,14 @@ defmodule UnirisCore.Mining.ReplicationTest do
         ready?: true
       })
 
-      stamp = %{
+      stamp = %ValidationStamp{
         proof_of_work: Crypto.node_public_key(),
-        proof_of_integrity: Crypto.hash(tx),
+        proof_of_integrity: ProofOfIntegrity.compute([tx]),
         ledger_operations: %LedgerOperations{
           fee: 0.0,
           node_movements: [
-            %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
-            %Movement{to: Crypto.node_public_key(), amount: 0.0}
+            %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 0.0},
+            %NodeMovement{to: Crypto.node_public_key(), amount: 0.0}
           ],
           unspent_outputs: [
             %UnspentOutput{
@@ -361,14 +386,21 @@ defmodule UnirisCore.Mining.ReplicationTest do
         }
       }
 
-      stamp =
-        struct!(ValidationStamp, Map.put(stamp, :signature, Crypto.sign_with_node_key(stamp)))
+      sig =
+        stamp
+        |> ValidationStamp.serialize()
+        |> Crypto.sign_with_node_key()
 
       cross_validation_stamps = [
         CrossValidationStamp.new(stamp, [])
       ]
 
-      tx = %{tx | validation_stamp: stamp, cross_validation_stamps: cross_validation_stamps}
+      tx = %{
+        tx
+        | validation_stamp: %{stamp | signature: sig},
+          cross_validation_stamps: cross_validation_stamps
+      }
+
       assert false == Replication.valid_transaction?(tx, context: %Context{})
     end
   end
@@ -408,10 +440,15 @@ defmodule UnirisCore.Mining.ReplicationTest do
         pub
       ])
 
+    cross_validation_stamp_sig =
+      validation_stamp
+      |> ValidationStamp.serialize()
+      |> Crypto.sign(pv)
+
     cross_validation_stamps = [
       CrossValidationStamp.new(validation_stamp, []),
       %CrossValidationStamp{
-        signature: Crypto.sign(validation_stamp, pv),
+        signature: cross_validation_stamp_sig,
         node_public_key: pub,
         inconsistencies: []
       }
@@ -434,8 +471,8 @@ defmodule UnirisCore.Mining.ReplicationTest do
     MockNodeClient
     |> stub(:send_message, fn _, _, msg ->
       case msg do
-        {:get_unspent_outputs, _} ->
-          []
+        %GetUnspentOutputs{} ->
+          %UnspentOutputList{}
       end
     end)
 

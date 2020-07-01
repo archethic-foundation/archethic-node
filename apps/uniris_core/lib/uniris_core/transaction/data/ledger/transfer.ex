@@ -4,6 +4,8 @@ defmodule UnirisCore.TransactionData.Ledger.Transfer do
   """
   defstruct [:to, :amount, :conditions]
 
+  alias UnirisCore.Crypto
+
   @typedoc """
   Recipient address of the ledger transfers
   """
@@ -25,4 +27,56 @@ defmodule UnirisCore.TransactionData.Ledger.Transfer do
           amount: float(),
           conditions: conditions()
         }
+
+  @doc """
+  Serialize transaction transfer into binary format
+
+  ## Examples
+
+      iex> UnirisCore.TransactionData.Ledger.Transfer.serialize(%UnirisCore.TransactionData.Ledger.Transfer{
+      ...>   to: <<0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+      ...>    85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
+      ...>   amount: 10.5
+      ...> })
+      <<
+        # Transfer recipient
+        0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+        85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
+        # Transfer amount
+        64, 37, 0, 0, 0, 0, 0, 0
+      >>
+  """
+  def serialize(%__MODULE__{to: to, amount: amount}) do
+    <<to::binary, amount::float>>
+  end
+
+  @doc """
+  Deserialize an encoded transfer
+
+  ## Examples
+
+      iex> <<
+      ...> 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+      ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
+      ...> 64, 37, 0, 0, 0, 0, 0, 0>>
+      ...> |> UnirisCore.TransactionData.Ledger.Transfer.deserialize()
+      {
+        %UnirisCore.TransactionData.Ledger.Transfer{
+          to: <<0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+            85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
+          amount: 10.5
+        },
+        ""
+      }
+  """
+  @spec deserialize(<<_::8, _::_*1>>) :: {__MODULE__.t(), bitstring}
+  def deserialize(<<hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<address::binary-size(hash_size), amount::float, rest::bitstring>> = rest
+
+    {
+      %__MODULE__{to: <<hash_id::8, address::binary>>, amount: amount},
+      rest
+    }
+  end
 end

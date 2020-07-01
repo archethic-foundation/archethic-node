@@ -31,6 +31,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrity do
   defp from_transaction(tx = %Transaction{}) do
     tx
     |> Transaction.to_pending()
+    |> Transaction.serialize()
     |> Crypto.hash()
   end
 

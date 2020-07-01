@@ -22,6 +22,13 @@ defmodule UnirisCore.Mining.Context do
   alias UnirisCore.Storage
   alias UnirisCore.Crypto
   alias UnirisCore.Mining.BinarySequence
+  alias UnirisCore.P2P.Message.GetTransactionHistory
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.UnspentOutputList
 
   @type t() :: %__MODULE__{
           previous_chain: list(Transaction.validated()),
@@ -87,12 +94,10 @@ defmodule UnirisCore.Mining.Context do
 
     # Retrieve previous transaction context by querying the network about the previous transaction chain,
     # received unspent outputs and involve the storages nodes which replied.
-    [chain, unspent_outputs] =
-      nearest_node
-      |> P2P.send_message([
-        {:get_transaction_chain, previous_address},
-        {:get_unspent_outputs, previous_address}
-      ])
+    %TransactionHistory{
+      transaction_chain: chain,
+      unspent_outputs: unspent_outputs
+    } = P2P.send_message(nearest_node, %GetTransactionHistory{address: previous_address})
 
     involved_nodes = []
 
@@ -129,7 +134,9 @@ defmodule UnirisCore.Mining.Context do
 
     nearest_node = List.first(closest_storage_nodes(previous_address))
 
-    unspent_outputs = P2P.send_message(nearest_node, {:get_unspent_outputs, previous_address})
+    %UnspentOutputList{unspent_outputs: unspent_outputs} =
+      P2P.send_message(nearest_node, %GetUnspentOutputs{address: previous_address})
+
     previous_chain = Storage.get_transaction_chain(previous_address)
 
     {:ok, %Node{network_patch: patch}} = P2P.node_info()
@@ -257,11 +264,11 @@ defmodule UnirisCore.Mining.Context do
          },
          [storage_node | rest]
        ) do
-    case P2P.send_message(storage_node, {:get_proof_of_integrity, tx_address}) do
-      {:ok, proof_of_integrity} when poi == proof_of_integrity ->
+    case P2P.send_message(storage_node, %GetProofOfIntegrity{address: tx_address}) do
+      %ProofOfIntegrity{digest: digest} when poi == digest ->
         {:ok, storage_node}
 
-      {:ok, _} ->
+      %ProofOfIntegrity{} ->
         {:error, :invalid_transaction_chain}
 
       _ ->
@@ -290,20 +297,19 @@ defmodule UnirisCore.Mining.Context do
            closest_node | rest
          ]
        ) do
-    case P2P.send_message(closest_node, {:get_transaction, utxo_address}) do
-      {:ok,
-       %Transaction{
-         data: %TransactionData{
-           ledger: %Ledger{
-             uco: %UCOLedger{
-               transfers: uco_transfers
-             }
-           }
-         },
-         validation_stamp: %ValidationStamp{
-           ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
-         }
-       }} ->
+    case P2P.send_message(closest_node, %GetTransaction{address: utxo_address}) do
+      %Transaction{
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: uco_transfers
+            }
+          }
+        },
+        validation_stamp: %ValidationStamp{
+          ledger_operations: %LedgerOperations{transaction_movements: transaction_movements}
+        }
+      } ->
         cond do
           Enum.any?(
             uco_transfers,

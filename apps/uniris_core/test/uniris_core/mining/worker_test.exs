@@ -17,6 +17,14 @@ defmodule UnirisCore.MiningWorkerTest do
   alias UnirisCore.BeaconSlotTimer
   alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubsetRegistry
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Message.AddContext
+  alias UnirisCore.P2P.Message.CrossValidate
+  alias UnirisCore.P2P.Message.CrossValidationDone
+  alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
 
   import Mox
 
@@ -58,28 +66,6 @@ defmodule UnirisCore.MiningWorkerTest do
   end
 
   describe "start_link/1" do
-    test "should stop the process when the transaction is invalid" do
-      tx = %Transaction{
-        address: :crypto.strong_rand_bytes(32),
-        type: :transfer,
-        timestamp: DateTime.utc_now(),
-        data: %{},
-        previous_public_key: "",
-        previous_signature: "",
-        origin_signature: ""
-      }
-
-      {:ok, pid} =
-        Worker.start_link(
-          transaction: tx,
-          welcome_node_public_key: "",
-          validation_node_public_keys: []
-        )
-
-      Process.sleep(100)
-      assert !Process.alive?(pid)
-    end
-
     test "should stop the process when the validation node election is invalid" do
       tx = Transaction.new(:node, %TransactionData{})
 
@@ -119,13 +105,15 @@ defmodule UnirisCore.MiningWorkerTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_unspent_outputs, _} ->
-            []
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{}
 
-          {:get_proof_of_integrity, _} ->
-            {:ok, List.first(previous_chain).validation_stamp.proof_of_integrity}
+          %GetProofOfIntegrity{} ->
+            %ProofOfIntegrity{
+              digest: List.first(previous_chain).validation_stamp.proof_of_integrity
+            }
 
-          {:add_context, _addr, _validator_key, _context} ->
+          %AddContext{} ->
             :ok
         end
       end)
@@ -173,10 +161,10 @@ defmodule UnirisCore.MiningWorkerTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_unspent_outputs, _} ->
-            []
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{}
 
-          {:add_context, _addr, _validator_key, _context} ->
+          %AddContext{} ->
             :ok
         end
       end)
@@ -223,13 +211,13 @@ defmodule UnirisCore.MiningWorkerTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_unspent_outputs, _} ->
-            []
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{}
 
-          {:add_context, _addr, _validator_key, _context} ->
+          %AddContext{} ->
             :ok
 
-          {:cross_validate, _, _stamp, _tree} ->
+          %CrossValidate{} ->
             :ok
         end
       end)
@@ -295,17 +283,17 @@ defmodule UnirisCore.MiningWorkerTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_unspent_outputs, _} ->
-            []
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{}
 
-          {:add_context, _, _, _} ->
+          %AddContext{} ->
             :ok
 
-          {:cross_validate, _, stamp, tree} ->
+          %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
             send(me, {stamp, tree})
             :ok
 
-          {:cross_validation_done, _, stamp} ->
+          %CrossValidationDone{cross_validation_stamp: stamp} ->
             send(me, {:cross_validation_done, stamp})
             :ok
         end
@@ -374,27 +362,33 @@ defmodule UnirisCore.MiningWorkerTest do
 
           cond do
             Enum.any?(cross_validation_nodes, &(&1.last_public_key == Crypto.node_public_key())) ->
-              stamp = %CrossValidationStamp{
-                inconsistencies: [],
-                signature: Crypto.sign_with_node_key(validation_stamp),
-                node_public_key: Crypto.node_public_key()
-              }
+              stamp = CrossValidationStamp.new(validation_stamp, [])
 
               Worker.add_cross_validation_stamp(coordinator_pid, stamp)
 
             Enum.any?(cross_validation_nodes, &(&1.last_public_key == pub)) ->
+              sig =
+                validation_stamp
+                |> ValidationStamp.serialize()
+                |> Crypto.sign(priv)
+
               stamp = %CrossValidationStamp{
                 inconsistencies: [],
-                signature: Crypto.sign(validation_stamp, priv),
+                signature: sig,
                 node_public_key: pub
               }
 
               Worker.add_cross_validation_stamp(coordinator_pid, stamp)
 
             Enum.any?(cross_validation_nodes, &(&1.last_public_key == pub3)) ->
+              sig =
+                validation_stamp
+                |> ValidationStamp.serialize()
+                |> Crypto.sign(priv3)
+
               stamp = %CrossValidationStamp{
                 inconsistencies: [],
-                signature: Crypto.sign(validation_stamp, priv3),
+                signature: sig,
                 node_public_key: pub3
               }
 
@@ -416,21 +410,21 @@ defmodule UnirisCore.MiningWorkerTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          {:get_unspent_outputs, _} ->
-            []
+          %GetUnspentOutputs{} ->
+            %UnspentOutputList{}
 
-          {:add_context, _, _, _} ->
+          %AddContext{} ->
             :ok
 
-          {:cross_validate, _, stamp, tree} ->
+          %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
             send(me, {stamp, tree})
             :ok
 
-          {:cross_validation_done, _, stamp} ->
+          %CrossValidationDone{cross_validation_stamp: stamp} ->
             send(me, {:cross_validation_done, stamp})
             :ok
 
-          {:replicate_transaction, tx} ->
+          %ReplicateTransaction{transaction: tx} ->
             send(me, {:replicate_transaction, tx})
         end
       end)
@@ -513,8 +507,13 @@ defmodule UnirisCore.MiningWorkerTest do
           else
             {pub, priv} = Crypto.generate_deterministic_keypair("seed")
 
+            sig =
+              validation_stamp
+              |> ValidationStamp.serialize()
+              |> Crypto.sign(priv)
+
             stamp = %CrossValidationStamp{
-              signature: Crypto.sign(validation_stamp, priv),
+              signature: sig,
               node_public_key: pub,
               inconsistencies: []
             }

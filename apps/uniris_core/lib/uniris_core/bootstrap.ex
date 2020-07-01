@@ -24,6 +24,14 @@ defmodule UnirisCore.Bootstrap do
   alias UnirisCore.Beacon
   alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.SelfRepair
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.NodeList
   alias __MODULE__.IPLookup
   alias __MODULE__.NetworkInit
 
@@ -121,27 +129,27 @@ defmodule UnirisCore.Bootstrap do
   end
 
   defp first_initialization(ip, port, patch, bootstraping_seeds) do
-    [closest_nodes, new_seeds] =
+    %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds} =
       bootstraping_seeds
       |> Enum.random()
-      |> P2P.send_message([{:closest_nodes, patch}, :new_seeds])
+      |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
 
     load_nodes(new_seeds ++ closest_nodes)
     P2P.update_bootstraping_seeds(new_seeds)
 
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
-    send_message({:new_transaction, tx}, closest_nodes)
+    send_message(%NewTransaction{transaction: tx}, closest_nodes)
 
     case P2P.send_message(
            List.first(closest_nodes),
-           {:get_storage_nonce, Crypto.node_public_key()}
+           %GetStorageNonce{public_key: Crypto.node_public_key()}
          ) do
-      {:ok, encrypted_nonce} ->
+      %EncryptedStorageNonce{digest: encrypted_nonce} ->
         Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
         Logger.info("Storage nonce set")
 
-        nodes = P2P.send_message(List.first(closest_nodes), :list_nodes)
+        %NodeList{nodes: nodes} = P2P.send_message(List.first(closest_nodes), %ListNodes{})
         load_nodes(nodes)
         Logger.info("Node list refreshed")
 
@@ -160,17 +168,17 @@ defmodule UnirisCore.Bootstrap do
   end
 
   defp update_node(ip, port, patch, bootstraping_seeds) do
-    [closest_nodes, new_seeds] =
+    %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds} =
       bootstraping_seeds
       |> Enum.random()
-      |> P2P.send_message([{:closest_nodes, patch}, :new_seeds])
+      |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
 
     P2P.update_bootstraping_seeds(new_seeds)
     load_nodes(new_seeds ++ closest_nodes)
     Logger.info("Node list refreshed")
 
     tx = create_node_transaction(ip, port)
-    send_message({:new_transaction, tx}, closest_nodes)
+    send_message(%NewTransaction{transaction: tx}, closest_nodes)
 
     Logger.info("Start synchronization")
     SelfRepair.start_sync(patch)
@@ -191,8 +199,14 @@ defmodule UnirisCore.Bootstrap do
     |> Task.async_stream(fn node ->
       P2P.send_message(
         node,
-        {:add_node_info, subset,
-         %NodeInfo{public_key: Crypto.node_public_key(), ready?: true, timestamp: ready_date}}
+        %AddNodeInfo{
+          subset: subset,
+          node_info: %NodeInfo{
+            public_key: Crypto.node_public_key(),
+            ready?: true,
+            timestamp: ready_date
+          }
+        }
       )
     end)
     |> Stream.run()

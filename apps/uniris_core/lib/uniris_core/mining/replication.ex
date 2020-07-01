@@ -4,7 +4,7 @@ defmodule UnirisCore.Mining.Replication do
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Mining.Fee
   alias UnirisCore.Mining.Context
   alias UnirisCore.Mining.ProofOfWork
@@ -273,7 +273,7 @@ defmodule UnirisCore.Mining.Replication do
          },
          cross_validation_stamps: cross_validation_stamps
        }) do
-    [_ | [%Movement{to: coordinator_node} | _]] = node_movements
+    [_ | [%NodeMovement{to: coordinator_node} | _]] = node_movements
     cross_validation_nodes = Enum.map(cross_validation_stamps, & &1.node_public_key)
     [coordinator_node | cross_validation_nodes]
   end
@@ -312,6 +312,8 @@ defmodule UnirisCore.Mining.Replication do
       if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
         Beacon.add_transaction(tx)
       end
+
+      :ok
     else
       Storage.write_ko_transaction(tx)
       Logger.info("KO transaction #{Base.encode16(tx.address)}")
@@ -327,6 +329,8 @@ defmodule UnirisCore.Mining.Replication do
       if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
         Beacon.add_transaction(tx)
       end
+
+      :ok
     else
       Storage.write_ko_transaction(tx)
       Logger.info("KO transaction #{Base.encode16(tx.address)}")

@@ -2,7 +2,7 @@ defmodule UnirisCore.Mining.Fee do
   @moduledoc false
 
   alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
 
   @storage_node_rate 0.5
   @cross_validation_node_rate 0.4
@@ -68,12 +68,12 @@ defmodule UnirisCore.Mining.Fee do
 
         [
           [
-            %Movement{to: welcome_node, amount: welcome_node_reward},
-            %Movement{to: coordinator, amount: coordinator_node_rewards + additional_reward}
+            %NodeMovement{to: welcome_node, amount: welcome_node_reward},
+            %NodeMovement{to: coordinator, amount: coordinator_node_rewards + additional_reward}
           ],
           Enum.map(
             cross_validation_nodes,
-            &%Movement{to: &1, amount: cross_validation_nodes_reward + additional_reward}
+            &%NodeMovement{to: &1, amount: cross_validation_nodes_reward + additional_reward}
           )
         ]
         |> :lists.flatten()
@@ -84,14 +84,14 @@ defmodule UnirisCore.Mining.Fee do
 
         [
           [
-            %Movement{to: welcome_node, amount: welcome_node_reward},
-            %Movement{to: coordinator, amount: coordinator_node_rewards}
+            %NodeMovement{to: welcome_node, amount: welcome_node_reward},
+            %NodeMovement{to: coordinator, amount: coordinator_node_rewards}
           ],
           Enum.map(
             cross_validation_nodes,
-            &%Movement{to: &1, amount: cross_validation_nodes_reward}
+            &%NodeMovement{to: &1, amount: cross_validation_nodes_reward}
           ),
-          Enum.map(previous_storage_nodes, &%Movement{to: &1, amount: storage_node_reward})
+          Enum.map(previous_storage_nodes, &%NodeMovement{to: &1, amount: storage_node_reward})
         ]
         |> :lists.flatten()
     end

@@ -1,5 +1,6 @@
 defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
   use UnirisCoreCase
+  use ExUnitProperties
 
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
@@ -7,8 +8,11 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  doctest LedgerOperations
 
   describe "new!/4" do
     test "return an error when transaction use transfers and no unspent outputs transactions to use" do
@@ -66,7 +70,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
           0
         )
 
-      utxos = [%Movement{to: tx.address, amount: 1.1}]
+      utxos = [%UnspentOutput{from: tx.address, amount: 1.1}]
 
       assert_raise RuntimeError, "Unsufficient funds for #{Base.encode16(tx.address)}", fn ->
         LedgerOperations.new!(tx, fee, utxos, [])
@@ -128,8 +132,14 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
 
       assert %LedgerOperations{
                transaction_movements: [
-                 %Movement{to: Enum.at(tx.data.ledger.uco.transfers, 0).to, amount: 2.2},
-                 %Movement{to: Enum.at(tx.data.ledger.uco.transfers, 1).to, amount: 4.2}
+                 %TransactionMovement{
+                   to: Enum.at(tx.data.ledger.uco.transfers, 0).to,
+                   amount: 2.2
+                 },
+                 %TransactionMovement{
+                   to: Enum.at(tx.data.ledger.uco.transfers, 1).to,
+                   amount: 4.2
+                 }
                ],
                unspent_outputs: [
                  %UnspentOutput{from: tx.address, amount: 1.25},
@@ -147,7 +157,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
       ops = %LedgerOperations{
         fee: 100,
         node_movements: [
-          %Movement{to: "node1", amount: 10}
+          %NodeMovement{to: "node1", amount: 10}
         ]
       }
 
@@ -177,7 +187,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: "node1", amount: 10}
+          %NodeMovement{to: "node1", amount: 10}
         ]
       }
 
@@ -193,10 +203,10 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: "node1", amount: 10}
+          %NodeMovement{to: "node1", amount: 10}
         ],
         transaction_movements: [
-          %Movement{to: tx.address, amount: 1000}
+          %TransactionMovement{to: tx.address, amount: 1000}
         ]
       }
 
@@ -212,7 +222,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: "node1", amount: 10}
+          %NodeMovement{to: "node1", amount: 10}
         ],
         unspent_outputs: []
       }
@@ -223,12 +233,12 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
     test "should return an error when the node movements are present without fee" do
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
-      utxo = [%Movement{to: tx.address, amount: 10}]
+      utxo = [%UnspentOutput{from: tx.address, amount: 10}]
 
       ops = %LedgerOperations{
         fee: 0.0,
         node_movements: [
-          %Movement{to: "node1", amount: 10}
+          %NodeMovement{to: "node1", amount: 10}
         ],
         unspent_outputs: [%UnspentOutput{from: :crypto.strong_rand_bytes(32), amount: 10}]
       }
@@ -245,10 +255,10 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: "welcome_node1", amount: 0.0},
-          %Movement{to: "node_1", amount: 0.0},
-          %Movement{to: "other_cross_validator", amount: 0.0},
-          %Movement{to: "other_cross_validator", amount: 0.0}
+          %NodeMovement{to: "welcome_node1", amount: 0.0},
+          %NodeMovement{to: "node_1", amount: 0.0},
+          %NodeMovement{to: "other_cross_validator", amount: 0.0},
+          %NodeMovement{to: "other_cross_validator", amount: 0.0}
         ],
         unspent_outputs: [
           %UnspentOutput{from: tx.address, amount: 10}
@@ -272,12 +282,12 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: "welcome_node1", amount: 0.0},
-          %Movement{to: "node_1", amount: 10.0},
-          %Movement{to: "cross_validator_1", amount: 5.0},
-          %Movement{to: "cross_validator_2", amount: 6.0}
+          %NodeMovement{to: "welcome_node1", amount: 0.0},
+          %NodeMovement{to: "node_1", amount: 10.0},
+          %NodeMovement{to: "cross_validator_1", amount: 5.0},
+          %NodeMovement{to: "cross_validator_2", amount: 6.0}
         ],
-        unspent_outputs: [%Movement{to: tx.address, amount: 10}]
+        unspent_outputs: [%UnspentOutput{from: tx.address, amount: 10}]
       }
 
       assert false ==
@@ -312,13 +322,13 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
         # TODO: use the right one when the algo is implemented
         fee: 0.1,
         node_movements: [
-          %Movement{to: :crypto.strong_rand_bytes(32), amount: 0.0005},
-          %Movement{to: "coordinator1", amount: 0.026166666666666668},
-          %Movement{to: "cross_validator_1", amount: 0.03666666666666667},
-          %Movement{to: "cross_validator_2", amount: 0.03666666666666667}
+          %NodeMovement{to: :crypto.strong_rand_bytes(32), amount: 0.0005},
+          %NodeMovement{to: "coordinator1", amount: 0.026166666666666668},
+          %NodeMovement{to: "cross_validator_1", amount: 0.03666666666666667},
+          %NodeMovement{to: "cross_validator_2", amount: 0.03666666666666667}
         ],
         transaction_movements: [
-          %Movement{to: "@Alice2", amount: 5.0}
+          %TransactionMovement{to: "@Alice2", amount: 5.0}
         ],
         unspent_outputs: [
           %UnspentOutput{from: tx.address, amount: 9.9}
@@ -330,6 +340,57 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
                "cross_validator_1",
                "cross_validator_2"
              ])
+    end
+  end
+
+  property "symmetric serialization/deserialization of ledger operations" do
+    check all(
+            fee <- StreamData.float(min: 0.0),
+            transaction_movements <-
+              StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0)),
+            node_movements <-
+              StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0)),
+            unspent_outputs <-
+              StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0))
+          ) do
+      transaction_movements =
+        Enum.map(transaction_movements, fn {to, amount} ->
+          %TransactionMovement{
+            to: <<0::8>> <> to,
+            amount: amount
+          }
+        end)
+
+      node_movements =
+        Enum.map(node_movements, fn {to, amount} ->
+          %NodeMovement{
+            to: <<0::8>> <> to,
+            amount: amount
+          }
+        end)
+
+      unspent_outputs =
+        Enum.map(unspent_outputs, fn {from, amount} ->
+          %UnspentOutput{
+            from: <<0::8>> <> from,
+            amount: amount
+          }
+        end)
+
+      {ledger_ops, _} =
+        %LedgerOperations{
+          fee: fee,
+          transaction_movements: transaction_movements,
+          node_movements: node_movements,
+          unspent_outputs: unspent_outputs
+        }
+        |> LedgerOperations.serialize()
+        |> LedgerOperations.deserialize()
+
+      assert ledger_ops.fee == fee
+      assert ledger_ops.transaction_movements == transaction_movements
+      assert ledger_ops.node_movements == node_movements
+      assert ledger_ops.unspent_outputs == unspent_outputs
     end
   end
 end

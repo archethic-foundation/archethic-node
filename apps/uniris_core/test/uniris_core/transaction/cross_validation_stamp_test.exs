@@ -8,6 +8,8 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.CrossValidationStamp
 
+  doctest CrossValidationStamp
+
   describe "new/2" do
     test "should create cross validated signing the inconsistencies" do
       {pub, pv} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
@@ -21,10 +23,10 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
       %CrossValidationStamp{
         signature: sig,
         inconsistencies: [
-          :invalid_proof_of_work,
-          :invalid_proof_of_integrity,
-          :invalid_ledger_operations,
-          :invalid_signature
+          :signature,
+          :proof_of_work,
+          :proof_of_integrity,
+          :ledger_operations
         ],
         node_public_key: node_public_key
       } =
@@ -36,10 +38,10 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
             signature: ""
           },
           [
-            :invalid_proof_of_work,
-            :invalid_proof_of_integrity,
-            :invalid_ledger_operations,
-            :invalid_signature
+            :signature,
+            :proof_of_work,
+            :proof_of_integrity,
+            :ledger_operations
           ]
         )
 
@@ -48,11 +50,12 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
       assert Crypto.verify(
                sig,
                [
-                 :invalid_proof_of_work,
-                 :invalid_proof_of_integrity,
-                 :invalid_ledger_operations,
-                 :invalid_signature
-               ],
+                 0,
+                 1,
+                 2,
+                 3
+               ]
+               |> :erlang.list_to_binary(),
                pub
              )
     end
@@ -90,7 +93,8 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
                  proof_of_integrity: "",
                  ledger_operations: %LedgerOperations{},
                  signature: ""
-               },
+               }
+               |> ValidationStamp.serialize(),
                pub
              )
     end
@@ -115,10 +119,10 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
 
       assert stamp
              |> CrossValidationStamp.new([
-               :invalid_proof_of_work,
-               :invalid_proof_of_integrity,
-               :invalid_ledger_operations,
-               :invalid_signature
+               :proof_of_work,
+               :proof_of_integrity,
+               :ledger_operations,
+               :signature
              ])
              |> CrossValidationStamp.valid?(stamp)
     end

@@ -61,7 +61,8 @@ defmodule UnirisCore.Storage.CassandraBackend do
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias UnirisCore.Transaction.CrossValidationStamp
   alias __MODULE__.ChainQueryWorker
@@ -169,15 +170,17 @@ defmodule UnirisCore.Storage.CassandraBackend do
         "ledger_operations" => %{
           "fee" => tx.validation_stamp.ledger_operations.fee,
           "transaction_movements" =>
-            Enum.map(tx.validation_stamp.ledger_operations.transaction_movements, fn %Movement{
-                                                                                       to: to,
-                                                                                       amount:
-                                                                                         amount
-                                                                                     } ->
-              %{"recipient" => to |> Base.encode16(), "amount" => amount}
-            end),
+            Enum.map(
+              tx.validation_stamp.ledger_operations.transaction_movements,
+              fn %TransactionMovement{
+                   to: to,
+                   amount: amount
+                 } ->
+                %{"recipient" => to |> Base.encode16(), "amount" => amount}
+              end
+            ),
           "node_movements" =>
-            Enum.map(tx.validation_stamp.ledger_operations.node_movements, fn %Movement{
+            Enum.map(tx.validation_stamp.ledger_operations.node_movements, fn %NodeMovement{
                                                                                 to: to,
                                                                                 amount: amount
                                                                               } ->
@@ -286,11 +289,11 @@ defmodule UnirisCore.Storage.CassandraBackend do
           fee: fee,
           transaction_movements:
             Enum.map(transaction_movements, fn %{"recipient" => to, "amount" => amount} ->
-              %Movement{to: to |> Base.decode16!(), amount: amount}
+              %TransactionMovement{to: to |> Base.decode16!(), amount: amount}
             end),
           node_movements:
             Enum.map(node_movements, fn %{"recipient" => to, "amount" => amount} ->
-              %Movement{to: to |> Base.decode16!(), amount: amount}
+              %NodeMovement{to: to |> Base.decode16!(), amount: amount}
             end),
           unspent_outputs:
             Enum.map(utxo, fn %{"origin" => from, "amount" => amount} ->

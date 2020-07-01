@@ -18,6 +18,10 @@ defmodule UnirisCore.Mining.Worker do
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.MiningRegistry
   alias UnirisCore.Beacon
+  alias UnirisCore.P2P.Message.AddContext
+  alias UnirisCore.P2P.Message.CrossValidate
+  alias UnirisCore.P2P.Message.CrossValidationDone
+  alias UnirisCore.P2P.Message.ReplicateTransaction
 
   # TODO: Handle the restarting of the process when failed:
   # - retrieve last state
@@ -180,7 +184,11 @@ defmodule UnirisCore.Mining.Worker do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       P2P.send_message(
         coordinator,
-        {:add_context, tx.address, node_public_key, context}
+        %AddContext{
+          address: tx.address,
+          validation_node_public_key: node_public_key,
+          context: context
+        }
       )
     end)
 
@@ -332,7 +340,10 @@ defmodule UnirisCore.Mining.Worker do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       Enum.reject(validation_nodes, &(&1.last_public_key == node_public_key)),
-      &P2P.send_message(&1, {:cross_validation_done, tx.address, cross_validation_stamp})
+      &P2P.send_message(&1, %CrossValidationDone{
+        address: tx.address,
+        cross_validation_stamp: cross_validation_stamp
+      })
     )
     |> Stream.run()
 
@@ -431,7 +442,7 @@ defmodule UnirisCore.Mining.Worker do
     # Once the transaction is received, the nodes will performed either chain validation or transaction only validation
     # depending on their storage role (chain storage nodes, beacon storage node, outputs node, involved node for the mining)
     Task.Supervisor.async_stream_nolink(TaskSupervisor, replication_nodes, fn node ->
-      P2P.send_message(node, {:replicate_transaction, validated_tx})
+      P2P.send_message(node, %ReplicateTransaction{transaction: validated_tx})
     end)
     |> Stream.run()
 
@@ -479,7 +490,11 @@ defmodule UnirisCore.Mining.Worker do
     TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(
       cross_validation_nodes,
-      &P2P.send_message(&1, {:cross_validate, tx_address, stamp, replication_tree})
+      &P2P.send_message(&1, %CrossValidate{
+        address: tx_address,
+        validation_stamp: stamp,
+        replication_tree: replication_tree
+      })
     )
     |> Stream.run()
   end

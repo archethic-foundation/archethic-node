@@ -14,6 +14,17 @@ defmodule UnirisCore.BootstrapTest do
   alias UnirisCore.Bootstrap.NetworkInit
   alias UnirisCore.P2P.BootstrapingSeeds
 
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.NodeList
+  alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.BeaconSlotList
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.P2P.Message.AddNodeInfo
+
   import Mox
 
   setup :verify_on_exit!
@@ -68,9 +79,9 @@ defmodule UnirisCore.BootstrapTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          [{:closest_nodes, _}, :new_seeds] ->
-            [
-              [
+          %GetBootstrappingNodes{} ->
+            %BootstrappingNodes{
+              new_seeds: [
                 %Node{
                   ip: {127, 0, 0, 1},
                   port: 3000,
@@ -90,7 +101,7 @@ defmodule UnirisCore.BootstrapTest do
                   enrollment_date: DateTime.utc_now()
                 }
               ],
-              [
+              closest_nodes: [
                 %Node{
                   ip: {127, 0, 0, 1},
                   port: 3000,
@@ -112,22 +123,24 @@ defmodule UnirisCore.BootstrapTest do
                   enrollment_date: DateTime.utc_now()
                 }
               ]
-            ]
+            }
 
-          {:new_transaction, tx} ->
+          %NewTransaction{transaction: tx} ->
             Storage.write_transaction_chain([tx |> NetworkInit.self_validation!()])
             :ok
 
-          {:get_storage_nonce, _} ->
-            {:ok, Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())}
+          %GetStorageNonce{} ->
+            %EncryptedStorageNonce{
+              digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+            }
 
-          :list_nodes ->
-            []
+          %ListNodes{} ->
+            %NodeList{}
 
-          {:get_beacon_slots, _} ->
-            []
+          %GetBeaconSlots{} ->
+            %BeaconSlotList{}
 
-          {:add_node_info, _, _info} ->
+          %AddNodeInfo{} ->
             send(me, :node_ready)
             :ok
         end
@@ -195,9 +208,9 @@ defmodule UnirisCore.BootstrapTest do
       MockNodeClient
       |> stub(:send_message, fn _, _, msg ->
         case msg do
-          [{:closest_nodes, _}, :new_seeds] ->
-            [
-              [
+          %GetBootstrappingNodes{} ->
+            %BootstrappingNodes{
+              new_seeds: [
                 %Node{
                   ip: {127, 0, 0, 1},
                   port: 3000,
@@ -217,7 +230,7 @@ defmodule UnirisCore.BootstrapTest do
                   enrollment_date: DateTime.utc_now()
                 }
               ],
-              [
+              closest_nodes: [
                 %Node{
                   ip: {127, 0, 0, 1},
                   port: 3000,
@@ -239,22 +252,24 @@ defmodule UnirisCore.BootstrapTest do
                   enrollment_date: DateTime.utc_now()
                 }
               ]
-            ]
+            }
 
-          {:new_transaction, tx} ->
+          %NewTransaction{transaction: tx} ->
             Storage.write_transaction_chain([tx |> NetworkInit.self_validation!()])
             :ok
 
-          {:get_storage_nonce, _} ->
-            {:ok, Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())}
+          %GetStorageNonce{} ->
+            %EncryptedStorageNonce{
+              digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+            }
 
-          :list_nodes ->
-            []
+          %ListNodes{} ->
+            %NodeList{}
 
-          {:get_beacon_slots, _} ->
-            []
+          %GetBeaconSlots{} ->
+            %BeaconSlotList{}
 
-          {:add_node_info, _, _info} ->
+          %AddNodeInfo{} ->
             send(me, :node_ready)
             :ok
         end

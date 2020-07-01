@@ -2,7 +2,6 @@ defmodule UnirisWeb.Schema.CryptoTypes do
   @moduledoc false
 
   use Absinthe.Schema.Notation
-  alias UnirisCore.Crypto
 
   @desc """
   The [Hash] scalar type represents a cryptographic hash used in
@@ -48,26 +47,14 @@ defmodule UnirisWeb.Schema.CryptoTypes do
 
   @spec parse_hash(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_hash(%Absinthe.Blueprint.Input.String{value: hash}) do
-    with {:ok, binary} <- Base.decode16(hash),
-         true <- Crypto.valid_hash?(binary) do
-      {:ok, binary}
-    else
-      _ ->
-        :error
-    end
+    Base.decode16(hash)
   end
 
   defp parse_hash(_), do: :error
 
   @spec parse_public_key(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_public_key(%Absinthe.Blueprint.Input.String{value: key}) do
-    with {:ok, binary} <- Base.decode16(key),
-         true <- Crypto.valid_public_key?(binary) do
-      {:ok, binary}
-    else
-      _ ->
-        :error
-    end
+    Base.decode16(key)
   end
 
   defp parse_public_key(_), do: :error

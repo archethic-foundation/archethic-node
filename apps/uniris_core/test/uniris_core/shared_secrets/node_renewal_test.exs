@@ -7,6 +7,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.SharedSecrets.NodeRenewal
+  alias UnirisCore.P2P.Message.StartMining
 
   import Mox
 
@@ -24,7 +25,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
     MockNodeClient
     |> stub(:send_message, fn _, _, msg ->
       case msg do
-        {:start_mining, tx, _, _} ->
+        %StartMining{transaction: tx} ->
           send(me, tx)
       end
     end)

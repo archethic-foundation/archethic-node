@@ -12,10 +12,12 @@ defmodule UnirisCore.Transaction.ValidationStampTest do
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Mining.Context
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+
+  doctest ValidationStamp
 
   test "new/5 should create a signed validation stamp" do
     tx =
@@ -249,7 +251,7 @@ defmodule UnirisCore.Transaction.ValidationStampTest do
       stamp = %ValidationStamp{
         ledger_operations: %LedgerOperations{
           node_movements: [
-            %Movement{
+            %NodeMovement{
               to: :crypto.strong_rand_bytes(32),
               amount: 100
             }

@@ -2,7 +2,7 @@ defmodule UnirisCore.Mining.FeeTest do
   use ExUnit.Case
 
   alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Mining.Fee
 
   test "compute/1 should return 0 when transaction with type :node" do
@@ -62,31 +62,31 @@ defmodule UnirisCore.Mining.FeeTest do
         )
 
       assert rewards == [
-               %Movement{
+               %NodeMovement{
                  to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D",
                  amount: 0.0025
                },
-               %Movement{
+               %NodeMovement{
                  to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD",
                  amount: 0.0475
                },
-               %Movement{
+               %NodeMovement{
                  to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7",
                  amount: 0.1
                },
-               %Movement{
+               %NodeMovement{
                  to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1",
                  amount: 0.1
                },
-               %Movement{
+               %NodeMovement{
                  to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23",
                  amount: 0.08333333333333333
                },
-               %Movement{
+               %NodeMovement{
                  to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE",
                  amount: 0.08333333333333333
                },
-               %Movement{
+               %NodeMovement{
                  to: "4d75266a648f6d67576e6c77138c07042077b815fb5255d7f585cd36860da19e",
                  amount: 0.08333333333333333
                }
@@ -114,19 +114,19 @@ defmodule UnirisCore.Mining.FeeTest do
         )
 
       assert [
-               %Movement{
+               %NodeMovement{
                  to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D",
                  amount: 0.005
                },
-               %Movement{
+               %NodeMovement{
                  to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD",
                  amount: 0.26166666666666666
                },
-               %Movement{
+               %NodeMovement{
                  to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7",
                  amount: 0.3666666666666667
                },
-               %Movement{
+               %NodeMovement{
                  to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1",
                  amount: 0.3666666666666667
                }

@@ -22,6 +22,7 @@ defmodule UnirisCore.Mining do
   alias UnirisCore.P2P
   alias UnirisCore.Bootstrap.NetworkInit
   alias UnirisCore.TaskSupervisor
+  alias UnirisCore.P2P.Message.ReplicateTransaction
   alias __MODULE__.Worker
   alias __MODULE__.WorkerSupervisor
   alias __MODULE__.Replication
@@ -60,7 +61,7 @@ defmodule UnirisCore.Mining do
       TaskSupervisor
       |> Task.Supervisor.async_stream(
         storage_nodes,
-        &P2P.send_message(&1, {:replicate_transaction, tx})
+        &P2P.send_message(&1, %ReplicateTransaction{transaction: tx})
       )
       |> Stream.run()
     end)

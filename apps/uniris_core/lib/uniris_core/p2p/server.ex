@@ -6,17 +6,48 @@ defmodule UnirisCore.P2PServer do
 
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.P2P
   alias UnirisCore.Election
   alias UnirisCore.Mining
-  alias UnirisCore.Mining.Context
   alias UnirisCore.Crypto
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.PubSub
   alias UnirisCore.Beacon
-  alias UnirisCore.BeaconSlot.NodeInfo
   alias UnirisCore.Storage
+
+  alias UnirisCore.P2P.Message
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetTransactionChain
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.StartMining
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.AddContext
+  alias UnirisCore.P2P.Message.CrossValidate
+  alias UnirisCore.P2P.Message.CrossValidationDone
+  alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.P2P.Message.AcknowledgeStorage
+  alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.GetBalance
+  alias UnirisCore.P2P.Message.GetLastTransaction
+  alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.NodeList
+  alias UnirisCore.P2P.Message.TransactionList
+  alias UnirisCore.P2P.Message.Ok
+  alias UnirisCore.P2P.Message.NotFound
+  alias UnirisCore.P2P.Message.BeaconSlotList
+  alias UnirisCore.P2P.Message.Balance
+  alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetTransactionHistory
+  alias UnirisCore.P2P.Message.GetTransactionInputs
+  alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.Transaction
 
   require Logger
 
@@ -57,13 +88,14 @@ defmodule UnirisCore.P2PServer do
   def recv_loop(socket, address) do
     case :gen_tcp.recv(socket, 0) do
       {:ok, data} ->
-        # TODO: include safe binary decoding, disabled because unexpected error arguments. To resolve !
         result =
           data
-          |> :erlang.binary_to_term()
-          |> process_message
+          |> Message.decode()
+          |> process_message()
+          |> Message.encode()
+          |> Message.wrap_binary()
 
-        :gen_tcp.send(socket, :erlang.term_to_binary(result))
+        :gen_tcp.send(socket, result)
         recv_loop(socket, address)
 
       {:error, :closed} ->
@@ -79,133 +111,187 @@ defmodule UnirisCore.P2PServer do
     {addr, port}
   end
 
-  defp process_message(messages) when is_list(messages) do
-    do_process_messages(messages, [])
+  defp process_message(%GetBootstrappingNodes{patch: patch}) do
+    top_nodes =
+      P2P.list_nodes()
+      |> Enum.filter(&(&1.authorized? && &1.available?))
+
+    closest_nodes =
+      top_nodes
+      |> P2P.nearest_nodes(patch)
+      |> Enum.take(5)
+
+    %BootstrappingNodes{
+      new_seeds: Enum.take_random(top_nodes, 5),
+      closest_nodes: closest_nodes
+    }
   end
 
-  defp process_message(:new_seeds) do
-    P2P.list_nodes()
-    |> Enum.filter(&(&1.authorized? && &1.available?))
-    |> Enum.take_random(5)
+  defp process_message(%GetStorageNonce{public_key: public_key}) do
+    case loop_node_info(public_key, DateTime.utc_now()) do
+      {:ok, node_public_key} ->
+        %EncryptedStorageNonce{
+          digest: Crypto.encrypt_storage_nonce(node_public_key)
+        }
+    end
   end
 
-  defp process_message({:closest_nodes, network_patch}) do
-    P2P.list_nodes()
-    |> Enum.filter(&(&1.authorized? && &1.available?))
-    |> P2P.nearest_nodes(network_patch)
-    |> Enum.take(5)
+  defp process_message(%ListNodes{}) do
+    %NodeList{
+      nodes: P2P.list_nodes()
+    }
   end
 
-  defp process_message({:get_storage_nonce, node_public_key}) when is_binary(node_public_key) do
-    loop_node_info(node_public_key, DateTime.utc_now())
-  end
-
-  defp process_message(:list_nodes) do
-    P2P.list_nodes()
-  end
-
-  defp process_message({:new_transaction, tx = %Transaction{}}) do
+  defp process_message(%NewTransaction{transaction: tx}) do
     welcome_node = Crypto.node_public_key()
     validation_nodes = Election.validation_nodes(tx) |> Enum.map(& &1.last_public_key)
 
     Enum.each(validation_nodes, fn node ->
       Task.Supervisor.start_child(TaskSupervisor, fn ->
-        P2P.send_message(node, {:start_mining, tx, welcome_node, validation_nodes})
+        P2P.send_message(node, %StartMining{
+          transaction: tx,
+          welcome_node_public_key: welcome_node,
+          validation_node_public_keys: validation_nodes
+        })
       end)
     end)
+
+    %Ok{}
   end
 
-  defp process_message({:get_transaction, tx_address}) do
-    Storage.get_transaction(tx_address)
-  end
-
-  defp process_message({:get_transaction_chain, tx_address}) do
-    Storage.get_transaction_chain(tx_address)
-  end
-
-  defp process_message({:get_unspent_outputs, tx_address}) do
-    Storage.get_unspent_outputs(tx_address)
-  end
-
-  defp process_message({:get_proof_of_integrity, tx_address}) do
+  defp process_message(%GetTransaction{address: tx_address}) do
     case Storage.get_transaction(tx_address) do
-      {:ok, %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}} ->
-        {:ok, poi}
+      {:ok, tx} ->
+        tx
 
       _ ->
-        {:error, :transaction_not_exists}
+        %NotFound{}
     end
   end
 
-  defp process_message(
-         {:start_mining, tx = %Transaction{}, welcome_node_public_key, validation_nodes}
-       ) do
-    Mining.start(tx, welcome_node_public_key, validation_nodes)
+  defp process_message(%GetTransactionChain{address: tx_address}) do
+    %TransactionList{
+      transactions: Storage.get_transaction_chain(tx_address)
+    }
   end
 
-  defp process_message({:add_context, tx_address, validation_node, context = %Context{}}) do
-    Mining.add_context(
-      tx_address,
-      validation_node,
-      context
-    )
+  defp process_message(%GetUnspentOutputs{address: tx_address}) do
+    %UnspentOutputList{
+      unspent_outputs: Storage.get_unspent_outputs(tx_address)
+    }
   end
 
-  defp process_message({:replicate_transaction, tx = %Transaction{}}) do
-    Mining.replicate_transaction(tx)
+  defp process_message(%GetProofOfIntegrity{address: tx_address}) do
+    case Storage.get_transaction(tx_address) do
+      {:ok, %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}} ->
+        %ProofOfIntegrity{
+          digest: poi
+        }
+
+      _ ->
+        %NotFound{}
+    end
   end
 
-  defp process_message({:acknowledge_storage, tx_address}) when is_binary(tx_address) do
-    PubSub.notify_new_transaction(tx_address)
+  defp process_message(%StartMining{
+         transaction: tx,
+         welcome_node_public_key: welcome_node_public_key,
+         validation_node_public_keys: validation_nodes
+       }) do
+    {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
+    %Ok{}
   end
 
-  defp process_message(
-         {:cross_validate, tx_address, stamp = %ValidationStamp{}, replication_tree}
-       )
-       when is_binary(tx_address) and is_list(replication_tree) do
-    Mining.cross_validate(tx_address, stamp, replication_tree)
+  defp process_message(%GetTransactionHistory{address: tx_address}) do
+    %TransactionHistory{
+      transaction_chain: Storage.get_transaction_chain(tx_address),
+      unspent_outputs: Storage.get_unspent_outputs(tx_address)
+    }
   end
 
-  defp process_message({:cross_validation_done, tx_address, stamp = %CrossValidationStamp{}})
-       when is_binary(tx_address) do
-    Mining.add_cross_validation_stamp(tx_address, stamp)
+  defp process_message(%AddContext{
+         address: tx_address,
+         validation_node_public_key: validation_node,
+         context: context
+       }) do
+    :ok =
+      Mining.add_context(
+        tx_address,
+        validation_node,
+        context
+      )
+
+    %Ok{}
   end
 
-  defp process_message({:get_beacon_slots, slots}) when is_list(slots) do
-    slots
-    |> Enum.map(fn {subset, dates} -> Beacon.previous_slots(subset, dates) end)
-    |> Enum.flat_map(& &1)
+  defp process_message(%ReplicateTransaction{transaction: tx}) do
+    :ok = Mining.replicate_transaction(tx)
+    %Ok{}
   end
 
-  defp process_message({:add_node_info, subset, node_info = %NodeInfo{}})
-       when is_binary(subset) do
-    Beacon.add_node_info(subset, node_info)
+  defp process_message(%AcknowledgeStorage{address: tx_address}) do
+    :ok = PubSub.notify_new_transaction(tx_address)
+    %Ok{}
   end
 
-  defp process_message({:get_last_transaction, last_address}) when is_binary(last_address) do
-    UnirisCore.get_last_transaction(last_address)
+  defp process_message(%CrossValidate{
+         address: tx_address,
+         validation_stamp: stamp,
+         replication_tree: replication_tree
+       }) do
+    :ok = Mining.cross_validate(tx_address, stamp, replication_tree)
+    %Ok{}
   end
 
-  defp process_message({:get_balance, address}) when is_binary(address) do
-    Storage.balance(address)
+  defp process_message(%CrossValidationDone{address: tx_address, cross_validation_stamp: stamp}) do
+    :ok = Mining.add_cross_validation_stamp(tx_address, stamp)
+    %Ok{}
   end
 
-  defp do_process_messages([message | rest], acc) do
-    result = process_message(message)
-    do_process_messages(rest, [result | acc])
+  defp process_message(%GetBeaconSlots{subsets_slots: subsets_slots}) do
+    slots =
+      subsets_slots
+      |> Enum.map(&Map.to_list/1)
+      |> Enum.map(fn [{subset, dates}] -> Beacon.previous_slots(subset, dates) end)
+      |> Enum.flat_map(& &1)
+
+    %BeaconSlotList{slots: slots}
   end
 
-  defp do_process_messages([], acc), do: Enum.reverse(acc)
+  defp process_message(%AddNodeInfo{subset: subset, node_info: node_info}) do
+    :ok = Beacon.add_node_info(subset, node_info)
+    %Ok{}
+  end
+
+  defp process_message(%GetLastTransaction{address: last_address}) do
+    case UnirisCore.get_last_transaction(last_address) do
+      {:ok, tx} ->
+        tx
+
+      _ ->
+        %NotFound{}
+    end
+  end
+
+  defp process_message(%GetBalance{address: address}) do
+    %Balance{
+      uco: Storage.balance(address)
+    }
+  end
+
+  defp process_message(%GetTransactionInputs{address: address}) do
+    %UnspentOutputList{
+      unspent_outputs: Storage.get_inputs(address)
+    }
+  end
 
   defp loop_node_info(node_public_key, date) do
     case P2P.node_info(node_public_key) do
       {:ok, _} ->
-        {:ok, Crypto.encrypt_storage_nonce(node_public_key)}
+        {:ok, node_public_key}
 
       _ ->
-        if DateTime.diff(date, DateTime.utc_now()) >= 3 do
-          {:error, :unauthorized_node}
-        else
+        if DateTime.diff(date, DateTime.utc_now()) <= 3 do
           loop_node_info(node_public_key, date)
         end
     end

@@ -45,7 +45,7 @@ defmodule UnirisCore.Crypto do
   @typedoc """
   Binary representing a hash prepend by a single byte to identificate the algorithm of the generated hash
   """
-  @type hash :: <<_::8, _::_*8>>
+  @type versioned_hash :: <<_::8, _::_*8>>
 
   @typedoc """
   Binary representing a key prepend by a single byte to identificate the elliptic curve for a key
@@ -317,13 +317,12 @@ defmodule UnirisCore.Crypto do
       190, 0, 1, 214, 104, 252, 133, 3, 112, 19, 27, 129, 231, 237, 59, 174, 4, 82,
       210, 110, 204, 219, 237, 197, 26, 140, 63, 97, 67, 27, 8>>
   """
-  @spec sign(data :: any(), private_key :: binary()) :: signature :: binary()
-  def sign(data, <<curve_id::8, key::binary>>) when is_binary(data) do
+  @spec sign(data :: iodata(), private_key :: binary()) :: signature :: binary()
+  def sign(data, _private_key = <<curve_id::8, key::binary>>)
+      when is_binary(data) or is_list(data) do
     ID.curve_from_id(curve_id)
     |> do_sign(data, key)
   end
-
-  def sign(data, key), do: sign(:erlang.term_to_binary(data), key)
 
   def do_sign(:ed25519, data, key), do: Ed25519.sign(key, data)
   def do_sign(curve, data, key), do: ECDSA.sign(curve, key, data)
@@ -331,51 +330,37 @@ defmodule UnirisCore.Crypto do
   @doc """
   Sign the data with the last node private key
   """
-  @spec sign_with_node_key(data :: binary()) :: binary()
-  def sign_with_node_key(data) when is_binary(data) do
+  @spec sign_with_node_key(data :: iodata()) :: binary()
+  def sign_with_node_key(data) when is_binary(data) or is_list(data) do
     Keystore.sign_with_node_key(data)
-  end
-
-  def sign_with_node_key(data) do
-    sign_with_node_key(:erlang.term_to_binary(data))
   end
 
   @doc """
   Sign the data with the private key at the given index.
 
   """
-  @spec sign_with_node_key(data :: binary(), index :: binary()) :: binary()
-  def sign_with_node_key(data, index) when is_binary(data) and is_number(index) do
+  @spec sign_with_node_key(data :: iodata(), index :: non_neg_integer()) :: binary()
+  def sign_with_node_key(data, index)
+      when is_binary(data) or (is_list(data) and is_number(index)) do
     Keystore.sign_with_node_key(data, index)
   end
 
-  def sign_with_node_key(data, index) do
-    sign_with_node_key(:erlang.term_to_binary(data), index)
-  end
-
   @doc """
   Sign the data with the node shared secrets transaction seed
   """
-  @spec sign_with_node_shared_secrets_key(data :: binary()) :: binary()
-  def sign_with_node_shared_secrets_key(data) when is_binary(data) do
+  @spec sign_with_node_shared_secrets_key(data :: iodata()) :: binary()
+  def sign_with_node_shared_secrets_key(data) when is_binary(data) or is_list(data) do
     Keystore.sign_with_node_shared_secrets_key(data)
   end
 
-  def sign_with_node_shared_secrets_key(data) do
-    sign_with_node_shared_secrets_key(:erlang.term_to_binary(data))
-  end
-
   @doc """
   Sign the data with the node shared secrets transaction seed
   """
-  @spec sign_with_node_shared_secrets_key(data :: binary(), index :: non_neg_integer()) ::
+  @spec sign_with_node_shared_secrets_key(data :: iodata(), index :: non_neg_integer()) ::
           binary()
-  def sign_with_node_shared_secrets_key(data, index) when is_binary(data) and is_integer(index) do
+  def sign_with_node_shared_secrets_key(data, index)
+      when is_binary(data) or (is_list(data) and is_integer(index)) do
     Keystore.sign_with_node_shared_secrets_key(data, index)
-  end
-
-  def sign_with_node_shared_secrets_key(data, index) do
-    sign_with_node_shared_secrets_key(:erlang.term_to_binary(data), index)
   end
 
   @doc """
@@ -396,19 +381,16 @@ defmodule UnirisCore.Crypto do
       iex> UnirisCore.Crypto.verify(sig, "myfakedata", pub)
       false
   """
-  @spec verify(signature :: binary(), data :: any(), public_key :: key()) :: boolean()
+  @spec verify(signature :: binary(), data :: iodata(), public_key :: key()) :: boolean()
   def verify(
         sig,
         data,
         <<curve_id::8, key::binary>> = _public_key
       )
-      when is_binary(data) do
+      when is_binary(data) or is_list(data) do
     curve = ID.curve_from_id(curve_id)
     do_verify(curve, key, data, sig)
   end
-
-  def verify(sig, data, key),
-    do: verify(sig, :erlang.term_to_binary(data), key)
 
   defp do_verify(:ed25519, key, data, sig), do: Ed25519.verify(key, data, sig)
   defp do_verify(curve, key, data, sig), do: ECDSA.verify(curve, key, data, sig)
@@ -432,7 +414,7 @@ defmodule UnirisCore.Crypto do
       30, 79, 81, 24, 47, 27, 175, 252, 252, 64, 11, 207>>
       ```
   """
-  @spec ec_encrypt(message :: term() | binary(), public_key :: key()) :: binary()
+  @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
   def ec_encrypt(message, <<curve_id::8, key::binary>> = _public_key) when is_binary(message) do
     curve = ID.curve_from_id(curve_id)
     do_ec_encrypt(curve, message, key)
@@ -468,7 +450,7 @@ defmodule UnirisCore.Crypto do
       ** (RuntimeError) Decryption failed
       ```
   """
-  @spec ec_decrypt!(cipher :: binary(), private_key :: key()) :: term()
+  @spec ec_decrypt!(cipher :: binary(), private_key :: key()) :: binary()
   def ec_decrypt!(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
     do_ec_decrypt!(ID.curve_from_id(curve_id), cipher, key)
   end
@@ -484,7 +466,7 @@ defmodule UnirisCore.Crypto do
   @doc """
   Decrypt the cipher using last node private key
   """
-  @spec ec_decrypt_with_node_key!(cipher :: binary(), index :: non_neg_integer()) :: term()
+  @spec ec_decrypt_with_node_key!(cipher :: binary(), index :: non_neg_integer()) :: binary()
   def ec_decrypt_with_node_key!(cipher, index) do
     Keystore.decrypt_with_node_key!(cipher, index)
   end
@@ -495,8 +477,8 @@ defmodule UnirisCore.Crypto do
   @doc """
   Encrypt a data using AES authenticated encryption.
   """
-  @spec aes_encrypt(data :: binary(), key :: binary) :: aes_cipher
-  def aes_encrypt(data, <<key::binary-32>>) when is_binary(data) do
+  @spec aes_encrypt(data :: iodata(), key :: iodata()) :: aes_cipher
+  def aes_encrypt(data, _key = <<key::binary-32>>) when is_binary(data) do
     iv = :crypto.strong_rand_bytes(12)
     {cipher, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", true)
     iv <> tag <> cipher
@@ -522,7 +504,7 @@ defmodule UnirisCore.Crypto do
       ```
 
   """
-  @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: term()
+  @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: binary()
   def aes_decrypt!(<<iv::binary-12, tag::binary-16, cipher::binary>>, <<key::binary-32>>) do
     case :crypto.crypto_one_time_aead(
            :aes_256_gcm,
@@ -562,19 +544,16 @@ defmodule UnirisCore.Crypto do
       <<2, 157, 219, 54, 234, 186, 251, 4, 122, 216, 105, 185, 228, 211, 94, 44, 94,
       104, 147, 182, 189, 45, 28, 219, 218, 236, 19, 66, 87, 121, 240, 249, 218>>
   """
-  @spec hash(data :: map() | binary(), algo :: supported_hash()) ::
-          hash() | {:error, :invalid_hash_algo}
+  @spec hash(data :: iodata(), algo :: supported_hash()) :: versioned_hash()
   def hash(data, algo \\ Application.get_env(:uniris_core, __MODULE__)[:default_hash])
 
-  def hash(data, algo) when is_binary(data) do
+  def hash(data, algo) when is_bitstring(data) or is_list(data) do
     hash_algo_id = ID.id_from_hash(algo)
 
-    do_hash(data, algo)
+    data
+    |> do_hash(algo)
     |> ID.identify_hash(hash_algo_id)
   end
-
-  def hash(data, algo),
-    do: hash(:erlang.term_to_binary(data), algo)
 
   defp do_hash(data, :sha256), do: :crypto.hash(:sha256, data)
   defp do_hash(data, :sha512), do: :crypto.hash(:sha512, data)
@@ -582,76 +561,31 @@ defmodule UnirisCore.Crypto do
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
 
-  @spec hash_with_daily_nonce(data :: binary()) :: binary()
-  def hash_with_daily_nonce(data) do
+  @spec hash_with_daily_nonce(data :: iodata()) :: binary()
+  def hash_with_daily_nonce(data) when is_binary(data) or is_list(data) do
     Keystore.hash_with_daily_nonce(data)
   end
 
-  @spec hash_with_storage_nonce(data :: binary()) :: binary()
-  def hash_with_storage_nonce(data) do
+  @spec hash_with_storage_nonce(data :: iodata()) :: binary()
+  def hash_with_storage_nonce(data) when is_binary(data) or is_list(data) do
     Keystore.hash_with_storage_nonce(data)
   end
 
   @doc """
-  Check the validity of a public key.
-
-  The first byte of the public key identifies the curve and the validation rules to apply.
-
-  ## Examples
-
-      iex> {pub, _} = UnirisCore.Crypto.generate_deterministic_keypair("myseed")
-      iex> UnirisCore.Crypto.valid_public_key?(pub)
-      true
-
-      iex> {pub, _} = UnirisCore.Crypto.generate_deterministic_keypair("myseed", :secp256r1)
-      iex> UnirisCore.Crypto.valid_public_key?(pub)
-      true
-
-  Invalid size of public key return an error:
-
-      iex> UnirisCore.Crypto.valid_public_key?(<<1,0>>)
-      false
+  Return the size of key using the curve id
   """
-  @spec valid_public_key?(key()) :: boolean()
-  def valid_public_key?(<<curve_id::8, key::binary>>) do
-    curve = ID.curve_from_id(curve_id)
-    do_valid_public_key?(curve, key)
-  end
-
-  def valid_public_key?(_), do: false
-
-  defp do_valid_public_key?(:ed25519, key) when byte_size(key) == 32 do
-    true
-  end
-
-  defp do_valid_public_key?(_, key) when byte_size(key) == 65 do
-    true
-  end
-
-  defp do_valid_public_key?(_, _) do
-    false
-  end
+  @spec key_size(curve_id :: 0 | 1 | 2) :: 32 | 65
+  def key_size(0), do: 32
+  def key_size(1), do: 65
+  def key_size(2), do: 65
 
   @doc """
-  Checks if a hash is valid
-
-  ## Examples
-
-      iex> hash = UnirisCore.Crypto.hash("mydata", :sha256)
-      iex> UnirisCore.Crypto.valid_hash?(hash)
-      true
-
-      iex> UnirisCore.Crypto.valid_hash?("myfakesha256")
-      false
-
-      iex> UnirisCore.Crypto.valid_hash?(:crypto.strong_rand_bytes(32))
-      false
+  Return the size of hash using the algorithm id
   """
-  @spec valid_hash?(hash()) :: boolean()
-  def valid_hash?(<<0::8, hash::binary>>), do: byte_size(hash) == 32
-  def valid_hash?(<<1::8, hash::binary>>), do: byte_size(hash) == 64
-  def valid_hash?(<<2::8, hash::binary>>), do: byte_size(hash) == 32
-  def valid_hash?(<<3::8, hash::binary>>), do: byte_size(hash) == 64
-  def valid_hash?(<<4::8, hash::binary>>), do: byte_size(hash) == 64
-  def valid_hash?(_hash), do: false
+  @spec hash_size(hash_algo_id :: 0 | 1 | 2 | 3 | 4) :: 32 | 64
+  def hash_size(0), do: 32
+  def hash_size(1), do: 64
+  def hash_size(2), do: 32
+  def hash_size(3), do: 64
+  def hash_size(4), do: 64
 end

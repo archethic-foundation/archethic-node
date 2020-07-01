@@ -12,7 +12,8 @@ defmodule UnirisWeb.Schema do
   alias UnirisCore.TransactionData.Keys
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias UnirisCore.Transaction.CrossValidationStamp
 
@@ -54,7 +55,7 @@ defmodule UnirisWeb.Schema do
       arg(:address, non_null(:hash))
       arg(:timestamp, non_null(:integer))
       arg(:type, non_null(:transaction_type))
-      arg(:data, non_null(:transaction_data_input))
+      arg(:data, non_null(:data_input))
       arg(:previous_public_key, non_null(:public_key))
       arg(:previous_signature, non_null(:signature))
       arg(:origin_signature, non_null(:signature))
@@ -181,7 +182,14 @@ defmodule UnirisWeb.Schema do
     }
   end
 
-  defp format(%Movement{to: to, amount: amount}) do
+  defp format(%NodeMovement{to: to, amount: amount}) do
+    %{
+      to: to,
+      amount: amount
+    }
+  end
+
+  defp format(%TransactionMovement{to: to, amount: amount}) do
     %{
       to: to,
       amount: amount

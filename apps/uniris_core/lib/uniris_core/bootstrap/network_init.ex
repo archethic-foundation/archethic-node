@@ -77,7 +77,7 @@ defmodule UnirisCore.Bootstrap.NetworkInit do
       Enum.map(Application.get_env(:uniris_core, __MODULE__)[:genesis_pools], fn {_,
                                                                                   [
                                                                                     public_key:
-                                                                                    public_key,
+                                                                                      public_key,
                                                                                     amount: amount
                                                                                   ]} ->
         %Transfer{

@@ -5,6 +5,16 @@ defmodule UnirisCore do
   alias __MODULE__.Transaction
   alias __MODULE__.Crypto
   alias __MODULE__.Storage
+  alias __MODULE__.P2P.Message.GetTransaction
+  alias __MODULE__.P2P.Message.GetTransactionChain
+  alias __MODULE__.P2P.Message.GetTransactionInputs
+  alias __MODULE__.P2P.Message.GetBalance
+  alias __MODULE__.P2P.Message.GetLastTransaction
+  alias __MODULE__.P2P.Message.NotFound
+  alias __MODULE__.P2P.Message.StartMining
+  alias __MODULE__.P2P.Message.TransactionList
+  alias __MODULE__.P2P.Message.UnspentOutputList
+  alias __MODULE__.P2P.Message.Balance
 
   @doc """
   Query the search of the transaction to the dedicated storage pool
@@ -23,7 +33,14 @@ defmodule UnirisCore do
         |> Election.storage_nodes()
         |> P2P.nearest_nodes(patch)
         |> List.first()
-        |> P2P.send_message({:get_transaction, address})
+        |> P2P.send_message(%GetTransaction{address: address})
+        |> case do
+          tx = %Transaction{} ->
+            {:ok, tx}
+
+          %NotFound{} ->
+            {:error, :transaction_not_exists}
+        end
     end
   end
 
@@ -38,8 +55,11 @@ defmodule UnirisCore do
       Task.start(fn ->
         P2P.send_message(
           node,
-          {:start_mining, tx, Crypto.node_public_key(),
-           Enum.map(validation_nodes, & &1.last_public_key)}
+          %StartMining{
+            transaction: tx,
+            welcome_node_public_key: Crypto.node_public_key(),
+            validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
+          }
         )
       end)
     end)
@@ -59,7 +79,14 @@ defmodule UnirisCore do
         |> Election.storage_nodes()
         |> P2P.nearest_nodes(patch)
         |> List.first()
-        |> P2P.send_message({:get_last_transaction, address})
+        |> P2P.send_message(%GetLastTransaction{address: address})
+        |> case do
+          %NotFound{} ->
+            {:error, :not_found}
+
+          tx = %Transaction{} ->
+            {:ok, tx}
+        end
     end
   end
 
@@ -69,7 +96,7 @@ defmodule UnirisCore do
   If the current node is a storage of this address, it will perform a fast lookup
   Otherwise it will request the closest storage node about it
   """
-  @spec get_balance(binary) :: float()
+  @spec get_balance(binary) :: uco_balance :: float()
   def get_balance(address) do
     storage_nodes = Election.storage_nodes(address)
 
@@ -78,10 +105,13 @@ defmodule UnirisCore do
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
-      storage_nodes
-      |> P2P.nearest_nodes(patch)
-      |> List.first()
-      |> P2P.send_message({:get_balance, address})
+      %Balance{uco: uco_balance} =
+        storage_nodes
+        |> P2P.nearest_nodes(patch)
+        |> List.first()
+        |> P2P.send_message(%GetBalance{address: address})
+
+      uco_balance
     end
   end
 
@@ -97,10 +127,13 @@ defmodule UnirisCore do
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
-      storage_nodes
-      |> P2P.nearest_nodes(patch)
-      |> List.first()
-      |> P2P.send_message({:get_inputs, address})
+      %UnspentOutputList{unspent_outputs: unspent_outputs} =
+        storage_nodes
+        |> P2P.nearest_nodes(patch)
+        |> List.first()
+        |> P2P.send_message(%GetTransactionInputs{address: address})
+
+      unspent_outputs
     end
   end
 
@@ -116,10 +149,13 @@ defmodule UnirisCore do
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
-      storage_nodes
-      |> P2P.nearest_nodes(patch)
-      |> List.first()
-      |> P2P.send_message({:get_transaction_chain, address})
+      %TransactionList{transactions: chain} =
+        storage_nodes
+        |> P2P.nearest_nodes(patch)
+        |> List.first()
+        |> P2P.send_message(%GetTransactionChain{address: address})
+
+      chain
     end
   end
 end

@@ -3,6 +3,7 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
 
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Keys
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Crypto
   alias UnirisCore.P2P
@@ -39,11 +40,12 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
 
     UnirisCore.Storage.Cache.store_transaction(%{node_tx | validation_stamp: stamp})
 
+    secret_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt("secret", secret_key)
+
     shared_secret_tx =
       Transaction.new(:node_shared_secrets, %TransactionData{
-        keys: %{
-          authorized_keys: %{} |> Map.put(public_key, "")
-        }
+        keys: Keys.new([public_key], secret_key, secret)
       })
 
     stamp =
@@ -105,13 +107,12 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
       first_public_key: Crypto.node_public_key()
     })
 
-    auth_keys = %{} |> Map.put(Crypto.node_public_key(), "")
+    secret_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt("secret", secret_key)
 
     tx =
       Transaction.new(:node_shared_secrets, %TransactionData{
-        keys: %{
-          authorized_keys: auth_keys
-        }
+        keys: Keys.new([Crypto.node_public_key()], secret_key, secret)
       })
 
     send(pid, {:new_transaction, tx})

@@ -9,6 +9,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
   alias UnirisCore.TaskSupervisor
   alias UnirisCore.SharedSecrets
   alias UnirisCore.Utils
+  alias UnirisCore.P2P.Message.StartMining
 
   use GenServer
 
@@ -48,14 +49,11 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
       )
 
     # Determine if the current node is in charge to the send the new transaction
+    authorized_storage_nodes =
+      Enum.filter(P2P.list_nodes(), &(&1.ready? && &1.available? && &1.authorized?))
+
     [%Node{last_public_key: key} | _] =
-      P2P.list_nodes()
-      |> Enum.filter(&(&1.ready? && &1.available? && &1.authorized?))
-      |> Election.sort_nodes_by_key_rotation(
-        :first_public_key,
-        :storage_nonce,
-        Crypto.hash(tx)
-      )
+      Election.storage_nodes(tx.address, authorized_storage_nodes)
 
     if key == Crypto.node_public_key() do
       Logger.info("Node shared secret key renewal")
@@ -67,7 +65,11 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
 
       TaskSupervisor
       |> Task.Supervisor.async_stream_nolink(validation_nodes, fn node ->
-        P2P.send_message(node, {:start_mining, tx, Crypto.node_public_key(), validation_nodes})
+        P2P.send_message(node, %StartMining{
+          transaction: tx,
+          welcome_node_public_key: Crypto.node_public_key(),
+          validation_node_public_keys: validation_nodes
+        })
       end)
       |> Stream.run()
     end

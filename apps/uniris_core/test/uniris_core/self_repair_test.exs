@@ -15,6 +15,9 @@ defmodule UnirisCore.SelfRepairTest do
   alias UnirisCore.Crypto
   alias UnirisCore.Bootstrap.NetworkInit
   alias UnirisCore.Mining.Context
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.BeaconSlotList
 
   import Mox
 
@@ -108,43 +111,45 @@ defmodule UnirisCore.SelfRepairTest do
     MockNodeClient
     |> stub(:send_message, fn _, _, msg ->
       case msg do
-        {:get_beacon_slots, _slots} ->
-          [
-            %BeaconSlot{
-              transactions: [
-                %TransactionInfo{
-                  address: tx_alice2.address,
-                  type: :transfer,
-                  timestamp: DateTime.utc_now() |> DateTime.add(2)
-                }
-              ]
-            },
-            %BeaconSlot{
-              transactions: [
-                %TransactionInfo{
-                  address: tx_alice1.address,
-                  type: :transfer,
-                  timestamp: DateTime.utc_now()
-                },
-                %TransactionInfo{
-                  address: tx_node1.address,
-                  type: :node,
-                  timestamp: DateTime.utc_now()
-                }
-              ]
-            }
-          ]
+        %GetBeaconSlots{} ->
+          %BeaconSlotList{
+            slots: [
+              %BeaconSlot{
+                transactions: [
+                  %TransactionInfo{
+                    address: tx_alice2.address,
+                    type: :transfer,
+                    timestamp: DateTime.utc_now() |> DateTime.add(2)
+                  }
+                ]
+              },
+              %BeaconSlot{
+                transactions: [
+                  %TransactionInfo{
+                    address: tx_alice1.address,
+                    type: :transfer,
+                    timestamp: DateTime.utc_now()
+                  },
+                  %TransactionInfo{
+                    address: tx_node1.address,
+                    type: :node,
+                    timestamp: DateTime.utc_now()
+                  }
+                ]
+              }
+            ]
+          }
 
-        {:get_transaction, address} ->
+        %GetTransaction{address: address} ->
           cond do
             address == tx_alice1.address ->
-              {:ok, tx_alice1}
+              tx_alice1
 
             address == tx_alice2.address ->
-              {:ok, tx_alice2}
+              tx_alice2
 
             address == tx_node1.address ->
-              {:ok, tx_node1}
+              tx_node1
           end
       end
     end)

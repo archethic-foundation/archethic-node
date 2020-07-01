@@ -9,7 +9,7 @@ defmodule UnirisCore.Storage.CacheTest do
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Storage.Cache
   alias UnirisCore.Mining.Context
@@ -119,7 +119,7 @@ defmodule UnirisCore.Storage.CacheTest do
               ["previous_storage_node_key"]
             ),
           transaction_movements: [
-            %Movement{to: "@Charlie5", amount: 3.0}
+            %TransactionMovement{to: "@Charlie5", amount: 3.0}
           ],
           unspent_outputs: [
             %UnspentOutput{amount: 2.0, from: tx.address},
@@ -264,7 +264,7 @@ defmodule UnirisCore.Storage.CacheTest do
             ["previous_storage_node_key"]
           ),
         transaction_movements: [
-          %Movement{to: "@Charlie5", amount: 3.0}
+          %TransactionMovement{to: "@Charlie5", amount: 3.0}
         ],
         unspent_outputs: [
           %UnspentOutput{amount: 2.0, from: tx.address},
@@ -297,7 +297,7 @@ defmodule UnirisCore.Storage.CacheTest do
             ["previous_storage_node_key"]
           ),
         transaction_movements: [
-          %Movement{to: "@Charlie5", amount: 12}
+          %TransactionMovement{to: "@Charlie5", amount: 12}
         ],
         unspent_outputs: []
       }
@@ -355,7 +355,7 @@ defmodule UnirisCore.Storage.CacheTest do
             ["previous_storage_node_key"]
           ),
         transaction_movements: [
-          %Movement{to: tx.address, amount: 1.0}
+          %TransactionMovement{to: tx.address, amount: 1.0}
         ],
         unspent_outputs: [
           %UnspentOutput{amount: 2.0, from: tx2.address},

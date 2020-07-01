@@ -133,7 +133,10 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
         state = %{storage_nonce: key}
       ) do
     {pub, _} =
-      Crypto.derivate_keypair(key, Crypto.hash([subset, date]) |> :binary.decode_unsigned())
+      Crypto.derivate_keypair(
+        key,
+        Crypto.hash([subset, <<date::32>>]) |> :binary.decode_unsigned()
+      )
 
     {:reply, Crypto.hash(pub), state}
   end

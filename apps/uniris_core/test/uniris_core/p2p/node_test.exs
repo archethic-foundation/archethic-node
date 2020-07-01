@@ -4,6 +4,8 @@ defmodule UnirisCore.P2P.NodeTest do
   alias UnirisCore.P2P.Node
   alias UnirisCore.P2P.NodeRegistry
 
+  doctest Node
+
   import Mox
 
   setup :verify_on_exit!

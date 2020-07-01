@@ -3,10 +3,13 @@ defmodule UnirisCore.P2P.NodeTCPClientTest do
 
   alias UnirisCore.P2P.NodeTCPClient
 
+  alias UnirisCore.P2P.Message
+  alias UnirisCore.P2P.Message.Ok
+
   defp recv(socket) do
     case :gen_tcp.recv(socket, 0) do
       {:ok, data} ->
-        :gen_tcp.send(socket, data |> :erlang.binary_to_term() |> :erlang.term_to_binary())
+        :gen_tcp.send(socket, data |> Message.decode() |> Message.encode())
         recv(socket)
 
       {:error, _} ->
@@ -33,6 +36,6 @@ defmodule UnirisCore.P2P.NodeTCPClientTest do
   end
 
   test "send_message/3 should send a message and get results", %{port: port} do
-    assert :hello == NodeTCPClient.send_message({127, 0, 0, 1}, port, :hello)
+    assert %Ok{} == NodeTCPClient.send_message({127, 0, 0, 1}, port, %Ok{})
   end
 end

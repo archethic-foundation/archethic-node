@@ -90,7 +90,9 @@ defmodule UnirisCore.Election.Constraints do
   a logarithmic progression is done to increase the number of validations
   """
   @spec validation_number(Transaction.pending()) :: non_neg_integer()
-  def validation_number(%Transaction{data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}})
+  def validation_number(%Transaction{
+        data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
+      })
       when length(transfers) > 0 do
     total_transfers = Enum.map(transfers, & &1.amount) |> Enum.sum()
 

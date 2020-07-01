@@ -6,6 +6,8 @@ defmodule UnirisCore.TransactionTest do
   alias UnirisCore.Crypto
   alias UnirisCore.Transaction.CrossValidationStamp
 
+  doctest UnirisCore.Transaction
+
   describe "new/2" do
     test "with type ':node' create a new transaction using the node keys" do
       tx = Transaction.new(:node, %TransactionData{})
@@ -16,14 +18,7 @@ defmodule UnirisCore.TransactionTest do
 
       assert Crypto.verify(
                tx.origin_signature,
-               Map.take(tx, [
-                 :address,
-                 :type,
-                 :timestamp,
-                 :data,
-                 :previous_public_key,
-                 :previous_signature
-               ]),
+               tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
                Crypto.node_public_key(0)
              )
     end
@@ -44,14 +39,7 @@ defmodule UnirisCore.TransactionTest do
 
       assert Crypto.verify(
                tx.origin_signature,
-               Map.take(tx, [
-                 :address,
-                 :type,
-                 :timestamp,
-                 :data,
-                 :previous_public_key,
-                 :previous_signature
-               ]),
+               tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
                Crypto.node_public_key(0)
              )
     end

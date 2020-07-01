@@ -10,7 +10,7 @@ defmodule UnirisCore.Bootstrap.NetworkInitTest do
   alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.Movement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias UnirisCore.BeaconSubset
   alias UnirisCore.BeaconSubsets
@@ -68,7 +68,7 @@ defmodule UnirisCore.Bootstrap.NetworkInitTest do
       validation_stamp: %ValidationStamp{
         ledger_operations: %LedgerOperations{
           transaction_movements: [
-            %Movement{to: "@Alice2", amount: 5_000.0}
+            %TransactionMovement{to: "@Alice2", amount: 5_000.0}
           ],
           unspent_outputs: [
             # TODO: use the right change when the fee algorithm is implemented
@@ -171,7 +171,8 @@ defmodule UnirisCore.Bootstrap.NetworkInitTest do
 
     NetworkInit.init_genesis_wallets("@network_pool")
 
-    funding_address = "002E354A95241E867C836E8BBBBF6F9BF2450860BA28B1CF24B734EF67FF49169E"
+    funding_address =
+      "002E354A95241E867C836E8BBBBF6F9BF2450860BA28B1CF24B734EF67FF49169E"
       |> Base.decode16!()
       |> Crypto.hash()
 

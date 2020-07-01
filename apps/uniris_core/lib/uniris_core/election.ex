@@ -9,6 +9,7 @@ defmodule UnirisCore.Election do
   alias __MODULE__.ValidationConstraints
   alias __MODULE__.StorageConstraints
   alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
 
   @doc """
@@ -41,11 +42,20 @@ defmodule UnirisCore.Election do
     min_geo_patch = min_geo_patch_fun.()
     nb_validations = validation_number_fun.(tx)
 
+    tx_hash =
+      tx
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
     P2P.list_nodes()
     |> Enum.filter(& &1.ready?)
     |> Enum.filter(& &1.available?)
     |> Enum.filter(& &1.authorized?)
-    |> sort_nodes_by_key_rotation(:last_public_key, :daily_nonce, Crypto.hash(tx))
+    |> sort_nodes_by_key_rotation(
+      :last_public_key,
+      :daily_nonce,
+      tx_hash
+    )
     |> do_validation_nodes(nb_validations, min_geo_patch)
   end
 
@@ -220,6 +230,7 @@ defmodule UnirisCore.Election do
     |> Enum.map(fn {_, n} -> n end)
   end
 
+  @spec do_hash(:daily_nonce | :storage_nonce, iodata()) :: binary()
   defp do_hash(:daily_nonce, data) do
     Crypto.hash_with_daily_nonce(data)
   end
