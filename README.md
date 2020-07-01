@@ -32,14 +32,15 @@ Current implemented features:
 - Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
 - P2P transfers and genesis pools allocation
 - Transaction explorer
+- Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
 
 ## Next features to appear very soon:
-- Binary Protocol Serialization of messages and transaction
-- Client Line Interpreter
+- CLI & SDK
 - Sampling P2P view on the Beacon chain
 - Summary of the Beacon chain
 - Smart Contract Standard library functions
 - P2P messages encryption
+- OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
 
 ## Contribution
