@@ -686,7 +686,7 @@ defmodule UnirisCore.P2P.Message do
     else
       # Find out the next greate multiple of 8
       round_up = Bitwise.band(size + 7, -8)
-      pad_bitstring(bits, (round_up - size))
+      pad_bitstring(bits, round_up - size)
     end
   end
 
