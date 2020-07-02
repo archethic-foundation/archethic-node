@@ -53,7 +53,7 @@ defmodule UnirisWeb.Schema do
   mutation do
     field :new_transaction, :boolean do
       arg(:address, non_null(:hash))
-      arg(:timestamp, non_null(:integer))
+      arg(:timestamp, non_null(:timestamp))
       arg(:type, non_null(:transaction_type))
       arg(:data, non_null(:data_input))
       arg(:previous_public_key, non_null(:public_key))
@@ -61,9 +61,15 @@ defmodule UnirisWeb.Schema do
       arg(:origin_signature, non_null(:signature))
 
       resolve(fn tx, _ ->
-        tx = struct(Transaction, tx)
-        :ok = UnirisCore.send_new_transaction(tx)
-        {:ok, true}
+        tx
+        |> parse_input
+        |> UnirisCore.send_new_transaction()
+        |> case do
+          :ok ->
+            {:ok, true}
+          _ ->
+            :error
+        end
       end)
     end
   end
@@ -211,6 +217,43 @@ defmodule UnirisWeb.Schema do
     %{
       node: public_key,
       signature: signature
+    }
+  end
+
+  defp parse_input(%{ address: address, type: type, timestamp: timestamp, data: data, previous_public_key: previous_public_key, previous_signature: previous_signature, origin_signature: origin_signature}) do
+    %UnirisCore.Transaction{
+      address: address,
+      type: type,
+      timestamp: timestamp,
+      data: parse_input(data),
+      previous_public_key: previous_public_key,
+      previous_signature: previous_signature,
+      origin_signature: origin_signature
+    }
+  end
+
+  defp parse_input(%{code: code, content: content, keys: %{authorized_keys: authorized_keys, secret: secret}, ledger: %{uco: %{transfers: transfers}}, recipients: recipients}) do
+    IO.inspect authorized_keys
+    %UnirisCore.TransactionData{
+      code: code,
+      content: content,
+      keys: %UnirisCore.TransactionData.Keys{
+        authorized_keys: Enum.reduce(authorized_keys, %{}, fn %{ public_key: public_key, encrypted_key: encrypted_key }, acc ->
+          Map.put(acc, public_key, encrypted_key)
+        end),
+        secret: secret
+      },
+      ledger: %UnirisCore.TransactionData.Ledger{
+        uco: %UnirisCore.TransactionData.UCOLedger{
+          transfers: Enum.map(transfers, fn %{ to: to, amount: amount} ->
+            %UnirisCore.TransactionData.Ledger.Transfer{
+              to: to,
+              amount: amount
+            }
+          end)
+        }
+      },
+      recipients: recipients
     }
   end
 end

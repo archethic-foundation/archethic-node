@@ -42,27 +42,46 @@ defmodule UnirisWeb.Schema.CryptoTypes do
   """
   scalar :cipher do
     serialize(&Base.encode16/1)
-    parse(&Base.decode16/1)
+    parse(&parse_cipher/1)
   end
 
   @spec parse_hash(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_hash(%Absinthe.Blueprint.Input.String{value: hash}) do
-    Base.decode16(hash)
+
+    with {:ok, hash = <<hash_id::8, rest::binary>>} <- Base.decode16(hash, case: :mixed),
+         true <- UnirisCore.Crypto.hash_size(hash_id) == byte_size(rest) do
+      {:ok, hash}
+    else
+      _ ->
+        :error
+    end
   end
 
   defp parse_hash(_), do: :error
 
   @spec parse_public_key(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_public_key(%Absinthe.Blueprint.Input.String{value: key}) do
-    Base.decode16(key)
+    with {:ok, key = <<curve_id::8, rest::binary>>} <- Base.decode16(key, case: :mixed),
+         true <- UnirisCore.Crypto.key_size(curve_id) == byte_size(rest) do
+      {:ok, key}
+    else
+      _ ->
+        :error
+    end
   end
 
   defp parse_public_key(_), do: :error
 
   @spec parse_signature(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_signature(%Absinthe.Blueprint.Input.String{value: key}) do
-    Base.decode16(key)
+    Base.decode16(key, case: :mixed)
   end
 
   defp parse_signature(_), do: :error
+
+  defp parse_cipher(%Absinthe.Blueprint.Input.String{value: cipher}) do
+    Base.decode16(cipher, case: :mixed)
+  end
+
+  defp parse_cipher(_), do: :error
 end

@@ -4,6 +4,7 @@ defmodule UnirisWeb.Schema.TransactionType do
   use Absinthe.Schema.Notation
 
   import_types(UnirisWeb.Schema.CryptoTypes)
+  import_types(UnirisWeb.Schema.DateTimeType)
 
   @desc """
   The [TransactionType] enum represents the type of Uniris transactions.
@@ -23,7 +24,7 @@ defmodule UnirisWeb.Schema.TransactionType do
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
   object :transaction do
     field(:address, :hash)
-    field(:timestamp, :integer)
+    field(:timestamp, :timestamp)
     field(:type, :transaction_type)
     field(:data, :data)
     field(:previous_public_key, :public_key)
@@ -67,6 +68,7 @@ defmodule UnirisWeb.Schema.TransactionType do
     field(:code, :string)
     field(:content, :string)
     field(:keys, :keys_input)
+    field(:recipients, list_of(:hash))
   end
 
   @desc "[Ledger] represents the ledger operations to perform"
