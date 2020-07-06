@@ -5,6 +5,7 @@ defmodule UnirisWeb.Schema.TransactionType do
 
   import_types(UnirisWeb.Schema.CryptoTypes)
   import_types(UnirisWeb.Schema.DateTimeType)
+  import_types(UnirisWeb.Schema.HexType)
 
   @desc """
   The [TransactionType] enum represents the type of Uniris transactions.
@@ -28,8 +29,8 @@ defmodule UnirisWeb.Schema.TransactionType do
     field(:type, :transaction_type)
     field(:data, :data)
     field(:previous_public_key, :public_key)
-    field(:previous_signature, :signature)
-    field(:origin_signature, :signature)
+    field(:previous_signature, :hex)
+    field(:origin_signature, :hex)
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
 
@@ -50,8 +51,8 @@ defmodule UnirisWeb.Schema.TransactionType do
   [TransactionData] represents the data section for every transaction.
   It includes:
   - Ledger: asset transfers
-  - Code: smart contract code,
-  - Content: free zone for data hosting
+  - Code: smart contract code (hexadecimal),
+  - Content: free zone for data hosting (hexadecimal)
   - Keys: Secrets and authorized public keys to decrypt the secret
   - Recipients: For non asset transfers, the list of recipients of the transaction (e.g Smart contract interactions)
   """
@@ -65,8 +66,8 @@ defmodule UnirisWeb.Schema.TransactionType do
 
   input_object :data_input do
     field(:ledger, :ledger_input)
-    field(:code, :string)
-    field(:content, :string)
+    field(:code, :hex)
+    field(:content, :hex)
     field(:keys, :keys_input)
     field(:recipients, list_of(:hash))
   end
@@ -102,12 +103,12 @@ defmodule UnirisWeb.Schema.TransactionType do
 
   @desc "[Keys] represents a block to set secret and authorized public keys able to read the secret"
   object :keys do
-    field(:secret, :cipher)
+    field(:secret, :hex)
     field(:authorized_keys, list_of(:authorized_key))
   end
 
   input_object :keys_input do
-    field(:secret, :cipher)
+    field(:secret, :hex)
     field(:authorized_keys, list_of(:authorized_key_input))
   end
 
@@ -117,12 +118,12 @@ defmodule UnirisWeb.Schema.TransactionType do
   """
   object :authorized_key do
     field(:public_key, :public_key)
-    field(:encrypted_key, :cipher)
+    field(:encrypted_key, :hex)
   end
 
   input_object :authorized_key_input do
     field(:public_key, :public_key)
-    field(:encrypted_key, :cipher)
+    field(:encrypted_key, :hex)
   end
 
   @desc """
@@ -137,7 +138,7 @@ defmodule UnirisWeb.Schema.TransactionType do
     field(:proof_of_work, :public_key)
     field(:proof_of_integrity, :hash)
     field(:ledger_operations, :ledger_operations)
-    field(:signature, :signature)
+    field(:signature, :hex)
   end
 
   @desc """
@@ -169,7 +170,7 @@ defmodule UnirisWeb.Schema.TransactionType do
 
   @desc "[CrossValidationStamp] represents the approval of the validation stamp by a cross validation node"
   object :cross_validation_stamp do
-    field(:signature, :signature)
+    field(:signature, :hex)
     field(:node, :public_key)
   end
 end

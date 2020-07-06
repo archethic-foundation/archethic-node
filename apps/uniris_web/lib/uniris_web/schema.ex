@@ -57,8 +57,8 @@ defmodule UnirisWeb.Schema do
       arg(:type, non_null(:transaction_type))
       arg(:data, non_null(:data_input))
       arg(:previous_public_key, non_null(:public_key))
-      arg(:previous_signature, non_null(:signature))
-      arg(:origin_signature, non_null(:signature))
+      arg(:previous_signature, non_null(:hex))
+      arg(:origin_signature, non_null(:hex))
 
       resolve(fn tx, _ ->
         tx
@@ -67,6 +67,7 @@ defmodule UnirisWeb.Schema do
         |> case do
           :ok ->
             {:ok, true}
+
           _ ->
             :error
         end
@@ -220,7 +221,15 @@ defmodule UnirisWeb.Schema do
     }
   end
 
-  defp parse_input(%{ address: address, type: type, timestamp: timestamp, data: data, previous_public_key: previous_public_key, previous_signature: previous_signature, origin_signature: origin_signature}) do
+  defp parse_input(%{
+         address: address,
+         type: type,
+         timestamp: timestamp,
+         data: data,
+         previous_public_key: previous_public_key,
+         previous_signature: previous_signature,
+         origin_signature: origin_signature
+       }) do
     %UnirisCore.Transaction{
       address: address,
       type: type,
@@ -232,25 +241,36 @@ defmodule UnirisWeb.Schema do
     }
   end
 
-  defp parse_input(%{code: code, content: content, keys: %{authorized_keys: authorized_keys, secret: secret}, ledger: %{uco: %{transfers: transfers}}, recipients: recipients}) do
-    IO.inspect authorized_keys
+  defp parse_input(%{
+         code: code,
+         content: content,
+         keys: %{authorized_keys: authorized_keys, secret: secret},
+         ledger: %{uco: %{transfers: transfers}},
+         recipients: recipients
+       }) do
     %UnirisCore.TransactionData{
       code: code,
       content: content,
       keys: %UnirisCore.TransactionData.Keys{
-        authorized_keys: Enum.reduce(authorized_keys, %{}, fn %{ public_key: public_key, encrypted_key: encrypted_key }, acc ->
-          Map.put(acc, public_key, encrypted_key)
-        end),
+        authorized_keys:
+          Enum.reduce(authorized_keys, %{}, fn %{
+                                                 public_key: public_key,
+                                                 encrypted_key: encrypted_key
+                                               },
+                                               acc ->
+            Map.put(acc, public_key, encrypted_key)
+          end),
         secret: secret
       },
       ledger: %UnirisCore.TransactionData.Ledger{
         uco: %UnirisCore.TransactionData.UCOLedger{
-          transfers: Enum.map(transfers, fn %{ to: to, amount: amount} ->
-            %UnirisCore.TransactionData.Ledger.Transfer{
-              to: to,
-              amount: amount
-            }
-          end)
+          transfers:
+            Enum.map(transfers, fn %{to: to, amount: amount} ->
+              %UnirisCore.TransactionData.Ledger.Transfer{
+                to: to,
+                amount: amount
+              }
+            end)
         }
       },
       recipients: recipients
