@@ -251,8 +251,7 @@ defmodule UnirisCore.P2PServer do
   defp process_message(%GetBeaconSlots{subsets_slots: subsets_slots}) do
     slots =
       subsets_slots
-      |> Enum.map(&Map.to_list/1)
-      |> Enum.map(fn [{subset, dates}] -> Beacon.previous_slots(subset, dates) end)
+      |> Enum.map(fn {subset, dates} -> Beacon.previous_slots(subset, dates) end)
       |> Enum.flat_map(& &1)
 
     %BeaconSlotList{slots: slots}
@@ -264,10 +263,10 @@ defmodule UnirisCore.P2PServer do
   end
 
   defp process_message(%GetLastTransaction{address: last_address}) do
-    case UnirisCore.get_last_transaction(last_address) do
-      {:ok, tx} ->
-        tx
-
+    with {:ok, address} <- Storage.last_transaction_address(last_address),
+         {:ok, tx} <- Storage.get_transaction(address) do
+      tx
+    else
       _ ->
         %NotFound{}
     end

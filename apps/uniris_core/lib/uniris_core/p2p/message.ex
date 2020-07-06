@@ -442,7 +442,7 @@ defmodule UnirisCore.P2P.Message do
   end
 
   def decode(<<15::8, nb_subsets::8, rest::bitstring>>) do
-    {subset_slots, _} = deserialize_beacon_subset_slot_times(rest, nb_subsets, [])
+    {subset_slots, _} = deserialize_beacon_subset_slot_times(rest, nb_subsets, %{})
 
     %GetBeaconSlots{
       subsets_slots: subset_slots
@@ -639,11 +639,11 @@ defmodule UnirisCore.P2P.Message do
     deserialize_bitsequences(rest, nb_sequences, sequence_size, [sequence | acc])
   end
 
-  defp deserialize_beacon_subset_slot_times(rest, 0, _acc), do: {[], rest}
+  defp deserialize_beacon_subset_slot_times(rest, 0, _acc), do: {%{}, rest}
 
   defp deserialize_beacon_subset_slot_times(rest, nb_subsets, acc)
-       when length(acc) == nb_subsets do
-    {Enum.reverse(acc), rest}
+       when map_size(acc) == nb_subsets do
+    {acc, rest}
   end
 
   defp deserialize_beacon_subset_slot_times(
@@ -652,7 +652,7 @@ defmodule UnirisCore.P2P.Message do
          acc
        ) do
     {slot_times, rest} = deserialize_timestamps(rest, nb_slot_times, [])
-    deserialize_beacon_subset_slot_times(rest, nb_subsets, [%{<<subset>> => slot_times} | acc])
+    deserialize_beacon_subset_slot_times(rest, nb_subsets, Map.put(acc, <<subset>>, slot_times))
   end
 
   defp deserialize_timestamps(rest, 0, _acc), do: {[], rest}

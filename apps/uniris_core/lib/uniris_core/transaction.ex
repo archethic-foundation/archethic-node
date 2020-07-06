@@ -8,6 +8,7 @@ defmodule UnirisCore.Transaction do
   alias __MODULE__.CrossValidationStamp
   alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+  alias UnirisCore.Utils
 
   defstruct [
     :address,
@@ -84,7 +85,7 @@ defmodule UnirisCore.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> Utils.truncate_datetime(),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -109,7 +110,7 @@ defmodule UnirisCore.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now(),
+      timestamp: DateTime.utc_now() |> Utils.truncate_datetime(),
       data: data,
       previous_public_key: previous_public_key
     }
