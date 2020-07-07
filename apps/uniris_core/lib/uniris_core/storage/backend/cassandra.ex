@@ -83,9 +83,20 @@ defmodule UnirisCore.Storage.CassandraBackend do
 
   @impl true
   def list_transaction_chains_info() do
-    Xandra.execute!(:xandra_conn, "SELECT * FROM uniris.transaction_chains PER PARTITION LIMIT 1")
+    Xandra.execute!(:xandra_conn, """
+      SELECT size,
+      transaction_address as address,
+      type,
+      timestamp,
+      data,
+      previous_public_key,
+      previous_signature,
+      origin_signature,
+      validation_stamp,
+      cross_validation_stamps FROM uniris.transaction_chains PER PARTITION LIMIT 1
+    """)
     |> Enum.map(fn result ->
-      chain_size = Map.get(result, :size)
+      { chain_size, result} = Map.pop(result, "size")
       {format_result_to_transaction(result), chain_size}
     end)
   end
