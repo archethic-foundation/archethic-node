@@ -19,7 +19,7 @@ defmodule UnirisCore.P2PSupervisor do
     bootstraping_seeds_file =
       :uniris_core
       |> Application.get_env(BootstrapingSeeds, [])
-      |> Keyword.get(:file, "priv/p2p/last_sync")
+      |> Keyword.get(:file, "priv/p2p/seeds")
 
     children =
       [

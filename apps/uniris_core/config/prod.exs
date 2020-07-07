@@ -3,9 +3,6 @@ use Mix.Config
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris_core, UnirisCore.Crypto, keystore: UnirisCore.Crypto.SoftwareKeystore
 
-config :uniris_core, UnirisCore.Crypto.SoftwareKeystore,
-  seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")
-
 config :uniris_core, UnirisCore.Storage, backend: UnirisCore.Storage.CassandraBackend
 
 config :uniris_core, UnirisCore.Storage.CassandraBackend, nodes: ["127.0.0.1:9042"]
