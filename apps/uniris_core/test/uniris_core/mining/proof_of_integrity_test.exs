@@ -12,8 +12,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
     chain = [generate_pending_transaction()]
 
     assert ProofOfIntegrity.compute(chain) ==
-             <<0, 79, 248, 40, 124, 60, 154, 114, 49, 189, 142, 181, 181, 9, 221, 248, 118, 28,
-               228, 249, 237, 143, 227, 27, 0, 225, 49, 206, 107, 243, 165, 207, 138>>
+             <<0, 247, 108, 77, 251, 98, 46, 54, 147, 204, 14, 39, 184, 153, 230, 252, 32, 194,
+               135, 128, 129, 133, 73, 54, 134, 70, 159, 73, 189, 130, 145, 190, 1>>
   end
 
   test "compute/1 should produce a hash of the pending transaction with the previous proof of integrity when there is chain" do
@@ -21,8 +21,8 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
 
     assert ProofOfIntegrity.compute(chain) ==
              Crypto.hash([
-               <<0, 79, 248, 40, 124, 60, 154, 114, 49, 189, 142, 181, 181, 9, 221, 248, 118, 28,
-                 228, 249, 237, 143, 227, 27, 0, 225, 49, 206, 107, 243, 165, 207, 138>>,
+               <<0, 247, 108, 77, 251, 98, 46, 54, 147, 204, 14, 39, 184, 153, 230, 252, 32, 194,
+                 135, 128, 129, 133, 73, 54, 134, 70, 159, 73, 189, 130, 145, 190, 1>>,
                <<6, 228, 101, 3, 9, 194, 111, 2, 16, 36, 134, 76, 42, 82, 18, 231, 226, 104, 55,
                  36, 66, 121, 135, 4, 126, 193, 156, 134, 50, 78, 167, 45>>
              ])
@@ -44,7 +44,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
           135, 104, 16, 239, 82, 32, 33, 7, 240, 127, 111, 29, 27>>,
       type: :transfer,
-      timestamp: ~U[2020-03-30 10:06:30Z],
+      timestamp: ~U[2020-03-30 10:06:30.000Z],
       data: %TransactionData{},
       previous_public_key:
         <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
@@ -68,7 +68,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
           135, 104, 16, 239, 82, 32, 33, 7, 240, 127, 111, 29, 27>>,
       type: :transfer,
-      timestamp: ~U[2020-03-30 10:06:30Z],
+      timestamp: ~U[2020-03-30 10:06:30.000Z],
       data: %TransactionData{},
       previous_public_key:
         <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,

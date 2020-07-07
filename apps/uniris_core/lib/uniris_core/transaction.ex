@@ -8,7 +8,6 @@ defmodule UnirisCore.Transaction do
   alias __MODULE__.CrossValidationStamp
   alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
-  alias UnirisCore.Utils
 
   defstruct [
     :address,
@@ -85,7 +84,7 @@ defmodule UnirisCore.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now() |> Utils.truncate_datetime(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -110,7 +109,7 @@ defmodule UnirisCore.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now() |> Utils.truncate_datetime(),
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -329,7 +328,7 @@ defmodule UnirisCore.Transaction do
       ...>   address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...>     196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
       ...>   type: :transfer,
-      ...>   timestamp: ~U[2020-06-24 12:56:33Z],
+      ...>   timestamp: ~U[2020-07-07 09:01:20.721Z],
       ...>   data: %UnirisCore.TransactionData{},
       ...>   previous_public_key: <<0, 61, 250, 128, 151, 100, 231, 128, 158, 139, 88, 128, 68, 236, 240, 238, 116,
       ...>     186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192, 131, 180, 213>>,
@@ -376,7 +375,7 @@ defmodule UnirisCore.Transaction do
       # Transaction type,
       2,
       # Timestamp
-      94, 243, 77, 129,
+      0, 0, 1, 115, 40, 130, 21, 209,
       # Code size
       0, 0, 0, 0,
       # Content size
@@ -457,7 +456,7 @@ defmodule UnirisCore.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp)::32,
+    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionData.serialize(data)::binary>>
   end
 
@@ -472,7 +471,7 @@ defmodule UnirisCore.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp)::32,
+    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionData.serialize(data)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary>>
   end
@@ -488,7 +487,7 @@ defmodule UnirisCore.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp)::32,
+    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionData.serialize(data)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
@@ -510,7 +509,7 @@ defmodule UnirisCore.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp)::32,
+    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
       TransactionData.serialize(data)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
@@ -524,7 +523,7 @@ defmodule UnirisCore.Transaction do
   ## Examples
 
       iex> <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
-      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2, 94, 243, 77, 129,
+      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2, 0, 0, 1, 115, 40, 130, 21, 209,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
       ...> 131, 180, 213, 64, 65, 66, 248, 246, 119, 69, 36, 103, 249, 201, 252, 154, 69, 24, 48, 18, 63,
@@ -555,7 +554,7 @@ defmodule UnirisCore.Transaction do
           address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
             196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
           type: :transfer,
-          timestamp: ~U[2020-06-24 12:56:33Z],
+          timestamp: ~U[2020-07-07 09:01:20.721Z],
           data: %UnirisCore.TransactionData{},
           previous_public_key: <<0, 61, 250, 128, 151, 100, 231, 128, 158, 139, 88, 128, 68, 236, 240, 238, 116,
             186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192, 131, 180, 213>>,
@@ -601,7 +600,7 @@ defmodule UnirisCore.Transaction do
   @spec deserialize(bitstring()) :: {transaction :: __MODULE__.t(), rest :: bitstring}
   def deserialize(_serialized_term = <<hash_algo::8, rest::bitstring>>) do
     address_size = Crypto.hash_size(hash_algo)
-    <<address::binary-size(address_size), type::8, timestamp::32, rest::bitstring>> = rest
+    <<address::binary-size(address_size), type::8, timestamp::64, rest::bitstring>> = rest
     {data, rest} = TransactionData.deserialize(rest)
 
     <<curve_id::8, rest::bitstring>> = rest
@@ -614,7 +613,7 @@ defmodule UnirisCore.Transaction do
     tx = %__MODULE__{
       address: <<hash_algo::8>> <> address,
       type: parse_type(type),
-      timestamp: DateTime.from_unix!(timestamp),
+      timestamp: DateTime.from_unix!(timestamp, :millisecond),
       data: data,
       previous_public_key: <<curve_id::8>> <> previous_public_key,
       previous_signature: previous_signature,

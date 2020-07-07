@@ -14,7 +14,7 @@ defmodule UnirisWeb.Schema.DateTimeType do
   @spec parse_timestamp(Absinthe.Blueprint.Input.Integer.t()) :: {:ok, DateTime.t()} | :error
   defp parse_timestamp(%Absinthe.Blueprint.Input.Integer{value: timestamp}) do
     timestamp
-    |> DateTime.from_unix()
+    |> DateTime.from_unix(:millisecond)
     |> case do
       {:ok, date} ->
         {:ok, date}
