@@ -122,7 +122,7 @@ defmodule UnirisCore.Bootstrap.NetworkInit do
   @spec self_validation!(
           Transaction.pending(),
           context :: Context.t()
-        ) :: Transaction.validated()
+        ) :: Transaction.t()
   def self_validation!(
         tx = %Transaction{},
         context \\ %Context{}
@@ -147,7 +147,7 @@ defmodule UnirisCore.Bootstrap.NetworkInit do
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
-  @spec self_replication(Transaction.validated()) :: :ok
+  @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
     UnirisCore.Storage.write_transaction_chain([tx])
     Beacon.add_transaction(tx)

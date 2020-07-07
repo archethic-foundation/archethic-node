@@ -164,6 +164,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       CREATE TABLE IF NOT EXISTS uniris.transaction_chains(
         chain_address varchar,
         bucket int,
+        size int,
         transaction_address varchar,
         type varchar,
         timestamp timestamp,

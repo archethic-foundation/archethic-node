@@ -119,7 +119,7 @@ defmodule UnirisCore.Beacon do
   @doc """
   Add a transaction to the beacon chain
   """
-  @spec add_transaction(Transaction.validated()) :: :ok
+  @spec add_transaction(Transaction.t()) :: :ok
   def add_transaction(%Transaction{
         address: address,
         timestamp: timestamp,

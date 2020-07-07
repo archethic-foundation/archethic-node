@@ -17,7 +17,7 @@ defmodule UnirisCore.Storage do
   @doc """
   Return the list of node transactions
   """
-  @spec node_transactions() :: list(Transaction.validated())
+  @spec node_transactions() :: list(Transaction.t())
   def node_transactions() do
     Cache.node_transactions()
   end
@@ -34,7 +34,7 @@ defmodule UnirisCore.Storage do
   Retrieve a transaction by its address
   """
   @spec get_transaction(address :: binary(), detect_ko? :: boolean()) ::
-          {:ok, Transaction.validated()}
+          {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
           | {:error, :invalid_transaction}
   def get_transaction(address, detect_ko? \\ true) do
@@ -55,7 +55,7 @@ defmodule UnirisCore.Storage do
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
-  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
+  @spec get_transaction_chain(binary()) :: list(Transaction.t())
   def get_transaction_chain(address) do
     Backend.get_transaction_chain(address)
   end
@@ -76,7 +76,7 @@ defmodule UnirisCore.Storage do
   @doc """
   Returns the list of origin shared secrets transactions
   """
-  @spec origin_shared_secrets_transactions() :: list(Transaction.validated())
+  @spec origin_shared_secrets_transactions() :: list(Transaction.t())
   def origin_shared_secrets_transactions() do
     Cache.origin_shared_secrets_transactions()
   end
@@ -84,7 +84,7 @@ defmodule UnirisCore.Storage do
   @doc """
   Persist only one transaction
   """
-  @spec write_transaction(Transaction.validated()) :: :ok
+  @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{}) do
     case get_transaction(tx.address) do
       {:ok, _} ->
@@ -104,7 +104,7 @@ defmodule UnirisCore.Storage do
   @doc """
   Persist a new transaction chain
   """
-  @spec write_transaction_chain(list(Transaction.validated())) ::
+  @spec write_transaction_chain(list(Transaction.t())) ::
           :ok
   def write_transaction_chain([last_tx = %Transaction{} | _] = chain)
       when is_list(chain) do
@@ -116,6 +116,7 @@ defmodule UnirisCore.Storage do
       _ ->
         :ok = Backend.write_transaction_chain(chain)
         :ok = Cache.store_transaction(last_tx)
+        :ok = Cache.set_transaction_length(last_tx.address, length(chain))
 
         PubSub.notify_new_transaction(last_tx)
 
@@ -135,7 +136,7 @@ defmodule UnirisCore.Storage do
   Get the latest node shared secrets transaction including the required nonces
   """
   @spec get_last_node_shared_secrets_transaction() ::
-          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_last_node_shared_secrets_transaction() do
     case Cache.last_node_shared_secrets_transaction() do
       nil ->
@@ -159,5 +160,13 @@ defmodule UnirisCore.Storage do
     address
     |> Cache.get_ledger_inputs()
     |> Enum.reduce(0.0, &(&2 + &1.amount))
+  end
+
+  @doc """
+  Return the number of transaction in a chain
+  """
+  @spec get_transaction_chain_length(binary()) :: non_neg_integer()
+  def get_transaction_chain_length(address) do
+    Cache.get_transaction_chain_length(address)
   end
 end

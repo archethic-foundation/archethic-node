@@ -15,6 +15,7 @@ defmodule UnirisCore.Storage.Cache do
   @ko_transaction_table :uniris_ko_txs
   @chain_track_table :uniris_chain_tracking
   @latest_transactions_table :uniris_latest_tx
+  @transaction_chain_length :uniris_chain_length
 
   use GenServer
 
@@ -29,6 +30,7 @@ defmodule UnirisCore.Storage.Cache do
     :ets.new(@ko_transaction_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@shared_secrets_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@chain_track_table, [:set, :named_table, :public, read_concurrency: true])
+    :ets.new(@transaction_chain_length, [:set, :named_table, :public, read_concurrency: true])
 
     :ets.new(@latest_transactions_table, [
       :ordered_set,
@@ -37,11 +39,12 @@ defmodule UnirisCore.Storage.Cache do
       read_concurrency: true
     ])
 
-    Enum.each(Backend.list_transactions(), fn tx ->
-      :ets.insert(@transaction_table, {tx.address, tx})
-      track_transaction(tx)
-      index_transaction(tx)
-      set_ledger(tx)
+    Enum.each(Backend.list_transaction_chains_info(), fn {last_tx, size} ->
+      :ets.insert(@transaction_table, {last_tx.address, last_tx})
+      track_transaction(last_tx)
+      index_transaction(last_tx)
+      set_ledger(last_tx)
+      set_transaction_length(last_tx.address, size)
     end)
 
     {:ok, []}
@@ -131,11 +134,11 @@ defmodule UnirisCore.Storage.Cache do
 
     :ets.insert(
       @latest_transactions_table,
-      {DateTime.to_unix(timestamp, :microsecond), next_address}
+      {DateTime.to_unix(timestamp, :millisecond), next_address}
     )
   end
 
-  @spec store_transaction(Transaction.validated()) :: :ok
+  @spec store_transaction(Transaction.t()) :: :ok
   def store_transaction(tx = %Transaction{address: tx_address}) do
     :ets.delete(@ko_transaction_table, tx.address)
     true = :ets.insert(@transaction_table, {tx_address, tx})
@@ -145,7 +148,7 @@ defmodule UnirisCore.Storage.Cache do
     :ok
   end
 
-  @spec store_ko_transaction(Transaction.validated()) :: :ok
+  @spec store_ko_transaction(Transaction.t()) :: :ok
   def store_ko_transaction(%Transaction{
         address: tx_address,
         validation_stamp: validation_stamp,
@@ -160,7 +163,7 @@ defmodule UnirisCore.Storage.Cache do
     :ok
   end
 
-  @spec get_transaction(binary()) :: Transaction.validated() | nil
+  @spec get_transaction(binary()) :: Transaction.t() | nil
   def get_transaction(tx_address) do
     case :ets.lookup(@transaction_table, tx_address) do
       [{_, tx}] ->
@@ -171,7 +174,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
-  @spec node_transactions() :: list(Transaction.validated())
+  @spec node_transactions() :: list(Transaction.t())
   def node_transactions() do
     case :ets.select(@node_table, [{{:_, :"$1"}, [], [:"$1"]}]) do
       [] ->
@@ -182,7 +185,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
-  @spec origin_shared_secrets_transactions() :: list(Transaction.validated())
+  @spec origin_shared_secrets_transactions() :: list(Transaction.t())
   def origin_shared_secrets_transactions() do
     case :ets.lookup(@shared_secrets_table, :origin_shared_secrets) do
       [] ->
@@ -220,7 +223,7 @@ defmodule UnirisCore.Storage.Cache do
     end
   end
 
-  @spec last_node_shared_secrets_transaction() :: Transaction.validated() | nil
+  @spec last_node_shared_secrets_transaction() :: Transaction.t() | nil
   def last_node_shared_secrets_transaction() do
     case :ets.lookup(@shared_secrets_table, :last_node_shared_secrets) do
       [{_, address}] ->
@@ -286,5 +289,22 @@ defmodule UnirisCore.Storage.Cache do
     @ledger_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, utxo, _} -> utxo end)
+  end
+
+  @spec set_transaction_length(binary(), non_neg_integer()) :: :ok
+  def set_transaction_length(address, length) do
+    true = :ets.insert(@transaction_chain_length, {address, length})
+    :ok
+  end
+
+  @spec get_transaction_chain_length(binary()) :: non_neg_integer()
+  def get_transaction_chain_length(address) do
+    case :ets.lookup(@transaction_chain_length, address) do
+      [] ->
+        0
+
+      [{_, nb}] ->
+        nb
+    end
   end
 end

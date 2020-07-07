@@ -48,6 +48,17 @@ defmodule UnirisWeb.Schema do
          Storage.list_transactions() |> Enum.reject(&(&1.type == :beacon)) |> Enum.map(&format/1)}
       end)
     end
+
+    field :transaction_chain, list_of(:transaction) do
+      arg(:address, non_null(:hash))
+
+      resolve(fn %{address: address}, _ ->
+        chain = UnirisCore.get_transaction_chain(address)
+        |> Enum.map(&format/1)
+
+        {:ok, chain}
+      end)
+    end
   end
 
   mutation do

@@ -104,7 +104,7 @@ defmodule UnirisCore.Transaction.ValidationStamp do
   """
   @spec inconsistencies(
           t(),
-          Transaction.validated(),
+          Transaction.t(),
           coordinator_public_key :: Crypto.key(),
           cross_validation_node_public_keys :: list(Crypto.key()),
           context :: Context.t()

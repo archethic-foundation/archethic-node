@@ -45,6 +45,19 @@ defmodule UnirisWeb.Schema.TransactionType do
         {:ok, UnirisCore.get_balance(address)}
       end)
     end
+
+    field :chain_length, :integer do
+      resolve(fn _, %{ source: %{ address: address}} ->
+        {:ok, UnirisCore.get_transaction_chain_length(address)}
+      end)
+    end
+
+    field :previous_transaction, :transaction do
+      resolve(fn _, %{ source: %{ previous_public_key: previous_public_key}} ->
+        previous_address = UnirisCore.Crypto.hash(previous_public_key)
+        UnirisCore.search_transaction(previous_address)
+      end)
+    end
   end
 
   @desc """

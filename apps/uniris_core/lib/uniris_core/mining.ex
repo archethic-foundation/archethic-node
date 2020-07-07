@@ -139,7 +139,7 @@ defmodule UnirisCore.Mining do
 
   And the underlaying storage rules
   """
-  @spec replicate_transaction(Transaction.validated()) :: :ok
+  @spec replicate_transaction(Transaction.t()) :: :ok
   def replicate_transaction(tx = %Transaction{}), do: Replication.run(tx)
 
   defp get_worker_pid(tx_address, attemps \\ 0) do

@@ -31,7 +31,7 @@ defmodule UnirisCore.Mining.Context do
   alias UnirisCore.P2P.Message.UnspentOutputList
 
   @type t() :: %__MODULE__{
-          previous_chain: list(Transaction.validated()),
+          previous_chain: list(Transaction.t()),
           unspent_outputs: list(UnspentOutput.t()),
           involved_nodes: list(Crypto.key()),
           cross_validation_nodes_view: bitstring(),

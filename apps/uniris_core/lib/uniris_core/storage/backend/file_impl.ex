@@ -52,6 +52,38 @@ defmodule UnirisCore.Storage.FileBackend do
     {:reply, do_list_transactions(dir), state}
   end
 
+  def handle_call(
+        :list_transaction_chains_info,
+        _from,
+        state = %{indexes_dir: indexes_dir, transactions_dir: transactions_dir}
+      ) do
+    stream =
+      Stream.resource(
+        fn -> {File.ls!(indexes_dir), 0} end,
+        fn {files, index} ->
+          case Enum.at(files, index) do
+            nil ->
+              {:halt, {files, index}}
+
+            filename ->
+              [_ | address] = String.split(filename, "_")
+
+              tx = read_transaction!(transactions_dir, address)
+
+              chain_size =
+                File.read!(Path.join(indexes_dir, filename))
+                |> String.split("\n")
+                |> Enum.reduce(0, fn _, acc -> acc + 1 end)
+
+              {[{tx, chain_size}], {files, index + 1}}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+    {:reply, stream, state}
+  end
+
   @impl true
   def handle_call(
         {:write_transaction, tx = %Transaction{}},
@@ -91,19 +123,17 @@ defmodule UnirisCore.Storage.FileBackend do
   end
 
   defp do_list_transactions(transactions_dir) do
-    case File.ls(transactions_dir) do
-      {:ok, files} ->
-        txs =
-          Enum.map(files, fn file ->
-            File.read!(Path.join(transactions_dir, file))
-            |> :erlang.binary_to_term()
-          end)
+    Stream.resource(
+      fn -> {File.ls!(transactions_dir), 0} end,
+      fn {files, index} ->
+        tx =
+          File.read!(Path.join(transactions_dir, Enum.at(files, index)))
+          |> :erlang.binary_to_term()
 
-        txs
-
-      _ ->
-        []
-    end
+        {[tx], {files, index + 1}}
+      end,
+      fn _ -> :ok end
+    )
   end
 
   defp do_get_transaction_chain(transactions_dir, indexes_dir, address) do
@@ -125,7 +155,7 @@ defmodule UnirisCore.Storage.FileBackend do
 
   @impl true
   @spec get_transaction(binary()) ::
-          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address) do
     case GenServer.call(__MODULE__, {:get_transaction, address}) do
       tx = %Transaction{} ->
@@ -137,26 +167,32 @@ defmodule UnirisCore.Storage.FileBackend do
   end
 
   @impl true
-  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
+  @spec get_transaction_chain(binary()) :: list(Transaction.t())
   def get_transaction_chain(address) do
     GenServer.call(__MODULE__, {:get_transaction_chain, address})
   end
 
   @impl true
-  @spec write_transaction(Transaction.validated()) :: :ok
+  @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{}) do
     GenServer.call(__MODULE__, {:write_transaction, tx})
   end
 
   @impl true
-  @spec write_transaction_chain(list(Transaction.validated())) :: :ok
+  @spec write_transaction_chain(list(Transaction.t())) :: :ok
   def write_transaction_chain(txs) when is_list(txs) do
     GenServer.call(__MODULE__, {:write_transaction_chain, txs})
   end
 
   @impl true
-  @spec list_transactions() :: list(Transaction.validated())
+  @spec list_transactions() :: Enumerable.t()
   def list_transactions() do
     GenServer.call(__MODULE__, :list_transactions)
+  end
+
+  @impl true
+  @spec list_transaction_chains_info() :: Enumerable.t()
+  def list_transaction_chains_info() do
+    GenServer.call(__MODULE__, :list_transaction_chains_info)
   end
 end

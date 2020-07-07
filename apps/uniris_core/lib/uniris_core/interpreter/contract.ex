@@ -199,7 +199,7 @@ defmodule UnirisCore.Interpreter.Contract do
     # TODO: do someting with the output
   end
 
-  @spec execute(binary(), Transaction.validated()) :: :ok | {:error, :condition_not_respected}
+  @spec execute(binary(), Transaction.t()) :: :ok | {:error, :condition_not_respected}
   def execute(address, tx = %Transaction{}) do
     GenServer.call(via_tuple(address), {:execute, tx})
   end

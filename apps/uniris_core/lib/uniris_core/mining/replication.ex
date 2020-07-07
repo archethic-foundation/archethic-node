@@ -100,7 +100,7 @@ defmodule UnirisCore.Mining.Replication do
   @doc """
   Determines if a chain is valid in its integrity
   """
-  @spec valid_chain?([Transaction.validated(), ...]) :: boolean
+  @spec valid_chain?([Transaction.t(), ...]) :: boolean
   def valid_chain?([
         tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}}
       ]) do
@@ -136,7 +136,7 @@ defmodule UnirisCore.Mining.Replication do
   Verify the transaction integrity and mining including the validation stamp,
   the atomic commitment and the cross validation stamps integrity, node movements
   """
-  @spec valid_transaction?(Transaction.validated(), opts :: [context: Context.t()]) :: boolean()
+  @spec valid_transaction?(Transaction.t(), opts :: [context: Context.t()]) :: boolean()
   def valid_transaction?(_tx, opts \\ [])
 
   def valid_transaction?(
@@ -278,7 +278,7 @@ defmodule UnirisCore.Mining.Replication do
     [coordinator_node | cross_validation_nodes]
   end
 
-  @spec run(Transaction.validated()) :: :ok
+  @spec run(Transaction.t()) :: :ok
   def run(
         tx = %Transaction{
           validation_stamp: %ValidationStamp{

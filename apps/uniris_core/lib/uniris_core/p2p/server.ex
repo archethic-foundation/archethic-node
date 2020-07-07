@@ -47,6 +47,8 @@ defmodule UnirisCore.P2PServer do
   alias UnirisCore.P2P.Message.GetTransactionInputs
   alias UnirisCore.P2P.Message.TransactionHistory
   alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.P2P.Message.GetTransactionChainLength
+  alias UnirisCore.P2P.Message.TransactionChainLength
   alias UnirisCore.Transaction
 
   require Logger
@@ -281,6 +283,12 @@ defmodule UnirisCore.P2PServer do
   defp process_message(%GetTransactionInputs{address: address}) do
     %UnspentOutputList{
       unspent_outputs: Storage.get_inputs(address)
+    }
+  end
+
+  defp process_message(%GetTransactionChainLength{address: address}) do
+    %TransactionChainLength{
+      length: Storage.get_transaction_chain_length(address)
     }
   end
 

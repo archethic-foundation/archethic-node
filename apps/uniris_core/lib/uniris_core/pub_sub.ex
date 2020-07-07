@@ -25,7 +25,7 @@ defmodule UnirisCore.PubSub do
   @doc """
   Notify the registered processes than a new transaction has been validated
   """
-  @spec notify_new_transaction(Transaction.validated()) :: :ok
+  @spec notify_new_transaction(Transaction.t()) :: :ok
   def notify_new_transaction(tx = %Transaction{}) do
     Registry.dispatch(PubSubRegistry, "new_transaction", fn entries ->
       for {pid, _} <- entries, do: send(pid, {:new_transaction, tx})

@@ -38,8 +38,7 @@ defmodule UnirisCore.Mining.Worker do
     :gen_statem.start_link(__MODULE__, opts, [])
   end
 
-  @spec add_context(address :: binary(), validation_node :: Crypto.key(), context :: Context.t()) ::
-          :ok
+  @spec add_context(pid(), validation_node :: Crypto.key(), context :: Context.t()) :: :ok
   def add_context(pid, validation_node_public_key, context = %Context{})
       when is_pid(pid) and is_binary(validation_node_public_key) do
     :gen_statem.cast(

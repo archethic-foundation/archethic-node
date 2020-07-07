@@ -30,6 +30,8 @@ defmodule UnirisCore.P2P.Message do
   alias __MODULE__.TransactionList
   alias __MODULE__.Ok
   alias __MODULE__.NotFound
+  alias __MODULE__.GetTransactionChainLength
+  alias __MODULE__.TransactionChainLength
   alias UnirisCore.Transaction
   alias UnirisCore.Mining.Context
   alias UnirisCore.Transaction.ValidationStamp
@@ -60,6 +62,20 @@ defmodule UnirisCore.P2P.Message do
           | GetLastTransaction.t()
           | GetBalance.t()
           | GetTransactionInputs.t()
+          | GetTransactionChainLength.t()
+          | TransactionChainLength.t()
+          | Ok.t()
+          | NotFound.t()
+          | BeaconSlotList.t()
+          | TransactionHistory.t()
+          | TransactionList.t()
+          | Transaction.t()
+          | NodeList.t()
+          | UnspentOutputList.t()
+          | Balance.t()
+          | ProofOfIntegrity.t()
+          | EncryptedStorageNonce.t()
+          | BootstrappingNodes.t()
 
   @doc """
   Serialize a message into binary
@@ -199,6 +215,14 @@ defmodule UnirisCore.P2P.Message do
 
   def encode(%GetTransactionInputs{address: address}) do
     <<19::8, address::binary>>
+  end
+
+  def encode(%GetTransactionChainLength{address: address}) do
+    <<20::8, address::binary>>
+  end
+
+  def encode(%TransactionChainLength{length: length}) do
+    <<243::8, length::32>>
   end
 
   def encode(%BootstrappingNodes{new_seeds: new_seeds, closest_nodes: closest_nodes}) do
@@ -479,6 +503,20 @@ defmodule UnirisCore.P2P.Message do
 
     %GetTransactionInputs{
       address: address
+    }
+  end
+
+  def decode(<<20::8, rest::bitstring>>) do
+    {address, _} = deserialize_hash(rest)
+
+    %GetTransactionChainLength{
+      address: address
+    }
+  end
+
+  def decode(<<243::8, length::32>>) do
+    %TransactionChainLength{
+      length: length
     }
   end
 

@@ -29,6 +29,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
   INSERT INTO uniris.transaction_chains(
       chain_address,
       bucket,
+      size,
       transaction_address,
       type,
       timestamp,
@@ -41,6 +42,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
     VALUES(
       :chain_address,
       :bucket,
+      :size,
       :transaction_address,
       :type,
       :timestamp,
@@ -77,6 +79,15 @@ defmodule UnirisCore.Storage.CassandraBackend do
     Xandra.stream_pages!(:xandra_conn, "SELECT * FROM uniris.transactions", _params = [])
     |> Stream.flat_map(& &1)
     |> Stream.map(&format_result_to_transaction/1)
+  end
+
+  @impl true
+  def list_transaction_chains_info() do
+    Xandra.execute!(:xandra_conn, "SELECT * FROM uniris.transaction_chains PER PARTITION LIMIT 1")
+    |> Enum.map(fn result ->
+      chain_size = Map.get(result, :size)
+      {format_result_to_transaction(result), chain_size}
+    end)
   end
 
   @impl true
@@ -117,6 +128,8 @@ defmodule UnirisCore.Storage.CassandraBackend do
     transaction_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_stmt)
     chain_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_chain_stmt)
 
+    chain_size = length(chain)
+
     Task.async_stream(chain, fn tx ->
       {:ok, _} =
         Xandra.execute(:xandra_conn, transaction_prepared, transaction_write_parameters(tx))
@@ -125,7 +138,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
         Xandra.execute(
           :xandra_conn,
           chain_prepared,
-          transaction_chain_write_parameters(chain_address, bucket, tx)
+          transaction_chain_write_parameters(chain_address, bucket, tx, chain_size)
         )
     end)
     |> Stream.run()
@@ -209,10 +222,11 @@ defmodule UnirisCore.Storage.CassandraBackend do
     }
   end
 
-  defp transaction_chain_write_parameters(chain_address, bucket, tx = %Transaction{}) do
+  defp transaction_chain_write_parameters(chain_address, bucket, tx = %Transaction{}, chain_size) do
     transaction_write_parameters(tx)
     |> Map.put("chain_address", chain_address |> Base.encode16())
     |> Map.put("bucket", bucket)
+    |> Map.put("size", chain_size)
     |> Map.delete("address")
     |> Map.put("transaction_address", tx.address |> Base.encode16())
   end

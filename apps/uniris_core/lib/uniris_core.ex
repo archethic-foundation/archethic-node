@@ -15,12 +15,13 @@ defmodule UnirisCore do
   alias __MODULE__.P2P.Message.TransactionList
   alias __MODULE__.P2P.Message.UnspentOutputList
   alias __MODULE__.P2P.Message.Balance
+  alias __MODULE__.P2P.Message.GetTransactionChainLength
 
   @doc """
   Query the search of the transaction to the dedicated storage pool
   """
   @spec search_transaction(address :: binary()) ::
-          {:ok, Transaction.validated()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def search_transaction(address) when is_binary(address) do
     case Storage.get_transaction(address) do
       {:ok, tx} ->
@@ -47,7 +48,7 @@ defmodule UnirisCore do
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.pending()) :: :ok
+  @spec send_new_transaction(Transaction.t()) :: :ok
   def send_new_transaction(tx = %Transaction{}) do
     validation_nodes = Election.validation_nodes(tx)
 
@@ -66,7 +67,7 @@ defmodule UnirisCore do
   end
 
   @spec get_last_transaction(address :: binary()) ::
-          {:ok, Transaction.validated()} | {:error, :not_found}
+          {:ok, Transaction.t()} | {:error, :not_found}
   def get_last_transaction(address) do
     case Storage.last_transaction_address(address) do
       {:ok, last_address} ->
@@ -140,7 +141,7 @@ defmodule UnirisCore do
   @doc """
   Retrieve a transaction chain based on an address
   """
-  @spec get_transaction_chain(binary()) :: list(Transaction.validated())
+  @spec get_transaction_chain(binary()) :: list(Transaction.t())
   def get_transaction_chain(address) do
     storage_nodes = Election.storage_nodes(address)
 
@@ -154,6 +155,28 @@ defmodule UnirisCore do
         |> P2P.nearest_nodes(patch)
         |> List.first()
         |> P2P.send_message(%GetTransactionChain{address: address})
+
+      chain
+    end
+  end
+
+  @doc """
+  Retrieve the number of transaction in a transaction chain
+  """
+  @spec get_transaction_chain_length(binary()) :: non_neg_integer()
+  def get_transaction_chain_length(address) do
+    storage_nodes = Election.storage_nodes(address)
+
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+      Storage.get_transaction_chain_length(address)
+    else
+      {:ok, %Node{network_patch: patch}} = P2P.node_info()
+
+      %TransactionList{transactions: chain} =
+        storage_nodes
+        |> P2P.nearest_nodes(patch)
+        |> List.first()
+        |> P2P.send_message(%GetTransactionChainLength{address: address})
 
       chain
     end
