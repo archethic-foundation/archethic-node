@@ -1,4 +1,4 @@
-defmodule UnirisWeb.Schema do
+defmodule UnirisWeb.GraphQLSchema do
   @moduledoc false
 
   use Absinthe.Schema
@@ -23,7 +23,7 @@ defmodule UnirisWeb.Schema do
 
   query do
     field :transaction, :transaction do
-      arg(:address, non_null(:hash))
+      arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
         with {:ok, tx} <- UnirisCore.search_transaction(address) do
@@ -33,7 +33,7 @@ defmodule UnirisWeb.Schema do
     end
 
     field :last_transaction, :transaction do
-      arg(:address, non_null(:hash))
+      arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
         with {:ok, tx} <- UnirisCore.get_last_transaction(address) do
@@ -50,38 +50,14 @@ defmodule UnirisWeb.Schema do
     end
 
     field :transaction_chain, list_of(:transaction) do
-      arg(:address, non_null(:hash))
+      arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        chain = UnirisCore.get_transaction_chain(address)
-        |> Enum.map(&format/1)
+        chain =
+          UnirisCore.get_transaction_chain(address)
+          |> Enum.map(&format/1)
 
         {:ok, chain}
-      end)
-    end
-  end
-
-  mutation do
-    field :new_transaction, :boolean do
-      arg(:address, non_null(:hash))
-      arg(:timestamp, non_null(:timestamp))
-      arg(:type, non_null(:transaction_type))
-      arg(:data, non_null(:data_input))
-      arg(:previous_public_key, non_null(:public_key))
-      arg(:previous_signature, non_null(:hex))
-      arg(:origin_signature, non_null(:hex))
-
-      resolve(fn tx, _ ->
-        tx
-        |> parse_input
-        |> UnirisCore.send_new_transaction()
-        |> case do
-          :ok ->
-            {:ok, true}
-
-          _ ->
-            :error
-        end
       end)
     end
   end
@@ -101,7 +77,7 @@ defmodule UnirisWeb.Schema do
     end
 
     field :acknowledge_storage, :transaction do
-      arg(:address, non_null(:hash))
+      arg(:address, non_null(:address))
 
       config(fn args, _info ->
         {:ok, topic: args.address}
@@ -134,6 +110,7 @@ defmodule UnirisWeb.Schema do
          ledger: ledger,
          keys: keys
        }) do
+
     %{
       content: content,
       code: code,

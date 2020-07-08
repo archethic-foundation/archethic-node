@@ -47,14 +47,14 @@ defmodule UnirisWeb.Router do
     forward(
       "/graphiql",
       Absinthe.Plug.GraphiQL,
-      schema: UnirisWeb.Schema,
+      schema: UnirisWeb.GraphQLSchema,
       socket: UnirisWeb.UserSocket
     )
 
     forward(
       "/",
       Absinthe.Plug,
-      schema: UnirisWeb.Schema
+      schema: UnirisWeb.GraphQLSchema
     )
   end
 end
