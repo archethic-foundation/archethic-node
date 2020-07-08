@@ -10,7 +10,7 @@ defmodule UnirisWeb.TransactionDetailsLive do
   end
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
-    address = Base.decode16!(address)
+    address = Base.decode16!(address, case: :mixed)
 
     case Map.get(opts, "latest") do
       "true" ->

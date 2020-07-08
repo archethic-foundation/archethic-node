@@ -10,7 +10,7 @@ defmodule UnirisWeb.NodeController do
   end
 
   def show(conn, _params = %{"public_key" => public_key}) do
-    pub = Base.decode16!(public_key)
+    pub = Base.decode16!(public_key, case: :mixed)
 
     case P2P.node_info(pub) do
       {:ok, node} ->

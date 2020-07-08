@@ -9,7 +9,7 @@ defmodule UnirisWeb.ExplorerController do
   end
 
   def search(conn, _params = %{"address" => address}) do
-    with {:ok, address} <- Base.decode16(address),
+    with {:ok, address} <- Base.decode16(address, case: :mixed),
          {:ok, tx} <- UnirisCore.search_transaction(address) do
       previous_address = Crypto.hash(tx.previous_public_key)
 
@@ -21,7 +21,7 @@ defmodule UnirisWeb.ExplorerController do
   end
 
   def chain(conn, _params = %{"address" => address, "last" => "on"}) do
-    bin_address = Base.decode16!(address)
+    bin_address = Base.decode16!(address, case: :mixed)
 
     case UnirisCore.get_last_transaction(bin_address) do
       {:ok, %Transaction{address: last_address}} ->
@@ -40,7 +40,7 @@ defmodule UnirisWeb.ExplorerController do
   end
 
   def chain(conn, _params = %{"address" => address}) do
-    bin_address = Base.decode16!(address)
+    bin_address = Base.decode16!(address, case: :mixed)
     chain = UnirisCore.get_transaction_chain(bin_address)
     inputs = UnirisCore.get_transaction_inputs(bin_address)
 
