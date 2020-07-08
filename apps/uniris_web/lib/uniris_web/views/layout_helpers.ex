@@ -19,4 +19,19 @@ defmodule UnirisWeb.LayoutHelpers do
     |> Integer.to_string()
     |> String.pad_leading(amount, "0")
   end
+
+  def format_bytes(nb_bytes) when nb_bytes < 1024 do
+    "#{nb_bytes} B"
+  end
+
+  def format_bytes(nb_bytes) when nb_bytes >= 1024 and nb_bytes < 1048576 do
+    "#{Float.round(nb_bytes/1024, 2)} KB"
+  end
+
+  def format_bytes(nb_bytes) when nb_bytes >= 1048576 do
+    IO.inspect nb_bytes
+
+    "#{Float.round(nb_bytes / 1048576, 2)} MB"
+  end
+
 end

@@ -94,6 +94,7 @@
                                             <div class="column">
                                                 <p class="title">
                                                     Content
+                                                    ( <%= format_bytes(byte_size(@transaction.data.content)) %> )
                                                     <%= if byte_size(@transaction.data.content) > 100 do %>
                                                         <button class="button button-outline" style="display: :inline; height: 10px;  padding: 10px; line-height: 0px;" phx-click="toggle_content">
                                                         <%= if @hide_content do %>
@@ -111,7 +112,11 @@
                                                         <%= if @hide_content and byte_size(@transaction.data.content) > 100 do %>
                                                             <%= String.slice(@transaction.data.content, 0, 100) %>...
                                                         <% else %>
-                                                            <%= @transaction.data.content %>
+                                                            <%= if String.printable?(@transaction.data.content) do %>
+                                                                <%= @transaction.data.content %>
+                                                            <% else %>
+                                                                <%= Base.encode16(@transaction.data.content) %>
+                                                            <% end %>
                                                         <% end %>
                                                     <% end %>
                                                 </div>
