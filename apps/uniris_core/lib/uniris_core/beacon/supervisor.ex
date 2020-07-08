@@ -14,7 +14,7 @@ defmodule UnirisCore.BeaconSupervisor do
   end
 
   def init(_opts) do
-    subsets = Enum.map(0..254, &:binary.encode_unsigned(&1))
+    subsets = Enum.map(0..255, &:binary.encode_unsigned(&1))
 
     interval = Application.get_env(:uniris_core, BeaconSlotTimer)[:interval]
     trigger_offset = Application.get_env(:uniris_core, BeaconSlotTimer)[:trigger_offset]
