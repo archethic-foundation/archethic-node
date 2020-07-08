@@ -8,7 +8,7 @@
     <div class="column column-20">
         <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(tx.address)), title: Base.encode16(tx.address) do%>
             <span>
-                <%= Base.encode16(:binary.part(tx.address, 0, 5)) %>...
+                <%= Base.encode16(:binary.part(tx.address, 0, 3)) %>...
             </span>
         <% end %>
     </div>
@@ -16,4 +16,3 @@
     <div class="column column-40"><%= tx.type %></div>
 </div>
 <% end %>
-

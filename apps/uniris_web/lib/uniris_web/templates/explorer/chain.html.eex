@@ -43,15 +43,12 @@
                     <div class="column">
                         <%= for tx <- @transaction_chain do %>
                         <div class="row">
-                            <div class="column column-50">
+                            <div class="column column-70">
                                 <%= link to: Routes.live_path(@conn, UnirisWeb.TransactionDetailsLive, address: Base.encode16(tx.address)), title: Base.encode16(tx.address) do%>
                                     <span>
                                         <%= Base.encode16(tx.address) %>
                                     </span>
                                 <% end %>
-                            </div>
-                            <div class="column column-20">
-                                <%= tx.type %>
                             </div>
                             <div class="column column-10">
                                 <%= if length(tx.validation_stamp.ledger_operations.unspent_outputs) > 1 do %>
