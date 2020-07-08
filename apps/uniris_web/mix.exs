@@ -23,7 +23,7 @@ defmodule UnirisWeb.MixProject do
   def application do
     [
       mod: {UnirisWeb.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :os_mon]
     ]
   end
 
@@ -37,16 +37,17 @@ defmodule UnirisWeb.MixProject do
   defp deps do
     [
       {:uniris_core, in_umbrella: true},
-      {:phoenix, "~> 1.4.16"},
-      {:phoenix_pubsub, "~> 1.1"},
+      {:phoenix, "~> 1.5"},
+      {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_html, "~> 2.14"},
-      {:phoenix_live_view, "~> 0.11.1"},
+      {:phoenix_live_view, "~> 0.14.0"},
       {:jason, "~> 1.0"},
-      {:plug_cowboy, "~> 2.0"},
-      {:absinthe, "~> 1.4.0"},
-      {:absinthe_plug, "~> 1.4"},
-      {:absinthe_phoenix, "~> 1.4.0"},
-      {:cors_plug, "~> 1.5"}
+      {:plug_cowboy, "~> 2.3"},
+      {:absinthe, "~> 1.5.0"},
+      {:absinthe_plug, "~> 1.5"},
+      {:absinthe_phoenix, "~> 2.0"},
+      {:cors_plug, "~> 1.5"},
+      {:phoenix_live_dashboard, "~> 0.2.7"}
     ]
   end
 end

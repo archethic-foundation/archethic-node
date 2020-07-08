@@ -1,5 +1,6 @@
 defmodule UnirisWeb.Router do
   use UnirisWeb, :router
+  import Phoenix.LiveDashboard.Router
 
   pipeline :browser do
     plug(:accepts, ["html"])
@@ -20,6 +21,7 @@ defmodule UnirisWeb.Router do
     pipe_through(:browser)
 
     get("/", RootController, :index)
+    live_dashboard "/dashboard"
   end
 
   scope "/explorer", UnirisWeb do
