@@ -44,6 +44,8 @@ defmodule UnirisWeb.Router do
       :last_transaction_content
     )
 
+    post("/transaction", UnirisWeb.TransactionController, :new)
+
     forward(
       "/graphiql",
       Absinthe.Plug.GraphiQL,
