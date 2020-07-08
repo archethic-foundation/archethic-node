@@ -274,7 +274,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
     |> Enum.uniq()
     |> Enum.map(&Election.storage_nodes/1)
     |> :lists.flatten()
-    |> Enum.uniq()
+    |> Enum.uniq_by(& &1.last_public_key)
   end
 
   @doc """

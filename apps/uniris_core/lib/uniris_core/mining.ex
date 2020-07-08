@@ -56,7 +56,7 @@ defmodule UnirisCore.Mining do
         |> Beacon.get_pool(tx.timestamp)
 
       io_storage_nodes = LedgerOperations.io_storage_nodes(ledger_ops)
-      storage_nodes = Enum.uniq(chain_storage_nodes ++ beacon_storage_nodes ++ io_storage_nodes)
+      storage_nodes = Enum.uniq_by(chain_storage_nodes ++ beacon_storage_nodes ++ io_storage_nodes, & &1.last_public_key)
 
       TaskSupervisor
       |> Task.Supervisor.async_stream(

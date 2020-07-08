@@ -529,7 +529,7 @@ defmodule UnirisCore.Mining.Worker do
     storage_nodes =
       storage_nodes
       |> :lists.flatten()
-      |> Enum.uniq()
+      |> Enum.uniq_by(& &1.last_public_key)
 
     validation_nodes
     |> Replication.tree(storage_nodes)
