@@ -83,7 +83,7 @@ defmodule UnirisCore.Interpreter.Contract do
   end
 
   @spec create({:actions, [], [[do: Macro.t()]]}, Transaction.t()) :: __MODULE__.t()
-  defp create({:actions, _, [[do: actions]]} = _ast, tx = %Transaction{}),
+  defp create(_ast = {:actions, _, [[do: actions]]}, tx = %Transaction{}),
     do: %__MODULE__{
       actions: actions,
       constants: [
@@ -103,7 +103,7 @@ defmodule UnirisCore.Interpreter.Contract do
            ]},
           Transaction.t()
         ) :: __MODULE__.t()
-  defp create({:__block__, [], elems} = _ast, tx = %Transaction{}) do
+  defp create(_ast = {:__block__, [], elems}, tx = %Transaction{}) do
     elems
     |> Enum.reduce(
       %__MODULE__{

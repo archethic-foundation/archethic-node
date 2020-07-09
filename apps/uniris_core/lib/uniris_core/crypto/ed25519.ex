@@ -17,12 +17,12 @@ defmodule UnirisCore.Crypto.Ed25519 do
     :crypto.generate_key(:eddsa, :ed25519, private_key)
   end
 
-  def encrypt(<<public_key::binary-32>> = _key, data) do
+  def encrypt(_key = <<public_key::binary-32>>, data) do
     {:ok, cipher} = GenServer.call(LibSodiumPort, {:encrypt, public_key, data})
     cipher
   end
 
-  def decrypt(<<private_key::binary-32>> = _key, data) do
+  def decrypt(_key = <<private_key::binary-32>>, data) do
     {pub, pv} = :crypto.generate_key(:eddsa, :ed25519, private_key)
 
     case GenServer.call(LibSodiumPort, {:decrypt, <<pv::binary, pub::binary>>, data}) do
@@ -34,7 +34,7 @@ defmodule UnirisCore.Crypto.Ed25519 do
     end
   end
 
-  def sign(<<private_key::binary-32>> = _key, data) do
+  def sign(_key = <<private_key::binary-32>>, data) do
     :crypto.sign(:eddsa, :sha512, :crypto.hash(:sha512, data), [private_key, :ed25519])
   end
 

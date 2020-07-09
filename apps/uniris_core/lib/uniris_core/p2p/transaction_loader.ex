@@ -1,13 +1,17 @@
 defmodule UnirisCore.P2P.TransactionLoader do
   @moduledoc false
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
-  alias UnirisCore.Storage
+
   alias UnirisCore.PubSub
+  alias UnirisCore.Storage
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
+
   alias UnirisCore.Utils
 
   use GenServer
@@ -50,7 +54,7 @@ defmodule UnirisCore.P2P.TransactionLoader do
       ) do
     renewal_offset = Utils.time_offset(renewal_interval)
 
-    unless !Map.has_key?(state, :ref_authorized_scheduler) do
+    if Map.has_key?(state, :ref_authorized_scheduler) do
       Process.cancel_timer(state.ref_authorized_scheduler)
     end
 

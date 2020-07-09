@@ -15,12 +15,15 @@ defmodule UnirisCore.P2P.Node do
 
   require Logger
 
-  alias UnirisCore.P2P.NodeRegistry
+  alias UnirisCore.Crypto
+
   alias UnirisCore.P2P.GeoPatch
   alias UnirisCore.P2P.NodeClient
+  alias UnirisCore.P2P.NodeRegistry
+
   alias UnirisCore.PubSub
+
   alias UnirisCore.Utils
-  alias UnirisCore.Crypto
 
   @enforce_keys [
     :first_public_key,

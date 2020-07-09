@@ -1,8 +1,8 @@
 defmodule UnirisCore.P2P.BootstrapingSeeds do
   @moduledoc false
 
-  alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
+  alias UnirisCore.P2P.Node
 
   use GenServer
 
@@ -11,7 +11,7 @@ defmodule UnirisCore.P2P.BootstrapingSeeds do
   end
 
   @spec list() :: list(Node.t())
-  def list(), do: GenServer.call(__MODULE__, :list_seeds)
+  def list, do: GenServer.call(__MODULE__, :list_seeds)
 
   @spec update(list(Node.t())) :: :ok
   def update(seeds), do: GenServer.call(__MODULE__, {:new_seeds, seeds})

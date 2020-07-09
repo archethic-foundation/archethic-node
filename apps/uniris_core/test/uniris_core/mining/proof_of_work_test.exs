@@ -1,13 +1,17 @@
 defmodule UnirisCore.Mining.ProofOfWorkTest do
   use UnirisCoreCase
 
-  alias UnirisCore.Mining.ProofOfWork
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
-  alias UnirisCore.SharedSecrets
+
+  alias UnirisCore.Mining.ProofOfWork
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
+
+  alias UnirisCore.SharedSecrets
 
   import Mox
 

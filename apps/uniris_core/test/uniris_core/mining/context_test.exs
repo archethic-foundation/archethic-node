@@ -1,26 +1,29 @@
 defmodule UnirisCore.Mining.ContextTest do
   use UnirisCoreCase, async: false
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.Crypto
-  alias UnirisCore.Mining.Context
   alias UnirisCore.BeaconSlotTimer
+  alias UnirisCore.Crypto
+
+  alias UnirisCore.Mining.Context
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
   alias UnirisCore.P2P.Message.GetTransaction
   alias UnirisCore.P2P.Message.GetTransactionHistory
   alias UnirisCore.P2P.Message.GetUnspentOutputs
-  alias UnirisCore.P2P.Message.GetProofOfIntegrity
   alias UnirisCore.P2P.Message.ProofOfIntegrity
   alias UnirisCore.P2P.Message.TransactionHistory
   alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   import Mox
 

@@ -2,6 +2,7 @@ defmodule UnirisWeb.GraphQLSchema.AddressType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
+  alias UnirisCore.Crypto
 
   @desc """
   The [Address] scalar type represents a cryptographic hash used in
@@ -17,7 +18,7 @@ defmodule UnirisWeb.GraphQLSchema.AddressType do
   @spec parse_address(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_address(%Absinthe.Blueprint.Input.String{value: hash}) do
     with {:ok, hash = <<hash_id::8, rest::binary>>} <- Base.decode16(hash, case: :mixed),
-         true <- UnirisCore.Crypto.hash_size(hash_id) == byte_size(rest) do
+         true <- Crypto.hash_size(hash_id) == byte_size(rest) do
       {:ok, hash}
     else
       _ ->
@@ -25,5 +26,5 @@ defmodule UnirisWeb.GraphQLSchema.AddressType do
     end
   end
 
-  defp parse_hash(_), do: :error
+  defp parse_address(_), do: :error
 end

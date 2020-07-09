@@ -27,9 +27,10 @@ defmodule UnirisCore.Crypto do
   According to the implementation, keys can be stored and regenerated on the fly
   """
 
-  alias __MODULE__.ID
   alias __MODULE__.ECDSA
   alias __MODULE__.Ed25519
+
+  alias __MODULE__.ID
   alias __MODULE__.Keystore
 
   @typedoc """
@@ -199,7 +200,7 @@ defmodule UnirisCore.Crypto do
   Return the last node public key
   """
   @spec node_public_key() :: UnirisCore.Crypto.key()
-  def node_public_key() do
+  def node_public_key do
     Keystore.node_public_key()
   end
 
@@ -232,7 +233,7 @@ defmodule UnirisCore.Crypto do
   This number is used for the key derivation to detect the latest index.
   """
   @spec increment_number_of_generate_node_keys() :: :ok
-  def increment_number_of_generate_node_keys() do
+  def increment_number_of_generate_node_keys do
     Keystore.increment_number_of_generate_node_keys()
   end
 
@@ -241,7 +242,7 @@ defmodule UnirisCore.Crypto do
   This number is used for the key derivation to detect the latest index.
   """
   @spec increment_number_of_generate_node_shared_keys() :: :ok
-  def increment_number_of_generate_node_shared_keys() do
+  def increment_number_of_generate_node_shared_keys do
     Keystore.increment_number_of_generate_node_shared_secrets_keys()
   end
 
@@ -249,7 +250,7 @@ defmodule UnirisCore.Crypto do
   Return the number of node keys after incrementation
   """
   @spec number_of_node_keys() :: non_neg_integer()
-  def number_of_node_keys() do
+  def number_of_node_keys do
     Keystore.number_of_node_keys()
   end
 
@@ -257,7 +258,7 @@ defmodule UnirisCore.Crypto do
   Return the number of node shared secrets keys after incrementation
   """
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
-  def number_of_node_shared_secrets_keys() do
+  def number_of_node_shared_secrets_keys do
     Keystore.number_of_node_shared_secrets_keys()
   end
 

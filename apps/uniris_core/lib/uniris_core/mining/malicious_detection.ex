@@ -1,4 +1,10 @@
 defmodule UnirisCore.Mining.MaliciousDetection do
+  @moduledoc """
+  Provide a process to detect the malicious nodes when the
+  atomic commitment has not been reached.
+
+  # TODO: Implement the algorithm
+  """
   use Task
 
   alias UnirisCore.Transaction

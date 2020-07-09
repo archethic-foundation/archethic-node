@@ -16,11 +16,12 @@ defmodule UnirisWeb.ConnCase do
   """
 
   use ExUnit.CaseTemplate
+  alias Phoenix.ConnTest
 
   using do
     quote do
       # Import conveniences for testing with connections
-      use Phoenix.ConnTest
+      use ConnTest
       alias UnirisWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
@@ -29,6 +30,6 @@ defmodule UnirisWeb.ConnCase do
   end
 
   setup _tags do
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+    {:ok, conn: ConnTest.build_conn()}
   end
 end

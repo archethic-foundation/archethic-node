@@ -4,10 +4,12 @@ defmodule UnirisCore.Transaction do
 
   Blocks are reduce to its unitary form to provide high scalability, avoiding double spending attack and chain integrity
   """
-  alias __MODULE__.ValidationStamp
-  alias __MODULE__.CrossValidationStamp
-  alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+
+  alias __MODULE__.CrossValidationStamp
+  alias __MODULE__.ValidationStamp
+
+  alias UnirisCore.TransactionData
 
   defstruct [
     :address,

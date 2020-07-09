@@ -2,28 +2,32 @@ defmodule UnirisCore.BootstrapTest do
   use UnirisCoreCase
 
   alias UnirisCore.Crypto
-  alias UnirisCore.Storage
-  alias UnirisCore.Bootstrap
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.BeaconSlotTimer
-  alias UnirisCore.BeaconSubsets
-  alias UnirisCore.BeaconSubset
-  alias UnirisCore.Transaction
-  alias UnirisCore.SelfRepair
-  alias UnirisCore.Bootstrap.NetworkInit
-  alias UnirisCore.P2P.BootstrapingSeeds
 
-  alias UnirisCore.P2P.Message.NewTransaction
-  alias UnirisCore.P2P.Message.GetBootstrappingNodes
-  alias UnirisCore.P2P.Message.BootstrappingNodes
-  alias UnirisCore.P2P.Message.ListNodes
-  alias UnirisCore.P2P.Message.NodeList
-  alias UnirisCore.P2P.Message.GetBeaconSlots
-  alias UnirisCore.P2P.Message.BeaconSlotList
-  alias UnirisCore.P2P.Message.GetStorageNonce
-  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.BeaconSlotTimer
+  alias UnirisCore.BeaconSubset
+  alias UnirisCore.BeaconSubsets
+
+  alias UnirisCore.Bootstrap
+  alias UnirisCore.Bootstrap.NetworkInit
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.BootstrapingSeeds
   alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.BeaconSlotList
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.NodeList
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SelfRepair
+  alias UnirisCore.Storage
+
+  alias UnirisCore.Transaction
 
   import Mox
 

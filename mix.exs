@@ -19,9 +19,10 @@ defmodule Uniris.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.21.2", only: :dev},
-      {:credo, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:observer_cli, "~> 1.5"},
-      {:distillery, "~> 2.0"}
+      {:distillery, "~> 2.0"},
+      {:git_hooks, "~> 0.4.0", only: [:test, :dev], runtime: false}
     ]
   end
 end

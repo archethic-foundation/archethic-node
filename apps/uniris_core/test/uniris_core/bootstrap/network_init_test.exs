@@ -1,27 +1,32 @@
 defmodule UnirisCore.Bootstrap.NetworkInitTest do
   use UnirisCoreCase
 
-  alias UnirisCore.Bootstrap.NetworkInit
   alias UnirisCore.Crypto
+
+  alias UnirisCore.Beacon
+  alias UnirisCore.BeaconSlot
+  alias UnirisCore.BeaconSlot.TransactionInfo
+  alias UnirisCore.BeaconSubset
+  alias UnirisCore.BeaconSubsetRegistry
+  alias UnirisCore.BeaconSubsets
+
+  alias UnirisCore.Bootstrap.NetworkInit
+  alias UnirisCore.Mining.Context
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Storage.Cache
+
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.BeaconSubset
-  alias UnirisCore.BeaconSubsets
-  alias UnirisCore.BeaconSubsetRegistry
-  alias UnirisCore.Beacon
-  alias UnirisCore.BeaconSlot
-  alias UnirisCore.BeaconSlot.TransactionInfo
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.Storage.Cache
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   import Mox
 

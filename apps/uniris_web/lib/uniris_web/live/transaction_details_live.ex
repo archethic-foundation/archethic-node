@@ -1,8 +1,13 @@
 defmodule UnirisWeb.TransactionDetailsLive do
+  @moduledoc false
   use Phoenix.LiveView
 
-  alias UnirisCore.Transaction
+  alias Phoenix.View
+
   alias UnirisCore.Crypto
+  alias UnirisCore.Transaction
+
+  alias UnirisWeb.ExplorerView
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -56,6 +61,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
   end
 
   def render(assigns) do
-    Phoenix.View.render(UnirisWeb.ExplorerView, "transaction_details.html", assigns)
+    View.render(ExplorerView, "transaction_details.html", assigns)
   end
 end

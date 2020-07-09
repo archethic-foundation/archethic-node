@@ -1,11 +1,13 @@
 defmodule UnirisCore.Interpreter.TransactionLoader do
   @moduledoc false
 
+  alias UnirisCore.Interpreter
+
+  alias UnirisCore.PubSub
+  alias UnirisCore.Storage
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.Interpreter
-  alias UnirisCore.Storage
-  alias UnirisCore.PubSub
 
   use GenServer
 

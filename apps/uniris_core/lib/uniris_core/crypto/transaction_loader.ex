@@ -1,12 +1,14 @@
 defmodule UnirisCore.Crypto.TransactionLoader do
   @moduledoc false
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.PubSub
+  alias UnirisCore.Storage
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
-  alias UnirisCore.Storage
-  alias UnirisCore.PubSub
-  alias UnirisCore.Crypto
+
   alias UnirisCore.Utils
 
   require Logger
@@ -42,7 +44,7 @@ defmodule UnirisCore.Crypto.TransactionLoader do
 
       {:authorized, encrypted_key, encrypted_daily_nonce_seed} ->
         # Schedule the loading of the daily nonce for the renewal interval
-        unless !Map.has_key?(state, :ref_daily_nonce_scheduler) do
+        if Map.has_key?(state, :ref_daily_nonce_scheduler) do
           Process.cancel_timer(state.ref_daily_nonce_scheduler)
         end
 

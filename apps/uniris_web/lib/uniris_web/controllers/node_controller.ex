@@ -1,8 +1,8 @@
 defmodule UnirisWeb.NodeController do
   use UnirisWeb, :controller
 
-  alias UnirisCore.P2P
   alias UnirisCore.Crypto
+  alias UnirisCore.P2P
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   def index(conn, _params) do

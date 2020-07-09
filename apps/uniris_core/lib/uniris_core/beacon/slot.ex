@@ -1,6 +1,10 @@
 defmodule UnirisCore.BeaconSlot do
-  alias __MODULE__.TransactionInfo
+  @moduledoc """
+  Represent a beacon chain slot generated after each synchronization interval
+  with the transaction stored and nodes updates
+  """
   alias __MODULE__.NodeInfo
+  alias __MODULE__.TransactionInfo
 
   defstruct transactions: [], nodes: []
 

@@ -4,9 +4,9 @@ defmodule UnirisCore.Transaction.CrossValidationStampTest do
   import Mox
 
   alias UnirisCore.Crypto
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.CrossValidationStamp
 
   doctest CrossValidationStamp
 

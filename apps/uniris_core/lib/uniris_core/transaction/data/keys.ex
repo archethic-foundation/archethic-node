@@ -1,4 +1,8 @@
 defmodule UnirisCore.TransactionData.Keys do
+  @moduledoc """
+  Represents section in the transaction data to store secret and authorized keys to
+  read the encrypted secret.
+  """
   defstruct authorized_keys: %{}, secret: ""
 
   alias UnirisCore.Crypto
@@ -104,7 +108,7 @@ defmodule UnirisCore.TransactionData.Keys do
         <<>>
       }
   """
-  @spec deserialize(<<_::8, _::_*1>>) :: {__MODULE__.t(), bitstring}
+  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
   def deserialize(<<secret_size::32, secret::binary-size(secret_size), 0::8, rest::bitstring>>) do
     {
       %__MODULE__{

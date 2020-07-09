@@ -4,52 +4,55 @@ defmodule UnirisCore.P2PServer do
 
   use GenServer
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.P2P
-  alias UnirisCore.Election
-  alias UnirisCore.Mining
-  alias UnirisCore.Crypto
-  alias UnirisCore.TaskSupervisor
-  alias UnirisCore.PubSub
   alias UnirisCore.Beacon
-  alias UnirisCore.Storage
+  alias UnirisCore.Crypto
+  alias UnirisCore.Election
 
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message
-  alias UnirisCore.P2P.Message.GetBootstrappingNodes
-  alias UnirisCore.P2P.Message.GetStorageNonce
-  alias UnirisCore.P2P.Message.ListNodes
-  alias UnirisCore.P2P.Message.GetTransaction
-  alias UnirisCore.P2P.Message.GetTransactionChain
-  alias UnirisCore.P2P.Message.GetUnspentOutputs
-  alias UnirisCore.P2P.Message.NewTransaction
-  alias UnirisCore.P2P.Message.StartMining
-  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.AcknowledgeStorage
   alias UnirisCore.P2P.Message.AddContext
+  alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.Balance
+  alias UnirisCore.P2P.Message.BeaconSlotList
+  alias UnirisCore.P2P.Message.BootstrappingNodes
   alias UnirisCore.P2P.Message.CrossValidate
   alias UnirisCore.P2P.Message.CrossValidationDone
-  alias UnirisCore.P2P.Message.ReplicateTransaction
-  alias UnirisCore.P2P.Message.AcknowledgeStorage
-  alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
   alias UnirisCore.P2P.Message.GetBalance
-  alias UnirisCore.P2P.Message.GetLastTransaction
   alias UnirisCore.P2P.Message.GetBeaconSlots
-  alias UnirisCore.P2P.Message.BootstrappingNodes
-  alias UnirisCore.P2P.Message.NodeList
-  alias UnirisCore.P2P.Message.TransactionList
-  alias UnirisCore.P2P.Message.Ok
-  alias UnirisCore.P2P.Message.NotFound
-  alias UnirisCore.P2P.Message.BeaconSlotList
-  alias UnirisCore.P2P.Message.Balance
-  alias UnirisCore.P2P.Message.UnspentOutputList
-  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.GetLastTransaction
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetTransactionChain
+  alias UnirisCore.P2P.Message.GetTransactionChainLength
   alias UnirisCore.P2P.Message.GetTransactionHistory
   alias UnirisCore.P2P.Message.GetTransactionInputs
-  alias UnirisCore.P2P.Message.TransactionHistory
-  alias UnirisCore.P2P.Message.EncryptedStorageNonce
-  alias UnirisCore.P2P.Message.GetTransactionChainLength
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.NodeList
+  alias UnirisCore.P2P.Message.NotFound
+  alias UnirisCore.P2P.Message.Ok
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.P2P.Message.StartMining
   alias UnirisCore.P2P.Message.TransactionChainLength
+  alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.TransactionList
+  alias UnirisCore.P2P.Message.UnspentOutputList
+
+  alias UnirisCore.PubSub
+
+  alias UnirisCore.Mining
+
+  alias UnirisCore.Storage
+  alias UnirisCore.TaskSupervisor
+
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
 
   require Logger
 

@@ -3,9 +3,9 @@ defmodule UnirisCore.BeaconTest do
   doctest UnirisCore.Beacon
 
   alias UnirisCore.Beacon
-  alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSlotTimer
   alias UnirisCore.BeaconSubset
+  alias UnirisCore.BeaconSubsets
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
   alias UnirisCore.Utils

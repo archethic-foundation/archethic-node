@@ -1,15 +1,18 @@
 defmodule UnirisCore.SharedSecrets.NodeRenewal do
   @moduledoc false
 
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
+  alias UnirisCore.Crypto
+
   alias UnirisCore.Election
   alias UnirisCore.Election.ValidationConstraints
-  alias UnirisCore.Crypto
-  alias UnirisCore.TaskSupervisor
-  alias UnirisCore.SharedSecrets
-  alias UnirisCore.Utils
+
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message.StartMining
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SharedSecrets
+  alias UnirisCore.TaskSupervisor
+  alias UnirisCore.Utils
 
   use GenServer
 
@@ -40,7 +43,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
     end
   end
 
-  defp do_renewal() do
+  defp do_renewal do
     tx =
       SharedSecrets.new_node_shared_secrets_transaction(
         authorized_nodes(),
@@ -77,7 +80,7 @@ defmodule UnirisCore.SharedSecrets.NodeRenewal do
 
   # Find out the next authorized nodes based on the previous ones and the heuristic validation constraints
   # to embark new validation nodes in the network
-  defp authorized_nodes() do
+  defp authorized_nodes do
     authorized_nodes = Enum.filter(P2P.list_nodes(), & &1.authorized?)
 
     %ValidationConstraints{

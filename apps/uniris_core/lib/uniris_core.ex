@@ -1,21 +1,27 @@
 defmodule UnirisCore do
+  @moduledoc """
+  Provides high level functions serving the API and the Explorer
+  """
+  alias __MODULE__.Crypto
+  alias __MODULE__.Election
+
   alias __MODULE__.P2P
   alias __MODULE__.P2P.Node
-  alias __MODULE__.Election
-  alias __MODULE__.Transaction
-  alias __MODULE__.Crypto
-  alias __MODULE__.Storage
-  alias __MODULE__.P2P.Message.GetTransaction
-  alias __MODULE__.P2P.Message.GetTransactionChain
-  alias __MODULE__.P2P.Message.GetTransactionInputs
+
+  alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.GetLastTransaction
+  alias __MODULE__.P2P.Message.GetTransaction
+  alias __MODULE__.P2P.Message.GetTransactionChain
+  alias __MODULE__.P2P.Message.GetTransactionChainLength
+  alias __MODULE__.P2P.Message.GetTransactionInputs
   alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.StartMining
   alias __MODULE__.P2P.Message.TransactionList
   alias __MODULE__.P2P.Message.UnspentOutputList
-  alias __MODULE__.P2P.Message.Balance
-  alias __MODULE__.P2P.Message.GetTransactionChainLength
+
+  alias __MODULE__.Storage
+  alias __MODULE__.Transaction
 
   @doc """
   Query the search of the transaction to the dedicated storage pool

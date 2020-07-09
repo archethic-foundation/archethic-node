@@ -55,34 +55,36 @@ defmodule UnirisCore.Storage.CassandraBackend do
     )
   """
 
+  alias __MODULE__.ChainQuerySupervisor
+  alias __MODULE__.ChainQueryWorker
+
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
   alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias __MODULE__.ChainQueryWorker
-  alias __MODULE__.ChainQuerySupervisor
+  alias UnirisCore.TransactionData.UCOLedger
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
   @behaviour UnirisCore.Storage.BackendImpl
 
   @impl true
-  def list_transactions() do
+  def list_transactions do
     Xandra.stream_pages!(:xandra_conn, "SELECT * FROM uniris.transactions", _params = [])
     |> Stream.flat_map(& &1)
     |> Stream.map(&format_result_to_transaction/1)
   end
 
   @impl true
-  def list_transaction_chains_info() do
+  def list_transaction_chains_info do
     Xandra.execute!(:xandra_conn, """
       SELECT size,
       transaction_address as address,
@@ -96,7 +98,7 @@ defmodule UnirisCore.Storage.CassandraBackend do
       cross_validation_stamps FROM uniris.transaction_chains PER PARTITION LIMIT 1
     """)
     |> Enum.map(fn result ->
-      { chain_size, result} = Map.pop(result, "size")
+      {chain_size, result} = Map.pop(result, "size")
       {format_result_to_transaction(result), chain_size}
     end)
   end

@@ -1,21 +1,24 @@
 defmodule UnirisCore.Mining.Replication do
   @moduledoc false
 
+  alias UnirisCore.Beacon
+  alias UnirisCore.Crypto
+  alias UnirisCore.Election
+
+  alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.Fee
+  alias UnirisCore.Mining.ProofOfIntegrity
+  alias UnirisCore.Mining.ProofOfWork
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Storage
+
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias UnirisCore.Mining.Fee
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.Mining.ProofOfWork
-  alias UnirisCore.Mining.ProofOfIntegrity
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.Election
-  alias UnirisCore.Crypto
-  alias UnirisCore.Beacon
-  alias UnirisCore.Storage
-  alias UnirisCore.Election
 
   require Logger
 
@@ -178,76 +181,57 @@ defmodule UnirisCore.Mining.Replication do
           validation_stamp:
             stamp = %ValidationStamp{
               proof_of_work: pow,
-              ledger_operations:
-                ledger_ops = %LedgerOperations{fee: fee, node_movements: node_movements}
+              ledger_operations: %LedgerOperations{fee: fee, node_movements: node_movements}
             },
           cross_validation_stamps: cross_stamps
         },
         opts
       ) do
+    context = Keyword.get(opts, :context)
     rewarded_nodes = Enum.map(node_movements, & &1.to)
     coordinator_public_key = Enum.at(rewarded_nodes, 1)
     total_rewards = Enum.reduce(node_movements, 0.0, &(&2 + &1.amount))
     cross_validation_nodes = Enum.map(cross_stamps, & &1.node_public_key)
 
-    cond do
-      !Transaction.valid_pending_transaction?(tx) ->
-        Logger.error("Invalid pending transaction for #{Base.encode16(tx.address)}")
+    with true <- Transaction.valid_pending_transaction?(tx),
+         true <- ValidationStamp.valid_signature?(stamp, coordinator_public_key),
+         true <- ProofOfWork.verify?(pow, tx),
+         true <- Fee.compute(tx) == fee,
+         true <- total_rewards == fee,
+         true <- Transaction.valid_cross_validation_stamps?(tx),
+         true <- Transaction.atomic_commitment?(tx),
+         true <- Enum.all?(cross_validation_nodes, &(&1 in rewarded_nodes)) do
+      validation_with_context(tx, context)
+    end
+  end
+
+  defp validation_with_context(_tx, nil), do: true
+
+  defp validation_with_context(
+         tx = %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: ledger_ops
+           }
+         },
+         %Context{previous_chain: chain, unspent_outputs: unspent_outputs}
+       ) do
+    if valid_chain?([tx | chain]) do
+      {:ok, node_info} = P2P.node_info()
+
+      if LedgerOperations.verify?(
+           ledger_ops,
+           tx,
+           unspent_outputs,
+           validation_nodes(node_info, tx)
+         ) do
+        true
+      else
+        Logger.error("Invalid ledger operations for #{Base.encode16(tx.address)}")
         false
-
-      !ValidationStamp.valid_signature?(stamp, coordinator_public_key) ->
-        Logger.error("Invalid validation stamp signature for #{Base.encode16(tx.address)}")
-        false
-
-      !ProofOfWork.verify?(pow, tx) ->
-        Logger.error("Invalid proof of work for #{Base.encode16(tx.address)}")
-        false
-
-      Fee.compute(tx) != fee ->
-        Logger.error("Invalid fee for #{Base.encode16(tx.address)}")
-        false
-
-      total_rewards != fee ->
-        Logger.error("Invalid rewards for #{Base.encode16(tx.address)}")
-        false
-
-      !Transaction.valid_cross_validation_stamps?(tx) ->
-        Logger.error("Invalid cross validation stamps for #{Base.encode16(tx.address)}")
-        false
-
-      !Transaction.atomic_commitment?(tx) ->
-        Logger.error("Atomic commtiment not reached #{Base.encode16(tx.address)}")
-        false
-
-      !Enum.all?(cross_validation_nodes, &(&1 in rewarded_nodes)) ->
-        Logger.error("Invalid rewarded nodes for #{Base.encode16(tx.address)}")
-        false
-
-      true ->
-        case Keyword.get(opts, :context) do
-          nil ->
-            true
-
-          %Context{previous_chain: chain, unspent_outputs: unspent_outputs} ->
-            if valid_chain?([tx | chain]) do
-              {:ok, node_info} = P2P.node_info()
-
-              if LedgerOperations.verify?(
-                   ledger_ops,
-                   tx,
-                   unspent_outputs,
-                   validation_nodes(node_info, tx)
-                 ) do
-                true
-              else
-                Logger.error("Invalid ledger operations for #{Base.encode16(tx.address)}")
-                false
-              end
-            else
-              Logger.error("Invalid chain integrity for #{Base.encode16(tx.address)}")
-              false
-            end
-        end
+      end
+    else
+      Logger.error("Invalid chain integrity for #{Base.encode16(tx.address)}")
+      false
     end
   end
 

@@ -4,13 +4,16 @@ defmodule UnirisCore.Election do
   and constraints to ensure a fair distributed processing and data storage among its network.
   """
 
-  alias UnirisCore.Transaction
+  alias UnirisCore.Crypto
+
   alias __MODULE__.Constraints
-  alias __MODULE__.ValidationConstraints
   alias __MODULE__.StorageConstraints
+  alias __MODULE__.ValidationConstraints
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
-  alias UnirisCore.Crypto
+
+  alias UnirisCore.Transaction
 
   @doc """
   Get the elected validation nodes for a given transaction and a list of nodes.
@@ -243,7 +246,7 @@ defmodule UnirisCore.Election do
   Return the actual constraints for the transaction validation
   """
   @spec validation_constraints() :: ValidationConstraints.t()
-  def validation_constraints() do
+  def validation_constraints do
     Constraints.for_validation()
   end
 end

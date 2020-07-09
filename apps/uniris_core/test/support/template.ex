@@ -1,9 +1,11 @@
 defmodule UnirisCoreCase do
+  @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias UnirisCore.P2P.NodeSupervisor
   alias UnirisCore.Crypto
   alias UnirisCore.Crypto.ECDSA
+
+  alias UnirisCore.P2P.NodeSupervisor
 
   import Mox
 

@@ -5,7 +5,7 @@ defmodule UnirisCore.Bootstrap.IPLookup.LocalImpl do
 
   @impl true
   @spec get_ip() :: :inet.ip_address()
-  def get_ip() do
+  def get_ip do
     local_interface =
       Application.get_env(:uniris_core, UnirisCore.Bootstrap)
       |> Keyword.fetch!(:interface)

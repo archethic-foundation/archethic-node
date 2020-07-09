@@ -1,22 +1,26 @@
 defmodule UnirisCore.Storage.CacheTest do
   use UnirisCoreCase
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias UnirisCore.Storage.Cache
+  alias UnirisCore.Crypto
+
   alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.Fee
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
-  alias UnirisCore.Crypto
-  alias UnirisCore.Mining.Fee
+
+  alias UnirisCore.Storage.Cache
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   describe "store_transaction/1" do
     test "should insert the transaction" do

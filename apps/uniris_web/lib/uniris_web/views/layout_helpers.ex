@@ -1,4 +1,5 @@
 defmodule UnirisWeb.LayoutHelpers do
+  @moduledoc false
   def format_date(%DateTime{
         year: year,
         month: month,
@@ -24,14 +25,11 @@ defmodule UnirisWeb.LayoutHelpers do
     "#{nb_bytes} B"
   end
 
-  def format_bytes(nb_bytes) when nb_bytes >= 1024 and nb_bytes < 1048576 do
-    "#{Float.round(nb_bytes/1024, 2)} KB"
+  def format_bytes(nb_bytes) when nb_bytes >= 1024 and nb_bytes < 1_048_576 do
+    "#{Float.round(nb_bytes / 1024, 2)} KB"
   end
 
-  def format_bytes(nb_bytes) when nb_bytes >= 1048576 do
-    IO.inspect nb_bytes
-
-    "#{Float.round(nb_bytes / 1048576, 2)} MB"
+  def format_bytes(nb_bytes) when nb_bytes >= 1_048_576 do
+    "#{Float.round(nb_bytes / 1_048_576, 2)} MB"
   end
-
 end

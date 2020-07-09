@@ -1,8 +1,11 @@
 defmodule UnirisCore.BeaconSlot.TransactionInfo do
+  @moduledoc """
+  Represents transaction information stored in the beacon chain
+  """
   defstruct [:timestamp, :address, :type, movements_addresses: []]
 
-  alias UnirisCore.Transaction
   alias UnirisCore.Crypto
+  alias UnirisCore.Transaction
 
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),

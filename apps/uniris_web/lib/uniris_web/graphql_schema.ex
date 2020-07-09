@@ -4,18 +4,20 @@ defmodule UnirisWeb.GraphQLSchema do
   use Absinthe.Schema
 
   alias UnirisCore.Storage
+
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.TransactionData.Keys
+  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.CrossValidationStamp
+
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Keys
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   alias __MODULE__.TransactionType
 
@@ -110,7 +112,6 @@ defmodule UnirisWeb.GraphQLSchema do
          ledger: ledger,
          keys: keys
        }) do
-
     %{
       content: content,
       code: code,
@@ -206,62 +207,6 @@ defmodule UnirisWeb.GraphQLSchema do
     %{
       node: public_key,
       signature: signature
-    }
-  end
-
-  defp parse_input(%{
-         address: address,
-         type: type,
-         timestamp: timestamp,
-         data: data,
-         previous_public_key: previous_public_key,
-         previous_signature: previous_signature,
-         origin_signature: origin_signature
-       }) do
-    %UnirisCore.Transaction{
-      address: address,
-      type: type,
-      timestamp: timestamp,
-      data: parse_input(data),
-      previous_public_key: previous_public_key,
-      previous_signature: previous_signature,
-      origin_signature: origin_signature
-    }
-  end
-
-  defp parse_input(%{
-         code: code,
-         content: content,
-         keys: %{authorized_keys: authorized_keys, secret: secret},
-         ledger: %{uco: %{transfers: transfers}},
-         recipients: recipients
-       }) do
-    %UnirisCore.TransactionData{
-      code: code,
-      content: content,
-      keys: %UnirisCore.TransactionData.Keys{
-        authorized_keys:
-          Enum.reduce(authorized_keys, %{}, fn %{
-                                                 public_key: public_key,
-                                                 encrypted_key: encrypted_key
-                                               },
-                                               acc ->
-            Map.put(acc, public_key, encrypted_key)
-          end),
-        secret: secret
-      },
-      ledger: %UnirisCore.TransactionData.Ledger{
-        uco: %UnirisCore.TransactionData.UCOLedger{
-          transfers:
-            Enum.map(transfers, fn %{to: to, amount: amount} ->
-              %UnirisCore.TransactionData.Ledger.Transfer{
-                to: to,
-                amount: amount
-              }
-            end)
-        }
-      },
-      recipients: recipients
     }
   end
 end

@@ -1,4 +1,8 @@
 defmodule Mix.Tasks.CleanPrivDir do
+  @moduledoc """
+  Task to clean the dev environment to reset the filestorage, last synchronization date
+  and storage nonce
+  """
   use Mix.Task
 
   @shortdoc "Clean the uniris_core priv folder for development phase"

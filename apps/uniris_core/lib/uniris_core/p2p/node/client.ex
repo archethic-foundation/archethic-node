@@ -15,7 +15,7 @@ defmodule UnirisCore.P2P.NodeClient do
     impl().send_message(ip, port, message)
   end
 
-  defp impl() do
+  defp impl do
     :uniris_core
     |> Application.get_env(UnirisCore.P2P)
     |> Keyword.fetch!(:node_client)

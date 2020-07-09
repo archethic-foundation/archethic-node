@@ -8,27 +8,33 @@ defmodule UnirisCore.Mining.Context do
             chain_storage_nodes_view: [],
             beacon_storage_nodes_view: <<>>
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.Election
+
+  alias UnirisCore.Mining.BinarySequence
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Message.GetTransactionHistory
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
+  alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Storage
+
+  alias UnirisCore.TaskSupervisor
+
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Election
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.TaskSupervisor
-  alias UnirisCore.Storage
-  alias UnirisCore.Crypto
-  alias UnirisCore.Mining.BinarySequence
-  alias UnirisCore.P2P.Message.GetTransactionHistory
-  alias UnirisCore.P2P.Message.GetProofOfIntegrity
-  alias UnirisCore.P2P.Message.GetUnspentOutputs
-  alias UnirisCore.P2P.Message.GetTransaction
-  alias UnirisCore.P2P.Message.TransactionHistory
-  alias UnirisCore.P2P.Message.ProofOfIntegrity
-  alias UnirisCore.P2P.Message.UnspentOutputList
+
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.UCOLedger
 
   @type t() :: %__MODULE__{
           previous_chain: list(Transaction.t()),

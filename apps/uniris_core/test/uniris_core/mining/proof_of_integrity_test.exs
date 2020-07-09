@@ -1,12 +1,13 @@
 defmodule UnirisCore.Mining.ProofOfIntegrityTest do
   use ExUnit.Case
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.Mining.ProofOfIntegrity
+
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Mining.ProofOfIntegrity
-  alias UnirisCore.Crypto
+  alias UnirisCore.TransactionData
 
   test "compute/1 should produce a hash of the pending transaction when only one transaction" do
     chain = [generate_pending_transaction()]
@@ -38,7 +39,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
     assert false == ProofOfIntegrity.verify?("", chain)
   end
 
-  defp generate_pending_transaction() do
+  defp generate_pending_transaction do
     %Transaction{
       address:
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,
@@ -62,7 +63,7 @@ defmodule UnirisCore.Mining.ProofOfIntegrityTest do
     }
   end
 
-  defp generate_previous_transaction() do
+  defp generate_previous_transaction do
     %Transaction{
       address:
         <<0, 65, 9, 62, 32, 153, 130, 11, 166, 32, 35, 227, 206, 83, 128, 215, 234, 180, 244, 7,

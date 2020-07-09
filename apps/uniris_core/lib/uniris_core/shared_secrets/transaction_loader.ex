@@ -1,12 +1,14 @@
 defmodule UnirisCore.SharedSecrets.TransactionLoader do
   @moduledoc false
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.SharedSecrets
-  alias UnirisCore.PubSub
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+  alias UnirisCore.PubSub
+
+  alias UnirisCore.SharedSecrets
   alias UnirisCore.Storage
+
+  alias UnirisCore.Transaction
 
   require Logger
 

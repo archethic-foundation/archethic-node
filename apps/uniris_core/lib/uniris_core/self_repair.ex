@@ -1,21 +1,31 @@
 defmodule UnirisCore.SelfRepair do
+  @moduledoc """
+  Process responsible of the self repair mechanism by pulling for each interval
+  the last unsynchronized beacon chain slots.
+
+  It downloads the missing transactions and node updates
+  """
   use GenServer
 
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
   alias UnirisCore.Beacon
   alias UnirisCore.BeaconSlot
-  alias UnirisCore.BeaconSlot.TransactionInfo
   alias UnirisCore.BeaconSlot.NodeInfo
-  alias UnirisCore.Election
-  alias UnirisCore.Storage
+  alias UnirisCore.BeaconSlot.TransactionInfo
+
   alias UnirisCore.Crypto
-  alias UnirisCore.Transaction
-  alias UnirisCore.Utils
-  alias UnirisCore.TaskSupervisor
+  alias UnirisCore.Election
   alias UnirisCore.Mining.Replication
-  alias UnirisCore.P2P.Message.GetTransaction
+
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Storage
+  alias UnirisCore.TaskSupervisor
+  alias UnirisCore.Transaction
+
+  alias UnirisCore.Utils
 
   require Logger
 
@@ -28,7 +38,7 @@ defmodule UnirisCore.SelfRepair do
     GenServer.call(__MODULE__, {:start_sync, node_patch, fire_sync})
   end
 
-  def last_sync_date() do
+  def last_sync_date do
     file = last_sync_file()
 
     if File.exists?(file) do
@@ -99,7 +109,7 @@ defmodule UnirisCore.SelfRepair do
     {:noreply, Map.put(state, :last_sync_date, update_last_sync_date())}
   end
 
-  defp update_last_sync_date() do
+  defp update_last_sync_date do
     next_sync_date = Utils.truncate_datetime(DateTime.utc_now())
     store_last_sync_date(next_sync_date)
     next_sync_date
@@ -112,7 +122,8 @@ defmodule UnirisCore.SelfRepair do
   end
 
   # Retreive missing transactions from the missing beacon chain slots
-  # Beacon chain pools are retrieved from the given latest synchronization date including all the beacon subsets (i.e <<0>>, <<1>>, etc.)
+  # Beacon chain pools are retrieved from the given latest synchronization
+  # date including all the beacon subsets (i.e <<0>>, <<1>>, etc.)
   # Once retrieved, the transactions are downloaded and stored if not exists locally
   defp synchronize(last_sync_date, node_patch) do
     Beacon.get_pools(last_sync_date)
@@ -161,15 +172,25 @@ defmodule UnirisCore.SelfRepair do
   #    "02/01/2020" => ["nodeB", "nodeC"]
   #  }
   # }
-  defp group_pools_by_subset_and_date(pools) do
-    Enum.reduce(pools, %{}, fn {subset, nodes_by_slots}, acc ->
-      Enum.reduce(nodes_by_slots, acc, fn {date, nodes}, acc ->
-        Map.update(acc, subset, %{date => nodes}, fn prev ->
-          Map.update(prev, date, nodes, &Enum.uniq(&1 ++ nodes))
-        end)
-      end)
-    end)
+  defp group_pools_by_subset_and_date(pools, acc \\ %{})
+
+  defp group_pools_by_subset_and_date([{subset, nodes_by_slots} | rest], acc) do
+    acc = reduce_subsets_and_date(subset, nodes_by_slots, acc)
+    group_pools_by_subset_and_date(rest, acc)
   end
+
+  defp group_pools_by_subset_and_date([], acc), do: acc
+
+  defp reduce_subsets_and_date(subset, [{date, nodes} | rest], acc) do
+    acc =
+      Map.update(acc, subset, %{date => nodes}, fn prev ->
+        Map.update(prev, date, nodes, &Enum.uniq(&1 ++ nodes))
+      end)
+
+    reduce_subsets_and_date(subset, rest, acc)
+  end
+
+  defp reduce_subsets_and_date(_subset, [], acc), do: acc
 
   # Group closest nodes
   #
@@ -192,20 +213,24 @@ defmodule UnirisCore.SelfRepair do
   defp group_subset_by_closest_nodes(subsets, node_patch) do
     Enum.reduce(subsets, %{}, fn {subset, nodes_by_date}, acc ->
       nodes_by_date
-      |> Enum.map(fn {date, nodes} ->
-        {
-          date,
-          nodes
-          |> P2P.nearest_nodes(node_patch)
-          |> Enum.take(5)
-        }
-      end)
-      |> Enum.reduce(acc, fn {date, nodes}, acc ->
-        Enum.reduce(nodes, acc, fn node, acc ->
-          Map.update(acc, node, %{subset => [date]}, fn prev ->
-            Map.update(prev, subset, [date], &Enum.uniq([date | &1]))
-          end)
-        end)
+      |> Enum.map(&map_nearest_nodes_per_date(node_patch, &1))
+      |> Enum.reduce(acc, &reduce_synchronization_slots_per_subsets(subset, &1, &2))
+    end)
+  end
+
+  defp map_nearest_nodes_per_date(node_patch, {date, nodes}) do
+    {
+      date,
+      nodes
+      |> P2P.nearest_nodes(node_patch)
+      |> Enum.take(5)
+    }
+  end
+
+  defp reduce_synchronization_slots_per_subsets(subset, {date, nodes}, acc) do
+    Enum.reduce(nodes, acc, fn node, acc ->
+      Map.update(acc, node, %{subset => [date]}, fn prev ->
+        Map.update(prev, subset, [date], &Enum.uniq([date | &1]))
       end)
     end)
   end
@@ -258,30 +283,38 @@ defmodule UnirisCore.SelfRepair do
   end
 
   defp download_transaction(
-         tx_info = %TransactionInfo{
-           type: type,
-           address: address,
-           movements_addresses: movements_addresses
-         },
+         tx_info = %TransactionInfo{address: address, movements_addresses: movements_addresses},
          node_patch
        ) do
-    # Only elected storage nodes must download the transactions
-    storage_nodes = transaction_storage_nodes(tx_info)
+    if !transaction_exists?(address) do
+      process_missed_transaction(tx_info, node_patch)
+    end
 
+    # Process the movements address and determines if your are member of
+    # the IO storage pool for transaction and node movements
+    movements_addresses
+    |> Enum.reject(&transaction_exists?/1)
+    |> Enum.each(&process_movement_address(&1, node_patch))
+  end
+
+  defp process_missed_transaction(
+         tx_info = %TransactionInfo{address: address, type: type},
+         node_patch
+       ) do
+    storage_nodes = transaction_storage_nodes(tx_info)
+    # Only elected storage nodes must download the transactions
     if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
       Logger.info("Download transaction #{type}@#{Base.encode16(address)}")
       do_download(address, storage_nodes, node_patch)
     end
+  end
 
-    if !transaction_exists?(address) do
-      # Determines if your are IO storage node for transaction and node movements
-      Enum.each(movements_addresses, fn address ->
-        storage_nodes = Election.storage_nodes(address, P2P.list_nodes())
+  defp process_movement_address(address, node_patch) do
+    storage_nodes = Election.storage_nodes(address, P2P.list_nodes())
 
-        if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-          do_download(tx_info.address, storage_nodes, node_patch)
-        end
-      end)
+    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
+      Logger.info("Download transaction movement #{Base.encode16(address)}")
+      do_download(address, storage_nodes, node_patch)
     end
   end
 
@@ -348,7 +381,7 @@ defmodule UnirisCore.SelfRepair do
     end
   end
 
-  defp last_sync_file() do
+  defp last_sync_file do
     relative_filepath =
       :uniris_core
       |> Application.get_env(__MODULE__)

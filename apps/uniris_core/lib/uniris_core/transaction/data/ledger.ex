@@ -67,8 +67,8 @@ defmodule UnirisCore.TransactionData.Ledger do
         ""
       }
   """
-  @spec deserialize(<<_::8, _::_*1>>) :: {__MODULE__.t(), bitstring()}
-  def deserialize(binary) do
+  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring()}
+  def deserialize(binary) when is_bitstring(binary) do
     {uco_ledger, rest} = UCOLedger.deserialize(binary)
 
     {

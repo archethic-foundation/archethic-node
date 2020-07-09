@@ -95,7 +95,7 @@ defmodule UnirisCore.P2P.GeoPatch do
   end
 
   @spec from_ip(:inet.ip_address()) :: binary()
-  def from_ip({_, _, _, _} = ip) do
+  def from_ip(ip = {_, _, _, _}) do
     GenServer.call(__MODULE__, {:get_patch_from_ip, ip})
   end
 end

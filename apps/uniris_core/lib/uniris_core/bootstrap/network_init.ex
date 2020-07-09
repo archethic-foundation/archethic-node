@@ -1,19 +1,23 @@
 defmodule UnirisCore.Bootstrap.NetworkInit do
   @moduledoc false
 
+  alias UnirisCore.Beacon
   alias UnirisCore.Crypto
+  alias UnirisCore.Mining.Context
+  alias UnirisCore.P2P.Node
+
   alias UnirisCore.SharedSecrets
+  alias UnirisCore.Storage
+
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Ledger
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Beacon
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.Mining.Context
 
   require Logger
 
@@ -21,7 +25,7 @@ defmodule UnirisCore.Bootstrap.NetworkInit do
   Initialize the storage nonce and load it into the keystore
   """
   @spec create_storage_nonce() :: :ok
-  def create_storage_nonce() do
+  def create_storage_nonce do
     Logger.info("Create storage nonce")
     storage_nonce_seed = :crypto.strong_rand_bytes(32)
     {_, pv} = Crypto.generate_deterministic_keypair(storage_nonce_seed)
@@ -149,7 +153,7 @@ defmodule UnirisCore.Bootstrap.NetworkInit do
 
   @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
-    UnirisCore.Storage.write_transaction_chain([tx])
+    Storage.write_transaction_chain([tx])
     Beacon.add_transaction(tx)
   end
 end

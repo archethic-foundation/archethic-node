@@ -1,9 +1,9 @@
 defmodule UnirisCore.Mining.FeeTest do
   use ExUnit.Case
 
+  alias UnirisCore.Mining.Fee
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias UnirisCore.Mining.Fee
 
   test "compute/1 should return 0 when transaction with type :node" do
     fee =

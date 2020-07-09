@@ -1,10 +1,15 @@
 defmodule UnirisCore.P2P do
+  @moduledoc """
+  Provide a P2P layer for the Uniris network leveraging in memory Node and GeoPatch processes
+  to provide functions to retrieve view of the nodes, to send messages or manage bootstraping seeds
+  """
+  alias UnirisCore.Crypto
+
+  alias __MODULE__.BootstrapingSeeds
   alias __MODULE__.GeoPatch
   alias __MODULE__.Node
-  alias __MODULE__.BootstrapingSeeds
-  alias UnirisCore.Crypto
-  alias UnirisCore.P2P.NodeRegistry
-  alias UnirisCore.P2P.NodeSupervisor
+  alias __MODULE__.NodeRegistry
+  alias __MODULE__.NodeSupervisor
 
   require Logger
 
@@ -12,7 +17,7 @@ defmodule UnirisCore.P2P do
   Perform a lookups to find a patch from an ip
   """
   @spec get_geo_patch(:inet.ip_address()) :: binary()
-  def get_geo_patch({_, _, _, _} = ip) do
+  def get_geo_patch(ip = {_, _, _, _}) do
     GeoPatch.from_ip(ip)
   end
 
@@ -21,7 +26,7 @@ defmodule UnirisCore.P2P do
   """
   @spec list_nodes() ::
           list(Node.t())
-  def list_nodes() do
+  def list_nodes do
     DynamicSupervisor.which_children(NodeSupervisor)
     |> Enum.map(fn {_, pid, _, _} -> Node.details(pid) end)
   end
@@ -77,7 +82,7 @@ defmodule UnirisCore.P2P do
   Returns information about the running node
   """
   @spec node_info() :: {:ok, Node.t()} | {:error, :not_found}
-  def node_info() do
+  def node_info do
     node_info(Crypto.node_public_key(0))
   end
 
@@ -95,7 +100,7 @@ defmodule UnirisCore.P2P do
   end
 
   @spec send_message(:inet.ip_address(), term()) :: any()
-  def send_message({_, _, _, _} = ip, message) do
+  def send_message(ip = {_, _, _, _}, message) do
     {:ok, %Node{first_public_key: public_key}} = node_info(ip)
     Node.send_message(public_key, message)
   end
@@ -139,7 +144,7 @@ defmodule UnirisCore.P2P do
   Retrieve the bootstraping seeds
   """
   @spec list_boostraping_seeds() :: list(Node.t())
-  def list_boostraping_seeds() do
+  def list_boostraping_seeds do
     BootstrapingSeeds.list()
   end
 

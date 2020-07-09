@@ -3,14 +3,14 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperationsTest do
   use ExUnitProperties
 
   alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   doctest LedgerOperations
 

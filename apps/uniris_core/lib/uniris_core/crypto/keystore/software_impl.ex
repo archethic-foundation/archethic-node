@@ -32,7 +32,7 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
     end
   end
 
-  defp storage_nonce_file() do
+  defp storage_nonce_file do
     Application.app_dir(:uniris_core, "priv/crypto/storage_nonce")
   end
 
@@ -101,13 +101,11 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
         _,
         state = %{node_seed: seed, node_key_counter: index}
       ) do
-    try do
-      {_, pv} = previous_keypair(seed, index)
-      {:reply, Crypto.ec_decrypt!(cipher, pv), state}
-    rescue
-      _ ->
-        {:reply, {:error, :decryption_failed}, state}
-    end
+    {_, pv} = previous_keypair(seed, index)
+    {:reply, Crypto.ec_decrypt!(cipher, pv), state}
+  rescue
+    _ ->
+      {:reply, {:error, :decryption_failed}, state}
   end
 
   def handle_call(
@@ -115,13 +113,11 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
         _,
         state = %{node_seed: seed}
       ) do
-    try do
-      {_, pv} = Crypto.derivate_keypair(seed, index)
-      {:reply, Crypto.ec_decrypt!(cipher, pv), state}
-    rescue
-      _ ->
-        {:reply, {:error, :decryption_failed}, state}
-    end
+    {_, pv} = Crypto.derivate_keypair(seed, index)
+    {:reply, Crypto.ec_decrypt!(cipher, pv), state}
+  rescue
+    _ ->
+      {:reply, {:error, :decryption_failed}, state}
   end
 
   def handle_call(
@@ -297,7 +293,7 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def node_public_key() do
+  def node_public_key do
     GenServer.call(__MODULE__, :node_public_key)
   end
 
@@ -312,12 +308,12 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def increment_number_of_generate_node_keys() do
+  def increment_number_of_generate_node_keys do
     GenServer.call(__MODULE__, :inc_node_key_counter)
   end
 
   @impl true
-  def increment_number_of_generate_node_shared_secrets_keys() do
+  def increment_number_of_generate_node_shared_secrets_keys do
     GenServer.call(__MODULE__, :inc_node_shared_key_counter)
   end
 
@@ -349,12 +345,12 @@ defmodule UnirisCore.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def number_of_node_keys() do
+  def number_of_node_keys do
     GenServer.call(__MODULE__, :number_node_keys)
   end
 
   @impl true
-  def number_of_node_shared_secrets_keys() do
+  def number_of_node_shared_secrets_keys do
     GenServer.call(__MODULE__, :number_node_shared_keys)
   end
 

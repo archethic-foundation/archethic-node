@@ -1,9 +1,10 @@
 defmodule UnirisCore.Mining.ProofOfIntegrity do
   @moduledoc false
 
+  alias UnirisCore.Crypto
+
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Crypto
 
   @doc """
   Produce a proof of integrity for a given chain.

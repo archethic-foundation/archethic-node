@@ -3,11 +3,13 @@ defmodule UnirisWeb.Application do
 
   use Application
 
+  alias UnirisWeb.Endpoint
+
   def start(_type, _args) do
     children = [
       # Start the endpoint when the application starts
-      UnirisWeb.Endpoint,
-      {Absinthe.Subscription, [UnirisWeb.Endpoint]},
+      Endpoint,
+      {Absinthe.Subscription, Endpoint},
       UnirisWeb.TransactionSubscriber
     ]
 
@@ -18,7 +20,7 @@ defmodule UnirisWeb.Application do
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
   def config_change(changed, _new, removed) do
-    UnirisWeb.Endpoint.config_change(changed, removed)
+    Endpoint.config_change(changed, removed)
     :ok
   end
 end

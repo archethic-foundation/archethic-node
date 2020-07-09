@@ -1,4 +1,8 @@
 defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement do
+  @moduledoc """
+  Represents the movements regarding the nodes involved during the
+  transaction validation. The node public keys are present as well as their rewards
+  """
   @enforce_keys [:to, :amount]
   defstruct [:to, :amount]
 
@@ -53,7 +57,7 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement d
       ""
     }
   """
-  @spec deserialize(<<_::8, _::_*1>>) :: {__MODULE__.t(), bitstring}
+  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
   def deserialize(<<curve_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
     <<key::binary-size(key_size), amount::float, rest::bitstring>> = rest

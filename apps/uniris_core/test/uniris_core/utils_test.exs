@@ -25,7 +25,7 @@ defmodule UnirisCore.UtilsTests do
       shift = Utils.time_offset(86_400_000)
       next_time = DateTime.add(current_time, trunc(shift / 1000))
       assert next_time.second == 0
-      assert next_time.day == DateTime.add(current_time, 86400).day
+      assert next_time.day == DateTime.add(current_time, 86_400).day
     end
   end
 end

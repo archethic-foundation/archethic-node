@@ -8,9 +8,9 @@ defmodule UnirisCore.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
-  alias UnirisCore.Transaction
   alias UnirisCore.P2P.Node
   alias UnirisCore.PubSubRegistry
+  alias UnirisCore.Transaction
 
   @doc """
   Notify the registered processes than a new transaction address has been validated
@@ -46,7 +46,7 @@ defmodule UnirisCore.PubSub do
   Register a process to a new transaction publication
   """
   @spec register_to_new_transaction() :: {:ok, pid()}
-  def register_to_new_transaction() do
+  def register_to_new_transaction do
     Registry.register(PubSubRegistry, "new_transaction", [])
   end
 
@@ -54,7 +54,7 @@ defmodule UnirisCore.PubSub do
   Register a process to a node update publication
   """
   @spec register_to_node_update() :: :ok
-  def register_to_node_update() do
+  def register_to_node_update do
     Registry.register(PubSubRegistry, "node_update", [])
   end
 end

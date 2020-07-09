@@ -10,8 +10,8 @@ defmodule UnirisCore.TransactionData.KeysTest do
   test "new/3 create new transaction data keys and encrypt secret key with authorized public keys" do
     secret_key = :crypto.strong_rand_bytes(32)
     secret = Crypto.aes_encrypt("important message", secret_key)
-    {pub, pv} = UnirisCore.Crypto.generate_deterministic_keypair("seed", :secp256r1)
-    {pub2, pv2} = UnirisCore.Crypto.generate_deterministic_keypair("other_seed")
+    {pub, pv} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
+    {pub2, pv2} = Crypto.generate_deterministic_keypair("other_seed")
 
     %Keys{authorized_keys: authorized_keys, secret: secret} =
       Keys.new([pub, pub2], secret_key, secret)

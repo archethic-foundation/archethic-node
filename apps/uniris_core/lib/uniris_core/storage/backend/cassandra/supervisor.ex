@@ -2,8 +2,8 @@ defmodule UnirisCore.Storage.CassandraBackend.Supervisor do
   @moduledoc false
 
   use Supervisor
-  alias UnirisCore.Storage.CassandraBackend.SchemaMigrator
   alias UnirisCore.Storage.CassandraBackend.ChainQuerySupervisor
+  alias UnirisCore.Storage.CassandraBackend.SchemaMigrator
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)

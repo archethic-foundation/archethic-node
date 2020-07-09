@@ -1,4 +1,8 @@
 defmodule UnirisCore.BeaconSlot.NodeInfo do
+  @moduledoc """
+  Represents an information stored in the Beacon chain regarding a node
+  involving either readyness of the node or the P2P network coordinates
+  """
   defstruct [:public_key, :ready?, :timestamp]
 
   alias UnirisCore.Crypto

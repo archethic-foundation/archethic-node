@@ -1,46 +1,55 @@
 defmodule UnirisCore.P2P.Message do
-  alias __MODULE__.GetBootstrappingNodes
-  alias __MODULE__.GetStorageNonce
-  alias __MODULE__.ListNodes
-  alias __MODULE__.NewTransaction
-  alias __MODULE__.GetTransaction
-  alias __MODULE__.GetTransactionChain
-  alias __MODULE__.GetUnspentOutputs
-  alias __MODULE__.GetProofOfIntegrity
-  alias __MODULE__.StartMining
-  alias __MODULE__.GetTransactionHistory
-  alias __MODULE__.AddContext
-  alias __MODULE__.CrossValidate
-  alias __MODULE__.CrossValidationDone
-  alias __MODULE__.ReplicateTransaction
-  alias __MODULE__.AcknowledgeStorage
-  alias __MODULE__.GetBeaconSlots
-  alias __MODULE__.AddNodeInfo
-  alias __MODULE__.GetLastTransaction
-  alias __MODULE__.GetBalance
-  alias __MODULE__.GetTransactionInputs
-  alias __MODULE__.BootstrappingNodes
-  alias __MODULE__.ProofOfIntegrity
-  alias __MODULE__.EncryptedStorageNonce
-  alias __MODULE__.TransactionHistory
-  alias __MODULE__.Balance
-  alias __MODULE__.NodeList
-  alias __MODULE__.BeaconSlotList
-  alias __MODULE__.UnspentOutputList
-  alias __MODULE__.TransactionList
-  alias __MODULE__.Ok
-  alias __MODULE__.NotFound
-  alias __MODULE__.GetTransactionChainLength
-  alias __MODULE__.TransactionChainLength
-  alias UnirisCore.Transaction
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias UnirisCore.P2P.Node
+  @moduledoc """
+  Provide functions to encode and decode P2P messages using a custom binary protocol
+  """
+
+  alias UnirisCore.Crypto
+
   alias UnirisCore.BeaconSlot
   alias UnirisCore.BeaconSlot.NodeInfo
-  alias UnirisCore.Crypto
+
+  alias __MODULE__.AcknowledgeStorage
+  alias __MODULE__.AddContext
+  alias __MODULE__.AddNodeInfo
+  alias __MODULE__.Balance
+  alias __MODULE__.BeaconSlotList
+  alias __MODULE__.BootstrappingNodes
+  alias __MODULE__.CrossValidate
+  alias __MODULE__.CrossValidationDone
+  alias __MODULE__.EncryptedStorageNonce
+  alias __MODULE__.GetBalance
+  alias __MODULE__.GetBeaconSlots
+  alias __MODULE__.GetBootstrappingNodes
+  alias __MODULE__.GetLastTransaction
+  alias __MODULE__.GetProofOfIntegrity
+  alias __MODULE__.GetStorageNonce
+  alias __MODULE__.GetTransaction
+  alias __MODULE__.GetTransactionChain
+  alias __MODULE__.GetTransactionChainLength
+  alias __MODULE__.GetTransactionHistory
+  alias __MODULE__.GetTransactionInputs
+  alias __MODULE__.GetUnspentOutputs
+  alias __MODULE__.ListNodes
+  alias __MODULE__.NewTransaction
+  alias __MODULE__.NodeList
+  alias __MODULE__.NotFound
+  alias __MODULE__.Ok
+  alias __MODULE__.ProofOfIntegrity
+  alias __MODULE__.ReplicateTransaction
+  alias __MODULE__.StartMining
+  alias __MODULE__.TransactionChainLength
+  alias __MODULE__.TransactionHistory
+  alias __MODULE__.TransactionList
+  alias __MODULE__.UnspentOutputList
+
+  alias UnirisCore.Mining.Context
+
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   @type t() ::
           GetBootstrappingNodes.t()

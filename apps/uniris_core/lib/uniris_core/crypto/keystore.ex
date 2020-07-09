@@ -32,7 +32,7 @@ defmodule UnirisCore.Crypto.Keystore do
 
   @impl true
   @spec node_public_key() :: UnirisCrypto.key()
-  def node_public_key() do
+  def node_public_key do
     impl().node_public_key()
   end
 
@@ -44,13 +44,13 @@ defmodule UnirisCore.Crypto.Keystore do
 
   @impl true
   @spec increment_number_of_generate_node_keys() :: :ok
-  def increment_number_of_generate_node_keys() do
+  def increment_number_of_generate_node_keys do
     impl().increment_number_of_generate_node_keys()
   end
 
   @impl true
   @spec increment_number_of_generate_node_shared_secrets_keys() :: :ok
-  def increment_number_of_generate_node_shared_secrets_keys() do
+  def increment_number_of_generate_node_shared_secrets_keys do
     impl().increment_number_of_generate_node_shared_secrets_keys()
   end
 
@@ -74,13 +74,13 @@ defmodule UnirisCore.Crypto.Keystore do
 
   @impl true
   @spec number_of_node_keys() :: non_neg_integer()
-  def number_of_node_keys() do
+  def number_of_node_keys do
     impl().number_of_node_keys()
   end
 
   @impl true
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
-  def number_of_node_shared_secrets_keys() do
+  def number_of_node_shared_secrets_keys do
     impl().number_of_node_shared_secrets_keys()
   end
 
@@ -153,7 +153,7 @@ defmodule UnirisCore.Crypto.Keystore do
     )
   end
 
-  defp impl() do
+  defp impl do
     :uniris_core
     |> Application.get_env(UnirisCore.Crypto,
       keystore: @default_impl

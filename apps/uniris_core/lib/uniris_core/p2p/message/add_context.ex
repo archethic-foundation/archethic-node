@@ -1,4 +1,9 @@
 defmodule UnirisCore.P2P.Message.AddContext do
+  @moduledoc """
+  Represents a message to request the add of a context retrieval to the coordinator
+
+  This message is used in the transaction mining by the cross validation nodes
+  """
   @enforce_keys [:address, :validation_node_public_key, :context]
   defstruct [:address, :validation_node_public_key, :context]
 

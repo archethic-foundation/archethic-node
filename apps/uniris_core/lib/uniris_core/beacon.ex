@@ -1,23 +1,33 @@
 defmodule UnirisCore.Beacon do
-  alias UnirisCore.BeaconSubset
-  alias UnirisCore.BeaconSubsets
-  alias UnirisCore.BeaconSlotTimer
-  alias UnirisCore.BeaconSlot
-  alias UnirisCore.BeaconSlot.TransactionInfo
-  alias UnirisCore.BeaconSlot.NodeInfo
+  @moduledoc """
+  Manage the beacon chain by providing functions to add to the subsets informations and
+  to retrieve the beacon storage nodes involved.
+  """
+
   alias UnirisCore.Crypto
   alias UnirisCore.Election
+
+  alias UnirisCore.BeaconSlot
+  alias UnirisCore.BeaconSlot.NodeInfo
+  alias UnirisCore.BeaconSlot.TransactionInfo
+  alias UnirisCore.BeaconSlotTimer
+
+  alias UnirisCore.BeaconSubset
+  alias UnirisCore.BeaconSubsets
+
   alias UnirisCore.P2P
-  alias UnirisCore.Utils
+
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+
+  alias UnirisCore.Utils
 
   @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
   """
   @spec all_subsets() :: list(binary())
-  def all_subsets() do
+  def all_subsets do
     BeaconSubsets.all()
   end
 

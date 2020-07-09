@@ -3,28 +3,33 @@ defmodule UnirisCore.MiningWorkerTest do
 
   @moduletag capture_log: true
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Mining.Worker
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
-  alias UnirisCore.Election
+
   alias UnirisCore.BeaconSlotTimer
-  alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubsetRegistry
-  alias UnirisCore.P2P.Message.GetUnspentOutputs
-  alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.BeaconSubsets
+
+  alias UnirisCore.Election
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.TransactionData
+
+  alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.Worker
+
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message.AddContext
   alias UnirisCore.P2P.Message.CrossValidate
   alias UnirisCore.P2P.Message.CrossValidationDone
-  alias UnirisCore.P2P.Message.ReplicateTransaction
   alias UnirisCore.P2P.Message.GetProofOfIntegrity
+  alias UnirisCore.P2P.Message.GetUnspentOutputs
   alias UnirisCore.P2P.Message.ProofOfIntegrity
+  alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Node
 
   import Mox
 

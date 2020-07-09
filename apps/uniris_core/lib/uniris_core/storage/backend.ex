@@ -32,14 +32,14 @@ defmodule UnirisCore.Storage.Backend do
 
   @impl true
   @spec list_transactions() :: Enumerable.t()
-  def list_transactions() do
+  def list_transactions do
     impl().list_transactions()
   end
 
   @impl true
   @spec list_transactions() ::
           list({last_transaction :: Transaction.t(), nb_transactions :: non_neg_integer()})
-  def list_transaction_chains_info() do
+  def list_transaction_chains_info do
     impl().list_transaction_chains_info()
   end
 

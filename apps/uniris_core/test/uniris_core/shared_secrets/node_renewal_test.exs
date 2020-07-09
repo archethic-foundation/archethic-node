@@ -1,13 +1,16 @@
 defmodule UnirisCore.SharedSecrets.NodeRenewalTest do
   use UnirisCoreCase
 
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Message.StartMining
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SharedSecrets.NodeRenewal
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.SharedSecrets.NodeRenewal
-  alias UnirisCore.P2P.Message.StartMining
 
   import Mox
 

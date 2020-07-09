@@ -1,10 +1,11 @@
 defmodule UnirisCore.P2PSupervisor do
   @moduledoc false
 
-  alias UnirisCore.P2PServer
+  alias UnirisCore.P2P.BootstrapingSeeds
   alias UnirisCore.P2P.GeoPatch
   alias UnirisCore.P2P.NodeViewSupervisor
-  alias UnirisCore.P2P.BootstrapingSeeds
+
+  alias UnirisCore.P2PServer
   alias UnirisCore.Utils
 
   use Supervisor

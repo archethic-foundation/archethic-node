@@ -12,21 +12,25 @@ defmodule UnirisCore.Mining do
   - Replication (once the atomic commitment is reached)
   """
 
-  alias UnirisCore.MiningRegistry
-  alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Beacon
-  alias UnirisCore.Crypto
-  alias UnirisCore.P2P
   alias UnirisCore.Bootstrap.NetworkInit
-  alias UnirisCore.TaskSupervisor
-  alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.Crypto
+
+  alias __MODULE__.Context
+  alias __MODULE__.Replication
   alias __MODULE__.Worker
   alias __MODULE__.WorkerSupervisor
-  alias __MODULE__.Replication
-  alias __MODULE__.Context
+  alias UnirisCore.MiningRegistry
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Message.ReplicateTransaction
+
+  alias UnirisCore.TaskSupervisor
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
 
   require Logger
 
@@ -56,7 +60,12 @@ defmodule UnirisCore.Mining do
         |> Beacon.get_pool(tx.timestamp)
 
       io_storage_nodes = LedgerOperations.io_storage_nodes(ledger_ops)
-      storage_nodes = Enum.uniq_by(chain_storage_nodes ++ beacon_storage_nodes ++ io_storage_nodes, & &1.last_public_key)
+
+      storage_nodes =
+        Enum.uniq_by(
+          chain_storage_nodes ++ beacon_storage_nodes ++ io_storage_nodes,
+          & &1.last_public_key
+        )
 
       TaskSupervisor
       |> Task.Supervisor.async_stream(

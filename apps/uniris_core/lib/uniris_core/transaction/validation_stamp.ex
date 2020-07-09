@@ -3,13 +3,15 @@ defmodule UnirisCore.Transaction.ValidationStamp do
   Represents a validation stamp created by a coordinator on a pending transaction
   """
 
-  alias __MODULE__.LedgerOperations
-  alias UnirisCore.Transaction
   alias UnirisCore.Crypto
-  alias UnirisCore.Mining.Fee
-  alias UnirisCore.Mining.ProofOfWork
-  alias UnirisCore.Mining.ProofOfIntegrity
+
   alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.Fee
+  alias UnirisCore.Mining.ProofOfIntegrity
+  alias UnirisCore.Mining.ProofOfWork
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
 
   defstruct [
     :signature,

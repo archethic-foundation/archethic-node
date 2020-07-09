@@ -1,10 +1,12 @@
 defmodule UnirisCore.BeaconSubsetTest do
   use UnirisCoreCase, async: false
 
-  alias UnirisCore.BeaconSubset
   alias UnirisCore.BeaconSlot
-  alias UnirisCore.BeaconSlot.TransactionInfo
   alias UnirisCore.BeaconSlot.NodeInfo
+  alias UnirisCore.BeaconSlot.TransactionInfo
+
+  alias UnirisCore.BeaconSubset
+
   alias UnirisCore.Transaction
 
   setup do

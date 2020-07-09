@@ -5,12 +5,12 @@ defmodule UnirisWeb.TransactionController do
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
   alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   def new(
         conn,
-        params = %{
+        _params = %{
           "address" => address,
           "type" => type,
           "timestamp" => timestamp,
@@ -43,8 +43,12 @@ defmodule UnirisWeb.TransactionController do
         keys: %Keys{
           secret: Base.decode16!(secret, case: :mixed),
           authorized_keys:
-            Enum.reduce(authorized_keys, %{}, fn {publicKey, encryptedSecretKey}, acc ->
-              Map.put(acc, Base.decode16!(publicKey, case: :mixed), Base.decode16!(encryptedSecretKey, case: :mixed))
+            Enum.reduce(authorized_keys, %{}, fn {public_key, encrypted_secret_key}, acc ->
+              Map.put(
+                acc,
+                Base.decode16!(public_key, case: :mixed),
+                Base.decode16!(encrypted_secret_key, case: :mixed)
+              )
             end)
         },
         ledger: %Ledger{
@@ -69,7 +73,7 @@ defmodule UnirisWeb.TransactionController do
 
     conn
     |> put_status(201)
-    |> json(%{ status: "ok" })
+    |> json(%{status: "ok"})
   end
 
   defp decode_type("identity"), do: :identity
@@ -86,7 +90,7 @@ defmodule UnirisWeb.TransactionController do
       etag = Base.encode16(last_address, case: :lower)
 
       cached? =
-        case List.first(Plug.Conn.get_req_header(conn, "if-none-match")) do
+        case List.first(get_req_header(conn, "if-none-match")) do
           got_etag when got_etag == etag ->
             true
 
@@ -94,11 +98,12 @@ defmodule UnirisWeb.TransactionController do
             false
         end
 
-      conn = conn
-      |> put_resp_content_type(mime_type, "utf-8")
-      |> put_resp_header("content-encoding", "gzip")
-      |> put_resp_header("cache-control", "public")
-      |> put_resp_header("etag", etag)
+      conn =
+        conn
+        |> put_resp_content_type(mime_type, "utf-8")
+        |> put_resp_header("content-encoding", "gzip")
+        |> put_resp_header("cache-control", "public")
+        |> put_resp_header("etag", etag)
 
       if cached? do
         send_resp(conn, 304, "")

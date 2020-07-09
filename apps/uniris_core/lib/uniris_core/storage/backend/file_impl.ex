@@ -32,12 +32,10 @@ defmodule UnirisCore.Storage.FileBackend do
 
   @impl true
   def handle_call({:get_transaction, address}, _, state = %{transactions_dir: dir}) do
-    try do
-      {:reply, read_transaction!(dir, Base.encode16(address)), state}
-    rescue
-      _ ->
-        {:reply, nil, state}
-    end
+    {:reply, read_transaction!(dir, Base.encode16(address)), state}
+  rescue
+    _ ->
+      {:reply, nil, state}
   end
 
   def handle_call(
@@ -61,22 +59,7 @@ defmodule UnirisCore.Storage.FileBackend do
       Stream.resource(
         fn -> {File.ls!(indexes_dir), 0} end,
         fn {files, index} ->
-          case Enum.at(files, index) do
-            nil ->
-              {:halt, {files, index}}
-
-            filename ->
-              [_ | address] = String.split(filename, "_")
-
-              tx = read_transaction!(transactions_dir, address)
-
-              chain_size =
-                File.read!(Path.join(indexes_dir, filename))
-                |> String.split("\n")
-                |> Enum.reduce(0, fn _, acc -> acc + 1 end)
-
-              {[{tx, chain_size}], {files, index + 1}}
-          end
+          stream_transaction_info(files, index, transactions_dir, indexes_dir)
         end,
         fn _ -> :ok end
       )
@@ -136,15 +119,32 @@ defmodule UnirisCore.Storage.FileBackend do
     )
   end
 
-  defp do_get_transaction_chain(transactions_dir, indexes_dir, address) do
-    try do
-      File.read!(Path.join(indexes_dir, "chain_#{Base.encode16(address)}"))
-      |> String.split("\n")
-      |> Enum.map(&read_transaction!(transactions_dir, &1))
-    rescue
-      _ ->
-        []
+  defp stream_transaction_info(files, index, transactions_dir, indexes_dir) do
+    case Enum.at(files, index) do
+      nil ->
+        {:halt, {files, index}}
+
+      filename ->
+        [_ | address] = String.split(filename, "_")
+
+        tx = read_transaction!(transactions_dir, address)
+
+        chain_size =
+          File.read!(Path.join(indexes_dir, filename))
+          |> String.split("\n")
+          |> Enum.reduce(0, fn _, acc -> acc + 1 end)
+
+        {[{tx, chain_size}], {files, index + 1}}
     end
+  end
+
+  defp do_get_transaction_chain(transactions_dir, indexes_dir, address) do
+    File.read!(Path.join(indexes_dir, "chain_#{Base.encode16(address)}"))
+    |> String.split("\n")
+    |> Enum.map(&read_transaction!(transactions_dir, &1))
+  rescue
+    _ ->
+      []
   end
 
   defp read_transaction!(transactions_dir, address) do
@@ -186,13 +186,13 @@ defmodule UnirisCore.Storage.FileBackend do
 
   @impl true
   @spec list_transactions() :: Enumerable.t()
-  def list_transactions() do
+  def list_transactions do
     GenServer.call(__MODULE__, :list_transactions)
   end
 
   @impl true
   @spec list_transaction_chains_info() :: Enumerable.t()
-  def list_transaction_chains_info() do
+  def list_transaction_chains_info do
     GenServer.call(__MODULE__, :list_transaction_chains_info)
   end
 end

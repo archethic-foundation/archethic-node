@@ -3,11 +3,11 @@ defmodule UnirisCore.BeaconSupervisor do
 
   use Supervisor
 
-  alias UnirisCore.Utils
   alias UnirisCore.BeaconSlotTimer
   alias UnirisCore.BeaconSubset
-  alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubsetRegistry
+  alias UnirisCore.BeaconSubsets
+  alias UnirisCore.Utils
 
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: UnirisBeaconSupervisor)

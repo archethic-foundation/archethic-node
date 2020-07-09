@@ -13,7 +13,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
     {:ok, []}
   end
 
-  defp run_migrations() do
+  defp run_migrations do
     with {:ok, _} <- create_keyspace(),
          {:ok, _} <- create_transaction_data_user_type(),
          {:ok, _} <- create_validation_stamp_user_type(),
@@ -24,7 +24,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
     end
   end
 
-  defp create_keyspace() do
+  defp create_keyspace do
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE KEYSPACE IF NOT EXISTS uniris WITH replication = {
@@ -34,7 +34,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       """)
   end
 
-  defp create_transaction_table() do
+  defp create_transaction_table do
     Xandra.execute(:xandra_conn, """
     CREATE TABLE IF NOT EXISTS uniris.transactions (
       address varchar,
@@ -51,7 +51,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
     """)
   end
 
-  defp create_transaction_data_user_type() do
+  defp create_transaction_data_user_type do
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE TYPE IF NOT EXISTS uniris.transfer(
@@ -94,7 +94,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       """)
   end
 
-  defp create_validation_stamp_user_type() do
+  defp create_validation_stamp_user_type do
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE TYPE IF NOT EXISTS uniris.ledger_operations_movement(
@@ -132,7 +132,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       """)
   end
 
-  defp create_cross_validation_stamp_user_type() do
+  defp create_cross_validation_stamp_user_type do
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE TYPE IF NOT EXISTS uniris.cross_validation_stamp(
@@ -142,7 +142,7 @@ defmodule UnirisCore.Storage.CassandraBackend.SchemaMigrator do
       """)
   end
 
-  defp create_transaction_chain_table() do
+  defp create_transaction_chain_table do
     # Cassandra impose a query design scheme
     # And to avoid its limitation (< 2B cells and < 100MB per partition)
     # We need to split transaction chain by buckets

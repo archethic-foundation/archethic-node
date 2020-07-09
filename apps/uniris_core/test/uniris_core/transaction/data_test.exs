@@ -1,12 +1,14 @@
 defmodule UnirisCore.TransactionDataTest do
   use ExUnit.Case
   use ExUnitProperties
+
+  alias UnirisCore.Crypto
+
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
   alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Crypto
+  alias UnirisCore.TransactionData.UCOLedger
 
   doctest TransactionData
 

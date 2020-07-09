@@ -1,4 +1,7 @@
 defmodule UnirisCore.P2P.Message.ProofOfIntegrity do
+  @moduledoc """
+  Represents a message with the proof of integrity of a transaction chain
+  """
   @enforce_keys [:digest]
   defstruct [:digest]
 

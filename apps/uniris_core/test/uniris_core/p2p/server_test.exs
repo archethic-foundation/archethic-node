@@ -9,8 +9,8 @@ defmodule UnirisCore.P2PServerTest do
   @tcp_options [:binary, packet: 4, active: false]
 
   alias UnirisCore.P2P.Message
-  alias UnirisCore.P2P.Message.GetBootstrappingNodes
   alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
 
   setup do
     port = Application.get_env(:uniris_core, UnirisCore.P2P) |> Keyword.fetch!(:port)

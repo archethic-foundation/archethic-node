@@ -1,4 +1,7 @@
 defmodule UnirisCore.P2P.Message.UnspentOutputList do
+  @moduledoc """
+  Represents a message with a list of unspent outputs
+  """
   defstruct unspent_outputs: []
 
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput

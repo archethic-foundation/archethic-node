@@ -9,17 +9,20 @@ defmodule UnirisCore.Transaction.ValidationStamp.LedgerOperations do
             unspent_outputs: [],
             fee: 0.0
 
-  alias __MODULE__.TransactionMovement
-  alias __MODULE__.NodeMovement
-  alias __MODULE__.UnspentOutput
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Mining.Fee
   alias UnirisCore.Crypto
   alias UnirisCore.Election
+
+  alias UnirisCore.Mining.Fee
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionData.Ledger
+  alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   @type t() :: %__MODULE__{
           transaction_movements: list(TransactionMovement.t()),

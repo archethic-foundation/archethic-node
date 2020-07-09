@@ -23,7 +23,7 @@ defmodule UnirisCore.SharedSecrets.Cache do
   end
 
   @spec origin_public_keys() :: list(UnirisCore.Crypto.key())
-  def origin_public_keys() do
+  def origin_public_keys do
     select = [{{:"$1", :"$2"}, [], [:"$2"]}]
     :ets.select(@public_keys_table, select)
   end

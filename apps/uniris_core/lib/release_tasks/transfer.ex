@@ -1,10 +1,16 @@
 defmodule UnirisCore.ReleaseTasks.Transfer do
+  @moduledoc """
+  Task using in the release to send initial funds to the addresses of the onchain
+  version of the website
+
+  # TODO: to remove once the Client UI developed
+  """
+  alias UnirisCore.Crypto
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Crypto
+  alias UnirisCore.TransactionData.UCOLedger
 
   def to_website_addresses(index \\ 0, destination_index \\ 0, amount \\ 1.0) do
     Transaction.new(
@@ -26,7 +32,7 @@ defmodule UnirisCore.ReleaseTasks.Transfer do
     |> UnirisCore.send_new_transaction()
   end
 
-  defp website_seeds() do
+  defp website_seeds do
     [
       "animate_seed",
       "bicon_seed",

@@ -1,12 +1,14 @@
 defmodule UnirisCore.ElectionTest do
   use UnirisCoreCase
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.Election
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.Election
-  alias UnirisCore.Crypto
 
   import Mox
 

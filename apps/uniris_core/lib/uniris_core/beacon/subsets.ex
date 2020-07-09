@@ -7,7 +7,7 @@ defmodule UnirisCore.BeaconSubsets do
     Agent.start(fn -> subsets end, name: __MODULE__)
   end
 
-  def all() do
+  def all do
     Agent.get(__MODULE__, & &1)
   end
 end

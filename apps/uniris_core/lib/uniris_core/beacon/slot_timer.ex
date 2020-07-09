@@ -3,9 +3,9 @@ defmodule UnirisCore.BeaconSlotTimer do
 
   use GenServer
 
-  alias UnirisCore.Utils
-  alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubsetRegistry
+  alias UnirisCore.BeaconSubsets
+  alias UnirisCore.Utils
 
   require Logger
 
@@ -14,12 +14,12 @@ defmodule UnirisCore.BeaconSlotTimer do
   end
 
   @spec slot_interval() :: non_neg_integer()
-  def slot_interval() do
+  def slot_interval do
     GenServer.call(__MODULE__, :slot_interval)
   end
 
   @spec last_slot_time() :: DateTime.t()
-  def last_slot_time() do
+  def last_slot_time do
     GenServer.call(__MODULE__, :last_slot_time)
   end
 

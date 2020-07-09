@@ -1,12 +1,15 @@
 defmodule UnirisCore.Mining.ProofOfWork do
   @moduledoc false
 
-  alias UnirisCore.Transaction
   alias UnirisCore.Crypto
-  alias UnirisCore.SharedSecrets
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SharedSecrets
   alias UnirisCore.Storage
+
+  alias UnirisCore.Transaction
 
   @doc """
   Performs a lookup to find out the public key matching the signature created by

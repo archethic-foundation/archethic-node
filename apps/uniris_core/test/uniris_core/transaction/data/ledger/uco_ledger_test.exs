@@ -2,8 +2,8 @@ defmodule UnirisCore.TransactionData.UCOLedgerTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
+  alias UnirisCore.TransactionData.UCOLedger
 
   doctest UCOLedger
 

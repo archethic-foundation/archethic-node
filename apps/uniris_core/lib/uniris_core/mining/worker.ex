@@ -3,25 +3,29 @@ defmodule UnirisCore.Mining.Worker do
 
   @behaviour :gen_statem
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.CrossValidationStamp
-  alias UnirisCore.P2P.Node
-  alias UnirisCore.P2P
+  alias UnirisCore.Beacon
+  alias UnirisCore.Crypto
   alias UnirisCore.Election
+
   alias UnirisCore.Mining.BinarySequence
-  alias UnirisCore.Mining.Replication
   alias UnirisCore.Mining.Context
   alias UnirisCore.Mining.MaliciousDetection
-  alias UnirisCore.Crypto
-  alias UnirisCore.TaskSupervisor
+  alias UnirisCore.Mining.Replication
   alias UnirisCore.MiningRegistry
-  alias UnirisCore.Beacon
+
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message.AddContext
   alias UnirisCore.P2P.Message.CrossValidate
   alias UnirisCore.P2P.Message.CrossValidationDone
   alias UnirisCore.P2P.Message.ReplicateTransaction
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.TaskSupervisor
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
 
   # TODO: Handle the restarting of the process when failed:
   # - retrieve last state
@@ -79,7 +83,7 @@ defmodule UnirisCore.Mining.Worker do
      ]}
   end
 
-  def callback_mode() do
+  def callback_mode do
     [:handle_event_function]
   end
 
@@ -154,7 +158,8 @@ defmodule UnirisCore.Mining.Worker do
 
     [%Node{last_public_key: coordinator} | _] = validation_nodes
 
-    # Coordinator will perform additional tasks such as: aggregation of the contexts, validation stamp and replication tree creation
+    # Coordinator will perform additional tasks such as: aggregation of the contexts,
+    # validation stamp and replication tree creation
     if coordinator == node_public_key do
       Logger.info("Start validation as coordinator for #{Base.encode16(tx.address)}")
       {:next_state, :coordinator, new_data}
@@ -437,9 +442,12 @@ defmodule UnirisCore.Mining.Worker do
         cross_validation_stamps: cross_validation_stamps
     }
 
-    # Starts the process of replication for the replication nodes depending on the validation node position in the tree
-    # Once the transaction is received, the nodes will performed either chain validation or transaction only validation
-    # depending on their storage role (chain storage nodes, beacon storage node, outputs node, involved node for the mining)
+    # Starts the process of replication for the replication nodes depending
+    # on the validation node position in the tree
+    # Once the transaction is received, the nodes will performed either chain
+    # validation or transaction only validation
+    # depending on their storage role
+    # (chain storage nodes, beacon storage node, outputs node, involved node for the mining)
     Task.Supervisor.async_stream_nolink(TaskSupervisor, replication_nodes, fn node ->
       P2P.send_message(node, %ReplicateTransaction{transaction: validated_tx})
     end)

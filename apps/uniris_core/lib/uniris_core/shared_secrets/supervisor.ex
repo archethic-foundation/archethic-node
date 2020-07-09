@@ -1,10 +1,10 @@
 defmodule UnirisCore.SharedSecretsSupervisor do
   @moduledoc false
 
-  alias UnirisCore.Utils
+  alias UnirisCore.SharedSecrets.Cache
   alias UnirisCore.SharedSecrets.NodeRenewal
   alias UnirisCore.SharedSecrets.TransactionLoader
-  alias UnirisCore.SharedSecrets.Cache
+  alias UnirisCore.Utils
 
   use Supervisor
 

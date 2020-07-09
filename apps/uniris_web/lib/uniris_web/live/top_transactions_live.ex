@@ -1,9 +1,14 @@
 defmodule UnirisWeb.TopTransactionLive do
+  @moduledoc false
   use Phoenix.LiveView
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.Storage
+  alias Phoenix.View
+
   alias UnirisCore.PubSub
+  alias UnirisCore.Storage
+  alias UnirisCore.Transaction
+
+  alias UnirisWeb.ExplorerView
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
@@ -14,7 +19,7 @@ defmodule UnirisWeb.TopTransactionLive do
   end
 
   def render(assigns) do
-    Phoenix.View.render(UnirisWeb.ExplorerView, "top_transactions.html", assigns)
+    View.render(ExplorerView, "top_transactions.html", assigns)
   end
 
   def handle_info({:new_transaction, tx = %Transaction{}}, socket) do

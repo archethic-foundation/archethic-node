@@ -15,25 +15,30 @@ defmodule UnirisCore.Bootstrap do
 
   require Logger
 
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
   alias UnirisCore.Crypto
-  alias UnirisCore.Storage
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
+
   alias UnirisCore.Beacon
   alias UnirisCore.BeaconSlot.NodeInfo
-  alias UnirisCore.SelfRepair
-  alias UnirisCore.P2P.Message.GetBootstrappingNodes
-  alias UnirisCore.P2P.Message.GetStorageNonce
-  alias UnirisCore.P2P.Message.AddNodeInfo
-  alias UnirisCore.P2P.Message.NewTransaction
-  alias UnirisCore.P2P.Message.BootstrappingNodes
-  alias UnirisCore.P2P.Message.EncryptedStorageNonce
-  alias UnirisCore.P2P.Message.ListNodes
-  alias UnirisCore.P2P.Message.NodeList
+
   alias __MODULE__.IPLookup
   alias __MODULE__.NetworkInit
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Message.AddNodeInfo
+  alias UnirisCore.P2P.Message.BootstrappingNodes
+  alias UnirisCore.P2P.Message.EncryptedStorageNonce
+  alias UnirisCore.P2P.Message.GetBootstrappingNodes
+  alias UnirisCore.P2P.Message.GetStorageNonce
+  alias UnirisCore.P2P.Message.ListNodes
+  alias UnirisCore.P2P.Message.NewTransaction
+  alias UnirisCore.P2P.Message.NodeList
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SelfRepair
+  alias UnirisCore.Storage
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.TransactionData
 
   def start_link(opts) do
     ip = IPLookup.get_ip()
@@ -54,9 +59,7 @@ defmodule UnirisCore.Bootstrap do
     first_public_key = Crypto.node_public_key(0)
     patch = P2P.get_geo_patch(ip)
 
-    if !initialized_network?(first_public_key, bootstraping_seeds) do
-      init_network(ip, port)
-    else
+    if initialized_network?(first_public_key, bootstraping_seeds) do
       bootstraping_seeds =
         Enum.reject(bootstraping_seeds, &(&1.first_public_key == Crypto.node_public_key(0)))
 
@@ -73,6 +76,8 @@ defmodule UnirisCore.Bootstrap do
           :ok
         end
       end
+    else
+      init_network(ip, port)
     end
 
     Logger.info("Bootstraping finished!")
@@ -189,7 +194,7 @@ defmodule UnirisCore.Bootstrap do
     end
   end
 
-  defp publish_readyness() do
+  defp publish_readyness do
     subset = Beacon.subset_from_address(Crypto.node_public_key(0))
 
     ready_date = DateTime.utc_now()
@@ -224,48 +229,48 @@ defmodule UnirisCore.Bootstrap do
   defp load_nodes(nodes) do
     nodes
     |> Enum.uniq()
-    |> Enum.each(
-      fn node = %Node{
-           first_public_key: first_public_key,
-           last_public_key: last_public_key,
-           ip: ip,
-           port: port,
-           enrollment_date: enrollment_date,
-           authorized?: authorized?,
-           authorization_date: authorization_date,
-           ready?: ready?,
-           ready_date: ready_date
-         } ->
-        case P2P.node_info(first_public_key) do
-          {:error, :not_found} ->
-            P2P.add_node(node)
+    |> Enum.each(fn node = %Node{first_public_key: first_public_key} ->
+      case P2P.node_info(first_public_key) do
+        {:error, :not_found} ->
+          P2P.add_node(node)
 
-          {:ok, _} ->
-            Node.update_basics(first_public_key, last_public_key, ip, port)
-            Node.set_enrollment_date(first_public_key, enrollment_date)
-
-            if ready? do
-              Node.set_ready(first_public_key, ready_date)
-            end
-
-            if authorized? do
-              Node.authorize(first_public_key, authorization_date)
-            end
-        end
+        {:ok, _} ->
+          update_loaded_node(node)
       end
-    )
+    end)
+  end
+
+  defp update_loaded_node(%Node{
+         first_public_key: first_public_key,
+         last_public_key: last_public_key,
+         ip: ip,
+         port: port,
+         enrollment_date: enrollment_date,
+         authorized?: authorized?,
+         authorization_date: authorization_date,
+         ready?: ready?,
+         ready_date: ready_date
+       }) do
+    Node.update_basics(first_public_key, last_public_key, ip, port)
+    Node.set_enrollment_date(first_public_key, enrollment_date)
+
+    if ready? do
+      Node.set_ready(first_public_key, ready_date)
+    end
+
+    if authorized? do
+      Node.authorize(first_public_key, authorization_date)
+    end
   end
 
   defp stringify_ip(ip), do: :inet_parse.ntoa(ip)
 
   defp send_message(msg, [closest_node | rest]) do
-    try do
-      P2P.send_message(closest_node, msg)
-    rescue
-      e ->
-        Logger.error(e)
-        send_message(msg, rest)
-    end
+    P2P.send_message(closest_node, msg)
+  rescue
+    e ->
+      Logger.error(e)
+      send_message(msg, rest)
   end
 
   defp send_message(_, []), do: raise("Network issue")

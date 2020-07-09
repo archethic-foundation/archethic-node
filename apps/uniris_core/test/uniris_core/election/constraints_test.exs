@@ -2,13 +2,14 @@ defmodule UnirisCore.Election.ConstraintsTest do
   use UnirisCoreCase
   use ExUnitProperties
 
+  alias UnirisCore.Election.Constraints
+  alias UnirisCore.P2P.Node
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Ledger
-  alias UnirisCore.TransactionData.UCOLedger
   alias UnirisCore.TransactionData.Ledger.Transfer
-  alias UnirisCore.Election.Constraints
-  alias UnirisCore.P2P.Node
+  alias UnirisCore.TransactionData.UCOLedger
 
   property "validation_number return more than 3 validation nodes" do
     check all(transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 100.0))) do

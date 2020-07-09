@@ -3,8 +3,8 @@ defmodule UnirisCore.P2PTest do
   doctest UnirisCore.P2P
 
   alias UnirisCore.P2P
-  alias UnirisCore.P2P.NodeSupervisor
   alias UnirisCore.P2P.Node
+  alias UnirisCore.P2P.NodeSupervisor
 
   import Mox
 

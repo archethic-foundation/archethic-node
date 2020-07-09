@@ -5,11 +5,11 @@ defmodule UnirisCore.Bootstrap.IPLookup do
 
   @impl true
   @spec get_ip() :: :inet.ip_address()
-  def get_ip() do
+  def get_ip do
     impl().get_ip()
   end
 
-  defp impl() do
+  defp impl do
     :uniris_core
     |> Application.get_env(UnirisCore.Bootstrap)
     |> Keyword.fetch!(:ip_lookup_provider)

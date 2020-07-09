@@ -1,13 +1,16 @@
 defmodule UnirisCore.BeaconSubset do
   @moduledoc false
 
+  alias UnirisCore.BeaconSlot
+  alias UnirisCore.BeaconSlot.NodeInfo
+  alias UnirisCore.BeaconSlot.TransactionInfo
+
+  alias UnirisCore.BeaconSubsetRegistry
+
+  alias UnirisCore.PubSub
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.BeaconSubsetRegistry
-  alias UnirisCore.BeaconSlot
-  alias UnirisCore.BeaconSlot.TransactionInfo
-  alias UnirisCore.BeaconSlot.NodeInfo
-  alias UnirisCore.PubSub
 
   use GenServer
 
@@ -66,27 +69,29 @@ defmodule UnirisCore.BeaconSubset do
       |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
         content
         |> String.split("\n")
-        |> Enum.reduce(%BeaconSlot{}, fn line, slot ->
-          case String.split(line, " - ") do
-            ["T", type, timestamp, address | movements_addresses] ->
-              BeaconSlot.add_transaction_info(slot, %TransactionInfo{
-                address: Base.decode16!(address),
-                timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!(),
-                type: Transaction.parse_type(String.to_integer(type)),
-                movements_addresses: Enum.map(movements_addresses, &Base.decode16!/1)
-              })
-
-            ["N", public_key, timestamp, "R"] ->
-              BeaconSlot.add_node_info(slot, %NodeInfo{
-                public_key: Base.decode16!(public_key),
-                ready?: true,
-                timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!()
-              })
-          end
-        end)
+        |> Enum.reduce(%BeaconSlot{}, &do_reduce_slots/2)
       end)
 
     {:reply, previous_slots, state}
+  end
+
+  defp do_reduce_slots(line, slot) do
+    case String.split(line, " - ") do
+      ["T", type, timestamp, address | movements_addresses] ->
+        BeaconSlot.add_transaction_info(slot, %TransactionInfo{
+          address: Base.decode16!(address),
+          timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!(),
+          type: Transaction.parse_type(String.to_integer(type)),
+          movements_addresses: Enum.map(movements_addresses, &Base.decode16!/1)
+        })
+
+      ["N", public_key, timestamp, "R"] ->
+        BeaconSlot.add_node_info(slot, %NodeInfo{
+          public_key: Base.decode16!(public_key),
+          ready?: true,
+          timestamp: timestamp |> String.to_integer() |> DateTime.from_unix!()
+        })
+    end
   end
 
   def handle_info(

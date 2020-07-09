@@ -1,12 +1,13 @@
 defmodule UnirisCore.Storage.Cache do
   @moduledoc false
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.Storage.Backend
+
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Storage.Backend
-  alias UnirisCore.Crypto
 
   @transaction_table :uniris_txs
   @node_table :uniris_node_tx
@@ -102,7 +103,7 @@ defmodule UnirisCore.Storage.Cache do
     end)
 
     # Set transfers unspent outputs
-    Enum.map(
+    Enum.each(
       transaction_movements,
       &:ets.insert(
         @ledger_table,
@@ -111,10 +112,10 @@ defmodule UnirisCore.Storage.Cache do
     )
 
     # Set transaction chain unspent outputs
-    Enum.map(utxos, &:ets.insert(@ledger_table, {address, &1, false}))
+    Enum.each(utxos, &:ets.insert(@ledger_table, {address, &1, false}))
 
     # Set node rewards
-    Enum.map(
+    Enum.each(
       node_movements,
       &:ets.insert(
         @ledger_table,
@@ -175,7 +176,7 @@ defmodule UnirisCore.Storage.Cache do
   end
 
   @spec node_transactions() :: list(Transaction.t())
-  def node_transactions() do
+  def node_transactions do
     case :ets.select(@node_table, [{{:_, :"$1"}, [], [:"$1"]}]) do
       [] ->
         []
@@ -186,7 +187,7 @@ defmodule UnirisCore.Storage.Cache do
   end
 
   @spec origin_shared_secrets_transactions() :: list(Transaction.t())
-  def origin_shared_secrets_transactions() do
+  def origin_shared_secrets_transactions do
     case :ets.lookup(@shared_secrets_table, :origin_shared_secrets) do
       [] ->
         []
@@ -224,7 +225,7 @@ defmodule UnirisCore.Storage.Cache do
   end
 
   @spec last_node_shared_secrets_transaction() :: Transaction.t() | nil
-  def last_node_shared_secrets_transaction() do
+  def last_node_shared_secrets_transaction do
     case :ets.lookup(@shared_secrets_table, :last_node_shared_secrets) do
       [{_, address}] ->
         [{_, tx}] = :ets.lookup(@transaction_table, address)
@@ -261,7 +262,7 @@ defmodule UnirisCore.Storage.Cache do
     |> Stream.map(&get_transaction/1)
   end
 
-  defp stream_transactions_per_date() do
+  defp stream_transactions_per_date do
     Stream.resource(
       fn -> :ets.last(@latest_transactions_table) end,
       fn

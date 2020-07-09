@@ -1,4 +1,7 @@
 defmodule UnirisCore.SharedSecrets do
+  @moduledoc """
+  Manage view of the shared secrets public keys and creation of the node shared secret transactions
+  """
   alias __MODULE__.Cache
   alias UnirisCore.Crypto
   alias UnirisCore.Transaction
@@ -25,7 +28,7 @@ defmodule UnirisCore.SharedSecrets do
   Retrieve all origin public keys across the families
   """
   @spec origin_public_keys() :: list(UnirisCrypto.key())
-  def origin_public_keys() do
+  def origin_public_keys do
     Cache.origin_public_keys()
   end
 

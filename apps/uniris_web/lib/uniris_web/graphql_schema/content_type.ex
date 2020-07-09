@@ -13,10 +13,9 @@ defmodule UnirisWeb.GraphQLSchema.ContentType do
 
   def serialize(content) do
     if String.printable?(content) do
-       content
+      content
     else
       Base.encode16(content)
     end
   end
-
 end

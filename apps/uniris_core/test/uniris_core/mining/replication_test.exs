@@ -3,27 +3,31 @@ defmodule UnirisCore.Mining.ReplicationTest do
 
   @moduletag capture_log: true
 
-  alias UnirisCore.Mining.Replication
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.Mining.ProofOfIntegrity
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Crypto
+
   alias UnirisCore.Beacon
   alias UnirisCore.BeaconSlot.TransactionInfo
   alias UnirisCore.BeaconSlotTimer
-  alias UnirisCore.BeaconSubsets
   alias UnirisCore.BeaconSubset
   alias UnirisCore.BeaconSubsetRegistry
+  alias UnirisCore.BeaconSubsets
+
+  alias UnirisCore.Mining.Context
+  alias UnirisCore.Mining.ProofOfIntegrity
+  alias UnirisCore.Mining.Replication
+
   alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
   alias UnirisCore.P2P.Message.GetUnspentOutputs
   alias UnirisCore.P2P.Message.UnspentOutputList
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.CrossValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionData
 
   import Mox
 

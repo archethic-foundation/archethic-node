@@ -3,7 +3,9 @@ defmodule UnirisWeb.TransactionSubscriber do
 
   use GenServer
 
+  alias Absinthe.Subscription
   alias UnirisCore.PubSub
+  alias UnirisWeb.Endpoint
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -15,7 +17,7 @@ defmodule UnirisWeb.TransactionSubscriber do
   end
 
   def handle_info({:new_transaction, address}, state) when is_binary(address) do
-    Absinthe.Subscription.publish(UnirisWeb.Endpoint, address,
+    Subscription.publish(Endpoint, address,
       new_transaction: "*",
       acknowledge_storage: address
     )

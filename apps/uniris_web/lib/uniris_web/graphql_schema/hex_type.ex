@@ -10,5 +10,4 @@ defmodule UnirisWeb.GraphQLSchema.HexType do
     serialize(&Base.encode16/1)
     parse(&Base.decode16(&1, case: :mixed))
   end
-
 end

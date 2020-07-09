@@ -1,10 +1,11 @@
 defmodule UnirisCore.SharedSecretsTest do
   use UnirisCoreCase, async: false
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.SharedSecrets
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
-  alias UnirisCore.SharedSecrets
-  alias UnirisCore.Crypto
 
   test "new_node_shared_secrets_transaction/3 should create a new node shared secrets transaction" do
     aes_key = :crypto.strong_rand_bytes(32)

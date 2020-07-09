@@ -69,7 +69,7 @@ defmodule UnirisCore.TransactionData.Ledger.Transfer do
         ""
       }
   """
-  @spec deserialize(<<_::8, _::_*1>>) :: {__MODULE__.t(), bitstring}
+  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
   def deserialize(<<hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
     <<address::binary-size(hash_size), amount::float, rest::bitstring>> = rest

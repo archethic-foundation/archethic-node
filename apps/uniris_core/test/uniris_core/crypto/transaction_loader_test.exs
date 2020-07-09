@@ -1,11 +1,12 @@
 defmodule UnirisCore.Crypto.TransactionLoaderTest do
   use UnirisCoreCase, async: false
 
+  alias UnirisCore.Crypto
+  alias UnirisCore.Crypto.TransactionLoader
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
-  alias UnirisCore.Crypto
-  alias UnirisCore.Crypto.TransactionLoader
 
   import Mox
 

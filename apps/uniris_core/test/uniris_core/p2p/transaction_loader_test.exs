@@ -1,15 +1,20 @@
 defmodule UnirisCore.P2P.TransactionLoaderTest do
   use UnirisCoreCase, async: false
 
+  alias UnirisCore.Crypto
+
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Crypto
+
+  alias UnirisCore.Mining.Context
+
   alias UnirisCore.P2P
   alias UnirisCore.P2P.Node
   alias UnirisCore.P2P.TransactionLoader
-  alias UnirisCore.Mining.Context
+
+  alias UnirisCore.Storage.Cache
 
   import Mox
 
@@ -38,7 +43,7 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
         ["cross_validation_node_public_keys"]
       )
 
-    UnirisCore.Storage.Cache.store_transaction(%{node_tx | validation_stamp: stamp})
+    Cache.store_transaction(%{node_tx | validation_stamp: stamp})
 
     secret_key = :crypto.strong_rand_bytes(32)
     secret = Crypto.aes_encrypt("secret", secret_key)
@@ -57,7 +62,7 @@ defmodule UnirisCore.P2P.TransactionLoaderTest do
         ["cross_validation_node_public_keys"]
       )
 
-    UnirisCore.Storage.Cache.store_transaction(%{shared_secret_tx | validation_stamp: stamp})
+    Cache.store_transaction(%{shared_secret_tx | validation_stamp: stamp})
 
     TransactionLoader.start_link(renewal_interval: 0)
     Process.sleep(100)

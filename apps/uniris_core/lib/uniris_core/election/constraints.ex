@@ -8,12 +8,13 @@ defmodule UnirisCore.Election.Constraints do
 
   use GenServer
 
+  alias UnirisCore.Election.StorageConstraints
+  alias UnirisCore.Election.ValidationConstraints
+
   alias UnirisCore.Transaction
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Ledger
   alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.Election.ValidationConstraints
-  alias UnirisCore.Election.StorageConstraints
 
   @default_min_validations 3
 
@@ -46,12 +47,12 @@ defmodule UnirisCore.Election.Constraints do
   end
 
   @spec for_validation() :: ValidationConstraints.t()
-  def for_validation() do
+  def for_validation do
     GenServer.call(__MODULE__, :validation_constraints)
   end
 
   @spec for_storage() :: StorageConstraints.t()
-  def for_storage() do
+  def for_storage do
     GenServer.call(__MODULE__, :storage_constraints)
   end
 

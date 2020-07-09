@@ -1,10 +1,15 @@
 defmodule UnirisCore.Storage do
-  alias UnirisCore.Transaction
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  @moduledoc """
+  Manage the access to the transaction storage disk backend storage and in memory
+  """
+  alias UnirisCore.Crypto
   alias UnirisCore.PubSub
+
   alias __MODULE__.Backend
   alias __MODULE__.Cache
-  alias UnirisCore.Crypto
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -18,7 +23,7 @@ defmodule UnirisCore.Storage do
   Return the list of node transactions
   """
   @spec node_transactions() :: list(Transaction.t())
-  def node_transactions() do
+  def node_transactions do
     Cache.node_transactions()
   end
 
@@ -69,15 +74,15 @@ defmodule UnirisCore.Storage do
   end
 
   @spec get_inputs(Crypto.key()) :: list(UnspentOutput.t())
-  def get_inputs(public_key) do
-    Cache.get_ledger_inputs(public_key)
+  def get_inputs(address) do
+    Cache.get_ledger_inputs(address)
   end
 
   @doc """
   Returns the list of origin shared secrets transactions
   """
   @spec origin_shared_secrets_transactions() :: list(Transaction.t())
-  def origin_shared_secrets_transactions() do
+  def origin_shared_secrets_transactions do
     Cache.origin_shared_secrets_transactions()
   end
 
@@ -137,7 +142,7 @@ defmodule UnirisCore.Storage do
   """
   @spec get_last_node_shared_secrets_transaction() ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  def get_last_node_shared_secrets_transaction() do
+  def get_last_node_shared_secrets_transaction do
     case Cache.last_node_shared_secrets_transaction() do
       nil ->
         {:error, :transaction_not_exists}

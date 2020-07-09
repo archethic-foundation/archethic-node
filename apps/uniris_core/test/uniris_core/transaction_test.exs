@@ -1,10 +1,12 @@
 defmodule UnirisCore.TransactionTest do
   use UnirisCoreCase, async: false
 
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
   alias UnirisCore.Crypto
+
+  alias UnirisCore.Transaction
   alias UnirisCore.Transaction.CrossValidationStamp
+
+  alias UnirisCore.TransactionData
 
   doctest UnirisCore.Transaction
 

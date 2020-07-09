@@ -1,23 +1,30 @@
 defmodule UnirisCore.SelfRepairTest do
   use UnirisCoreCase, async: false
 
-  alias UnirisCore.SelfRepair
-  alias UnirisCore.Transaction
-  alias UnirisCore.TransactionData
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
+  alias UnirisCore.Bootstrap.NetworkInit
+
   alias UnirisCore.BeaconSlot
   alias UnirisCore.BeaconSlot.TransactionInfo
+  alias UnirisCore.BeaconSlotTimer
   alias UnirisCore.BeaconSubset
   alias UnirisCore.BeaconSubsets
-  alias UnirisCore.BeaconSlotTimer
+
   alias UnirisCore.Crypto
-  alias UnirisCore.Bootstrap.NetworkInit
+
   alias UnirisCore.Mining.Context
-  alias UnirisCore.P2P.Message.GetTransaction
-  alias UnirisCore.P2P.Message.GetBeaconSlots
+
+  alias UnirisCore.P2P
   alias UnirisCore.P2P.Message.BeaconSlotList
+  alias UnirisCore.P2P.Message.GetBeaconSlots
+  alias UnirisCore.P2P.Message.GetTransaction
+  alias UnirisCore.P2P.Node
+
+  alias UnirisCore.SelfRepair
+  alias UnirisCore.SharedSecrets
+
+  alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionData
 
   import Mox
 
@@ -36,7 +43,7 @@ defmodule UnirisCore.SelfRepairTest do
   test "start_sync/2 starts the repair mechanism and download missing transactions" do
     me = self()
 
-    UnirisCore.SharedSecrets.add_origin_public_key(:software, Crypto.node_public_key(0))
+    SharedSecrets.add_origin_public_key(:software, Crypto.node_public_key(0))
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -99,12 +106,10 @@ defmodule UnirisCore.SelfRepairTest do
       :ok
     end)
     |> stub(:get_transaction_chain, fn address ->
-      cond do
-        address == tx_alice1.address ->
-          [tx_alice1]
-
-        true ->
-          []
+      if address == tx_alice1.address do
+        [tx_alice1]
+      else
+        []
       end
     end)
 

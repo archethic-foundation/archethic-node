@@ -4,18 +4,22 @@ defmodule UnirisCore.Transaction.ValidationStampTest do
   import Mox
 
   alias UnirisCore.Crypto
+
+  alias UnirisCore.Mining.Context
+
+  alias UnirisCore.P2P
+  alias UnirisCore.P2P.Node
+
   alias UnirisCore.Transaction
+  alias UnirisCore.Transaction.ValidationStamp
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Ledger
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.TransactionData.UCOLedger
-  alias UnirisCore.Transaction.ValidationStamp
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias UnirisCore.Mining.Context
-  alias UnirisCore.P2P
-  alias UnirisCore.P2P.Node
 
   doctest ValidationStamp
 
