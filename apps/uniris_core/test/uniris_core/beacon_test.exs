@@ -205,10 +205,10 @@ defmodule UnirisCore.BeaconTest do
 
     assert length(next_slot_beacon_pool) == length(next_slot_beacon_pool2)
     assert length(next_slot_beacon_pool) == length(next_slot_beacon_pool3)
-    assert length(next_slot_beacon_pool) == 255
+    assert length(next_slot_beacon_pool) == 256
   end
 
-  test "all_subsets/0 should return 255 subsets" do
-    assert Enum.map(0..254, &:binary.encode_unsigned(&1)) == Beacon.all_subsets()
+  test "all_subsets/0 should return 256 subsets" do
+    assert Enum.map(0..255, &:binary.encode_unsigned(&1)) == Beacon.all_subsets()
   end
 end

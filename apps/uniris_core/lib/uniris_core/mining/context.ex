@@ -204,7 +204,7 @@ defmodule UnirisCore.Mining.Context do
       involved_nodes
       |> Kernel.++(utxo_storage_nodes)
       |> :lists.flatten()
-      |> Enum.uniq_by(& &1.last_public_key)
+      |> Enum.uniq()
     end)
   end
 
@@ -232,7 +232,7 @@ defmodule UnirisCore.Mining.Context do
         involved_nodes
         |> Kernel.++(confirmation_nodes)
         |> :lists.flatten()
-        |> Enum.uniq_by(& &1.last_public_key)
+        |> Enum.uniq_by(& &1)
       end)
     else
       _ ->
@@ -357,7 +357,7 @@ defmodule UnirisCore.Mining.Context do
     |> Map.update!(:involved_nodes, fn involved_nodes ->
       involved_nodes
       |> Kernel.++(new_context.involved_nodes)
-      |> Enum.uniq_by(& &1.last_public_key)
+      |> Enum.uniq_by(& &1)
     end)
   end
 end
