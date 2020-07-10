@@ -65,7 +65,7 @@ UNIRIS_CRYPTO_SEED="node1" iex -S mix phx.server
 
 To start a second node
 ```bash
-UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 iex -S mix phx.server
+UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 iex -S mix
 ```
 
 To clean the environment before, execute the following mix task
