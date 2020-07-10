@@ -35,18 +35,55 @@ Current implemented features:
 - Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
 
 ## Next features to appear very soon:
-- CLI & SDK
 - Sampling P2P view on the Beacon chain
 - Summary of the Beacon chain
 - Smart Contract Standard library functions
 - P2P messages encryption
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
+## Installation
+
+Requirements:
+- Libsodium: for the ed25519 encryption and decryption.
+- OTP 23: generation of ed25519 keypair
+
+Platforms supported:
+- Linux
+- Mac OS X
+
+Requires Cassandra/ScyllaDB installation to use for the backend storage
+
+## Development
+
+Requires Elixir 1.10
+
+To start first node:
+```bash
+mix deps.get
+UNIRIS_CRYPTO_SEED="node1" iex -S mix phx.server
+```
+
+To start a second node
+```bash
+UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 iex -S mix phx.server
+```
+
+To clean the environment before, execute the following mix task
+```
+mix clean_priv_dir
+```
 
 ## Contribution
 
 Thank you for considering to help out with the source code. 
 We welcome contributions from anyone and are grateful for even the smallest of improvement.
+
+Please to follow this workflow:
+1. Fork it!
+2. Create your feature branch (git checkout -b my-new-feature)
+3. Commit your changes (git commit -am 'Add some feature')
+4. Push to the branch (git push origin my-new-feature)
+5. Create new Pull Request
 
 
 ## Licence
