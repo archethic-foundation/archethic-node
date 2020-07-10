@@ -10,6 +10,7 @@ defmodule UnirisCore.Storage do
 
   alias UnirisCore.Transaction
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionInput
 
   require Logger
 
@@ -73,7 +74,7 @@ defmodule UnirisCore.Storage do
     Cache.get_unspent_outputs(address)
   end
 
-  @spec get_inputs(Crypto.key()) :: list(UnspentOutput.t())
+  @spec get_inputs(Crypto.key()) :: list(TransactionInput.t())
   def get_inputs(address) do
     Cache.get_ledger_inputs(address)
   end

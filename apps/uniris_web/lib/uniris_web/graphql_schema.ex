@@ -12,6 +12,7 @@ defmodule UnirisWeb.GraphQLSchema do
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionInput
 
   alias UnirisCore.TransactionData
   alias UnirisCore.TransactionData.Keys
@@ -207,6 +208,14 @@ defmodule UnirisWeb.GraphQLSchema do
     %{
       node: public_key,
       signature: signature
+    }
+  end
+
+  defp format(%TransactionInput{amount: amount, from: from, spent?: spent?}) do
+    %{
+      amount: amount,
+      from: from,
+      spent?: spent?
     }
   end
 end

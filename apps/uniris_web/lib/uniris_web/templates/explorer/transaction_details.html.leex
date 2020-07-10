@@ -22,20 +22,29 @@
                     <div class="column"><u>Inputs</u></div>
                 </header>
                 <div class="row transaction_details" style="margin-top: 20px">
-                <%= if @inputs == [] do %>
-                    N/A
-                <% else %>
-                    <%= for input <- @inputs do %>
-                    <div class="row">
-                        <div class="column column-80">
-                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(input.from)) do%>
-                                <%= Base.encode16(input.from) %>
-                            <% end %>
+                <div class="column">
+                    <%= if @inputs == [] do %>
+                        N/A
+                    <% else %>
+                        <%= for input <- @inputs do %>
+                        <div class="row">
+                            <div class="column column-10">
+                                <%= if input.spent? do %>
+                                    <span style="color: red">Spent</span>
+                                <% else %>
+                                    <span style="color: green">Unspent</span>
+                                <% end %>
+                            </div>
+                            <div class="column column-70">
+                                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(input.from)) do%>
+                                    <%= Base.encode16(input.from) %>
+                                <% end %>
+                            </div>
+                            <div class="column column-20"><%= input.amount %></div>
                         </div>
-                        <div class="column column-20"><%= input.amount %></div>
-                    </div>
+                        <% end %>
                     <% end %>
-                <% end %>
+                </div>
                 </div>
             </div>
         </section>

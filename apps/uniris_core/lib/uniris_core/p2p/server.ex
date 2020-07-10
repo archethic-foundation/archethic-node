@@ -41,6 +41,7 @@ defmodule UnirisCore.P2PServer do
   alias UnirisCore.P2P.Message.StartMining
   alias UnirisCore.P2P.Message.TransactionChainLength
   alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.TransactionInputList
   alias UnirisCore.P2P.Message.TransactionList
   alias UnirisCore.P2P.Message.UnspentOutputList
 
@@ -284,8 +285,8 @@ defmodule UnirisCore.P2PServer do
   end
 
   defp process_message(%GetTransactionInputs{address: address}) do
-    %UnspentOutputList{
-      unspent_outputs: Storage.get_inputs(address)
+    %TransactionInputList{
+      inputs: Storage.get_inputs(address)
     }
   end
 

@@ -8,6 +8,7 @@ defmodule UnirisCore.Storage.Cache do
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionInput
 
   @transaction_table :uniris_txs
   @node_table :uniris_node_tx
@@ -285,11 +286,18 @@ defmodule UnirisCore.Storage.Cache do
     |> Enum.reduce(0.0, fn {_, %UnspentOutput{amount: amount}, _}, acc -> acc + amount end)
   end
 
-  @spec get_ledger_inputs(binary()) :: list(UnspentOutput.t())
+  @spec get_ledger_inputs(binary()) :: list(TransactionInput.t())
   def get_ledger_inputs(address) do
     @ledger_table
     |> :ets.lookup(address)
-    |> Enum.map(fn {_, utxo, _} -> utxo end)
+    |> Enum.map(fn {_, utxo, spent?} ->
+      %TransactionInput{
+        from: utxo.from,
+        amount: utxo.amount,
+        spent?: spent?
+      }
+    end)
+    |> Enum.reject(&(&1.from == address))
   end
 
   @spec set_transaction_length(binary(), non_neg_integer()) :: :ok

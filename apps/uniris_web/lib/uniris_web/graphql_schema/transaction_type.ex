@@ -8,6 +8,8 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   import_types(UnirisWeb.GraphQLSchema.ContentType)
   import_types(UnirisWeb.GraphQLSchema.AddressType)
 
+  alias UnirisCore.Crypto
+
   @desc """
   The [TransactionType] enum represents the type of Uniris transactions.
   Types can affect behaviour in term of replication or storage, such as network transaction (node, node_shared_secrets, beacon).
@@ -36,8 +38,8 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
 
     field :inputs, list_of(:unspent_output) do
-      resolve(fn _, %{source: %{previous_public_key: previous_public_key}} ->
-        {:ok, UnirisCore.get_transaction_inputs(previous_public_key)}
+      resolve(fn _, %{source: %{address: address}} ->
+        {:ok, UnirisCore.get_transaction_inputs(address)}
       end)
     end
 
@@ -55,7 +57,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
 
     field :previous_transaction, :transaction do
       resolve(fn _, %{source: %{previous_public_key: previous_public_key}} ->
-        previous_address = UnirisCore.Crypto.hash(previous_public_key)
+        previous_address = Crypto.hash(previous_public_key)
         UnirisCore.search_transaction(previous_address)
       end)
     end

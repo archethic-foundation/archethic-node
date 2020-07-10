@@ -33,6 +33,7 @@ defmodule UnirisCore.P2P.MessageTest do
   alias UnirisCore.P2P.Message.StartMining
   alias UnirisCore.P2P.Message.TransactionChainLength
   alias UnirisCore.P2P.Message.TransactionHistory
+  alias UnirisCore.P2P.Message.TransactionInputList
   alias UnirisCore.P2P.Message.TransactionList
   alias UnirisCore.P2P.Message.UnspentOutputList
 
@@ -45,6 +46,7 @@ defmodule UnirisCore.P2P.MessageTest do
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias UnirisCore.TransactionData
+  alias UnirisCore.TransactionInput
 
   alias UnirisCore.P2P.Node
 
@@ -760,6 +762,25 @@ defmodule UnirisCore.P2P.MessageTest do
     test "TransactionChainLength message" do
       msg = %TransactionChainLength{
         length: 1000
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "TransactionInputList message" do
+      msg = %TransactionInputList{
+        inputs: [
+          %TransactionInput{
+            from:
+              <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
+                182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
+            amount: 10.5,
+            spent?: true
+          }
+        ]
       }
 
       assert msg ==

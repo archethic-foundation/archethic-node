@@ -39,6 +39,7 @@ defmodule UnirisCore.P2P.Message do
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionHistory
+  alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
 
@@ -50,6 +51,7 @@ defmodule UnirisCore.P2P.Message do
   alias UnirisCore.Transaction.CrossValidationStamp
   alias UnirisCore.Transaction.ValidationStamp
   alias UnirisCore.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias UnirisCore.TransactionInput
 
   @type t() ::
           GetBootstrappingNodes.t()
@@ -228,6 +230,14 @@ defmodule UnirisCore.P2P.Message do
 
   def encode(%GetTransactionChainLength{address: address}) do
     <<20::8, address::binary>>
+  end
+
+  def encode(%TransactionInputList{inputs: inputs}) do
+    inputs_bin =
+      Enum.map(inputs, &TransactionInput.serialize/1)
+      |> :erlang.list_to_bitstring()
+
+    <<242::8, length(inputs)::16, inputs_bin::bitstring>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
@@ -523,6 +533,14 @@ defmodule UnirisCore.P2P.Message do
     }
   end
 
+  def decode(<<242::8, length::16, rest::bitstring>>) do
+    {inputs, _} = deserialize_transaction_inputs(rest, length, [])
+
+    %TransactionInputList{
+      inputs: inputs
+    }
+  end
+
   def decode(<<243::8, length::32>>) do
     %TransactionChainLength{
       length: length
@@ -711,6 +729,17 @@ defmodule UnirisCore.P2P.Message do
   defp deserialize_timestamps(rest, nb_timestamps, acc) do
     <<timestamp::32, rest::binary>> = rest
     deserialize_timestamps(rest, nb_timestamps, [DateTime.from_unix!(timestamp) | acc])
+  end
+
+  defp deserialize_transaction_inputs(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_transaction_inputs(rest, nb_inputs, acc) when length(acc) == nb_inputs do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_transaction_inputs(rest, nb_inputs, acc) do
+    {input, rest} = TransactionInput.deserialize(rest)
+    deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
   end
 
   @doc """

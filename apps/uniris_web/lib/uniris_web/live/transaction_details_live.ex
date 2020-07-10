@@ -25,10 +25,16 @@ defmodule UnirisWeb.TransactionDetailsLive do
         UnirisCore.search_transaction(address)
     end
     |> case do
-      {:ok, tx = %Transaction{previous_public_key: previous_public_key}} ->
+      {:ok, tx = %Transaction{address: address, previous_public_key: previous_public_key}} ->
         balance = UnirisCore.get_balance(address)
         previous_address = Crypto.hash(previous_public_key)
-        inputs = UnirisCore.get_transaction_inputs(previous_address)
+
+        inputs =
+          [
+            UnirisCore.get_transaction_inputs(address),
+            UnirisCore.get_transaction_inputs(previous_address)
+          ]
+          |> :lists.flatten()
 
         new_socket =
           socket

@@ -17,11 +17,12 @@ defmodule UnirisCore do
   alias __MODULE__.P2P.Message.GetTransactionInputs
   alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.StartMining
+  alias __MODULE__.P2P.Message.TransactionInputList
   alias __MODULE__.P2P.Message.TransactionList
-  alias __MODULE__.P2P.Message.UnspentOutputList
 
   alias __MODULE__.Storage
   alias __MODULE__.Transaction
+  alias __MODULE__.TransactionInput
 
   @doc """
   Query the search of the transaction to the dedicated storage pool
@@ -123,9 +124,9 @@ defmodule UnirisCore do
   end
 
   @doc """
-  Request to fetch the unspent
+  Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(Crypto.key()) :: list(UnspentOutput.t())
+  @spec get_transaction_inputs(Crypto.key()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) do
     storage_nodes = Election.storage_nodes(address)
 
@@ -134,13 +135,13 @@ defmodule UnirisCore do
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
-      %UnspentOutputList{unspent_outputs: unspent_outputs} =
+      %TransactionInputList{inputs: inputs} =
         storage_nodes
         |> P2P.nearest_nodes(patch)
         |> List.first()
         |> P2P.send_message(%GetTransactionInputs{address: address})
 
-      unspent_outputs
+      inputs
     end
   end
 

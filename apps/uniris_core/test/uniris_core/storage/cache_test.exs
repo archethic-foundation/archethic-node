@@ -21,6 +21,7 @@ defmodule UnirisCore.Storage.CacheTest do
   alias UnirisCore.TransactionData.Ledger
   alias UnirisCore.TransactionData.Ledger.Transfer
   alias UnirisCore.TransactionData.UCOLedger
+  alias UnirisCore.TransactionInput
 
   describe "store_transaction/1" do
     test "should insert the transaction" do
@@ -363,7 +364,7 @@ defmodule UnirisCore.Storage.CacheTest do
         ],
         unspent_outputs: [
           %UnspentOutput{amount: 2.0, from: tx2.address},
-          %UnspentOutput{amount: 10, from: "@Bob3"}
+          %UnspentOutput{amount: 10.0, from: "@Bob3"}
         ]
       }
     }
@@ -374,20 +375,18 @@ defmodule UnirisCore.Storage.CacheTest do
     assert 1.0 == Cache.get_ledger_balance(tx.address)
 
     assert [
-             %UnspentOutput{
+             %TransactionInput{
                from: tx2.address,
-               amount: 1.0
+               amount: 1.0,
+               spent?: false
              }
            ] == Cache.get_ledger_inputs(tx.address)
 
     assert [
-             %UnspentOutput{
-               from: tx2.address,
-               amount: 2.0
-             },
-             %UnspentOutput{
+             %TransactionInput{
                from: "@Bob3",
-               amount: 10.0
+               amount: 10.0,
+               spent?: false
              }
            ] == Cache.get_ledger_inputs(tx2.address)
   end
