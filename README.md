@@ -8,8 +8,8 @@ Uniris features:
 - Designed with a high level of security (ARCH consensus supporting 90% of maliciousness)
 - Adapative cryptographic algorithms (quantum resistant)
 - Decentralized Identity and Self Sovereign Identity
-- Smart contract platform powered by a build-in interpreter
-- Strong scalability with geo secured 
+- Smart contract platform powered by a built-in interpreter
+- Strong scalability with geo secured sharding
 - Soft-Real-Time P2P view with supervised networking
 
 ## Development

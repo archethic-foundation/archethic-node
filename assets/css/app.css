@@ -1,0 +1,9 @@
+/* This file is for your main application css. */
+
+@import "./explorer.css";
+@import "./code_viewer.css";
+@import "./code_proposal.css";
+
+body {
+    margin: 0;
+}

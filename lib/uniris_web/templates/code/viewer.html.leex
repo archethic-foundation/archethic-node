@@ -1,0 +1,32 @@
+<div class="row explorer-card">
+    <div class="column">
+        <header class="row">
+            <div class="column"><h3>Code viewer</h3></div>
+            <div class="column column-20">
+                <button onclick="window.location='/explorer/code/download'">Download code</button>
+            </div>
+        </header>
+        <div class="row">
+            <div class="column column-40">
+                <%= render_tree(@tree) %>
+            </div>
+            <div class="column column-60">
+                <%= if @details != nil do %>
+                    <div class="row">
+                        <header class="column">
+                            <h4><%= @details.filename %></h4>
+                        </header>
+                    </div>
+                    <div class="row">
+                        <pre>
+                            <code>
+                                <%= @details.content %>
+                            </code>
+                        </pre>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+    </div>
+
+</div>

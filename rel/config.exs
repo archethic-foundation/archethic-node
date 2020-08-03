@@ -53,11 +53,10 @@ end
 # will be used by default
 
 release :uniris_node do
-  set version: System.fetch_env!("VERSION")
+  set version: current_version(:uniris)
   set applications: [
     :runtime_tools,
-    uniris_core: :permanent,
-    uniris_web: :permanent
+    :observer_cli,
+    uniris: :permanent
   ]
 end
-
