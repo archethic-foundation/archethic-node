@@ -472,9 +472,9 @@ defmodule Uniris.Mining.Worker do
     :stop
   end
 
-  def handle_event(_, msg, state, data = %{transaction: %Transaction{address: tx_address}}) do
+  def handle_event(_, msg, state, _data = %{transaction: %Transaction{address: tx_address}}) do
     Logger.debug(
-      "Unexpected message: #{inspect(msg)} in state #{inspect(state)} in #{inspect(data)} for #{
+      "Unexpected message: #{inspect(msg)} in state #{inspect(state)} for #{
         Base.encode16(tx_address)
       }"
     )

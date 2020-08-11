@@ -53,7 +53,7 @@ defmodule Uniris.PubSub do
   @doc """
   Register a process to a node update publication
   """
-  @spec register_to_node_update() :: :ok
+  @spec register_to_node_update() :: {:ok, pid()}
   def register_to_node_update do
     Registry.register(PubSubRegistry, "node_update", [])
   end

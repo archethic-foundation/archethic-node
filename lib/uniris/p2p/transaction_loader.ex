@@ -63,7 +63,7 @@ defmodule Uniris.P2P.TransactionLoader do
       Process.send_after(
         self(),
         {:authorize_nodes, Map.keys(authorized_keys), timestamp},
-        renewal_offset
+        renewal_offset * 1000
       )
 
     new_state = Map.put(state, :ref_authorized_scheduler, ref_authorized_scheduler)

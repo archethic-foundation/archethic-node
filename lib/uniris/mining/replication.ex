@@ -273,30 +273,33 @@ defmodule Uniris.Mining.Replication do
           }
         }
       ) do
-    chain_storage_nodes = Election.storage_nodes(tx.address) |> Enum.map(& &1.first_public_key)
-    io_storage_nodes = LedgerOperations.io_storage_nodes(ledger_ops)
-
     cond do
-      Crypto.node_public_key(0) in chain_storage_nodes ->
+      Crypto.node_public_key(0) in chain_storage_nodes_keys(tx) ->
         replicate_chain(tx)
 
-      Crypto.node_public_key(0) in io_storage_nodes ->
+      Crypto.node_public_key(0) in io_storage_nodes_keys(ledger_ops) ->
         replicate_io(tx)
 
-      Crypto.node_public_key(0) in beacon_storage_nodes(tx) ->
+      Crypto.node_public_key(0) in beacon_storage_nodes_keys(tx) ->
         replicate_beacon(tx)
+
+      true ->
+        raise "Unexpected replication request"
     end
   end
 
   # Perform full verification of the transaction before chain storage including the transaction integrity,
   # the chain integrity and the cross validation stamps expectations
   defp replicate_chain(tx = %Transaction{}) do
+    Logger.info("Replicate transaction chain for #{Base.encode16(tx.address)}")
+
+    Logger.info("Fetch context for #{Base.encode16(tx.address)}")
     context = %Context{previous_chain: chain} = Context.fetch_history(%Context{}, tx)
 
     if valid_transaction?(tx, context: context) do
       Storage.write_transaction_chain([tx | chain])
 
-      if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
+      if Crypto.node_public_key(0) in beacon_storage_nodes_keys(tx) do
         Beacon.add_transaction(tx)
       end
 
@@ -319,10 +322,9 @@ defmodule Uniris.Mining.Replication do
        }) do
     approvals = Storage.get_pending_transaction_signatures(proposal_address)
     ratio = length(approvals) / length(P2P.list_nodes())
-    storage_nodes = Election.storage_nodes(proposal_address) |> Enum.map(& &1.first_public_key)
 
     if ratio >= Governance.code_approvals_threshold() and
-         Crypto.node_public_key(0) in storage_nodes do
+         Crypto.node_public_key(0) in chain_storage_nodes_keys(proposal_address) do
       Governance.deploy_testnet(proposal_address)
     else
       :ok
@@ -337,7 +339,7 @@ defmodule Uniris.Mining.Replication do
     if valid_transaction?(tx) do
       Storage.write_transaction(tx)
 
-      if Crypto.node_public_key(0) in beacon_storage_nodes(tx) do
+      if Crypto.node_public_key(0) in beacon_storage_nodes_keys(tx) do
         Beacon.add_transaction(tx)
       end
 
@@ -359,10 +361,34 @@ defmodule Uniris.Mining.Replication do
     end
   end
 
-  defp beacon_storage_nodes(tx) do
-    tx.address
+  def chain_storage_nodes_keys(%Transaction{type: txType, address: address}) do
+    if Transaction.network_type?(txType) do
+      P2P.list_nodes()
+      |> Enum.filter(& &1.ready?)
+      |> Enum.map(& &1.first_public_key)
+    else
+      address
+      |> Election.storage_nodes()
+      |> Enum.map(& &1.first_public_key)
+    end
+  end
+
+  def chain_storage_nodes_keys(address) do
+    address
+    |> Election.storage_nodes()
+    |> Enum.map(& &1.first_public_key)
+  end
+
+  def io_storage_nodes_keys(ops = %LedgerOperations{}) do
+    ops
+    |> LedgerOperations.io_storage_nodes()
+    |> Enum.map(& &1.first_public_key)
+  end
+
+  defp beacon_storage_nodes_keys(%Transaction{address: address, timestamp: timestamp}) do
+    address
     |> Beacon.subset_from_address()
-    |> Beacon.get_pool(tx.timestamp)
+    |> Beacon.get_pool(timestamp)
     |> Enum.map(& &1.first_public_key)
   end
 end

@@ -1,7 +1,7 @@
 use Mix.Config
 
 # Print only warnings and errors during test
-config :logger, level: :info
+config :logger, level: :warning
 
 config :uniris, Uniris.Crypto, keystore: MockCrypto
 

@@ -23,43 +23,52 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   end
 
   def init(interval: interval, trigger_offset: trigger_offset) do
-    schedule_renewal(Utils.time_offset(interval - trigger_offset))
+    Task.start(fn -> schedule_renewal(next_renewal_offset(interval, trigger_offset)) end)
     {:ok, %{interval: interval, trigger_offset: trigger_offset}}
   end
 
   def handle_info(:renew, state = %{interval: interval, trigger_offset: trigger_offset}) do
+    Logger.info("Node shared secret key renewal")
+
+    Task.start(fn -> schedule_renewal(next_renewal_offset(interval, trigger_offset)) end)
+
     authorized_node_public_keys =
       P2P.list_nodes()
       |> Enum.filter(&(&1.ready? && &1.available? && &1.authorized?))
       |> Enum.map(& &1.last_public_key)
 
     if Crypto.node_public_key() in authorized_node_public_keys do
+      Logger.debug("Prepare renewal")
       do_renewal()
-      schedule_renewal(interval - trigger_offset)
       {:noreply, state}
     else
-      schedule_renewal(interval - trigger_offset)
       {:noreply, state}
     end
   end
 
   defp do_renewal do
-    tx =
-      SharedSecrets.new_node_shared_secrets_transaction(
-        authorized_nodes(),
-        :crypto.strong_rand_bytes(32),
-        :crypto.strong_rand_bytes(32)
-      )
-
     # Determine if the current node is in charge to the send the new transaction
     authorized_storage_nodes =
       Enum.filter(P2P.list_nodes(), &(&1.ready? && &1.available? && &1.authorized?))
 
+    key_index = Crypto.number_of_node_shared_secrets_keys()
+    next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
+    next_address = Crypto.hash(next_public_key)
+
     [%Node{last_public_key: key} | _] =
-      Election.storage_nodes(tx.address, authorized_storage_nodes)
+      Election.storage_nodes(next_address, authorized_storage_nodes)
 
     if key == Crypto.node_public_key() do
-      Logger.info("Node shared secret key renewal")
+      Logger.debug("Elected as Node Shared Secret sender")
+
+      tx =
+        SharedSecrets.new_node_shared_secrets_transaction(
+          authorized_nodes(),
+          :crypto.strong_rand_bytes(32),
+          :crypto.strong_rand_bytes(32)
+        )
+
+      Logger.debug("Node Shared Tx built")
 
       validation_nodes =
         tx
@@ -110,9 +119,16 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
 
   defp select_new_authorized_nodes([], _, _, acc), do: acc
 
-  defp schedule_renewal(0), do: :ok
-
   defp schedule_renewal(interval) when is_integer(interval) and interval > 0 do
-    Process.send_after(self(), :renew, interval)
+    Process.send_after(__MODULE__, :renew, interval * 1000)
+  end
+
+  defp next_renewal_offset(interval, trigger_offset) do
+    if Utils.time_offset(interval) - trigger_offset <= 0 do
+      Process.sleep(Utils.time_offset(interval) * 1000)
+      Utils.time_offset(interval) - trigger_offset
+    else
+      Utils.time_offset(interval) - trigger_offset
+    end
   end
 end

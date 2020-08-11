@@ -1,20 +1,27 @@
 defmodule Uniris.Utils do
   @moduledoc false
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   @doc """
-  Compute an offset of the next shift for a give time interval (in milliseconds)
+  Compute an offset of the next shift in seconds for a given time interval 
+  (ie. "* * * * * *" for every minute)
   """
-  @spec time_offset(interval_milliseconds :: non_neg_integer()) ::
-          milliseconds :: non_neg_integer()
-  def time_offset(interval) when is_integer(interval) and interval > 0 do
-    current_time = Time.utc_now().second * 1000
-    last_interval = interval * trunc(current_time / interval)
-    next_interval = last_interval + interval
-    next_interval - current_time
+  @spec time_offset(cron_interval :: binary()) :: seconds :: non_neg_integer()
+  def time_offset(interval) do
+    next_slot =
+      interval
+      |> CronParser.parse!()
+      |> CronScheduler.get_next_run_date!()
+      |> DateTime.from_naive!("Etc/UTC")
+
+    DateTime.diff(next_slot, DateTime.utc_now(), :second)
   end
 
-  def time_offset(0), do: 0
-
+  @doc """
+  Configure supervisor children to be disabled if their configuration has a `enabled` option to false
+  """
   @spec configurable_children(list({process :: atom(), args :: list(), opts :: list()})) ::
           list(Supervisor.child_spec())
   def configurable_children(children) do

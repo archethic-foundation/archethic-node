@@ -26,18 +26,31 @@ defmodule Uniris.SelfRepairTest do
   alias Uniris.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionData
 
+  alias Uniris.Utils
+
   import Mox
 
   setup :verify_on_exit!
   setup :set_mox_global
 
   setup do
-    start_supervised!({BeaconSlotTimer, interval: 1_000, trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
     Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
 
-    pid = start_supervised!({SelfRepair, interval: 0, last_sync_file: "priv/p2p/last_sync"})
+    last_sync_date = DateTime.utc_now() |> DateTime.add(-60)
 
-    {:ok, %{pid: pid}}
+    File.write!(
+      Application.app_dir(:uniris, "priv/p2p/last_sync"),
+      DateTime.to_unix(last_sync_date) |> Integer.to_string(),
+      [:write]
+    )
+
+    pid =
+      start_supervised!(
+        {SelfRepair, interval: "* * * * * *", last_sync_file: "priv/p2p/last_sync"}
+      )
+
+    {:ok, %{pid: pid, interval: "* * * * * *"}}
   end
 
   test "start_sync/2 starts the repair mechanism and download missing transactions" do
@@ -172,8 +185,23 @@ defmodule Uniris.SelfRepairTest do
                     ],
                     500
 
+    assert_received :sync_finished
+
     Process.sleep(200)
 
-    assert DateTime.diff(DateTime.utc_now(), SelfRepair.last_sync_date()) < 2
+    assert DateTime.diff(DateTime.utc_now(), SelfRepair.last_sync_date()) >= 1
+  end
+
+  @tag time_based: true
+  test "should receive sync message when the timer elapse", %{pid: pid, interval: interval} do
+    waiting_time = Utils.time_offset(interval)
+    :erlang.trace(pid, true, [:receive])
+
+    SelfRepair.start_sync("AAA", false)
+
+    Process.sleep(waiting_time * 1000)
+
+    {:messages, messages} = :erlang.process_info(self(), :messages)
+    assert {:trace, pid, :receive, :sync} in messages
   end
 end

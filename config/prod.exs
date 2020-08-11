@@ -47,15 +47,17 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
   ]
 
 config :uniris, Uniris.BeaconSlotTimer,
-  interval: 600_000,
-  trigger_offset: 2_000
+  interval: "10 * * * * *",
+  # Trigger it 5 minute before
+  trigger_offset: 300
 
 config :uniris, Uniris.SharedSecrets.NodeRenewal,
-  interval: 86_400_000,
-  trigger_offset: 10_000
+  interval: "* 0 * * * *",
+  # Trigger it 10 minute before
+  trigger_offset: 600
 
 config :uniris, Uniris.SelfRepair,
-  interval: 86_400_000,
+  interval: "* 0 * * * *",
   last_sync_file: "priv/p2p/last_sync",
   # TODO: specify the real network startup date
   network_startup_date: %DateTime{

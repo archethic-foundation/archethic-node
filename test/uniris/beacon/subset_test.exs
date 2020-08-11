@@ -114,7 +114,7 @@ defmodule Uniris.BeaconSubsetTest do
 
     send(pid, {:create_slot, DateTime.utc_now() |> DateTime.add(60)})
 
-    slots = BeaconSubset.previous_slots(subset, [DateTime.utc_now()])
+    slots = BeaconSubset.previous_slots(subset, DateTime.utc_now())
     assert length(slots) == 1
 
     assert %BeaconSlot{

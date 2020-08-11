@@ -52,7 +52,7 @@ defmodule Uniris.Crypto.TransactionLoader do
           Process.send_after(
             self(),
             {:set_daily_nonce, encrypted_daily_nonce_seed, encrypted_key},
-            renewal_offset
+            renewal_offset * 1000
           )
 
         new_state = Map.put(state, :ref_daily_nonce_scheduler, ref_daily_nonce_scheduler)

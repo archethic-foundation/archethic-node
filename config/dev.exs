@@ -1,7 +1,9 @@
 use Mix.Config
 
-# Do not include metadata nor timestamps in development logs
-config :logger, :console, format: "[$level] $message\n"
+config :logger,
+  backends: [:console, {LoggerFileBackend, :file_log}]
+
+config :logger, :file_log, path: "log_#{System.get_env("UNIRIS_CRYPTO_SEED")}"
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -64,16 +66,18 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
   ]
 
 config :uniris, Uniris.BeaconSlotTimer,
-  interval: 60_000,
-  trigger_offset: 2_000
+  interval: "* * * * * *",
+  # Trigger it 5 seconds before
+  trigger_offset: 5
 
 config :uniris, Uniris.SharedSecrets.NodeRenewal,
-  interval: 60_000,
-  trigger_offset: 10_000
+  interval: "* * * * * *",
+  # Trigger it 20 seconds before
+  trigger_offset: 20
 
 config :uniris, Uniris.SelfRepair,
   last_sync_file: "priv/p2p/last_sync/#{System.get_env("UNIRIS_CRYPTO_SEED")}",
-  interval: 60_000,
+  interval: "* * * * * *",
   network_startup_date: %DateTime{
     year: DateTime.utc_now().year,
     month: DateTime.utc_now().month,

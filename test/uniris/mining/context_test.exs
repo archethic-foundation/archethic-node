@@ -31,7 +31,7 @@ defmodule Uniris.Mining.ContextTest do
   setup :set_mox_global
 
   setup do
-    start_supervised!({BeaconSlotTimer, interval: 0, trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
 
     P2P.add_node(%Node{
       first_public_key: "key0",

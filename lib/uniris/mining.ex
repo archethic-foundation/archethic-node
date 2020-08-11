@@ -45,6 +45,8 @@ defmodule Uniris.Mining do
 
   def start(tx = %Transaction{}, _, [_ | []]) do
     Task.start(fn ->
+      Logger.info("Mining transaction #{Base.encode16(tx.address)}")
+
       tx =
         %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ledger_ops}} =
         NetworkInit.self_validation!(tx, Context.fetch_history(%Context{}, tx))

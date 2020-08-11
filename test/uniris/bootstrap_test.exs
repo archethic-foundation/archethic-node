@@ -36,8 +36,8 @@ defmodule Uniris.BootstrapTest do
 
   setup do
     Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({BeaconSlotTimer, interval: 1_000, trigger_offset: 0})
-    start_supervised!({SelfRepair, interval: 0, last_sync_file: "priv/p2p/last_sync"})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
+    start_supervised!({SelfRepair, interval: "* * * * * *", last_sync_file: "priv/p2p/last_sync"})
     start_supervised!(BootstrapingSeeds)
 
     on_exit(fn ->

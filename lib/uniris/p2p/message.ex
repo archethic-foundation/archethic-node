@@ -194,22 +194,9 @@ defmodule Uniris.P2P.Message do
     <<14::8, address::binary>>
   end
 
-  def encode(%GetBeaconSlots{subsets_slots: subsets_slots}) do
-    nb_subsets = map_size(subsets_slots)
-
-    subset_slots_bin =
-      subsets_slots
-      |> Enum.map(fn {subset, slot_times} ->
-        [
-          subset,
-          <<length(slot_times)::16>>,
-          Enum.map(slot_times, fn date -> <<DateTime.to_unix(date)::32>> end)
-        ]
-        |> :erlang.list_to_binary()
-      end)
-      |> :erlang.list_to_binary()
-
-    <<15::8, nb_subsets::8, subset_slots_bin::binary>>
+  def encode(%GetBeaconSlots{subsets: subsets, last_sync_date: last_sync_date}) do
+    <<15::8, DateTime.to_unix(last_sync_date)::32, length(subsets)::16,
+      :erlang.list_to_binary(subsets)::binary>>
   end
 
   def encode(%AddNodeInfo{subset: subset, node_info: node_info}) do
@@ -484,11 +471,12 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<15::8, nb_subsets::8, rest::bitstring>>) do
-    {subset_slots, _} = deserialize_beacon_subset_slot_times(rest, nb_subsets, %{})
+  def decode(<<15::8, last_sync_date::32, nb_subsets::16, rest::bitstring>>) do
+    {subsets, _} = deserialize_beacon_subsets(rest, nb_subsets, [])
 
     %GetBeaconSlots{
-      subsets_slots: subset_slots
+      last_sync_date: DateTime.from_unix!(last_sync_date),
+      subsets: subsets
     }
   end
 
@@ -704,31 +692,15 @@ defmodule Uniris.P2P.Message do
     deserialize_bitsequences(rest, nb_sequences, sequence_size, [sequence | acc])
   end
 
-  defp deserialize_beacon_subset_slot_times(rest, 0, _acc), do: {%{}, rest}
+  defp deserialize_beacon_subsets(rest, 0, _acc), do: {[], rest}
 
-  defp deserialize_beacon_subset_slot_times(rest, nb_subsets, acc)
-       when map_size(acc) == nb_subsets do
+  defp deserialize_beacon_subsets(rest, nb_subsets, acc)
+       when length(acc) == nb_subsets do
     {acc, rest}
   end
 
-  defp deserialize_beacon_subset_slot_times(
-         <<subset::8, nb_slot_times::16, rest::bitstring>>,
-         nb_subsets,
-         acc
-       ) do
-    {slot_times, rest} = deserialize_timestamps(rest, nb_slot_times, [])
-    deserialize_beacon_subset_slot_times(rest, nb_subsets, Map.put(acc, <<subset>>, slot_times))
-  end
-
-  defp deserialize_timestamps(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_timestamps(rest, nb_timestamps, acc) when length(acc) == nb_timestamps do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_timestamps(rest, nb_timestamps, acc) do
-    <<timestamp::32, rest::binary>> = rest
-    deserialize_timestamps(rest, nb_timestamps, [DateTime.from_unix!(timestamp) | acc])
+  defp deserialize_beacon_subsets(<<subset::8, rest::bitstring>>, nb_subsets, acc) do
+    deserialize_beacon_subsets(rest, nb_subsets, [<<subset>> | acc])
   end
 
   defp deserialize_transaction_inputs(rest, 0, _acc), do: {[], rest}

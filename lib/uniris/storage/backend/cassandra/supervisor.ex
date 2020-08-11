@@ -15,7 +15,7 @@ defmodule Uniris.Storage.CassandraBackend.Supervisor do
 
     children = [
       {Xandra, name: :xandra_conn, nodes: nodes, pool_size: 10},
-      SchemaMigrator,
+      {Task, SchemaMigrator},
       ChainQuerySupervisor
     ]
 

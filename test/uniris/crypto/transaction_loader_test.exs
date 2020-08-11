@@ -11,7 +11,7 @@ defmodule Uniris.Crypto.TransactionLoaderTest do
   import Mox
 
   setup do
-    pid = start_supervised!({TransactionLoader, renewal_interval: 100})
+    pid = start_supervised!({TransactionLoader, renewal_interval: "* * * * * *"})
 
     {:ok, %{pid: pid}}
   end
@@ -35,6 +35,7 @@ defmodule Uniris.Crypto.TransactionLoaderTest do
     assert Agent.get(agent_pid, & &1.number_of_node_keys) == 1
   end
 
+  @tag time_based: true
   test "when get {:new_transaction, %Transaction{type: :node_shared_secrets} should decrypt and load the seeds",
        %{pid: pid} do
     {:ok, agent_pid} = Agent.start_link(fn -> %{} end)
@@ -80,7 +81,7 @@ defmodule Uniris.Crypto.TransactionLoaderTest do
       })
 
     send(pid, {:new_transaction, tx})
-    Process.sleep(200)
+    Process.sleep(60_000)
 
     assert %{daily_nonce_keys: _, node_secrets_transaction_seed: seed} =
              Agent.get(agent_pid, & &1)

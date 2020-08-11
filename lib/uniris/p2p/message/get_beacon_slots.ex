@@ -4,10 +4,11 @@ defmodule Uniris.P2P.Message.GetBeaconSlots do
 
   This message is used during the self-repair mechanism
   """
-  @enforce_keys [:subsets_slots]
-  defstruct [:subsets_slots]
+  @enforce_keys [:subsets, :last_sync_date]
+  defstruct [:subsets, :last_sync_date]
 
   @type t :: %__MODULE__{
-          subsets_slots: %{(subset :: binary()) => datetimes :: list(DateTime.t())}
+          subsets: list(binary()),
+          last_sync_date: DateTime.t()
         }
 end

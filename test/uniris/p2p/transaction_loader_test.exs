@@ -81,7 +81,7 @@ defmodule Uniris.P2P.TransactionLoaderTest do
       end
     end)
 
-    TransactionLoader.start_link(renewal_interval: 0)
+    TransactionLoader.start_link(renewal_interval: "* * * * * *")
     Process.sleep(100)
     assert [%Node{first_public_key: public_key, authorized?: true}] = P2P.list_nodes()
   end
@@ -96,7 +96,7 @@ defmodule Uniris.P2P.TransactionLoaderTest do
   end
 
   test "when get {:new_transaction, %Transaction{type: node} should update the node if the previous transaction exists" do
-    {:ok, pid} = TransactionLoader.start_link(renewal_interval: 0)
+    {:ok, pid} = TransactionLoader.start_link(renewal_interval: "* * * * * *")
     {pub, _} = Crypto.derivate_keypair("seed", 0)
 
     tx = Transaction.new(:node, %TransactionData{content: "ip: 127.0.0.1\nport: 3000"}, "seed", 0)
@@ -119,8 +119,9 @@ defmodule Uniris.P2P.TransactionLoaderTest do
     assert {:ok, %Node{port: 5000}} = P2P.node_info(pub)
   end
 
+  @tag time_based: true
   test "when get {:new_transaction, %Transaction{type: :node_shared_secrets} authorize the nodes after the renewal interval time" do
-    {:ok, pid} = TransactionLoader.start_link(renewal_interval: 0)
+    {:ok, pid} = TransactionLoader.start_link(renewal_interval: "* * * * * *")
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -138,7 +139,7 @@ defmodule Uniris.P2P.TransactionLoaderTest do
       })
 
     send(pid, {:new_transaction, tx})
-    Process.sleep(200)
+    Process.sleep(60_000)
 
     assert {:ok, %Node{authorized?: true}} = P2P.node_info(Crypto.node_public_key())
   end

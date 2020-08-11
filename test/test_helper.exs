@@ -1,6 +1,10 @@
 Mix.Tasks.CleanPrivDir.run([])
 
-ExUnit.start()
+ExUnit.start(
+  exclude: [:time_based, :infrastructure],
+  timeout: :infinity,
+  max_failures: 1
+)
 
 Mox.defmock(MockNodeClient, for: Uniris.P2P.ClientImpl)
 Mox.defmock(MockCrypto, for: Uniris.Crypto.KeystoreImpl)

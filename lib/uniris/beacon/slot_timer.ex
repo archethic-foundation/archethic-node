@@ -24,7 +24,7 @@ defmodule Uniris.BeaconSlotTimer do
   end
 
   def init(interval: interval, trigger_offset: trigger_offset) do
-    schedule_new_slot(Utils.time_offset(interval - trigger_offset))
+    Task.start(fn -> schedule_new_slot(next_slot(interval, trigger_offset)) end)
 
     {:ok,
      %{
@@ -45,12 +45,13 @@ defmodule Uniris.BeaconSlotTimer do
   def handle_info(
         :new_slot,
         state = %{
-          last_slot_time: last_slot_time,
           interval: interval,
           trigger_offset: trigger_offset
         }
       ) do
-    slot_time = DateTime.add(last_slot_time, interval, :millisecond)
+    Task.start(fn -> schedule_new_slot(next_slot(interval, trigger_offset)) end)
+
+    slot_time = DateTime.utc_now()
 
     BeaconSubsets.all()
     |> Enum.each(fn subset ->
@@ -58,14 +59,19 @@ defmodule Uniris.BeaconSlotTimer do
       send(pid, {:create_slot, slot_time})
     end)
 
-    schedule_new_slot(interval - trigger_offset)
-
     {:noreply, Map.put(state, :last_slot_time, slot_time)}
   end
 
-  defp schedule_new_slot(0), do: :ok
+  defp schedule_new_slot(interval) when is_integer(interval) and interval >= 0 do
+    Process.send_after(__MODULE__, :new_slot, interval * 1000)
+  end
 
-  defp schedule_new_slot(interval) do
-    Process.send_after(__MODULE__, :new_slot, interval)
+  defp next_slot(interval, trigger_offset) do
+    if Utils.time_offset(interval) - trigger_offset <= 0 do
+      Process.sleep(Utils.time_offset(interval) * 1000)
+      Utils.time_offset(interval) - trigger_offset
+    else
+      Utils.time_offset(interval) - trigger_offset
+    end
   end
 end

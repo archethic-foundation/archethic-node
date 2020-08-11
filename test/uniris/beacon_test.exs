@@ -8,11 +8,10 @@ defmodule Uniris.BeaconTest do
   alias Uniris.BeaconSubsets
   alias Uniris.P2P
   alias Uniris.P2P.Node
-  alias Uniris.Utils
 
   setup do
     Enum.map(BeaconSubsets.all(), &start_supervised({BeaconSubset, subset: &1}, id: &1))
-    start_supervised!({BeaconSlotTimer, interval: 10_000, trigger_offset: 100})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
     :ok
   end
 
@@ -122,16 +121,14 @@ defmodule Uniris.BeaconTest do
   end
 
   describe "get_pools/1" do
-    test "should get one node where his authorization is older than 10 seconds" do
-      date_ref = Utils.truncate_datetime(DateTime.utc_now())
-
+    test "should get one node where his authorization is older than 1 minute" do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key1",
         authorized?: true,
-        authorization_date: date_ref,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-60),
         ready?: true,
         available?: true,
         average_availability: 1,
@@ -139,73 +136,23 @@ defmodule Uniris.BeaconTest do
         network_patch: "AAA"
       })
 
-      next_slot_beacon_pool =
-        Beacon.get_pools(Utils.truncate_datetime(DateTime.add(date_ref, 10)))
+      next_slot_beacon_pool = Beacon.get_pools(DateTime.utc_now() |> DateTime.add(-60))
 
-      assert Enum.all?(next_slot_beacon_pool, fn {_, slots} ->
-               assert length(slots) == 1
-               {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 0)
+      assert Enum.all?(next_slot_beacon_pool, fn {_, nodes} ->
+               assert [%Node{first_public_key: "key1"}] = nodes
              end)
 
       assert length(next_slot_beacon_pool) == 256
     end
 
-    test "should get two node where their authorization are older than 20 seconds" do
-      date_ref = Utils.truncate_datetime(DateTime.utc_now())
-
+    test "should get two node where their authorization are older than 2 minutes" do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key1",
         authorized?: true,
-        authorization_date: date_ref,
-        ready?: true,
-        available?: true,
-        average_availability: 1,
-        geo_patch: "AAA",
-        network_patch: "AAA"
-      })
-
-      P2P.add_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key2",
-        last_public_key: "key1",
-        authorized?: true,
-        authorization_date: Utils.truncate_datetime(DateTime.add(date_ref, 10)),
-        ready?: true,
-        available?: true,
-        average_availability: 1,
-        geo_patch: "AAA",
-        network_patch: "AAA"
-      })
-
-      next_slot_beacon_pool =
-        Beacon.get_pools(Utils.truncate_datetime(DateTime.add(date_ref, 20)))
-
-      assert Enum.all?(next_slot_beacon_pool, fn {_, slots} ->
-               assert length(slots) == 2
-
-               {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} =
-                 Enum.at(slots, 0)
-
-               {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 1)
-             end)
-
-      assert length(next_slot_beacon_pool) == 256
-    end
-
-    test "should get three node where their authorization are older than 30 seconds" do
-      date_ref = Utils.truncate_datetime(DateTime.utc_now())
-
-      P2P.add_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        authorized?: true,
-        authorization_date: date_ref,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-120),
         ready?: true,
         available?: true,
         average_availability: 1,
@@ -219,7 +166,7 @@ defmodule Uniris.BeaconTest do
         first_public_key: "key2",
         last_public_key: "key2",
         authorized?: true,
-        authorization_date: Utils.truncate_datetime(DateTime.add(date_ref, 10)),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-60),
         ready?: true,
         available?: true,
         average_availability: 1,
@@ -227,37 +174,13 @@ defmodule Uniris.BeaconTest do
         network_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key3",
-        last_public_key: "key3",
-        authorized?: true,
-        authorization_date: Utils.truncate_datetime(DateTime.add(date_ref, 20)),
-        ready?: true,
-        available?: true,
-        average_availability: 1,
-        geo_patch: "AAA",
-        network_patch: "AAA"
-      })
+      next_slot_beacon_pool = Beacon.get_pools(DateTime.utc_now() |> DateTime.add(-120))
 
-      next_slot_beacon_pool =
-        Beacon.get_pools(Utils.truncate_datetime(DateTime.add(date_ref, 30)))
-
-      assert Enum.all?(next_slot_beacon_pool, fn {_, slots} ->
-               assert length(slots) == 3
-
-               {_,
-                [
-                  %Node{first_public_key: "key1"},
-                  %Node{first_public_key: "key2"},
-                  %Node{first_public_key: "key3"}
-                ]} = Enum.at(slots, 0)
-
-               {_, [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}]} =
-                 Enum.at(slots, 1)
-
-               {_, [%Node{first_public_key: "key1"}]} = Enum.at(slots, 2)
+      assert Enum.all?(next_slot_beacon_pool, fn {_, nodes} ->
+               assert [
+                        %Node{first_public_key: "key1"},
+                        %Node{first_public_key: "key2"}
+                      ] = nodes
              end)
 
       assert length(next_slot_beacon_pool) == 256

@@ -4,7 +4,7 @@ defmodule Uniris.MixProject do
   def project do
     [
       app: :uniris,
-      version: "0.7.0",
+      version: "0.7.1",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -33,7 +33,6 @@ defmodule Uniris.MixProject do
   defp deps do
     [
       {:flow, "~> 1.0"},
-      {:elixir_make, "~> 0.6.0"},
       {:xandra, "~> 0.11"},
       {:phoenix, "~> 1.5"},
       {:phoenix_pubsub, "~> 2.0"},
@@ -49,10 +48,13 @@ defmodule Uniris.MixProject do
       {:ex_doc, "~> 0.21.2", only: :dev},
       {:observer_cli, "~> 1.5"},
       {:distillery, "~> 2.0"},
+      {:crontab, "~> 1.1"},
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:git_hooks, "~> 0.4.0", only: [:test, :dev], runtime: false},
       {:mox, "~> 0.5.2", only: [:test]},
-      {:stream_data, "~> 0.4.3", only: [:test]}
+      {:stream_data, "~> 0.4.3", only: [:test]},
+      {:elixir_make, "~> 0.6.0", only: [:dev, :test], runtime: false},
+      {:logger_file_backend, "~> 0.0.11", only: [:dev]}
     ]
   end
 end

@@ -10,13 +10,15 @@ defmodule Uniris.BeaconSlotTimerTest do
       Registry.register(BeaconSubsetRegistry, subset, [])
     end)
 
-    start_supervised!({BeaconSlotTimer, interval: 500, trigger_offset: 400})
-    {:ok, %{interval: 500}}
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 1})
+    :ok
   end
 
-  test "after the slot interval receive the create_slot message", %{interval: interval} do
-    Process.sleep(interval)
-
-    assert_receive {:create_slot, _time}
+  @tag time_based: true
+  test "receive create_slot message after timer elapsed" do
+    receive do
+      {:create_slot, time} ->
+        assert time.second == 59
+    end
   end
 end

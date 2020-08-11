@@ -71,7 +71,15 @@ defmodule Uniris.Bootstrap do
       else
         if require_node_update?(ip, port, last_sync_date) do
           Logger.info("Update node chain...")
-          update_node(ip, port, patch, bootstraping_seeds)
+
+          case bootstraping_seeds do
+            [] ->
+              Logger.warn("Not enought nodes in the network. No node update")
+              :ok
+
+            _ ->
+              update_node(ip, port, patch, bootstraping_seeds)
+          end
         else
           :ok
         end

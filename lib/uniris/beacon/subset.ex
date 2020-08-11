@@ -39,7 +39,7 @@ defmodule Uniris.BeaconSubset do
       {:reply, :ok, state}
     else
       Logger.info(
-        "Transaction #{inspect(tx_info)} added to the beacon chain (subset #{
+        "Transaction #{Base.encode16(tx_info.address)} added to the beacon chain (subset #{
           Base.encode16(state.subset)
         })"
       )
@@ -61,10 +61,10 @@ defmodule Uniris.BeaconSubset do
     {:reply, :ok, Map.update!(state, :current_slot, &BeaconSlot.add_node_info(&1, node_info))}
   end
 
-  def handle_call({:previous_slots, dates}, _, state = %{slots: slots}) do
+  def handle_call({:previous_slots, last_sync_date}, _, state = %{slots: slots}) do
     previous_slots =
       slots
-      |> Enum.filter(fn {time, _} -> Enum.any?(dates, &(DateTime.compare(time, &1) == :gt)) end)
+      |> Enum.filter(fn {time, _} -> DateTime.compare(time, last_sync_date) == :gt end)
       |> Enum.sort_by(fn {time, _} -> time end)
       |> Enum.map(fn {_, %Transaction{data: %{content: content}}} ->
         content
@@ -109,7 +109,12 @@ defmodule Uniris.BeaconSubset do
       |> Map.put(:current_slot, %BeaconSlot{})
       |> put_in([:slots, slot_time], tx)
 
-    Logger.info("Beacon slot created with #{inspect(current_slot)} at #{inspect(slot_time)}")
+    Logger.info(
+      "Beacon slot created with #{Enum.map(current_slot.transactions, &Base.encode16(&1.address))} at #{
+        inspect(slot_time)
+      }"
+    )
+
     {:noreply, new_state}
   end
 
@@ -170,11 +175,11 @@ defmodule Uniris.BeaconSubset do
     GenServer.call(via_tuple(subset), {:add_node_info, node_info})
   end
 
-  @spec previous_slots(binary(), dates :: list(DateTime.t())) :: list(BeaconSlot.t())
-  def previous_slots(subset, dates) when is_list(dates) do
+  @spec previous_slots(binary(), last_sync_date :: DateTime.t()) :: list(BeaconSlot.t())
+  def previous_slots(subset, last_sync_date = %DateTime{}) do
     subset
     |> via_tuple
-    |> GenServer.call({:previous_slots, dates})
+    |> GenServer.call({:previous_slots, last_sync_date})
   end
 
   defp via_tuple(subset) do

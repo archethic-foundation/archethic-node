@@ -2,18 +2,13 @@ defmodule Uniris.Storage.CassandraBackend.SchemaMigrator do
   @moduledoc false
   require Logger
 
-  use GenServer
+  use Task
 
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(args \\ []) do
+    Task.start_link(__MODULE__, :run, args)
   end
 
-  def init(_opts) do
-    run_migrations()
-    {:ok, []}
-  end
-
-  defp run_migrations do
+  def run(_args) do
     with {:ok, _} <- create_keyspace(),
          {:ok, _} <- create_transaction_data_user_type(),
          {:ok, _} <- create_validation_stamp_user_type(),

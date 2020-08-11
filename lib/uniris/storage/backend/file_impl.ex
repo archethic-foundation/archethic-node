@@ -13,7 +13,7 @@ defmodule Uniris.Storage.FileBackend do
 
   @impl true
   def init(_) do
-    root_dir = Application.get_env(:uniris, __MODULE__)[:root_dir]
+    root_dir = Application.app_dir(:uniris, Application.get_env(:uniris, __MODULE__)[:root_dir])
     transactions_dir = Path.join(root_dir, "transactions")
     indexes_dir = Path.join(root_dir, "indexes")
 

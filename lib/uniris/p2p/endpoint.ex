@@ -254,10 +254,11 @@ defmodule Uniris.P2P.Endpoint do
     %Ok{}
   end
 
-  defp process_message(%GetBeaconSlots{subsets_slots: subsets_slots}) do
+  defp process_message(%GetBeaconSlots{last_sync_date: last_sync_date, subsets: subsets}) do
     slots =
-      subsets_slots
-      |> Enum.map(fn {subset, dates} -> Beacon.previous_slots(subset, dates) end)
+      Enum.map(subsets, fn subset ->
+        Beacon.previous_slots(subset, last_sync_date)
+      end)
       |> Enum.flat_map(& &1)
 
     %BeaconSlotList{slots: slots}

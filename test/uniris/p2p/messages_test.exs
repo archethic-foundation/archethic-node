@@ -334,12 +334,8 @@ defmodule Uniris.P2P.MessageTest do
 
     test "GetBeaconSlots message" do
       msg = %GetBeaconSlots{
-        subsets_slots: %{
-          <<1>> => [
-            ~U[2020-06-25 15:11:53.57Z] |> Utils.truncate_datetime(),
-            ~U[2020-06-25 15:13:03.10Z] |> Utils.truncate_datetime()
-          ]
-        }
+        subsets: [<<1>>],
+        last_sync_date: ~U[2020-06-25 15:11:53Z]
       }
 
       assert msg ==

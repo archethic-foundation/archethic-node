@@ -410,7 +410,7 @@ defmodule Uniris.Mining.ReplicationTest do
   end
 
   test "run/1 should validate transaction, store it and notify the beacon chain" do
-    start_supervised!({BeaconSlotTimer, interval: 0, trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
     Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
 
     P2P.add_node(%Node{

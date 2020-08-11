@@ -31,3 +31,5 @@ erl_crash.dump
 /priv/cert
 
 /assets/node_modules
+
+log_*

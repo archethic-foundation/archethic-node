@@ -4,6 +4,9 @@ defmodule Uniris.Beacon do
   to retrieve the beacon storage nodes involved.
   """
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   alias Uniris.Crypto
   alias Uniris.Election
 
@@ -21,8 +24,6 @@ defmodule Uniris.Beacon do
   alias Uniris.Transaction.ValidationStamp
   alias Uniris.Transaction.ValidationStamp.LedgerOperations
 
-  alias Uniris.Utils
-
   @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
   """
@@ -39,32 +40,40 @@ defmodule Uniris.Beacon do
   @spec get_pools(DateTime.t()) :: list({subset :: binary(), nodes: list(Node.t())})
   def get_pools(last_sync_date = %DateTime{}) do
     slot_interval = BeaconSlotTimer.slot_interval()
-    sync_offset_time = DateTime.diff(DateTime.utc_now(), last_sync_date, :millisecond)
-    sync_times = trunc(sync_offset_time / slot_interval)
+    slot_times = previous_slot_times(slot_interval, last_sync_date)
+    nodes_by_subset(BeaconSubsets.all(), slot_times, [])
+  end
 
-    slot_times =
-      Enum.map(0..sync_times, fn i ->
-        last_sync_date
-        |> DateTime.add(i * slot_interval, :millisecond)
-        |> Utils.truncate_datetime()
-      end)
+  defp previous_slot_times(slot_interval, last_sync_date) do
+    slot_interval
+    |> CronParser.parse!()
+    |> CronScheduler.get_previous_run_dates(DateTime.utc_now())
+    |> Stream.transform([], fn date, acc ->
+      utc_date = DateTime.from_naive!(date, "Etc/UTC")
 
-    Flow.from_enumerable(BeaconSubsets.all())
-    |> Flow.partition(stages: 256)
-    |> Flow.reduce(fn -> %{} end, fn subset, acc ->
-      slot_times
-      |> Enum.map(fn slot_time -> {slot_time, get_pool(subset, slot_time)} end)
-      |> Enum.reject(fn {_, nodes} -> nodes == [] end)
-      |> case do
-        [] ->
-          acc
+      case DateTime.compare(utc_date, last_sync_date) do
+        :gt ->
+          {[utc_date], acc}
 
-        nodes ->
-          Map.update(acc, subset, nodes, &Enum.uniq(&1 ++ nodes))
+        _ ->
+          {:halt, acc}
       end
     end)
     |> Enum.to_list()
   end
+
+  defp nodes_by_subset([subset | rest], slots_times, acc) do
+    nodes =
+      slots_times
+      |> Enum.map(fn slot_time -> get_pool(subset, slot_time) end)
+      |> Enum.reject(fn nodes -> nodes == [] end)
+      |> :lists.flatten()
+      |> Enum.uniq_by(& &1.first_public_key)
+
+    nodes_by_subset(rest, slots_times, [{subset, nodes} | acc])
+  end
+
+  defp nodes_by_subset([], _slots_times, acc), do: acc
 
   @doc """
   Retrieve the beacon storage nodes from a given subset and datetime
@@ -85,22 +94,18 @@ defmodule Uniris.Beacon do
   end
 
   defp next_slot(date) do
-    last_slot_time = BeaconSlotTimer.last_slot_time()
-
-    if DateTime.diff(date, last_slot_time) > 0 do
-      DateTime.add(date, BeaconSlotTimer.slot_interval())
-    else
-      last_slot_time
-    end
-    |> Utils.truncate_datetime()
+    BeaconSlotTimer.slot_interval()
+    |> CronParser.parse!()
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
   @doc """
-  Get the last informations regarding a beacon subset slot before the last synchronized dates for the given subset.
+  Get the last informations from a beacon subset slot before the last synchronized date 
   """
-  @spec previous_slots(subset :: <<_::8>>, dates :: list(DateTime.t())) :: list(BeaconSlot.t())
-  def previous_slots(subset, dates) when is_binary(subset) and is_list(dates) do
-    BeaconSubset.previous_slots(subset, dates)
+  @spec previous_slots(subset :: <<_::8>>, last_sync_date :: DateTime.t()) :: list(BeaconSlot.t())
+  def previous_slots(subset, last_sync_date = %DateTime{}) when is_binary(subset) do
+    BeaconSubset.previous_slots(subset, last_sync_date)
   end
 
   @doc """
