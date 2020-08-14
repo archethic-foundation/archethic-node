@@ -2,13 +2,18 @@ defmodule Uniris.Storage.CassandraBackend.SchemaMigrator do
   @moduledoc false
   require Logger
 
-  use Task
+  use GenServer
 
   def start_link(args \\ []) do
-    Task.start_link(__MODULE__, :run, args)
+    GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def run(_args) do
+  def init(_args) do
+    run()
+    {:ok, []}
+  end
+
+  def run do
     with {:ok, _} <- create_keyspace(),
          {:ok, _} <- create_transaction_data_user_type(),
          {:ok, _} <- create_validation_stamp_user_type(),
@@ -138,38 +143,15 @@ defmodule Uniris.Storage.CassandraBackend.SchemaMigrator do
   end
 
   defp create_transaction_chain_table do
-    # Cassandra impose a query design scheme
-    # And to avoid its limitation (< 2B cells and < 100MB per partition)
-    # We need to split transaction chain by buckets
-
-    # First attempt: using day number of the year we scan scale for a long running service
-    # and with a lot of big transactions
-    #
-    # Examples:
-    #   With a big transaction: 450 fields (200 validations, 10 transfers, 10 UTXO,
-    #    1K contract, 1M content, 100K secrets) over 50 years with 1 transaction per minute
-    #   We can reach 32M cells and 41MB per partition using this design
-    #   NOTE: clients will need to perform 365 queries to retrived the entire chain
-    #   NOTE: too much work on the clients
-
-    ## 2nd attempt: To have good performance for reading from clients, using a mod 10 on timestamp of the transaction
-    ## NOTE: Client will only need to perform 10 queries to lookup an entire transaction chain
     {:ok, _} =
       Xandra.execute(:xandra_conn, """
       CREATE TABLE IF NOT EXISTS uniris.transaction_chains(
         chain_address varchar,
-        bucket int,
+        fork varchar,
         size int,
         transaction_address varchar,
-        type varchar,
         timestamp timestamp,
-        data frozen<pending_transaction_data>,
-        previous_public_key varchar,
-        previous_signature varchar,
-        origin_signature varchar,
-        validation_stamp frozen<validation_stamp>,
-        cross_validation_stamps LIST<frozen<cross_validation_stamp>>,
-        PRIMARY KEY ((chain_address, bucket), timestamp)
+        PRIMARY KEY ((chain_address, fork), timestamp)
       )
       WITH CLUSTERING ORDER BY (timestamp DESC);
       """)

@@ -28,35 +28,17 @@ defmodule Uniris.Storage.CassandraBackend do
   @insert_transaction_chain_stmt """
   INSERT INTO uniris.transaction_chains(
       chain_address,
-      bucket,
+      fork,
       size,
       transaction_address,
-      type,
-      timestamp,
-      data,
-      previous_public_key,
-      previous_signature,
-      origin_signature,
-      validation_stamp,
-      cross_validation_stamps)
+      timestamp)
     VALUES(
       :chain_address,
-      :bucket,
+      :fork,
       :size,
       :transaction_address,
-      :type,
-      :timestamp,
-      :data,
-      :previous_public_key,
-      :previous_signature,
-      :origin_signature,
-      :validation_stamp,
-      :cross_validation_stamps
-    )
+      :timestamp)
   """
-
-  alias __MODULE__.ChainQuerySupervisor
-  alias __MODULE__.ChainQueryWorker
 
   alias Uniris.Transaction
   alias Uniris.Transaction.CrossValidationStamp
@@ -86,20 +68,12 @@ defmodule Uniris.Storage.CassandraBackend do
   @impl true
   def list_transaction_chains_info do
     Xandra.execute!(:xandra_conn, """
-      SELECT size,
-      transaction_address as address,
-      type,
-      timestamp,
-      data,
-      previous_public_key,
-      previous_signature,
-      origin_signature,
-      validation_stamp,
-      cross_validation_stamps FROM uniris.transaction_chains PER PARTITION LIMIT 1
+    SELECT size, chain_address as address
+    FROM uniris.transaction_chains
+    PER PARTITION LIMIT 1
     """)
-    |> Enum.map(fn result ->
-      {chain_size, result} = Map.pop(result, "size")
-      {format_result_to_transaction(result), chain_size}
+    |> Enum.map(fn %{"address" => address, "size" => size} ->
+      {address, size}
     end)
   end
 
@@ -120,10 +94,17 @@ defmodule Uniris.Storage.CassandraBackend do
 
   @impl true
   def get_transaction_chain(address) do
-    Supervisor.which_children(ChainQuerySupervisor)
-    |> Enum.map(fn {_, pid, _, _} -> pid end)
-    |> Task.async_stream(&ChainQueryWorker.get(&1, address))
-    |> Enum.flat_map(fn {:ok, res} -> res end)
+    prepared =
+      Xandra.prepare!(:xandra_conn, """
+        SELECT transaction_address
+        FROM uniris.transaction_chains
+        WHERE address=? and fork="main"
+      """)
+
+    Xandra.stream_pages!(:xandra_conn, prepared, %{"address" => Base.encode16(address)})
+    |> Stream.flat_map(& &1)
+    |> Stream.map(&get_transaction/1)
+    |> Stream.map(fn {:ok, tx} -> tx end)
   end
 
   @impl true
@@ -134,10 +115,7 @@ defmodule Uniris.Storage.CassandraBackend do
   end
 
   @impl true
-  def write_transaction_chain(
-        chain = [%Transaction{address: chain_address, timestamp: timestamp} | _]
-      ) do
-    bucket = rem(DateTime.to_unix(timestamp), 10)
+  def write_transaction_chain(chain = [%Transaction{address: chain_address} | _]) do
     transaction_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_stmt)
     chain_prepared = Xandra.prepare!(:xandra_conn, @insert_transaction_chain_stmt)
 
@@ -151,7 +129,7 @@ defmodule Uniris.Storage.CassandraBackend do
         Xandra.execute(
           :xandra_conn,
           chain_prepared,
-          transaction_chain_write_parameters(chain_address, bucket, tx, chain_size)
+          transaction_chain_write_parameters(chain_address, tx, chain_size)
         )
     end)
     |> Stream.run()
@@ -235,13 +213,14 @@ defmodule Uniris.Storage.CassandraBackend do
     }
   end
 
-  defp transaction_chain_write_parameters(chain_address, bucket, tx = %Transaction{}, chain_size) do
-    transaction_write_parameters(tx)
-    |> Map.put("chain_address", chain_address |> Base.encode16())
-    |> Map.put("bucket", bucket)
-    |> Map.put("size", chain_size)
-    |> Map.delete("address")
-    |> Map.put("transaction_address", tx.address |> Base.encode16())
+  defp transaction_chain_write_parameters(chain_address, tx = %Transaction{}, chain_size) do
+    %{
+      "chain_address" => Base.encode16(chain_address),
+      "transaction_address" => Base.encode16(tx.address),
+      "size" => chain_size,
+      "timestamp" => tx.timestamp,
+      "fork" => "main"
+    }
   end
 
   def format_result_to_transaction(%{

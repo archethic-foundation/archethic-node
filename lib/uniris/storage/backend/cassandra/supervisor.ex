@@ -3,7 +3,6 @@ defmodule Uniris.Storage.CassandraBackend.Supervisor do
 
   use Supervisor
 
-  alias Uniris.Storage.CassandraBackend.ChainQuerySupervisor
   alias Uniris.Storage.CassandraBackend.SchemaMigrator
 
   def start_link(opts) do
@@ -15,8 +14,7 @@ defmodule Uniris.Storage.CassandraBackend.Supervisor do
 
     children = [
       {Xandra, name: :xandra_conn, nodes: nodes, pool_size: 10},
-      {Task, SchemaMigrator},
-      ChainQuerySupervisor
+      SchemaMigrator
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
