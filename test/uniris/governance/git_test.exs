@@ -6,6 +6,17 @@ defmodule Uniris.Governance.GitTest do
   alias Uniris.Transaction
   alias Uniris.TransactionData
 
+  import Mox
+
+  setup do
+    MockCommandLogger
+    |> stub(:write, fn data, _ ->
+      IO.write("#{data}\n")
+    end)
+
+    :ok
+  end
+
   @tag infrastructure: true
   test "remove_branch/1 should return :ok when the branch is deleted" do
     {_, 0} = System.cmd("git", ["checkout", "-b", "fake_branch"])

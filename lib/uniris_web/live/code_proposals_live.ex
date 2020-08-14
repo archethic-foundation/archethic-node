@@ -4,7 +4,7 @@ defmodule UnirisWeb.CodeProposalsLive do
 
   alias Phoenix.View
 
-  alias Uniris.Governance.Proposal
+  alias Uniris.Governance.ProposalMetadata
 
   alias Uniris.Transaction
   alias Uniris.TransactionData
@@ -45,7 +45,7 @@ defmodule UnirisWeb.CodeProposalsLive do
       address: address,
       timestamp: timestamp,
       previous_public_key: previous_public_key,
-      description: Proposal.get_description(content),
+      description: ProposalMetadata.get_description(content),
       nb_approvals: nb_approvals
     }
   end

@@ -1,4 +1,4 @@
-defmodule Uniris.Governance.Proposal do
+defmodule Uniris.Governance.ProposalMetadata do
   @moduledoc """
   Helpers to get proposal metadata
   """
@@ -15,7 +15,7 @@ defmodule Uniris.Governance.Proposal do
       ...> --- a/lib/uniris/governance.ex
       ...> +++ b/lib/uniris/governance.ex
       ...> @@ -1,107 +1,107 @@"
-      ...> |> Uniris.Governance.Proposal.get_description
+      ...> |> Uniris.Governance.ProposalMetadata.get_description
       "My Super Proposal"
   """
   @spec get_description(binary()) :: binary()
@@ -45,7 +45,7 @@ defmodule Uniris.Governance.Proposal do
       ...> +++ b/lib/uniris/governance.ex
       ...> @@ -1,107 +1,107 @@
       ...> "
-      ...> |> Uniris.Governance.Proposal.get_changes
+      ...> |> Uniris.Governance.ProposalMetadata.get_changes
       "diff --git a/lib/uniris/governance.ex b/lib/uniris/governance.ex
        index 30787f1..6535f52 100644
        --- a/lib/uniris/governance.ex
@@ -69,7 +69,7 @@ defmodule Uniris.Governance.Proposal do
   Return the list of files created/updated/removed from the proposal changes (ie. Git Diff)
 
   ## Examples
-      iex> Uniris.Governance.Proposal.list_files("diff --git a/lib/uniris/self_repair.ex b/lib/uniris/self_repair.ex
+      iex> Uniris.Governance.ProposalMetadata.list_files("diff --git a/lib/uniris/self_repair.ex b/lib/uniris/self_repair.ex
       ...> index 124088f..c3add90 100755
       ...> --- a/lib/uniris/self_repair.ex")
       ["lib/uniris/self_repair.ex"]
@@ -104,7 +104,7 @@ defmodule Uniris.Governance.Proposal do
 
   ## Examples
 
-      iex> Uniris.Governance.Proposal.get_version("
+      iex> Uniris.Governance.ProposalMetadata.get_version("
       ...> diff --git a/mix.exs b/mix.exs
       ...> index d9d9a06..5e34b89 100644
       ...> --- a/mix.exs
@@ -146,5 +146,4 @@ defmodule Uniris.Governance.Proposal do
         {:error, :missing_version}
     end
   end
-
 end

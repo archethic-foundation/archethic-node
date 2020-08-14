@@ -4,7 +4,7 @@ defmodule Uniris.Governance.Git do
   """
 
   alias Uniris.Governance.Command
-  alias Uniris.Governance.Proposal
+  alias Uniris.Governance.ProposalMetadata
 
   alias Uniris.Transaction
   alias Uniris.TransactionData
@@ -25,7 +25,7 @@ defmodule Uniris.Governance.Git do
   @spec remove_branch(binary) :: :ok | :error
   def remove_branch(branch_name) when is_binary(branch_name) do
     Command.execute("git branch -D #{branch_name}")
-    |> Enum.into([], fn res -> to_string(res) end)
+    |> Enum.to_list()
     |> case do
       [<<"Deleted branch", _::binary>>] ->
         :ok
@@ -41,7 +41,6 @@ defmodule Uniris.Governance.Git do
   @spec list_branches() :: Enumerable.t()
   def list_branches do
     Command.execute("git branch -l")
-    |> Stream.map(&to_string/1)
     |> Stream.map(&String.trim/1)
     |> Stream.map(fn branch ->
       case branch do
@@ -57,10 +56,10 @@ defmodule Uniris.Governance.Git do
   @doc """
   Create a new Git branch
   """
-  @spec new_branch(binary) :: :ok
-  def new_branch(branch_name) when is_binary(branch_name) do
-    Command.execute("git checkout -b #{branch_name}")
-    |> Enum.into([], fn res -> to_string(res) end)
+  @spec new_branch(binary, Keyword.t()) :: :ok
+  def new_branch(branch_name, metadata \\ []) when is_binary(branch_name) do
+    Command.execute("git checkout -b #{branch_name}", metadata)
+    |> Enum.to_list()
     |> case do
       [<<"Switched to", _::binary>> | _] ->
         :ok
@@ -73,10 +72,10 @@ defmodule Uniris.Governance.Git do
   @doc """
   Change the current branch
   """
-  @spec switch_branch(binary()) :: :ok
-  def switch_branch(branch_name) when is_binary(branch_name) do
-    Command.execute("git checkout #{branch_name}")
-    |> Enum.into([], fn res -> to_string(res) end)
+  @spec switch_branch(binary(), Keyword.t()) :: :ok
+  def switch_branch(branch_name, metadata \\ []) when is_binary(branch_name) do
+    Command.execute("git checkout #{branch_name}", metadata)
+    |> Enum.to_list()
     |> case do
       [<<"Switched to", _::binary>> | _] ->
         :ok
@@ -89,11 +88,11 @@ defmodule Uniris.Governance.Git do
   @doc """
   Apply the patch or diff from a file to the current branch
   """
-  @spec apply_patch(binary) :: :ok | :error
-  def apply_patch(patch_file) when is_binary(patch_file) do
+  @spec apply_patch(binary, Keyword.t()) :: :ok | :error
+  def apply_patch(patch_file, metadata \\ []) when is_binary(patch_file) do
     if File.exists?(patch_file) do
-      Command.execute("git apply #{patch_file}")
-      |> Enum.into([], fn res -> to_string(res) end)
+      Command.execute("git apply #{patch_file}", metadata)
+      |> Enum.to_list()
       |> case do
         [] ->
           :ok
@@ -109,11 +108,11 @@ defmodule Uniris.Governance.Git do
   @doc """
   Cancel the changes from the patch
   """
-  @spec revert_patch(binary) :: :ok | :error
-  def revert_patch(patch_file) when is_binary(patch_file) do
+  @spec revert_patch(binary, Keyword.t()) :: :ok | :error
+  def revert_patch(patch_file, metadata \\ []) when is_binary(patch_file) do
     if File.exists?(patch_file) do
-      Command.execute("git apply -R #{patch_file}")
-      |> Enum.into([], fn res -> to_string(res) end)
+      Command.execute("git apply -R #{patch_file}", metadata)
+      |> Enum.to_list()
       |> case do
         [] ->
           :ok
@@ -129,14 +128,14 @@ defmodule Uniris.Governance.Git do
   @doc """
   Add the files to the Git stage area to prepare the commit
   """
-  @spec add_files(list(binary)) :: :ok | :error
-  def add_files(files) when is_list(files) do
-    Command.execute("git add #{Enum.join(files, " ")}")
-    |> Enum.into([], fn res -> to_string(res) end)
+  @spec add_files(list(binary), Keyword.t()) :: :ok | :error
+  def add_files(files, metadata \\ []) when is_list(files) do
+    Command.execute("git add #{Enum.join(files, " ")}", metadata)
+    |> Enum.to_list()
     |> case do
       [] ->
-        Command.execute("git diff --name-only --cached")
-        |> Enum.into([], fn res -> to_string(res) end)
+        Command.execute("git diff --name-only --cached", metadata)
+        |> Enum.to_list()
         |> case do
           staged_files when staged_files == files ->
             :ok
@@ -150,18 +149,14 @@ defmodule Uniris.Governance.Git do
   @doc """
   Apply the changes to Git by committing the changes
   """
-  @spec commit_changes(binary) :: :ok | :error
-  def commit_changes(message) when is_binary(message) do
-    Command.execute("git commit -m \"#{message}\"")
-    |> Stream.take(1)
-    |> Enum.into([], fn res -> to_string(res) end)
+  @spec commit_changes(binary, Keyword.t()) :: :ok | :error
+  def commit_changes(message, metadata \\ []) when is_binary(message) do
+    Command.execute("git commit -m \"#{message}\"", metadata)
+    |> Stream.filter(&String.contains?(&1, message))
+    |> Enum.to_list()
     |> case do
-      [res] ->
-        if String.contains?(res, message) do
-          :ok
-        else
-          :error
-        end
+      [_] ->
+        :ok
 
       _ ->
         :error
@@ -222,9 +217,9 @@ defmodule Uniris.Governance.Git do
     branch = branch_name(address)
 
     if branch_exists?(branch) do
-      switch_branch(branch)
+      switch_branch(branch, address: address)
     else
-      new_branch(branch)
+      new_branch(branch, address: address)
     end
 
     case apply_changes(address, content) do
@@ -242,18 +237,18 @@ defmodule Uniris.Governance.Git do
   # and commit the change will be trigger local continous integration through git hooks
   defp apply_changes(address, content) do
     patch_file = patch_filename(address)
-    changes = Proposal.get_changes(content)
+    changes = ProposalMetadata.get_changes(content)
     :ok = File.write!(patch_file, changes <> "\n")
 
-    files_involved = Proposal.list_files(changes)
+    files_involved = ProposalMetadata.list_files(changes)
 
-    case apply_patch(patch_file) do
+    case apply_patch(patch_file, address: address) do
       :ok ->
-        :ok = add_files(files_involved)
+        :ok = add_files(files_involved, address: address)
 
         content
-        |> Proposal.get_description()
-        |> commit_changes
+        |> ProposalMetadata.get_description()
+        |> commit_changes(address: address)
         |> case do
           :ok ->
             :ok

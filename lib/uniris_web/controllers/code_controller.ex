@@ -3,7 +3,7 @@ defmodule UnirisWeb.CodeController do
   use UnirisWeb, :controller
 
   alias Uniris.Governance.Git
-  alias Uniris.Governance.Proposal
+  alias Uniris.Governance.ProposalMetadata
 
   alias Uniris.Storage
 
@@ -12,13 +12,15 @@ defmodule UnirisWeb.CodeController do
 
     render(conn, "proposal_detail.html",
       address: address,
-      changes: Proposal.get_changes(tx.content),
-      description: Proposal.get_description(tx.content)
+      changes: ProposalMetadata.get_changes(tx.content),
+      description: ProposalMetadata.get_description(tx.content)
     )
   end
 
   def download(conn, _) do
-    files = Git.list_branch_files("master") |> Enum.into([])
+    files =
+      Git.list_branch_files("master")
+      |> Enum.map(&String.to_charlist/1)
 
     root_dir = Application.get_env(:uniris, :src_dir)
 
