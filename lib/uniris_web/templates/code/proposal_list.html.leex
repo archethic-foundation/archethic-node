@@ -1,0 +1,32 @@
+<div class="row explorer-card">
+    <div class="column">
+        <header class="row">
+            <div class="column"><h3>Code proposals</h3></div>
+        </header>
+        <div class="row">
+            <div class="column">Transaction address</div>
+            <div class="column">Transaction timestamp</div>
+            <div class="column">Sender</div>
+            <div class="column">Description</div>
+            <div class="column">Approvals</div>
+        </div>
+        <%= for proposal <- @proposals do %>
+        <div class="row">
+
+            <div class="column">
+                <%= link to: Routes.code_path(@socket, :show_proposal, Base.encode16(proposal.address)) do%>
+                    <%= Base.encode16(:binary.part(proposal.address, 0, 10)) %>...
+                <% end %>
+            </div>
+            <div class="column"><%= format_date(proposal.timestamp) %></div>
+            <div class="column"><%= :binary.part(Base.encode16(proposal.previous_public_key), 0, 10) %>...</div>
+            <div class="column">
+                <%= String.slice(proposal.description, 0..50) %>
+            </div>
+            <div class="column">
+                <%= proposal.nb_approvals %>
+            </div>
+        </div>
+        <% end %>
+    </div>
+</div>

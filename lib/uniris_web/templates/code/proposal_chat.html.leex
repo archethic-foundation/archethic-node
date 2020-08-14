@@ -1,0 +1,51 @@
+<header class="row">
+    <div class="column">
+        <h4>Proposal discussion</h4>
+    </div>
+</header>
+
+<section class="row">
+    <div class="column">
+        <%= for %{ message: message, username: username, timestamp: timestamp } <- @chats do %>
+        <article style="padding-left: 10px; margin-bottom: 5px">
+            <div class="row">
+                <div class="column">
+                    <%= message %>
+                </div>
+            </div>
+            <div class="row">
+                <div class="column column-80"></div>
+                <div class="column" style="font-size: 0.6em">
+                    <div class="row">
+                        <div class="column"><%= username %></div>
+                    </div>
+                    <div class="row">
+                        <div class="column"><%= format_date(timestamp) %></div>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <% end %>
+    </div>
+</section>
+
+<footer class="row" style="border-top: thin solid #ccc; margin-top: 20px; padding-top: 10px;">
+    <div class="column column-40">
+        <div class="row">
+            <div class="column">
+                <h5>New message</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="column">
+                <form phx-submit="new_message">
+                    <label for="username">Enter your username</label>
+                    <input type="text" id="username" name="username" required/>
+                    <label for="message">Enter your comment</label>
+                    <textarea id="message" name="message" required></textarea>
+                    <button>Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</footer>
