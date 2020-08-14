@@ -18,7 +18,7 @@ defmodule CryptoTest do
 
   property "symmetric EC encryption and decryption" do
     check all(
-            seed <- StreamData.binary(min_length: 1),
+            seed <- StreamData.binary(length: 32),
             data <- StreamData.binary(min_length: 1)
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(seed, :secp256r1)
