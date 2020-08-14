@@ -37,13 +37,13 @@ end
 environment :prod do
   set include_erts: true
   set include_src: false
-  set cookie: :"c$^t~i5q@BHl>tHN;!*@d_n|!h|6n0~f)6q{Qk1Eg(IUJ$YH_oFUE_RCRGjGI3%G"
+  set cookie: :crypto.strong_rand_bytes(32) |> Base.encode64(case: :lower)
   set vm_args: "rel/vm.args"
   set config_providers: [
-    {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/etc/runtime_config.exs"]}
+    {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
   ]
   set overlays: [
-    {:copy, "rel/runtime_config.exs", "etc/runtime_config.exs"}
+    {:copy, "rel/main_runtime_config.exs", "runtime_config.exs"}
   ]
 end
 
