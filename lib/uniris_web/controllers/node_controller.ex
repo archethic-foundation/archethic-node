@@ -3,7 +3,7 @@ defmodule UnirisWeb.NodeController do
 
   alias Uniris.Crypto
   alias Uniris.P2P
-  alias Uniris.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionInput
 
   def index(conn, _params) do
     render(conn, "index.html", nodes: P2P.list_nodes())
@@ -20,7 +20,7 @@ defmodule UnirisWeb.NodeController do
           node_address
           |> Uniris.get_transaction_inputs()
           |> Enum.filter(&(&1.amount > 0.0))
-          |> Enum.reduce(%{}, fn %UnspentOutput{from: from, amount: amount}, acc ->
+          |> Enum.reduce(%{}, fn %TransactionInput{from: from, amount: amount}, acc ->
             Map.update(acc, from, amount, &(&1 + amount))
           end)
 
