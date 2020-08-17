@@ -45,16 +45,16 @@ defmodule Uniris.MixProject do
       {:absinthe_phoenix, "~> 2.0"},
       {:cors_plug, "~> 1.5"},
       {:phoenix_live_dashboard, "~> 0.2.7"},
-      {:ex_doc, "~> 0.21.2", only: :dev},
+      {:ex_doc, "~> 0.21.2"},
       {:observer_cli, "~> 1.5"},
       {:distillery, "~> 2.0"},
       {:crontab, "~> 1.1"},
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:git_hooks, "~> 0.4.0", only: [:test, :dev], runtime: false},
-      {:mox, "~> 0.5.2", only: [:test]},
-      {:stream_data, "~> 0.4.3", only: [:test]},
-      {:elixir_make, "~> 0.6.0", only: [:dev, :test], runtime: false},
-      {:logger_file_backend, "~> 0.0.11", only: [:dev]}
+      {:credo, "~> 1.4", runtime: false},
+      {:git_hooks, "~> 0.4.0", runtime: false},
+      {:mox, "~> 0.5.2"},
+      {:stream_data, "~> 0.4.3"},
+      {:elixir_make, "~> 0.6.0", runtime: false},
+      {:logger_file_backend, "~> 0.0.11"}
     ]
   end
 end

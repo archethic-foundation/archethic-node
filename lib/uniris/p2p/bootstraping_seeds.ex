@@ -50,10 +50,7 @@ defmodule Uniris.P2P.BootstrapingSeeds do
   def handle_call({:new_seeds, seeds}, _from, state = %{file: file}) do
     seeds
     |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
-      acc ++ ["#{stringify_ip(ip)}:#{port}:#{public_key |> Base.encode16()}"]
-    end)
-    |> Enum.join("\n")
+    |> nodes_to_seeds
     |> case do
       "" ->
         :ok
@@ -82,4 +79,16 @@ defmodule Uniris.P2P.BootstrapingSeeds do
   end
 
   defp stringify_ip(ip), do: :inet_parse.ntoa(ip)
+
+  @doc """
+  Convert a list of nodes into a P2P seeds list
+  """
+  @spec nodes_to_seeds(list(Node.t())) :: binary()
+  def nodes_to_seeds(nodes) when is_list(nodes) do
+    nodes
+    |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
+      acc ++ ["#{stringify_ip(ip)}:#{port}:#{public_key |> Base.encode16()}"]
+    end)
+    |> Enum.join("\n")
+  end
 end

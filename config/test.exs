@@ -83,6 +83,7 @@ config :uniris, Uniris.Interpreter.TransactionLoader, enabled: false
 config :uniris, Uniris.P2P.BootstrapingSeeds, enabled: false
 
 config :uniris, Uniris.Governance.CommandLogger, impl: MockCommandLogger
+config :uniris, Uniris.Governance.Testnet, impl: MockTestnet
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
