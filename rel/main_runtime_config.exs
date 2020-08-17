@@ -14,9 +14,6 @@ config :uniris, UnirisWeb.Endpoint,
 config :uniris, Uniris.P2P.BootstrapingSeeds,
   seeds: "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"
 
-config :uniris, Uniris.Storage,
-  backend: Uniris.Storage.FileBackend
-
 config :uniris, Uniris.Crypto.SoftwareKeystore,
   seed: System.get_env("UNIRIS_CRYPTO_SEED")
   import Config

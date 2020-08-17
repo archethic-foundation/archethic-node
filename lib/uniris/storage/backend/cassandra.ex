@@ -73,7 +73,7 @@ defmodule Uniris.Storage.CassandraBackend do
     PER PARTITION LIMIT 1
     """)
     |> Enum.map(fn %{"address" => address, "size" => size} ->
-      {address, size}
+      {Base.decode16(address), size}
     end)
   end
 

@@ -16,9 +16,9 @@ config :uniris, Uniris.Crypto, keystore: Uniris.Crypto.SoftwareKeystore
 
 config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.get_env("UNIRIS_CRYPTO_SEED")
 
-config :uniris, Uniris.Storage, backend: Uniris.Storage.FileBackend
+config :uniris, Uniris.Storage, backend: Uniris.Storage.KeyValueBackend
 
-config :uniris, Uniris.Storage.FileBackend,
+config :uniris, Uniris.Storage.KeyValueBackend,
   root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
 config :uniris, Uniris.Bootstrap,
@@ -101,28 +101,7 @@ config :uniris, Uniris.SelfRepair,
 config :uniris, UnirisWeb.Endpoint,
   http: [port: 4000],
   debug_errors: true,
-  code_reloader: true,
-  check_origin: false,
-  watchers: [
-    node: [
-      "node_modules/webpack/bin/webpack.js",
-      "--mode",
-      "development",
-      "--watch-stdin",
-      cd: Path.expand("../assets", __DIR__)
-    ]
-  ]
-
-# For development, we disable any cache and enable
-# debugging and code reloading.
-#
-# The watchers configuration can be used to run external
-# watchers to your application. For example, we use it
-# with webpack to recompile .js and .css sources.
-config :uniris, UnirisWeb.Endpoint,
-  http: [port: 4000],
-  debug_errors: true,
-  code_reloader: true,
+  code_reloader: false,
   check_origin: false,
   watchers: [
     node: [

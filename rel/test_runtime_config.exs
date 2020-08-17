@@ -10,7 +10,7 @@ config :uniris, UnirisWeb.Endpoint,
 config :uniris, Uniris.P2P.BootstrapingSeeds,
   seeds: System.get_env("UNIRIS_P2P_SEEDS")
 
-config :uniris, Uniris.Storage, Uniris.Storage.FileBackend
+config :uniris, Uniris.Storage, Uniris.Storage.KeyValueBackend
 
 config :uniris, Uniris.Crypto.SoftwareKeystore,
   seed: System.get_env("UNIRIS_CRYPTO_SEED")

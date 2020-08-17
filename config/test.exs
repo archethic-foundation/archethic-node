@@ -11,7 +11,7 @@ config :uniris, Uniris.Crypto.Keystore, enabled: false
 config :uniris, Uniris.Crypto.TransactionLoader, enabled: false
 
 config :uniris, Uniris.Storage, backend: MockStorage
-config :uniris, Uniris.Storage.FileBackend, enabled: false
+config :uniris, Uniris.Storage.KeyValueBackend, enabled: false
 config :uniris, Uniris.Storage.CassandraBackend, enabled: false
 config :uniris, MockStorage, enabled: false
 config :uniris, Uniris.Storage.Cache, enabled: false

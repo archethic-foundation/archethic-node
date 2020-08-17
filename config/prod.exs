@@ -9,7 +9,7 @@ config :uniris, Uniris.Crypto, keystore: Uniris.Crypto.SoftwareKeystore
 config :uniris, Uniris.Storage, backend: Uniris.Storage.CassandraBackend
 
 config :uniris, Uniris.Storage.CassandraBackend, nodes: ["127.0.0.1:9042"]
-config :uniris, Uniris.Storage.FileBackend, root_dir: "priv/storage"
+config :uniris, Uniris.Storage.KeyValueBackend, root_dir: "priv/storage"
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
 
