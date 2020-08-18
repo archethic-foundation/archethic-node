@@ -13,7 +13,6 @@ defmodule UnirisWeb.CodeViewerLive do
     tree =
       "master"
       |> Git.list_branch_files()
-      |> Enum.into([])
       |> build_tree
 
     {:ok, assign(socket, tree: tree, details: nil)}

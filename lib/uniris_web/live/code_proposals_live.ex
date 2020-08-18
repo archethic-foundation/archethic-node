@@ -9,27 +9,27 @@ defmodule UnirisWeb.CodeProposalsLive do
   alias Uniris.Transaction
   alias Uniris.TransactionData
 
-  # alias Uniris.PubSub
+  alias Uniris.PubSub
+  alias Uniris.Storage
+
   alias UnirisWeb.CodeView
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      # PubSub.register_to_node_update()
+      PubSub.register_to_code_proposal()
     end
 
-    {:ok, assign(socket, :proposals, [])}
+    proposals = Storage.list_code_proposals() |> Enum.map(&extract_code_proposal/1)
+
+    {:ok, assign(socket, :proposals, proposals)}
   end
 
   def render(assigns) do
     View.render(CodeView, "proposal_list.html", assigns)
   end
 
-  def handle_info({:new_transaction, tx = %Transaction{type: :code_proposal}}, socket) do
+  def handle_info({:new_code_proposal, tx = %Transaction{type: :code_proposal}}, socket) do
     {:noreply, update(socket, :proposals, &[extract_code_proposal(tx) | &1])}
-  end
-
-  def handle_info({:new_transaction, _}, socket) do
-    {:noreply, socket}
   end
 
   defp extract_code_proposal(%Transaction{
@@ -38,8 +38,8 @@ defmodule UnirisWeb.CodeProposalsLive do
          data: %TransactionData{content: content},
          previous_public_key: previous_public_key
        }) do
-    # approvals = Storage.get_pending_transaction_signatures(address)
-    nb_approvals = 0
+    approvals = Storage.get_pending_transaction_signatures(address)
+    nb_approvals = length(approvals)
 
     %{
       address: address,

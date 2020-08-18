@@ -19,5 +19,3 @@ erl_crash.dump
 /priv/static/*
 
 /assets/node_modules/*
-
-/docker

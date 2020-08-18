@@ -35,7 +35,7 @@ environment :dev do
 end
 
 environment :prod do
-  set include_erts: true
+  set include_erts: false
   set include_src: false
   set cookie: :crypto.strong_rand_bytes(32) |> Base.encode64(case: :lower)
   set vm_args: "rel/vm.args"

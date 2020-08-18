@@ -139,9 +139,9 @@ defmodule Uniris.Storage do
   @doc """
   Persist temporary a failed transaction
   """
-  @spec write_ko_transaction(Transaction.t()) :: :ok
-  def write_ko_transaction(tx = %Transaction{}) do
-    Cache.store_ko_transaction(tx)
+  @spec write_ko_transaction(Transaction.t(), list()) :: :ok
+  def write_ko_transaction(tx = %Transaction{}, additional_errors \\ []) do
+    Cache.store_ko_transaction(tx, additional_errors)
   end
 
   @doc """

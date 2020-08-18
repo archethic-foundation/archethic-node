@@ -26,10 +26,16 @@ defmodule Uniris.PubSub do
   Notify the registered processes than a new transaction has been validated
   """
   @spec notify_new_transaction(Transaction.t()) :: :ok
-  def notify_new_transaction(tx = %Transaction{}) do
-    Registry.dispatch(PubSubRegistry, "new_transaction", fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:new_transaction, tx})
-    end)
+  def notify_new_transaction(tx = %Transaction{type: txType}) do
+    dispatch("new_transaction", {:new_transaction, tx})
+
+    case txType do
+      :code_proposal ->
+        dispatch("code_proposal_transaction", {:new_code_proposal, tx})
+
+      _ ->
+        :ok
+    end
   end
 
   @doc """
@@ -37,9 +43,15 @@ defmodule Uniris.PubSub do
   """
   @spec notify_node_update(Node.t()) :: :ok
   def notify_node_update(node = %Node{}) do
-    Registry.dispatch(PubSubRegistry, "node_update", fn entries ->
-      for {pid, _} <- entries, do: send(pid, {:node_update, node})
-    end)
+    dispatch("node_update", {:node_update, node})
+  end
+
+  def notify_code_proposal_deployment(address, p2p_port, web_port)
+      when is_binary(address) and is_integer(p2p_port) and is_integer(web_port) do
+    dispatch(
+      "code_proposal_deployment_#{Base.encode16(address)}",
+      {:proposal_deployment, p2p_port, web_port}
+    )
   end
 
   @doc """
@@ -56,5 +68,19 @@ defmodule Uniris.PubSub do
   @spec register_to_node_update() :: {:ok, pid()}
   def register_to_node_update do
     Registry.register(PubSubRegistry, "node_update", [])
+  end
+
+  def register_to_code_proposal do
+    Registry.register(PubSubRegistry, "code_proposal_transaction", [])
+  end
+
+  def register_to_code_proposal_deployment(address) when is_binary(address) do
+    Registry.register(PubSubRegistry, "code_proposal_deployment_#{address}", [])
+  end
+
+  defp dispatch(topic, message) do
+    Registry.dispatch(PubSubRegistry, topic, fn entries ->
+      for {pid, _} <- entries, do: send(pid, message)
+    end)
   end
 end

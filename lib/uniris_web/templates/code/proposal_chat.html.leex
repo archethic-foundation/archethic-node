@@ -6,7 +6,7 @@
 
 <section class="row">
     <div class="column">
-        <%= for %{ message: message, username: username, timestamp: timestamp } <- @chats do %>
+        <%= for %{ message: message, timestamp: timestamp } <- @chats do %>
         <article style="padding-left: 10px; margin-bottom: 5px">
             <div class="row">
                 <div class="column">
@@ -16,9 +16,6 @@
             <div class="row">
                 <div class="column column-80"></div>
                 <div class="column" style="font-size: 0.6em">
-                    <div class="row">
-                        <div class="column"><%= username %></div>
-                    </div>
                     <div class="row">
                         <div class="column"><%= format_date(timestamp) %></div>
                     </div>
@@ -39,8 +36,6 @@
         <div class="row">
             <div class="column">
                 <form phx-submit="new_message">
-                    <label for="username">Enter your username</label>
-                    <input type="text" id="username" name="username" required/>
                     <label for="message">Enter your comment</label>
                     <textarea id="message" name="message" required></textarea>
                     <button>Submit</button>

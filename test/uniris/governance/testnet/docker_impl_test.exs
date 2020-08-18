@@ -4,15 +4,8 @@ defmodule Uniris.Governance.Testnet.DockerImplTest do
   alias Uniris.Governance.Testnet
   alias Uniris.Governance.Testnet.DockerImpl, as: Docker
 
-  import Mox
-
   @tag infrastructure: true
   test "deploy/4 should create a running docker instance" do
-    MockCommandLogger
-    |> stub(:write, fn data, _ ->
-      IO.write("#{data}\n")
-    end)
-
     p2p_port = 45_000
     web_port = 20_000
 

@@ -6,17 +6,6 @@ defmodule Uniris.Governance.GitTest do
   alias Uniris.Transaction
   alias Uniris.TransactionData
 
-  import Mox
-
-  setup do
-    MockCommandLogger
-    |> stub(:write, fn data, _ ->
-      IO.write("#{data}\n")
-    end)
-
-    :ok
-  end
-
   @tag infrastructure: true
   test "remove_branch/1 should return :ok when the branch is deleted" do
     {_, 0} = System.cmd("git", ["checkout", "-b", "fake_branch"])
@@ -25,23 +14,8 @@ defmodule Uniris.Governance.GitTest do
   end
 
   @tag infrastructure: true
-  test "list_branches/0 should return all the branches" do
-    branches = Git.list_branches() |> Enum.into([])
-    assert "master" in branches
-  end
-
-  @tag infrastructure: true
   test "new_branch/1 should return :ok when the branch is created" do
     assert :ok = Git.new_branch("fake_branch")
-    {_, 0} = System.cmd("git", ["checkout", "master"])
-    {_, 0} = System.cmd("git", ["branch", "-D", "fake_branch"])
-  end
-
-  @tag infrastructure: true
-  test "switch_branch/1 should return :ok when the branch is switched" do
-    {_, 0} = System.cmd("git", ["checkout", "-b", "fake_branch"])
-    {_, 0} = System.cmd("git", ["checkout", "master"])
-    assert :ok = Git.switch_branch("fake_branch")
     {_, 0} = System.cmd("git", ["checkout", "master"])
     {_, 0} = System.cmd("git", ["branch", "-D", "fake_branch"])
   end

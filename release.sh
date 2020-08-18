@@ -41,12 +41,6 @@ export MIX_ENV=prod
 # Fetch deps and compile
 mix deps.get
 
-# Run an explicit clean to remove any build artifacts from the host
-rm -Rf _build/prod
-
-# Clean the updated files during the dev (last_sync, storage_nonce, file storage)
-mix clean_priv_dir
-
 # Builds WEB assets in production mode
 cd assets && npm install && npm run deploy && cd - && mix phx.digest
 

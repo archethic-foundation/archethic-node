@@ -180,17 +180,25 @@ defmodule Uniris.Storage.Cache do
   Mark a transaction KO and specifies its inconsitencies
   """
   @spec store_ko_transaction(Transaction.t()) :: :ok
-  def store_ko_transaction(%Transaction{
-        address: tx_address,
-        validation_stamp: validation_stamp,
-        cross_validation_stamps: stamps
-      }) do
+  def store_ko_transaction(
+        %Transaction{
+          address: tx_address,
+          validation_stamp: validation_stamp,
+          cross_validation_stamps: stamps
+        },
+        additional_errors \\ []
+      ) do
     inconsistencies =
       stamps
       |> Enum.map(& &1.inconsistencies)
       |> Enum.uniq()
 
-    true = :ets.insert(@ko_transaction_table, {tx_address, validation_stamp, inconsistencies})
+    true =
+      :ets.insert(
+        @ko_transaction_table,
+        {tx_address, validation_stamp, inconsistencies, additional_errors}
+      )
+
     :ok
   end
 

@@ -20,11 +20,6 @@ defmodule Uniris.Governance.TestnetTest do
 
     BootstrapingSeeds.start_link([])
 
-    MockCommandLogger
-    |> stub(:write, fn data, _ ->
-      IO.write("#{data}\n")
-    end)
-
     MockTestnet
     |> stub(:deploy, fn _address, p2p_port, web_port, p2p_seeds ->
       send(me, {p2p_port, web_port, p2p_seeds})

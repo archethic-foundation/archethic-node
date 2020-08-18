@@ -16,6 +16,14 @@
                 </div>
             </div>
 
+            <%= if @deployed? do %>
+                <div class="row">
+                    <div class="column">
+                        Testnet deployed to the port <%= @web_port %> with P2P ports <%= @p2p_port %>
+                    </div> 
+                </div>
+            <% end %>
+
             <div class="row" style="margin-top: 50px">
                 <div class="column">
                     <h5>

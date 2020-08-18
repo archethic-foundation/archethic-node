@@ -296,27 +296,30 @@ defmodule Uniris.Mining.Replication do
     Logger.info("Fetch context for #{Base.encode16(tx.address)}")
     context = %Context{previous_chain: chain} = Context.fetch_history(%Context{}, tx)
 
-    if valid_transaction?(tx, context: context) do
+    with true <- valid_transaction?(tx, context: context),
+         :ok <- additional_verification(tx) do
       Storage.write_transaction_chain([tx | chain])
 
       if Crypto.node_public_key(0) in beacon_storage_nodes_keys(tx) do
         Beacon.add_transaction(tx)
       end
 
-      do_additional_job(tx)
+      additional_processing(tx)
       :ok
     else
-      Storage.write_ko_transaction(tx)
-      Logger.info("KO transaction #{Base.encode16(tx.address)}")
+      {:error, reason} ->
+        Storage.write_ko_transaction(tx, [reason])
+        Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
 
-  defp do_additional_job(%Transaction{type: :code_proposal}) do
-    # Governance.run_continuous_integration(tx)
-    :ok
+  defp additional_verification(tx = %Transaction{type: :code_proposal}) do
+    Governance.preliminary_checks(tx)
   end
 
-  defp do_additional_job(%Transaction{
+  defp additional_verification(_), do: :ok
+
+  defp additional_processing(%Transaction{
          type: :code_approval,
          data: %TransactionData{recipients: [proposal_address]}
        }) do
@@ -325,13 +328,13 @@ defmodule Uniris.Mining.Replication do
 
     if ratio >= Governance.code_approvals_threshold() and
          Crypto.node_public_key(0) in chain_storage_nodes_keys(proposal_address) do
-      Governance.deploy_testnet(proposal_address)
+      :ok = Governance.deploy_testnet(proposal_address)
     else
       :ok
     end
   end
 
-  defp do_additional_job(_), do: :ok
+  defp additional_processing(_), do: :ok
 
   # Verify the transaction integrity before to store. This method is used
   # for the replication of transaction movements (recipients unspent outputs) and node movements (rewards)

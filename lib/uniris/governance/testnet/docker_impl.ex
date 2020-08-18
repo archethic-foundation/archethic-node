@@ -4,6 +4,7 @@ defmodule Uniris.Governance.Testnet.DockerImpl do
   @behaviour Uniris.Governance.Testnet.Impl
 
   alias Uniris.Governance.Command
+  alias Uniris.Governance.Git
 
   require Logger
 
@@ -53,13 +54,13 @@ defmodule Uniris.Governance.Testnet.DockerImpl do
     |> image_name
     |> clean_image
 
-    Command.execute("docker run #{env} #{ports} #{networking} #{name} -d #{image} #{program}")
-    |> Enum.to_list()
-    |> case do
-      [docker_id] ->
-        {:ok, _} = Base.decode16(docker_id, case: :lower)
-        :ok
-    end
+    {:ok, docker_id} =
+      Command.execute("docker run #{env} #{ports} #{networking} #{name} -d #{image} #{program}",
+        metadata: [proposal_address: Base.encode16(address)]
+      )
+
+    {:ok, _} = Base.decode16(docker_id, case: :lower)
+    :ok
   end
 
   @doc """
@@ -67,28 +68,23 @@ defmodule Uniris.Governance.Testnet.DockerImpl do
   """
   @spec clean_image(binary()) :: :ok
   def clean_image(image_name) when is_binary(image_name) do
-    Command.execute("docker rm -vf #{image_name}")
-    |> Stream.run()
-
+    {:ok, _} = Command.execute("docker rm -vf #{image_name}")
     :ok
   end
 
   defp build_image(address) do
-    Command.execute("docker build -t #{image_name(address)} .")
-    |> Stream.filter(&String.contains?(&1, "Successfully built"))
-    |> Enum.to_list()
-    |> case do
-      [_] ->
-        :ok
+    {:ok, _} =
+      Command.execute("docker build -t #{image_name(address)} .",
+        metadata: [proposal_address: Base.encode16(address)],
+        cd: Git.cd_dir(address)
+      )
 
-      _ ->
-        :error
-    end
+    :ok
   end
 
   defp clean_docker do
-    Command.execute("docker rmi $(docker images | grep \"^<none>\" | awk '{print $3}')")
-    |> Stream.run()
+    {:ok, _} =
+      Command.execute("docker rmi $(docker images | grep \"^<none>\" | awk '{print $3}')")
 
     :ok
   end

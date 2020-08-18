@@ -5,6 +5,7 @@ defmodule Uniris.Governance.Testnet do
   alias Uniris.Governance.Git
 
   alias Uniris.P2P.BootstrapingSeeds
+  alias Uniris.PubSub
 
   alias Uniris.Transaction
 
@@ -19,15 +20,12 @@ defmodule Uniris.Governance.Testnet do
 
     Logger.debug("Ports: #{p2p_port} #{web_port}")
 
-    branch_name = Git.branch_name(address)
-
     p2p_seeds =
       BootstrapingSeeds.list()
       |> Enum.map(&%{&1 | port: p2p_port})
       |> BootstrapingSeeds.nodes_to_seeds()
 
-    if Git.branch_exists?(branch_name) do
-      Git.switch_branch(branch_name)
+    if File.exists?(Git.cd_dir(address)) do
       do_deploy(address, p2p_port, web_port, p2p_seeds)
     else
       with :ok <- Git.fork_proposal(tx),
@@ -40,8 +38,9 @@ defmodule Uniris.Governance.Testnet do
   defp do_deploy(address, p2p_port, web_port, p2p_seeds) do
     with :ok <-
            impl().deploy(address, p2p_port, web_port, p2p_seeds),
-         :ok <- Process.sleep(3000) do
-      healthcheck(web_port)
+         :ok <- Process.sleep(3000),
+         :ok <- healthcheck(web_port) do
+      PubSub.notify_code_proposal_deployment(address, p2p_port, web_port)
       :ok
     else
       _ ->
@@ -52,7 +51,7 @@ defmodule Uniris.Governance.Testnet do
 
   defp impl do
     :uniris
-    |> Application.get_env(__MODULE__, impl: __MODULE__.Docker)
+    |> Application.get_env(__MODULE__, impl: __MODULE__.DockerImpl)
     |> Keyword.fetch!(:impl)
   end
 
@@ -62,8 +61,6 @@ defmodule Uniris.Governance.Testnet do
   @spec ports(Transaction.t()) ::
           {p2p_port :: :inet.port_number(), web_port :: :inet.port_number()}
   def ports(%Transaction{timestamp: timestamp}) do
-    Logger.debug("#{inspect(timestamp)}")
-
     {
       rem(DateTime.to_unix(timestamp), 12_345),
       rem(DateTime.to_unix(timestamp), 54_321)
@@ -75,9 +72,8 @@ defmodule Uniris.Governance.Testnet do
   """
   def healthcheck(web_port) when is_integer(web_port) do
     Command.execute("curl -s -i http://localhost:#{web_port}/explorer | head -n 1")
-    |> Enum.to_list()
     |> case do
-      ["HTTP/1.1 200 OK"] ->
+      ["HTTP/1.1 200 OK\n"] ->
         :ok
 
       _ ->
