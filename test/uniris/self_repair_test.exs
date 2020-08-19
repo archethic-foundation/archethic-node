@@ -189,7 +189,7 @@ defmodule Uniris.SelfRepairTest do
 
     Process.sleep(200)
 
-    assert DateTime.diff(DateTime.utc_now(), SelfRepair.last_sync_date()) >= 1
+    assert DateTime.diff(DateTime.utc_now(), SelfRepair.last_sync_date()) >= 0
   end
 
   @tag time_based: true
