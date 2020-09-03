@@ -74,34 +74,96 @@ defmodule Uniris.Mining.Replication do
        |-----|-----|-----|-----|-----|
        | V1  | V2  | V3  | V4  | V5  |
        |-----|-----|-----|-----|-----|
-       | S2  | S8  | S6  | S1  | S4  |
-       | S3  |     | S10 | S13 | S5  |
-       | S7  |     | S11 | S12 | S9  |
-       | S14 |     |     |     | S15 |
+       | S14 | S8  | S6  | S1  | S4  |
+       | S7  | S13 | S11 | S10 | S9  |
+       | S2  | S5  | S3  | S12 | S15 |
        |     |     |     |     | S16 |
+       
+
+    iex> validation_nodes = [
+    ...>   %{network_patch: "AC2", last_public_key: "key_v1"},
+    ...>   %{network_patch: "DF3", last_public_key: "key_v2"},
+    ...>   %{network_patch: "C22", last_public_key: "key_v3"},
+    ...>   %{network_patch: "E19", last_public_key: "key_v4"},
+    ...>   %{network_patch: "22A", last_public_key: "key_v5"}
+    ...> ]
+    iex> storage_nodes = [
+    ...>   %{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
+    ...>   %{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
+    ...>   %{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
+    ...>   %{network_patch: "2A9", first_public_key: "key_S4", last_public_key: "key_S4"},
+    ...>   %{network_patch: "143", first_public_key: "key_S5", last_public_key: "key_S5"},
+    ...>   %{network_patch: "BB2", first_public_key: "key_S6", last_public_key: "key_S6"},
+    ...>   %{network_patch: "A63", first_public_key: "key_S7", last_public_key: "key_S7"},
+    ...>   %{network_patch: "D32", first_public_key: "key_S8", last_public_key: "key_S8"},
+    ...>   %{network_patch: "19A", first_public_key: "key_S9", last_public_key: "key_S9"},
+    ...>   %{network_patch: "C2A", first_public_key: "key_S10", last_public_key: "key_S10"},
+    ...>   %{network_patch: "C23", first_public_key: "key_S11", last_public_key: "key_S11"},
+    ...>   %{network_patch: "F22", first_public_key: "key_S12", last_public_key: "key_S12"},
+    ...>   %{network_patch: "E2B", first_public_key: "key_S13", last_public_key: "key_S13"},
+    ...>   %{network_patch: "AA0", first_public_key: "key_S14", last_public_key: "key_S14"},
+    ...>   %{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
+    ...>   %{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
+    ...> ]
+    iex> Uniris.Mining.Replication.tree(validation_nodes, storage_nodes)
+    %{
+      "key_v1" => [
+        %{first_public_key: "key_S14", last_public_key: "key_S14", network_patch: "AA0"},
+        %{first_public_key: "key_S7", last_public_key: "key_S7", network_patch: "A63"},
+        %{first_public_key: "key_S2", last_public_key: "key_S2", network_patch: "A23"}
+      ],
+      "key_v2" => [
+        %{first_public_key: "key_S13", last_public_key: "key_S13", network_patch: "E2B"},
+        %{first_public_key: "key_S8", last_public_key: "key_S8", network_patch: "D32"},
+        %{first_public_key: "key_S5", last_public_key: "key_S5", network_patch: "143"}
+      ],
+      "key_v3" => [
+        %{first_public_key: "key_S11", last_public_key: "key_S11", network_patch: "C23"},
+        %{first_public_key: "key_S6", last_public_key: "key_S6", network_patch: "BB2"},
+        %{first_public_key: "key_S3", last_public_key: "key_S3", network_patch: "B43"}
+      ],
+      "key_v4" => [
+        %{first_public_key: "key_S12", last_public_key: "key_S12", network_patch: "F22"},
+        %{first_public_key: "key_S10", last_public_key: "key_S10", network_patch: "C2A"},
+        %{first_public_key: "key_S1", last_public_key: "key_S1", network_patch: "F36"}
+      ],
+      "key_v5" => [
+        %{first_public_key: "key_S16", last_public_key: "key_S16", network_patch: "3BC"},
+        %{first_public_key: "key_S15", last_public_key: "key_S15", network_patch: "042"},
+        %{first_public_key: "key_S9", last_public_key: "key_S9", network_patch: "19A"},
+        %{first_public_key: "key_S4", last_public_key: "key_S4", network_patch: "2A9"}
+      ]
+    }
   """
   @spec tree(validation_nodes :: Node.t(), storage_nodes :: list(Node.t())) ::
           replication_tree :: map()
   def tree(validation_nodes, storage_nodes) do
     storage_nodes
-    |> Enum.reduce(%{}, fn storage_node, acc ->
+    |> Enum.reduce(%{}, fn storage_node, tree_acc ->
       storage_node_weight =
         storage_node.network_patch |> String.to_charlist() |> List.to_integer(16)
 
-      [closest_validation_node] =
-        Enum.sort_by(validation_nodes, fn validation_node ->
+      {closest_validation_node, _} =
+        validation_nodes
+        # Get number of replication nodes by validation nodes
+        |> Enum.reduce(%{}, fn node, acc ->
+          Map.put(acc, node, length(Map.get(tree_acc, node.last_public_key, [])))
+        end)
+        # Sort each validation nodes by its network patch from the storage node network patch
+        |> Enum.sort_by(fn {validation_node, _} ->
           validation_node_weight =
             validation_node.network_patch |> String.to_charlist() |> List.to_integer(16)
 
           abs(storage_node_weight - validation_node_weight)
         end)
-        |> Enum.take(1)
+        # Balance the validation nodes load to find the closest nodes with the less nodes to replicate
+        |> Enum.min(fn {_, a}, {_, b} -> a <= b end, fn -> 0 end)
 
       Map.update(
-        acc,
+        tree_acc,
         closest_validation_node.last_public_key,
         [storage_node],
-        &(&1 ++ [storage_node])
+        &[storage_node | &1]
       )
     end)
   end
