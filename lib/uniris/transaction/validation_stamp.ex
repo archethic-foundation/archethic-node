@@ -280,4 +280,29 @@ defmodule Uniris.Transaction.ValidationStamp do
       rest
     }
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(stamp = %{}) do
+    %__MODULE__{
+      proof_of_work: Map.get(stamp, :proof_of_work),
+      proof_of_integrity: Map.get(stamp, :proof_of_integrity),
+      ledger_operations: Map.get(stamp, :ledger_operations) |> LedgerOperations.from_map(),
+      signature: Map.get(stamp, :signature)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{
+        proof_of_work: pow,
+        proof_of_integrity: poi,
+        ledger_operations: ledger_operations,
+        signature: signature
+      }) do
+    %{
+      proof_of_work: pow,
+      proof_of_integrity: poi,
+      ledger_operations: LedgerOperations.to_map(ledger_operations),
+      signature: signature
+    }
+  end
 end

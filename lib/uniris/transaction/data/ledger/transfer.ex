@@ -79,4 +79,20 @@ defmodule Uniris.TransactionData.Ledger.Transfer do
       rest
     }
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(transfer = %{}) do
+    %__MODULE__{
+      to: Map.get(transfer, :to),
+      amount: Map.get(transfer, :amount)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{to: to, amount: amount}) do
+    %{
+      to: to,
+      amount: amount
+    }
+  end
 end

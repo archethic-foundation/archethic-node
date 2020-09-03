@@ -448,4 +448,35 @@ defmodule Uniris.Transaction.ValidationStamp.LedgerOperations do
     {utxo, rest} = UnspentOutput.deserialize(rest)
     reduce_unspent_outputs(rest, nb, [utxo | acc])
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(ledger_ops = %{}) do
+    %__MODULE__{
+      transaction_movements:
+        Map.get(ledger_ops, :transaction_movements, [])
+        |> Enum.map(&TransactionMovement.from_map/1),
+      node_movements:
+        Map.get(ledger_ops, :node_movements, [])
+        |> Enum.map(&NodeMovement.from_map/1),
+      unspent_outputs:
+        Map.get(ledger_ops, :unspent_outputs, [])
+        |> Enum.map(&UnspentOutput.from_map/1),
+      fee: Map.get(ledger_ops, :fee)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{
+        transaction_movements: transaction_movements,
+        node_movements: node_movements,
+        unspent_outputs: unspent_outputs,
+        fee: fee
+      }) do
+    %{
+      transaction_movements: Enum.map(transaction_movements, &TransactionMovement.to_map/1),
+      node_movements: Enum.map(node_movements, &NodeMovement.to_map/1),
+      unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map/1),
+      fee: fee
+    }
+  end
 end

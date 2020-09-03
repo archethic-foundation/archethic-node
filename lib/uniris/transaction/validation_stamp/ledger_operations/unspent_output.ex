@@ -69,4 +69,20 @@ defmodule Uniris.Transaction.ValidationStamp.LedgerOperations.UnspentOutput do
       rest
     }
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(utxo = %{}) do
+    %__MODULE__{
+      from: Map.get(utxo, :from),
+      amount: Map.get(utxo, :amount)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{from: from, amount: amount}) do
+    %{
+      from: from,
+      amount: amount
+    }
+  end
 end

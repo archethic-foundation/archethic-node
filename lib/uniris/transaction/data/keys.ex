@@ -153,4 +153,20 @@ defmodule Uniris.TransactionData.Keys do
        when curve_id in [1, 2] do
     {Map.put(acc, <<curve_id::8, public_key::binary>>, encrypted_key), rest}
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(keys = %{}) do
+    %__MODULE__{
+      secret: Map.get(keys, :secret),
+      authorized_keys: Map.get(keys, :authorized_keys, %{})
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{secret: secret, authorized_keys: authorized_keys}) do
+    %{
+      secret: secret,
+      authorized_keys: authorized_keys
+    }
+  end
 end

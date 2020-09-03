@@ -192,4 +192,20 @@ defmodule Uniris.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<1::8, rest::bitstring>>), do: {:proof_of_work, rest}
   defp do_reduce_inconsistencies(<<2::8, rest::bitstring>>), do: {:proof_of_integrity, rest}
   defp do_reduce_inconsistencies(<<3::8, rest::bitstring>>), do: {:ledger_operations, rest}
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(stamp = %{}) do
+    %__MODULE__{
+      node_public_key: Map.get(stamp, :node_public_key),
+      signature: Map.get(stamp, :signature)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{signature: signature, node_public_key: public_key}) do
+    %{
+      node_public_key: public_key,
+      signature: signature
+    }
+  end
 end

@@ -148,4 +148,29 @@ defmodule Uniris.TransactionData do
     <<address::binary-size(hash_size), rest::bitstring>> = rest
     reduce_recipients(rest, nb_recipients, [<<hash_id::8>> <> address | acc])
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(data = %{}) do
+    %__MODULE__{
+      content: Map.get(data, :content),
+      code: Map.get(data, :code),
+      ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.from_map(),
+      keys: Map.get(data, :keys, %Keys{}) |> Keys.from_map()
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{
+        content: content,
+        code: code,
+        ledger: ledger,
+        keys: keys
+      }) do
+    %{
+      content: content,
+      code: code,
+      ledger: Ledger.to_map(ledger),
+      keys: Keys.to_map(keys)
+    }
+  end
 end

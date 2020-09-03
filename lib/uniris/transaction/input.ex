@@ -93,4 +93,22 @@ defmodule Uniris.TransactionInput do
         }
     end
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(input = %{}) do
+    %__MODULE__{
+      amount: Map.get(input, :amount),
+      from: Map.get(input, :from),
+      spent?: Map.get(input, :spent?)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{amount: amount, from: from, spent?: spent?}) do
+    %{
+      amount: amount,
+      from: from,
+      spent?: spent?
+    }
+  end
 end

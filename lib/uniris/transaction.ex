@@ -659,4 +659,37 @@ defmodule Uniris.Transaction do
     {stamp, rest} = CrossValidationStamp.deserialize(rest)
     reduce_cross_validation_stamps(rest, nb_stamps, [stamp | acc])
   end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(tx = %__MODULE__{}) do
+    %{
+      address: tx.address,
+      type: tx.type,
+      timestamp: tx.timestamp,
+      data: TransactionData.to_map(tx.data),
+      previous_public_key: tx.previous_public_key,
+      previous_signature: tx.previous_signature,
+      origin_signature: tx.origin_signature,
+      validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
+      cross_validation_stamps:
+        Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
+    }
+  end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(tx = %{}) do
+    %__MODULE__{
+      address: Map.get(tx, :address),
+      type: Map.get(tx, :type),
+      timestamp: Map.get(tx, :timestamp),
+      data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.from_map(),
+      previous_public_key: Map.get(tx, :previous_public_key),
+      previous_signature: Map.get(tx, :previous_signature),
+      origin_signature: Map.get(tx, :origin_signature),
+      validation_stamp:
+        Map.get(tx, :validation_stamp, %ValidationStamp{}) |> ValidationStamp.from_map(),
+      cross_validation_stamps:
+        Map.get(tx, :cross_validation_stamps, []) |> Enum.map(&CrossValidationStamp.from_map/1)
+    }
+  end
 end

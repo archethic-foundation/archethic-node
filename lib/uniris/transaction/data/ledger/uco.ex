@@ -102,4 +102,20 @@ defmodule Uniris.TransactionData.UCOLedger do
     {transfer, rest} = Transfer.deserialize(binary)
     do_reduce_transfers(rest, nb_transfers, [transfer | acc])
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(uco_ledger = %{}) do
+    %__MODULE__{
+      fee: Map.get(uco_ledger, :fee),
+      transfers: Map.get(uco_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{fee: fee, transfers: transfers}) do
+    %{
+      fee: fee,
+      transfers: Enum.map(transfers, &Transfer.to_map/1)
+    }
+  end
 end

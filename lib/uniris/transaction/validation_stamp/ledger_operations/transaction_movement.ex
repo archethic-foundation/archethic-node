@@ -70,4 +70,20 @@ defmodule Uniris.Transaction.ValidationStamp.LedgerOperations.TransactionMovemen
       rest
     }
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(movement = %{}) do
+    %__MODULE__{
+      to: Map.get(movement, :to),
+      amount: Map.get(movement, :amount)
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{to: to, amount: amount}) do
+    %{
+      to: to,
+      amount: amount
+    }
+  end
 end

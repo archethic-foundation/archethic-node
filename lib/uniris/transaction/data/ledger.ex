@@ -78,4 +78,18 @@ defmodule Uniris.TransactionData.Ledger do
       rest
     }
   end
+
+  @spec from_map(map()) :: __MODULE__.t()
+  def from_map(ledger = %{}) do
+    %__MODULE__{
+      uco: Map.get(ledger, :uco, %UCOLedger{}) |> UCOLedger.from_map()
+    }
+  end
+
+  @spec to_map(__MODULE__.t()) :: map()
+  def to_map(%__MODULE__{uco: uco}) do
+    %{
+      uco: UCOLedger.to_map(uco)
+    }
+  end
 end
