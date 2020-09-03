@@ -1,5 +1,6 @@
 defmodule Uniris.Mining.ReplicationTest do
   use UnirisCase, async: false
+  doctest Uniris.Mining.Replication
 
   @moduletag capture_log: true
 
@@ -10,16 +11,16 @@ defmodule Uniris.Mining.ReplicationTest do
   alias Uniris.BeaconSlotTimer
   alias Uniris.BeaconSubset
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
 
   alias Uniris.Mining.Context
   alias Uniris.Mining.ProofOfIntegrity
   alias Uniris.Mining.Replication
 
-  alias Uniris.P2P
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.Transaction.CrossValidationStamp
@@ -30,67 +31,6 @@ defmodule Uniris.Mining.ReplicationTest do
   alias Uniris.TransactionData
 
   import Mox
-
-  test "tree/2 create tree of storage nodes grouped by the closest validation nodes" do
-    validation_nodes = [
-      %{network_patch: "AC2", last_public_key: "key_v1"},
-      %{network_patch: "DF3", last_public_key: "key_v2"},
-      %{network_patch: "C22", last_public_key: "key_v3"},
-      %{network_patch: "E19", last_public_key: "key_v4"},
-      %{network_patch: "22A", last_public_key: "key_v5"}
-    ]
-
-    storage_nodes = [
-      %{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
-      %{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
-      %{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
-      %{network_patch: "2A9", first_public_key: "key_S4", last_public_key: "key_S4"},
-      %{network_patch: "143", first_public_key: "key_S5", last_public_key: "key_S5"},
-      %{network_patch: "BB2", first_public_key: "key_S6", last_public_key: "key_S6"},
-      %{network_patch: "A63", first_public_key: "key_S7", last_public_key: "key_S7"},
-      %{network_patch: "D32", first_public_key: "key_S8", last_public_key: "key_S8"},
-      %{network_patch: "19A", first_public_key: "key_S9", last_public_key: "key_S9"},
-      %{network_patch: "C2A", first_public_key: "key_S10", last_public_key: "key_S10"},
-      %{network_patch: "C23", first_public_key: "key_S11", last_public_key: "key_S11"},
-      %{network_patch: "F22", first_public_key: "key_S12", last_public_key: "key_S12"},
-      %{network_patch: "E2B", first_public_key: "key_S13", last_public_key: "key_S13"},
-      %{network_patch: "AA0", first_public_key: "key_S14", last_public_key: "key_S14"},
-      %{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
-      %{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
-    ]
-
-    tree = Replication.tree(validation_nodes, storage_nodes)
-
-    assert tree ==
-             %{
-               "key_v1" => [
-                 %{network_patch: "A23", first_public_key: "key_S2", last_public_key: "key_S2"},
-                 %{network_patch: "B43", first_public_key: "key_S3", last_public_key: "key_S3"},
-                 %{network_patch: "A63", first_public_key: "key_S7", last_public_key: "key_S7"},
-                 %{network_patch: "AA0", first_public_key: "key_S14", last_public_key: "key_S14"}
-               ],
-               "key_v2" => [
-                 %{network_patch: "D32", first_public_key: "key_S8", last_public_key: "key_S8"}
-               ],
-               "key_v3" => [
-                 %{network_patch: "BB2", first_public_key: "key_S6", last_public_key: "key_S6"},
-                 %{network_patch: "C2A", first_public_key: "key_S10", last_public_key: "key_S10"},
-                 %{network_patch: "C23", first_public_key: "key_S11", last_public_key: "key_S11"}
-               ],
-               "key_v4" => [
-                 %{network_patch: "F36", first_public_key: "key_S1", last_public_key: "key_S1"},
-                 %{network_patch: "F22", first_public_key: "key_S12", last_public_key: "key_S12"},
-                 %{network_patch: "E2B", first_public_key: "key_S13", last_public_key: "key_S13"}
-               ],
-               "key_v5" => [
-                 %{network_patch: "2A9", first_public_key: "key_S4", last_public_key: "key_S4"},
-                 %{network_patch: "143", first_public_key: "key_S5", last_public_key: "key_S5"},
-                 %{network_patch: "19A", first_public_key: "key_S9", last_public_key: "key_S9"},
-                 %{network_patch: "042", first_public_key: "key_S15", last_public_key: "key_S15"},
-                 %{network_patch: "3BC", first_public_key: "key_S16", last_public_key: "key_S16"}
-               ]
-             }
-  end
 
   describe "valid_transaction?/2" do
     test "should return false when the proof of work is not found" do
@@ -364,7 +304,7 @@ defmodule Uniris.Mining.ReplicationTest do
     test "should return false when the ledger operations are invalid" do
       tx = Transaction.new(:node, %TransactionData{})
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: Crypto.node_public_key(),
         last_public_key: Crypto.node_public_key(),
         ip: {127, 0, 0, 1},
@@ -411,9 +351,9 @@ defmodule Uniris.Mining.ReplicationTest do
 
   test "run/1 should validate transaction, store it and notify the beacon chain" do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
-    Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
+    Enum.each(Beacon.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
@@ -421,12 +361,13 @@ defmodule Uniris.Mining.ReplicationTest do
       ready?: true,
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      network_patch: "BBB"
     })
 
     {pub, pv} = Crypto.generate_deterministic_keypair("seed")
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       first_public_key: pub,
       last_public_key: pub,
       ip: {127, 0, 0, 1},
@@ -434,10 +375,17 @@ defmodule Uniris.Mining.ReplicationTest do
       ready?: true,
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      network_patch: "AAA"
     })
 
-    tx = Transaction.new(:node, %TransactionData{})
+    tx =
+      Transaction.new(:node, %TransactionData{
+        content: """
+        ip: 127.0.0.1
+        port: 3000
+        """
+      })
 
     validation_stamp =
       ValidationStamp.new(tx, %Context{}, "welcome_node_public_key", Crypto.node_public_key(), [
@@ -476,7 +424,7 @@ defmodule Uniris.Mining.ReplicationTest do
     |> stub(:send_message, fn _, _, msg ->
       case msg do
         %GetUnspentOutputs{} ->
-          %UnspentOutputList{}
+          {:ok, %UnspentOutputList{}}
       end
     end)
 

@@ -4,8 +4,8 @@ defmodule UnirisWeb.GraphQLSchema do
   use Absinthe.Schema
 
   alias Uniris.Storage
-
   alias Uniris.Transaction
+
   alias __MODULE__.TransactionType
 
   import_types(TransactionType)

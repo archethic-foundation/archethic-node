@@ -1,12 +1,12 @@
 defmodule Uniris.BeaconSlotTimerTest do
   use ExUnit.Case
 
+  alias Uniris.Beacon
   alias Uniris.BeaconSlotTimer
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
 
   setup do
-    Enum.each(BeaconSubsets.all(), fn subset ->
+    Enum.each(Beacon.list_subsets(), fn subset ->
       Registry.register(BeaconSubsetRegistry, subset, [])
     end)
 

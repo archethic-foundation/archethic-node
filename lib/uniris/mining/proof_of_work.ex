@@ -3,11 +3,7 @@ defmodule Uniris.Mining.ProofOfWork do
 
   alias Uniris.Crypto
 
-  alias Uniris.P2P
-  alias Uniris.P2P.Node
-
-  alias Uniris.SharedSecrets
-  alias Uniris.Storage
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
 
@@ -27,28 +23,20 @@ defmodule Uniris.Mining.ProofOfWork do
           origin_signature: origin_signature
         }
       ) do
-    previous_address = Crypto.hash(previous_public_key)
+    first_public_key =
+      NetworkLedger.get_node_first_public_key_from_previous_key(previous_public_key)
 
-    with {:ok, %Transaction{previous_public_key: previous_public_key}} <-
-           Storage.get_transaction(previous_address),
-         {:ok, %Node{first_public_key: first_public_key}} <- P2P.node_info(previous_public_key),
-         true <- Crypto.verify(origin_signature, transaction_raw(tx), first_public_key) do
+    if Crypto.verify(origin_signature, transaction_raw(tx), first_public_key) do
       first_public_key
     else
-      _ ->
-        # When it's the first transaction
-        if Crypto.verify(origin_signature, transaction_raw(tx), previous_public_key) do
-          previous_public_key
-        else
-          ""
-        end
+      ""
     end
   end
 
   def find_origin_public_key(
         tx = %Transaction{type: :node_shared_secrets, origin_signature: origin_signature}
       ) do
-    origin_node_keys = Enum.map(P2P.list_nodes(), & &1.first_public_key)
+    origin_node_keys = Enum.map(NetworkLedger.list_nodes(), & &1.first_public_key)
     do_find_public_key(origin_signature, transaction_raw(tx), origin_node_keys)
   end
 
@@ -56,7 +44,7 @@ defmodule Uniris.Mining.ProofOfWork do
     do_find_public_key(
       origin_signature,
       transaction_raw(tx),
-      SharedSecrets.origin_public_keys()
+      NetworkLedger.list_origin_public_keys()
     )
   end
 

@@ -25,6 +25,8 @@ defmodule Uniris.Mining do
   alias Uniris.P2P
   alias Uniris.P2P.Message.ReplicateTransaction
 
+  alias Uniris.Storage.Memory.NetworkLedger
+
   alias Uniris.TaskSupervisor
 
   alias Uniris.Transaction
@@ -52,9 +54,10 @@ defmodule Uniris.Mining do
         NetworkInit.self_validation!(tx, Context.fetch_history(%Context{}, tx))
 
       chain_storage_nodes =
-        P2P.list_nodes()
-        |> Enum.filter(& &1.available?)
-        |> Enum.filter(& &1.ready?)
+        NetworkLedger.list_nodes()
+        |> Stream.filter(& &1.available?)
+        |> Stream.filter(& &1.ready?)
+        |> Enum.to_list()
 
       beacon_storage_nodes =
         tx.address

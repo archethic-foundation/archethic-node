@@ -24,6 +24,7 @@ defmodule Uniris.Mining.Context do
   alias Uniris.P2P.Node
 
   alias Uniris.Storage
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.TaskSupervisor
 
@@ -143,13 +144,12 @@ defmodule Uniris.Mining.Context do
     %UnspentOutputList{unspent_outputs: unspent_outputs} =
       P2P.send_message(nearest_node, %GetUnspentOutputs{address: previous_address})
 
-    previous_chain = Storage.get_transaction_chain(previous_address)
+    previous_chain = Storage.get_transaction_chain(previous_address) |> Enum.to_list()
 
     {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
     other_chain_storage_nodes =
-      P2P.list_nodes()
-      |> Enum.filter(& &1.ready?)
+      NetworkLedger.list_ready_nodes()
       |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
       |> P2P.nearest_nodes(patch)
       |> Enum.map(& &1.last_public_key)

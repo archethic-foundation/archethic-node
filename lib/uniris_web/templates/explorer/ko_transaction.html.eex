@@ -1,0 +1,29 @@
+<div class="row explorer-card">
+    <div class="column">
+        <header class="row">
+            <div class="column">
+                <h3>Transaction invalid</h3>
+                <div class="row">
+                    <div class="column">
+                        <%= @address %>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="row" style="margin-top: 50px">
+            <div class="column">
+                <header class="row">
+                    <div class="column"><u>Errors</u></div>
+                </header>
+                <%= for error <- @errors do %>
+                <div class="row">
+                    <div class="column">
+                        <p><%= error %></p>
+                    </div>
+                </div>
+                <% end %>
+            </div>
+        </section>
+    </div>
+</div>

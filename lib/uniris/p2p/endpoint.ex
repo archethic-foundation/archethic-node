@@ -4,7 +4,7 @@ defmodule Uniris.P2P.Endpoint do
 
   use GenServer
 
-  alias Uniris.Beacon
+  alias Uniris.BeaconSubset
   alias Uniris.Crypto
   alias Uniris.Election
 
@@ -50,6 +50,10 @@ defmodule Uniris.P2P.Endpoint do
   alias Uniris.Mining
 
   alias Uniris.Storage
+  alias Uniris.Storage.Memory.ChainLookup
+  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.Storage.Memory.UCOLedger
+
   alias Uniris.TaskSupervisor
 
   alias Uniris.Transaction
@@ -118,9 +122,7 @@ defmodule Uniris.P2P.Endpoint do
   end
 
   defp process_message(%GetBootstrappingNodes{patch: patch}) do
-    top_nodes =
-      P2P.list_nodes()
-      |> Enum.filter(&(&1.authorized? && &1.available?))
+    top_nodes = NetworkLedger.list_authorized_nodes() |> Enum.filter(& &1.available?)
 
     closest_nodes =
       top_nodes
@@ -144,7 +146,7 @@ defmodule Uniris.P2P.Endpoint do
 
   defp process_message(%ListNodes{}) do
     %NodeList{
-      nodes: P2P.list_nodes()
+      nodes: NetworkLedger.list_nodes()
     }
   end
 
@@ -176,14 +178,15 @@ defmodule Uniris.P2P.Endpoint do
   end
 
   defp process_message(%GetTransactionChain{address: tx_address}) do
+    # TODO: support streaming
     %TransactionList{
-      transactions: Storage.get_transaction_chain(tx_address)
+      transactions: Storage.get_transaction_chain(tx_address) |> Enum.to_list()
     }
   end
 
   defp process_message(%GetUnspentOutputs{address: tx_address}) do
     %UnspentOutputList{
-      unspent_outputs: Storage.get_unspent_outputs(tx_address)
+      unspent_outputs: UCOLedger.get_unspent_outputs(tx_address)
     }
   end
 
@@ -209,9 +212,10 @@ defmodule Uniris.P2P.Endpoint do
   end
 
   defp process_message(%GetTransactionHistory{address: tx_address}) do
+    # TODO: support streaming
     %TransactionHistory{
-      transaction_chain: Storage.get_transaction_chain(tx_address),
-      unspent_outputs: Storage.get_unspent_outputs(tx_address)
+      transaction_chain: Storage.get_transaction_chain(tx_address) |> Enum.to_list(),
+      unspent_outputs: UCOLedger.get_unspent_outputs(tx_address)
     }
   end
 
@@ -257,7 +261,7 @@ defmodule Uniris.P2P.Endpoint do
   defp process_message(%GetBeaconSlots{last_sync_date: last_sync_date, subsets: subsets}) do
     slots =
       Enum.map(subsets, fn subset ->
-        Beacon.previous_slots(subset, last_sync_date)
+        BeaconSubset.previous_slots(subset, last_sync_date)
       end)
       |> Enum.flat_map(& &1)
 
@@ -265,12 +269,12 @@ defmodule Uniris.P2P.Endpoint do
   end
 
   defp process_message(%AddNodeInfo{subset: subset, node_info: node_info}) do
-    :ok = Beacon.add_node_info(subset, node_info)
+    :ok = BeaconSubset.add_node_info(subset, node_info)
     %Ok{}
   end
 
   defp process_message(%GetLastTransaction{address: last_address}) do
-    with {:ok, address} <- Storage.last_transaction_address(last_address),
+    with {:ok, address} <- ChainLookup.get_last_transaction_address(last_address),
          {:ok, tx} <- Storage.get_transaction(address) do
       tx
     else
@@ -281,24 +285,24 @@ defmodule Uniris.P2P.Endpoint do
 
   defp process_message(%GetBalance{address: address}) do
     %Balance{
-      uco: Storage.balance(address)
+      uco: UCOLedger.balance(address)
     }
   end
 
   defp process_message(%GetTransactionInputs{address: address}) do
     %TransactionInputList{
-      inputs: Storage.get_inputs(address)
+      inputs: UCOLedger.get_inputs(address)
     }
   end
 
   defp process_message(%GetTransactionChainLength{address: address}) do
     %TransactionChainLength{
-      length: Storage.get_transaction_chain_length(address)
+      length: ChainLookup.get_transaction_chain_length(address)
     }
   end
 
   defp loop_node_info(node_public_key, date) do
-    case P2P.node_info(node_public_key) do
+    case NetworkLedger.get_node_info(node_public_key) do
       {:ok, _} ->
         {:ok, node_public_key}
 

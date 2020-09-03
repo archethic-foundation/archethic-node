@@ -4,36 +4,28 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   use GenServer
 
   alias Uniris.Crypto
+  alias Uniris.Storage.Memory.NetworkLedger
 
   require Logger
 
   @behaviour Uniris.Crypto.KeystoreImpl
 
-  def start_link(opts) do
+  def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @impl true
   def init(_opts) do
-    node_seed = System.fetch_env!("UNIRIS_CRYPTO_SEED")
+    node_seed = Application.get_env(:uniris, __MODULE__)[:seed]
 
-    initial_data = %{
-      node_seed: node_seed,
-      node_key_counter: 0,
-      node_shared_key_counter: 0
-    }
+    {first_public_key, _} = Crypto.derivate_keypair(node_seed, 0)
 
-    case File.read(storage_nonce_file()) do
-      {:ok, storage_nonce} ->
-        {:ok, Map.put(initial_data, :storage_nonce, storage_nonce)}
-
-      _ ->
-        {:ok, initial_data}
-    end
-  end
-
-  defp storage_nonce_file do
-    Application.app_dir(:uniris, "priv/crypto/storage_nonce")
+    {:ok,
+     %{
+       node_seed: node_seed,
+       node_key_counter: NetworkLedger.count_node_changes(first_public_key),
+       node_shared_key_counter: NetworkLedger.count_node_shared_secrets()
+     }}
   end
 
   @impl true
@@ -71,10 +63,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
 
   def handle_call({:hash_with_daily_nonce, data}, _, state = %{daily_nonce_keys: {_, pv}}) do
     {:reply, Crypto.hash([pv, data]), state}
-  end
-
-  def handle_call({:hash_with_storage_nonce, data}, _, state = %{storage_nonce: key}) do
-    {:reply, Crypto.hash([key, data]), state}
   end
 
   def handle_call(:node_public_key, _, state = %{node_seed: seed, node_key_counter: index}) do
@@ -120,30 +108,12 @@ defmodule Uniris.Crypto.SoftwareKeystore do
       {:reply, {:error, :decryption_failed}, state}
   end
 
-  def handle_call(
-        {:derivate_beacon_chain_address, subset, date},
-        _,
-        state = %{storage_nonce: key}
-      ) do
-    {pub, _} =
-      Crypto.derivate_keypair(
-        key,
-        Crypto.hash([subset, <<date::32>>]) |> :binary.decode_unsigned()
-      )
-
-    {:reply, Crypto.hash(pub), state}
-  end
-
   def handle_call(:number_node_keys, _from, state = %{node_key_counter: nb}) do
     {:reply, nb, state}
   end
 
   def handle_call(:number_node_shared_keys, _from, state = %{node_shared_key_counter: nb}) do
     {:reply, nb, state}
-  end
-
-  def handle_call({:encrypt_storage_nonce, public_key}, _from, state = %{storage_nonce: key}) do
-    {:reply, Crypto.ec_encrypt(key, public_key), state}
   end
 
   def handle_call(
@@ -190,20 +160,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     network_pool_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
 
     {:reply, :ok, Map.put(state, :network_pool_seed, network_pool_seed)}
-  end
-
-  def handle_call(
-        {:decrypt_and_set_storage_nonce, encrypted_nonce},
-        _from,
-        state = %{
-          node_seed: node_seed,
-          node_key_counter: index
-        }
-      ) do
-    {_, pv} = previous_keypair(node_seed, index)
-    storage_nonce = Crypto.ec_decrypt!(encrypted_nonce, pv)
-    File.write(storage_nonce_file(), storage_nonce, [:write])
-    {:reply, :ok, Map.put(state, :storage_nonce, storage_nonce)}
   end
 
   def handle_call(
@@ -256,23 +212,10 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def hash_with_storage_nonce(data) do
-    GenServer.call(__MODULE__, {:hash_with_storage_nonce, data})
-  end
-
-  @impl true
   def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key) do
     GenServer.call(
       __MODULE__,
       {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key}
-    )
-  end
-
-  @impl true
-  def decrypt_and_set_storage_nonce(encrypted_nonce) do
-    GenServer.call(
-      __MODULE__,
-      {:decrypt_and_set_storage_nonce, encrypted_nonce}
     )
   end
 
@@ -340,11 +283,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   @impl true
-  def derivate_beacon_chain_address(subset, date) do
-    GenServer.call(__MODULE__, {:derivate_beacon_chain_address, subset, date})
-  end
-
-  @impl true
   def number_of_node_keys do
     GenServer.call(__MODULE__, :number_node_keys)
   end
@@ -352,11 +290,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   @impl true
   def number_of_node_shared_secrets_keys do
     GenServer.call(__MODULE__, :number_node_shared_keys)
-  end
-
-  @impl true
-  def encrypt_storage_nonce(public_key) do
-    GenServer.call(__MODULE__, {:encrypt_storage_nonce, public_key})
   end
 
   @impl true

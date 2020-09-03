@@ -1,5 +1,5 @@
 -module(ip2location).
--export([apiversion/0, getapiversion/0, new/1, query/1, close/0]).
+-export([new/2, query/2]).
 -record(ip2locationrecord, {
 	country_short = "-",
 	country_long = "-",
@@ -23,12 +23,6 @@
 	usagetype = "-"
 }).
 -define(IF(Cond), (case (Cond) of true -> (0); false -> (1) end)).
-
-apiversion() ->
-	"8.2.0".
-
-getapiversion() ->
-	io:format("API Version: ~p~n", [apiversion()]).
 
 round(Number, Precision) ->
 	P = math:pow(10, Precision),
@@ -95,7 +89,7 @@ input(InputFile) ->
 		halt()
 	end.
 
-new(InputFile) ->
+new(InputFile, TableName) ->
 	S = input(InputFile),
 	Databasetype = readuint8(S, 1),
 	Databasecolumn = readuint8(S, 2),
@@ -112,28 +106,28 @@ new(InputFile) ->
 	Ipv6columnsize = 16 + ((Databasecolumn - 1) bsl 2), % 4 bytes each column, except IPFrom column which is 16 bytes
 	file:close(S),
 	
-	case ets:info(mymeta) of
+	case ets:info(TableName) of
 	undefined ->
-		ets:new(mymeta, [set, named_table]);
+		ets:new(TableName, [set, named_table]);
 	_ ->
 		ok % do nothing
 	end,
 	
-	ets:insert(mymeta, {inputfile, InputFile}),
-	ets:insert(mymeta, {databasetype, Databasetype}),
-	ets:insert(mymeta, {databasetype, Databasetype}),
-	ets:insert(mymeta, {databasecolumn, Databasecolumn}),
-	% ets:insert(mymeta, {databaseyear, Databaseyear}),
-	% ets:insert(mymeta, {databasemonth, Databasemonth}),
-	% ets:insert(mymeta, {databaseday, Databaseday}),
-	ets:insert(mymeta, {ipv4databasecount, Ipv4databasecount}),
-	ets:insert(mymeta, {ipv4databaseaddr, Ipv4databaseaddr}),
-	ets:insert(mymeta, {ipv6databasecount, Ipv6databasecount}),
-	ets:insert(mymeta, {ipv6databaseaddr, Ipv6databaseaddr}),
-	ets:insert(mymeta, {ipv4indexbaseaddr, Ipv4indexbaseaddr}),
-	ets:insert(mymeta, {ipv6indexbaseaddr, Ipv6indexbaseaddr}),
-	ets:insert(mymeta, {ipv4columnsize, Ipv4columnsize}),
-	ets:insert(mymeta, {ipv6columnsize, Ipv6columnsize}).
+	ets:insert(TableName, {inputfile, InputFile}),
+	ets:insert(TableName, {databasetype, Databasetype}),
+	ets:insert(TableName, {databasetype, Databasetype}),
+	ets:insert(TableName, {databasecolumn, Databasecolumn}),
+	% ets:insert(TableName, {databaseyear, Databaseyear}),
+	% ets:insert(TableName, {databasemonth, Databasemonth}),
+	% ets:insert(TableName, {databaseday, Databaseday}),
+	ets:insert(TableName, {ipv4databasecount, Ipv4databasecount}),
+	ets:insert(TableName, {ipv4databaseaddr, Ipv4databaseaddr}),
+	ets:insert(TableName, {ipv6databasecount, Ipv6databasecount}),
+	ets:insert(TableName, {ipv6databaseaddr, Ipv6databaseaddr}),
+	ets:insert(TableName, {ipv4indexbaseaddr, Ipv4indexbaseaddr}),
+	ets:insert(TableName, {ipv6indexbaseaddr, Ipv6indexbaseaddr}),
+	ets:insert(TableName, {ipv4columnsize, Ipv4columnsize}),
+	ets:insert(TableName, {ipv6columnsize, Ipv6columnsize}).
 
 % readcolcountry(S, Dbtype, Rowoffset, Col) ->
 	% X = "This parameter is unavailable for selected data file. Please upgrade the data file.",
@@ -382,7 +376,7 @@ search6(S, Ipnum, Dbtype, Low, High, Baseaddr, Indexbaseaddr, Colsize) ->
 			searchtree(S, Ipnum, Dbtype, Low, High, Baseaddr, Colsize, ipv6)
 	end.
 
-query(Ip) ->
+query(Ip, TableName) ->
 	Fromv4mapped = 281470681743360,
 	Tov4mapped = 281474976710655,
 	From6to4 = 42545680458834377588178886921629466624,
@@ -391,31 +385,31 @@ query(Ip) ->
 	Toteredo = 42540488241204005274814694018844196863,
 	Last32bits = 4294967295,
 	
-	case ets:info(mymeta) of
+	case ets:info(TableName) of
 	undefined ->
 		io:format("Error: Unable to read metadata.~n", []),
 		{}; % return empty
 	_ ->
-		case ets:lookup(mymeta, inputfile) of
+		case ets:lookup(TableName, inputfile) of
 		[] ->
 			io:format("Error: Unable to read metadata.~n", []),
 			{}; % return empty
 		[{_, InputFile}] ->
 			S = input(InputFile),
-			[{_, Databasetype}] = ets:lookup(mymeta, databasetype),
-			[{_, Databasetype}] = ets:lookup(mymeta, databasetype),
-			% [{_, Databasecolumn}] = ets:lookup(mymeta, databasecolumn),
-			% [{_, Databaseyear}] = ets:lookup(mymeta, databaseyear),
-			% [{_, Databasemonth}] = ets:lookup(mymeta, databasemonth),
-			% [{_, Databaseday}] = ets:lookup(mymeta, databaseday),
-			[{_, Ipv4databasecount}] = ets:lookup(mymeta, ipv4databasecount),
-			[{_, Ipv4databaseaddr}] = ets:lookup(mymeta, ipv4databaseaddr),
-			[{_, Ipv6databasecount}] = ets:lookup(mymeta, ipv6databasecount),
-			[{_, Ipv6databaseaddr}] = ets:lookup(mymeta, ipv6databaseaddr),
-			[{_, Ipv4indexbaseaddr}] = ets:lookup(mymeta, ipv4indexbaseaddr),
-			[{_, Ipv6indexbaseaddr}] = ets:lookup(mymeta, ipv6indexbaseaddr),
-			[{_, Ipv4columnsize}] = ets:lookup(mymeta, ipv4columnsize),
-			[{_, Ipv6columnsize}] = ets:lookup(mymeta, ipv6columnsize),
+			[{_, Databasetype}] = ets:lookup(TableName, databasetype),
+			[{_, Databasetype}] = ets:lookup(TableName, databasetype),
+			% [{_, Databasecolumn}] = ets:lookup(TableName, databasecolumn),
+			% [{_, Databaseyear}] = ets:lookup(TableName, databaseyear),
+			% [{_, Databasemonth}] = ets:lookup(TableName, databasemonth),
+			% [{_, Databaseday}] = ets:lookup(TableName, databaseday),
+			[{_, Ipv4databasecount}] = ets:lookup(TableName, ipv4databasecount),
+			[{_, Ipv4databaseaddr}] = ets:lookup(TableName, ipv4databaseaddr),
+			[{_, Ipv6databasecount}] = ets:lookup(TableName, ipv6databasecount),
+			[{_, Ipv6databaseaddr}] = ets:lookup(TableName, ipv6databaseaddr),
+			[{_, Ipv4indexbaseaddr}] = ets:lookup(TableName, ipv4indexbaseaddr),
+			[{_, Ipv6indexbaseaddr}] = ets:lookup(TableName, ipv6indexbaseaddr),
+			[{_, Ipv4columnsize}] = ets:lookup(TableName, ipv4columnsize),
+			[{_, Ipv6columnsize}] = ets:lookup(TableName, ipv6columnsize),
 			
 			Result = case inet:parse_address(Ip) of
 			{ok, {X1, X2, X3, X4}} ->
@@ -440,12 +434,4 @@ query(Ip) ->
 			file:close(S),
 			Result
 		end
-	end.
-
-close() ->
-	case ets:info(mymeta) of
-	undefined ->
-		ok; % do nothing
-	_ ->
-		ets:delete(mymeta)
 	end.

@@ -10,7 +10,7 @@ defmodule Uniris.P2P.Client do
           port :: :inet.port_number(),
           message :: Message.t()
         ) ::
-          result :: Message.t()
+          {:ok, result :: Message.t()} | {:error, :network_issue}
   def send_message(ip, port, message) do
     impl().send_message(ip, port, message)
   end

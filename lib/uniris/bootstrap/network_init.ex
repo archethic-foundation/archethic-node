@@ -1,13 +1,18 @@
 defmodule Uniris.Bootstrap.NetworkInit do
-  @moduledoc false
+  @moduledoc """
+  Set up the network by initialize genesis information (i.e storage nonce, coinbases transactions)
+    
+  Those functions are only executed by the first node bootstraping on the network
+  """
 
   alias Uniris.Beacon
   alias Uniris.Crypto
   alias Uniris.Mining.Context
-  alias Uniris.P2P.Node
 
-  alias Uniris.SharedSecrets
+  alias Uniris.SharedSecretsRenewal.TransactionBuilder, as: SharedSecretsTxBuilder
+
   alias Uniris.Storage
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.Transaction.CrossValidationStamp
@@ -52,17 +57,17 @@ defmodule Uniris.Bootstrap.NetworkInit do
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
 
     tx =
-      SharedSecrets.new_node_shared_secrets_transaction(
-        [Crypto.node_public_key(0)],
+      SharedSecretsTxBuilder.new_node_shared_secrets_transaction(
         daily_nonce_seed,
-        aes_key
+        aes_key,
+        [Crypto.node_public_key(0)]
       )
 
     tx
     |> self_validation!()
     |> self_replication()
 
-    Node.authorize(Crypto.node_public_key(0), tx.timestamp)
+    NetworkLedger.authorize_node(Crypto.node_public_key(0), tx.timestamp)
 
     Crypto.decrypt_and_set_daily_nonce_seed(
       Crypto.aes_encrypt(daily_nonce_seed, aes_key),

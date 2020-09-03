@@ -2,24 +2,24 @@ defmodule UnirisWeb.NodeController do
   use UnirisWeb, :controller
 
   alias Uniris.Crypto
-  alias Uniris.P2P
+  alias Uniris.Storage.Memory.NetworkLedger
   alias Uniris.TransactionInput
 
   def index(conn, _params) do
-    render(conn, "index.html", nodes: P2P.list_nodes())
+    render(conn, "index.html", nodes: NetworkLedger.list_nodes())
   end
 
   def show(conn, _params = %{"public_key" => public_key}) do
     pub = Base.decode16!(public_key, case: :mixed)
 
-    case P2P.node_info(pub) do
+    case NetworkLedger.get_node_info(pub) do
       {:ok, node} ->
         node_address = Crypto.hash(pub)
 
         inputs =
           node_address
           |> Uniris.get_transaction_inputs()
-          |> Enum.filter(&(&1.amount > 0.0))
+          |> Stream.filter(&(&1.amount > 0.0))
           |> Enum.reduce(%{}, fn %TransactionInput{from: from, amount: amount}, acc ->
             Map.update(acc, from, amount, &(&1 + amount))
           end)

@@ -1,7 +1,7 @@
 defmodule Uniris.Interpreter.AST do
   @moduledoc false
 
-  @origin_families [:biometric, :software]
+  alias Uniris.Storage.Memory.NetworkLedger
 
   @transaction_fields_whitelist [
     :address,
@@ -75,9 +75,12 @@ defmodule Uniris.Interpreter.AST do
   defp filter_ast(
          node = {:condition, _, [[origin_family: {:@, _, [{family, _, nil}]}]]},
          acc = {:ok, :root}
-       )
-       when family in @origin_families do
-    {node, acc}
+       ) do
+    if family in NetworkLedger.list_origin_families() do
+      {node, acc}
+    else
+      {node, {:error, :invalid_origin_family}}
+    end
   end
 
   # Whitelist the condition 'post_paid_fee', if the address is a string must be valid hash

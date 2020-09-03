@@ -78,4 +78,62 @@ defmodule Uniris.Utils do
       end
     end)
   end
+
+  @doc """
+  Convert map string keys to :atom keys
+  """
+  def atomize_keys(struct = %{__struct__: _}) do
+    struct
+  end
+
+  def atomize_keys(map = %{}) do
+    map
+    |> Enum.map(fn {k, v} -> {atomize_key(k), atomize_keys(v)} end)
+    |> Enum.into(%{})
+  end
+
+  # Walk the list and atomize the keys of
+  # of any map members
+  def atomize_keys([head | rest]) do
+    [atomize_keys(head) | atomize_keys(rest)]
+  end
+
+  def atomize_keys(not_a_map) do
+    not_a_map
+  end
+
+  defp atomize_key(key) when is_binary(key) do
+    if String.valid?(key) do
+      String.to_atom(key)
+    else
+      key
+    end
+  end
+
+  defp atomize_key(key), do: key
+
+  @doc """
+  Convert map atom keys to strings
+  """
+  def stringify_keys(struct = %{__struct__: _}) do
+    struct
+  end
+
+  def stringify_keys(map = %{}) do
+    map
+    |> Enum.map(fn {k, v} ->
+      {to_string(k), stringify_keys(v)}
+    end)
+    |> Enum.into(%{})
+  end
+
+  # Walk the list and stringify the keys of
+  # of any map members
+  def stringify_keys([head | rest]) do
+    [stringify_keys(head) | stringify_keys(rest)]
+  end
+
+  def stringify_keys(not_a_map) do
+    not_a_map
+  end
 end

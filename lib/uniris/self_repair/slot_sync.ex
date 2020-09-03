@@ -12,9 +12,9 @@ defmodule Uniris.SelfRepair.SlotSync do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
-  alias Uniris.P2P.Node
 
   alias Uniris.Storage
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
 
@@ -61,9 +61,9 @@ defmodule Uniris.SelfRepair.SlotSync do
 
   defp transaction_storage_nodes(%TransactionInfo{address: address, type: type}) do
     if Transaction.network_type?(type) do
-      P2P.list_nodes()
+      NetworkLedger.list_nodes()
     else
-      Election.storage_nodes(address, P2P.list_nodes())
+      Election.storage_nodes(address, NetworkLedger.list_nodes())
     end
   end
 
@@ -97,7 +97,7 @@ defmodule Uniris.SelfRepair.SlotSync do
   end
 
   defp process_movement_address(mvt_address, tx_address, node_patch) do
-    io_storage_nodes = Election.storage_nodes(mvt_address, P2P.list_nodes())
+    io_storage_nodes = Election.storage_nodes(mvt_address, NetworkLedger.list_nodes())
 
     if Crypto.node_public_key(0) in Enum.map(io_storage_nodes, & &1.first_public_key) do
       Logger.info("Download transaction movement #{Base.encode16(tx_address)}")
@@ -108,15 +108,18 @@ defmodule Uniris.SelfRepair.SlotSync do
   defp do_download(address, storage_nodes, node_patch) do
     downloading_nodes =
       storage_nodes
-      |> Enum.filter(& &1.ready?)
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> Stream.filter(& &1.ready?)
+      |> Stream.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> Enum.to_list()
       |> P2P.nearest_nodes(node_patch)
 
     tx =
       %Transaction{previous_public_key: previous_public_key} =
       request_nodes(downloading_nodes, %GetTransaction{address: address})
 
-    previous_chain = Storage.get_transaction_chain(Crypto.hash(previous_public_key))
+    previous_chain =
+      Storage.get_transaction_chain(Crypto.hash(previous_public_key)) |> Enum.to_list()
+
     next_chain = [tx | previous_chain]
 
     Logger.debug(
@@ -141,7 +144,7 @@ defmodule Uniris.SelfRepair.SlotSync do
                                timestamp: timestamp
                              } ->
       if ready? do
-        Node.set_ready(public_key, timestamp)
+        NetworkLedger.set_node_ready(public_key, timestamp)
       end
     end)
   end

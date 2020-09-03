@@ -24,6 +24,8 @@ defmodule Uniris.Bootstrap do
   alias __MODULE__.NetworkInit
 
   alias Uniris.P2P
+  alias Uniris.P2P.BootstrapingSeeds
+  alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.Message.AddNodeInfo
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
@@ -35,7 +37,8 @@ defmodule Uniris.Bootstrap do
   alias Uniris.P2P.Node
 
   alias Uniris.SelfRepair
-  alias Uniris.Storage
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.TransactionData
@@ -49,7 +52,7 @@ defmodule Uniris.Bootstrap do
       ip,
       port,
       SelfRepair.last_sync_date(),
-      P2P.list_boostraping_seeds()
+      BootstrapingSeeds.list()
     ])
   end
 
@@ -57,14 +60,9 @@ defmodule Uniris.Bootstrap do
     Logger.info("Bootstraping starting")
 
     first_public_key = Crypto.node_public_key(0)
-    patch = P2P.get_geo_patch(ip)
+    patch = GeoPatch.from_ip(ip)
 
     if initialized_network?(first_public_key, bootstraping_seeds) do
-      bootstraping_seeds =
-        Enum.reject(bootstraping_seeds, &(&1.first_public_key == Crypto.node_public_key(0)))
-
-      load_nodes(bootstraping_seeds)
-
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
         first_initialization(ip, port, patch, bootstraping_seeds)
@@ -72,7 +70,10 @@ defmodule Uniris.Bootstrap do
         if require_node_update?(ip, port, last_sync_date) do
           Logger.info("Update node chain...")
 
-          case bootstraping_seeds do
+          case Enum.reject(
+                 bootstraping_seeds,
+                 &(&1.first_public_key == Crypto.node_public_key(0))
+               ) do
             [] ->
               Logger.warn("Not enought nodes in the network. No node update")
               :ok
@@ -85,15 +86,15 @@ defmodule Uniris.Bootstrap do
         end
       end
     else
-      init_network(ip, port)
+      init_network(ip, port, patch)
     end
 
     Logger.info("Bootstraping finished!")
   end
 
   defp initialized_network?(first_public_key, bootstraping_seeds) do
-    with {:error, :transaction_not_exists} <-
-           Storage.get_last_node_shared_secrets_transaction(),
+    with {:error, :not_found} <-
+           NetworkLedger.get_last_node_shared_secrets_address(),
          [%Node{first_public_key: key} | _] when key == first_public_key <- bootstraping_seeds do
       false
     else
@@ -116,7 +117,7 @@ defmodule Uniris.Bootstrap do
     end
   end
 
-  defp init_network(ip, port) do
+  defp init_network(ip, port, patch) do
     Logger.info("Network initialization...")
     NetworkInit.create_storage_nonce()
 
@@ -129,7 +130,7 @@ defmodule Uniris.Bootstrap do
 
     Process.sleep(200)
 
-    Node.set_ready(Crypto.node_public_key(0), tx.timestamp)
+    NetworkLedger.set_node_ready(Crypto.node_public_key(0), tx.timestamp)
 
     network_pool_seed = :crypto.strong_rand_bytes(32)
     NetworkInit.init_node_shared_secrets_chain(network_pool_seed)
@@ -138,7 +139,7 @@ defmodule Uniris.Bootstrap do
     network_pool_address = Crypto.hash(pub)
     NetworkInit.init_genesis_wallets(network_pool_address)
 
-    SelfRepair.start_sync(P2P.get_geo_patch(ip), false)
+    SelfRepair.start_sync(patch, false)
   end
 
   defp first_initialization(ip, port, patch, bootstraping_seeds) do
@@ -148,7 +149,7 @@ defmodule Uniris.Bootstrap do
       |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
 
     load_nodes(new_seeds ++ closest_nodes)
-    P2P.update_bootstraping_seeds(new_seeds)
+    BootstrapingSeeds.update(new_seeds)
 
     Logger.info("Create first node transaction")
     tx = create_node_transaction(ip, port)
@@ -186,8 +187,8 @@ defmodule Uniris.Bootstrap do
       |> Enum.random()
       |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
 
-    P2P.update_bootstraping_seeds(new_seeds)
-    load_nodes(new_seeds ++ closest_nodes)
+    :ok = BootstrapingSeeds.update(new_seeds)
+    :ok = load_nodes(new_seeds ++ closest_nodes)
     Logger.info("Node list refreshed")
 
     tx = create_node_transaction(ip, port)
@@ -237,38 +238,7 @@ defmodule Uniris.Bootstrap do
   defp load_nodes(nodes) do
     nodes
     |> Enum.uniq()
-    |> Enum.each(fn node = %Node{first_public_key: first_public_key} ->
-      case P2P.node_info(first_public_key) do
-        {:error, :not_found} ->
-          P2P.add_node(node)
-
-        {:ok, _} ->
-          update_loaded_node(node)
-      end
-    end)
-  end
-
-  defp update_loaded_node(%Node{
-         first_public_key: first_public_key,
-         last_public_key: last_public_key,
-         ip: ip,
-         port: port,
-         enrollment_date: enrollment_date,
-         authorized?: authorized?,
-         authorization_date: authorization_date,
-         ready?: ready?,
-         ready_date: ready_date
-       }) do
-    Node.update_basics(first_public_key, last_public_key, ip, port)
-    Node.set_enrollment_date(first_public_key, enrollment_date)
-
-    if ready? do
-      Node.set_ready(first_public_key, ready_date)
-    end
-
-    if authorized? do
-      Node.authorize(first_public_key, authorization_date)
-    end
+    |> Enum.each(&NetworkLedger.add_node_info/1)
   end
 
   defp stringify_ip(ip), do: :inet_parse.ntoa(ip)
@@ -277,7 +247,7 @@ defmodule Uniris.Bootstrap do
     P2P.send_message(closest_node, msg)
   rescue
     e ->
-      Logger.error(e)
+      Logger.error(Exception.format(:error, e, __STACKTRACE__))
       send_message(msg, rest)
   end
 

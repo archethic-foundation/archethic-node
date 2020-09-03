@@ -4,8 +4,10 @@ defmodule UnirisWeb.TopNodeLive do
 
   alias Phoenix.View
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
+
   alias Uniris.PubSub
   alias UnirisWeb.ExplorerView
 
@@ -14,7 +16,7 @@ defmodule UnirisWeb.TopNodeLive do
       PubSub.register_to_node_update()
     end
 
-    {:ok, assign(socket, :nodes, top_nodes(P2P.list_nodes()))}
+    {:ok, assign(socket, :nodes, top_nodes(NetworkLedger.list_nodes()))}
   end
 
   def render(assigns) do
@@ -34,7 +36,7 @@ defmodule UnirisWeb.TopNodeLive do
 
   defp top_nodes(nodes) do
     nodes
-    |> Enum.filter(& &1.ready?)
+    |> Stream.filter(& &1.ready?)
     |> Enum.sort_by(& &1.average_availability, :desc)
     |> Enum.take(10)
   end

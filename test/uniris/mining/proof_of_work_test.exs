@@ -5,13 +5,12 @@ defmodule Uniris.Mining.ProofOfWorkTest do
 
   alias Uniris.Mining.ProofOfWork
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.TransactionData
-
-  alias Uniris.SharedSecrets
 
   import Mox
 
@@ -24,37 +23,34 @@ defmodule Uniris.Mining.ProofOfWorkTest do
     test "should return the node first public key with update node transaction" do
       {first_pub, _} = Crypto.derivate_keypair("seed", 0)
 
-      MockStorage
-      |> expect(:get_transaction, fn _ ->
-        {:ok, Transaction.new(:node, %TransactionData{}, "seed", 0)}
-      end)
-
       MockCrypto
-      |> stub(:node_public_key, fn index ->
-        {pub, _} = Crypto.derivate_keypair("seed", index)
-        pub
-      end)
       |> stub(:sign_with_node_key, fn msg, index ->
         {_, pv} = Crypto.derivate_keypair("seed", index)
         Crypto.sign(msg, pv)
       end)
-      |> stub(:number_of_node_keys, fn -> 1 end)
 
-      P2P.add_node(%Node{
-        first_public_key: first_pub,
-        last_public_key: first_pub,
-        ip: {127, 0, 0, 1},
-        port: 3000
-      })
+      NetworkLedger.load_transaction(
+        Transaction.new(
+          :node,
+          %TransactionData{
+            content: """
+            ip: 127.0.0.1
+            port: 3000
+            """
+          },
+          "seed",
+          0
+        )
+      )
 
-      tx = Transaction.new(:node, %TransactionData{})
+      tx = Transaction.new(:node, %TransactionData{}, "seed", 1)
       assert first_pub == ProofOfWork.find_origin_public_key(tx)
     end
 
     test "should return node first public key with a node shared secrets transactions" do
       {first_pub, _} = Crypto.derivate_keypair("seed", 0)
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: first_pub,
         last_public_key: first_pub,
         ip: {127, 0, 0, 1},
@@ -82,11 +78,7 @@ defmodule Uniris.Mining.ProofOfWorkTest do
         end)
 
       Enum.each(origin_keypairs, fn {pub, _} ->
-        SharedSecrets.add_origin_public_key(:software, pub)
-      end)
-
-      Enum.each(origin_keypairs, fn {pub, _} ->
-        SharedSecrets.add_origin_public_key(:software, pub)
+        NetworkLedger.add_origin_public_key(:software, pub)
       end)
 
       {origin_pub, origin_pv} = Enum.random(origin_keypairs)
@@ -173,7 +165,7 @@ defmodule Uniris.Mining.ProofOfWorkTest do
       assert ProofOfWork.verify?("", tx)
     end
 
-    test "should return falsew when the proof of work is empty but the public key exists" do
+    test "should return false when the proof of work is empty but the public key exists" do
       tx = Transaction.new(:node, %TransactionData{})
       assert false == ProofOfWork.verify?("", tx)
     end

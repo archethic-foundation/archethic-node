@@ -6,7 +6,6 @@ defmodule Uniris.Mining.ContextTest do
 
   alias Uniris.Mining.Context
 
-  alias Uniris.P2P
   alias Uniris.P2P.Message.GetProofOfIntegrity
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionHistory
@@ -15,6 +14,8 @@ defmodule Uniris.Mining.ContextTest do
   alias Uniris.P2P.Message.TransactionHistory
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.Transaction.ValidationStamp
@@ -33,7 +34,7 @@ defmodule Uniris.Mining.ContextTest do
   setup do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       first_public_key: "key0",
       last_public_key: "key0",
       ip: {127, 0, 0, 1},
@@ -45,7 +46,7 @@ defmodule Uniris.Mining.ContextTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-3600, :second)
     })
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       last_public_key: "key1",
       first_public_key: "key1",
       network_patch: "AA0",
@@ -59,7 +60,7 @@ defmodule Uniris.Mining.ContextTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-8000, :second)
     })
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       last_public_key: "key2",
       first_public_key: "key2",
       network_patch: "AAA",
@@ -184,7 +185,7 @@ defmodule Uniris.Mining.ContextTest do
 
   describe "fetch_history/2" do
     test "should retrieved transaction chain locally and fetch unspent outputs while performs confirmation" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         ip: {127, 0, 0, 1},
@@ -236,24 +237,26 @@ defmodule Uniris.Mining.ContextTest do
                 }
             }
 
-            utxo
+            {:ok, utxo}
 
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{
-              unspent_outputs: [
-                %UnspentOutput{from: :crypto.strong_rand_bytes(32), amount: 10}
-              ]
-            }
+            {:ok,
+             %UnspentOutputList{
+               unspent_outputs: [
+                 %UnspentOutput{from: :crypto.strong_rand_bytes(32), amount: 10}
+               ]
+             }}
 
           %GetProofOfIntegrity{} ->
-            %ProofOfIntegrity{
-              digest: tx1.validation_stamp.proof_of_integrity
-            }
+            {:ok,
+             %ProofOfIntegrity{
+               digest: tx1.validation_stamp.proof_of_integrity
+             }}
         end
       end)
 
       MockStorage
-      |> expect(:get_transaction_chain, fn _ ->
+      |> expect(:get_transaction_chain, fn _, _ ->
         [tx1]
       end)
 
@@ -264,7 +267,7 @@ defmodule Uniris.Mining.ContextTest do
     end
 
     test "should retrieved transaction chain, unspent outputs and performs confirmation" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         ip: {127, 0, 0, 1},
@@ -316,18 +319,20 @@ defmodule Uniris.Mining.ContextTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetTransactionHistory{} ->
-            %TransactionHistory{
-              transaction_chain: [tx1],
-              unspent_outputs: [%UnspentOutput{from: utxo.address, amount: 10}]
-            }
+            {:ok,
+             %TransactionHistory{
+               transaction_chain: [tx1],
+               unspent_outputs: [%UnspentOutput{from: utxo.address, amount: 10}]
+             }}
 
           %GetTransaction{} ->
-            utxo
+            {:ok, utxo}
 
           %GetProofOfIntegrity{} ->
-            %ProofOfIntegrity{
-              digest: tx1.validation_stamp.proof_of_integrity
-            }
+            {:ok,
+             %ProofOfIntegrity{
+               digest: tx1.validation_stamp.proof_of_integrity
+             }}
         end
       end)
 
@@ -338,7 +343,7 @@ defmodule Uniris.Mining.ContextTest do
     end
 
     test "should retrieved transaction chain and performs confirmation" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         ip: {127, 0, 0, 1},
@@ -364,15 +369,17 @@ defmodule Uniris.Mining.ContextTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetTransactionHistory{} ->
-            %TransactionHistory{
-              transaction_chain: [tx1],
-              unspent_outputs: []
-            }
+            {:ok,
+             %TransactionHistory{
+               transaction_chain: [tx1],
+               unspent_outputs: []
+             }}
 
           %GetProofOfIntegrity{} ->
-            %ProofOfIntegrity{
-              digest: tx1.validation_stamp.proof_of_integrity
-            }
+            {:ok,
+             %ProofOfIntegrity{
+               digest: tx1.validation_stamp.proof_of_integrity
+             }}
         end
       end)
 

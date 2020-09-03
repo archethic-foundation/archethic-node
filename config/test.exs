@@ -3,24 +3,17 @@ use Mix.Config
 # Print only warnings and errors during test
 config :logger, level: :warning
 
-config :uniris, Uniris.Crypto, keystore: MockCrypto
+config :uniris, Uniris.Crypto.Keystore, impl: MockCrypto, enabled: false
 
 config :uniris, Uniris.Crypto.SoftwareKeystore, seed: "fake seed"
 
-config :uniris, Uniris.Crypto.Keystore, enabled: false
-config :uniris, Uniris.Crypto.TransactionLoader, enabled: false
-
-config :uniris, Uniris.Storage, backend: MockStorage
-config :uniris, Uniris.Storage.KeyValueBackend, enabled: false
-config :uniris, Uniris.Storage.CassandraBackend, enabled: false
+config :uniris, Uniris.Storage.Backend, impl: MockStorage, enabled: false
+config :uniris, Uniris.Storage.MemorySupervisor, enabled: false
 config :uniris, MockStorage, enabled: false
-config :uniris, Uniris.Storage.Cache, enabled: false
 
 config :uniris, Uniris.P2P, node_client: MockNodeClient
 
 config :uniris, Uniris.P2P.Endpoint, enabled: false
-
-config :uniris, Uniris.P2P.TransactionLoader, enabled: false
 
 config :uniris, Uniris.BeaconSubset, enabled: false
 
@@ -29,9 +22,7 @@ config :uniris, Uniris.BeaconSlotTimer,
   interval: 0,
   trigger_offset: 0
 
-config :uniris, Uniris.SharedSecrets.TransactionLoader, enabled: false
-
-config :uniris, Uniris.SharedSecrets.NodeRenewal,
+config :uniris, Uniris.SharedSecretsRenewal,
   enabled: false,
   trigger_interval: 0,
   interval: 0

@@ -1,6 +1,6 @@
 defmodule Uniris.Election do
   @moduledoc """
-  Uniris provides a random and rotating node election based on heuristic algorithms
+  Provides a random and rotating node election based on heuristic algorithms
   and constraints to ensure a fair distributed processing and data storage among its network.
   """
 
@@ -10,8 +10,9 @@ defmodule Uniris.Election do
   alias __MODULE__.StorageConstraints
   alias __MODULE__.ValidationConstraints
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
 
@@ -50,10 +51,8 @@ defmodule Uniris.Election do
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    P2P.list_nodes()
-    |> Enum.filter(& &1.ready?)
-    |> Enum.filter(& &1.available?)
-    |> Enum.filter(& &1.authorized?)
+    NetworkLedger.list_authorized_nodes()
+    |> Enum.filter(&(&1.ready? and &1.available?))
     |> sort_nodes_by_key_rotation(
       :last_public_key,
       :daily_nonce,
@@ -134,7 +133,7 @@ defmodule Uniris.Election do
   to the only authorized nodes to ensure security
   """
   @spec storage_nodes(address :: binary()) :: [Node.t()]
-  def storage_nodes(address, nodes \\ Enum.filter(P2P.list_nodes(), & &1.ready?))
+  def storage_nodes(address, nodes \\ NetworkLedger.list_ready_nodes())
       when is_binary(address) and is_list(nodes) do
     do_storage_nodes(address, nodes)
   end

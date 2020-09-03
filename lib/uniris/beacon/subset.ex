@@ -1,5 +1,9 @@
 defmodule Uniris.BeaconSubset do
-  @moduledoc false
+  @moduledoc """
+  Represents a beacon subset running inside a process
+  waiting to receive transactions to register in a beacon block
+  through the several slots (time based)
+  """
 
   alias Uniris.BeaconSlot
   alias Uniris.BeaconSlot.NodeInfo
@@ -165,18 +169,27 @@ defmodule Uniris.BeaconSubset do
     |> Enum.join("\n")
   end
 
+  @doc """
+  Add transaction informations to the current block of the given subset
+  """
   @spec add_transaction_info(sbuset :: binary(), Transaction.info()) :: :ok
-  def add_transaction_info(subset, tx_info = %TransactionInfo{}) do
+  def add_transaction_info(subset, tx_info = %TransactionInfo{}) when is_binary(subset) do
     GenServer.call(via_tuple(subset), {:add_transaction_info, tx_info})
   end
 
+  @doc """
+  Add node informations to the current block of the given subset
+  """
   @spec add_node_info(subset :: binary(), NodeInfo.t()) :: :ok
-  def add_node_info(subset, node_info = %NodeInfo{}) do
+  def add_node_info(subset, node_info = %NodeInfo{}) when is_binary(subset) do
     GenServer.call(via_tuple(subset), {:add_node_info, node_info})
   end
 
+  @doc """
+  Get the last informations from a beacon subset slot before the last synchronized date 
+  """
   @spec previous_slots(binary(), last_sync_date :: DateTime.t()) :: list(BeaconSlot.t())
-  def previous_slots(subset, last_sync_date = %DateTime{}) do
+  def previous_slots(subset, last_sync_date = %DateTime{}) when is_binary(subset) do
     subset
     |> via_tuple
     |> GenServer.call({:previous_slots, last_sync_date})

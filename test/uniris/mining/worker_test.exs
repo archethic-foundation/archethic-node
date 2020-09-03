@@ -5,9 +5,9 @@ defmodule Uniris.MiningWorkerTest do
 
   alias Uniris.Crypto
 
+  alias Uniris.Beacon
   alias Uniris.BeaconSlotTimer
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
 
   alias Uniris.Election
 
@@ -20,24 +20,26 @@ defmodule Uniris.MiningWorkerTest do
   alias Uniris.Mining.Context
   alias Uniris.Mining.Worker
 
-  alias Uniris.P2P
   alias Uniris.P2P.Message.AddContext
   alias Uniris.P2P.Message.CrossValidate
   alias Uniris.P2P.Message.CrossValidationDone
   alias Uniris.P2P.Message.GetProofOfIntegrity
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.ProofOfIntegrity
   alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
+  alias Uniris.Storage.Memory.NetworkLedger
+
   import Mox
 
   setup do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
-    Enum.each(BeaconSubsets.all(), &Registry.register(BeaconSubsetRegistry, &1, []))
+    Enum.each(Beacon.list_subsets(), &Registry.register(BeaconSubsetRegistry, &1, []))
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(0),
@@ -53,7 +55,7 @@ defmodule Uniris.MiningWorkerTest do
 
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: pub,
@@ -111,15 +113,16 @@ defmodule Uniris.MiningWorkerTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{}
+            {:ok, %UnspentOutputList{}}
 
           %GetProofOfIntegrity{} ->
-            %ProofOfIntegrity{
-              digest: List.first(previous_chain).validation_stamp.proof_of_integrity
-            }
+            {:ok,
+             %ProofOfIntegrity{
+               digest: List.first(previous_chain).validation_stamp.proof_of_integrity
+             }}
 
           %AddContext{} ->
-            :ok
+            {:ok, %Ok{}}
         end
       end)
 
@@ -145,7 +148,7 @@ defmodule Uniris.MiningWorkerTest do
 
   describe "add_context/6 " do
     test "aggregate context and wait enough confirmed validation nodes context building" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "other_validator_key",
@@ -167,10 +170,10 @@ defmodule Uniris.MiningWorkerTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{}
+            {:ok, %UnspentOutputList{}}
 
           %AddContext{} ->
-            :ok
+            {:ok, %Ok{}}
         end
       end)
 
@@ -217,13 +220,13 @@ defmodule Uniris.MiningWorkerTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{}
+            {:ok, %UnspentOutputList{}}
 
           %AddContext{} ->
-            :ok
+            {:ok, %Ok{}}
 
           %CrossValidate{} ->
-            :ok
+            {:ok, %Ok{}}
         end
       end)
 
@@ -268,7 +271,7 @@ defmodule Uniris.MiningWorkerTest do
 
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: pub,
@@ -289,18 +292,18 @@ defmodule Uniris.MiningWorkerTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{}
+            {:ok, %UnspentOutputList{}}
 
           %AddContext{} ->
-            :ok
+            {:ok, %Ok{}}
 
           %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
             send(me, {stamp, tree})
-            :ok
+            {:ok, %Ok{}}
 
           %CrossValidationDone{cross_validation_stamp: stamp} ->
             send(me, {:cross_validation_done, stamp})
-            :ok
+            {:ok, %Ok{}}
         end
       end)
 
@@ -416,25 +419,26 @@ defmodule Uniris.MiningWorkerTest do
       |> stub(:send_message, fn _, _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            %UnspentOutputList{}
+            {:ok, %UnspentOutputList{}}
 
           %AddContext{} ->
-            :ok
+            {:ok, %Ok{}}
 
           %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
             send(me, {stamp, tree})
-            :ok
+            {:ok, %Ok{}}
 
           %CrossValidationDone{cross_validation_stamp: stamp} ->
             send(me, {:cross_validation_done, stamp})
-            :ok
+            {:ok, %Ok{}}
 
           %ReplicateTransaction{transaction: tx} ->
             send(me, {:replicate_transaction, tx})
+            {:ok, %Ok{}}
         end
       end)
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key10",
@@ -447,7 +451,7 @@ defmodule Uniris.MiningWorkerTest do
         enrollment_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key23",

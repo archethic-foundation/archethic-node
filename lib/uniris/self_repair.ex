@@ -18,14 +18,22 @@ defmodule Uniris.SelfRepair do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def start_sync(node_patch, fire_sync \\ true)
-      when is_binary(node_patch) and is_boolean(fire_sync) do
-    GenServer.call(__MODULE__, {:start_sync, node_patch, fire_sync})
+  @doc """
+  Start the self repair synchronization
+
+  If fire_sync? is true, the self repair sync will be executed right away.
+  Otherwise we need to wait the next cycle of repair to synchronize new transactions.
+  """
+  @spec start_sync(node_patch :: binary(), fire_sync? :: boolean()) :: :ok
+  def start_sync(node_patch, fire_sync? \\ true)
+      when is_binary(node_patch) and is_boolean(fire_sync?) do
+    GenServer.call(__MODULE__, {:start_sync, node_patch, fire_sync?})
   end
 
   @doc """
   Return the last synchronization date from the previous cycle of self repair
   """
+  @spec last_sync_date() :: DateTime.t()
   def last_sync_date do
     file = last_sync_file()
 

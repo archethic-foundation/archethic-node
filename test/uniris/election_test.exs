@@ -4,8 +4,9 @@ defmodule Uniris.ElectionTest do
   alias Uniris.Crypto
   alias Uniris.Election
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.TransactionData
@@ -14,7 +15,7 @@ defmodule Uniris.ElectionTest do
 
   describe "validation_nodes/1" do
     test "should return available and authorized nodes" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node0",
@@ -25,7 +26,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node1",
@@ -36,7 +37,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "CCC"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node2",
@@ -54,7 +55,7 @@ defmodule Uniris.ElectionTest do
     end
 
     test "should change for new transaction" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node0",
@@ -65,7 +66,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node1",
@@ -76,7 +77,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "CCC"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node2",
@@ -143,7 +144,7 @@ defmodule Uniris.ElectionTest do
     end
 
     test "should select validation nodes with a least 3 geo zones and 3 validation nodes" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node0",
@@ -154,7 +155,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node1",
@@ -165,7 +166,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "CCC"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node2",
@@ -176,7 +177,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "CCC"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node3",
@@ -188,9 +189,9 @@ defmodule Uniris.ElectionTest do
       })
 
       assert [
+               %Node{geo_patch: "F24"},
                %Node{geo_patch: "AAA"},
-               %Node{geo_patch: "CCC"},
-               %Node{geo_patch: "F24"}
+               %Node{geo_patch: "CCC"}
              ] =
                Election.validation_nodes(
                  Transaction.new(:transfer, %TransactionData{}, "seed", 0)
@@ -200,7 +201,7 @@ defmodule Uniris.ElectionTest do
 
   describe "storage_nodes/1" do
     test "should return available ready nodes" do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node0",
@@ -211,7 +212,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node1",
@@ -222,7 +223,7 @@ defmodule Uniris.ElectionTest do
         geo_patch: "CCC"
       })
 
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "Node2",
@@ -233,8 +234,8 @@ defmodule Uniris.ElectionTest do
         geo_patch: "BBB"
       })
 
-      assert [%Node{first_public_key: "Node0"}, %Node{first_public_key: "Node2"}] =
-               Election.storage_nodes(:crypto.strong_rand_bytes(32))
+      assert [%Node{first_public_key: "Node2"}, %Node{first_public_key: "Node0"}] =
+               Election.storage_nodes("address")
     end
   end
 end

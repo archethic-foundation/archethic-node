@@ -7,8 +7,9 @@ defmodule Uniris.Transaction.ValidationStampTest do
 
   alias Uniris.Mining.Context
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   alias Uniris.Transaction
   alias Uniris.Transaction.ValidationStamp
@@ -138,7 +139,7 @@ defmodule Uniris.Transaction.ValidationStampTest do
 
   describe "inconsistencies/5" do
     setup do
-      P2P.add_node(%Node{
+      NetworkLedger.add_node_info(%Node{
         first_public_key: "storage_key1",
         last_public_key: "storage_key1",
         ip: {127, 0, 0, 1},

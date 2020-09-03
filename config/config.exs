@@ -13,22 +13,20 @@ config :logger,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-if Mix.env() != :prod do
-  config :git_hooks,
-    auto_install: true,
-    verbose: true,
-    hooks: [
-      pre_commit: [
-        tasks: [
-          "mix format",
-          "mix clean",
-          "mix compile --warnings-as-errors",
-          "mix credo --strict",
-          "mix test"
-        ]
+config :git_hooks,
+  auto_install: true,
+  verbose: true,
+  hooks: [
+    pre_commit: [
+      tasks: [
+        "mix format",
+        "mix clean",
+        "mix compile --warnings-as-errors",
+        "mix credo --strict",
+        "mix test --trace"
       ]
     ]
-end
+  ]
 
 config :uniris, :src_dir, File.cwd!()
 
@@ -47,6 +45,8 @@ config :uniris, Uniris.Crypto,
   ],
   default_curve: :ed25519,
   default_hash: :sha256
+
+config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")
 
 config :uniris, Uniris.P2P.Endpoint,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()

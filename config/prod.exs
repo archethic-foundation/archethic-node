@@ -4,12 +4,9 @@ use Mix.Config
 config :logger, level: :info
 
 # TODO: specify the crypto implementation using hardware when developed
-config :uniris, Uniris.Crypto, keystore: Uniris.Crypto.SoftwareKeystore
+config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 
-config :uniris, Uniris.Storage, backend: Uniris.Storage.CassandraBackend
-
-config :uniris, Uniris.Storage.CassandraBackend, nodes: ["127.0.0.1:9042"]
-config :uniris, Uniris.Storage.KeyValueBackend, root_dir: "priv/storage"
+config :uniris, Uniris.Storage.Backend, impl: Uniris.Storage.CassandraBackend
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
 
@@ -51,7 +48,7 @@ config :uniris, Uniris.BeaconSlotTimer,
   # Trigger it 5 minute before
   trigger_offset: 300
 
-config :uniris, Uniris.SharedSecrets.NodeRenewal,
+config :uniris, Uniris.SharedSecretsRenewal,
   interval: "* 0 * * * *",
   # Trigger it 10 minute before
   trigger_offset: 600

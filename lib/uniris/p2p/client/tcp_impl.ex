@@ -12,7 +12,7 @@ defmodule Uniris.P2P.TCPClient do
           port :: :inet.port_number(),
           message :: Message.t()
         ) ::
-          result :: Message.t()
+          {:ok, result :: Message.t()} | {:error, :network_issue}
   def send_message(ip, port, msg) do
     encoded_msg =
       msg
@@ -23,7 +23,10 @@ defmodule Uniris.P2P.TCPClient do
          :ok <- :gen_tcp.send(socket, encoded_msg),
          {:ok, data} <- :gen_tcp.recv(socket, 0),
          :ok <- :gen_tcp.close(socket) do
-      Message.decode(data)
+      {:ok, Message.decode(data)}
+    else
+      {:error, _} ->
+        {:error, :network_issue}
     end
   end
 end

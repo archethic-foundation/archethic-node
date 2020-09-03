@@ -1,36 +1,27 @@
 defmodule Uniris.P2P.GeoPatch do
-  @moduledoc false
+  @moduledoc """
+  Provide functions for Geographical Patching from IP address
+   
+  Each patch is represented by 3 digits in hexadecimal form (ie. AAA, F3C)
+  """
 
-  use GenServer
+  alias __MODULE__.GeoIP
 
-  @ip_db_file Application.app_dir(:uniris, "/priv/p2p/IP2LOCATION-LITE-DB5.BIN")
-
-  def start_link(_) do
-    GenServer.start_link(__MODULE__, [], name: __MODULE__)
-  end
-
-  def init(_) do
-    {:ok, [], {:continue, :load_geoip_lookup}}
-  end
-
-  def handle_continue(:load_geoip_lookup, state) do
-    :ip2location.new(@ip_db_file)
-    {:noreply, state}
-  end
-
-  def handle_call({:get_patch_from_ip, {127, 0, 0, 1}}, _, state) do
-    # Use random when it is on local network
+  @doc """
+  Get a patch from an IP address
+  """
+  @spec from_ip(:inet.ip_address()) :: binary()
+  def from_ip({127, 0, 0, 1}) do
     list_char = Enum.concat([?0..?9, ?A..?F])
-    geo_patch = Enum.take_random(list_char, 3) |> List.to_string()
-    {:reply, geo_patch, state}
+    Enum.take_random(list_char, 3) |> List.to_string()
   end
 
-  def handle_call({:get_patch_from_ip, ip}, _, state) do
-    ip_string = ip |> Tuple.to_list() |> Enum.join(".") |> String.to_charlist()
+  def from_ip(ip) when is_tuple(ip) do
+    {lat, lon} = GeoIP.get_coordinates(ip)
+    compute_patch(lat, lon)
+  end
 
-    {:ip2locationrecord, _country_code, _country, _region, _city, _, lat, lon, _, _, _, _, _, _,
-     _, _, _, _, _, 0.0, _} = :ip2location.query(ip_string)
-
+  defp compute_patch(lat, lon) do
     lat_sign = sign(lat)
     lon_sign = sign(lon)
 
@@ -55,7 +46,7 @@ defmodule Uniris.P2P.GeoPatch do
       [index_patch(fdc), index_patch(sdc), index_patch(tdc)]
       |> Enum.join("")
 
-    {:reply, patch, state}
+    patch
   end
 
   defp index_patch([f_i, s_i]) when f_i > 0.5 and f_i <= 1 and s_i < -0.5 and s_i >= -1, do: '0'
@@ -83,21 +74,16 @@ defmodule Uniris.P2P.GeoPatch do
 
   defp resolve_with_sign([first, second], [first2, second2]) do
     [
-      if sign(first) == sign(first2) do
-        first
-      else
-        first2 / 2
-      end,
-      if sign(second) == sign(second2) do
-        second
-      else
-        second2 / 2
-      end
+      do_resolve_with_sign(first, first2),
+      do_resolve_with_sign(second, second2)
     ]
   end
 
-  @spec from_ip(:inet.ip_address()) :: binary()
-  def from_ip(ip = {_, _, _, _}) do
-    GenServer.call(__MODULE__, {:get_patch_from_ip, ip})
+  defp do_resolve_with_sign(x1, x2) do
+    if sign(x1) == sign(x2) do
+      x1
+    else
+      x2 / 2
+    end
   end
 end

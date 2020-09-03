@@ -1,10 +1,12 @@
 defmodule Uniris.BeaconSlotTimer do
-  @moduledoc false
+  @moduledoc """
+  Handle the scheduling of the beacon slots creation
+  """
 
   use GenServer
 
+  alias Uniris.Beacon
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
   alias Uniris.Utils
 
   require Logger
@@ -13,14 +15,12 @@ defmodule Uniris.BeaconSlotTimer do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  Return the interval for the slots
+  """
   @spec slot_interval() :: non_neg_integer()
   def slot_interval do
     GenServer.call(__MODULE__, :slot_interval)
-  end
-
-  @spec last_slot_time() :: DateTime.t()
-  def last_slot_time do
-    GenServer.call(__MODULE__, :last_slot_time)
   end
 
   def init(interval: interval, trigger_offset: trigger_offset) do
@@ -28,14 +28,9 @@ defmodule Uniris.BeaconSlotTimer do
 
     {:ok,
      %{
-       last_slot_time: Utils.truncate_datetime(DateTime.utc_now()),
        interval: interval,
        trigger_offset: trigger_offset
      }}
-  end
-
-  def handle_call(:last_slot_time, _from, state = %{last_slot_time: slot_time}) do
-    {:reply, slot_time, state}
   end
 
   def handle_call(:slot_interval, _from, state = %{interval: interval}) do
@@ -53,13 +48,13 @@ defmodule Uniris.BeaconSlotTimer do
 
     slot_time = DateTime.utc_now()
 
-    BeaconSubsets.all()
+    Beacon.list_subsets()
     |> Enum.each(fn subset ->
       [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
       send(pid, {:create_slot, slot_time})
     end)
 
-    {:noreply, Map.put(state, :last_slot_time, slot_time)}
+    {:noreply, state}
   end
 
   defp schedule_new_slot(interval) when is_integer(interval) and interval >= 0 do

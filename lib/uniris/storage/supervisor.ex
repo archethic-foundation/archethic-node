@@ -1,6 +1,9 @@
 defmodule Uniris.StorageSupervisor do
   @moduledoc false
 
+  alias Uniris.Storage.Backend
+  alias Uniris.Storage.MemorySupervisor
+
   alias Uniris.Utils
 
   use Supervisor
@@ -12,8 +15,8 @@ defmodule Uniris.StorageSupervisor do
   def init(_opts) do
     children =
       Utils.configurable_children([
-        {Application.get_env(:uniris, Uniris.Storage)[:backend], [], []},
-        {Uniris.Storage.Cache, [], []}
+        {Backend, [], []},
+        {MemorySupervisor, [], []}
       ])
 
     Supervisor.init(children, strategy: :rest_for_one)

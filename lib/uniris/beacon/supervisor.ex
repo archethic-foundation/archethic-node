@@ -3,10 +3,10 @@ defmodule Uniris.BeaconSupervisor do
 
   use Supervisor
 
+  alias Uniris.Beacon
   alias Uniris.BeaconSlotTimer
   alias Uniris.BeaconSubset
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
   alias Uniris.Utils
 
   def start_link(opts) do
@@ -14,15 +14,16 @@ defmodule Uniris.BeaconSupervisor do
   end
 
   def init(_opts) do
-    subsets = Enum.map(0..255, &:binary.encode_unsigned(&1))
+    Beacon.init_subsets()
 
     interval = Application.get_env(:uniris, BeaconSlotTimer)[:interval]
     trigger_offset = Application.get_env(:uniris, BeaconSlotTimer)[:trigger_offset]
 
+    subsets = Beacon.list_subsets()
+
     children =
       [
-        {Registry, keys: :unique, name: BeaconSubsetRegistry},
-        {BeaconSubsets, subsets}
+        {Registry, keys: :unique, name: BeaconSubsetRegistry}
       ] ++
         Utils.configurable_children(
           [{BeaconSlotTimer, [interval: interval, trigger_offset: trigger_offset], []}] ++

@@ -4,18 +4,21 @@ defmodule Uniris.Application do
   use Application
 
   alias Uniris.BeaconSupervisor
+  alias Uniris.Bootstrap
 
   alias Uniris.CryptoSupervisor
 
   alias Uniris.ElectionSupervisor
 
   alias Uniris.InterpreterSupervisor
+
   alias Uniris.MiningSupervisor
 
+  alias Uniris.P2P.Endpoint, as: P2PEndpoint
   alias Uniris.P2PSupervisor
 
   alias Uniris.SelfRepair
-  alias Uniris.SharedSecretsSupervisor
+  alias Uniris.SharedSecretsRenewal
   alias Uniris.StorageSupervisor
 
   alias Uniris.Utils
@@ -24,9 +27,13 @@ defmodule Uniris.Application do
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
   def start(_type, _args) do
-    self_repair_conf = Application.get_env(:uniris, SelfRepair)
-    repair_interval = Keyword.fetch!(self_repair_conf, :interval)
-    last_sync_file = Keyword.fetch!(self_repair_conf, :last_sync_file)
+    repair_interval = Application.get_env(:uniris, SelfRepair)[:interval]
+    last_sync_file = Application.get_env(:uniris, SelfRepair)[:last_sync_file]
+
+    node_renewal_interval = Application.get_env(:uniris, SharedSecretsRenewal)[:interval]
+
+    node_renewal_trigger_offset =
+      Application.get_env(:uniris, SharedSecretsRenewal)[:trigger_offset]
 
     children =
       [
@@ -36,17 +43,18 @@ defmodule Uniris.Application do
         CryptoSupervisor,
         ElectionSupervisor,
         P2PSupervisor,
-        SharedSecretsSupervisor,
         MiningSupervisor,
         InterpreterSupervisor,
         BeaconSupervisor,
         WebSupervisor
       ] ++
         Utils.configurable_children([
-          {Uniris.SelfRepair, [interval: repair_interval, last_sync_file: last_sync_file], []},
-          {Uniris.Bootstrap,
+          {SharedSecretsRenewal,
+           [interval: node_renewal_interval, trigger_offset: node_renewal_trigger_offset], []},
+          {SelfRepair, [interval: repair_interval, last_sync_file: last_sync_file], []},
+          {Bootstrap,
            [
-             port: Application.get_env(:uniris, Uniris.P2P.Endpoint)[:port]
+             port: Application.get_env(:uniris, P2PEndpoint)[:port]
            ], []}
         ])
 

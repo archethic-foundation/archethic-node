@@ -2,9 +2,13 @@ defmodule Uniris.P2PTest do
   use UnirisCase, async: false
   doctest Uniris.P2P
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
-  alias Uniris.P2P.NodeSupervisor
+
+  alias Uniris.Storage.Memory.NetworkLedger
 
   import Mox
 
@@ -12,61 +16,59 @@ defmodule Uniris.P2PTest do
   setup :set_mox_global
 
   setup do
-    stub(MockNodeClient, :send_message, fn _, _, msg -> msg end)
     :ok
   end
 
-  test "add_node/1 should add the node in the supervision tree" do
-    P2P.add_node(%Node{
+  test "node_info/0 should return retrieve node information or return error when not found" do
+    NetworkLedger.add_node_info(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: "key",
-      last_public_key: "key"
-    })
-
-    node_processes = DynamicSupervisor.which_children(NodeSupervisor)
-    assert length(node_processes) == 1
-  end
-
-  test "list_nodes/0 should return the list of nodes" do
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: "key",
-      last_public_key: "key"
-    })
-
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: "key2",
-      last_public_key: "key2"
-    })
-
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: "key3",
-      last_public_key: "key3"
-    })
-
-    Node.authorize("key", DateTime.utc_now())
-    Node.set_ready("key2", DateTime.utc_now())
-
-    assert length(P2P.list_nodes()) == 3
-  end
-
-  test "node_info/1 should return retrieve node information or return error when not found" do
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: "key",
-      last_public_key: "key"
+      first_public_key: Crypto.node_public_key(),
+      last_public_key: Crypto.node_public_key()
     })
 
     Process.sleep(100)
 
-    assert {:ok, %Node{ip: {127, 0, 0, 1}}} = P2P.node_info("key")
-    assert {:error, :not_found} = P2P.node_info("key2")
+    assert {:ok, %Node{ip: {127, 0, 0, 1}}} = P2P.node_info()
+  end
+
+  describe "send_message/2" do
+    test "should send the message and increase availability when successed" do
+      expect(MockNodeClient, :send_message, fn _, _, msg -> {:ok, msg} end)
+
+      node = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.node_public_key(),
+        last_public_key: Crypto.node_public_key()
+      }
+
+      NetworkLedger.add_node_info(node)
+
+      assert %Ok{} = P2P.send_message(node, %Ok{})
+
+      {:ok, %Node{availability_history: <<1::1, _::bitstring>>}} =
+        NetworkLedger.get_node_info(Crypto.node_public_key())
+    end
+
+    test "should send the message and decrease availability when an error occurs" do
+      expect(MockNodeClient, :send_message, fn _, _, _msg -> {:error, :network_issue} end)
+
+      node = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.node_public_key(),
+        last_public_key: Crypto.node_public_key()
+      }
+
+      NetworkLedger.add_node_info(node)
+
+      assert_raise RuntimeError, "Messaging error with 127.0.0.1:3000", fn ->
+        P2P.send_message(node, %Ok{})
+      end
+
+      {:ok, %Node{availability_history: <<0::1, _::bitstring>>}} =
+        NetworkLedger.get_node_info(Crypto.node_public_key())
+    end
   end
 end

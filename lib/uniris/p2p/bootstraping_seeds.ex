@@ -1,8 +1,15 @@
 defmodule Uniris.P2P.BootstrapingSeeds do
-  @moduledoc false
+  @moduledoc """
+  Handle bootstraping seeds lifecyle
+
+  The networking seeds are firstly fetched either from file or environment variable (dev)
+
+  The bootstraping seeds support flushing updates
+  """
 
   alias Uniris.Crypto
   alias Uniris.P2P.Node
+  alias Uniris.Storage.Memory.NetworkLedger
 
   use GenServer
 
@@ -10,32 +17,52 @@ defmodule Uniris.P2P.BootstrapingSeeds do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  List the current bootstraping network seeds
+  """
   @spec list() :: list(Node.t())
   def list, do: GenServer.call(__MODULE__, :list_seeds)
 
+  @doc """
+  Update the bootstraping network seeds and flush them
+  """
   @spec update(list(Node.t())) :: :ok
   def update(seeds), do: GenServer.call(__MODULE__, {:new_seeds, seeds})
 
   def init(opts) do
-    case Application.get_env(:uniris, __MODULE__)[:seeds] do
-      seeds_str when is_binary(seeds_str) ->
-        seeds = extract_seeds(seeds_str)
-        {:ok, %{seeds: seeds, file: ""}}
+    {seeds, file} =
+      case Application.get_env(:uniris, __MODULE__)[:seeds] do
+        nil ->
+          parse_opts(opts)
 
+        seeds_str ->
+          seeds = extract_seeds(seeds_str)
+          {seeds, ""}
+      end
+
+    load_seeds_into_ledger(seeds)
+    {:ok, %{seeds: seeds, file: file}}
+  end
+
+  defp parse_opts(opts) do
+    case Keyword.get(opts, :file) do
       nil ->
-        case Keyword.get(opts, :file) do
-          nil ->
-            {:ok, %{seeds: [], file: ""}}
+        {[], ""}
 
-          file ->
-            seeds =
-              file
-              |> File.read!()
-              |> extract_seeds
+      file ->
+        seeds =
+          file
+          |> File.read!()
+          |> extract_seeds
 
-            {:ok, %{seeds: seeds, file: file}}
-        end
+        {seeds, file}
     end
+  end
+
+  defp load_seeds_into_ledger(seeds) do
+    seeds
+    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> Enum.each(&NetworkLedger.add_node_info/1)
   end
 
   def handle_call(:list_seeds, _from, state = %{seeds: seeds}) do

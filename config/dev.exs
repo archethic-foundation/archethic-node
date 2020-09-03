@@ -12,18 +12,14 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
-config :uniris, Uniris.Crypto, keystore: Uniris.Crypto.SoftwareKeystore
+config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 
-config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.get_env("UNIRIS_CRYPTO_SEED")
-
-config :uniris, Uniris.Storage, backend: Uniris.Storage.KeyValueBackend
+config :uniris, Uniris.Storage.Backend, impl: Uniris.Storage.CassandraBackend
 
 config :uniris, Uniris.Storage.KeyValueBackend,
   root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
-config :uniris, Uniris.Bootstrap,
-  ip_lookup_provider: Uniris.Bootstrap.IPLookup.LocalImpl,
-  interface: "lo0"
+config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.EnvImpl
 
 config :uniris, Uniris.P2P.BootstrapingSeeds,
   # First node crypto seed is "node1"
@@ -70,7 +66,7 @@ config :uniris, Uniris.BeaconSlotTimer,
   # Trigger it 5 seconds before
   trigger_offset: 5
 
-config :uniris, Uniris.SharedSecrets.NodeRenewal,
+config :uniris, Uniris.SharedSecretsRenewal,
   interval: "* * * * * *",
   # Trigger it 20 seconds before
   trigger_offset: 20

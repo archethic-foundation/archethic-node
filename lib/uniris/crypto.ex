@@ -21,9 +21,7 @@ defmodule Uniris.Crypto do
       73, 150, 128, 209, 93, 99, 115, 17, 39, 96, 47, 203, 104, 34>>
 
   Some functions rely on software implementations such as hashing, encryption or signature verification.
-  Other can rely on hardware or software as an configuration choice to generate keys, sign or decrypt data.
-
-  A local keystore is implemented through software or hardware according to the configuration choice.
+  Other can rely on hardware or software as a configuration choice to generate keys, sign or decrypt data.
   According to the implementation, keys can be stored and regenerated on the fly
   """
 
@@ -32,6 +30,8 @@ defmodule Uniris.Crypto do
 
   alias __MODULE__.ID
   alias __MODULE__.Keystore
+
+  @storage_nonce_file Application.app_dir(:uniris, "priv/crypto/storage_nonce")
 
   @typedoc """
   List of the supported hash algorithms
@@ -108,18 +108,19 @@ defmodule Uniris.Crypto do
 
   @doc """
   Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
-  and a date represented as timestamp.
-
-  The date can be either a specific datetime or a specific d@doc ""\"
-  Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
-  and a date represented as timestamp.
+  and a date represented as timestamp using the storage nonce
 
   The date can be either a specific datetime or a specific day
   """
-  @spec derivate_beacon_chain_address(subset :: binary(), date :: DateTime.t()) ::
-          Uniris.Crypto.key()
+  @spec derivate_beacon_chain_address(subset :: binary(), date :: DateTime.t()) :: binary()
   def derivate_beacon_chain_address(subset, date = %DateTime{}) when is_binary(subset) do
-    Keystore.derivate_beacon_chain_address(subset, DateTime.to_unix(date))
+    {pub, _} =
+      derivate_keypair(
+        :persistent_term.get(:storage_nonce),
+        hash([subset, <<DateTime.to_unix(date)::32>>]) |> :binary.decode_unsigned()
+      )
+
+    hash(pub)
   end
 
   @doc """
@@ -129,17 +130,17 @@ defmodule Uniris.Crypto do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key)
-      when is_binary(encrypted_seed) and is_binary(encrypted_aes_key) do
-    Keystore.decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key)
-  end
+  defdelegate decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key), to: Keystore
 
   @doc """
-  Store the encrypted storage nonce in the keystore by decrypting using the last node private key
+  Store the storage nonce in memory by decrypting it using the last node private key
   """
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
-    Keystore.decrypt_and_set_storage_nonce(encrypted_nonce)
+    storage_nonce = ec_decrypt_with_node_key!(encrypted_nonce)
+    :ok = File.write(@storage_nonce_file, storage_nonce, [:write])
+    :ok = :persistent_term.put(:storage_nonce, storage_nonce)
+    :ok
   end
 
   @doc """
@@ -149,19 +150,18 @@ defmodule Uniris.Crypto do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
-    Keystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
-      encrypted_seed,
-      encrypted_aes_key
-    )
-  end
+  defdelegate decrypt_and_set_node_shared_secrets_network_pool_seed(
+                encrypted_seed,
+                encrypted_aes_key
+              ),
+              to: Keystore
 
   @doc """
-  Encrypt the storage nonce in the keystore using the given public key
+  Encrypt the storage nonce from memory using the given public key
   """
   @spec encrypt_storage_nonce(Uniris.Crypto.key()) :: binary()
   def encrypt_storage_nonce(public_key) when is_binary(public_key) do
-    Keystore.encrypt_storage_nonce(public_key)
+    ec_encrypt(:persistent_term.get(:storage_nonce), public_key)
   end
 
   @doc """
@@ -171,21 +171,17 @@ defmodule Uniris.Crypto do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_aes_key)
-      when is_binary(encrypted_seed) and is_binary(encrypted_aes_key) do
-    Keystore.decrypt_and_set_node_shared_secrets_transaction_seed(
-      encrypted_seed,
-      encrypted_aes_key
-    )
-  end
+  defdelegate decrypt_and_set_node_shared_secrets_transaction_seed(
+                encrypted_seed,
+                encrypted_aes_key
+              ),
+              to: Keystore
 
   @doc """
   Encrypt the node shared secrets transaction seed located in the keystore using the given aes key
   """
   @spec encrypt_node_shared_secrets_transaction_seed(aes_key :: binary()) :: binary()
-  def encrypt_node_shared_secrets_transaction_seed(aes_key) when is_binary(aes_key) do
-    Keystore.encrypt_node_shared_secrets_transaction_seed(aes_key)
-  end
+  defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: Keystore
 
   defp get_extended_seed(seed, index) do
     <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
@@ -200,9 +196,7 @@ defmodule Uniris.Crypto do
   Return the last node public key
   """
   @spec node_public_key() :: Uniris.Crypto.key()
-  def node_public_key do
-    Keystore.node_public_key()
-  end
+  defdelegate node_public_key, to: Keystore
 
   @doc """
   Return a node public key by using key derivation from an index
@@ -216,51 +210,39 @@ defmodule Uniris.Crypto do
     true
   """
   @spec node_public_key(index :: number()) :: Uniris.Crypto.key()
-  def node_public_key(index) do
-    Keystore.node_public_key(index)
-  end
+  defdelegate node_public_key(index), to: Keystore
 
   @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
   """
   @spec node_shared_secrets_public_key(index :: number()) :: Uniris.Crypto.key()
-  def node_shared_secrets_public_key(index) do
-    Keystore.node_shared_secrets_public_key(index)
-  end
+  defdelegate node_shared_secrets_public_key(index), to: Keystore
 
   @doc """
   Increment the counter for the number of generated node private keys.
   This number is used for the key derivation to detect the latest index.
   """
   @spec increment_number_of_generate_node_keys() :: :ok
-  def increment_number_of_generate_node_keys do
-    Keystore.increment_number_of_generate_node_keys()
-  end
+  defdelegate increment_number_of_generate_node_keys, to: Keystore
 
   @doc """
   Increment the counter for the number of generated node shared secrets private keys.
   This number is used for the key derivation to detect the latest index.
   """
-  @spec increment_number_of_generate_node_shared_keys() :: :ok
-  def increment_number_of_generate_node_shared_keys do
-    Keystore.increment_number_of_generate_node_shared_secrets_keys()
-  end
+  @spec increment_number_of_generate_node_shared_secrets_keys() :: :ok
+  defdelegate increment_number_of_generate_node_shared_secrets_keys, to: Keystore
 
   @doc """
   Return the number of node keys after incrementation
   """
   @spec number_of_node_keys() :: non_neg_integer()
-  def number_of_node_keys do
-    Keystore.number_of_node_keys()
-  end
+  defdelegate number_of_node_keys, to: Keystore
 
   @doc """
   Return the number of node shared secrets keys after incrementation
   """
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
-  def number_of_node_shared_secrets_keys do
-    Keystore.number_of_node_shared_secrets_keys()
-  end
+  defdelegate number_of_node_shared_secrets_keys, to: Keystore
 
   @doc """
   Generate a keypair in a deterministic way using a seed
@@ -332,37 +314,27 @@ defmodule Uniris.Crypto do
   Sign the data with the last node private key
   """
   @spec sign_with_node_key(data :: iodata()) :: binary()
-  def sign_with_node_key(data) when is_binary(data) or is_list(data) do
-    Keystore.sign_with_node_key(data)
-  end
+  defdelegate sign_with_node_key(data), to: Keystore
 
   @doc """
   Sign the data with the private key at the given index.
 
   """
   @spec sign_with_node_key(data :: iodata(), index :: non_neg_integer()) :: binary()
-  def sign_with_node_key(data, index)
-      when is_binary(data) or (is_list(data) and is_number(index)) do
-    Keystore.sign_with_node_key(data, index)
-  end
+  defdelegate sign_with_node_key(data, index), to: Keystore
 
   @doc """
   Sign the data with the node shared secrets transaction seed
   """
   @spec sign_with_node_shared_secrets_key(data :: iodata()) :: binary()
-  def sign_with_node_shared_secrets_key(data) when is_binary(data) or is_list(data) do
-    Keystore.sign_with_node_shared_secrets_key(data)
-  end
+  defdelegate sign_with_node_shared_secrets_key(data), to: Keystore
 
   @doc """
   Sign the data with the node shared secrets transaction seed
   """
   @spec sign_with_node_shared_secrets_key(data :: iodata(), index :: non_neg_integer()) ::
           binary()
-  def sign_with_node_shared_secrets_key(data, index)
-      when is_binary(data) or (is_list(data) and is_integer(index)) do
-    Keystore.sign_with_node_shared_secrets_key(data, index)
-  end
+  defdelegate sign_with_node_shared_secrets_key(data, index), to: Keystore
 
   @doc """
   Verify a signature.
@@ -460,17 +432,13 @@ defmodule Uniris.Crypto do
   Decrypt the cipher using last node private key
   """
   @spec ec_decrypt_with_node_key!(cipher :: binary()) :: term()
-  def ec_decrypt_with_node_key!(cipher) do
-    Keystore.decrypt_with_node_key!(cipher)
-  end
+  defdelegate ec_decrypt_with_node_key!(cipher), to: Keystore, as: :decrypt_with_node_key!
 
   @doc """
-  Decrypt the cipher using last node private key
+  Decrypt the cipher using a given node private key
   """
   @spec ec_decrypt_with_node_key!(cipher :: binary(), index :: non_neg_integer()) :: binary()
-  def ec_decrypt_with_node_key!(cipher, index) do
-    Keystore.decrypt_with_node_key!(cipher, index)
-  end
+  defdelegate ec_decrypt_with_node_key!(cipher, index), to: Keystore, as: :decrypt_with_node_key!
 
   defp do_ec_decrypt!(:ed25519, cipher, key), do: Ed25519.decrypt(key, cipher)
   defp do_ec_decrypt!(curve, cipher, key), do: ECDSA.decrypt(curve, key, cipher)
@@ -562,14 +530,25 @@ defmodule Uniris.Crypto do
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
 
+  @doc """
+  Hash data with the daily nonce stored in the keystore
+  """
   @spec hash_with_daily_nonce(data :: iodata()) :: binary()
-  def hash_with_daily_nonce(data) when is_binary(data) or is_list(data) do
-    Keystore.hash_with_daily_nonce(data)
-  end
+  defdelegate hash_with_daily_nonce(data), to: Keystore
 
+  @doc """
+  Hash the data using the storage nonce stored in memory
+  """
   @spec hash_with_storage_nonce(data :: iodata()) :: binary()
   def hash_with_storage_nonce(data) when is_binary(data) or is_list(data) do
-    Keystore.hash_with_storage_nonce(data)
+    case :persistent_term.get(:storage_nonce, "") do
+      "" ->
+        storage_nonce = File.read!(@storage_nonce_file)
+        :persistent_term.put(:storage_nonce, storage_nonce)
+
+      storage_nonce ->
+        hash([storage_nonce, data])
+    end
   end
 
   @doc """

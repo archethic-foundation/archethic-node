@@ -20,6 +20,8 @@ defmodule Uniris.Mining.Worker do
   alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Node
 
+  alias Uniris.Storage.Memory.NetworkLedger
+
   alias Uniris.TaskSupervisor
 
   alias Uniris.Transaction
@@ -127,7 +129,9 @@ defmodule Uniris.Mining.Worker do
       ) do
     chain_storage_nodes =
       if Transaction.network_type?(tx.type) do
-        Enum.filter(P2P.list_nodes(), & &1.ready?)
+        NetworkLedger.list_nodes()
+        |> Stream.filter(& &1.ready?)
+        |> Enum.to_list()
       else
         Election.storage_nodes(tx.address)
       end
@@ -268,7 +272,9 @@ defmodule Uniris.Mining.Worker do
     # - Beacon storage nodes
     # - IO storage nodes (node rewards, outputs)
     storage_nodes =
-      chain_storage_nodes ++ beacon_storage_nodes ++ LedgerOperations.io_storage_nodes(ledger_ops)
+      [chain_storage_nodes, beacon_storage_nodes, LedgerOperations.io_storage_nodes(ledger_ops)]
+      |> :lists.append()
+      |> Enum.uniq_by(& &1.last_public_key)
 
     replication_tree = create_replication_tree(validation_nodes, storage_nodes)
 
@@ -325,7 +331,9 @@ defmodule Uniris.Mining.Worker do
 
     # Verify the replication tree
     storage_nodes =
-      chain_storage_nodes ++ beacon_storage_nodes ++ LedgerOperations.io_storage_nodes(ledger_ops)
+      [chain_storage_nodes, beacon_storage_nodes, LedgerOperations.io_storage_nodes(ledger_ops)]
+      |> :lists.append()
+      |> Enum.uniq_by(& &1.last_public_key)
 
     unless replication_tree == create_replication_tree(validation_nodes, storage_nodes) do
       # TODO: define a recovery strategy
@@ -525,7 +533,7 @@ defmodule Uniris.Mining.Worker do
 
           1 ->
             acc
-            |> Map.update!(:list, &(&1 ++ [Enum.at(storage_nodes, acc.index)]))
+            |> Map.update!(:list, &[Enum.at(storage_nodes, acc.index) | &1])
             |> Map.update!(:index, &(&1 + 1))
         end
       end)
@@ -534,11 +542,6 @@ defmodule Uniris.Mining.Worker do
   end
 
   defp create_replication_tree(validation_nodes, storage_nodes) do
-    storage_nodes =
-      storage_nodes
-      |> :lists.flatten()
-      |> Enum.uniq_by(& &1.last_public_key)
-
     validation_nodes
     |> Replication.tree(storage_nodes)
     |> Enum.map(fn {_, list} ->

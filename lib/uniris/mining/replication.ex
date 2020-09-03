@@ -16,6 +16,9 @@ defmodule Uniris.Mining.Replication do
   alias Uniris.P2P.Node
 
   alias Uniris.Storage
+  alias Uniris.Storage.Memory.KOLedger
+  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.Storage.Memory.PendingLedger
 
   alias Uniris.Transaction
   alias Uniris.Transaction.ValidationStamp
@@ -308,7 +311,7 @@ defmodule Uniris.Mining.Replication do
       :ok
     else
       {:error, reason} ->
-        Storage.write_ko_transaction(tx, [reason])
+        KOLedger.add_transaction(tx, [reason])
         Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
@@ -317,14 +320,28 @@ defmodule Uniris.Mining.Replication do
     Governance.preliminary_checks(tx)
   end
 
+  defp additional_verification(%Transaction{
+         type: :code_approval,
+         data: %TransactionData{recipients: recipients},
+         previous_public_key: previous_public_key
+       }) do
+    previous_address = Crypto.hash(previous_public_key)
+
+    if Enum.all?(recipients, &(!PendingLedger.already_signed?(&1, previous_address))) do
+      :ok
+    else
+      {:error, :already_approved}
+    end
+  end
+
   defp additional_verification(_), do: :ok
 
   defp additional_processing(%Transaction{
          type: :code_approval,
          data: %TransactionData{recipients: [proposal_address]}
        }) do
-    approvals = Storage.get_pending_transaction_signatures(proposal_address)
-    ratio = length(approvals) / length(P2P.list_nodes())
+    approvals = PendingLedger.list_signatures(proposal_address)
+    ratio = length(approvals) / length(NetworkLedger.list_nodes())
 
     if ratio >= Governance.code_approvals_threshold() and
          Crypto.node_public_key(0) in chain_storage_nodes_keys(proposal_address) do
@@ -348,7 +365,7 @@ defmodule Uniris.Mining.Replication do
 
       :ok
     else
-      Storage.write_ko_transaction(tx)
+      KOLedger.add_transaction(tx)
       Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
@@ -359,20 +376,22 @@ defmodule Uniris.Mining.Replication do
     if valid_transaction?(tx) do
       Beacon.add_transaction(tx)
     else
-      Storage.write_ko_transaction(tx)
+      KOLedger.add_transaction(tx)
       Logger.info("KO transaction #{Base.encode16(tx.address)}")
     end
   end
 
   def chain_storage_nodes_keys(%Transaction{type: txType, address: address}) do
     if Transaction.network_type?(txType) do
-      P2P.list_nodes()
-      |> Enum.filter(& &1.ready?)
-      |> Enum.map(& &1.first_public_key)
+      NetworkLedger.list_nodes()
+      |> Stream.filter(& &1.ready?)
+      |> Stream.map(& &1.first_public_key)
+      |> Enum.to_list()
     else
       address
       |> Election.storage_nodes()
-      |> Enum.map(& &1.first_public_key)
+      |> Stream.map(& &1.first_public_key)
+      |> Enum.to_list()
     end
   end
 

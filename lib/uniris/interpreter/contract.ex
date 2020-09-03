@@ -15,8 +15,8 @@ defmodule Uniris.Interpreter.Contract do
 
   defstruct triggers: [],
             conditions: [
-              response: Macro.escape(true),
-              inherit: Macro.escape(true),
+              response: nil,
+              inherit: nil,
               origin_family: :all
             ],
             actions: {:__block__, [], []},
@@ -65,7 +65,7 @@ defmodule Uniris.Interpreter.Contract do
     ast = Keyword.get(opts, :ast)
     tx = Keyword.get(opts, :transaction)
 
-    contract = create(ast, tx)
+    contract = from_ast(ast, tx)
 
     Enum.each(contract.triggers, fn {trigger_type, value} ->
       case trigger_type do
@@ -82,8 +82,8 @@ defmodule Uniris.Interpreter.Contract do
     {:ok, contract}
   end
 
-  @spec create({:actions, [], [[do: Macro.t()]]}, Transaction.t()) :: __MODULE__.t()
-  defp create(_ast = {:actions, _, [[do: actions]]}, tx = %Transaction{}),
+  @spec from_ast({:actions, [], [[do: Macro.t()]]}, Transaction.t()) :: __MODULE__.t()
+  def from_ast(_ast = {:actions, _, [[do: actions]]}, tx = %Transaction{}),
     do: %__MODULE__{
       actions: actions,
       constants: [
@@ -93,7 +93,7 @@ defmodule Uniris.Interpreter.Contract do
       ]
     }
 
-  @spec create(
+  @spec from_ast(
           {:__block__, [],
            [
              {:@, [], [{atom(), [], [term()]}]}
@@ -103,7 +103,7 @@ defmodule Uniris.Interpreter.Contract do
            ]},
           Transaction.t()
         ) :: __MODULE__.t()
-  defp create(_ast = {:__block__, [], elems}, tx = %Transaction{}) do
+  def from_ast(_ast = {:__block__, [], elems}, tx = %Transaction{}) do
     elems
     |> Enum.reduce(
       %__MODULE__{

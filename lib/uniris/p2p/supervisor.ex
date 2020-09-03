@@ -3,8 +3,6 @@ defmodule Uniris.P2PSupervisor do
 
   alias Uniris.P2P.BootstrapingSeeds
   alias Uniris.P2P.Endpoint
-  alias Uniris.P2P.GeoPatch
-  alias Uniris.P2P.NodeViewSupervisor
 
   alias Uniris.Utils
 
@@ -19,14 +17,10 @@ defmodule Uniris.P2PSupervisor do
     bootstraping_seeds_file = Application.get_env(:uniris, BootstrapingSeeds, [])[:file]
 
     children =
-      [
-        GeoPatch,
-        NodeViewSupervisor
-      ] ++
-        Utils.configurable_children([
-          {Endpoint, [port: port], []},
-          {BootstrapingSeeds, [file: Application.app_dir(:uniris, bootstraping_seeds_file)], []}
-        ])
+      Utils.configurable_children([
+        {Endpoint, [port: port], []},
+        {BootstrapingSeeds, [file: Application.app_dir(:uniris, bootstraping_seeds_file)], []}
+      ])
 
     Supervisor.init(children, strategy: :one_for_one)
   end

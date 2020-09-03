@@ -8,7 +8,6 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.BeaconSlot.TransactionInfo
   alias Uniris.BeaconSubset
   alias Uniris.BeaconSubsetRegistry
-  alias Uniris.BeaconSubsets
 
   alias Uniris.Bootstrap.NetworkInit
   alias Uniris.Mining.Context
@@ -16,7 +15,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
-  alias Uniris.Storage.Cache
+  alias Uniris.SharedSecretsRenewal
+  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.Storage.Memory.UCOLedger, as: UCOLedgerDB
 
   alias Uniris.Transaction
   alias Uniris.Transaction.ValidationStamp
@@ -31,25 +32,13 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   import Mox
 
   setup do
-    Enum.each(BeaconSubsets.all(), &BeaconSubset.start_link(subset: &1))
+    Enum.each(Beacon.list_subsets(), &BeaconSubset.start_link(subset: &1))
+    start_supervised!({SharedSecretsRenewal, interval: "* * * * * *", trigger_offset: 0})
     :ok
   end
 
   test "create_storage_nonce/0 should initialize the nonce in the crypto keystore" do
-    me = self()
-
-    MockCrypto
-    |> expect(:node_public_key, fn ->
-      {pub, _} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
-      pub
-    end)
-    |> expect(:decrypt_and_set_storage_nonce, fn _encrypted_nonce ->
-      send(me, :encrypted_nonce)
-      :ok
-    end)
-
-    NetworkInit.create_storage_nonce()
-    assert_received :encrypted_nonce
+    assert :ok = NetworkInit.create_storage_nonce()
   end
 
   test "self_validation!/2 should return a validated transaction" do
@@ -129,7 +118,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
     me = self()
 
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
@@ -159,13 +148,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   end
 
   test "init_genesis_wallets/1 should initialize genesis wallets" do
-    MockStorage
-    |> stub(:write_transaction_chain, fn [tx] ->
-      Cache.store_transaction(tx)
-      :ok
-    end)
-
-    P2P.add_node(%Node{
+    NetworkLedger.add_node_info(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
@@ -181,7 +164,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       |> Base.decode16!()
       |> Crypto.hash()
 
-    assert 3.82e9 == Cache.get_ledger_balance(funding_address)
-    assert 1.46e9 == Cache.get_ledger_balance("@network_pool")
+    assert 3.82e9 == UCOLedgerDB.balance(funding_address)
+    assert 1.46e9 == UCOLedgerDB.balance("@network_pool")
   end
 end

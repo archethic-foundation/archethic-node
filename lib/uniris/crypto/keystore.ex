@@ -3,31 +3,27 @@ defmodule Uniris.Crypto.Keystore do
 
   @behaviour Uniris.Crypto.KeystoreImpl
 
-  @default_impl Uniris.Crypto.SoftwareKeystore
-  defdelegate child_spec(opts), to: @default_impl
+  @impl true
+  def child_spec(args) do
+    impl().child_spec(args)
+  end
 
   @impl true
   @spec sign_with_node_key(data :: binary()) :: binary()
-  def sign_with_node_key(data) do
+  def sign_with_node_key(data) when is_binary(data) do
     impl().sign_with_node_key(data)
   end
 
   @impl true
   @spec sign_with_node_key(data :: binary(), index :: number()) :: binary()
-  def sign_with_node_key(data, index) do
+  def sign_with_node_key(data, index) when is_binary(data) and is_integer(index) and index >= 0 do
     impl().sign_with_node_key(data, index)
   end
 
   @impl true
-  @spec hash_with_daily_nonce(data :: binary()) :: binary()
-  def hash_with_daily_nonce(data) do
+  @spec hash_with_daily_nonce(data :: iodata()) :: binary()
+  def hash_with_daily_nonce(data) when is_list(data) or is_binary(data) do
     impl().hash_with_daily_nonce(data)
-  end
-
-  @impl true
-  @spec hash_with_storage_nonce(data :: binary()) :: binary()
-  def hash_with_storage_nonce(data) do
-    impl().hash_with_storage_nonce(data)
   end
 
   @impl true
@@ -38,7 +34,7 @@ defmodule Uniris.Crypto.Keystore do
 
   @impl true
   @spec node_public_key(index :: number()) :: UnirisCyrpto.key()
-  def node_public_key(index) do
+  def node_public_key(index) when is_integer(index) and index >= 0 do
     impl().node_public_key(index)
   end
 
@@ -56,20 +52,15 @@ defmodule Uniris.Crypto.Keystore do
 
   @impl true
   @spec decrypt_with_node_key!(binary()) :: term()
-  def decrypt_with_node_key!(cipher) do
+  def decrypt_with_node_key!(cipher) when is_binary(cipher) do
     impl().decrypt_with_node_key!(cipher)
   end
 
   @impl true
   @spec decrypt_with_node_key!(binary()) :: term()
-  def decrypt_with_node_key!(cipher, index) do
+  def decrypt_with_node_key!(cipher, index)
+      when is_binary(cipher) and is_integer(index) and index >= 0 do
     impl().decrypt_with_node_key!(cipher, index)
-  end
-
-  @impl true
-  @spec derivate_beacon_chain_address(binary(), integer()) :: binary()
-  def derivate_beacon_chain_address(subset, date) do
-    impl().derivate_beacon_chain_address(subset, date)
   end
 
   @impl true
@@ -86,13 +77,14 @@ defmodule Uniris.Crypto.Keystore do
 
   @impl true
   @spec sign_with_node_shared_secrets_key(data :: binary()) :: binary()
-  def sign_with_node_shared_secrets_key(data) do
+  def sign_with_node_shared_secrets_key(data) when is_binary(data) do
     impl().sign_with_node_shared_secrets_key(data)
   end
 
   @impl true
   @spec sign_with_node_shared_secrets_key(data :: binary(), index :: number()) :: binary()
-  def sign_with_node_shared_secrets_key(data, index) do
+  def sign_with_node_shared_secrets_key(data, index)
+      when is_binary(data) and is_integer(index) and index >= 0 do
     impl().sign_with_node_shared_secrets_key(data, index)
   end
 
@@ -101,7 +93,8 @@ defmodule Uniris.Crypto.Keystore do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_aes_key) do
+  def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_aes_key)
+      when is_binary(encrypted_seed) and is_binary(encrypted_aes_key) do
     impl().decrypt_and_set_node_shared_secrets_transaction_seed(
       encrypted_seed,
       encrypted_aes_key
@@ -109,8 +102,8 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl true
-  @callback node_shared_secrets_public_key(index :: number()) :: UnirisCrypto.key()
-  def node_shared_secrets_public_key(index) do
+  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: UnirisCrypto.key()
+  def node_shared_secrets_public_key(index) when is_integer(index) and index >= 0 do
     impl().node_shared_secrets_public_key(index)
   end
 
@@ -119,25 +112,14 @@ defmodule Uniris.Crypto.Keystore do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key) do
+  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key)
+      when is_binary(encrypted_seed) and is_binary(encrypted_aes_key) do
     impl().decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key)
   end
 
   @impl true
-  @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
-  def decrypt_and_set_storage_nonce(encrypted_nonce) do
-    impl().decrypt_and_set_storage_nonce(encrypted_nonce)
-  end
-
-  @impl true
-  @spec encrypt_storage_nonce(UnirisCrypto.key()) :: binary()
-  def encrypt_storage_nonce(public_key) do
-    impl().encrypt_storage_nonce(public_key)
-  end
-
-  @impl true
   @spec encrypt_node_shared_secrets_transaction_seed(key :: binary()) :: binary()
-  def encrypt_node_shared_secrets_transaction_seed(key) do
+  def encrypt_node_shared_secrets_transaction_seed(key) when is_binary(key) do
     impl().encrypt_node_shared_secrets_transaction_seed(key)
   end
 
@@ -146,7 +128,8 @@ defmodule Uniris.Crypto.Keystore do
           encrypted_seed :: binary(),
           encrypted_aes_key :: binary()
         ) :: :ok
-  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
+  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key)
+      when is_binary(encrypted_seed) and is_binary(encrypted_aes_key) do
     impl().decrypt_and_set_node_shared_secrets_network_pool_seed(
       encrypted_seed,
       encrypted_aes_key
@@ -154,10 +137,6 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   defp impl do
-    :uniris
-    |> Application.get_env(Uniris.Crypto,
-      keystore: @default_impl
-    )
-    |> Keyword.fetch!(:keystore)
+    Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:impl)
   end
 end

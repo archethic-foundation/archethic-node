@@ -21,6 +21,9 @@ defmodule Uniris do
   alias __MODULE__.P2P.Message.TransactionList
 
   alias __MODULE__.Storage
+  alias __MODULE__.Storage.Memory.ChainLookup
+  alias __MODULE__.Storage.Memory.UCOLedger
+
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionInput
 
@@ -76,7 +79,7 @@ defmodule Uniris do
   @spec get_last_transaction(address :: binary()) ::
           {:ok, Transaction.t()} | {:error, :not_found}
   def get_last_transaction(address) do
-    case Storage.last_transaction_address(address) do
+    case ChainLookup.get_last_transaction_address(address) do
       {:ok, last_address} ->
         search_transaction(last_address)
 
@@ -109,7 +112,7 @@ defmodule Uniris do
     storage_nodes = Election.storage_nodes(address)
 
     if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      Storage.balance(address)
+      UCOLedger.balance(address)
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
@@ -131,7 +134,7 @@ defmodule Uniris do
     storage_nodes = Election.storage_nodes(address)
 
     if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      Storage.get_inputs(address)
+      UCOLedger.get_inputs(address)
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 
@@ -175,7 +178,7 @@ defmodule Uniris do
     storage_nodes = Election.storage_nodes(address)
 
     if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      Storage.get_transaction_chain_length(address)
+      ChainLookup.get_transaction_chain_length(address)
     else
       {:ok, %Node{network_patch: patch}} = P2P.node_info()
 

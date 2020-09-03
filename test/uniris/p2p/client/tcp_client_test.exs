@@ -36,6 +36,6 @@ defmodule Uniris.P2P.TCPClientTest do
   end
 
   test "send_message/3 should send a message and get results", %{port: port} do
-    assert %Ok{} == TCPClient.send_message({127, 0, 0, 1}, port, %Ok{})
+    assert {:ok, %Ok{}} == TCPClient.send_message({127, 0, 0, 1}, port, %Ok{})
   end
 end
