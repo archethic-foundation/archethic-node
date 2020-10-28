@@ -3,8 +3,8 @@ defmodule UnirisWeb.GraphQLSchema do
 
   use Absinthe.Schema
 
-  alias Uniris.Storage
-  alias Uniris.Transaction
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
 
   alias __MODULE__.TransactionType
 
@@ -34,9 +34,9 @@ defmodule UnirisWeb.GraphQLSchema do
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
         {:ok,
-         Storage.list_transactions()
-         |> Enum.reject(&(&1.type == :beacon))
-         |> Enum.map(&Transaction.to_map/1)}
+         TransactionChain.list_all()
+         |> Stream.reject(&(&1.type == :beacon))
+         |> Stream.map(&Transaction.to_map/1)}
       end)
     end
 

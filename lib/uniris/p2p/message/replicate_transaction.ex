@@ -5,7 +5,7 @@ defmodule Uniris.P2P.Message.ReplicateTransaction do
   @enforce_keys [:transaction]
   defstruct [:transaction]
 
-  alias Uniris.Transaction
+  alias Uniris.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transaction: Transaction.t()

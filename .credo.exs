@@ -49,7 +49,9 @@
         {Credo.Check.Readability.TrailingWhiteSpace, []},
         {Credo.Check.Readability.UnnecessaryAliasExpansion, []},
         {Credo.Check.Readability.VariableNames, []},
-        {Credo.Check.Refactor.MapInto, false},
+        {Credo.Check.Readability.BlockPipe, []},
+        {Credo.Check.Readability.ImplTrue, []},
+        {Credo.Check.Readability.SeparateAliasRequire, []},
 
         # Refactoring Opportunities
         {Credo.Check.Refactor.CondStatements, []},
@@ -62,6 +64,7 @@
         {Credo.Check.Refactor.Nesting, []},
         {Credo.Check.Refactor.UnlessWithElse, []},
         {Credo.Check.Refactor.WithClauses, []},
+        {Credo.Check.Refactor.MapInto, false},
 
         # Warnings
         {Credo.Check.Warning.BoolOperationOnSameValues, []},

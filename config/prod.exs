@@ -3,12 +3,9 @@ use Mix.Config
 # Do not print debug messages in production
 config :logger, level: :info
 
-# TODO: specify the crypto implementation using hardware when developed
-config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
-
-config :uniris, Uniris.Storage.Backend, impl: Uniris.Storage.CassandraBackend
-
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
+# 15 days
+config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 54_000
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   # TODO: provide the true addresses for the genesis UCO distribution
@@ -43,18 +40,33 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     ]
   ]
 
-config :uniris, Uniris.BeaconSlotTimer,
-  interval: "10 * * * * *",
-  # Trigger it 5 minute before
-  trigger_offset: 300
+config :uniris, Uniris.BeaconChain.SlotTimer,
+  interval: "0 10 * * * * *",
+  # Trigger it 1 minute before
+  trigger_offset: 60
 
-config :uniris, Uniris.SharedSecretsRenewal,
-  interval: "* 0 * * * *",
+# TODO: specify the crypto implementation using hardware when developed
+config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
+
+config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
+
+config :uniris, Uniris.DB.KeyValueImpl, root_dir: "priv/storage"
+
+config :uniris, Uniris.Governance.Pools,
+  # TODO: provide the true addresses of the members
+  initial_members: [
+    technical_council: [],
+    ethical_council: [],
+    foundation: [],
+    uniris: []
+  ]
+
+config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
+  interval: "0 0 0 * * * *",
   # Trigger it 10 minute before
   trigger_offset: 600
 
-config :uniris, Uniris.SelfRepair,
-  interval: "* 0 * * * *",
+config :uniris, Uniris.SelfRepair.Sync,
   last_sync_file: "priv/p2p/last_sync",
   # TODO: specify the real network startup date
   network_startup_date: %DateTime{
@@ -70,6 +82,8 @@ config :uniris, Uniris.SelfRepair,
     time_zone: "Etc/UTC",
     zone_abbr: "UTC"
   }
+
+config :uniris, Uniris.SelfRepair.Scheduler, interval: "0 0 0 * * * *"
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information

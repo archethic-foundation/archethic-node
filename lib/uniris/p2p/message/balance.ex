@@ -1,6 +1,6 @@
 defmodule Uniris.P2P.Message.Balance do
   @moduledoc """
-  Represents a message the balance of a transaction
+  Represents a message with the balance of a transaction
   """
   defstruct uco: 0.0
 

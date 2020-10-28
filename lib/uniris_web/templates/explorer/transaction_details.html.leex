@@ -310,6 +310,8 @@
                                                                                 <% end %>
                                                                                 </p>
                                                                                 <%= movement.amount %>
+                                                                                <br />
+                                                                                (<%= roles_to_string(movement.roles) %>)
                                                                             </div>
                                                                         </div>
                                                                     <% end %>
@@ -324,15 +326,15 @@
                                                                 N/A
                                                             <% else %>
                                                                 <div class="column column-offset-10 column-80">
-                                                                    <%= for utxo <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
+                                                                    <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
                                                                         <div class="row">
                                                                             <div class="column">
                                                                                 <p class="title">
-                                                                                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(utxo.from)) do%>
-                                                                                        <%= Base.encode16(utxo.from) %>
+                                                                                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(unspent_output.from)) do%>
+                                                                                        <%= Base.encode16(unspent_output.from) %>
                                                                                     <% end %>
                                                                                 </p>
-                                                                                <%= utxo.amount %>
+                                                                                <%= unspent_output.amount %>
                                                                             </div>
                                                                         </div>
                                                                     <% end %>

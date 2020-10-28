@@ -5,6 +5,6 @@ defmodule Uniris.P2P.Message.TransactionInputList do
   defstruct [:inputs]
 
   @type t() :: %__MODULE__{
-          inputs: list(Uniris.TransactionInput.t())
+          inputs: list(Uniris.TransactionChain.TransactionInput.t())
         }
 end

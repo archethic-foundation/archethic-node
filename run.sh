@@ -1,7 +1,6 @@
 #!/bin/bash
 
 INSTALL_DIR="/opt/build"
-MODE="background"
 P2P_PORT=3002
 
 # Colors
@@ -18,7 +17,6 @@ usage() {
   echo "  " run.sh [-k  key_file] " Specify the SSL key for HTTPS connections"
   echo "  " run.sh [-c  cert_file] " Specify the SSL certificate for HTTPS connections"
   echo "  " run.sh [-p  port] " Specify the P2P port"
-  echo "  " run.sh [-m  background "|" foreground ] " Specify the running mode"
   echo "  " run.sh -h "       Print the help usage"
   echo ""
 }
@@ -31,16 +29,6 @@ do
         k) SSL_KEY_PATH=${OPTARG};; 
         c) SSL_CERT_PATH=${OPTARG};; 
         p) P2P_PORT=${OPTARG};;
-        m) 
-          if [[ ${OPTARG} == "background" || ${OPTARG} == "foreground" ]]
-          then
-            MODE=${OPTARG}
-          else
-            echo "Invalid running mode: ${OPTARG}"
-            usage
-            exit 0
-          fi
-          ;;
         h) 
           usage
           exit 0
@@ -74,12 +62,8 @@ echo "--------"
 echo "P2P will expose the port: ${P2P_PORT}"
 
 if [ -f "$INSTALL_DIR/mainnet/bin/uniris_node" ]; then
-  if [ $MODE == "background " ]; then
-    ${INSTALL_DIR}/mainnet/bin/uniris_node start
-    echo "Application is running in background (PID: ${pid})"
-  else
-    ${INSTALL_DIR}/mainnet/bin/uniris_node foreground
-  fi
+  ${INSTALL_DIR}/mainnet/bin/uniris_node start
+  echo "Application is running in background"
 else
   echo -e "${RED}Error:"
   echo -e "Application not installed. Please execute 'install.sh' before"

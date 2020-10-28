@@ -2,24 +2,20 @@ defmodule UnirisWeb.CodeViewerLive do
   @moduledoc false
   use Phoenix.LiveView
 
-  alias Uniris.Governance.Git
+  alias Uniris.Governance
 
   alias Phoenix.View
   alias UnirisWeb.CodeView
 
-  @root_dir Application.get_env(:uniris, :src_dir)
+  @root_dir Application.compile_env(:uniris, :src_dir)
 
   def mount(_params, _session, socket) do
-    tree =
-      "master"
-      |> Git.list_branch_files()
-      |> build_tree
-
-    {:ok, assign(socket, tree: tree, details: nil)}
+    source_files = Governance.list_source_files()
+    {:ok, assign(socket, tree: build_tree(source_files), details: nil)}
   end
 
-  defp build_tree(filelist) do
-    Enum.reduce(filelist, %{}, fn filepath, acc ->
+  defp build_tree(file_list) do
+    Enum.reduce(file_list, %{}, fn filepath, acc ->
       path =
         filepath
         |> Path.split()
@@ -34,10 +30,12 @@ defmodule UnirisWeb.CodeViewerLive do
   end
 
   def handle_event("view", %{"filename" => filename}, socket) do
+    file_content = File.read!(Path.join(@root_dir, filename))
+
     {:noreply,
      assign(socket, :details, %{
        filename: filename,
-       content: File.read!(Path.join(@root_dir, filename))
+       content: file_content
      })}
   end
 end

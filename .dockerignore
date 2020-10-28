@@ -11,11 +11,31 @@ erl_crash.dump
 **/doc
 .
 
+/rel/artifacts
+
+.DS_Store
+
 /priv/crypto/c_dist
 /priv/crypto/storage_nonce
 /priv/storage
-/priv/last_sync
+/priv/p2p/last_sync
+/priv/p2p/last_sync/*
 /priv/p2p/test_seeds
+/priv/proposal_logs/
+
+# Since we are building assets from assets/,
+# we ignore priv/static. You may want to comment
+# this depending on your deployment strategy.
 /priv/static/*
 
-/assets/node_modules/*
+# Self signed cert are used for local and dev purposes
+/priv/cert
+
+
+/assets/node_modules
+
+log_*
+
+/.idea/
+uniris-node.iml
+projectFilesBackup

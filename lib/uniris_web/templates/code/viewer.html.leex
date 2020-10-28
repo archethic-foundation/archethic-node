@@ -7,10 +7,10 @@
             </div>
         </header>
         <div class="row">
-            <div class="column column-40">
+            <div class="column column-20" style="overflow-y: scroll; max-height: 100vh; padding-right: 50px">
                 <%= render_tree(@tree) %>
             </div>
-            <div class="column column-60">
+            <div class="column column-80" style="padding-left: 30px">
                 <%= if @details != nil do %>
                     <div class="row">
                         <header class="column">
@@ -18,7 +18,7 @@
                         </header>
                     </div>
                     <div class="row">
-                        <pre>
+                        <pre style="width: 100%">
                             <code>
                                 <%= @details.content %>
                             </code>

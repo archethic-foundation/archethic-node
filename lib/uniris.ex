@@ -2,11 +2,13 @@ defmodule Uniris do
   @moduledoc """
   Provides high level functions serving the API and the Explorer
   """
+
+  alias __MODULE__.Account
   alias __MODULE__.Crypto
-  alias __MODULE__.Election
+
+  alias __MODULE__.Mining
 
   alias __MODULE__.P2P
-  alias __MODULE__.P2P.Node
 
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
@@ -17,15 +19,16 @@ defmodule Uniris do
   alias __MODULE__.P2P.Message.GetTransactionInputs
   alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.StartMining
+  alias __MODULE__.P2P.Message.TransactionChainLength
   alias __MODULE__.P2P.Message.TransactionInputList
   alias __MODULE__.P2P.Message.TransactionList
 
-  alias __MODULE__.Storage
-  alias __MODULE__.Storage.Memory.ChainLookup
-  alias __MODULE__.Storage.Memory.UCOLedger
+  alias __MODULE__.Replication
 
-  alias __MODULE__.Transaction
-  alias __MODULE__.TransactionInput
+  alias __MODULE__.TransactionChain
+  alias __MODULE__.TransactionChain.Transaction
+
+  alias __MODULE__.Utils
 
   @doc """
   Query the search of the transaction to the dedicated storage pool
@@ -33,67 +36,65 @@ defmodule Uniris do
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def search_transaction(address) when is_binary(address) do
-    case Storage.get_transaction(address) do
-      {:ok, tx} ->
-        {:ok, tx}
+    storage_nodes =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+      |> P2P.nearest_nodes()
 
-      _ ->
-        {:ok, %Node{network_patch: patch}} = P2P.node_info()
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      TransactionChain.get_transaction(address)
+    else
+      response =
+        storage_nodes
+        |> P2P.broadcast_message(%GetTransaction{address: address})
+        |> Enum.at(0)
 
-        address
-        |> Election.storage_nodes()
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetTransaction{address: address})
-        |> case do
-          tx = %Transaction{} ->
-            {:ok, tx}
+      case response do
+        %NotFound{} ->
+          {:error, :transaction_not_exists}
 
-          %NotFound{} ->
-            {:error, :transaction_not_exists}
-        end
+        tx = %Transaction{} ->
+          {:ok, tx}
+      end
     end
   end
 
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.t()) :: :ok
+  @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
   def send_new_transaction(tx = %Transaction{}) do
-    validation_nodes = Election.validation_nodes(tx)
+    validation_nodes = Mining.transaction_validation_nodes(tx)
 
-    Enum.each(validation_nodes, fn node ->
-      Task.start(fn ->
-        P2P.send_message(
-          node,
-          %StartMining{
-            transaction: tx,
-            welcome_node_public_key: Crypto.node_public_key(),
-            validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
-          }
-        )
-      end)
-    end)
+    message = %StartMining{
+      transaction: tx,
+      welcome_node_public_key: Crypto.node_public_key(),
+      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
+    }
+
+    validation_nodes
+    |> P2P.broadcast_message(message)
+    |> Stream.run()
   end
 
   @spec get_last_transaction(address :: binary()) ::
-          {:ok, Transaction.t()} | {:error, :not_found}
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_last_transaction(address) do
-    case ChainLookup.get_last_transaction_address(address) do
-      {:ok, last_address} ->
-        search_transaction(last_address)
+    case TransactionChain.get_last_transaction(address) do
+      {:ok, tx} ->
+        {:ok, tx}
 
-      {:error, :not_found} ->
-        {:ok, %Node{network_patch: patch}} = P2P.node_info()
+      {:error, :transaction_not_exists} ->
+        response =
+          address
+          |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+          |> P2P.nearest_nodes()
+          |> P2P.broadcast_message(%GetLastTransaction{address: address})
+          |> Enum.at(0)
 
-        address
-        |> Election.storage_nodes()
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetLastTransaction{address: address})
-        |> case do
+        case response do
           %NotFound{} ->
-            {:error, :not_found}
+            {:error, :transaction_not_exists}
 
           tx = %Transaction{} ->
             {:ok, tx}
@@ -108,19 +109,19 @@ defmodule Uniris do
   Otherwise it will request the closest storage node about it
   """
   @spec get_balance(binary) :: uco_balance :: float()
-  def get_balance(address) do
-    storage_nodes = Election.storage_nodes(address)
+  def get_balance(address) when is_binary(address) do
+    storage_nodes =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+      |> P2P.nearest_nodes()
 
-    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      UCOLedger.balance(address)
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      Account.get_balance(address)
     else
-      {:ok, %Node{network_patch: patch}} = P2P.node_info()
-
       %Balance{uco: uco_balance} =
         storage_nodes
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetBalance{address: address})
+        |> P2P.broadcast_message(%GetBalance{address: address})
+        |> Enum.at(0)
 
       uco_balance
     end
@@ -129,20 +130,20 @@ defmodule Uniris do
   @doc """
   Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(Crypto.key()) :: list(TransactionInput.t())
+  @spec get_transaction_inputs(Crypto.key()) :: list(Input.t())
   def get_transaction_inputs(address) do
-    storage_nodes = Election.storage_nodes(address)
+    storage_nodes =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+      |> P2P.nearest_nodes()
 
-    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      UCOLedger.get_inputs(address)
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      Account.get_inputs(address)
     else
-      {:ok, %Node{network_patch: patch}} = P2P.node_info()
-
       %TransactionInputList{inputs: inputs} =
         storage_nodes
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetTransactionInputs{address: address})
+        |> P2P.broadcast_message(%GetTransactionInputs{address: address})
+        |> Enum.at(0)
 
       inputs
     end
@@ -153,18 +154,18 @@ defmodule Uniris do
   """
   @spec get_transaction_chain(binary()) :: list(Transaction.t())
   def get_transaction_chain(address) do
-    storage_nodes = Election.storage_nodes(address)
+    storage_nodes =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+      |> P2P.nearest_nodes()
 
-    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      Storage.get_transaction_chain(address)
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      TransactionChain.get(address)
     else
-      {:ok, %Node{network_patch: patch}} = P2P.node_info()
-
       %TransactionList{transactions: chain} =
         storage_nodes
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetTransactionChain{address: address})
+        |> P2P.broadcast_message(%GetTransactionChain{address: address})
+        |> Enum.at(0)
 
       chain
     end
@@ -175,20 +176,20 @@ defmodule Uniris do
   """
   @spec get_transaction_chain_length(binary()) :: non_neg_integer()
   def get_transaction_chain_length(address) do
-    storage_nodes = Election.storage_nodes(address)
+    storage_nodes =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+      |> P2P.nearest_nodes()
 
-    if Crypto.node_public_key(0) in Enum.map(storage_nodes, & &1.first_public_key) do
-      ChainLookup.get_transaction_chain_length(address)
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      TransactionChain.size(address)
     else
-      {:ok, %Node{network_patch: patch}} = P2P.node_info()
-
-      %TransactionList{transactions: chain} =
+      %TransactionChainLength{length: length} =
         storage_nodes
-        |> P2P.nearest_nodes(patch)
-        |> List.first()
-        |> P2P.send_message(%GetTransactionChainLength{address: address})
+        |> P2P.broadcast_message(%GetTransactionChainLength{address: address})
+        |> Enum.at(0)
 
-      chain
+      length
     end
   end
 end

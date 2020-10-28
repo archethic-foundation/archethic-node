@@ -4,9 +4,9 @@ Welcome to the Uniris Node source repository ! This software enables you to buil
 
 Uniris features:
 - Fast transaction processing (> 1M tps)
-- Lower energy consomption than other blockchain
+- Lower energy consumption than other blockchain
 - Designed with a high level of security (ARCH consensus supporting 90% of maliciousness)
-- Adapative cryptographic algorithms (quantum resistant)
+- Adaptive cryptographic algorithms (quantum resistant)
 - Decentralized Identity and Self Sovereign Identity
 - Smart contract platform powered by a built-in interpreter
 - Strong scalability with geo secured sharding
@@ -17,17 +17,17 @@ Uniris features:
 Our codebase aims to reach the guidelines of Elixir projects.
 We are focusing on the best quality.
 
-The source code can be brough to change to respect the best quality of reading and regarding best practices.
+The source code can change to respect the best quality of reading and regarding best practices.
 
 Current implemented features:
-- Adapative cryptography: different elliptic curves and software implementation
-- TransactionChain: basic struct and transaction generation
-- Smart Contract: interpreter coded with Elixir DSL through Metaprogramming and AST
-- Node election: heurisitic validation and storage node selection
+- Adaptive cryptography: different elliptic curves and software implementation
+- TransactionChain: Transaction structure and transaction generation
+- Smart Contract: interpreter coded with Elixir DSL through Meta-programming and AST
+- Node election: heuristic validation and storage node selection
 - P2P: Inter-node communication, supervised connection to detect the P2P view of nodes in almost real-time
 - Transaction mining: ARCH consensus
-- Node bootstraping
-- Beacon chain: Track new transactions and node readyness
+- Node bootstrapping
+- Beacon chain: Track new transactions and node readiness
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
 - Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
 - P2P transfers and genesis pools allocation
@@ -45,7 +45,8 @@ Current implemented features:
 
 Requirements:
 - Libsodium: for the ed25519 encryption and decryption.
-- OTP 23: generation of ed25519 keypair
+- OpenSSL 1.11
+- OTP 23: generation of ed25519 key pairs
 
 Platforms supported:
 - Linux

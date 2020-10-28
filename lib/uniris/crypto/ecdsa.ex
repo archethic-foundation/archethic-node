@@ -1,18 +1,40 @@
 defmodule Uniris.Crypto.ECDSA do
   @moduledoc false
 
-  def generate_keypair(curve, seed) do
-    :crypto.generate_key(:ecdh, curve, seed)
+  @type curve :: :secp256r1 | :secp256k1
+
+  @curves [:secp256r1, :secp256k1]
+
+  @doc """
+  Generate an ECDSA keypair from a given secrets
+  """
+  @spec generate_keypair(curve(), binary()) :: {binary(), binary()}
+  def generate_keypair(curve, seed) when curve in @curves and is_binary(seed) do
+    :crypto.generate_key(
+      :ecdh,
+      curve,
+      seed
+    )
   end
 
-  def sign(curve, private_key, data) do
+  @doc """
+  Sign a data with the given private key
+  """
+  @spec sign(curve(), binary(), iodata()) :: binary()
+  def sign(curve, private_key, data)
+      when curve in @curves and (is_binary(data) or is_list(data)) and is_binary(private_key) do
     :crypto.sign(:ecdsa, :sha256, :crypto.hash(:sha256, data), [
       private_key,
       curve
     ])
   end
 
-  def verify(curve, public_key, data, sig) do
+  @doc """
+  Verify a signature using the given public key and data
+  """
+  @spec verify(curve(), binary(), iodata(), binary()) :: boolean()
+  def verify(curve, public_key, data, sig)
+      when curve in @curves and (is_binary(data) or is_list(data)) and is_binary(sig) do
     :crypto.verify(
       :ecdsa,
       :sha256,
@@ -25,7 +47,12 @@ defmodule Uniris.Crypto.ECDSA do
     )
   end
 
-  def encrypt(curve, public_key, message) do
+  @doc """
+  Encrypt a data using the public key through ECIES
+  """
+  @spec encrypt(curve(), binary(), binary()) :: binary()
+  def encrypt(curve, public_key, message)
+      when curve in @curves and is_binary(message) and is_binary(public_key) do
     {ephemeral_public_key, ephemeral_private_key} = :crypto.generate_key(:ecdh, curve)
 
     # Derivate secret using ECDH with the given public key and the ephemeral private key
@@ -40,6 +67,12 @@ defmodule Uniris.Crypto.ECDSA do
     ephemeral_public_key <> tag <> cipher
   end
 
+  @doc """
+  Decrypt a ciphertext using the given private through ECIES
+
+  Raise if the decryption failed
+  """
+  @spec decrypt(curve(), binary(), binary()) :: binary()
   def decrypt(
         curve,
         private_key,

@@ -1,4 +1,6 @@
 defmodule UnirisWeb.Endpoint do
+  @moduledoc false
+
   use Phoenix.Endpoint, otp_app: :uniris
   use Absinthe.Phoenix.Endpoint
 
@@ -26,7 +28,7 @@ defmodule UnirisWeb.Endpoint do
     at: "/",
     from: :uniris,
     gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt)
+    only: ~w(css fonts images js favicon.ico robots.txt .well-known)
   )
 
   # Code reloading can be explicitly enabled under the

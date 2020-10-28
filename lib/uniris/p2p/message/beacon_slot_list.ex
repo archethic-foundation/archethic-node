@@ -6,9 +6,9 @@ defmodule Uniris.P2P.Message.BeaconSlotList do
   """
   defstruct slots: []
 
-  alias Uniris.BeaconSlot
+  alias Uniris.BeaconChain.Slot
 
   @type t :: %__MODULE__{
-          slots: list(BeaconSlot.t())
+          slots: list(Slot.t())
         }
 end

@@ -5,8 +5,8 @@ defmodule UnirisWeb.TransactionListLive do
   alias Phoenix.View
 
   alias Uniris.PubSub
-  alias Uniris.Storage
-  alias Uniris.Transaction
+
+  alias Uniris.TransactionChain
   alias UnirisWeb.ExplorerView
 
   def mount(_params, _session, socket) do
@@ -14,7 +14,7 @@ defmodule UnirisWeb.TransactionListLive do
       PubSub.register_to_new_transaction()
     end
 
-    transactions = Storage.list_transactions()
+    transactions = TransactionChain.list_all([:address, :type, :timestamp])
     {:ok, assign(socket, transactions: transactions, page: 1)}
   end
 
@@ -22,8 +22,13 @@ defmodule UnirisWeb.TransactionListLive do
     View.render(ExplorerView, "transaction_list.html", assigns)
   end
 
-  def handle_info({:new_transaction, tx = %Transaction{}}, socket) do
-    {:noreply, update(socket, :transactions, &Stream.concat(&1, [tx]))}
+  def handle_info({:new_transaction, address, type, timestamp}, socket) do
+    {:noreply,
+     update(
+       socket,
+       :transactions,
+       &Stream.concat(&1, [%{address: address, type: type, timestamp: timestamp}])
+     )}
   end
 
   def handle_info(_, socket), do: {:noreply, socket}

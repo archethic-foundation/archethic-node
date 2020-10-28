@@ -2,14 +2,26 @@ defmodule UnirisWeb.CodeController do
   @moduledoc false
   use UnirisWeb, :controller
 
+  alias Uniris.TransactionChain
+
+  alias UnirisWeb.CodeProposalDetailsLive
+  alias UnirisWeb.ExplorerView
+
+  @src_dir Application.compile_env(:uniris, :src_dir)
+
   def show_proposal(conn, %{"address" => address}) do
-    live_render(conn, UnirisWeb.CodeProposalDetailsLive, session: %{"address" => address})
+    if TransactionChain.transaction_ko?(Base.decode16!(address, case: :mixed)) do
+      conn
+      |> put_view(ExplorerView)
+      |> render("ko_transaction.html", address: address, errors: [])
+    else
+      live_render(conn, CodeProposalDetailsLive, session: %{"address" => address})
+    end
   end
 
   def download(conn, _) do
-    src_dir = Application.get_env(:uniris, :src_dir)
     archive_file = Application.app_dir(:uniris, "priv/uniris_node.zip")
-    {_, 0} = System.cmd("git", ["archive", "-o", archive_file, "master"], cd: src_dir)
+    {_, 0} = System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir)
 
     conn
     |> put_resp_content_type("application/zip, application/octet-stream")

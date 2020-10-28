@@ -4,31 +4,23 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   use GenServer
 
   alias Uniris.Crypto
-  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.Crypto.KeystoreImpl
 
   require Logger
 
-  @behaviour Uniris.Crypto.KeystoreImpl
+  @behaviour KeystoreImpl
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @impl true
-  def init(_opts) do
-    node_seed = Application.get_env(:uniris, __MODULE__)[:seed]
-
-    {first_public_key, _} = Crypto.derivate_keypair(node_seed, 0)
-
-    {:ok,
-     %{
-       node_seed: node_seed,
-       node_key_counter: NetworkLedger.count_node_changes(first_public_key),
-       node_shared_key_counter: NetworkLedger.count_node_shared_secrets()
-     }}
+  @impl GenServer
+  def init(opts) do
+    seed = Keyword.get(opts, :seed)
+    {:ok, %{node_seed: seed, node_key_counter: 0, node_shared_key_counter: 0}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(
         {:sign_with_node_key, data},
         _,
@@ -39,7 +31,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   def handle_call({:sign_with_node_key, data, index}, _, state = %{node_seed: seed}) do
-    {_, pv} = Crypto.derivate_keypair(seed, index)
+    {_, pv} = Crypto.derive_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
 
@@ -57,7 +49,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
         _,
         state = %{node_secrets_transaction_seed: seed}
       ) do
-    {_, pv} = Crypto.derivate_keypair(seed, index)
+    {_, pv} = Crypto.derive_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
 
@@ -71,7 +63,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   def handle_call({:node_public_key, index}, _, state = %{node_seed: seed}) do
-    {pub, _} = Crypto.derivate_keypair(seed, index)
+    {pub, _} = Crypto.derive_keypair(seed, index)
     {:reply, pub, state}
   end
 
@@ -80,7 +72,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
         _,
         state = %{node_secrets_transaction_seed: seed}
       ) do
-    {pub, _} = Crypto.derivate_keypair(seed, index)
+    {pub, _} = Crypto.derive_keypair(seed, index)
     {:reply, pub, state}
   end
 
@@ -101,7 +93,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
         _,
         state = %{node_seed: seed}
       ) do
-    {_, pv} = Crypto.derivate_keypair(seed, index)
+    {_, pv} = Crypto.derive_keypair(seed, index)
     {:reply, Crypto.ec_decrypt!(cipher, pv), state}
   rescue
     _ ->
@@ -164,7 +156,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
 
   def handle_call(
         {:decrypt_and_set_node_shared_secrets_transaction_seed, encrypted_seed,
-         encrypted_aes_key},
+         encrypted_secret_key},
         _from,
         state = %{
           node_seed: node_seed,
@@ -172,46 +164,46 @@ defmodule Uniris.Crypto.SoftwareKeystore do
         }
       ) do
     {_, pv} = previous_keypair(node_seed, index)
-    aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
+    aes_key = Crypto.ec_decrypt!(encrypted_secret_key, pv)
     transaction_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
 
     {:reply, :ok, Map.put(state, :node_secrets_transaction_seed, transaction_seed)}
   end
 
   defp previous_keypair(seed, 0) do
-    Crypto.derivate_keypair(seed, 0)
+    Crypto.derive_keypair(seed, 0)
   end
 
   defp previous_keypair(seed, index) do
-    Crypto.derivate_keypair(seed, index - 1)
+    Crypto.derive_keypair(seed, index - 1)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def sign_with_node_key(data) do
     GenServer.call(__MODULE__, {:sign_with_node_key, data})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def sign_with_node_key(data, index) do
     GenServer.call(__MODULE__, {:sign_with_node_key, data, index})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def sign_with_node_shared_secrets_key(data) do
     GenServer.call(__MODULE__, {:sign_with_node_shared_key, data})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def sign_with_node_shared_secrets_key(data, index) do
     GenServer.call(__MODULE__, {:sign_with_node_shared_key, data, index})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def hash_with_daily_nonce(data) do
     GenServer.call(__MODULE__, {:hash_with_daily_nonce, data})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key) do
     GenServer.call(
       __MODULE__,
@@ -219,7 +211,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     )
   end
 
-  @impl true
+  @impl KeystoreImpl
   def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_aes_key) do
     GenServer.call(
       __MODULE__,
@@ -227,40 +219,41 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     )
   end
 
-  @impl true
-  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_aes_key) do
+  @impl KeystoreImpl
+  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_secret_key) do
     GenServer.call(
       __MODULE__,
-      {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed, encrypted_aes_key}
+      {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed,
+       encrypted_secret_key}
     )
   end
 
-  @impl true
+  @impl KeystoreImpl
   def node_public_key do
     GenServer.call(__MODULE__, :node_public_key)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def node_public_key(index) do
     GenServer.call(__MODULE__, {:node_public_key, index})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def node_shared_secrets_public_key(index) do
     GenServer.call(__MODULE__, {:node_shared_secrets_public_key, index})
   end
 
-  @impl true
+  @impl KeystoreImpl
   def increment_number_of_generate_node_keys do
     GenServer.call(__MODULE__, :inc_node_key_counter)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def increment_number_of_generate_node_shared_secrets_keys do
     GenServer.call(__MODULE__, :inc_node_shared_key_counter)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def decrypt_with_node_key!(cipher) do
     case GenServer.call(__MODULE__, {:decrypt_with_node_key, cipher}) do
       {:error, :decryption_failed} ->
@@ -271,7 +264,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     end
   end
 
-  @impl true
+  @impl KeystoreImpl
   def decrypt_with_node_key!(cipher, index) do
     case GenServer.call(__MODULE__, {:decrypt_with_node_key, cipher, index}) do
       {:error, :decryption_failed} ->
@@ -282,17 +275,17 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     end
   end
 
-  @impl true
+  @impl KeystoreImpl
   def number_of_node_keys do
     GenServer.call(__MODULE__, :number_node_keys)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def number_of_node_shared_secrets_keys do
     GenServer.call(__MODULE__, :number_node_shared_keys)
   end
 
-  @impl true
+  @impl KeystoreImpl
   def encrypt_node_shared_secrets_transaction_seed(key) do
     GenServer.call(__MODULE__, {:encrypt_node_shared_secrets_transaction_seed, key})
   end

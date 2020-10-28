@@ -1,255 +1,187 @@
 defmodule Uniris.Bootstrap do
   @moduledoc """
-  Uniris node bootstraping
-
-  The first node in the network will initialized the first node shared secrets and genesis wallets as well as his own
-  node transactions. Those transactions will self validated and self replicated.
-
-  Other nodes initialize or update (if ip, port change or disconnected from long time) their own node transaction chain.
-  They start to synchronize from the Beacon chain to retreive the necessary items to be part of the network.
-
-  Once the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its ready and completion.
-  After the self repair/sync others nodes will be able to communicate with him and start validate other transactions.
+  Manage Uniris Node Bootstrapping
   """
-  use Task
-
-  require Logger
-
-  alias Uniris.Crypto
-
-  alias Uniris.Beacon
-  alias Uniris.BeaconSlot.NodeInfo
 
   alias __MODULE__.IPLookup
   alias __MODULE__.NetworkInit
+  alias __MODULE__.Sync
+  alias __MODULE__.TransactionHandler
+
+  alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.BootstrapingSeeds
-  alias Uniris.P2P.GeoPatch
-  alias Uniris.P2P.Message.AddNodeInfo
-  alias Uniris.P2P.Message.BootstrappingNodes
-  alias Uniris.P2P.Message.EncryptedStorageNonce
-  alias Uniris.P2P.Message.GetBootstrappingNodes
-  alias Uniris.P2P.Message.GetStorageNonce
-  alias Uniris.P2P.Message.ListNodes
-  alias Uniris.P2P.Message.NewTransaction
-  alias Uniris.P2P.Message.NodeList
-  alias Uniris.P2P.Node
+  alias Uniris.P2P.Endpoint, as: P2PEndpoint
 
   alias Uniris.SelfRepair
 
-  alias Uniris.Storage.Memory.NetworkLedger
+  require Logger
 
-  alias Uniris.Transaction
-  alias Uniris.TransactionData
+  use Task
 
-  def start_link(opts) do
+  @genesis_seed Application.compile_env(:uniris, [NetworkInit, :genesis_seed])
+  @genesis_pools Application.compile_env(:uniris, [NetworkInit, :genesis_pools])
+
+  @doc """
+  Start the bootstrapping as a task
+  """
+  @spec start_link(list()) :: {:ok, pid()}
+  def start_link(_args \\ []) do
     ip = IPLookup.get_ip()
+    port = Application.get_env(:uniris, P2PEndpoint)[:port]
+    last_sync_date = SelfRepair.last_sync_date()
+    bootstrapping_seeds = P2P.list_bootstrapping_seeds()
 
-    port = Keyword.get(opts, :port)
-
-    Task.start_link(__MODULE__, :run, [
-      ip,
-      port,
-      SelfRepair.last_sync_date(),
-      BootstrapingSeeds.list()
-    ])
+    Task.start_link(__MODULE__, :run, [ip, port, bootstrapping_seeds, last_sync_date])
   end
 
-  def run(ip, port, last_sync_date, bootstraping_seeds) do
-    Logger.info("Bootstraping starting")
+  @doc """
+  Start the bootstrap workflow.
 
-    first_public_key = Crypto.node_public_key(0)
-    patch = GeoPatch.from_ip(ip)
+  The first node in the network will initialized the storage nonce, the first node shared secrets, genesis wallets
+  as well as his own node transaction. Those transactions will be self validated and self replicated.
 
-    if initialized_network?(first_public_key, bootstraping_seeds) do
+  Other nodes will initialize or update (if ip, port change or disconnected from long time) their own node transaction chain.
+
+  Once sent, they will start the self repair synchronization using the Beacon chain to retrieve the missed transactions.
+
+  Once done, the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its readiness.
+  Hence others nodes will be able to communicate with and support new transactions.
+  """
+  @spec run(:inet.ip_address(), :inet.port_number(), list(Node.t()), DateTime.t()) :: :ok
+  def run(ip = {_, _, _, _}, port, bootstrapping_seeds, last_sync_date = %DateTime{})
+      when is_number(port) and is_list(bootstrapping_seeds) do
+    if should_bootstrap?(ip, port, last_sync_date) do
+      start_bootstrap(ip, port, bootstrapping_seeds, last_sync_date)
+    else
+      P2P.set_node_globally_available(Crypto.node_public_key(0))
+    end
+  end
+
+  defp should_bootstrap?(ip, port, last_sync_date) do
+    already_bootstrapped? = match?({:ok, _}, P2P.get_node_info(Crypto.node_public_key(0)))
+
+    if already_bootstrapped? do
+      Sync.require_update?(ip, port, last_sync_date)
+    else
+      true
+    end
+  end
+
+  defp start_bootstrap(ip, port, bootstrapping_seeds, last_sync_date) do
+    Logger.info("Bootstrapping starting")
+
+    patch = P2P.get_geo_patch(ip)
+
+    if Sync.should_initialize_network?(Crypto.node_public_key(0), bootstrapping_seeds) do
+      Sync.initialize_network(ip, port)
+      SelfRepair.put_last_sync_date(DateTime.utc_now())
+      :ok = SelfRepair.start_scheduler(patch)
+    else
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
-        first_initialization(ip, port, patch, bootstraping_seeds)
+        first_initialization(ip, port, patch, bootstrapping_seeds)
       else
-        if require_node_update?(ip, port, last_sync_date) do
+        if Sync.require_update?(ip, port, last_sync_date) do
           Logger.info("Update node chain...")
-
-          case Enum.reject(
-                 bootstraping_seeds,
-                 &(&1.first_public_key == Crypto.node_public_key(0))
-               ) do
-            [] ->
-              Logger.warn("Not enought nodes in the network. No node update")
-              :ok
-
-            _ ->
-              update_node(ip, port, patch, bootstraping_seeds)
-          end
+          update_node(ip, port, patch, bootstrapping_seeds)
         else
           :ok
         end
       end
-    else
-      init_network(ip, port, patch)
     end
 
-    Logger.info("Bootstraping finished!")
+    Logger.info("Bootstrapping finished!")
   end
 
-  defp initialized_network?(first_public_key, bootstraping_seeds) do
-    with {:error, :not_found} <-
-           NetworkLedger.get_last_node_shared_secrets_address(),
-         [%Node{first_public_key: key} | _] when key == first_public_key <- bootstraping_seeds do
-      false
-    else
-      _ ->
-        true
-    end
+  defp first_initialization(ip, port, patch, bootstrapping_seeds) do
+    closest_node =
+      bootstrapping_seeds
+      |> Sync.get_closest_nodes_and_renew_seeds(patch)
+      |> List.first()
+
+    tx = TransactionHandler.create_node_transaction(ip, port)
+
+    ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
+
+    :ok = TransactionHandler.send_transaction(tx, closest_node)
+    Logger.info("Node transaction sent")
+
+    Logger.info("Waiting transaction replication")
+    :ok = Task.await(ack_task, :infinity)
+
+    :ok = Sync.load_storage_nonce(closest_node)
+    :ok = Sync.load_node_list(closest_node)
+
+    Logger.info("Synchronization started")
+    :ok = SelfRepair.sync(patch)
+    Logger.info("Synchronization finished")
+
+    :ok = SelfRepair.start_scheduler(patch)
+
+    Sync.publish_readiness()
   end
 
-  defp require_node_update?(ip, port, last_sync_date) do
-    diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
-
-    case P2P.node_info() do
-      # TODO: change the diff sync parameter when the self repair will be moved to daily
-      {:ok, %Node{ip: prev_ip, port: prev_port}}
-      when ip != prev_ip or port != prev_port or diff_sync > 3 ->
-        true
-
-      _ ->
-        false
-    end
-  end
-
-  defp init_network(ip, port, patch) do
-    Logger.info("Network initialization...")
-    NetworkInit.create_storage_nonce()
-
-    Logger.info("Create first node transaction")
-    tx = create_node_transaction(ip, port)
-
-    tx
-    |> NetworkInit.self_validation!()
-    |> NetworkInit.self_replication()
-
-    Process.sleep(200)
-
-    NetworkLedger.set_node_ready(Crypto.node_public_key(0), tx.timestamp)
-
-    network_pool_seed = :crypto.strong_rand_bytes(32)
-    NetworkInit.init_node_shared_secrets_chain(network_pool_seed)
-
-    {pub, _} = Crypto.derivate_keypair(network_pool_seed, 0)
-    network_pool_address = Crypto.hash(pub)
-    NetworkInit.init_genesis_wallets(network_pool_address)
-
-    SelfRepair.start_sync(patch, false)
-  end
-
-  defp first_initialization(ip, port, patch, bootstraping_seeds) do
-    %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds} =
-      bootstraping_seeds
-      |> Enum.random()
-      |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
-
-    load_nodes(new_seeds ++ closest_nodes)
-    BootstrapingSeeds.update(new_seeds)
-
-    Logger.info("Create first node transaction")
-    tx = create_node_transaction(ip, port)
-    send_message(%NewTransaction{transaction: tx}, closest_nodes)
-
-    case P2P.send_message(
-           List.first(closest_nodes),
-           %GetStorageNonce{public_key: Crypto.node_public_key()}
-         ) do
-      %EncryptedStorageNonce{digest: encrypted_nonce} ->
-        Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
-        Logger.info("Storage nonce set")
-
-        %NodeList{nodes: nodes} = P2P.send_message(List.first(closest_nodes), %ListNodes{})
-        load_nodes(nodes)
-        Logger.info("Node list refreshed")
-
-        Logger.info("Start synchronization")
-
-        SelfRepair.start_sync(patch)
-
-        receive do
-          :sync_finished ->
-            publish_readyness()
-        end
+  defp update_node(ip, port, patch, bootstrapping_seeds) do
+    case Enum.reject(bootstrapping_seeds, &(&1.first_public_key == Crypto.node_public_key(0))) do
+      [] ->
+        Logger.warn("Not enough nodes in the network. No node update")
 
       _ ->
-        Logger.error("Transaction failed")
+        closest_node =
+          bootstrapping_seeds
+          |> Sync.get_closest_nodes_and_renew_seeds(patch)
+          |> List.first()
+
+        tx = TransactionHandler.create_node_transaction(ip, port)
+
+        ack_task =
+          Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
+
+        :ok = TransactionHandler.send_transaction(tx, closest_node)
+        Logger.info("Node transaction sent")
+
+        Logger.info("Waiting transaction replication")
+        :ok = Task.await(ack_task, :infinity)
+
+        Logger.info("Synchronization started")
+        :ok = SelfRepair.sync(patch)
+        Logger.info("Synchronization finished")
+
+        :ok = SelfRepair.start_scheduler(patch)
+
+        Sync.publish_readiness()
     end
   end
 
-  defp update_node(ip, port, patch, bootstraping_seeds) do
-    %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds} =
-      bootstraping_seeds
-      |> Enum.random()
-      |> P2P.send_message(%GetBootstrappingNodes{patch: patch})
-
-    :ok = BootstrapingSeeds.update(new_seeds)
-    :ok = load_nodes(new_seeds ++ closest_nodes)
-    Logger.info("Node list refreshed")
-
-    tx = create_node_transaction(ip, port)
-    send_message(%NewTransaction{transaction: tx}, closest_nodes)
-
-    Logger.info("Start synchronization")
-    SelfRepair.start_sync(patch)
-
-    receive do
-      :sync_finished ->
-        publish_readyness()
-    end
+  @doc """
+  Return the address which performed the initial allocation
+  """
+  @spec genesis_address() :: binary()
+  def genesis_address do
+    {pub, _} = Crypto.derive_keypair(@genesis_seed, 1)
+    Crypto.hash(pub)
   end
 
-  defp publish_readyness do
-    subset = Beacon.subset_from_address(Crypto.node_public_key(0))
+  @doc """
+  Return the address from the unspent outputs allocation for the genesis transaction
+  """
+  @spec genesis_unspent_output_address() :: binary()
+  def genesis_unspent_output_address do
+    {pub, _} = Crypto.derive_keypair(@genesis_seed, 0)
+    Crypto.hash(pub)
+  end
 
-    ready_date = DateTime.utc_now()
+  @doc """
+  Return the amount of token initialized on the network bootstrapping
+  """
+  @spec genesis_allocation() :: float()
+  def genesis_allocation do
+    network_pool_amount = 1.46e9
 
-    subset
-    |> Beacon.get_pool(ready_date)
-    |> Task.async_stream(fn node ->
-      P2P.send_message(
-        node,
-        %AddNodeInfo{
-          subset: subset,
-          node_info: %NodeInfo{
-            public_key: Crypto.node_public_key(),
-            ready?: true,
-            timestamp: ready_date
-          }
-        }
-      )
+    Enum.reduce(@genesis_pools, network_pool_amount, fn {_, [public_key: _, amount: amount]},
+                                                        acc ->
+      acc + amount
     end)
-    |> Stream.run()
   end
-
-  defp create_node_transaction(ip, port) do
-    Transaction.new(:node, %TransactionData{
-      content: """
-      ip: #{stringify_ip(ip)}
-      port: #{port}
-      """
-    })
-  end
-
-  defp load_nodes(nodes) do
-    nodes
-    |> Enum.uniq()
-    |> Enum.each(&NetworkLedger.add_node_info/1)
-  end
-
-  defp stringify_ip(ip), do: :inet_parse.ntoa(ip)
-
-  defp send_message(msg, [closest_node | rest]) do
-    P2P.send_message(closest_node, msg)
-  rescue
-    e ->
-      Logger.error(Exception.format(:error, e, __STACKTRACE__))
-      send_message(msg, rest)
-  end
-
-  defp send_message(_, []), do: raise("Network issue")
 end

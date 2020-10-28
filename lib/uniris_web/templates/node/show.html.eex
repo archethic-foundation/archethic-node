@@ -53,7 +53,7 @@
             <div class="column">
                 <header class="row">
                     <div class="column column-80">
-                        <h4>Transaction involvments</h4>
+                        <h4>Transaction involvements</h4>
                     </div>
                      <div class="column column-20">
                         Balance <%= @balance %>

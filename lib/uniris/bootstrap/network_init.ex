@@ -1,30 +1,41 @@
 defmodule Uniris.Bootstrap.NetworkInit do
   @moduledoc """
-  Set up the network by initialize genesis information (i.e storage nonce, coinbases transactions)
+  Set up the network by initialize genesis information (i.e storage nonce, coinbase transactions)
     
-  Those functions are only executed by the first node bootstraping on the network
+  Those functions are only executed by the first node bootstrapping on the network
   """
 
-  alias Uniris.Beacon
+  alias Uniris.BeaconChain
+
+  alias Uniris.Bootstrap
+
   alias Uniris.Crypto
-  alias Uniris.Mining.Context
 
-  alias Uniris.SharedSecretsRenewal.TransactionBuilder, as: SharedSecretsTxBuilder
+  alias Uniris.Mining
 
-  alias Uniris.Storage
-  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.P2P
+  alias Uniris.P2P.Node
 
-  alias Uniris.Transaction
-  alias Uniris.Transaction.CrossValidationStamp
-  alias Uniris.Transaction.ValidationStamp
-  alias Uniris.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.Replication
 
-  alias Uniris.TransactionData
-  alias Uniris.TransactionData.Ledger
-  alias Uniris.TransactionData.Ledger.Transfer
-  alias Uniris.TransactionData.UCOLedger
+  alias Uniris.SharedSecrets
+
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.CrossValidationStamp
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   require Logger
+
+  @genesis_pools Application.compile_env(:uniris, __MODULE__)[:genesis_pools]
+  @genesis_seed Application.compile_env(:uniris, __MODULE__)[:genesis_seed]
 
   @doc """
   Initialize the storage nonce and load it into the keystore
@@ -43,122 +54,128 @@ defmodule Uniris.Bootstrap.NetworkInit do
   @spec init_node_shared_secrets_chain(network_pool_seed :: binary()) :: :ok
   def init_node_shared_secrets_chain(network_pool_seed) do
     Logger.info("Create first node shared secret transaction")
-    aes_key = :crypto.strong_rand_bytes(32)
-    encrypted_aes_key = Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
+    secret_key = :crypto.strong_rand_bytes(32)
+    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
 
     :crypto.strong_rand_bytes(32)
-    |> Crypto.aes_encrypt(aes_key)
-    |> Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_aes_key)
+    |> Crypto.aes_encrypt(secret_key)
+    |> Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_secret_key)
 
     network_pool_seed
-    |> Crypto.aes_encrypt(aes_key)
-    |> Crypto.decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_aes_key)
+    |> Crypto.aes_encrypt(secret_key)
+    |> Crypto.decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_secret_key)
 
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
 
     tx =
-      SharedSecretsTxBuilder.new_node_shared_secrets_transaction(
+      SharedSecrets.new_node_shared_secrets_transaction(
+        [Crypto.node_public_key(0)],
         daily_nonce_seed,
-        aes_key,
-        [Crypto.node_public_key(0)]
+        secret_key
       )
 
     tx
     |> self_validation!()
     |> self_replication()
 
-    NetworkLedger.authorize_node(Crypto.node_public_key(0), tx.timestamp)
+    P2P.authorize_node(Crypto.node_public_key(0), tx.timestamp)
 
     Crypto.decrypt_and_set_daily_nonce_seed(
-      Crypto.aes_encrypt(daily_nonce_seed, aes_key),
-      Crypto.ec_encrypt(aes_key, Crypto.node_public_key())
+      Crypto.aes_encrypt(daily_nonce_seed, secret_key),
+      Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
     )
   end
 
   @doc """
-  Initializes the genesis wallets for the UCO distribution:
-  - Funding Pool: 38.2%
-  - Network Pool: 14.6%
+  Initializes the genesis wallets for the UCO distribution
   """
   @spec init_genesis_wallets(network_pool_address :: binary()) :: :ok
   def init_genesis_wallets(network_pool_address) do
-    genesis_transfers =
-      Enum.map(Application.get_env(:uniris, __MODULE__)[:genesis_pools], fn {_,
-                                                                             [
-                                                                               public_key:
-                                                                                 public_key,
-                                                                               amount: amount
-                                                                             ]} ->
-        %Transfer{
-          to: public_key |> Base.decode16!() |> Crypto.hash(),
-          amount: amount
-        }
-      end)
-
     Logger.info("Create UCO distribution genesis transaction")
 
     tx =
-      Transaction.new(
-        :transfer,
-        %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers:
-                genesis_transfers ++
-                  [
-                    %Transfer{to: network_pool_address, amount: 1.46e9}
-                  ]
-            }
-          }
-        },
-        :crypto.strong_rand_bytes(32),
-        0
-      )
+      network_pool_address
+      |> genesis_transfers()
+      |> create_genesis_transaction()
 
-    initial_balance = 1.0e10 + 0.1
+    genesis_transfers_amount =
+      tx
+      |> Transaction.get_movements()
+      |> Enum.reduce(0.0, &(&2 + &1.amount))
+
+    unspent_output_amount = genesis_transfers_amount + Transaction.fee(tx)
 
     tx
-    |> self_validation!(%Context{
-      unspent_outputs: [%UnspentOutput{from: tx.address, amount: initial_balance}]
-    })
+    |> self_validation!([
+      %UnspentOutput{
+        from: Bootstrap.genesis_unspent_output_address(),
+        amount: unspent_output_amount
+      }
+    ])
     |> self_replication()
   end
 
-  @doc """
-  Self validate a transaction during the network bootstrap
-  AKA: when there is only one node in the network
-  """
-  @spec self_validation!(
-          Transaction.pending(),
-          context :: Context.t()
-        ) :: Transaction.t()
-  def self_validation!(
-        tx = %Transaction{},
-        context \\ %Context{}
-      ) do
-    unless Transaction.valid_pending_transaction?(tx) do
+  defp create_genesis_transaction(genesis_transfers) do
+    Transaction.new(
+      :transfer,
+      %TransactionData{
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: genesis_transfers
+          }
+        }
+      },
+      @genesis_seed,
+      0
+    )
+  end
+
+  defp genesis_transfers(network_pool_address) do
+    Enum.map(@genesis_pools, fn {_,
+                                 [
+                                   public_key: public_key,
+                                   amount: amount
+                                 ]} ->
+      %Transfer{
+        to: public_key |> Base.decode16!() |> Crypto.hash(),
+        amount: amount
+      }
+    end) ++
+      [%Transfer{to: network_pool_address, amount: 1.46e9}]
+  end
+
+  def self_validation!(tx = %Transaction{}, unspent_outputs \\ []) do
+    unless Mining.accept_transaction?(tx) do
       raise "Invalid transaction"
     end
 
-    node_public_key = Crypto.node_public_key()
+    operations =
+      tx
+      |> LedgerOperations.from_transaction()
+      |> LedgerOperations.distribute_rewards(
+        %Node{last_public_key: Crypto.node_public_key()},
+        %Node{last_public_key: Crypto.node_public_key()},
+        [%Node{last_public_key: Crypto.node_public_key()}],
+        []
+      )
+      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
     validation_stamp =
-      ValidationStamp.new(
-        tx,
-        context,
-        node_public_key,
-        node_public_key,
-        [node_public_key]
-      )
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(),
+        proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
+        ledger_operations: operations
+      }
+      |> ValidationStamp.sign()
 
-    cross_validation_stamp = CrossValidationStamp.new(validation_stamp, [])
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
-  @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
-    Storage.write_transaction_chain([tx])
-    Beacon.add_transaction(tx)
+    :ok = TransactionChain.write([tx])
+    :ok = Replication.ingest_transaction(tx)
+    :ok = BeaconChain.add_transaction(tx)
   end
 end

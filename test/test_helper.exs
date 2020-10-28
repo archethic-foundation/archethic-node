@@ -1,13 +1,13 @@
 Mix.Tasks.CleanPrivDir.run([])
 
 ExUnit.start(
-  exclude: [:time_based, :infrastructure],
+  exclude: [:infrastructure, :CI],
   timeout: :infinity,
   max_failures: 1
 )
 
-Mox.defmock(MockNodeClient, for: Uniris.P2P.ClientImpl)
+Mox.defmock(MockTransport, for: Uniris.P2P.TransportImpl)
 Mox.defmock(MockCrypto, for: Uniris.Crypto.KeystoreImpl)
-Mox.defmock(MockStorage, for: Uniris.Storage.BackendImpl)
-Mox.defmock(MockTestnet, for: Uniris.Governance.Testnet.Impl)
+Mox.defmock(MockDB, for: Uniris.DBImpl)
+Mox.defmock(MockTestNet, for: Uniris.Governance.Code.TestNetImpl)
 Mox.defmock(MockGeoIP, for: Uniris.P2P.GeoPatch.GeoIPImpl)

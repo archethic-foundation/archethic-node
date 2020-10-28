@@ -8,7 +8,7 @@ defmodule Uniris.P2P.Message.StartMining do
   defstruct [:transaction, :welcome_node_public_key, :validation_node_public_keys]
 
   alias Uniris.Crypto
-  alias Uniris.Transaction
+  alias Uniris.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),

@@ -21,6 +21,12 @@ defmodule Uniris.P2P.GeoPatch do
     compute_patch(lat, lon)
   end
 
+  def diff(patch_a, patch_b) when is_binary(patch_a) and is_binary(patch_b) do
+    patch_a = patch_a |> String.to_charlist() |> List.to_integer(16)
+    patch_b = patch_b |> String.to_charlist() |> List.to_integer(16)
+    abs(patch_a - patch_b)
+  end
+
   defp compute_patch(lat, lon) do
     lat_sign = sign(lat)
     lon_sign = sign(lon)

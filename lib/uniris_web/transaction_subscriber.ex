@@ -25,7 +25,5 @@ defmodule UnirisWeb.TransactionSubscriber do
     {:noreply, state}
   end
 
-  def handle_info({:new_transaction, _}, state) do
-    {:noreply, state}
-  end
+  def handle_info({:new_transaction, _, _, _}, state), do: {:noreply, state}
 end

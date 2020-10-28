@@ -3,23 +3,19 @@ defmodule Uniris.Application do
 
   use Application
 
-  alias Uniris.BeaconSupervisor
+  alias Uniris.Account.Supervisor, as: AccountSupervisor
+  alias Uniris.BeaconChain.Supervisor, as: BeaconChainSupervisor
   alias Uniris.Bootstrap
-
-  alias Uniris.CryptoSupervisor
-
-  alias Uniris.ElectionSupervisor
-
-  alias Uniris.InterpreterSupervisor
-
-  alias Uniris.MiningSupervisor
-
-  alias Uniris.P2P.Endpoint, as: P2PEndpoint
-  alias Uniris.P2PSupervisor
-
-  alias Uniris.SelfRepair
-  alias Uniris.SharedSecretsRenewal
-  alias Uniris.StorageSupervisor
+  alias Uniris.Contracts.Supervisor, as: ContractsSupervisor
+  alias Uniris.Crypto.Supervisor, as: CryptoSupervisor
+  alias Uniris.DB.Supervisor, as: DBSupervisor
+  alias Uniris.Election.Supervisor, as: ElectionSupervisor
+  alias Uniris.Governance.Supervisor, as: GovernanceSupervisor
+  alias Uniris.Mining.Supervisor, as: MiningSupervisor
+  alias Uniris.P2P.Supervisor, as: P2PSupervisor
+  alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
+  alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
+  alias Uniris.TransactionChain.Supervisor, as: TransactionChainSupervisor
 
   alias Uniris.Utils
 
@@ -27,39 +23,27 @@ defmodule Uniris.Application do
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
   def start(_type, _args) do
-    repair_interval = Application.get_env(:uniris, SelfRepair)[:interval]
-    last_sync_file = Application.get_env(:uniris, SelfRepair)[:last_sync_file]
-
-    node_renewal_interval = Application.get_env(:uniris, SharedSecretsRenewal)[:interval]
-
-    node_renewal_trigger_offset =
-      Application.get_env(:uniris, SharedSecretsRenewal)[:trigger_offset]
-
-    children =
-      [
-        {Task.Supervisor, name: Uniris.TaskSupervisor},
-        {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
-        StorageSupervisor,
-        CryptoSupervisor,
-        ElectionSupervisor,
-        P2PSupervisor,
-        MiningSupervisor,
-        InterpreterSupervisor,
-        BeaconSupervisor,
-        WebSupervisor
-      ] ++
-        Utils.configurable_children([
-          {SharedSecretsRenewal,
-           [interval: node_renewal_interval, trigger_offset: node_renewal_trigger_offset], []},
-          {SelfRepair, [interval: repair_interval, last_sync_file: last_sync_file], []},
-          {Bootstrap,
-           [
-             port: Application.get_env(:uniris, P2PEndpoint)[:port]
-           ], []}
-        ])
+    children = [
+      {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
+      DBSupervisor,
+      TransactionChainSupervisor,
+      CryptoSupervisor,
+      ElectionSupervisor,
+      P2PSupervisor,
+      MiningSupervisor,
+      ContractsSupervisor,
+      BeaconChainSupervisor,
+      SharedSecretsSupervisor,
+      AccountSupervisor,
+      GovernanceSupervisor,
+      SelfRepairSupervisor,
+      WebSupervisor,
+      Bootstrap,
+      {Task.Supervisor, name: Uniris.TaskSupervisor}
+    ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
-    Supervisor.start_link(children, opts)
+    Supervisor.start_link(Utils.configurable_children(children), opts)
   end
 
   def config_change(changed, _new, removed) do

@@ -2,24 +2,18 @@ defmodule Uniris.P2P.Node do
   @moduledoc """
   Describe an Uniris P2P node
 
-  A geographical patch is computed from the IP based on a GeoIP lookup to get the coordinates.
-
-  Each node by default are not authorized and become when a node shared secrets transaction involve it.
-  Each node by default is not ready, and become it when a beacon pool receive a readyness message after the node bootstraping
-  Each node by default has an average availability of 1 and decrease after beacon chain daily summary updates
-  Each node by default is available and become unavailable when the messaging failed
+  Assumptions:
+  - Each node by default is not authorized and become when a node shared secrets transaction involve it.
+  - Each node by default is not available until the end of the node bootstrap or the next beacon chain daily summary updates
+  - Each node by default has an average availability of 1 and decrease after beacon chain daily summary updates
+  - Each node by default has a network equal to the geo patch, and is updated after each beacon chain daily summary updates
   """
 
   require Logger
 
   alias Uniris.Crypto
+  alias Uniris.P2P.Transport
 
-  @enforce_keys [
-    :first_public_key,
-    :last_public_key,
-    :ip,
-    :port
-  ]
   defstruct [
     :first_public_key,
     :last_public_key,
@@ -27,19 +21,19 @@ defmodule Uniris.P2P.Node do
     :port,
     :geo_patch,
     :network_patch,
-    available?: true,
+    available?: false,
     average_availability: 1.0,
     availability_history: <<1::1>>,
     enrollment_date: nil,
     authorized?: false,
-    ready?: false,
-    ready_date: nil,
-    authorization_date: nil
+    authorization_date: nil,
+    # TODO: support other transport (i.e udp/sctp)
+    transport: Application.get_env(:uniris, Transport, impl: :tcp) |> Keyword.fetch!(:impl)
   ]
 
   @type t() :: %__MODULE__{
-          first_public_key: Uniris.Crypto.key(),
-          last_public_key: Uniris.Crypto.key(),
+          first_public_key: Crypto.key(),
+          last_public_key: Crypto.key(),
           ip: :inet.ip_address(),
           port: :inet.port_number(),
           geo_patch: binary(),
@@ -48,11 +42,132 @@ defmodule Uniris.P2P.Node do
           average_availability: float(),
           availability_history: bitstring(),
           authorized?: boolean(),
-          ready?: boolean(),
           enrollment_date: DateTime.t(),
-          ready_date: DateTime.t(),
-          authorization_date: DateTime.t()
+          authorization_date: DateTime.t(),
+          transport: Transport.supported()
         }
+
+  @doc """
+  Convert a tuple from NodeLedger to a Node instance
+  """
+  @spec cast(tuple()) :: __MODULE__.t()
+  def cast(
+        {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
+         average_availability, availability_history, enrollment_date}
+      ) do
+    %__MODULE__{
+      ip: ip,
+      port: port,
+      first_public_key: first_public_key,
+      last_public_key: last_public_key,
+      geo_patch: geo_patch,
+      network_patch: network_patch,
+      average_availability: average_availability,
+      availability_history: availability_history,
+      enrollment_date: enrollment_date
+    }
+  end
+
+  @doc """
+  Determine if the node is locally available based on its availability history.
+
+  If the last exchange with node was succeed the node is considered as available
+
+  ## Examples
+
+      iex> Node.locally_available?(%Node{ availability_history: <<1::1, 0::1, 1::1, 1::1>>})
+      true
+
+      iex> Node.locally_available?(%Node{ availability_history: <<0::1, 1::1, 1::1, 1::1>>})
+      false
+
+  """
+  @spec locally_available?(t()) :: boolean()
+  def locally_available?(%__MODULE__{availability_history: <<1::1, _::bitstring>>}), do: true
+  def locally_available?(%__MODULE__{availability_history: <<0::1, _::bitstring>>}), do: false
+
+  @doc """
+  Determine if the node is globally available
+  """
+  @spec globally_available?(__MODULE__.t()) :: boolean()
+  def globally_available?(%__MODULE__{available?: true}), do: true
+  def globally_available?(%__MODULE__{available?: _}), do: false
+
+  @doc """
+  Mark the node as authorized by including the authorization date
+
+  ## Examples
+
+      iex> Node.authorize(%Node{}, ~U[2020-09-10 07:50:58.466314Z])
+      %Node{
+        authorized?: true,
+        authorization_date: ~U[2020-09-10 07:50:58.466314Z]
+      }
+  """
+  @spec authorize(__MODULE__.t(), DateTime.t()) :: __MODULE__.t()
+  def authorize(node = %__MODULE__{}, authorization_date = %DateTime{}) do
+    %{node | authorized?: true, authorization_date: authorization_date}
+  end
+
+  @doc """
+  Mark the node as non-authorized by including the authorization date
+
+  ## Examples
+
+      iex> Node.remove_authorization(%Node{authorized?: true, authorization_date: ~U[2020-09-10 07:50:58.466314Z]})
+      %Node{
+        authorized?: false,
+        authorization_date: nil
+      }
+  """
+  @spec remove_authorization(__MODULE__.t()) :: __MODULE__.t()
+  def remove_authorization(node = %__MODULE__{}) do
+    %{node | authorized?: false, authorization_date: nil}
+  end
+
+  @doc """
+  Mark the node as globally available
+  """
+  @spec available(__MODULE__.t()) :: __MODULE__.t()
+  def available(node = %__MODULE__{}) do
+    %{node | available?: true}
+  end
+
+  @doc """
+  Mark the node as globally unavailable
+  """
+  @spec unavailable(__MODULE__.t()) :: __MODULE__.t()
+  def unavailable(node = %__MODULE__{}) do
+    %{node | available?: false}
+  end
+
+  @doc """
+  Get the numerical value of the network patch hexadecimal
+  """
+  @spec get_network_patch_num(__MODULE__.t()) :: non_neg_integer()
+  def get_network_patch_num(%__MODULE__{network_patch: patch}) do
+    patch
+    |> String.to_charlist()
+    |> List.to_integer(16)
+  end
+
+  @doc """
+  Define the roll as enrolled with the first transaction time and initialize the network patch
+  with the geographical patch
+
+  ## Examples
+
+      iex> Node.enroll(%Node{geo_patch: "AAA"}, ~U[2020-09-10 07:50:58.466314Z])
+      %Node{
+        enrollment_date: ~U[2020-09-10 07:50:58.466314Z],
+        geo_patch: "AAA",
+        network_patch: "AAA"
+      }
+  """
+  @spec enroll(__MODULE__.t(), date :: DateTime.t()) :: __MODULE__.t()
+  def enroll(node = %__MODULE__{geo_patch: geo_patch}, date = %DateTime{}) do
+    %{node | enrollment_date: date, network_patch: geo_patch}
+  end
 
   # defp new_average_availability(history) do
   #   list = for <<view::1 <- history>>, do: view
@@ -74,7 +189,7 @@ defmodule Uniris.P2P.Node do
 
   ## Examples
 
-      iex> Uniris.P2P.Node.serialize(%Uniris.P2P.Node{
+      iex> Node.serialize(%Node{
       ...>   first_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...>     92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
       ...>   last_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
@@ -86,8 +201,6 @@ defmodule Uniris.P2P.Node do
       ...>   available?: true,
       ...>   average_availability: 0.8,
       ...>   enrollment_date: ~U[2020-06-26 08:36:11Z],
-      ...>   ready_date: ~U[2020-06-26 08:36:11Z],
-      ...>   ready?: true,
       ...>   authorization_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorized?: true
       ...> })
@@ -106,10 +219,6 @@ defmodule Uniris.P2P.Node do
       94, 245, 179, 123,
       # Available
       1::1,
-      # Ready
-      1::1,
-      # Ready date
-      94, 245, 179, 123,
       # Authorized
       1::1,
       # Authorization date
@@ -133,26 +242,21 @@ defmodule Uniris.P2P.Node do
         average_availability: average_availability,
         enrollment_date: enrollment_date,
         available?: available?,
-        ready?: ready?,
-        ready_date: ready_date,
         authorized?: authorized?,
         authorization_date: authorization_date
       }) do
     ip_bin = <<o1, o2, o3, o4>>
-    ready_bin = if ready?, do: 1, else: 0
     available_bin = if available?, do: 1, else: 0
     authorized_bin = if authorized?, do: 1, else: 0
 
     authorization_date =
       if authorization_date == nil, do: 0, else: DateTime.to_unix(authorization_date)
 
-    ready_date = if ready_date == nil, do: 0, else: DateTime.to_unix(ready_date)
     avg_bin = trunc(average_availability * 100)
 
     <<ip_bin::binary-size(4), port::16, geo_patch::binary-size(3), network_patch::binary-size(3),
-      avg_bin::8, DateTime.to_unix(enrollment_date)::32, available_bin::1, ready_bin::1,
-      ready_date::32, authorized_bin::1, authorization_date::32, first_public_key::binary,
-      last_public_key::binary>>
+      avg_bin::8, DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
+      authorization_date::32, first_public_key::binary, last_public_key::binary>>
   end
 
   @doc """
@@ -160,9 +264,9 @@ defmodule Uniris.P2P.Node do
 
   ## Examples
 
-      iex> Uniris.P2P.Node.deserialize(<<
+      iex> Node.deserialize(<<
       ...> 127, 0, 0, 1, 11, 184, "FA9", "AVC", 80,
-      ...> 94, 245, 179, 123, 1::1, 1::1, 94, 245, 179, 123,
+      ...> 94, 245, 179, 123, 1::1,
       ...> 1::1, 94, 245, 179, 123,
       ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
@@ -170,7 +274,7 @@ defmodule Uniris.P2P.Node do
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226
       ...> >>)
       {
-        %Uniris.P2P.Node{
+        %Node{
             first_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
               92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
             last_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
@@ -182,8 +286,6 @@ defmodule Uniris.P2P.Node do
             available?: true,
             average_availability: 0.8,
             enrollment_date: ~U[2020-06-26 08:36:11Z],
-            ready_date: ~U[2020-06-26 08:36:11Z],
-            ready?: true,
             authorization_date: ~U[2020-06-26 08:36:11Z],
             authorized?: true
         },
@@ -194,15 +296,11 @@ defmodule Uniris.P2P.Node do
   def deserialize(
         <<ip_bin::binary-size(4), port::16, geo_patch::binary-size(3),
           network_patch::binary-size(3), average_availability::8, enrollment_date::32,
-          available::1, ready::1, ready_date::32, authorized::1, authorization_date::32,
-          rest::bitstring>>
+          available::1, authorized::1, authorization_date::32, rest::bitstring>>
       ) do
     <<o1, o2, o3, o4>> = ip_bin
     available? = if available == 1, do: true, else: false
-    ready? = if ready == 1, do: true, else: false
     authorized? = if authorized == 1, do: true, else: false
-
-    ready_date = if ready_date == 0, do: nil, else: DateTime.from_unix!(ready_date)
 
     authorization_date =
       if authorization_date == 0, do: nil, else: DateTime.from_unix!(authorization_date)
@@ -222,9 +320,7 @@ defmodule Uniris.P2P.Node do
         average_availability: average_availability / 100,
         enrollment_date: DateTime.from_unix!(enrollment_date),
         available?: available?,
-        ready?: ready?,
         authorized?: authorized?,
-        ready_date: ready_date,
         authorization_date: authorization_date,
         first_public_key: <<first_curve_id::8>> <> first_key,
         last_public_key: <<last_curve_id::8>> <> last_key

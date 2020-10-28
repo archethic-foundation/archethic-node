@@ -1,6 +1,6 @@
 import Config
 
-config :uniris, UnirisCore.P2P.Endpoint,
+config :uniris, Uniris.P2P.Endpoint,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
 
 config :uniris, UnirisWeb.Endpoint,
@@ -12,7 +12,4 @@ config :uniris, UnirisWeb.Endpoint,
   ]
 
 config :uniris, Uniris.Crypto.SoftwareKeystore,
-  seed: System.get_env("UNIRIS_CRYPTO_SEED")
-
-config :uniris, Uniris.P2P.BootstrapingSeeds,
-  seeds: System.get_env("UNIRIS_P2P_SEEDS")
+  seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")

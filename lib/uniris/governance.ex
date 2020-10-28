@@ -1,76 +1,104 @@
 defmodule Uniris.Governance do
   @moduledoc """
-  Handle the governance onchain by supporting testnet and mainnet updates using quorum of votes
+  Handle the governance on-chain by supporting testnet and mainNet updates using quorum of votes
   for any protocol updates through code approvals and metrics approvals
   """
 
-  alias __MODULE__.Git
-  alias __MODULE__.ProposalMetadata
-  alias __MODULE__.Testnet
+  alias Uniris.Crypto
 
-  alias Uniris.Storage
+  alias __MODULE__.Code
+  alias __MODULE__.Code.Proposal
+  alias __MODULE__.Pools
 
-  alias Uniris.Transaction
-  alias Uniris.TransactionData
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
-  require Logger
+  @proposal_tx_select_fields [
+    :address,
+    :timestamp,
+    :previous_public_key,
+    data: [:content]
+  ]
 
   @doc """
-  Defines the acceptance threshold for a code approval quorum to go to the testnet evaluation
+  List all the proposals regarding code changes
   """
-  @spec code_approvals_threshold() :: float()
-  def code_approvals_threshold do
-    0.5
+  @spec list_code_proposals() :: Enumerable.t()
+  def list_code_proposals do
+    TransactionChain.list_transactions_by_type(:code_proposal, @proposal_tx_select_fields)
+    |> Stream.map(fn tx ->
+      tx
+      |> Proposal.from_transaction()
+      |> Proposal.add_approvals(
+        TransactionChain.list_signatures_for_pending_transaction(tx.address)
+      )
+    end)
   end
 
   @doc """
-  Defines the acceptance threshold for a code metrics quorum to go to the mainnet
+  Get a code proposal
   """
-  @spec metrics_approval_threshold() :: float()
-  def metrics_approval_threshold do
-    0.8
-  end
+  @spec get_code_proposal(address :: binary()) :: {:ok, Proposal.t()} | {:error, :not_found}
+  def get_code_proposal(address) when is_binary(address) do
+    case TransactionChain.get_transaction(address, @proposal_tx_select_fields) do
+      {:ok, tx} ->
+        {:ok, prop} = Proposal.from_transaction(tx)
+        signatures = TransactionChain.list_signatures_for_pending_transaction(address)
+        prop = Proposal.add_approvals(prop, signatures)
+        {:ok, prop}
 
-  @doc """
-  Performs some verifications for the proposal (i.e version upgrade)
-  """
-  @spec preliminary_checks(Transaction.t()) ::
-          :ok
-          | {:error, :missing_version}
-          | {:error, :invalid_version}
-          | {:error, :invalid_changes}
-  def preliminary_checks(
-        tx = %Transaction{
-          type: :code_proposal,
-          data: %TransactionData{content: content}
-        }
-      ) do
-    changes = ProposalMetadata.get_changes(content)
-
-    with {:ok, ver} <- ProposalMetadata.get_version(changes),
-         :gt <- Version.compare(ver, current_version()),
-         :ok <- Git.fork_proposal(tx) do
-      :ok
-    else
-      false ->
-        {:error, :invalid_version}
-
-      {:error, _} = e ->
-        e
+      _ ->
+        {:error, :not_found}
     end
   end
 
-  defp current_version do
-    {:ok, vsn} = :application.get_key(:uniris, :vsn)
-    List.to_string(vsn)
-  end
+  @doc """
+  List all the source file from the master branch
+  """
+  @spec list_source_files() :: list(binary())
+  defdelegate list_source_files, to: Code
 
   @doc """
-  Deploy the testnet for the given proposal address
+  Determine if the proposal changes are valid
   """
-  @spec deploy_testnet(binary()) :: :ok | {:error, :invalid_changes}
-  def deploy_testnet(address) do
-    {:ok, tx} = Storage.get_transaction(address)
-    Testnet.deploy(tx)
+  @spec valid_code_changes?(Proposal.t()) :: boolean
+  defdelegate valid_code_changes?(prop), to: Code, as: :valid_proposal?
+
+  @doc """
+  Determine if the public key is member of the given pool
+  """
+  @spec pool_member?(Crypto.key(), Pools.pool()) :: boolean()
+  defdelegate pool_member?(public_key, pool), to: Pools, as: :member_of?
+
+  @doc """
+  List the integration logs for the given code proposal address
+  """
+  @spec list_code_proposal_integration_logs(binary()) :: Enumerable.t()
+  defdelegate list_code_proposal_integration_logs(address),
+    to: Code,
+    as: :list_proposal_CI_logs
+
+  @doc """
+  Load transaction into the Governance context triggering some behaviors:
+  - Code proposals can trigger integration testing
+  - Code approvals can trigger testnet deployment
+  - Metric approvals can trigger MainNet deployment
+  """
+  @spec load_transaction(Transaction.t()) :: :ok
+  def load_transaction(%Transaction{
+        type: :code_approval,
+        data: %TransactionData{
+          recipients: [prop_address]
+        }
+      }) do
+    if Code.testnet_deployment?(prop_address) do
+      {:ok, prop} = get_code_proposal(prop_address)
+      Code.deploy_proposal_testnet(prop)
+    else
+      :ok
+    end
   end
+
+  def load_transaction(_), do: :ok
 end

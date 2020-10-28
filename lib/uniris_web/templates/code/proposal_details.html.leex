@@ -89,6 +89,34 @@
                 </div>
             </div>
         <% end %>
+
+        <div class="row">
+            <div class="column">
+                <%= if @logs != [] do %>
+                    <p>Integration logs</p>
+                    <%= if @exists? do %>
+                        <button 
+                            class="button button-outline" 
+                            style="display: :inline; height: 10px;  padding: 10px; line-height: 0px;" 
+                            phx-click="toggle_logs">
+                        <%= if @hide_logs do %>
+                            Show
+                        <% else %>
+                            Hide
+                        <% end %>
+                        </button>
+                    <% end %>
+                    
+                    <%= unless @hide_logs do %>
+                        <pre style="padding: 20px; height: 400px; overflow-y: scroll" phx-hook="Logs">
+                            <%= for log <- @logs do %>
+                            <%= log %>
+                            <% end %>
+                        </pre>
+                    <% end %>
+                <% end %>
+            </div>
+        </div>
     </div>
 </div>
 

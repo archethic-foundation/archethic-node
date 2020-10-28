@@ -4,7 +4,7 @@ defmodule Uniris.MixProject do
   def project do
     [
       app: :uniris,
-      version: "0.7.1",
+      version: "0.8.0",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -49,7 +49,7 @@ defmodule Uniris.MixProject do
       {:observer_cli, "~> 1.5"},
       {:distillery, "~> 2.0"},
       {:crontab, "~> 1.1"},
-      {:credo, "~> 1.4", runtime: false},
+      {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:mox, "~> 0.5.2"},
       {:stream_data, "~> 0.4.3"},

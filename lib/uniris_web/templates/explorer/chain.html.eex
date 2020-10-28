@@ -27,8 +27,8 @@
             <div class="column">
                 <header class="row">
                     <div class="column column-60">
-                        <%= length(@transaction_chain) %>
-                        <%= if length(@transaction_chain) > 1 do %>
+                        <%= @chain_size %>
+                        <%= if @chain_size > 1 do %>
                             transactions
                         <% else %>
                             transaction

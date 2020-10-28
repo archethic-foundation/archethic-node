@@ -8,7 +8,7 @@ defmodule Uniris.P2P.Message.CrossValidationDone do
   defstruct [:address, :cross_validation_stamp]
 
   alias Uniris.Crypto
-  alias Uniris.Transaction.CrossValidationStamp
+  alias Uniris.TransactionChain.Transaction.CrossValidationStamp
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),

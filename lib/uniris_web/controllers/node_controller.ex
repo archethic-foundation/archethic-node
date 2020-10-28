@@ -1,18 +1,20 @@
 defmodule UnirisWeb.NodeController do
+  @moduledoc false
+
   use UnirisWeb, :controller
 
   alias Uniris.Crypto
-  alias Uniris.Storage.Memory.NetworkLedger
-  alias Uniris.TransactionInput
+  alias Uniris.P2P
+  alias Uniris.TransactionChain.TransactionInput
 
   def index(conn, _params) do
-    render(conn, "index.html", nodes: NetworkLedger.list_nodes())
+    render(conn, "index.html", nodes: P2P.list_nodes())
   end
 
   def show(conn, _params = %{"public_key" => public_key}) do
     pub = Base.decode16!(public_key, case: :mixed)
 
-    case NetworkLedger.get_node_info(pub) do
+    case P2P.get_node_info(pub) do
       {:ok, node} ->
         node_address = Crypto.hash(pub)
 

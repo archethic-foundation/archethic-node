@@ -2,7 +2,7 @@ defmodule Uniris.P2P.Message.GetStorageNonce do
   @moduledoc """
   Represents a message to request the storage nonce
 
-  This message is used during the node bootstraping
+  This message is used during the node bootstrapping
   """
   alias Uniris.Crypto
 

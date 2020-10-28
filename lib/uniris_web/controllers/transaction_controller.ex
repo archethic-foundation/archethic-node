@@ -1,14 +1,16 @@
 defmodule UnirisWeb.TransactionController do
+  @moduledoc false
+
   use UnirisWeb, :controller
 
   alias Uniris.Crypto
 
-  alias Uniris.Transaction
-  alias Uniris.TransactionData
-  alias Uniris.TransactionData.Keys
-  alias Uniris.TransactionData.Ledger
-  alias Uniris.TransactionData.Ledger.Transfer
-  alias Uniris.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
+  alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   def new(
         conn,

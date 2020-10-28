@@ -4,7 +4,7 @@ defmodule Uniris.P2P.Message.TransactionList do
   """
   defstruct transactions: []
 
-  alias Uniris.Transaction
+  alias Uniris.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transactions: list(Transaction.t())

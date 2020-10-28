@@ -1,4 +1,6 @@
 defmodule UnirisWeb.Router do
+  @moduledoc false
+
   use UnirisWeb, :router
   import Phoenix.LiveDashboard.Router
 
@@ -16,7 +18,7 @@ defmodule UnirisWeb.Router do
   end
 
   # Add the on chain implementation of the uniris.io at the root of the webserver
-  # TODO: review to put it on every node or as proxy somewhere forwading to a specific transaction chain explorer
+  # TODO: review to put it on every node or as proxy somewhere forwarding to a specific transaction chain explorer
   scope "/", UnirisWeb do
     pipe_through(:browser)
 

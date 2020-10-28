@@ -3,35 +3,15 @@ use Mix.Config
 # Print only warnings and errors during test
 config :logger, level: :warning
 
-config :uniris, Uniris.Crypto.Keystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Account.MemTablesLoader, enabled: false
+config :uniris, Uniris.Account.MemTables.UCOLedger, enabled: false
 
-config :uniris, Uniris.Crypto.SoftwareKeystore, seed: "fake seed"
+config :uniris, Uniris.BeaconChain.Subset, enabled: false
 
-config :uniris, Uniris.Storage.Backend, impl: MockStorage, enabled: false
-config :uniris, Uniris.Storage.MemorySupervisor, enabled: false
-config :uniris, MockStorage, enabled: false
-
-config :uniris, Uniris.P2P, node_client: MockNodeClient
-
-config :uniris, Uniris.P2P.Endpoint, enabled: false
-
-config :uniris, Uniris.BeaconSubset, enabled: false
-
-config :uniris, Uniris.BeaconSlotTimer,
+config :uniris, Uniris.BeaconChain.SlotTimer,
   enabled: false,
   interval: 0,
   trigger_offset: 0
-
-config :uniris, Uniris.SharedSecretsRenewal,
-  enabled: false,
-  trigger_interval: 0,
-  interval: 0
-
-config :uniris, Uniris.SelfRepair,
-  enabled: false,
-  interval: 0,
-  last_sync_file: "priv/p2p/last_sync",
-  network_startup_date: DateTime.utc_now()
 
 config :uniris, Uniris.Bootstrap,
   ip_lookup_provider: MockIPLookup,
@@ -69,11 +49,59 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     ]
   ]
 
-config :uniris, Uniris.Interpreter.TransactionLoader, enabled: false
+config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 3
 
-config :uniris, Uniris.P2P.BootstrapingSeeds, enabled: false
+config :uniris, Uniris.Contracts.Loader, enabled: false
 
-config :uniris, Uniris.Governance.Testnet, impl: MockTestnet
+config :uniris, Uniris.Crypto.Keystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.KeystoreLoader, enabled: false
+config :uniris, Uniris.Crypto.SoftwareKeystore, seed: "fake seed"
+
+config :uniris, Uniris.DB, impl: MockDB
+config :uniris, MockDB, enabled: false
+
+config :uniris, Uniris.Election.Constraints, enabled: false
+
+config :uniris, Uniris.Governance.Code.TestNet, impl: MockTestnet
+
+config :uniris, Uniris.Governance.Pools,
+  initial_members: [
+    technical_council: [],
+    ethical_council: [],
+    foundation: [],
+    uniris: []
+  ]
+
+config :uniris, Uniris.Governance.Pools.MemTable, enabled: false
+config :uniris, Uniris.Governance.Pools.MemTableLoader, enabled: false
+
+config :uniris, Uniris.P2P.Endpoint, enabled: false
+config :uniris, Uniris.P2P.MemTableLoader, enabled: false
+config :uniris, Uniris.P2P.MemTable, enabled: false
+config :uniris, Uniris.P2P.Transport, impl: MockTransport
+
+config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false
+
+config :uniris, Uniris.SelfRepair.Scheduler,
+  enabled: false,
+  interval: 0
+
+config :uniris, Uniris.SelfRepair.Sync,
+  network_startup_date: DateTime.utc_now(),
+  last_sync_file: "priv/p2p/last_sync_test"
+
+config :uniris, Uniris.SharedSecrets.MemTablesLoader, enabled: false
+config :uniris, Uniris.SharedSecrets.MemTables.OriginKeyLookup, enabled: false
+
+config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
+  enabled: false,
+  trigger_interval: 0,
+  interval: 0
+
+config :uniris, Uniris.TransactionChain.MemTables.ChainLookup, enabled: false
+config :uniris, Uniris.TransactionChain.MemTables.PendingLedger, enabled: false
+config :uniris, Uniris.TransactionChain.MemTables.KOLedger, enabled: false
+config :uniris, Uniris.TransactionChain.MemTablesLoader, enabled: false
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

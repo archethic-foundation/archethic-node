@@ -4,9 +4,11 @@ defmodule Uniris.P2P.GeoPatch.GeoIP.IP2LocationImpl do
   @ip_db_file Application.app_dir(:uniris, "/priv/p2p/IP2LOCATION-LITE-DB5.BIN")
   @table_name :ip2location
 
-  @behaviour Uniris.P2P.GeoPatch.GeoIPImpl
+  alias Uniris.P2P.GeoPatch.GeoIPImpl
 
-  @impl true
+  @behaviour GeoIPImpl
+
+  @impl GeoIPImpl
   def get_coordinates(ip) when is_tuple(ip) do
     unless metadata_loaded?() do
       :ip2location.new(@ip_db_file, @table_name)

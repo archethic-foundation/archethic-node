@@ -1,97 +1,136 @@
 defmodule Uniris.Mining.ProofOfWork do
-  @moduledoc false
+  @moduledoc """
+  Handle the Proof Of Work algorithm.
+
+  The Proof Of Work algorithm is composed of the:
+  - retrieval of shared origin public keys
+  - search of the public key by scanning them
+
+  Transaction origin public keys can change depends on the type of transaction or the level of security required.
+  """
+
+  alias Uniris.Contracts
+  alias Uniris.Contracts.Contract
+  alias Uniris.Contracts.Contract.Conditions, as: ContractConditions
 
   alias Uniris.Crypto
 
-  alias Uniris.Storage.Memory.NetworkLedger
+  alias Uniris.P2P
 
-  alias Uniris.Transaction
+  alias Uniris.SharedSecrets
 
-  @doc """
-  Performs a lookup to find out the public key matching the signature created by
-  the device which originated the transaction
-
-  Different lookups for different transaction types:
-  - Network: lookup is based on the Node first public key
-  - Other: the lookup is based on the known list of authorized origin device public keys
-  """
-  @spec find_origin_public_key(Transaction.pending()) :: proof_of_work :: binary()
-  def find_origin_public_key(
-        tx = %Transaction{
-          type: :node,
-          previous_public_key: previous_public_key,
-          origin_signature: origin_signature
-        }
-      ) do
-    first_public_key =
-      NetworkLedger.get_node_first_public_key_from_previous_key(previous_public_key)
-
-    if Crypto.verify(origin_signature, transaction_raw(tx), first_public_key) do
-      first_public_key
-    else
-      ""
-    end
-  end
-
-  def find_origin_public_key(
-        tx = %Transaction{type: :node_shared_secrets, origin_signature: origin_signature}
-      ) do
-    origin_node_keys = Enum.map(NetworkLedger.list_nodes(), & &1.first_public_key)
-    do_find_public_key(origin_signature, transaction_raw(tx), origin_node_keys)
-  end
-
-  def find_origin_public_key(tx = %Transaction{origin_signature: origin_signature}) do
-    do_find_public_key(
-      origin_signature,
-      transaction_raw(tx),
-      NetworkLedger.list_origin_public_keys()
-    )
-  end
-
-  ## Check recursively all the public key with the origin signature.
-  ## Once the public key is found, the iteration is stopped
-  @spec do_find_public_key(binary(), binary(), list(Crypto.key())) :: Crypto.key()
-  defp do_find_public_key(sig, data, [public_key | rest]) do
-    if Crypto.verify(sig, data, public_key) do
-      public_key
-    else
-      do_find_public_key(sig, data, rest)
-    end
-  end
-
-  defp do_find_public_key(_sig, _data, []), do: ""
-
-  defp do_find_public_key(sig, data, public_key) do
-    if Crypto.verify(sig, data, public_key) do
-      public_key
-    else
-      ""
-    end
-  end
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
   @doc """
-  Verify the proof of work lookup for the given transaction
+  Scan a list of public keys to determine which one matches the transaction's origin signature.
+
+  Once the match is made, the scan is stopped. 
+  At the end of the scan, if not public keys has matched the origin signature, return an `{:error, :not_found}` tuple
+
+  ## Examples
+
+      iex> [
+      ...>   <<0, 108, 152, 237, 14, 218, 24, 75, 159, 187, 112, 249, 209, 182, 108, 133,
+      ...>     205, 141, 147, 182, 218, 85, 60, 169, 137, 238, 140, 254, 84, 21, 209, 210,
+      ...>     85>>,
+      ...>   <<0, 8, 138, 54, 218, 150, 70, 180, 4, 53, 144, 77, 115, 198, 46, 128, 207,
+      ...>     223, 189, 95, 253, 38, 40, 243, 54, 27, 96, 70, 86, 220, 217, 9, 1>>,
+      ...>   <<0, 211, 80, 49, 147, 126, 126, 253, 230, 87, 77, 68, 164, 77, 212, 75, 123,
+      ...>     37, 92, 251, 236, 251, 102, 255, 147, 203, 168, 147, 192, 65, 28, 13, 13>>,
+      ...>   <<0, 31, 2, 133, 98, 148, 6, 94, 233, 149, 174, 109, 92, 220, 4, 28, 164, 227,
+      ...>     123, 164, 104, 42, 110, 86, 189, 190, 156, 60, 142, 2, 44, 5, 44>>,
+      ...>   <<0, 25, 36, 103, 151, 183, 40, 176, 220, 225, 176, 57, 61, 203, 57, 118, 134,
+      ...>     150, 41, 194, 35, 35, 160, 145, 98, 31, 36, 154, 209, 151, 12, 125, 142>>
+      ...> ]
+      ...> |> ProofOfWork.find_transaction_origin_public_key(%Transaction{
+      ...>    address: <<0, 244, 145, 127, 161, 241, 33, 162, 253, 228, 223, 233, 125, 143,
+      ...>      71, 189, 178, 226, 124, 57, 18, 0, 115, 106, 182, 71, 149, 191, 76, 168,
+      ...>      248, 14, 164>>,
+      ...>    data: %TransactionData{},
+      ...>    origin_signature: <<176, 63, 162, 229, 68, 196, 200, 91, 107, 82, 34, 52, 227,
+      ...>      51, 87, 243, 146, 104, 174, 221, 249, 42, 228, 240, 243, 34, 107, 251, 39,
+      ...>      188, 52, 120, 97, 201, 225, 105, 232, 100, 2, 203, 85, 71, 184, 17, 172,
+      ...>      102, 124, 175, 1, 114, 143, 235, 11, 21, 186, 12, 144, 103, 82, 33, 118,
+      ...>      200, 74, 4>>,
+      ...>    previous_public_key: <<0, 110, 226, 20, 197, 55, 224, 165, 95, 201, 111, 210,
+      ...>      50, 138, 25, 142, 130, 140, 51, 143, 208, 228, 230, 150, 84, 161, 157, 32,
+      ...>      42, 55, 118, 226, 12>>,
+      ...>    previous_signature: <<141, 38, 35, 252, 145, 124, 224, 234, 52, 113, 147, 7,
+      ...>      254, 45, 155, 16, 93, 218, 167, 254, 192, 171, 72, 45, 35, 228, 190, 53, 99,
+      ...>      157, 186, 69, 123, 129, 107, 234, 129, 135, 115, 243, 177, 225, 166, 248,
+      ...>      247, 88, 173, 221, 239, 60, 159, 22, 209, 223, 139, 253, 6, 210, 81, 143, 0,
+      ...>      118, 222, 15>>,
+      ...>    timestamp: ~U[2020-01-13 16:07:22Z],
+      ...>    type: :transfer
+      ...>  })
+      {
+        :ok, 
+        # The 4th public key matches
+        <<0, 31, 2, 133, 98, 148, 6, 94, 233, 149, 174, 109, 92, 220, 4, 28, 164, 227,
+        123, 164, 104, 42, 110, 86, 189, 190, 156, 60, 142, 2, 44, 5, 44>>
+      }
   """
-  @spec verify?(proof_of_work :: binary(), Transaction.pending()) :: boolean()
-  def verify?("", tx = %Transaction{}) do
-    if find_origin_public_key(tx) == "" do
-      true
-    else
-      false
-    end
-  end
-
-  def verify?(proof_of_work, tx = %Transaction{}) when is_binary(proof_of_work) do
-    Crypto.verify(
-      tx.origin_signature,
-      transaction_raw(tx),
-      proof_of_work
-    )
-  end
-
-  defp transaction_raw(tx = %Transaction{}) do
+  @spec find_transaction_origin_public_key(list(Crypto.key()), Transaction.t()) ::
+          {:ok, Crypto.key()} | {:error, :not_found}
+  def find_transaction_origin_public_key(
+        origin_public_keys,
+        tx = %Transaction{origin_signature: origin_signature}
+      )
+      when is_list(origin_public_keys) do
     tx
     |> Transaction.extract_for_origin_signature()
     |> Transaction.serialize()
+    |> do_find_transaction_origin_public_key(origin_signature, origin_public_keys)
   end
+
+  defp do_find_transaction_origin_public_key(data, sig, [public_key | rest]) do
+    if Crypto.verify(sig, data, public_key) do
+      {:ok, public_key}
+    else
+      do_find_transaction_origin_public_key(data, sig, rest)
+    end
+  end
+
+  defp do_find_transaction_origin_public_key(_data, _sig, []), do: {:error, :not_found}
+
+  @doc """
+  List the origin public keys candidates for a given transaction (default: all the origin public keys)
+
+  Smart contract code can defined which family to use (like security level)
+  """
+  @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
+  def list_origin_public_keys_candidates(%Transaction{data: %TransactionData{code: code}})
+      when code != "" do
+    %Contract{conditions: %ContractConditions{origin_family: family}} = Contracts.parse!(code)
+
+    case family do
+      nil ->
+        SharedSecrets.list_origin_public_keys()
+
+      family ->
+        SharedSecrets.list_origin_public_keys(family)
+    end
+  end
+
+  def list_origin_public_keys_candidates(%Transaction{
+        type: :node,
+        previous_public_key: previous_key
+      }) do
+    case TransactionChain.get_first_public_key(previous_key) do
+      ^previous_key ->
+        [previous_key]
+
+      _ ->
+        P2P.list_node_first_public_keys()
+    end
+  end
+
+  def list_origin_public_keys_candidates(%Transaction{type: :node_shared_secrets}) do
+    P2P.list_node_first_public_keys()
+  end
+
+  def list_origin_public_keys_candidates(%Transaction{}),
+    do: SharedSecrets.list_origin_public_keys()
 end

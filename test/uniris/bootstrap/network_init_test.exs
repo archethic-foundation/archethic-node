@@ -1,39 +1,50 @@
 defmodule Uniris.Bootstrap.NetworkInitTest do
   use UnirisCase
 
+  alias Uniris.Account
   alias Uniris.Crypto
 
-  alias Uniris.Beacon
-  alias Uniris.BeaconSlot
-  alias Uniris.BeaconSlot.TransactionInfo
-  alias Uniris.BeaconSubset
-  alias Uniris.BeaconSubsetRegistry
+  alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.Slot, as: BeaconSlot
+  alias Uniris.BeaconChain.Slot.TransactionInfo
+  alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Uniris.BeaconChain.Subset, as: BeaconSubset
+  alias Uniris.BeaconChain.Subset.SlotRegistry
+  alias Uniris.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
 
   alias Uniris.Bootstrap.NetworkInit
-  alias Uniris.Mining.Context
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
-  alias Uniris.SharedSecretsRenewal
-  alias Uniris.Storage.Memory.NetworkLedger
-  alias Uniris.Storage.Memory.UCOLedger, as: UCOLedgerDB
+  alias Uniris.SharedSecrets.NodeRenewalScheduler
 
-  alias Uniris.Transaction
-  alias Uniris.Transaction.ValidationStamp
-  alias Uniris.Transaction.ValidationStamp.LedgerOperations
-  alias Uniris.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-  alias Uniris.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias Uniris.TransactionData
-  alias Uniris.TransactionData.Ledger
-  alias Uniris.TransactionData.Ledger.Transfer
-  alias Uniris.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   import Mox
 
   setup do
-    Enum.each(Beacon.list_subsets(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({SharedSecretsRenewal, interval: "* * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+    start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *", trigger_offset: 0})
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.node_public_key(0),
+      last_public_key: Crypto.node_public_key(0),
+      available?: true,
+      geo_patch: "AAA"
+    })
+
     :ok
   end
 
@@ -58,27 +69,31 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
         0
       )
 
-    %Transaction{
-      validation_stamp: %ValidationStamp{
-        ledger_operations: %LedgerOperations{
-          transaction_movements: [
-            %TransactionMovement{to: "@Alice2", amount: 5_000.0}
-          ],
-          unspent_outputs: [
-            # TODO: use the right change when the fee algorithm is implemented
-            %UnspentOutput{amount: 4999.9}
-          ]
-        }
-      }
-    } =
-      NetworkInit.self_validation!(tx, %Context{
-        unspent_outputs: [
-          %UnspentOutput{amount: 10_000, from: tx.address}
-        ]
-      })
+    unspent_outputs = [%UnspentOutput{amount: 10_000, from: tx.address}]
+    tx = NetworkInit.self_validation!(tx, unspent_outputs)
+
+    assert %Transaction{
+             validation_stamp: %ValidationStamp{
+               ledger_operations: %LedgerOperations{
+                 transaction_movements: [
+                   %TransactionMovement{to: "@Alice2", amount: 5_000.0}
+                 ],
+                 unspent_outputs: [
+                   # TODO: use the right change when the fee algorithm is implemented
+                   %UnspentOutput{amount: 4999.99, from: _}
+                 ]
+               }
+             }
+           } = tx
   end
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      first_public_key: "key1",
+      last_public_key: "key1"
+    })
+
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
     validated_tx = %{
@@ -93,7 +108,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
 
     me = self()
 
-    MockStorage
+    MockDB
     |> stub(:write_transaction_chain, fn _chain ->
       send(me, :write_transaction)
       :ok
@@ -103,14 +118,16 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
 
     assert_received :write_transaction
 
-    subset = Beacon.subset_from_address(tx.address)
+    subset = BeaconChain.subset_from_address(tx.address)
     [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
 
     %{
-      current_slot: %BeaconSlot{
-        transactions: [
-          %TransactionInfo{}
-        ]
+      slot_registry: %SlotRegistry{
+        current_slot: %BeaconSlot{
+          transactions: [
+            %TransactionInfo{}
+          ]
+        }
       }
     } = :sys.get_state(pid)
   end
@@ -118,16 +135,18 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
     me = self()
 
-    NetworkLedger.add_node_info(%Node{
+    P2P.add_node(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
       port: 3000,
-      ready?: true,
-      available?: true
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now(),
+      geo_patch: "AAA"
     })
 
-    MockStorage
+    MockDB
     |> expect(:write_transaction_chain, fn [tx] ->
       send(me, {:transaction, tx})
       :ok
@@ -144,16 +163,15 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     assert_receive {:transaction, %Transaction{type: :node_shared_secrets}}
     assert_receive :set_daily_nonce
 
-    assert {:ok, %Node{authorized?: true}} = P2P.node_info()
+    assert %Node{authorized?: true} = P2P.get_node_info()
   end
 
   test "init_genesis_wallets/1 should initialize genesis wallets" do
-    NetworkLedger.add_node_info(%Node{
+    P2P.add_node(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
       port: 3000,
-      ready?: true,
       available?: true
     })
 
@@ -164,7 +182,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       |> Base.decode16!()
       |> Crypto.hash()
 
-    assert 3.82e9 == UCOLedgerDB.balance(funding_address)
-    assert 1.46e9 == UCOLedgerDB.balance("@network_pool")
+    assert 3.82e9 == Account.get_balance(funding_address)
+    assert 1.46e9 == Account.get_balance("@network_pool")
   end
 end

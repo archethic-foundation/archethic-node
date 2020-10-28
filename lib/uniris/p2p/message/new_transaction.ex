@@ -6,7 +6,7 @@ defmodule Uniris.P2P.Message.NewTransaction do
   """
   defstruct [:transaction]
 
-  alias Uniris.Transaction
+  alias Uniris.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transaction: Transaction.t()

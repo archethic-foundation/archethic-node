@@ -6,27 +6,11 @@ defmodule Uniris.ReleaseTask do
 
   alias Uniris.Crypto
 
-  alias Uniris.Storage.CassandraBackend
-  alias Uniris.Storage.CassandraBackend.SchemaMigrator
-
-  alias Uniris.Transaction
-  alias Uniris.TransactionData
-  alias Uniris.TransactionData.Ledger
-  alias Uniris.TransactionData.Ledger.Transfer
-  alias Uniris.TransactionData.UCOLedger
-
-  @doc """
-  Execute the database migrations
-  """
-  def run_migrations do
-    case Application.get_env(:uniris, Uniris.Storage)[:backend] do
-      CassandraBackend ->
-        SchemaMigrator.start_link()
-
-      _ ->
-        :ok
-    end
-  end
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   # TODO: to remove once the Client UI developed
   def transfer_to_website_addresses(index \\ 0, destination_index \\ 0, amount \\ 1.0) do
@@ -37,7 +21,7 @@ defmodule Uniris.ReleaseTask do
           uco: %UCOLedger{
             transfers:
               Enum.map(website_seeds(), fn seed ->
-                {pub, _} = Crypto.derivate_keypair(seed, destination_index)
+                {pub, _} = Crypto.derive_keypair(seed, destination_index)
                 %Transfer{to: Crypto.hash(pub), amount: amount}
               end)
           }

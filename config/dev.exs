@@ -1,9 +1,6 @@
 use Mix.Config
 
-config :logger,
-  backends: [:console, {LoggerFileBackend, :file_log}]
-
-config :logger, :file_log, path: "log_#{System.get_env("UNIRIS_CRYPTO_SEED")}"
+# config :logger, handle_sasl_reports: true
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -12,16 +9,15 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
-config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
-
-config :uniris, Uniris.Storage.Backend, impl: Uniris.Storage.CassandraBackend
-
-config :uniris, Uniris.Storage.KeyValueBackend,
-  root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
+config :uniris, Uniris.BeaconChain.SlotTimer,
+  interval: "0 * * * * * *",
+  # Trigger it 5 seconds before
+  trigger_offset: 5
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.EnvImpl
+config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
 
-config :uniris, Uniris.P2P.BootstrapingSeeds,
+config :uniris, Uniris.P2P.BootstrappingSeeds,
   # First node crypto seed is "node1"
   seeds:
     System.get_env(
@@ -61,24 +57,33 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     ]
   ]
 
-config :uniris, Uniris.BeaconSlotTimer,
-  interval: "* * * * * *",
-  # Trigger it 5 seconds before
-  trigger_offset: 5
+config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 
-config :uniris, Uniris.SharedSecretsRenewal,
-  interval: "* * * * * *",
-  # Trigger it 20 seconds before
-  trigger_offset: 20
+config :uniris, Uniris.Crypto.SoftwareKeystore,
+  seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
 
-config :uniris, Uniris.SelfRepair,
-  last_sync_file: "priv/p2p/last_sync/#{System.get_env("UNIRIS_CRYPTO_SEED")}",
-  interval: "* * * * * *",
+config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
+
+config :uniris, Uniris.DB.KeyValueImpl,
+  root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
+
+config :uniris, Uniris.Governance.Pools,
+  initial_members: [
+    technical_council: [{"00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8", 1}],
+    ethical_council: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"],
+    foundation: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"],
+    uniris: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"]
+  ]
+
+config :uniris, Uniris.SelfRepair.Scheduler, interval: "0 * * * * * *"
+
+config :uniris, Uniris.SelfRepair.Sync,
+  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED")}",
   network_startup_date: %DateTime{
     year: DateTime.utc_now().year,
     month: DateTime.utc_now().month,
     day: DateTime.utc_now().day,
-    hour: DateTime.utc_now().hour - 1,
+    hour: DateTime.add(DateTime.utc_now(), -3600).hour,
     minute: 0,
     second: 0,
     microsecond: {0, 0},
@@ -87,6 +92,11 @@ config :uniris, Uniris.SelfRepair,
     time_zone: "Etc/UTC",
     zone_abbr: "UTC"
   }
+
+config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
+  interval: "0 * * * * * *",
+  # Trigger it 20 seconds before
+  trigger_offset: 20
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

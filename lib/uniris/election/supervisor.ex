@@ -1,18 +1,19 @@
-defmodule Uniris.ElectionSupervisor do
+defmodule Uniris.Election.Supervisor do
   @moduledoc false
 
   use Supervisor
 
   alias Uniris.Election.Constraints
+  alias Uniris.Utils
 
-  def start_link(opts) do
-    Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(args) do
+    Supervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  def init(_opts) do
-    children = [
-      Constraints
-    ]
+  def init(_args) do
+    optional_children = [{Constraints, [], []}]
+
+    children = Utils.configurable_children(optional_children)
 
     Supervisor.init(children, strategy: :one_for_one)
   end
