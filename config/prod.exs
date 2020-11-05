@@ -108,5 +108,6 @@ config :uniris, UnirisWeb.Endpoint,
     keyfile: System.get_env("UNIRIS_WEB_SSL_KEY_PATH"),
     certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH"),
     transport_options: [socket_opts: [:inet6]]
-  ],
-  force_ssl: [hsts: true]
+  ]
+
+# force_ssl: [hsts: true]
