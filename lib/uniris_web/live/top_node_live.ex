@@ -36,6 +36,7 @@ defmodule UnirisWeb.TopNodeLive do
 
   defp top_nodes(nodes) do
     nodes
+    |> Enum.filter(& &1.available?)
     |> Enum.sort_by(& &1.average_availability, :desc)
     |> Enum.take(10)
   end
