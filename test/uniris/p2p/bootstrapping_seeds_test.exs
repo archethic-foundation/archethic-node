@@ -1,5 +1,5 @@
 defmodule Uniris.P2P.BootstrappingSeedsTest do
-  use UnirisCase, async: false
+  use ExUnit.Case
 
   alias Uniris.Crypto
 
@@ -8,10 +8,18 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
   doctest BootstrappingSeeds
 
+  import Mox
+
+  setup :verify_on_exit!
+  setup :set_mox_global
+
   setup do
     Application.delete_env(:uniris, BootstrappingSeeds)
 
     file_path = Application.app_dir(:uniris, "priv/p2p/seeds_test")
+
+    MockCrypto
+    |> stub(:node_public_key, fn _ -> :crypto.strong_rand_bytes(32) end)
 
     on_exit(fn ->
       File.rm(file_path)
