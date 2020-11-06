@@ -33,13 +33,9 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   import Mox
 
-  describe "should_initialize_network?/0" do
+  describe "should_initialize_network?/1" do
     test "should return true when the network has not been deployed and it's the first bootstrapping seed" do
-      assert true ==
-               Sync.should_initialize_network?("key1", [
-                 %Node{first_public_key: "key1"},
-                 %Node{first_public_key: "key1"}
-               ])
+      assert true == Sync.should_initialize_network?([])
     end
 
     test "should return false when the network has been initialized" do
@@ -62,7 +58,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         })
 
       assert false ==
-               Sync.should_initialize_network?("key2", [
+               Sync.should_initialize_network?([
                  %Node{first_public_key: "key1"},
                  %Node{first_public_key: "key1"}
                ])
