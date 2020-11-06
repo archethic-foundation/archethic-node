@@ -687,16 +687,20 @@ defmodule Uniris.P2P.MemTable do
   """
   @spec increase_node_availability(first_public_key :: Crypto.key()) :: :ok
   def increase_node_availability(first_public_key) when is_binary(first_public_key) do
-    case :ets.lookup_element(@discovery_table, first_public_key, 8) do
-      <<1::1, _::bitstring>> ->
-        :ok
+    if :ets.member(@discovery_table, first_public_key) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+        <<1::1, _::bitstring>> ->
+          :ok
 
-      <<0::1, _::bitstring>> = history ->
-        new_history = <<1::1, history::bitstring>>
-        true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
-        Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
-        notify_node_update(first_public_key)
-        :ok
+        <<0::1, _::bitstring>> = history ->
+          new_history = <<1::1, history::bitstring>>
+          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
+          notify_node_update(first_public_key)
+          :ok
+      end
+    else
+      :ok
     end
   end
 
@@ -719,16 +723,20 @@ defmodule Uniris.P2P.MemTable do
   """
   @spec decrease_node_availability(first_public_key :: Crypto.key()) :: :ok
   def decrease_node_availability(first_public_key) when is_binary(first_public_key) do
-    case :ets.lookup_element(@discovery_table, first_public_key, 8) do
-      <<0::1, _::bitstring>> ->
-        :ok
+    if :ets.member(@discovery_table, first_public_key) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+        <<0::1, _::bitstring>> ->
+          :ok
 
-      <<1::1, _::bitstring>> = history ->
-        new_history = <<0::1, history::bitstring>>
-        true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
-        Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
-        notify_node_update(first_public_key)
-        :ok
+        <<1::1, _::bitstring>> = history ->
+          new_history = <<0::1, history::bitstring>>
+          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
+          notify_node_update(first_public_key)
+          :ok
+      end
+    else
+      :ok
     end
   end
 
