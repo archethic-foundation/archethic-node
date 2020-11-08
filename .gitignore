@@ -39,3 +39,7 @@ log_*
 /.idea/
 uniris-node.iml
 projectFilesBackup
+assets/yarn.lock
+.vs/uniris-node/v16/.suo
+.vs/VSWorkspaceState.json
+.vs/slnx.sqlite
