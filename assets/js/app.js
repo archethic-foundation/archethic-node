@@ -1,16 +1,17 @@
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
-import css from "../css/app.css"
+import {} from "../css/app.scss"
+import {} from './ui'
 
 // webpack automatically bundles all modules in your
 // entry points. Those entry points can be configured
-
 
 import {Socket} from "phoenix"
 import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
 import { getTransactionIndex, newTransactionBuilder, derivateAddress } from "uniris"
+import hljs from "highlight.js"
 
 let Hooks = {}
 
@@ -20,6 +21,16 @@ let scrollAt = () => {
   let clientHeight = document.documentElement.clientHeight
 
   return scrollTop / (scrollHeight - clientHeight) * 100
+}
+
+Hooks.CodeViewer = {
+  mounted() {
+    hljs.highlightBlock(this.el);
+  },
+
+  updated(){ 
+    hljs.highlightBlock(this.el);
+  }
 }
 
 Hooks.InfiniteScroll = {

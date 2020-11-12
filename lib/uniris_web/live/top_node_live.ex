@@ -1,6 +1,6 @@
 defmodule UnirisWeb.TopNodeLive do
   @moduledoc false
-  use Phoenix.LiveView
+  use UnirisWeb, :live_component
 
   alias Phoenix.View
 
@@ -11,7 +11,7 @@ defmodule UnirisWeb.TopNodeLive do
 
   alias UnirisWeb.ExplorerView
 
-  def mount(_params, _session, socket) do
+  def mount(socket) do
     if connected?(socket) do
       PubSub.register_to_node_update()
     end
@@ -20,7 +20,7 @@ defmodule UnirisWeb.TopNodeLive do
   end
 
   def render(assigns) do
-    View.render(ExplorerView, "top_node_list.html", assigns)
+    View.render(ExplorerView, "top_nodes.html", assigns)
   end
 
   def handle_info({:node_update, node = %Node{}}, socket) do

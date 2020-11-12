@@ -1,9 +1,6 @@
 defmodule UnirisWeb.CodeProposalChatLive do
   @moduledoc false
-
-  use Phoenix.LiveView
-
-  alias Phoenix.View
+  use UnirisWeb, :live_view
 
   # alias Uniris.P2P
   # alias Uniris.P2P.Message.NewChatProposal
@@ -11,18 +8,23 @@ defmodule UnirisWeb.CodeProposalChatLive do
 
   # alias Uniris.TaskSupervisor
 
+  alias Phoenix.View
+
   alias UnirisWeb.CodeView
   alias UnirisWeb.Endpoint
 
-  def mount(_, session, socket) do
-    proposal_address = Map.get(session, "proposal")
-
+  def mount(_params, %{"proposal_address" => proposal_address}, socket) do
     if connected?(socket) do
       # PubSub.register_to_proposal_message(proposal_address)
       Endpoint.subscribe(topic(proposal_address))
     end
 
-    {:ok, assign(socket, proposal_address: proposal_address, chats: [])}
+    new_socket =
+      socket
+      |> assign(:chats, [])
+      |> assign(:proposal_address, proposal_address)
+
+    {:ok, new_socket}
   end
 
   def render(assigns) do
@@ -31,11 +33,12 @@ defmodule UnirisWeb.CodeProposalChatLive do
 
   def handle_event(
         "new_message",
-        %{"message" => message},
+        %{"comment" => comment, "name" => name},
         socket = %{assigns: %{proposal_address: proposal_address}}
       ) do
     chat = %{
-      message: message,
+      comment: comment,
+      name: name,
       timestamp: DateTime.utc_now()
     }
 
@@ -50,24 +53,25 @@ defmodule UnirisWeb.CodeProposalChatLive do
     # |> Stream.run()
 
     Endpoint.broadcast_from(self(), topic(proposal_address), "message", chat)
-    {:noreply, update(socket, :chats, &(&1 ++ [chat]))}
+    {:noreply, update(socket, :chats, &[chat | &1])}
   end
 
   def handle_info(%{event: "message", payload: chat}, socket) do
-    {:noreply, update(socket, :chats, &(&1 ++ [chat]))}
+    {:noreply, update(socket, :chats, &[chat | &1])}
   end
 
   def handle_info(
-        {:new_proposal_message, message, timestamp},
+        {:new_proposal_message, comment, name, timestamp},
         socket = %{assigns: %{proposal_address: proposal_address}}
       ) do
     chat = %{
-      message: message,
+      comment: comment,
+      name: name,
       timestamp: timestamp
     }
 
     Endpoint.broadcast_from(self(), topic(proposal_address), "message", chat)
-    {:noreply, update(socket, :chats, &(&1 ++ [chat]))}
+    {:noreply, update(socket, :chats, &[chat | &1])}
   end
 
   defp topic(address) do

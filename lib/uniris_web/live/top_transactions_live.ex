@@ -1,6 +1,6 @@
 defmodule UnirisWeb.TopTransactionLive do
   @moduledoc false
-  use Phoenix.LiveView
+  use UnirisWeb, :live_component
 
   alias Phoenix.View
 
@@ -10,7 +10,9 @@ defmodule UnirisWeb.TopTransactionLive do
 
   alias UnirisWeb.ExplorerView
 
-  def mount(_params, _session, socket) do
+  @nb_transactions 3
+
+  def mount(socket) do
     if connected?(socket) do
       PubSub.register_to_new_transaction()
     end
@@ -18,7 +20,7 @@ defmodule UnirisWeb.TopTransactionLive do
     transactions =
       [:address, :type, :timestamp]
       |> TransactionChain.list_all()
-      |> get_last_10()
+      |> get_last_n(@nb_transactions)
 
     {:ok, assign(socket, transactions: transactions)}
   end
@@ -33,7 +35,7 @@ defmodule UnirisWeb.TopTransactionLive do
         socket,
         :transactions,
         &(Stream.concat(&1, [%{address: address, type: type, timestamp: timestamp}])
-          |> get_last_10())
+          |> get_last_n(@nb_transactions))
       )
 
     {:noreply, new_socket}
@@ -41,10 +43,10 @@ defmodule UnirisWeb.TopTransactionLive do
 
   def handle_info(_, socket), do: {:noreply, socket}
 
-  defp get_last_10(transactions) do
+  defp get_last_n(transactions, n) do
     transactions
     |> Stream.reject(&(&1.type == :beacon))
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-    |> Enum.take(10)
+    |> Enum.take(n)
   end
 end

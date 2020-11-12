@@ -29,9 +29,9 @@ defmodule UnirisWeb.Router do
   scope "/explorer", UnirisWeb do
     pipe_through(:browser)
 
-    get("/", ExplorerController, :index)
-    live("/search", TransactionDetailsLive)
+    live("/", ExplorerIndexLive)
     live("/transactions", TransactionListLive)
+    live("/transaction/:address", TransactionDetailsLive)
     get("/chain", ExplorerController, :chain)
     get("/node", NodeController, :index)
     get("/node/:public_key", NodeController, :show)
@@ -46,11 +46,11 @@ defmodule UnirisWeb.Router do
 
     get(
       "/last_transaction/:address/content",
-      UnirisWeb.TransactionController,
+      UnirisWeb.API.TransactionController,
       :last_transaction_content
     )
 
-    post("/transaction", UnirisWeb.TransactionController, :new)
+    post("/transaction", UnirisWeb.API.TransactionController, :new)
 
     forward(
       "/graphiql",

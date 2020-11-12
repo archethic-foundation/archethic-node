@@ -1,32 +1,43 @@
-<div class="row explorer-card">
-    <div class="column">
-        <header class="row">
-            <div class="column"><h3>Code proposals</h3></div>
-        </header>
-        <div class="row">
-            <div class="column">Transaction address</div>
-            <div class="column">Transaction timestamp</div>
-            <div class="column">Sender</div>
-            <div class="column">Description</div>
-            <div class="column">Approvals</div>
-        </div>
-        <%= for proposal <- @proposals do %>
-        <div class="row">
+<h1 class="subtitle is-size-4 heading has-text-white">Code proposals (<%= Enum.count(@proposals) %>)</h1>
 
-            <div class="column">
-                <%= link to: Routes.code_path(@socket, :show_proposal, Base.encode16(proposal.address)) do%>
-                    <%= Base.encode16(:binary.part(proposal.address, 0, 10)) %>...
-                <% end %>
-            </div>
-            <div class="column"><%= format_date(proposal.timestamp) %></div>
-            <div class="column"><%= :binary.part(Base.encode16(proposal.previous_public_key), 0, 10) %>...</div>
-            <div class="column">
-                <%= String.slice(proposal.description, 0..50) %>
-            </div>
-            <div class="column">
-                <%= proposal.nb_approvals %>
-            </div>
+<%= if Enum.count(@proposals) == 0 do %>
+    <div class="box">
+        <p>There is not code proposals yet !</p>
+    </div>
+<% end %>
+
+<%= for proposal <- @proposals do %>
+<div class="box">
+    <div class="columns">
+        <div class="column">
+            <p class="heading">Transaction address</p>
+            <%= link to: Routes.code_path(@socket, :show_proposal, Base.encode16(proposal.address)) do%>
+                <%= Base.encode16(:binary.part(proposal.address, 0, 13)) %>...
+            <% end %>
         </div>
-        <% end %>
+        <div class="column">
+            <p class="heading">Transaction date</p>
+            <span><%= format_date(proposal.timestamp) %><span>
+        </div>
+        <div class="column">
+            <p class="heading">Sender</p>
+            <span><%= Base.encode16(:binary.part(proposal.sender, 0, 13)) %>...<span>
+        </div>
+        <div class="column">
+            <p class="heading">Changes criticality</p>
+            <span>
+                <%= version_tag(Version.parse!(proposal.version)) %>
+                <small>(<%= proposal.version %>)</small>
+            </span>
+        </div>
+        <div class="column">
+            <p class="heading">Description</p>
+            <span><%= String.slice(proposal.description, 0..50) %><span>
+        </div>
+        <div class="column">
+            <p class="heading">Approvals</p>
+            <span><%= proposal.nb_approvals %><span>
+        </div>
     </div>
 </div>
+<% end  %>

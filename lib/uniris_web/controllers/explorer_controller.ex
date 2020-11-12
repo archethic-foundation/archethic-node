@@ -6,7 +6,7 @@ defmodule UnirisWeb.ExplorerController do
   alias Uniris.TransactionChain.Transaction
 
   def index(conn, _params) do
-    render(conn, "index.html")
+    render(conn, "index.html", layout: {UnirisWeb.LayoutView, "index.html"})
   end
 
   def search(conn, _params = %{"address" => address}) do
@@ -32,12 +32,12 @@ defmodule UnirisWeb.ExplorerController do
         render(conn, "chain.html",
           transaction_chain: chain,
           chain_size: Enum.count(chain),
-          address: address,
+          address: bin_address,
           balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
         )
 
       _ ->
-        render(conn, "chain.html", transaction_chain: [], chain_size: 0, address: address)
+        render(conn, "chain.html", transaction_chain: [], chain_size: 0, address: bin_address)
     end
   end
 
@@ -48,7 +48,7 @@ defmodule UnirisWeb.ExplorerController do
 
     render(conn, "chain.html",
       transaction_chain: chain,
-      address: address,
+      address: bin_address,
       chain_size: Enum.count(chain),
       balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
     )

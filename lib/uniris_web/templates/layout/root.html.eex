@@ -10,30 +10,50 @@
     <%= csrf_meta_tag() %>
   </head>
   <body>
-    <div class="container explorer">
-      <header class="explorer-header">
-          <nav class="row">
-            <div class="column column-10 column-offset-10">
-              <a href="<%= Routes.explorer_path(@conn, :index) %>">
-                  <img src="/images/logo.svg" alt="UNIRIS logo" title="UNIRIS" />
-              </a>
+    <div class="container is-fluid">
+      <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.ExplorerIndexLive) %>">
+            <img src="/images/logo.svg" alt="Uniris logo" title="Uniris">
+            </a>
+            <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            </a>
+        </div>
+
+        <div id="navbar" class="navbar-menu">
+            <div class="navbar-end">
+            <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.TransactionListLive) %>">
+                Transactions
+            </a>
+            <a class="navbar-item" href="<%= Routes.explorer_path(@conn, :chain) %>">
+                Chains
+            </a>
+            <a class="navbar-item" href="<%= Routes.node_path(@conn, :index) %>">
+                Nodes
+            </a>
+
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link">
+                Governance
+                </a>
+                <div class="navbar-dropdown is-boxed">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.CodeViewerLive) %>">
+                    Code Viewer
+                </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.CodeProposalsLive) %>">
+                    Code Proposals
+                </a>
+                </div>
             </div>
-            <div class="column column-offset-10 column-60">
-              <ul>
-                <li><a href="<%= Routes.live_path(@conn, UnirisWeb.TransactionListLive) %>">Transactions</a></li>
-                <li><a href="<%= Routes.explorer_path(@conn, :chain) %>">Chains</a></li>
-                <li><a href="<%= Routes.node_path(@conn, :index) %>">Nodes</a></li>
-                <li><a href="<%= Routes.live_path(@conn, UnirisWeb.CodeViewerLive) %>">Code Viewer</a></li>
-                <li><a href="<%= Routes.live_path(@conn, UnirisWeb.CodeProposalsLive) %>">Code Proposals</a></li>
-              </ul>
             </div>
-          </nav>
-      </header>
-      <main role="main" class="row explorer-main">
-          <div class="column column-80 column-offset-10">
-            <%= @inner_content %>
-          </div>
-      </main>
+        </div>
+    </nav>
+    <main class="pt-6">
+      <%= @inner_content %>
+    </main>
     </div>
     <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </body>

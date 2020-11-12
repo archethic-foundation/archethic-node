@@ -1,6 +1,6 @@
 defmodule UnirisWeb.TransactionDetailsLive do
   @moduledoc false
-  use Phoenix.LiveView
+  use UnirisWeb, :live_view
 
   alias Phoenix.View
 
@@ -12,7 +12,15 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket, %{exists: false, previous_address: nil, transaction: nil, hide_content: true})}
+     assign(socket, %{
+       exists: false,
+       previous_address: nil,
+       transaction: nil,
+       hide_content: true,
+       tab_panel: "pending_tx",
+       data_section: "code",
+       operation_section: "transaction_movements"
+     })}
   end
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
@@ -30,6 +38,22 @@ defmodule UnirisWeb.TransactionDetailsLive do
       {:error, :invalid_transaction} ->
         {:noreply, handle_ko_transaction(socket, address)}
     end
+  end
+
+  def handle_event("switch_tab", %{"tab_panel" => tab_panel}, socket) do
+    {:noreply, assign(socket, :tab_panel, tab_panel)}
+  end
+
+  def handle_event("switch_data", %{"data_section" => data_section}, socket) do
+    {:noreply, assign(socket, :data_section, data_section)}
+  end
+
+  def handle_event(
+        "switch_ledger_operations",
+        %{"operation_section" => operation_section},
+        socket
+      ) do
+    {:noreply, assign(socket, :operation_section, operation_section)}
   end
 
   def handle_event("toggle_content", _value, socket = %{assigns: %{hide_content: false}}) do

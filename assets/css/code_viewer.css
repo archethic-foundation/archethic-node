@@ -1,9 +1,0 @@
-.code_viewer_subdir {
-    padding-left: 20px!important;
-    border-left: thin solid #ccc;
-    margin-left: 10px!important;
-}
-
-.code_viewer_file:hover {
-    cursor: pointer;
-}

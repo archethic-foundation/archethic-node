@@ -1,4 +1,4 @@
-defmodule UnirisWeb.TransactionController do
+defmodule UnirisWeb.API.TransactionController do
   @moduledoc false
 
   use UnirisWeb, :controller

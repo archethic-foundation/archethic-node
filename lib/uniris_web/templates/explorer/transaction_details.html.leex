@@ -1,385 +1,337 @@
 
-<div class="row explorer-card">
-    <div class="column">
-        <header class="row">
-            <div class="column">
-                <h3>Transaction information</h3>
-                <div class="row">
-                    <div class="column">
-                        <%= Base.encode16(@address) %>
-                    </div>
-                    <div class="column">
-                        <%= link to: Routes.explorer_path(@socket, :chain, address: Base.encode16(@address)) do%>
-                            Explore chain
-                        <% end %>
-                    </div>
-                </div>
-            </div>
-        </header>
-        <section class="row" style="margin-top: 50px">
-            <div class="column">
-                <header class="row">
-                    <div class="column"><u>Inputs</u></div>
-                </header>
-                <div class="row transaction_details" style="margin-top: 20px">
-                <div class="column">
-                    <%= if @inputs == [] do %>
-                        N/A
+<div class="box">
+    <div class="columns">
+        <div class="column">
+            <h1 class="subtitle has-text-centered-mobile has-text-black">Transaction information</h1>
+        </div>
+            <div class="column is-2-desktop">
+            <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.explorer_path(@socket, :chain, address: Base.encode16(@address)) do%>
+                Explore chain
+            <% end %>
+        </div>
+    </div>
+    
+    <div class="media">
+        <div>
+            <h3 class="subtitle">Transaction inputs</h3>
+            <%= for input <- @inputs do %>
+            <div class="columns">
+                <div class="column is-1-desktop">
+                    <%= if input.spent? do %>
+                        <span class="tag is-danger is-light">Spent</span>
                     <% else %>
-                        <%= for input <- @inputs do %>
-                        <div class="row">
-                            <div class="column column-10">
-                                <%= if input.spent? do %>
-                                    <span style="color: red">Spent</span>
-                                <% else %>
-                                    <span style="color: green">Unspent</span>
-                                <% end %>
-                            </div>
-                            <div class="column column-70">
-                                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(input.from)) do%>
-                                    <%= Base.encode16(input.from) %>
-                                <% end %>
-                            </div>
-                            <div class="column column-20"><%= input.amount %></div>
-                        </div>
-                        <% end %>
+                        <span class="tag is-success is-light">Unspent</span>
                     <% end %>
                 </div>
+                <div class="column">
+                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
+                        <span class="is-hidden-mobile"><%= Base.encode16(input.from) %></span>
+                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 13)) %>...</span>
+                    <% end %>
                 </div>
+                <div class="column"><%= input.amount %> UCO</div>
             </div>
-        </section>
-        <section class="row" style="margin-top: 50px">
-            <div class="column">
-                <header class="row">
-                    <div class="column"><u>Details</u></div>
-                    <div class="column column-80"></div>
-                    <span class="column column-20">
-                    <%= if @transaction != nil do %>
-                        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(@previous_address)) do%>
-                            Previous address
-                        <% end %>
-                    <% end %>
-                    </span>
-                </header>
-                <section style="margin-top: 30px" class="row transaction_details">
+            <% end %>
+        </div>  
+    </div> 
+    
+    <hr class="hr" />
+
+    <%= if @transaction == nil do %>
+        <h3 class="subtitle">Transaction does not exists yet</h3>
+    <% else %>
+        <div class="is-2">
+            <h3 class="subtitle">Transaction details</h3>
+            <div class="tabs is-fullwidth">
+                <ul>
+                    <li class="<%= if @tab_panel == "pending_tx", do: "is-active" %>" phx-value-tab_panel="pending_tx" phx-click="switch_tab"><a>Pending Transaction</a></li>
+                    <li class="<%= if @tab_panel == "validation_stamp", do: "is-active" %>" phx-value-tab_panel="validation_stamp" phx-click="switch_tab"><a>Validation Stamp</a></li>
+                    <li class="<%= if @tab_panel == "cross_validation_stamps", do: "is-active" %>" phx-value-tab_panel="cross_validation_stamps" phx-click="switch_tab"><a>Cross Validation Stamps</a></li>
+                </ul>
+            </div>
+
+            <div class="<%= unless @tab_panel == "pending_tx", do: "is-hidden" %>">
+                <div class="columns">
                     <div class="column">
-                        <%= if @transaction != nil do %>
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Address</p>
-                                    <%= Base.encode16(@transaction.address) %>
-                                </div>
-                            </div>
+                        <p class="heading">Address</p>
+                        <span class="text_wrap"><%= Base.encode16(@address) %></span>
+                    </div>
+                    <div class="column">
+                        <p class="heading">Type</p>
+                        <%= Atom.to_string(@transaction.type) %>
+                    </div>
+                    <div class="column is-3-desktop">
+                        <p class="heading">Date</p>
+                        <%= format_date(@transaction.timestamp) %>
+                    </div>
+                </div>
 
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Type</p>
-                                    <%= @transaction.type %>
-                                </div>
-                            </div>
+                <div class="columns">
+                    <div class="column is-2-desktop">
+                        <div class="menu">
+                            <p class="menu-label">Data</p>
+                            <ul class="menu-list">
+                                <li>
+                                    <a phx-click="switch_data" phx-value-data_section="code" class="<%= if @data_section == "code", do: "is-active" %>">
+                                        Code
+                                    </a>
+                                </li>
+                                <li>
+                                    <a phx-click="switch_data" phx-value-data_section="content" class="<%= if @data_section == "content", do: "is-active" %>">
+                                        Content
+                                    </a>
+                                </li>
+                                <p class="menu-label">Ledger</p>
+                                <li>
+                                    <ul class="menu-list">
+                                        <li>
+                                            <a phx-click="switch_data" phx-value-data_section="uco_ledger" class="<%= if @data_section == "uco_ledger", do: "is-active" %>">
+                                                UCO
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <p class="menu-label">Keys</p>
+                                <li>
+                                    <ul class="menu-list">
+                                        <li>
+                                            <a phx-click="switch_data" phx-value-data_section="secret" class="<%= if @data_section == "secret", do: "is-active" %>">
+                                                Secret
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a phx-click="switch_data" phx-value-data_section="authorized_keys" class="<%= if @data_section == "authorized_keys", do: "is-active" %>">
+                                                Authorized keys
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </li>
+                                <li>
+                                    <a phx-click="switch_data" phx-value-data_section="recipients" class="<%= if @data_section == "recipients", do: "is-active" %>">
+                                        Recipients
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="column is-10-desktop">
+                        <%= if @data_section == "code" do %>
+                            <p class="heading">Smart Contract code</p>
+                            <%= if @transaction.data.code != "" do %>
+                                <pre><%= @transaction.data.code %></pre>
+                            <% end %>
+                        <% end %>
 
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Date</p>
-                                    <%= format_date(@transaction.timestamp) %>
-                                </div>
-                            </div>
+                        <%= if @data_section == "content" do %>
+                            <p class="heading">Content</p>
+                            <pre><%= @transaction.data.content %></pre>
+                        <% end %>
 
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Data</p>
-                                    <div class="column column-offset-10 column-80">
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Code</p>
-                                                <%= if byte_size(@transaction.data.code) == 0 do %>
-                                                    N/A
-                                                <% else %>
-                                                    <%= @transaction.data.code %>
-                                                <% end %>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">
-                                                    Content
-                                                    ( <%= format_bytes(byte_size(@transaction.data.content)) %> )
-                                                    <%= if byte_size(@transaction.data.content) > 100 do %>
-                                                        <button class="button button-outline" style="display: :inline; height: 10px;  padding: 10px; line-height: 0px;" phx-click="toggle_content">
-                                                        <%= if @hide_content do %>
-                                                            More
-                                                        <% else %>
-                                                            Less
-                                                        <% end %>
-                                                        </button>
-                                                    <% end %>
-                                                </p>
-                                                <div class="column column-80" style="overflow-wrap: break-word">
-                                                    <%=  if byte_size(@transaction.data.content) == 0 do %>
-                                                        N/A
-                                                    <% else %>
-                                                        <%= if @hide_content and byte_size(@transaction.data.content) > 100 do %>
-                                                            <%= String.slice(@transaction.data.content, 0, 100) %>...
-                                                        <% else %>
-                                                            <%= if String.printable?(@transaction.data.content) do %>
-                                                                <%= @transaction.data.content %>
-                                                            <% else %>
-                                                                <%= Base.encode16(@transaction.data.content) %>
-                                                            <% end %>
-                                                        <% end %>
-                                                    <% end %>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Ledger</p>
-                                                <div class="column column-offset-10 column-80">
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">UCO Transfers</p>
-                                                            <%= if @transaction.data.ledger.uco.transfers == [] do %>
-                                                                N/A
-                                                            <% else %>
-                                                                <div class="column column-offset-10 column-80">
-                                                                    <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
-                                                                        <div class="row">
-                                                                            <div class="column">
-                                                                                <p class="title">
-                                                                                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(transfer.to)) do%>
-                                                                                        <%= Base.encode16(transfer.to) %>
-                                                                                    <% end %>
-                                                                                </p>
-                                                                                <%= transfer.amount %>
-                                                                            </div>
-                                                                        </div>
-                                                                    <% end %>
-                                                                </div>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Keys</p>
-                                                <div class="column column-offset-10 column-80">
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Secret</p>
-                                                            <%= if @transaction.data.keys.secret == "" do %>
-                                                                N/A
-                                                            <% else %>
-                                                                <%= Base.encode16(@transaction.data.keys.secret) %>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Authorized keys</p>
-                                                            <div class="column">
-                                                                <%= if @transaction.data.keys.authorized_keys == %{} do %>
-                                                                    N/A
-                                                                <% else %>
-                                                                    <%= for { public_key, encrypted_key} <- @transaction.data.keys.authorized_keys do %>
-                                                                    <div class="row">
-                                                                        <div class="column">
-                                                                            <p class="title"><%= Base.encode16(public_key) %></p>
-                                                                            <%= Base.encode16(encrypted_key) %>
-                                                                        </div>
-                                                                    </div>
-                                                                    <% end %>
-                                                                <% end %>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Recipients</p>
-                                                <%= if @transaction.data.recipients == [] do %>
-                                                N/A
-                                                <% else %>
-                                                <div class="column column-offset-10 column-80">
-                                                    <%= for recipient <- @transaction.data.recipients do %>
-                                                        <div class="row">
-                                                            <div class="column">
-                                                                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(recipient)) do%>
-                                                                    <%= Base.encode16(recipient) %>
-                                                                <% end %>
-                                                            </div>
-                                                        </div>
-                                                    <% end %>
-                                                </div>
-                                                <% end %>
-                                            </div>
-                                        </div>
-
+                        <%= if @data_section == "uco_ledger" do %>
+                            <p class="heading mb-4">UCO Ledger</p>
+                            <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
+                            <div class="media">
+                                <div class="media-content">
+                                    <div class="content">
+                                        <p>
+                                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
+                                            <% end %>
+                                            <br>
+                                            <%= transfer.amount %> UCO
+                                        </p>
                                     </div>
                                 </div>
                             </div>
+                            <% end %>
+                        <% end %>
 
-                            <div class="row">
+                        <%= if @data_section == "secret" do %>
+                            <p class="heading mb-4">Keys secret</p>
+                            <p class="text_wrap"><%= Base.encode16(@transaction.data.keys.secret) %></p>
+                        <% end %>
+
+                        <%= if @data_section == "authorized_keys" do %>
+                            <p class="heading mb-4">Secret authorized keys</p>
+                            <%= for { key, _enc_key} <- @transaction.data.keys.authorized_keys do %>
+                            <div class="columns">
                                 <div class="column">
-                                    <p class="title">Previous public key</p>
-                                    <%= Base.encode16(@transaction.previous_public_key) %>
+                                    <span class="text_wrap"><%= Base.encode16(key) %></span>
                                 </div>
                             </div>
+                            <% end %>
+                        <% end %>
 
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Previous signature</p>
-                                    <%= Base.encode16(@transaction.previous_signature) %>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Origin signature</p>
-                                    <%= Base.encode16(@transaction.origin_signature) %>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Validation stamp</p>
-                                    <div class="column column-offset-10 column-80">
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Proof of work</p>
-                                                <%= Base.encode16(@transaction.validation_stamp.proof_of_work) %>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Proof of integrity</p>
-                                                <%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %>
-                                            </div>
-                                        </div>
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Ledger operations</p>
-                                                    <div class="column column-offset-10 column-80">
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Fee</p>
-                                                            <%= @transaction.validation_stamp.ledger_operations.fee %>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Transaction movements</p>
-                                                            <%= if @transaction.validation_stamp.ledger_operations.transaction_movements == [] do %>
-                                                                N/A
-                                                            <% else %>
-                                                                <div class="column column-offset-10 column-80">
-                                                                    <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
-                                                                        <div class="row">
-                                                                            <div class="column">
-                                                                                <p class="title">
-                                                                                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(movement.to)) do%>
-                                                                                    <%= Base.encode16(movement.to) %>
-                                                                                <% end %>
-
-                                                                                </p>
-                                                                                <%= movement.amount %>
-                                                                            </div>
-                                                                        </div>
-                                                                    <% end %>
-                                                                </div>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Node movements</p>
-                                                            <%= if @transaction.validation_stamp.ledger_operations.node_movements == [] do %>
-                                                                N/A
-                                                            <% else %>
-                                                                <div class="column column-offset-10 column-80">
-                                                                    <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
-                                                                        <div class="row">
-                                                                            <div class="column">
-                                                                                <p class="title">
-                                                                                <%= link to: Routes.node_path(@socket, :show, Base.encode16(movement.to)) do%>
-                                                                                    <%= Base.encode16(movement.to) %>
-                                                                                <% end %>
-                                                                                </p>
-                                                                                <%= movement.amount %>
-                                                                                <br />
-                                                                                (<%= roles_to_string(movement.roles) %>)
-                                                                            </div>
-                                                                        </div>
-                                                                    <% end %>
-                                                                </div>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="column">
-                                                            <p class="title">Unspent outputs</p>
-                                                            <%= if @transaction.validation_stamp.ledger_operations.unspent_outputs == [] do %>
-                                                                N/A
-                                                            <% else %>
-                                                                <div class="column column-offset-10 column-80">
-                                                                    <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
-                                                                        <div class="row">
-                                                                            <div class="column">
-                                                                                <p class="title">
-                                                                                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(unspent_output.from)) do%>
-                                                                                        <%= Base.encode16(unspent_output.from) %>
-                                                                                    <% end %>
-                                                                                </p>
-                                                                                <%= unspent_output.amount %>
-                                                                            </div>
-                                                                        </div>
-                                                                    <% end %>
-                                                                </div>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                    </div>
-
-                                            </div>
-                                        </div>
-
-                                        <div class="row">
-                                            <div class="column">
-                                                <p class="title">Signature</p>
-                                                <%= Base.encode16(@transaction.validation_stamp.signature) %>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="column">
-                                    <p class="title">Cross validation stamps</p>
-                                    <div class="column column-offset-10 column-80">
-                                        <%= for stamp <- @transaction.cross_validation_stamps do %>
-                                            <div class="row">
-                                                <div class="column">
-                                                    <p class="title">Node public key</p>
-                                                    <%= Base.encode16(stamp.node_public_key) %>
-                                                    <p class="title" style="margin-top: 5px">Signature</p>
-                                                    <%= Base.encode16(stamp.signature) %>
-                                                </div>
-                                            </div>
+                        <%= if @data_section == "recipients" do %>
+                            <p class="heading">Recipients addresses</p>
+                            <%= for address <- @transaction.data.recipients do %>
+                                <div class="columns">
+                                    <div class="column">
+                                        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(address)) do%>
+                                        <span class="text_wrap"><%= Base.encode16(address) %></span>
                                         <% end %>
                                     </div>
                                 </div>
-                            </div>
-                        <% else %>
-                            No transaction existing yet!
+                            <% end %>
                         <% end %>
                     </div>
-                </section>
+                </div>
+
+                <div class="columns">
+                    <div class="column">
+                        <p class="heading">Previous public key</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.previous_public_key) %></span>
+                    </div>
+                </div>
+                <div class="columns">
+                        <div class="column">
+                        <p class="heading">Previous signature</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.previous_signature) %></span>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                        <p class="heading">Origin signature</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.origin_signature) %></span>
+                    </div>
+                </div>
             </div>
-        </section>
-    </div>
+
+            <div class="<%= unless @tab_panel == "validation_stamp", do: "is-hidden" %>">
+                <div class="columns">
+                    <div class="column">
+                        <p class="heading">Proof of work</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.validation_stamp.proof_of_work) %></span>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                        <p class="heading">Proof of integrity</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.validation_stamp.proof_of_integrity) %></span>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column is-2-desktop">
+                        <div class="menu">
+                            <p class="menu-label">Ledger Operations</p>
+                            <ul class="menu-list">
+                                <li>
+                                    <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_movements" class="<%= if @operation_section == "transaction_movements", do: "is-active" %>">
+                                        Transaction movements
+                                    </a>
+                                </li>
+                                <li>
+                                    <a phx-click="switch_ledger_operations" phx-value-operation_section="node_movements" class="<%= if @operation_section == "node_movements", do: "is-active" %>">
+                                        Node movements
+                                    </a>
+                                </li>
+                                <li>
+                                    <a phx-click="switch_ledger_operations" phx-value-operation_section="unspent_outputs" class="<%= if @operation_section == "unspent_outputs", do: "is-active" %>">
+                                        Unspent outputs
+                                    </a>
+                                </li>
+                                <li>
+                                    <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_fee" class="<%= if @operation_section == "transaction_fee", do: "is-active" %>">
+                                        Transaction fee
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="column is-10-desktop">
+                        <%= if @operation_section == "transaction_movements" do %>
+                            <p class="heading">Transaction movements</p>
+                            <%= for movement <- @transaction.validation_stamp.ledger_operations.transaction_movements do %>
+                            <div class="media">
+                                <div class="media-content">
+                                    <div class="content">
+                                        <p>
+                                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(movement.to)) do%>
+                                                <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
+                                            <% end %>
+                                            <br>
+                                            <%= movement.amount %> UCO
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <% end %>
+                        <% end %>
+
+                        <%= if @operation_section == "node_movements" do %>
+                            <p class="heading">Node movements</p>
+                            <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
+                            <div class="media">
+                                <div class="media-content">
+                                    <div class="content">
+                                        <p>
+                                            <%= link to: Routes.node_path(@socket, :show, Base.encode16(movement.to)) do%>
+                                                <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
+                                            <% end %>
+                                            <br>
+                                            <%= movement.amount %> UCO
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <% end %>
+                        <% end %>
+
+                        <%= if @operation_section == "unspent_outputs" do %>
+                            <p class="heading mb-4">Unspent outputs</p>
+                            <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
+                            <div class="media">
+                                <div class="media-content">
+                                    <div class="content">
+                                        <p>
+                                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
+                                                <span class="text_wrap"><%= Base.encode16(unspent_output.from) %></span>
+                                            <% end %>
+                                            <br>
+                                            <%= unspent_output.amount %> UCO
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <% end %>
+                        <% end %>
+
+                        <%= if @operation_section == "transaction_fee" do %>
+                            <p class="heading mb-4">Transaction fee</p>
+                            <p><%= @transaction.validation_stamp.ledger_operations.fee %> UCO</p>
+                        <% end %>
+                    </div>
+                </div>
+                <div class="columns">
+                    <div class="column">
+                        <p class="heading">Coordinator signature</p>
+                        <span class="text_wrap"><%= Base.encode16(@transaction.validation_stamp.signature) %></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="<%= unless @tab_panel == "cross_validation_stamps", do: "is-hidden" %>">
+                <div class="columns">
+                    <div class="column">
+                        <%= for cross_validation_stamp <- @transaction.cross_validation_stamps do %>
+                            <div class="media">
+                                <div class="media-content">
+                                    <div class="content">
+                                        <p class="heading">Node public key</p>
+                                        <p>
+                                            <%= link to: Routes.node_path(@socket, :show, Base.encode16(cross_validation_stamp.node_public_key)) do%>
+                                                <span class="text_wrap"><%= Base.encode16(cross_validation_stamp.node_public_key) %></span>
+                                            <% end %>
+                                        </p>
+                                        <p class="heading">Signature</p>
+                                        <p class="text_wrap"><%= Base.encode16(cross_validation_stamp.signature) %></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <% end %>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <% end %>
 </div>

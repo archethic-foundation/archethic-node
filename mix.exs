@@ -55,7 +55,8 @@ defmodule Uniris.MixProject do
       {:stream_data, "~> 0.4.3"},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:logger_file_backend, "~> 0.0.11"},
-      {:cubdb, "~> 0.17.0"}
+      {:cubdb, "~> 0.17.0"},
+      {:earmark, "~> 1.4"}
     ]
   end
 end

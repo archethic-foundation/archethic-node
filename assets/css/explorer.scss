@@ -1,0 +1,33 @@
+body {
+    background: $explorer_bg;
+    min-height: 100vh;
+}
+
+.main_title, .main_subtitle {
+    color: #fff;
+}
+
+.main_input {
+    box-shadow: none!important;
+    background: none!important;
+    border-color: #fbfbfb75!important;
+    color: #fff!important;
+}
+
+.main_input::placeholder {
+    color: #fff!important;
+}
+
+pre {
+    border: thin solid #eae8e8;
+}
+
+.text_wrap {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+.modal-content {
+    background: transparent!important;
+    border: none!important;
+}
