@@ -7,6 +7,7 @@ defmodule UnirisWeb.TransactionDetailsLive do
   alias Uniris.PubSub
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
   alias UnirisWeb.ExplorerView
 
@@ -56,11 +57,11 @@ defmodule UnirisWeb.TransactionDetailsLive do
     {:noreply, assign(socket, :operation_section, operation_section)}
   end
 
-  def handle_event("toggle_content", _value, socket = %{assigns: %{hide_content: false}}) do
+  def handle_event("hide_content", _value, socket = %{assigns: %{hide_content: false}}) do
     {:noreply, assign(socket, :hide_content, true)}
   end
 
-  def handle_event("toggle_content", _value, socket = %{assigns: %{hide_content: true}}) do
+  def handle_event("show_content", _value, socket = %{assigns: %{hide_content: true}}) do
     {:noreply, assign(socket, :hide_content, false)}
   end
 
@@ -101,7 +102,10 @@ defmodule UnirisWeb.TransactionDetailsLive do
     |> assign(:address, address)
   end
 
-  defp handle_transaction(socket, tx = %Transaction{address: address}) do
+  defp handle_transaction(
+         socket,
+         tx = %Transaction{address: address, data: %TransactionData{content: content}}
+       ) do
     balance = Uniris.get_balance(address)
     previous_address = Transaction.previous_address(tx)
 
@@ -120,6 +124,7 @@ defmodule UnirisWeb.TransactionDetailsLive do
     |> assign(:balance, balance)
     |> assign(:inputs, inputs)
     |> assign(:address, address)
+    |> assign(:hide_content, byte_size(content) > 1000)
   end
 
   def handle_not_existing_transaction(socket, address) do

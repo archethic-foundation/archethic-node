@@ -56,7 +56,9 @@ defmodule Uniris.MixProject do
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:logger_file_backend, "~> 0.0.11"},
       {:cubdb, "~> 0.17.0"},
-      {:earmark, "~> 1.4"}
+      {:earmark, "~> 1.4"},
+      {:humanize_time, "~> 1.0"},
+      {:sizeable, "~> 1.0"}
     ]
   end
 end

@@ -58,7 +58,7 @@
                     </div>
                     <div class="column">
                         <p class="heading">Type</p>
-                        <%= Atom.to_string(@transaction.type) %>
+                        <%= format_transaction_type(@transaction.type) %>
                     </div>
                     <div class="column is-3-desktop">
                         <p class="heading">Date</p>
@@ -123,8 +123,20 @@
                         <% end %>
 
                         <%= if @data_section == "content" do %>
-                            <p class="heading">Content</p>
-                            <pre><%= @transaction.data.content %></pre>
+                            <p class="heading">Content
+                                <span class="tag is-info is-light">
+                                    <%= format_bytes(byte_size(@transaction.data.content)) %>
+                                </span>
+                                <%= if @hide_content do %>
+                                    <a phx-click="show_content">Show</a>
+                                <% end %>
+                                <%= if @hide_content do %>
+                                    <a phx-click="hide_content">Hide</a>
+                                <% end %>
+                            </p>
+                            <%= unless @hide_content do %>
+                                <pre><%= @transaction.data.content %></pre>
+                            <% end %>
                         <% end %>
 
                         <%= if @data_section == "uco_ledger" do %>
