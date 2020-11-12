@@ -60,6 +60,12 @@ defmodule Uniris.Governance do
   defdelegate list_source_files, to: Code
 
   @doc """
+  Show the content of a file from the last changes
+  """
+  @spec file_content(binary()) :: binary()
+  defdelegate file_content(filename), to: Code
+
+  @doc """
   Determine if the proposal changes are valid
   """
   @spec valid_code_changes?(Proposal.t()) :: boolean

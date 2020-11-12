@@ -31,6 +31,15 @@ defmodule Uniris.Governance.Code do
   end
 
   @doc """
+  Show the content of a file from the last changes
+  """
+  @spec file_content(binary()) :: binary()
+  def file_content(filename) when is_binary(filename) do
+    {content, 0} = System.cmd("git", ["show", "HEAD:#{filename}"], cd: @src_dir)
+    String.trim(content)
+  end
+
+  @doc """
   Determine if the code proposal can be deployed into testnet
   """
   @spec testnet_deployment?(binary()) :: boolean()
