@@ -78,6 +78,12 @@ defmodule Uniris.Governance do
   defdelegate pool_member?(public_key, pool), to: Pools, as: :member_of?
 
   @doc """
+  List the member keys in the given pool
+  """
+  @spec pool_members(Pools.pool()) :: list(Crypto.key())
+  defdelegate pool_members(pool), to: Pools, as: :members_of
+
+  @doc """
   List the integration logs for the given code proposal address
   """
   @spec list_code_proposal_integration_logs(binary()) :: Enumerable.t()
