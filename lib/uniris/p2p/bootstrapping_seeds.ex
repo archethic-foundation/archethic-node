@@ -49,9 +49,6 @@ defmodule Uniris.P2P.BootstrappingSeeds do
           {seeds, ""}
       end
 
-    first_node_public_key = Crypto.node_public_key(0)
-
-    seeds = Enum.reject(seeds, &(&1.first_public_key == first_node_public_key))
     {:ok, %{seeds: seeds, file: file}}
   end
 

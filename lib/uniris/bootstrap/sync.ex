@@ -36,7 +36,7 @@ defmodule Uniris.Bootstrap.Sync do
     TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
 
-  def should_initialize_network?([%Node{first_public_key: node_key}]) do
+  def should_initialize_network?([%Node{first_public_key: node_key} | _]) do
     node_key == Crypto.node_public_key(0) and
       TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
