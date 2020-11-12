@@ -52,11 +52,15 @@ defmodule Uniris.Governance.Code.CI do
       |> docker_image_name()
       |> last_container_id()
 
-    {res, 0} = System.cmd("docker", ["logs", container_id])
+    case System.cmd("docker", ["logs", container_id]) do
+      {res, 0} ->
+        res
+        |> String.replace_trailing("\n", "")
+        |> String.split("\n", trim: true)
 
-    res
-    |> String.replace_trailing("\n", "")
-    |> String.split("\n", trim: true)
+      _ ->
+        []
+    end
   end
 
   defp last_container_id(image) do
