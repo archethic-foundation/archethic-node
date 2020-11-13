@@ -33,6 +33,7 @@ Current implemented features:
 - P2P transfers and genesis pools allocation
 - Transaction explorer
 - Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
+- NFT creation and transfers
 
 ## Next features to appear very soon:
 - Sampling P2P view on the Beacon chain

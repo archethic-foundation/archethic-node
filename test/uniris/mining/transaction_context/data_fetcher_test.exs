@@ -95,7 +95,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         validation_stamp: %ValidationStamp{
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Alice2", amount: 10.0}
+              %TransactionMovement{to: "@Alice2", amount: 10.0, type: :UCO}
             ]
           }
         }
@@ -104,7 +104,10 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
       MockTransport
       |> stub(:send_message, fn
         _, _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10}]}}
+          {:ok,
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
+           }}
 
         _, _, %GetTransaction{address: "@Bob3"} ->
           {:ok, unspent_output}
@@ -121,14 +124,17 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
       P2P.add_node(node1)
 
-      {[%UnspentOutput{from: "@Bob3", amount: 10}], [%Node{last_public_key: "key1"}]} =
+      {[%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}], [%Node{last_public_key: "key1"}]} =
         DataFetcher.fetch_unspent_outputs("@Alice2", [node1], true)
     end
 
     test "should return the unspent outputs and nodes involved if exists" do
       MockTransport
       |> stub(:send_message, fn _, _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10}]}}
+        {:ok,
+         %UnspentOutputList{
+           unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
+         }}
       end)
 
       node1 = %Node{
@@ -142,7 +148,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
       P2P.add_node(node1)
 
-      {[%UnspentOutput{from: "@Bob3", amount: 10}], [%Node{last_public_key: "key1"}]} =
+      {[%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}], [%Node{last_public_key: "key1"}]} =
         DataFetcher.fetch_unspent_outputs("@Alice2", [node1], false)
     end
 
@@ -169,7 +175,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         validation_stamp: %ValidationStamp{
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Alice2", amount: 10.0}
+              %TransactionMovement{to: "@Alice2", amount: 10.0, type: :UCO}
             ]
           }
         }
@@ -179,13 +185,17 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
       |> stub(:send_message, fn
         _, 3003, %GetUnspentOutputs{address: "@Alice2"} ->
           {:ok,
-           %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0}]}}
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+           }}
 
         _, 3002, %GetUnspentOutputs{address: "@Alice2"} ->
           Process.sleep(200)
 
           {:ok,
-           %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0}]}}
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+           }}
 
         _, 3002, %GetTransaction{address: "@Bob3"} ->
           {:ok, unspent_output}
@@ -216,7 +226,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
       P2P.add_node(node1)
       P2P.add_node(node2)
 
-      {[%UnspentOutput{from: "@Bob3", amount: 10.0}],
+      {[%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}],
        [%Node{last_public_key: "key2"}, %Node{last_public_key: "key1"}]} =
         DataFetcher.fetch_unspent_outputs("@Alice2", [node1, node2], true)
     end

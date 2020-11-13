@@ -3,7 +3,6 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
   Represents the movements regarding the nodes involved during the
   transaction validation. The node public keys are present as well as their rewards
   """
-  @enforce_keys [:to, :amount, :roles]
   defstruct [:to, :amount, :roles]
 
   alias Uniris.Crypto

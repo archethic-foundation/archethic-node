@@ -108,7 +108,7 @@ defmodule Uniris do
   If the current node is a storage of this address, it will perform a fast lookup
   Otherwise it will request the closest storage node about it
   """
-  @spec get_balance(binary) :: uco_balance :: float()
+  @spec get_balance(binary) :: Accout.balance()
   def get_balance(address) when is_binary(address) do
     storage_nodes =
       address
@@ -118,12 +118,12 @@ defmodule Uniris do
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
       Account.get_balance(address)
     else
-      %Balance{uco: uco_balance} =
+      %Balance{uco: uco_balance, nft: nft_balances} =
         storage_nodes
         |> P2P.broadcast_message(%GetBalance{address: address})
         |> Enum.at(0)
 
-      uco_balance
+      %{uco: uco_balance, nft: nft_balances}
     end
   end
 

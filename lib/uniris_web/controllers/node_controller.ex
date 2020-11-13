@@ -16,8 +16,8 @@ defmodule UnirisWeb.NodeController do
     case P2P.get_node_info(pub) do
       {:ok, node} ->
         node_address = Crypto.hash(pub)
-        balance = Uniris.get_balance(node_address)
-        render(conn, "show.html", node: node, balance: balance)
+        %{uco: uco_balance} = Uniris.get_balance(node_address)
+        render(conn, "show.html", node: node, uco_balance: uco_balance)
 
       _ ->
         render(conn, "show.html", node: nil, balance: 0.0)

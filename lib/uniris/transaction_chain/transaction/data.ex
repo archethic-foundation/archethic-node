@@ -49,7 +49,7 @@ defmodule Uniris.TransactionChain.TransactionData do
       0, 0, 0, 147,
       # Code
       "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
-      # Contente size
+      # Content size
       0, 0, 0, 54,
       # Content
       "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
@@ -59,7 +59,9 @@ defmodule Uniris.TransactionChain.TransactionData do
       225, 11, 213, 74, 41, 54, 189, 139, 179, 79,
       # Number of authorized keys
       0,
-      # Number of uco transfers
+      # Number of UCO transfers
+      0,
+      # Number of NFT transfers
       0,
       # Number of recipients
       1,
@@ -92,6 +94,7 @@ defmodule Uniris.TransactionChain.TransactionData do
       ...> "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
       ...> 0, 0, 0, 10,
       ...> 225, 11, 213, 74, 41, 54, 189, 139, 179, 79,
+      ...> 0,
       ...> 0,
       ...> 0,
       ...> 1,

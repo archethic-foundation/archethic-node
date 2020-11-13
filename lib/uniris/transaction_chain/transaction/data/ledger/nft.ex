@@ -1,6 +1,6 @@
-defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
+defmodule Uniris.TransactionChain.TransactionData.NFTLedger do
   @moduledoc """
-  Represents a UCO ledger movement
+  Represents a NFT ledger movement
   """
   defstruct transfers: []
 
@@ -8,32 +8,37 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
 
   @typedoc """
   UCO movement is composed from:
-  - Transfers: List of UCO transfers
+  - Transfers: List of NFT transfers
   """
   @type t :: %__MODULE__{
           transfers: list(Transfer.t())
         }
 
   @doc """
-  Serialize a UCO ledger into binary format
+  Serialize a NFT ledger into binary format
 
   ## Examples
 
-      iex> %UCOLedger{transfers: [
+      iex> %NFTLedger{transfers: [
       ...>   %Transfer{
+      ...>     nft:  <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
       ...>     amount: 10.5
       ...>   }
       ...> ]}
-      ...> |> UCOLedger.serialize()
+      ...> |> NFTLedger.serialize()
       <<
-        # Number of UCO transfers
+        # Number of NFT transfers
         1,
-        # UCO recipient
+        # NFT address
+        0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
+        # NFT recipient
         0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
-        # UCO amount
+        # NFT amount
         64, 37, 0, 0, 0, 0, 0, 0
       >>
   """
@@ -44,17 +49,20 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
   end
 
   @doc """
-  Deserialize an encoded UCO ledger
+  Deserialize an encoded NFT ledger
 
   ## Examples
 
-      iex> <<1, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
+      iex> <<1, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53, 64, 37, 0, 0, 0, 0, 0, 0>>
-      ...> |> UCOLedger.deserialize()
+      ...> |> NFTLedger.deserialize()
       {
-        %UCOLedger{
+        %NFTLedger{
           transfers: [
             %Transfer{
+              nft: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+                    197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
               to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
                     165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
               amount: 10.5
@@ -92,9 +100,9 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
   end
 
   @spec from_map(map()) :: t()
-  def from_map(uco_ledger = %{}) do
+  def from_map(nft_ledger = %{}) do
     %__MODULE__{
-      transfers: Map.get(uco_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
+      transfers: Map.get(nft_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
     }
   end
 
@@ -110,19 +118,23 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
 
   ## Examples
 
-      iex> %UCOLedger{transfers: [
+      iex> %NFTLedger{transfers: [
       ...>   %Transfer{
+      ...>     nft: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
       ...>     amount: 10.5
       ...>   },
       ...>   %Transfer{
+      ...>     nft: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
       ...>         221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>,
       ...>     amount: 22.9
       ...>   }
       ...> ]}
-      ...> |> UCOLedger.total_amount()
+      ...> |> NFTLedger.total_amount()
       33.4
   """
   @spec total_amount(t()) :: float()

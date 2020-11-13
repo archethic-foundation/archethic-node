@@ -238,7 +238,7 @@ defmodule UnirisTest do
 
       :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 10.0})
 
-      assert 10.0 = Uniris.get_balance("@Alice2")
+      assert %{uco: 10.0} = Uniris.get_balance("@Alice2")
     end
 
     test "should request storage nodes if the current node is not a storage node and return the balance" do
@@ -266,7 +266,7 @@ defmodule UnirisTest do
         {:ok, %Balance{uco: 10.0}}
       end)
 
-      assert 10.0 = Uniris.get_balance("@Alice2")
+      assert %{uco: 10.0} = Uniris.get_balance("@Alice2")
     end
   end
 
@@ -282,9 +282,14 @@ defmodule UnirisTest do
         available?: true
       })
 
-      :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 10.0})
+      :ok =
+        UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{
+          from: "@Bob3",
+          amount: 10.0,
+          type: :UCO
+        })
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false}] =
+      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
                Uniris.get_transaction_inputs("@Alice2")
     end
 
@@ -312,11 +317,11 @@ defmodule UnirisTest do
       |> expect(:send_message, fn _, _, %GetTransactionInputs{} ->
         {:ok,
          %TransactionInputList{
-           inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false}]
+           inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}]
          }}
       end)
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false}] =
+      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
                Uniris.get_transaction_inputs("@Alice2")
     end
   end

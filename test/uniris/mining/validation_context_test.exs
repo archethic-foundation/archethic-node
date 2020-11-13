@@ -154,7 +154,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationContext{
       transaction: Transaction.new(:transfer, %TransactionData{}, "seed", 0),
       previous_storage_nodes: previous_storage_nodes,
-      unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 2.04}],
+      unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 2.04, type: :UCO}],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes
@@ -229,7 +229,8 @@ defmodule Uniris.Mining.ValidationContextTest do
           unspent_outputs: [
             %UnspentOutput{
               amount: 2.0300000000000002,
-              from: tx.address
+              from: tx.address,
+              type: :UCO
             }
           ]
         }
@@ -258,12 +259,13 @@ defmodule Uniris.Mining.ValidationContextTest do
         %LedgerOperations{
           fee: Transaction.fee(tx),
           transaction_movements: [
-            %TransactionMovement{to: "@Bob3", amount: 2000}
+            %TransactionMovement{to: "@Bob3", amount: 2000, type: :UCO}
           ],
           unspent_outputs: [
             %UnspentOutput{
               amount: 2.0300000000000002,
-              from: tx.address
+              from: tx.address,
+              type: :UCO
             }
           ]
         }
@@ -295,7 +297,8 @@ defmodule Uniris.Mining.ValidationContextTest do
           unspent_outputs: [
             %UnspentOutput{
               amount: 1000,
-              from: tx.address
+              from: tx.address,
+              type: :UCO
             }
           ]
         }
@@ -326,7 +329,8 @@ defmodule Uniris.Mining.ValidationContextTest do
         unspent_outputs: [
           %UnspentOutput{
             amount: 2.0300000000000002,
-            from: tx.address
+            from: tx.address,
+            type: :UCO
           }
         ],
         node_movements: [

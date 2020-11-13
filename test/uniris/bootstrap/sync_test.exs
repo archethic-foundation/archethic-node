@@ -171,7 +171,7 @@ defmodule Uniris.Bootstrap.SyncTest do
           |> Base.decode16!()
           |> Crypto.hash()
 
-        assert amount == Account.get_balance(address)
+        assert %{uco: amount, nft: %{}} == Account.get_balance(address)
       end)
     end
   end

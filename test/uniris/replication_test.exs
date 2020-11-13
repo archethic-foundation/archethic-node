@@ -195,7 +195,7 @@ defmodule Uniris.ReplicationTest do
 
     me = self()
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
     tx = create_valid_transaction(transaction_context(), unspent_outputs)
 
     MockDB

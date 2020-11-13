@@ -157,6 +157,10 @@ defmodule Uniris.Mining do
     end
   end
 
+  defp do_accept_transaction?(%Transaction{type: :nft, data: %TransactionData{content: content}}) do
+    Regex.match?(~r/(?<=initial supply:).*\d/mi, content)
+  end
+
   defp do_accept_transaction?(_), do: true
 
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do

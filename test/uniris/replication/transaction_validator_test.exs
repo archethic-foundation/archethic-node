@@ -59,7 +59,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
 
   describe "validate/1" do
     test "should return {:error, :invalid} when the atomic commitment is not reached", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert {:error, :invalid} =
                context
@@ -103,7 +103,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
     end
 
     test "should return {:error, :invalid} when the node movements are invalid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert {:error, :invalid} =
                context
@@ -115,7 +115,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
 
     test "should return {:error, :invalid} when there is an atomic commitment but with inconsistencies",
          context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert {:error, :invalid} =
                context
@@ -126,7 +126,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
     end
 
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert :ok =
                context
@@ -137,7 +137,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
 
   describe "validate/2" do
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert :ok =
                context

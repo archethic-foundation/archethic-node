@@ -53,8 +53,8 @@
                 </div>
                 <div class="column">
                     <div>
-                        <p class="heading">Balance</p>
-                        <span><strong><%= @balance %> UCO</strong></span>
+                        <p class="heading">UCO Balance</p>
+                        <span><strong><%= format_float(@uco_balance) %> UCO</strong></span>
                     </div>
                 </div>
             </div>

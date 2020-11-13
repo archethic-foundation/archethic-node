@@ -29,8 +29,8 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   require Logger
 
@@ -101,15 +101,14 @@ defmodule Uniris.Bootstrap.NetworkInit do
     genesis_transfers_amount =
       tx
       |> Transaction.get_movements()
-      |> Enum.reduce(0.0, &(&2 + &1.amount))
-
-    unspent_output_amount = genesis_transfers_amount + Transaction.fee(tx)
+      |> Enum.reduce(Transaction.fee(tx), &(&2 + &1.amount))
 
     tx
     |> self_validation!([
       %UnspentOutput{
         from: Bootstrap.genesis_unspent_output_address(),
-        amount: unspent_output_amount
+        amount: genesis_transfers_amount,
+        type: :UCO
       }
     ])
     |> self_replication()

@@ -1,6 +1,6 @@
 defmodule UnirisWeb.TopTransactionLive do
   @moduledoc false
-  use UnirisWeb, :live_component
+  use UnirisWeb, :live_view
 
   alias Phoenix.View
 
@@ -12,7 +12,7 @@ defmodule UnirisWeb.TopTransactionLive do
 
   @nb_transactions 3
 
-  def mount(socket) do
+  def mount(_params, _session, socket) do
     if connected?(socket) do
       PubSub.register_to_new_transaction()
     end

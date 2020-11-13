@@ -37,7 +37,7 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
     me = self()
 

@@ -40,10 +40,10 @@ defmodule Uniris.Replication.TransactionContext do
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
     |> P2P.nearest_nodes()
     |> P2P.broadcast_message(%GetUnspentOutputs{address: address})
-    |> Stream.flat_map(fn %UnspentOutputList{unspent_outputs: unspent_outputs} ->
+    |> Stream.take(1)
+    |> Enum.flat_map(fn %UnspentOutputList{unspent_outputs: unspent_outputs} ->
       unspent_outputs
     end)
-    |> Stream.take(1)
   end
 
   @spec fetch_transaction_inputs(binary()) :: list(TransactionInput.t())

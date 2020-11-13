@@ -78,8 +78,8 @@
                 </div>
                 <div class="level-item has-text-centered">
                     <div>
-                        <p class="heading">Balance</p>
-                        <p class="title"><%= @balance %> UCO</p>
+                        <p class="heading">UCO Balance</p>
+                        <p class="title"><%= format_float(@uco_balance) %> UCO</p>
                     </div>
                 </div>
             </nav>
@@ -95,7 +95,7 @@
                 <% end %>
             </div>
             <div class="column">
-                <%= tx.type %>
+                <%= format_transaction_type(tx.type) %>
             </div>
             <div class="column is-2-desktop">
                 <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> Unspent outputs
@@ -112,80 +112,3 @@
     <% end %>
 </div>
  <% end %>
-
-<!--
-<div class="row explorer-card">
-    <div class="column">
-        <header class="row">
-            <div class="column">
-                <h3>Transaction chain</h3>
-            </div>
-        </header>
-        <section class="row">
-            <div class="column">
-                 <form class="explorer-card search-form" action="<%= Routes.explorer_path(@conn, :chain) %>">
-                    <div class="row">
-                        <input type="text" value="<%= @address %>" required placeholder="Enter transaction address" id="address" name="address" class="column-80">
-                        <button class="button column column-10" style=" border: thin solid #ccc; margin-left: 10px; height: 4.3em">Search</button>
-                    </div>
-                    <div class="row" style="margin-top: -30px">
-                        <div class="column" style="display: flex; flex-direction: row; align-items: center">
-                            <label for="last">Find the last</label>
-                            <input id="last" type="checkbox" name="last" style="position: relative; top: 3px"/>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </section>
-        <%= if @transaction_chain != [] do %>
-        <section class="row">
-            <div class="column">
-                <header class="row">
-                    <div class="column column-60">
-                        <%= @chain_size %>
-                        <%= if @chain_size > 1 do %>
-                            transactions
-                        <% else %>
-                            transaction
-                        <% end %>
-                    </div>
-                    <div class="column column-20"></div>
-                    <div class="column column-20">
-                        Balance: <%= @balance %>
-                    </div>
-                </header>
-                <section class="row" style="margin-top: 50px">
-                    <div class="column">
-                        <%= for tx <- @transaction_chain do %>
-                        <div class="row">
-                            <div class="column column-70">
-                                <%= link to: Routes.live_path(@conn, UnirisWeb.TransactionDetailsLive, Base.encode16(tx.address)), title: Base.encode16(tx.address) do%>
-                                    <span>
-                                        <%= Base.encode16(tx.address) %>
-                                    </span>
-                                <% end %>
-                            </div>
-                            <div class="column column-10">
-                                <%= if length(tx.validation_stamp.ledger_operations.unspent_outputs) > 1 do %>
-                                    <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> UTXOs
-                                <% else %>
-                                    <%= length(tx.validation_stamp.ledger_operations.unspent_outputs) %> UTXO
-                                <% end %>
-                            </div>
-                            <div class="column column-10">
-                                <%= if length(tx.validation_stamp.ledger_operations.transaction_movements) > 1 do %>
-                                    <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfers
-                                <% else %>
-                                    <%= length(tx.validation_stamp.ledger_operations.transaction_movements) %> transfer
-                                <% end %>
-                            </div>
-                        </div>
-                        <% end %>
-                    </div>
-                </section>
-            </div>
-        </section>
-        <% end %>
-    </div>
-</div>
--->

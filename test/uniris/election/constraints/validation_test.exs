@@ -5,8 +5,8 @@ defmodule Uniris.Election.ValidationConstraintsTest do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   alias Uniris.Election.ValidationConstraints
 

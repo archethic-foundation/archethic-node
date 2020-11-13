@@ -482,7 +482,8 @@ defmodule Uniris.P2P.MessageTest do
             from:
               <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
                 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-            amount: 10.5
+            amount: 10.5,
+            type: :UCO
           }
         ]
       }
@@ -555,11 +556,19 @@ defmodule Uniris.P2P.MessageTest do
     end
 
     test "Balance message" do
+      nft_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+
       assert %Balance{
-               uco: 10.5
+               uco: 10.5,
+               nft: %{
+                 nft_address => 10.0
+               }
              } ==
                %Balance{
-                 uco: 10.5
+                 uco: 10.5,
+                 nft: %{
+                   nft_address => 10.0
+                 }
                }
                |> Message.encode()
                |> Message.decode()
@@ -658,7 +667,8 @@ defmodule Uniris.P2P.MessageTest do
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
             amount: 10.5,
-            spent?: true
+            spent?: true,
+            type: :UCO
           }
         ]
       }

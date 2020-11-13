@@ -275,8 +275,16 @@ defmodule Uniris.P2P.Message do
     <<247::8, digest::binary>>
   end
 
-  def encode(%Balance{uco: uco_balance}) do
-    <<248::8, uco_balance::float>>
+  def encode(%Balance{uco: uco_balance, nft: nft_balances}) do
+    nft_balances_binary =
+      nft_balances
+      |> Enum.reduce([], fn {nft_address, amount}, acc ->
+        [<<nft_address::binary, amount::float>> | acc]
+      end)
+      |> Enum.reverse()
+      |> :erlang.list_to_binary()
+
+    <<248::8, uco_balance::float, map_size(nft_balances)::16, nft_balances_binary::binary>>
   end
 
   def encode(%BeaconSlotList{slots: slots}) do
@@ -571,9 +579,12 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<248::8, uco_balance::float>>) do
+  def decode(<<248::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
+    {nft_balances, _} = deserialize_nft_balances(rest, nb_nft_balances, %{})
+
     %Balance{
-      uco: uco_balance
+      uco: uco_balance,
+      nft: nft_balances
     }
   end
 
@@ -700,6 +711,17 @@ defmodule Uniris.P2P.Message do
   defp deserialize_transaction_inputs(rest, nb_inputs, acc) do
     {input, rest} = TransactionInput.deserialize(rest)
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
+  end
+
+  defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
+
+  defp deserialize_nft_balances(rest, nft_balances, acc) when map_size(acc) == nft_balances do
+    {acc, rest}
+  end
+
+  defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
+    {nft_address, <<amount::float, rest::binary>>} = deserialize_hash(rest)
+    deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
   # TODO: support streaming

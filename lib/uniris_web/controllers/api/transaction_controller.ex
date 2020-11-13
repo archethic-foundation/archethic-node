@@ -9,102 +9,54 @@ defmodule UnirisWeb.API.TransactionController do
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias Uniris.TransactionChain.TransactionData.NFTLedger
+  alias Uniris.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  def new(
-        conn,
-        _params = %{
-          "address" => address,
-          "type" => type,
-          "timestamp" => timestamp,
-          "data" => %{
-            "code" => code,
-            "content" => content,
-            "keys" => %{
-              "secret" => secret,
-              "authorizedKeys" => authorized_keys
-            },
-            "ledger" => %{
-              "uco" => %{
-                "transfers" => transfers
-              }
-            },
-            "recipients" => recipients
-          },
-          "previousPublicKey" => previous_public_key,
-          "previousSignature" => previous_signature
-        }
-      ) do
-    tx = %Transaction{
-      address: Base.decode16!(address, case: :mixed),
-      type: decode_type(type),
-      timestamp: DateTime.from_unix!(timestamp, :millisecond),
-      data: %TransactionData{
-        content: content |> Base.decode16!(case: :mixed),
-        code: code,
-        keys: %Keys{
-          secret: Base.decode16!(secret, case: :mixed),
-          authorized_keys:
-            Enum.reduce(authorized_keys, %{}, fn {public_key, encrypted_secret_key}, acc ->
-              Map.put(
-                acc,
-                Base.decode16!(public_key, case: :mixed),
-                Base.decode16!(encrypted_secret_key, case: :mixed)
-              )
-            end)
-        },
-        ledger: %Ledger{
-          uco: %UCOLedger{
-            transfers:
-              Enum.map(transfers, fn %{"to" => to, "amount" => amount} ->
-                %Transfer{
-                  to: Base.decode16!(to, case: :mixed),
-                  amount: amount
-                }
-              end)
-          }
-        },
-        recipients: Enum.map(recipients, &Base.decode16!(&1, case: :mixed))
-      },
-      previous_public_key: Base.decode16!(previous_public_key, case: :mixed),
-      previous_signature: Base.decode16!(previous_signature, case: :mixed)
-    }
+  def new(conn, params = %{}) do
+    case decode_pending_transaction(params) do
+      tx = %Transaction{origin_signature: nil} ->
+        tx = %{tx | origin_signature: Transaction.serialize(tx) |> Crypto.sign_with_node_key()}
+        Uniris.send_new_transaction(tx)
 
-    tx = %{tx | origin_signature: Transaction.serialize(tx) |> Crypto.sign_with_node_key()}
-    Uniris.send_new_transaction(tx)
+      tx = %Transaction{} ->
+        Uniris.send_new_transaction(tx)
+    end
 
     conn
     |> put_status(201)
     |> json(%{status: "ok"})
   end
 
-  def new(
-        conn,
-        _params = %{
-          "address" => address,
-          "type" => type,
-          "timestamp" => timestamp,
-          "data" => %{
-            "code" => code,
-            "content" => content,
-            "keys" => %{
-              "secret" => secret,
-              "authorizedKeys" => authorized_keys
-            },
-            "ledger" => %{
-              "uco" => %{
-                "transfers" => transfers
-              }
-            },
-            "recipients" => recipients
-          },
-          "previousPublicKey" => previous_public_key,
-          "previousSignature" => previous_signature,
-          "originSignature" => origin_signature
-        }
-      ) do
-    tx = %Transaction{
+  defp decode_pending_transaction(
+         _params = %{
+           "address" => address,
+           "type" => type,
+           "timestamp" => timestamp,
+           "data" => %{
+             "code" => code,
+             "content" => content,
+             "keys" => %{
+               "secret" => secret,
+               "authorizedKeys" => authorized_keys
+             },
+             "ledger" => %{
+               "uco" => %{
+                 "transfers" => uco_transfers
+               },
+               "nft" => %{
+                 "transfers" => nft_transfers
+               }
+             },
+             "recipients" => recipients
+           },
+           "previousPublicKey" => previous_public_key,
+           "previousSignature" => previous_signature,
+           "originSignature" => origin_signature
+         }
+       ) do
+    %Transaction{
       address: Base.decode16!(address, case: :mixed),
       type: decode_type(type),
       timestamp: DateTime.from_unix!(timestamp, :millisecond),
@@ -125,8 +77,18 @@ defmodule UnirisWeb.API.TransactionController do
         ledger: %Ledger{
           uco: %UCOLedger{
             transfers:
-              Enum.map(transfers, fn %{"to" => to, "amount" => amount} ->
-                %Transfer{
+              Enum.map(uco_transfers, fn %{"to" => to, "amount" => amount} ->
+                %UCOTransfer{
+                  to: Base.decode16!(to, case: :mixed),
+                  amount: amount
+                }
+              end)
+          },
+          nft: %NFTLedger{
+            transfers:
+              Enum.map(nft_transfers, fn %{"nft" => nft, "to" => to, "amount" => amount} ->
+                %NFTTransfer{
+                  nft: Base.decode16!(nft, case: :mixed),
                   to: Base.decode16!(to, case: :mixed),
                   amount: amount
                 }
@@ -140,11 +102,16 @@ defmodule UnirisWeb.API.TransactionController do
       origin_signature: Base.decode16!(origin_signature, case: :mixed)
     }
 
-    Uniris.send_new_transaction(tx)
+    # if Map.has_key?(params, :origin_signature) do
+    #   origin_signature =
+    #     params
+    #     |> Map.get(:origin_signature)
+    #     |> Base.decode16!(case: :mixed)
 
-    conn
-    |> put_status(201)
-    |> json(%{status: "ok"})
+    #   %{tx | origin_signature: origin_signature}
+    # else
+    #   tx
+    # end
   end
 
   defp decode_type("identity"), do: :identity
@@ -153,6 +120,7 @@ defmodule UnirisWeb.API.TransactionController do
   defp decode_type("hosting"), do: :hosting
   defp decode_type("code_proposal"), do: :code_proposal
   defp decode_type("code_approval"), do: :code_approval
+  defp decode_type("nft"), do: :nft
 
   def last_transaction_content(conn, params = %{"address" => address}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),

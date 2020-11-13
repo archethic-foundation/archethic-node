@@ -44,13 +44,13 @@ defmodule UnirisWeb.ExplorerController do
   def chain(conn, _params = %{"address" => address}) do
     bin_address = Base.decode16!(address, case: :mixed)
     chain = Uniris.get_transaction_chain(bin_address)
-    inputs = Uniris.get_transaction_inputs(bin_address)
+    %{uco: uco_balance} = Uniris.get_balance(bin_address)
 
     render(conn, "chain.html",
       transaction_chain: chain,
       address: bin_address,
       chain_size: Enum.count(chain),
-      balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
+      uco_balance: uco_balance
     )
   end
 

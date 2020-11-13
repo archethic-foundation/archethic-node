@@ -1,8 +1,6 @@
 defmodule UnirisWeb.LayoutHelpers do
   @moduledoc false
 
-  alias Phoenix.Naming
-
   def format_date(%DateTime{
         year: year,
         month: month,
@@ -28,11 +26,11 @@ defmodule UnirisWeb.LayoutHelpers do
     Sizeable.filesize(nb_bytes)
   end
 
-  def format_transaction_type(type) do
-    Naming.humanize(type)
-  end
-
   def format_seconds(seconds) do
     HumanizeTime.format_seconds(seconds)
+  end
+
+  def format_float(float) when is_float(float) do
+    :erlang.float_to_binary(float, [:compact, decimals: 8])
   end
 end

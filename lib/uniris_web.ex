@@ -55,7 +55,6 @@ defmodule UnirisWeb do
 
       import UnirisWeb.ErrorHelpers
       import UnirisWeb.LayoutHelpers
-      import UnirisWeb.ComponentHelpers
 
       alias UnirisWeb.Router.Helpers, as: Routes
     end

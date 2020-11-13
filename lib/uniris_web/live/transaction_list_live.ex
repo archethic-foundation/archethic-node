@@ -99,5 +99,8 @@ defmodule UnirisWeb.TransactionListLive do
   defp filter_transactions_by_type(transactions, "node_shared_secrets"),
     do: Stream.filter(transactions, &(&1.type == :node_shared_secrets))
 
+  defp filter_transactions_by_type(transactions, "nft"),
+    do: Stream.filter(transactions, &(&1.type == :nft))
+
   defp filter_transactions_by_type(transactions, _), do: transactions
 end

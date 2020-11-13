@@ -83,7 +83,7 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
   test "download_transaction/2 should download the transaction", context do
     me = self()
 
-    inputs = [%TransactionInput{from: "@Alice2", amount: 10.0}]
+    inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, type: :UCO}]
     tx = TransactionFactory.create_valid_transaction(context, inputs)
 
     MockDB

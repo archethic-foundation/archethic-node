@@ -39,7 +39,10 @@ defmodule Uniris.Replication.TransactionContextTest do
   test "fetch_unspent_outputs/1 should retrieve the previous unspent outputs" do
     MockTransport
     |> stub(:send_message, fn _, _, %GetUnspentOutputs{} ->
-      {:ok, %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193}]}}
+      {:ok,
+       %UnspentOutputList{
+         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
+       }}
     end)
 
     P2P.add_node(%Node{
@@ -52,7 +55,7 @@ defmodule Uniris.Replication.TransactionContextTest do
       network_patch: "AAA"
     })
 
-    assert [%UnspentOutput{from: "@Bob3", amount: 0.193}] =
+    assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
              TransactionContext.fetch_unspent_outputs("@Alice1") |> Enum.to_list()
   end
 end

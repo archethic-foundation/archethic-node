@@ -18,7 +18,7 @@ defmodule Uniris.TransactionFactory do
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
-        inputs,
+        inputs \\ [],
         opts \\ []
       ) do
     type = Keyword.get(opts, :type, :transfer)
@@ -234,7 +234,7 @@ defmodule Uniris.TransactionFactory do
     ledger_operations =
       %LedgerOperations{
         fee: 0.01,
-        transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30}]
+        transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30, type: :UCO}]
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,

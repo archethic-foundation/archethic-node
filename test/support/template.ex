@@ -2,6 +2,7 @@ defmodule UnirisCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
+  alias Uniris.Account.MemTables.NFTLedger
   alias Uniris.Account.MemTables.UCOLedger
 
   alias Uniris.Crypto
@@ -92,6 +93,7 @@ defmodule UnirisCase do
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 
     start_supervised!(ChainLookup)
+    start_supervised!(NFTLedger)
     start_supervised!(UCOLedger)
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)
