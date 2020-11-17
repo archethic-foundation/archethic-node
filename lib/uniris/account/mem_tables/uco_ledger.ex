@@ -67,7 +67,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   """
   @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount}) when is_binary(to) do
+  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount})
+      when is_binary(to) and is_float(amount) do
     true = :ets.insert(@ledger_table, {{to, from}, amount, false})
     true = :ets.insert(@unspent_output_index_table, {to, from})
     :ok

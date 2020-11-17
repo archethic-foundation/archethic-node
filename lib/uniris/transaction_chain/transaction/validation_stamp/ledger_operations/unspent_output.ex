@@ -145,7 +145,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.U
     %{
       from: from,
       amount: amount,
-      type: :UCO
+      type: "UCO"
     }
   end
 
@@ -153,7 +153,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.U
     %{
       from: from,
       amount: amount,
-      type: :NFT,
+      type: "NFT",
       nft_address: nft_address
     }
   end

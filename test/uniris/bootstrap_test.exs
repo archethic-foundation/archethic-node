@@ -142,7 +142,7 @@ defmodule Uniris.BootstrapTest do
                 node_movements: [
                   %NodeMovement{
                     to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                    amount: 1,
+                    amount: 1.0,
                     roles: [
                       :welcome_node,
                       :coordinator_node,
