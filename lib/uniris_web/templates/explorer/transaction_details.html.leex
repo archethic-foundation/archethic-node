@@ -419,24 +419,25 @@
                 <div class="column">
                     <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
                         <span class="is-hidden-mobile"><%= Base.encode16(input.from) %></span>
-                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 13)) %>...</span>
+                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 12)) %>...</span>
                     <% end %>
                 </div>
                 <div class="column">
                     <%= case input.type do %>
                         <% :UCO -> %>
                             <div class="columns">
-                                <div class="column is-3-desktop"><%= format_float(input.amount) %></div>
+                                <div class="column is-5-desktop"><%= format_float(input.amount) %></div>
                                 <div class="column is-2-desktop"><span class="tag is-primary is-light">UCO</span></div>
                                 <div class="column is-4-desktop is-hidden-mobile"></div>
                             </div>
                         <% {:NFT, nft_address} -> %>
                             <div class="columns">
-                                <div class="column is-3-desktop"><%= format_float(input.amount) %></div>
+                                <div class="column is-5-desktop"><%= format_float(input.amount) %></div>
                                 <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                 <div class="column is-4-desktop">
                                     <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
-                                        <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
+                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
+                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(nft_address, 0, 12)) %>...</span>
                                     <% end %>
                                 </div>
                             </div>

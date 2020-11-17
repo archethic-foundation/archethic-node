@@ -27,13 +27,13 @@ defmodule UnirisWeb.ExplorerController do
     case Uniris.get_last_transaction(bin_address) do
       {:ok, %Transaction{address: last_address}} ->
         chain = Uniris.get_transaction_chain(last_address)
-        inputs = Uniris.get_transaction_inputs(bin_address)
+        %{uco: uco_balance} = Uniris.get_balance(bin_address)
 
         render(conn, "chain.html",
           transaction_chain: chain,
           chain_size: Enum.count(chain),
           address: bin_address,
-          balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
+          uco_balance: uco_balance
         )
 
       _ ->
