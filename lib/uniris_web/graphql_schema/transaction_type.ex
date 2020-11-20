@@ -10,26 +10,11 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
 
   alias Uniris.Crypto
 
-  @desc """
-  The [TransactionType] enum represents the type of Uniris transactions.
-  Types can affect behaviour in term of replication or storage, such as network transaction (node, node_shared_secrets, beacon).
-  """
-  enum :transaction_type do
-    value(:transfer, as: :transfer)
-    value(:identity, as: :identity)
-    value(:keychain, as: :keychain)
-    value(:node, as: :node)
-    value(:node_shared_secrets, as: :node_shared_secrets)
-    value(:origin_shared_secrets, as: :origin_shared_secrets)
-    value(:beacon, as: :beacon)
-    value(:hosting, as: :hosting)
-  end
-
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
   object :transaction do
     field(:address, :hex)
     field(:timestamp, :timestamp)
-    field(:type, :transaction_type)
+    field(:type, :string)
     field(:data, :data)
     field(:previous_public_key, :hex)
     field(:previous_signature, :hex)
@@ -37,15 +22,9 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
 
-    field :inputs, list_of(:unspent_output) do
+    field :unspent_outputs, list_of(:unspent_output) do
       resolve(fn _, %{source: %{address: address}} ->
         {:ok, Uniris.get_transaction_inputs(address)}
-      end)
-    end
-
-    field :balance, :float do
-      resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Uniris.get_balance(address)}
       end)
     end
 
@@ -83,17 +62,30 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   @desc "[Ledger] represents the ledger operations to perform"
   object :ledger do
     field(:uco, :uco_ledger)
+    field(:nft_ledger, :nft_ledger)
   end
 
-  @desc "[Transfer] represents the an asset transfer"
-  object :transfer do
+  @desc "[UCOTransfer] represents the an asset transfer"
+  object :uco_transfer do
     field(:to, :hex)
     field(:amount, :float)
   end
 
+  @desc "[NFTTransfer] represents the an asset transfer"
+  object :nft_transfer do
+    field(:to, :hex)
+    field(:amount, :float)
+    field(:nft, :hex)
+  end
+
   @desc "[UCOLedger] represents the transfers to perform on the UCO ledger"
   object :uco_ledger do
-    field(:transfers, list_of(:transfer))
+    field(:transfers, list_of(:uco_transfer))
+  end
+
+  @desc "[NFTLedger] represents the transfers to perform on the UCO ledger"
+  object :nft_ledger do
+    field(:transfers, list_of(:nft_transfer))
   end
 
   @desc "[Keys] represents a block to set secret and authorized public keys able to read the secret"
@@ -131,31 +123,104 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   It includes:
   - Transaction movements: assets transfers
   - Node movements: node rewards
-  - Unspent outputs: remaing unspent outputs
+  - Unspent outputs: remaining unspent outputs
   - Fee: transaction fee (distributed over the node rewards)
   """
   object :ledger_operations do
-    field(:transaction_movements, list_of(:movement))
-    field(:node_movements, list_of(:movement))
+    field(:transaction_movements, list_of(:transaction_movement))
+    field(:node_movements, list_of(:node_movement))
     field(:unspent_outputs, list_of(:unspent_output))
     field(:fee, :float)
   end
 
-  @desc "[UnspentOutput] represents the remaining unspent output of the transaction"
+  @desc """
+  [UnspentOutput] represents the remaining unspent output of the transaction.
+  It includes:
+  - From: transaction which send the amount of assets
+  - Amount: asset amount
+  - Type: UCO/NFT
+  - NFT address: address of the NFT if the type is NFT
+  """
   object :unspent_output do
     field(:from, :hex)
     field(:amount, :float)
+    field(:type, :string)
+    field(:nft_address, :hex)
   end
 
-  @desc "[Movement] represents ledger movements from the transaction "
-  object :movement do
+  @desc """
+  [Input] represents the inputs from the transaction
+  It includes:
+  - From: transaction which send the amount of assets
+  - Amount: asset amount
+  - Type: UCO/NFT
+  - NFT address: address of the NFT if the type is NFT
+  - Spent: determines if the input has been spent
+  """
+  object :input do
+    field(:from, :hex)
+    field(:amount, :float)
+    field(:type, :string)
+    field(:nft_address, :hex)
+    field(:spent, :boolean)
+  end
+
+  @desc """
+  [TransactionMovement] represents ledger transaction movement
+  It includes:
+  - TO: asset transfer recipient
+  - Amount: asset amount
+  - Type: UCO/NFT
+  - NFT address: address of the NFT if the type is NFT
+  """
+  object :transaction_movement do
+    field(:to, :hex)
+    field(:amount, :float)
+    field(:type, :string)
+    field(:nft_address, :hex)
+  end
+
+  @desc """
+  [NodeMovement] represents node transaction movement
+  It includes:
+  - To: node public key
+  - Amount: reward (UCO)
+  """
+  object :node_movement do
     field(:to, :hex)
     field(:amount, :float)
   end
 
-  @desc "[CrossValidationStamp] represents the approval of the validation stamp by a cross validation node"
+  @desc """
+  [CrossValidationStamp] represents the approval of the validation stamp by a cross validation node.
+  It includes:
+  - Signature: signature of the validation stamp
+  - Node: node public key
+  """
   object :cross_validation_stamp do
     field(:signature, :hex)
     field(:node, :hex)
+  end
+
+  @desc """
+  [Balance] represents a ledger balance.
+  It includes:
+  - UCO: uco balance
+  - NFT: NFT balances
+  """
+  object :balance do
+    field(:uco, :float)
+    field(:nft, list_of(:nft_balance))
+  end
+
+  @desc """
+  [NftBalance] represents a NFT ledger balance.
+  It includes:
+  - NFT: address of the NFT
+  - Amount: amount of NFT
+  """
+  object :nft_balance do
+    field(:address, :hex)
+    field(:amount, :float)
   end
 end

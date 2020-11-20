@@ -5,12 +5,16 @@ defmodule UnirisWeb.GraphQLSchema do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionInput
 
   alias __MODULE__.TransactionType
 
   import_types(TransactionType)
 
   query do
+    @desc """
+    Query the network to find a transaction
+    """
     field :transaction, :transaction do
       arg(:address, non_null(:address))
 
@@ -21,6 +25,9 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Query the network to find the last transaction from an address
+    """
     field :last_transaction, :transaction do
       arg(:address, non_null(:address))
 
@@ -31,6 +38,9 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Query the network to find all the transactions locally stored
+    """
     field :transactions, list_of(:transaction) do
       resolve(fn _, _ ->
         {:ok,
@@ -40,6 +50,9 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Query the network to find a transaction chain
+    """
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
 
@@ -51,9 +64,46 @@ defmodule UnirisWeb.GraphQLSchema do
         {:ok, chain}
       end)
     end
+
+    @desc """
+    Query the network to find a balance from an address
+    """
+    field :balance, :balance do
+      arg(:address, non_null(:address))
+
+      resolve(fn %{address: address}, _ ->
+
+        %{uco: uco, nft: nft_balances} = Uniris.get_balance(address)
+        res = %{
+          uco: uco,
+          nft: Enum.map(nft_balances, fn {address, amount} ->
+            %{
+              address: address,
+              amount: amount
+            }
+          end)
+        }
+        {:ok, res}
+      end)
+    end
+
+    @desc """
+    Query the network to list the transaction inputs from an address
+    """
+    field :transaction_inputs, list_of(:input) do
+      arg(:address, non_null(:address))
+
+      resolve(fn %{address: address}, _ ->
+        inputs = Uniris.get_transaction_inputs(address)
+        {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+      end)
+    end
   end
 
   subscription do
+    @desc """
+    Subscribe for any new transaction stored locally
+    """
     field :new_transaction, :transaction do
       config(fn _args, _info ->
         {:ok, topic: "*"}
@@ -67,6 +117,9 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
     end
 
+    @desc """
+    Subscribe to be notified when a transaction is stored (if acted as welcome node)
+    """
     field :acknowledge_storage, :transaction do
       arg(:address, non_null(:address))
 
