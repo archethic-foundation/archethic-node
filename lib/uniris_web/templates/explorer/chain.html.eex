@@ -28,7 +28,7 @@
                         <div class="field is-narrow">
                             <div class="control">
                                 <label class="checkbox" for="last">
-                                    <input id="last" type="checkbox" name="last" />
+                                    <input id="last" type="checkbox" name="last" <%= if @last_checked?, do: "checked" %>/>
                                 </label>
                             </div>
                         </div>

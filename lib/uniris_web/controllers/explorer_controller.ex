@@ -33,7 +33,8 @@ defmodule UnirisWeb.ExplorerController do
           transaction_chain: chain,
           chain_size: Enum.count(chain),
           address: bin_address,
-          uco_balance: uco_balance
+          uco_balance: uco_balance,
+          last_checked?: true
         )
 
       _ ->
@@ -50,11 +51,12 @@ defmodule UnirisWeb.ExplorerController do
       transaction_chain: chain,
       address: bin_address,
       chain_size: Enum.count(chain),
-      uco_balance: uco_balance
+      uco_balance: uco_balance,
+      last_checked?: false
     )
   end
 
   def chain(conn, _params) do
-    render(conn, "chain.html", transaction_chain: [], address: "", chain_size: 0)
+    render(conn, "chain.html", transaction_chain: [], address: "", chain_size: 0, last_checked?: false)
   end
 end
