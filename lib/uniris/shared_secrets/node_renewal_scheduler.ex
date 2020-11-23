@@ -62,7 +62,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     Task.start(fn ->
       timer = schedule_renewal_message(me, interval, trigger_offset)
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Node shared secrets will be renewed in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     {:noreply, state}
@@ -74,7 +77,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     Task.start(fn ->
       timer = schedule_renewal_message(me, interval, trigger_offset)
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Node shared secrets will be renewed in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     if NodeRenewal.initiator?() do
