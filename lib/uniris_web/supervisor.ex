@@ -12,6 +12,7 @@ defmodule UnirisWeb.Supervisor do
 
   def init(_) do
     children = [
+      {Phoenix.PubSub, [name: UnirisWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
       # Start the endpoint when the application starts
       Endpoint,
       {Absinthe.Subscription, Endpoint},
