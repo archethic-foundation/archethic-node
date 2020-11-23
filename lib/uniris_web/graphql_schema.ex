@@ -72,17 +72,19 @@ defmodule UnirisWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-
         %{uco: uco, nft: nft_balances} = Uniris.get_balance(address)
+
         res = %{
           uco: uco,
-          nft: Enum.map(nft_balances, fn {address, amount} ->
-            %{
-              address: address,
-              amount: amount
-            }
-          end)
+          nft:
+            Enum.map(nft_balances, fn {address, amount} ->
+              %{
+                address: address,
+                amount: amount
+              }
+            end)
         }
+
         {:ok, res}
       end)
     end

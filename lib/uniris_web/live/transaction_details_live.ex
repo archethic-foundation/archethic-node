@@ -111,7 +111,7 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
     inputs =
       [
-        Uniris.get_transaction_inputs(address),
+        Uniris.get_transaction_inputs(address)
         # Uniris.get_transaction_inputs(previous_address)
       ]
       |> :lists.flatten()
@@ -128,9 +128,10 @@ defmodule UnirisWeb.TransactionDetailsLive do
   end
 
   def handle_not_existing_transaction(socket, address) do
-    inputs = address
-    |> Uniris.get_transaction_inputs()
-    |> Enum.reject(&(&1.amount == 0.0))
+    inputs =
+      address
+      |> Uniris.get_transaction_inputs()
+      |> Enum.reject(&(&1.amount == 0.0))
 
     socket
     |> assign(:address, address)

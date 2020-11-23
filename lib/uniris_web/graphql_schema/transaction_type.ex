@@ -62,7 +62,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   @desc "[Ledger] represents the ledger operations to perform"
   object :ledger do
     field(:uco, :uco_ledger)
-    field(:nft_ledger, :nft_ledger)
+    field(:nft, :nft_ledger)
   end
 
   @desc "[UCOTransfer] represents the an asset transfer"

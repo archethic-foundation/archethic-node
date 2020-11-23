@@ -57,6 +57,11 @@ defmodule UnirisWeb.ExplorerController do
   end
 
   def chain(conn, _params) do
-    render(conn, "chain.html", transaction_chain: [], address: "", chain_size: 0, last_checked?: false)
+    render(conn, "chain.html",
+      transaction_chain: [],
+      address: "",
+      chain_size: 0,
+      last_checked?: false
+    )
   end
 end
