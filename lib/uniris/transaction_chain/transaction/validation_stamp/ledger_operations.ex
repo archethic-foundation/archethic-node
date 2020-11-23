@@ -336,6 +336,16 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
       ...> ])
       true
+      
+      iex> %LedgerOperations{
+      ...>    transaction_movements: [],
+      ...>    fee: 0.40
+      ...> }
+      ...> |> LedgerOperations.sufficient_funds?([
+      ...>     %UnspentOutput{from: "@Charlie5", amount: 30, type: :UCO},
+      ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
+      ...> ])
+      true
   """
   @spec sufficient_funds?(t(), list(UnspentOutput.t() | TransactionInput.t())) :: boolean()
   def sufficient_funds?(operations = %__MODULE__{}, inputs) when is_list(inputs) do
@@ -348,17 +358,16 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
        when map_size(nfts_received) == 0 and map_size(nft_to_spend) > 0,
        do: false
 
+  defp sufficient_nfts?(_nfts_received, nfts_to_spend) when map_size(nfts_to_spend) == 0, do: true
+
   defp sufficient_nfts?(nfts_received, nfts_to_spend) do
-    Enum.all?(nfts_received, fn {nft_address, recv_amount} ->
-      case Map.get(nfts_to_spend, nft_address) do
+    Enum.all?(nfts_to_spend, fn {nft_address, amount_to_spend} ->
+      case Map.get(nfts_received, nft_address) do
         nil ->
           false
 
-        amount_to_spend when recv_amount >= amount_to_spend ->
-          true
-
-        _ ->
-          false
+        recv_amount ->
+          recv_amount >= amount_to_spend
       end
     end)
   end

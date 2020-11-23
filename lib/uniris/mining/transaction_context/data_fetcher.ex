@@ -112,14 +112,18 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
     end
   end
 
-  defp valid_unspent_output?(tx_address, %UnspentOutput{amount: amount, type: type}, %Transaction{
-         validation_stamp: %ValidationStamp{
-           ledger_operations: %LedgerOperations{
-             transaction_movements: tx_movements,
-             unspent_outputs: unspent_outputs
+  defp valid_unspent_output?(
+         tx_address,
+         %UnspentOutput{from: from, amount: amount, type: type},
+         %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{
+               transaction_movements: tx_movements,
+               unspent_outputs: unspent_outputs
+             }
            }
          }
-       }) do
+       ) do
     cond do
       Enum.any?(
         tx_movements,
@@ -129,7 +133,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
 
       Enum.any?(
         unspent_outputs,
-        &(&1.from == tx_address and &1.type == type and &1.amount == amount)
+        &(&1.from == from and &1.type == type and &1.amount == amount)
       ) ->
         true
 
