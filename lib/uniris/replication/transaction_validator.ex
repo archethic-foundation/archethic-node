@@ -16,44 +16,63 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias Uniris.TransactionChain.TransactionInput
 
+  @typedoc """
+  Represents the different errors during the validation for the transaction replication
+  """
+  @type error ::
+          :invalid_pending_transaction
+          | :invalid_atomic_commitment
+          | :invalid_cross_validation_stamp_signatures
+          | :invalid_transaction_with_inconsistencies
+          | :invalid_node_election
+          | :invalid_proof_of_work
+          | :invalid_validation_stamp_signature
+          | :invalid_transaction_fee
+          | :invalid_transaction_movements
+          | :invalid_node_movements_roles
+          | :invalid_cross_validation_nodes_movements
+          | :invalid_reward_distribution
+          | :invalid_previous_storage_nodes_movements
+          | :insufficient_funds
+          | :invalid_unspent_outputs
+          | :invalid_chain
+
   @doc """
   Validate transaction with context
   """
   @spec validate(Transaction.t(), Transaction.t(), list(UnspentOutput.t() | TransactionInput.t())) ::
-          :ok | {:error, :invalid}
+          :ok | {:error, error()}
   def validate(tx = %Transaction{}, previous_transaction, inputs_outputs) do
-    with true <- valid_transaction?(tx, inputs_outputs),
+    with :ok <- valid_transaction(tx, inputs_outputs),
          true <- TransactionChain.valid?([tx, previous_transaction]) do
       :ok
     else
+      {:error, reason} ->
+        {:error, reason}
+
       false ->
-        {:error, :invalid}
+        {:error, :invalid_chain}
     end
   end
 
   @doc """
   Validate transaction only
   """
-  @spec validate(Transaction.t()) :: :ok | {:error, :invalid}
-  def validate(tx = %Transaction{}) do
-    if valid_transaction?(tx) do
+  @spec validate(Transaction.t()) :: :ok | {:error, error()}
+  def validate(tx = %Transaction{}), do: valid_transaction(tx)
+
+  defp valid_transaction(tx = %Transaction{}) do
+    with :ok <- do_validate_transaction(tx),
+         :ok <- validate_without_unspent_outputs(tx) do
       :ok
-    else
-      {:error, :invalid}
     end
   end
 
-  defp valid_transaction?(tx = %Transaction{}) do
-    with true <- do_validate_transaction(tx),
-         true <- correct_validation_stamp?(tx) do
-      true
-    end
-  end
-
-  defp valid_transaction?(tx = %Transaction{}, previous_inputs_unspent_outputs \\ []) do
-    with true <- do_validate_transaction(tx),
-         true <- correct_validation_stamp?(tx, previous_inputs_unspent_outputs) do
-      true
+  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs \\ []) do
+    with :ok <- do_validate_transaction(tx),
+         :ok <- validate_without_unspent_outputs(tx),
+         :ok <- validate_with_unspent_outputs(tx, previous_inputs_unspent_outputs) do
+      :ok
     end
   end
 
@@ -63,25 +82,29 @@ defmodule Uniris.Replication.TransactionValidator do
            cross_validation_stamps: cross_stamps
          }
        ) do
-    with true <- Mining.accept_transaction?(tx),
-         true <- atomic_commitment?(tx),
-         true <-
-           Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp)),
-         true <- Enum.all?(cross_stamps, &(&1.inconsistencies == [])),
-         true <- valid_node_election?(tx) do
-      true
-    else
-      _ ->
-        false
+    cond do
+      !Mining.accept_transaction?(tx) ->
+        {:error, :invalid_pending_transaction}
+
+      !Transaction.atomic_commitment?(tx) ->
+        # TODO: start malicious detection if not
+        {:error, :invalid_atomic_commitment}
+
+      !Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp)) ->
+        {:error, :invalid_cross_validation_stamp_signatures}
+
+      !Enum.all?(cross_stamps, &(&1.inconsistencies == [])) ->
+        {:error, :invalid_transaction_with_inconsistencies}
+
+      !valid_node_election?(tx) ->
+        {:error, :invalid_node_election}
+
+      true ->
+        :ok
     end
   end
 
-  defp atomic_commitment?(tx) do
-    # TODO: start malicious detection if not
-    Transaction.atomic_commitment?(tx)
-  end
-
-  defp correct_validation_stamp?(
+  defp validate_without_unspent_outputs(
          tx = %Transaction{
            validation_stamp:
              validation_stamp = %ValidationStamp{
@@ -89,8 +112,8 @@ defmodule Uniris.Replication.TransactionValidator do
                ledger_operations:
                  ops = %LedgerOperations{
                    fee: fee,
-                   transaction_movements: transaction_movements,
-                   node_movements: node_movements
+                   node_movements: node_movements,
+                   transaction_movements: transaction_movements
                  }
              },
            cross_validation_stamps: cross_stamps
@@ -101,78 +124,78 @@ defmodule Uniris.Replication.TransactionValidator do
 
     cross_validation_node_public_keys = Enum.map(cross_stamps, & &1.node_public_key)
 
-    with true <- Transaction.verify_origin_signature?(tx, pow),
-         true <- ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key),
-         true <- fee == Transaction.fee(tx),
-         true <- transaction_movements == Transaction.get_movements(tx),
-         true <- LedgerOperations.valid_node_movements_roles?(ops),
-         true <-
-           LedgerOperations.valid_node_movements_cross_validation_nodes?(
-             ops,
-             cross_validation_node_public_keys
-           ),
-         true <- LedgerOperations.valid_reward_distribution?(ops) do
-      true
+    cond do
+      !Transaction.verify_origin_signature?(tx, pow) ->
+        {:error, :invalid_proof_of_work}
+
+      !ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key) ->
+        {:error, :invalid_validation_stamp_signature}
+
+      fee != Transaction.fee(tx) ->
+        {:error, :invalid_transaction_fee}
+
+      transaction_movements != Transaction.get_movements(tx) ->
+        {:error, :invalid_transaction_movements}
+
+      !LedgerOperations.valid_node_movements_roles?(ops) ->
+        {:error, :invalid_node_movements_roles}
+
+      !LedgerOperations.valid_node_movements_cross_validation_nodes?(
+        ops,
+        cross_validation_node_public_keys
+      ) ->
+        {:error, :invalid_cross_validation_nodes_movements}
+
+      !LedgerOperations.valid_reward_distribution?(ops) ->
+        {:error, :invalid_reward_distribution}
+
+      true ->
+        :ok
     end
   end
 
-  defp correct_validation_stamp?(
-         tx = %Transaction{
-           validation_stamp:
-             validation_stamp = %ValidationStamp{
-               proof_of_work: pow,
-               ledger_operations:
-                 ops = %LedgerOperations{
-                   fee: fee,
-                   transaction_movements: transaction_movements,
-                   unspent_outputs: next_unspent_outputs,
-                   node_movements: node_movements
-                 }
-             },
-           cross_validation_stamps: cross_stamps
-         },
+  defp validate_with_unspent_outputs(
+         tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}},
          previous_inputs_unspent_outputs
        ) do
     previous_storage_nodes_public_keys =
       previous_storage_node_public_keys(tx, previous_inputs_unspent_outputs)
 
-    coordinator_node_public_key =
-      get_coordinator_node_public_key_from_node_movements(node_movements)
+    if LedgerOperations.valid_node_movements_previous_storage_nodes?(
+         ops,
+         previous_storage_nodes_public_keys
+       ) do
+      %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
+        new_ledger_operations(tx, previous_inputs_unspent_outputs)
 
-    cross_validation_node_public_keys = Enum.map(cross_stamps, & &1.node_public_key)
+      validate_unspent_outputs(previous_inputs_unspent_outputs, ops, expected_unspent_outputs)
+    else
+      {:error, :invalid_previous_storage_nodes_movements}
+    end
+  end
 
-    with true <- Transaction.verify_origin_signature?(tx, pow),
-         true <-
-           ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key),
-         %LedgerOperations{
-           fee: expected_fee,
-           transaction_movements: expected_transaction_movements,
-           unspent_outputs: expected_unspent_outputs
-         } <- new_ledger_operations(tx, previous_inputs_unspent_outputs),
-         true <- fee == expected_fee,
-         true <- transaction_movements == expected_transaction_movements,
-         true <- LedgerOperations.valid_node_movements_roles?(ops),
-         true <-
-           LedgerOperations.valid_node_movements_cross_validation_nodes?(
-             ops,
-             cross_validation_node_public_keys
-           ),
-         true <-
-           LedgerOperations.valid_node_movements_previous_storage_nodes?(
-             ops,
-             previous_storage_nodes_public_keys
-           ),
-         true <- LedgerOperations.valid_reward_distribution?(ops) do
-      case previous_inputs_unspent_outputs do
-        [] ->
-          LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs)
+  defp validate_unspent_outputs([], ops, _) do
+    if LedgerOperations.sufficient_funds?(ops, []) do
+      :ok
+    else
+      {:error, :insufficient_funds}
+    end
+  end
 
-        _ ->
-          with true <- compare_unspent_outputs(next_unspent_outputs, expected_unspent_outputs),
-               true <- LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs) do
-            true
-          end
-      end
+  defp validate_unspent_outputs(
+         previous_inputs_unspent_outputs,
+         ops = %LedgerOperations{unspent_outputs: next_unspent_outputs},
+         expected_unspent_outputs
+       ) do
+    cond do
+      !compare_unspent_outputs(next_unspent_outputs, expected_unspent_outputs) ->
+        {:error, :invalid_unspent_outputs}
+
+      !LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs) ->
+        {:error, :insufficient_funds}
+
+      true ->
+        :ok
     end
   end
 

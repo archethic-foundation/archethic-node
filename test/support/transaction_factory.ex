@@ -137,7 +137,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -176,7 +176,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -205,16 +205,17 @@ defmodule Uniris.TransactionFactory do
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
-    validation_stamp = %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
-    }
+    validation_stamp =
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        ledger_operations: ledger_operations
+      }
+      |> ValidationStamp.sign()
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -244,16 +245,17 @@ defmodule Uniris.TransactionFactory do
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
-    validation_stamp = %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
-    }
+    validation_stamp =
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        ledger_operations: ledger_operations
+      }
+      |> ValidationStamp.sign()
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -285,7 +287,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 

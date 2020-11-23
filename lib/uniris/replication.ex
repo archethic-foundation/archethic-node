@@ -92,10 +92,10 @@ defmodule Uniris.Replication do
           :ok
         end
 
-      _ ->
+      {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
-        Logger.error("Invalid transaction for replication",
+        Logger.error("Invalid transaction for replication - #{inspect(reason)}",
           transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
         )
 
@@ -117,10 +117,10 @@ defmodule Uniris.Replication do
 
         :ok
 
-      _ ->
+      {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
-        Logger.error("Invalid transaction for replication",
+        Logger.error("Invalid transaction for replication - #{inspect(reason)}",
           transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
         )
 
