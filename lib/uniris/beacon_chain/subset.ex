@@ -8,6 +8,7 @@ defmodule Uniris.BeaconChain.Subset do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Slot.NodeInfo
   alias Uniris.BeaconChain.Slot.TransactionInfo
+  alias Uniris.BeaconChain.GenICMP
   alias __MODULE__.SlotRegistry
   alias Uniris.BeaconChain.SubsetRegistry
   alias Uniris.PubSub
@@ -81,10 +82,11 @@ defmodule Uniris.BeaconChain.Subset do
         {:create_slot, slot_time = %DateTime{}},
         state = %{slot_registry: slot_registry, subset: subset}
       ) do
+    listNodes =
+      Enum.filter(P2P.list_nodes(), fn x -> :binary.part(x.first_public_key, 0, 1) == subset end)
+      Logger.info("List Node : ", listNodes)
 
-    listNodes =  Enum.filter(P2P.list_nodes(), fn x -> :binary.part(x.first_public_key, 0, 1) == subset end)
-
-    _p2p_view_available = Enum.map(listNodes , fn x -> GenICMP.ping(x) end)
+    _p2p_view_available = Enum.map(listNodes, fn x -> GenICMP.ping(x) end)
     new_registry = SlotRegistry.seal_current_slot(slot_registry, slot_time)
 
     {:noreply, %{state | slot_registry: new_registry}}
