@@ -18,7 +18,13 @@ defmodule UnirisWeb.RootController do
   defp get_dnslink_address(conn) do
     [host] = get_req_header(conn, "host")
 
-    case :inet_res.lookup('_dnslink.#{host}', :in, :txt) do
+    dns_name =
+      host
+      |> to_string()
+      |> String.split(":")
+      |> List.first()
+
+    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt) do
       [] ->
         nil
 
@@ -34,9 +40,10 @@ defmodule UnirisWeb.RootController do
   end
 
   defp redirect_to_last_transaction_content(address, conn, params) do
-    params
-    |> Map.put("address", address)
-    |> Map.put("mime", "text/html")
+    params =
+      params
+      |> Map.put("address", address)
+      |> Map.put("mime", "text/html")
 
     TransactionController.last_transaction_content(conn, params)
   end
