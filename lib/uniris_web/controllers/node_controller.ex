@@ -18,6 +18,7 @@ defmodule UnirisWeb.NodeController do
       {:ok, node = %Node{last_public_key: last_public_key}} ->
         node_address = Crypto.hash(last_public_key)
         %{uco: uco_balance} = Uniris.get_balance(node_address)
+
         render(conn, "show.html", node: node, uco_balance: uco_balance, node_address: node_address)
 
       _ ->
