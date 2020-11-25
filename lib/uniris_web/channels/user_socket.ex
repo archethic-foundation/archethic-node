@@ -4,7 +4,7 @@ defmodule UnirisWeb.UserSocket do
   use Phoenix.Socket
 
   use Absinthe.Phoenix.Socket,
-    schema: UnirisWeb.Schema
+    schema: UnirisWeb.GraphQLSchema
 
   ## Channels
   # channel "room:*", UnirisWeb.RoomChannel
