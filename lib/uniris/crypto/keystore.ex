@@ -11,13 +11,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_key(data :: iolist()) :: binary()
+  @spec sign_with_node_key(data :: iodata()) :: binary()
   def sign_with_node_key(data) do
     impl().sign_with_node_key(data)
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_key(data :: iolist(), index :: number()) :: binary()
+  @spec sign_with_node_key(data :: iodata(), index :: number()) :: binary()
   def sign_with_node_key(data, index) do
     impl().sign_with_node_key(data, index)
   end
@@ -77,13 +77,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_shared_secrets_key(data :: iolist()) :: binary()
+  @spec sign_with_node_shared_secrets_key(data :: iodata()) :: binary()
   def sign_with_node_shared_secrets_key(data) do
     impl().sign_with_node_shared_secrets_key(data)
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_shared_secrets_key(data :: iolist(), index :: number()) :: binary()
+  @spec sign_with_node_shared_secrets_key(data :: iodata(), index :: number()) :: binary()
   def sign_with_node_shared_secrets_key(data, index) do
     impl().sign_with_node_shared_secrets_key(data, index)
   end
