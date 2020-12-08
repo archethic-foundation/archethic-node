@@ -5,6 +5,8 @@ defmodule Uniris.Governance.Code.Proposal do
 
   alias __MODULE__.Parser
 
+  alias Uniris.Crypto
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
 

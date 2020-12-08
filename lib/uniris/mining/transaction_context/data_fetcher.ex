@@ -1,6 +1,8 @@
 defmodule Uniris.Mining.TransactionContext.DataFetcher do
   @moduledoc false
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
