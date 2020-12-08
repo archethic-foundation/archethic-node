@@ -26,6 +26,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements

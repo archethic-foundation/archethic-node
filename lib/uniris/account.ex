@@ -7,6 +7,7 @@ defmodule Uniris.Account do
   alias __MODULE__.MemTablesLoader
 
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionChain.TransactionInput
 
   @type balance :: %{
           uco: amount :: float(),
