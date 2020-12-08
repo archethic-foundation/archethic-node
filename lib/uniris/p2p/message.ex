@@ -737,7 +737,6 @@ defmodule Uniris.P2P.Message do
           | GetTransactionChain.t()
           | GetUnspentOutputs.t()
           | StartMining.t()
-          | AddContext.t()
           | ReplicateTransaction.t()
           | AcknowledgeStorage.t()
           | CrossValidate.t()
