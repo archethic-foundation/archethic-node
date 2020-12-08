@@ -370,7 +370,7 @@ defmodule Uniris.Utils do
      iex> Utils.take_in(%{a: "hello", b: %{c: "hi", d: "hola"}}, [:a, b: [:d]])
      %{a: "hello", b: %{d: "hola"}}
   """
-  @spec take_in(map(), Keyword.list()) :: map()
+  @spec take_in(map(), Keyword.t()) :: map()
   def take_in(map = %{}, []), do: map
 
   def take_in(map = %{}, fields) when is_list(fields) do
