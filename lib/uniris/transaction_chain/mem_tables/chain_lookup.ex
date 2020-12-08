@@ -10,6 +10,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   @transaction_by_type_counter :uniris_transactions_by_type_counter
 
   alias Uniris.Crypto
+  alias Uniris.TransactionChain.Transaction
 
   use GenServer
 
@@ -211,7 +212,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
       iex> ChainLookup.list_addresses_by_type(:transfer)
       [ "@Charlie10", "@Alice1", "@Bob3" ]
   """
-  @spec list_addresses_by_type(Transaction.type()) :: list(binary())
+  @spec list_addresses_by_type(Transaction.transaction_type()) :: list(binary())
   def list_addresses_by_type(type) when is_atom(type) do
     @transaction_by_type_table
     |> :ets.lookup(type)
@@ -230,7 +231,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
       iex> ChainLookup.count_addresses_by_type(:transfer)
       2
   """
-  @spec count_addresses_by_type(Transaction.type()) :: non_neg_integer()
+  @spec count_addresses_by_type(Transaction.transaction_type()) :: non_neg_integer()
   def count_addresses_by_type(type) when is_atom(type) do
     case :ets.lookup(@transaction_by_type_counter, type) do
       [] ->
@@ -260,7 +261,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   """
   @spec add_transaction_by_type(
           address :: binary(),
-          type :: Transaction.type(),
+          type :: Transaction.transaction_type(),
           timestamp :: DateTime.t()
         ) :: :ok
   def add_transaction_by_type(address, type, timestamp = %DateTime{})
