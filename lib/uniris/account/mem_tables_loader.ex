@@ -44,7 +44,8 @@ defmodule Uniris.Account.MemTablesLoader do
   defp allocate_genesis_unspent_outputs do
     UCOLedger.add_unspent_output(Bootstrap.genesis_unspent_output_address(), %UnspentOutput{
       from: Bootstrap.genesis_unspent_output_address(),
-      amount: Bootstrap.genesis_allocation()
+      amount: Bootstrap.genesis_allocation(),
+      type: :UCO
     })
   end
 
