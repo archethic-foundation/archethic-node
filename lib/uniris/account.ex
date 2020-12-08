@@ -1,6 +1,7 @@
 defmodule Uniris.Account do
   @moduledoc false
 
+  alias Uniris.Crypto
   alias __MODULE__.MemTables.NFTLedger
   alias __MODULE__.MemTables.UCOLedger
   alias __MODULE__.MemTablesLoader
