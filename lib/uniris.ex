@@ -108,7 +108,7 @@ defmodule Uniris do
   If the current node is a storage of this address, it will perform a fast lookup
   Otherwise it will request the closest storage node about it
   """
-  @spec get_balance(binary) :: Accout.balance()
+  @spec get_balance(binary) :: Account.balance()
   def get_balance(address) when is_binary(address) do
     storage_nodes =
       address

@@ -75,7 +75,7 @@ defmodule Uniris.P2P.Message do
           | ListNodes.t()
           | GetTransaction.t()
           | GetTransactionChain.t()
-          | GetUnspentOutput.t()
+          | GetUnspentOutputs.t()
           | GetP2PView.t()
           | NewTransaction.t()
           | StartMining.t()

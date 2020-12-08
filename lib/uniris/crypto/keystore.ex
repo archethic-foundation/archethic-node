@@ -29,13 +29,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec node_public_key() :: UnirisCrypto.key()
+  @spec node_public_key() :: Uniris.Crypto.key()
   def node_public_key do
     impl().node_public_key()
   end
 
   @impl KeystoreImpl
-  @spec node_public_key(index :: number()) :: UnirisCyrpto.key()
+  @spec node_public_key(index :: number()) :: Uniris.Crypto.key()
   def node_public_key(index) do
     impl().node_public_key(index)
   end
@@ -101,7 +101,7 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: UnirisCrypto.key()
+  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: Uniris.Crypto.key()
   def node_shared_secrets_public_key(index) do
     impl().node_shared_secrets_public_key(index)
   end
