@@ -31,6 +31,7 @@ defmodule Uniris.Crypto do
   alias __MODULE__.Keystore
   alias __MODULE__.KeystoreLoader
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger

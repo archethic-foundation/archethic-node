@@ -11,6 +11,7 @@ defmodule Uniris.P2P do
   alias __MODULE__.Node
   alias __MODULE__.Transport
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger

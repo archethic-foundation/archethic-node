@@ -12,6 +12,7 @@ defmodule Uniris.Replication.TransactionContext do
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.TransactionChain.TransactionInput
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Uniris.Replication
