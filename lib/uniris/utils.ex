@@ -50,8 +50,10 @@ defmodule Uniris.Utils do
   """
   @spec configurable_children(
           list(
-            {process :: atom(), args :: list(), opts :: list()}
-            | {process :: atom(), args :: list()}
+            process ::
+              atom()
+              | {process :: atom(), args :: list()}
+              | {process :: atom(), args :: list(), opts :: list()}
           )
         ) ::
           list(Supervisor.child_spec())
