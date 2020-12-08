@@ -14,7 +14,8 @@ defmodule Uniris.MixProject do
       deps: deps(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: true]
+      elixirc_options: [warnings_as_errors: true],
+      dialyzer: [plt_add_apps: [:mix]]
     ]
   end
 
@@ -51,6 +52,7 @@ defmodule Uniris.MixProject do
       {:crontab, "~> 1.1"},
       {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:mox, "~> 0.5.2"},
       {:stream_data, "~> 0.4.3"},
       {:elixir_make, "~> 0.6.0", runtime: false},
