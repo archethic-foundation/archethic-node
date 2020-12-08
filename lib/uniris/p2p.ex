@@ -10,6 +10,7 @@ defmodule Uniris.P2P do
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Node
   alias __MODULE__.Transport
+  alias __MODULE__.Message
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
