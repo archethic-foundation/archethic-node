@@ -17,6 +17,7 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
