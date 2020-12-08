@@ -15,8 +15,6 @@ defmodule Uniris.BeaconChain.Subset do
 
   alias Uniris.PubSub
 
-  alias Uniris.TransactionChain.Transaction
-
   use GenServer
 
   require Logger
