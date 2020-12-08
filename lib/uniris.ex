@@ -27,6 +27,7 @@ defmodule Uniris do
 
   alias __MODULE__.TransactionChain
   alias __MODULE__.TransactionChain.Transaction
+  alias __MODULE__.TransactionChain.TransactionInput
 
   alias __MODULE__.Utils
 
@@ -130,7 +131,7 @@ defmodule Uniris do
   @doc """
   Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(Crypto.key()) :: list(Input.t())
+  @spec get_transaction_inputs(Crypto.key()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) do
     storage_nodes =
       address
