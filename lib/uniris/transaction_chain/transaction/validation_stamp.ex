@@ -22,7 +22,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
   """
   @type t :: %__MODULE__{
-          signature: binary(),
+          signature: nil | binary(),
           proof_of_work: Crypto.key(),
           proof_of_integrity: Crypto.versioned_hash(),
           ledger_operations: LedgerOperations.t()
