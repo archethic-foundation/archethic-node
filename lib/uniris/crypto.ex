@@ -337,7 +337,7 @@ defmodule Uniris.Crypto do
   @doc """
   Sign the data with the last node private key
   """
-  @spec sign_with_node_key(data :: iodata()) :: binary()
+  @spec sign_with_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
   def sign_with_node_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
