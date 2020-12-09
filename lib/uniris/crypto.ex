@@ -395,7 +395,12 @@ defmodule Uniris.Crypto do
       iex> Crypto.verify(sig, "myfakedata", pub)
       false
   """
-  @spec verify(signature :: binary(), data :: iodata(), public_key :: key()) :: boolean()
+  @spec verify(
+          signature :: binary(),
+          data :: iodata() | bitstring() | [bitstring],
+          public_key :: key()
+        ) ::
+          boolean()
   def verify(
         sig,
         data,
