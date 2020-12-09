@@ -303,7 +303,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @doc """
   Get the transfers and transaction movements from a transaction
   """
-  @spec get_movements(t()) :: TransactionMovement.t()
+  @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
         data: %TransactionData{
           ledger: %Ledger{
