@@ -184,7 +184,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
       "Alice0"
 
   """
-  @spec get_first_public_key(Crypto.key()) :: {:ok, Crypto.key()} | {:error, :not_found}
+  @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   def get_first_public_key(previous_public_key) when is_binary(previous_public_key) do
     previous_address = Crypto.hash(previous_public_key)
 
