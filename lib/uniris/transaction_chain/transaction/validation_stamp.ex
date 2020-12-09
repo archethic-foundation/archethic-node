@@ -229,12 +229,15 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   Determine if the validation stamp signature is valid
   """
   @spec valid_signature?(__MODULE__.t(), Crypto.key()) :: boolean()
-  def valid_signature?(stamp = %__MODULE__{}, public_key) do
+  def valid_signature?(%__MODULE__{signature: nil}, _public_key), do: false
+
+  def valid_signature?(stamp = %__MODULE__{signature: signature}, public_key)
+      when is_binary(signature) do
     raw_stamp =
       stamp
       |> extract_for_signature
       |> serialize
 
-    Crypto.verify(stamp.signature, raw_stamp, public_key)
+    Crypto.verify(signature, raw_stamp, public_key)
   end
 end
