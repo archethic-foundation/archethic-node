@@ -486,7 +486,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   @spec consume_inputs(
           ledger_operations :: t(),
           change_address :: binary(),
-          inputs :: UnspentOutput.t() | TransactionInput.t()
+          inputs :: list(UnspentOutput.t() | TransactionInput.t())
         ) ::
           t()
   def consume_inputs(ops = %__MODULE__{}, change_address, inputs)
