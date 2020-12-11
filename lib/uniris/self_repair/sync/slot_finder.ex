@@ -6,7 +6,7 @@ defmodule Uniris.SelfRepair.Sync.SlotFinder do
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetBeaconSlots
 
-  @type nodes_by_subsets :: list({subset :: binary(), nodes :: list(Node.t())})
+  @type nodes_by_subsets :: Enumerable.t() | list({subset :: binary(), nodes :: list(Node.t())})
   @type slots_by_subsets :: list({subset :: binary(), list(BeaconSlot.t())})
 
   @doc """
