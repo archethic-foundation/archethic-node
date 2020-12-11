@@ -47,7 +47,7 @@ defmodule Uniris.Replication.TransactionContext do
     end)
   end
 
-  @spec fetch_transaction_inputs(binary()) :: list(TransactionInput.t())
+  @spec fetch_transaction_inputs(binary()) :: Enumerable.t() | list(TransactionInput.t())
   def fetch_transaction_inputs(address) when is_binary(address) do
     address
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
