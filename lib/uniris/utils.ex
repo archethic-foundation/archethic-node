@@ -301,7 +301,7 @@ defmodule Uniris.Utils do
       iex> Utils.wrap_binary([[<<1::1, 1::1, 1::1>>, "abc"], "hello"])
       [ [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
   """
-  @spec wrap_binary(bitstring() | list(bitstring())) :: binary()
+  @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
   def wrap_binary(bits) when is_bitstring(bits) do
     size = bit_size(bits)
 
