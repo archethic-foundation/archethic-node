@@ -35,7 +35,7 @@ defmodule Uniris.MixProject do
     [
       {:flow, "~> 1.0"},
       {:xandra, "~> 0.11"},
-      {:phoenix, "~> 1.5"},
+      {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_html, "~> 2.14"},
       {:phoenix_live_view, "~> 0.14.0"},
