@@ -452,18 +452,18 @@ defmodule Uniris.Crypto do
 
   ## Examples
 
-      iex> cipher = <<0, 0, 0, 58, 211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
+      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
       ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
       ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
       ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
-      iex> {_pub, pv} = Uniris.Crypto.generate_deterministic_keypair("myseed")
+      iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> Uniris.Crypto.ec_decrypt!(cipher, pv)
       "myfakedata"
 
   Invalid message to decrypt or key return an error:
 
       ```
-      Crypto.generate_deterministic_keypair("myseed", :node)
+      Crypto.generate_deterministic_keypair("myseed")
       Crypto.ec_decrypt!(<<0, 0, 0>>, :node)
       ** (RuntimeError) Decryption failed
       ```
@@ -473,6 +473,36 @@ defmodule Uniris.Crypto do
     curve_id
     |> ID.to_curve()
     |> do_ec_decrypt!(cipher, key)
+  end
+
+  @doc """
+
+  ## Examples
+
+      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
+      ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
+      ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
+      ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
+      iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
+      iex> {:ok, "myfakedata"} = Crypto.ec_decrypt(cipher, pv)
+
+  Invalid message to decrypt return an error:
+
+      iex> {_, pv} = Crypto.generate_deterministic_keypair("myseed")
+      iex> Crypto.ec_decrypt(<<0, 0, 0>>, pv)
+      {:error, :decryption_failed}
+  """
+  @spec ec_decrypt(binary(), binary()) :: {:ok, binary()} | {:error, :decryption_failed}
+  def ec_decrypt(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
+    data =
+      curve_id
+      |> ID.to_curve()
+      |> do_ec_decrypt!(cipher, key)
+
+    {:ok, data}
+  rescue
+    _ ->
+      {:error, :decryption_failed}
   end
 
   @doc """
@@ -537,6 +567,31 @@ defmodule Uniris.Crypto do
       data ->
         data
     end
+  end
+
+  @doc """
+  Decrypt a ciphertext using the AES authenticated decryption.
+
+  ## Examples
+
+      iex> key = <<234, 210, 202, 129, 91, 76, 68, 14, 17, 212, 197, 49, 66, 168, 52, 111, 176,
+      ...> 182, 227, 156, 5, 32, 24, 105, 41, 152, 67, 191, 187, 209, 101, 36>>
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", key)
+      iex> Crypto.aes_decrypt(ciphertext, key)
+      {:ok, "sensitive data"}
+
+  Return an error when the key is invalid
+
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
+      iex> Crypto.aes_decrypt(ciphertext, :crypto.strong_rand_bytes(32))
+      {:error, :decryption_failed}
+
+  """
+  def aes_decrypt(data = <<_::binary-12, _::binary-16, _::binary>>, <<key::binary-32>>) do
+    {:ok, aes_decrypt!(data, key)}
+  rescue
+    _ ->
+      {:error, :decryption_failed}
   end
 
   @doc """
