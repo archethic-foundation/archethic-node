@@ -26,8 +26,8 @@ defmodule Uniris.Replication.TransactionContext do
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
     |> P2P.nearest_nodes()
     |> P2P.broadcast_message(%GetTransactionChain{address: address})
-    |> Stream.flat_map(fn %TransactionList{transactions: transactions} -> transactions end)
     |> Stream.take(1)
+    |> Stream.flat_map(fn %TransactionList{transactions: transactions} -> transactions end)
   end
 
   @doc """
@@ -52,9 +52,9 @@ defmodule Uniris.Replication.TransactionContext do
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
     |> P2P.nearest_nodes()
     |> P2P.broadcast_message(%GetTransactionInputs{address: address})
+    |> Stream.take(1)
     |> Stream.flat_map(fn %TransactionInputList{inputs: inputs} ->
       inputs
     end)
-    |> Stream.take(1)
   end
 end
