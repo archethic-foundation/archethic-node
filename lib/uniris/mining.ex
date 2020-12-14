@@ -37,7 +37,7 @@ defmodule Uniris.Mining do
   Start mining process for a given transaction.
   """
   @spec start(
-          transaction :: Transaction.pending(),
+          transaction :: Transaction.t(),
           welcome_node_public_key :: Uniris.Crypto.key(),
           validation_node_public_keys :: list(Uniris.Crypto.key())
         ) :: {:ok, pid()}
