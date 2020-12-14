@@ -1,6 +1,9 @@
 defmodule Uniris.Replication.TransactionValidator do
   @moduledoc false
 
+  alias Uniris.Election
+  alias Uniris.Election.ValidationConstraints
+
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
@@ -78,7 +81,7 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp do_validate_transaction(
          tx = %Transaction{
-           validation_stamp: validation_stamp,
+           validation_stamp: validation_stamp = %ValidationStamp{},
            cross_validation_stamps: cross_stamps
          }
        ) do
@@ -87,7 +90,7 @@ defmodule Uniris.Replication.TransactionValidator do
         {:error, :invalid_pending_transaction}
 
       !Transaction.atomic_commitment?(tx) ->
-        # TODO: start malicious detection if not
+        # TODO: start malicious detection
         {:error, :invalid_atomic_commitment}
 
       !Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp)) ->
@@ -241,17 +244,32 @@ defmodule Uniris.Replication.TransactionValidator do
            cross_validation_stamps: cross_validation_stamps
          }
        ) do
-    case P2P.get_node_info() do
-      %Node{authorized?: true} ->
-        coordinator_node_public_key =
-          get_coordinator_node_public_key_from_node_movements(node_movements)
+    coordinator_node_public_key =
+      get_coordinator_node_public_key_from_node_movements(node_movements)
 
-        validation_nodes =
-          Enum.uniq([
-            coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
-          ])
+    nb_of_validations_nodes =
+      case cross_validation_stamps do
+        [%CrossValidationStamp{node_public_key: key}] ->
+          if coordinator_node_public_key == key, do: 1, else: 2
 
-        Mining.valid_election?(Transaction.to_pending(tx), validation_nodes)
+        [_ | _] ->
+          length(cross_validation_stamps) + 1
+      end
+
+    %ValidationConstraints{validation_number: validation_number_fun} =
+      Election.get_validation_constraints()
+
+    with true <- validation_number_fun.(tx) == nb_of_validations_nodes,
+         %Node{authorized?: true} <- P2P.get_node_info() do
+      validation_nodes =
+        Enum.uniq([
+          coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
+        ])
+
+      Mining.valid_election?(Transaction.to_pending(tx), validation_nodes)
+    else
+      false ->
+        false
 
       %Node{} ->
         true

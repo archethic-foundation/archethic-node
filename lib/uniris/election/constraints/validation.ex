@@ -12,6 +12,8 @@ defmodule Uniris.Election.ValidationConstraints do
     :validation_number
   ]
 
+  alias Uniris.P2P
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
@@ -49,28 +51,6 @@ defmodule Uniris.Election.ValidationConstraints do
 
   @doc """
   Get the number of validations for a given transaction.
-
-  ## Examples
-
-      iex> ValidationConstraints.validation_number(%Transaction{
-      ...>   data: %TransactionData{
-      ...>    ledger: %Ledger{
-      ...>       uco: %UCOLedger{
-      ...>         transfers: [ %Transfer{to: "@Alice2", amount: 0.05 } ]
-      ...>       }
-      ...>    }
-      ...> }})
-      3
-
-      iex> ValidationConstraints.validation_number(%Transaction{
-      ...>   data: %TransactionData{
-      ...>    ledger: %Ledger{
-      ...>       uco: %UCOLedger{
-      ...>         transfers: [ %Transfer{to: "@Alice2", amount: 200 } ]
-      ...>       }
-      ...>    }
-      ...> }})
-      6
   """
   def validation_number(%Transaction{
         data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
@@ -78,14 +58,31 @@ defmodule Uniris.Election.ValidationConstraints do
       when length(transfers) > 0 do
     total_transfers = Enum.reduce(transfers, 0, &(&2 + &1.amount))
 
-    min_validations = @default_min_validations
-
     if total_transfers > 10 do
-      :math.floor(min_validations * :math.log10(total_transfers)) |> trunc
+      nb_authorized_nodes = length(P2P.list_nodes(authorized?: true))
+
+      validation_number =
+        trunc(:math.floor(min_validation_number() * :math.log10(total_transfers)))
+
+      if validation_number > nb_authorized_nodes do
+        nb_authorized_nodes
+      else
+        validation_number
+      end
     else
-      min_validations
+      min_validation_number()
     end
   end
 
-  def validation_number(%Transaction{}), do: @default_min_validations
+  def validation_number(%Transaction{}), do: min_validation_number()
+
+  defp min_validation_number do
+    nb_authorized_nodes = length(P2P.list_nodes(authorized?: true))
+
+    if nb_authorized_nodes < @default_min_validations do
+      nb_authorized_nodes
+    else
+      @default_min_validations
+    end
+  end
 end
