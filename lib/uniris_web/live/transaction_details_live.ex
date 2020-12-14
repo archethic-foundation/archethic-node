@@ -35,9 +35,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
       {:error, :transaction_not_exists} ->
         {:noreply, handle_not_existing_transaction(socket, address)}
-
-      {:error, :invalid_transaction} ->
-        {:noreply, handle_ko_transaction(socket, address)}
     end
   end
 
@@ -94,12 +91,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
   defp get_transaction(address, _opts = %{}) do
     Uniris.search_transaction(address)
-  end
-
-  defp handle_ko_transaction(socket, address) do
-    socket
-    |> assign(:ko?, true)
-    |> assign(:address, address)
   end
 
   defp handle_transaction(
