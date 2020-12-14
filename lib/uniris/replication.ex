@@ -291,7 +291,7 @@ defmodule Uniris.Replication do
         ]
       }
   """
-  @spec generate_tree(validation_nodes :: Node.t(), storage_nodes :: list(Node.t())) ::
+  @spec generate_tree(validation_nodes :: list(Node.t()), storage_nodes :: list(Node.t())) ::
           replication_tree :: map()
   def generate_tree(validation_nodes, storage_nodes) do
     storage_nodes
