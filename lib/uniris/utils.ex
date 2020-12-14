@@ -346,6 +346,8 @@ defmodule Uniris.Utils do
       iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
       <<1::1, 1::1, 0::1, 1::1>>
   """
+  def unwrap_bitstring("", 0), do: <<>>
+
   def unwrap_bitstring(bitstring, data_size)
       when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
     wrapped_bitstring_size = bit_size(bitstring)
