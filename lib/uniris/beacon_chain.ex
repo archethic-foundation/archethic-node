@@ -11,6 +11,7 @@ defmodule Uniris.BeaconChain do
   alias Uniris.BeaconChain.Subset
 
   alias Uniris.P2P
+  alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp

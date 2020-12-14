@@ -27,6 +27,7 @@ defmodule Uniris do
 
   alias __MODULE__.TransactionChain
   alias __MODULE__.TransactionChain.Transaction
+  alias __MODULE__.TransactionChain.TransactionInput
 
   alias __MODULE__.Utils
 
@@ -108,7 +109,7 @@ defmodule Uniris do
   If the current node is a storage of this address, it will perform a fast lookup
   Otherwise it will request the closest storage node about it
   """
-  @spec get_balance(binary) :: Accout.balance()
+  @spec get_balance(binary) :: Account.balance()
   def get_balance(address) when is_binary(address) do
     storage_nodes =
       address
@@ -130,7 +131,7 @@ defmodule Uniris do
   @doc """
   Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(Crypto.key()) :: list(Input.t())
+  @spec get_transaction_inputs(Crypto.key()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) do
     storage_nodes =
       address

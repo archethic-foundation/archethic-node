@@ -1,12 +1,8 @@
 defmodule Uniris.DB do
   @moduledoc false
 
-  alias Uniris.DBImpl
   alias Uniris.TransactionChain.Transaction
 
-  @behaviour DBImpl
-
-  @impl DBImpl
   @spec migrate() :: :ok
   def migrate do
     impl().migrate()
@@ -15,7 +11,6 @@ defmodule Uniris.DB do
   @doc """
   Get a transaction from the database
   """
-  @impl DBImpl
   @spec get_transaction(binary(), fields :: list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) when is_list(fields) do
@@ -25,7 +20,6 @@ defmodule Uniris.DB do
   @doc """
   Get an transaction chain from the database
   """
-  @impl DBImpl
   @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
   def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
     impl().get_transaction_chain(address, fields)
@@ -34,7 +28,6 @@ defmodule Uniris.DB do
   @doc """
   Flush an entire transaction chain in the database
   """
-  @impl DBImpl
   @spec write_transaction_chain(Enumerable.t()) :: :ok | {:error, :transaction_already_exists}
   def write_transaction_chain(chain) do
     %Transaction{address: last_address} = Enum.at(chain, 0)
@@ -51,7 +44,6 @@ defmodule Uniris.DB do
   @doc """
   Flush a transaction in the database
   """
-  @impl DBImpl
   @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{address: tx_address}) do
     case get_transaction(tx_address, [:type]) do
@@ -66,7 +58,6 @@ defmodule Uniris.DB do
   @doc """
   List all the transactions from the database
   """
-  @impl DBImpl
   @spec list_transactions(fields :: list()) :: Enumerable.t()
   def list_transactions(fields \\ []) do
     impl().list_transactions(fields)

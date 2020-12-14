@@ -2,6 +2,7 @@ defmodule Uniris.Governance.Pools.MemTable do
   @moduledoc false
 
   use Agent
+  alias Uniris.Governance.Pools
 
   @doc """
   Initialize an memory table for the governance pool member distribution

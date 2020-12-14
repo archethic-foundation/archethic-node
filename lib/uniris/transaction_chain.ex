@@ -28,7 +28,8 @@ defmodule Uniris.TransactionChain do
   @doc """
   List all the transaction for a given transaction type sorted by timestamp in descent order
   """
-  @spec list_transactions_by_type(type :: Transaction.type(), fields :: list()) :: Enumerable.t()
+  @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
+          Enumerable.t()
   def list_transactions_by_type(type, fields) do
     Stream.resource(
       fn -> ChainLookup.list_addresses_by_type(type) end,
@@ -47,7 +48,7 @@ defmodule Uniris.TransactionChain do
   @doc """
   Get the number of transactions for a given type
   """
-  @spec count_transactions_by_type(Transaction.type()) :: non_neg_integer()
+  @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
   defdelegate count_transactions_by_type(type), to: ChainLookup, as: :count_addresses_by_type
 
   @doc """

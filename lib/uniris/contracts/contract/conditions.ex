@@ -18,7 +18,7 @@ defmodule Uniris.Contracts.Contract.Conditions do
   @type t :: %__MODULE__{
           response: Macro.t(),
           inherit: Macro.t(),
-          origin_family: SharedSecrets.origin_family(),
+          origin_family: nil | SharedSecrets.origin_family(),
           post_paid_fee: Crypto.versioned_hash()
         }
 end

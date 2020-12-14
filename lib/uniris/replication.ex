@@ -291,7 +291,7 @@ defmodule Uniris.Replication do
         ]
       }
   """
-  @spec generate_tree(validation_nodes :: Node.t(), storage_nodes :: list(Node.t())) ::
+  @spec generate_tree(validation_nodes :: list(Node.t()), storage_nodes :: list(Node.t())) ::
           replication_tree :: map()
   def generate_tree(validation_nodes, storage_nodes) do
     storage_nodes
@@ -411,7 +411,8 @@ defmodule Uniris.Replication do
   @doc """
   Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
   """
-  @spec chain_storage_nodes(binary(), Transaction.type(), list(Node.t())) :: list(Node.t())
+  @spec chain_storage_nodes(binary(), Transaction.transaction_type(), list(Node.t())) ::
+          list(Node.t())
   def chain_storage_nodes(address, type, node_list)
       when is_binary(address) and is_atom(type) and is_list(node_list) do
     if Transaction.network_type?(type) do

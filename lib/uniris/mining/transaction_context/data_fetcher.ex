@@ -1,6 +1,8 @@
 defmodule Uniris.Mining.TransactionContext.DataFetcher do
   @moduledoc false
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
@@ -21,7 +23,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
 
   The request is performed concurrently and the first node to reply is returned
   """
-  @spec fetch_previous_transaction(binary(), list(Node.t())) :: {Transaction.t(), Node.t()}
+  @spec fetch_previous_transaction(binary(), list(Node.t())) ::
+          {:error, :not_found} | {:ok, Transaction.t(), Node.t()}
   def fetch_previous_transaction(previous_address, nodes) do
     response =
       nodes

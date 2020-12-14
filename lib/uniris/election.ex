@@ -29,7 +29,7 @@ defmodule Uniris.Election do
 
   Then each nodes selection is reduce via heuristic constraints via `ValidationConstraints`
   """
-  @spec validation_nodes(Transaction.pending(), list(Node.t())) :: [Node.t()]
+  @spec validation_nodes(Transaction.t(), list(Node.t())) :: [Node.t()]
   def validation_nodes(
         tx = %Transaction{},
         nodes,

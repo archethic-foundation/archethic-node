@@ -26,6 +26,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements
@@ -485,7 +486,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   @spec consume_inputs(
           ledger_operations :: t(),
           change_address :: binary(),
-          inputs :: UnspentOutput.t() | TransactionInput.t()
+          inputs :: list(UnspentOutput.t() | TransactionInput.t())
         ) ::
           t()
   def consume_inputs(ops = %__MODULE__{}, change_address, inputs)

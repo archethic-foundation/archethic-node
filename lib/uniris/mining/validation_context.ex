@@ -45,7 +45,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
-          previous_transaction: Transaction.t(),
+          previous_transaction: nil | Transaction.t(),
           unspent_outputs: list(UnspentOutput.t()),
           welcome_node: Node.t(),
           coordinator_node: Node.t(),
@@ -55,7 +55,7 @@ defmodule Uniris.Mining.ValidationContext do
           beacon_storage_nodes: list(Node.t()),
           io_storage_nodes: list(Node.t()),
           cross_validation_nodes_confirmation: bitstring(),
-          validation_stamp: ValidationStamp.t(),
+          validation_stamp: nil | ValidationStamp.t(),
           full_replication_tree: list(bitstring()),
           sub_replication_tree: bitstring(),
           cross_validation_stamps: list(CrossValidationStamp.t()),

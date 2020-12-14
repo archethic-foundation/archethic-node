@@ -19,7 +19,7 @@ defmodule UnirisWeb.Supervisor do
       TransactionSubscriber
     ]
 
-    opts = [strategy: :one_for_one, name: UnirisWeb.Supervisor]
+    opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
   end
 end

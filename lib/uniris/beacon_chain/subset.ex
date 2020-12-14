@@ -15,8 +15,6 @@ defmodule Uniris.BeaconChain.Subset do
 
   alias Uniris.PubSub
 
-  alias Uniris.TransactionChain.Transaction
-
   use GenServer
 
   require Logger
@@ -92,7 +90,7 @@ defmodule Uniris.BeaconChain.Subset do
   @doc """
   Add transaction information to the current block of the given subset
   """
-  @spec add_transaction_info(subset :: binary(), Transaction.info()) :: :ok
+  @spec add_transaction_info(subset :: binary(), TransactionInfo.t()) :: :ok
   def add_transaction_info(subset, tx_info = %TransactionInfo{}) when is_binary(subset) do
     GenServer.call(via_tuple(subset), {:add_transaction_info, tx_info})
   end

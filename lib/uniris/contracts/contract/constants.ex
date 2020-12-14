@@ -17,8 +17,8 @@ defmodule Uniris.Contracts.Contract.Constants do
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.NFTLedger.Transfer
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),

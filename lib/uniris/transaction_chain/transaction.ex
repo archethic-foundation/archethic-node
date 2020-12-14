@@ -48,9 +48,9 @@ defmodule Uniris.TransactionChain.Transaction do
           type: transaction_type(),
           timestamp: DateTime.t(),
           data: TransactionData.t(),
-          previous_public_key: Crypto.key(),
-          previous_signature: binary(),
-          origin_signature: binary(),
+          previous_public_key: nil | Crypto.key(),
+          previous_signature: nil | binary(),
+          origin_signature: nil | binary(),
           validation_stamp: nil | ValidationStamp.t(),
           cross_validation_stamps: nil | list(CrossValidationStamp.t())
         }
@@ -303,7 +303,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @doc """
   Get the transfers and transaction movements from a transaction
   """
-  @spec get_movements(t()) :: TransactionMovement.t()
+  @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
         data: %TransactionData{
           ledger: %Ledger{

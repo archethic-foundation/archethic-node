@@ -47,7 +47,7 @@ defmodule Uniris.Contracts.Worker do
 
   def handle_info({:interval_trigger, interval}, state = %{contract: contract}) do
     Interpreter.execute(contract)
-    schedule_trigger(:interval_trigger, interval)
+    schedule_trigger(:interval, interval)
     {:noreply, state}
   end
 

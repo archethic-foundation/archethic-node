@@ -17,6 +17,7 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
@@ -62,16 +63,16 @@ defmodule Uniris.Replication.TransactionValidator do
   Validate transaction only
   """
   @spec validate(Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}), do: valid_transaction(tx)
+  def validate(tx = %Transaction{}), do: valid_transaction(tx, [])
 
-  defp valid_transaction(tx = %Transaction{}) do
+  defp valid_transaction(tx = %Transaction{}, []) do
     with :ok <- do_validate_transaction(tx),
          :ok <- validate_without_unspent_outputs(tx) do
       :ok
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs \\ []) do
+  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs) do
     with :ok <- do_validate_transaction(tx),
          :ok <- validate_without_unspent_outputs(tx),
          :ok <- validate_with_unspent_outputs(tx, previous_inputs_unspent_outputs) do

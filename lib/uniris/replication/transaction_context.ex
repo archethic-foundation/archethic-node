@@ -7,11 +7,12 @@ defmodule Uniris.Replication.TransactionContext do
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
   alias Uniris.P2P.Message.GetUnspentOutputs
-  alias Uniris.P2P.Message.TransactionInput
   alias Uniris.P2P.Message.TransactionInputList
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
+  alias Uniris.TransactionChain.TransactionInput
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Uniris.Replication
@@ -46,7 +47,7 @@ defmodule Uniris.Replication.TransactionContext do
     end)
   end
 
-  @spec fetch_transaction_inputs(binary()) :: list(TransactionInput.t())
+  @spec fetch_transaction_inputs(binary()) :: Enumerable.t() | list(TransactionInput.t())
   def fetch_transaction_inputs(address) when is_binary(address) do
     address
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))

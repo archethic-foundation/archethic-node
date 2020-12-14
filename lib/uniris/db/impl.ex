@@ -1,6 +1,8 @@
 defmodule Uniris.DBImpl do
   @moduledoc false
 
+  alias Uniris.TransactionChain.Transaction
+
   @callback migrate() :: :ok
   @callback get_transaction(address :: binary(), fields :: list()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}

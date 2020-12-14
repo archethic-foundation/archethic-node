@@ -31,6 +31,7 @@ defmodule Uniris.Crypto do
   alias __MODULE__.Keystore
   alias __MODULE__.KeystoreLoader
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger
@@ -336,7 +337,7 @@ defmodule Uniris.Crypto do
   @doc """
   Sign the data with the last node private key
   """
-  @spec sign_with_node_key(data :: iodata()) :: binary()
+  @spec sign_with_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
   def sign_with_node_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
@@ -394,7 +395,12 @@ defmodule Uniris.Crypto do
       iex> Crypto.verify(sig, "myfakedata", pub)
       false
   """
-  @spec verify(signature :: binary(), data :: iodata(), public_key :: key()) :: boolean()
+  @spec verify(
+          signature :: binary(),
+          data :: iodata() | bitstring() | [bitstring],
+          public_key :: key()
+        ) ::
+          boolean()
   def verify(
         sig,
         data,
