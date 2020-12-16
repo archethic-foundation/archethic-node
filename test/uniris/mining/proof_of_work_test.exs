@@ -36,9 +36,6 @@ defmodule Uniris.Mining.ProofOfWorkTest do
           %TransactionData{
             code: """
             condition origin_family: biometric
-            actions do
-
-            end
             """
           },
           "seed",
