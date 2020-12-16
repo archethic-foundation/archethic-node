@@ -3,8 +3,6 @@ defmodule UnirisWeb.API.TransactionController do
 
   use UnirisWeb, :controller
 
-  alias Uniris.Crypto
-
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -15,14 +13,8 @@ defmodule UnirisWeb.API.TransactionController do
   alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   def new(conn, params = %{}) do
-    case decode_pending_transaction(params) do
-      tx = %Transaction{origin_signature: nil} ->
-        tx = %{tx | origin_signature: Transaction.serialize(tx) |> Crypto.sign_with_node_key()}
-        Uniris.send_new_transaction(tx)
-
-      tx = %Transaction{} ->
-        Uniris.send_new_transaction(tx)
-    end
+    tx = decode_pending_transaction(params)
+    :ok = Uniris.send_new_transaction(tx)
 
     conn
     |> put_status(201)
@@ -101,17 +93,6 @@ defmodule UnirisWeb.API.TransactionController do
       previous_signature: Base.decode16!(previous_signature, case: :mixed),
       origin_signature: Base.decode16!(origin_signature, case: :mixed)
     }
-
-    # if Map.has_key?(params, :origin_signature) do
-    #   origin_signature =
-    #     params
-    #     |> Map.get(:origin_signature)
-    #     |> Base.decode16!(case: :mixed)
-
-    #   %{tx | origin_signature: origin_signature}
-    # else
-    #   tx
-    # end
   end
 
   defp decode_type("identity"), do: :identity

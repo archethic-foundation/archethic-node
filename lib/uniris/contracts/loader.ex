@@ -47,13 +47,7 @@ defmodule Uniris.Contracts.Loader do
         _from_db
       )
       when code != "" do
-    case Registry.lookup(ContractRegistry, Crypto.hash(previous_public_key)) do
-      [] ->
-        :ok
-
-      [{pid, _}] ->
-        DynamicSupervisor.terminate_child(ContractSupervisor, pid)
-    end
+    stop_contract(Crypto.hash(previous_public_key))
 
     {:ok, _} =
       DynamicSupervisor.start_child(
@@ -95,4 +89,17 @@ defmodule Uniris.Contracts.Loader do
   end
 
   def load_transaction(_tx, _), do: :ok
+
+  @doc """
+  Termine a contract execution
+  """
+  @spec stop_contract(binary()) :: :ok 
+  def stop_contract(address) when is_binary(address) do
+    case Registry.lookup(ContractRegistry, address) do
+      [{pid, _}] ->
+        DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+      _ ->
+        :ok
+    end
+  end
 end

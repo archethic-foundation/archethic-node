@@ -199,7 +199,8 @@ defmodule Uniris.Replication do
   @spec acknowledge_previous_storage_nodes(binary(), binary()) :: :ok
   def acknowledge_previous_storage_nodes(address, previous_address)
       when is_binary(address) and is_binary(previous_address) do
-    :ok = TransactionChain.register_last_address(previous_address, address)
+    TransactionChain.register_last_address(previous_address, address)
+    Contracts.stop_contract(previous_address)
 
     case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
       {:ok, tx} ->
