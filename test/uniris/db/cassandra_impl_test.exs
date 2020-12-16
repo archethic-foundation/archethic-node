@@ -129,7 +129,9 @@ defmodule Uniris.DB.CassandraImplTest do
     Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
     Cassandra.add_last_transaction_address("@Alice1", "@Alice3")
     Cassandra.add_last_transaction_address("@Alice1", "@Alice4")
-    assert [{ "@Alice1", "@Alice4"}] = Cassandra.list_last_transaction_addresses() |> Enum.to_list()
+
+    assert [{"@Alice1", "@Alice4"}] =
+             Cassandra.list_last_transaction_addresses() |> Enum.to_list()
   end
 
   defp create_transaction(inputs \\ [], opts \\ []) do

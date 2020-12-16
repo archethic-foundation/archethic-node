@@ -7,8 +7,12 @@ defmodule Uniris.TransactionChain.TransactionTest do
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.NFTLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   doctest Uniris.TransactionChain.Transaction
 

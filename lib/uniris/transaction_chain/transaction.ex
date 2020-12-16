@@ -302,6 +302,33 @@ defmodule Uniris.TransactionChain.Transaction do
 
   @doc """
   Get the transfers and transaction movements from a transaction
+
+  ## Examples
+
+      iex> %Transaction{
+      ...>  data: %TransactionData{
+      ...>    ledger: %Ledger{
+      ...>      uco: %UCOLedger{
+      ...>        transfers: [
+      ...>          %UCOLedger.Transfer{to: "@Alice1", amount: 10}
+      ...>        ]
+      ...>      },
+      ...>      nft: %NFTLedger{
+      ...>        transfers: [
+      ...>          %NFTLedger.Transfer{to: "@Alice1", amount: 3, nft: "@BobNFT"}
+      ...>        ]
+      ...>      }
+      ...>    }
+      ...>  }
+      ...> } |> Transaction.get_movements()
+      [
+        %TransactionMovement{
+          to: "@Alice1", amount: 10, type: :UCO,
+        },
+        %TransactionMovement{
+          to: "@Alice1", amount: 3, type: {:NFT, "@BobNFT"},
+        }
+      ]
   """
   @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
