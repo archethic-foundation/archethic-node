@@ -242,13 +242,18 @@ defmodule Uniris.Mining.ValidationContext do
           node_public_key: from
         }
       ) do
-    with true <- cross_validation_node?(context, from),
-         false <- cross_validation_stamp_exists?(context, from),
-         true <- CrossValidationStamp.valid_signature?(stamp, validation_stamp) do
-      Map.update!(context, :cross_validation_stamps, &[stamp | &1])
-    else
-      false ->
+    cond do
+      !cross_validation_node?(context, from) ->
         context
+
+      !CrossValidationStamp.valid_signature?(stamp, validation_stamp) ->
+        context
+
+      cross_validation_stamp_exists?(context, from) ->
+        context
+
+      true ->
+        Map.update!(context, :cross_validation_stamps, &[stamp | &1])
     end
   end
 
@@ -774,7 +779,6 @@ defmodule Uniris.Mining.ValidationContext do
              }
          }
        ) do
-
     resolved_transaction_movements = resolve_transaction_movements(tx)
 
     subsets_verifications = [
@@ -786,7 +790,12 @@ defmodule Uniris.Mining.ValidationContext do
       recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,
       node_movements: fn -> valid_node_movements?(operations, context) end,
       unspent_outputs: fn ->
-        valid_unspent_outputs?(tx, previous_unspent_outputs, next_unspent_outputs, resolved_transaction_movements)
+        valid_unspent_outputs?(
+          tx,
+          previous_unspent_outputs,
+          next_unspent_outputs,
+          resolved_transaction_movements
+        )
       end
     ]
 
@@ -806,7 +815,12 @@ defmodule Uniris.Mining.ValidationContext do
     end
   end
 
-  defp valid_unspent_outputs?(tx, previous_unspent_outputs, next_unspent_outputs, resolved_transaction_movements) do
+  defp valid_unspent_outputs?(
+         tx,
+         previous_unspent_outputs,
+         next_unspent_outputs,
+         resolved_transaction_movements
+       ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
         fee: Transaction.fee(tx),
