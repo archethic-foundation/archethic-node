@@ -234,6 +234,26 @@ defmodule Uniris.Crypto do
   defdelegate node_shared_secrets_public_key(index), to: Keystore
 
   @doc """
+  Return the storage nonce public key
+  """
+  @spec storage_nonce_public_key() :: binary()
+  def storage_nonce_public_key do
+    {pub, _} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    pub
+  end
+  
+  @doc """
+  Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES). 
+  
+  More details at `ec_decrypt/2`
+  """
+  @spec ec_decrypt_with_storage_nonce(iodata()) :: {:ok, binary()} | {:error, :decryption_failed}
+  def ec_decrypt_with_storage_nonce(data) when is_bitstring(data) or is_list(data) do
+    {_, pv} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    ec_decrypt(data, pv)
+  end
+
+  @doc """
   Increment the counter for the number of generated node private keys.
   This number is used for the key derivation to detect the latest index.
   """
