@@ -4,7 +4,7 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
   use GenServer
 
   alias Uniris.Contracts.Contract
-  alias Uniris.Contracts.Contract.Conditions, as: ContractConditions
+  alias Uniris.Contracts.Contract.Conditions
 
   alias Uniris.DB
 
@@ -69,11 +69,8 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   defp handle_pending_transaction(tx = %Transaction{address: address}) do
     # TODO: improve the criteria of pending detection
-    %Contract{conditions: %ContractConditions{response: response_condition}} =
-      Contract.from_transaction!(tx)
-
-    case response_condition do
-      nil ->
+    case Contract.from_transaction!(tx) do
+      %Contract{conditions: %Conditions{transaction: nil}} ->
         :ok
 
       _ ->
