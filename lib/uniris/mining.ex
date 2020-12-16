@@ -3,6 +3,7 @@ defmodule Uniris.Mining do
   Handle the ARCH consensus behavior and transaction mining
   """
 
+  alias Uniris.Contracts
   alias Uniris.Crypto
 
   alias Uniris.Election
@@ -91,9 +92,19 @@ defmodule Uniris.Mining do
   Determines if the transaction is accepted into the network
   """
   @spec accept_transaction?(Transaction.t()) :: boolean()
-  def accept_transaction?(tx = %Transaction{}) do
+  def accept_transaction?(tx = %Transaction{data: %TransactionData{code: code, keys: keys}}) do
     if Transaction.verify_previous_signature?(tx) do
-      do_accept_transaction?(tx)
+      case code do
+        "" ->
+          do_accept_transaction?(tx)
+
+        _ ->
+          with true <- Contracts.valid_contract?(code),
+               authorized_keys <- Keys.list_authorized_keys(keys),
+               true <- Crypto.storage_nonce_public_key() in authorized_keys do
+            do_accept_transaction?(tx)
+          end
+      end
     else
       false
     end
