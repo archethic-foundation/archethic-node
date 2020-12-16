@@ -60,7 +60,8 @@ defmodule Uniris.MixProject do
       {:cubdb, "~> 0.17.0"},
       {:earmark, "~> 1.4"},
       {:humanize_time, "~> 1.0"},
-      {:sizeable, "~> 1.0"}
+      {:sizeable, "~> 1.0"},
+      {:exjsonpath, "~> 0.9.0"}
     ]
   end
 end
