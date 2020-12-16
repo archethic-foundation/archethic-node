@@ -5,7 +5,6 @@ defmodule Uniris.P2P.MemTable do
   @nodes_key_lookup_table :uniris_node_keys
   @availability_lookup_table :uniris_available_nodes
   @authorized_nodes_table :uniris_authorized_nodes
-  @node_transaction_lookup_table :uniris_node_tx_keys
 
   alias Uniris.Crypto
 
@@ -28,9 +27,8 @@ defmodule Uniris.P2P.MemTable do
       ...>    :ets.info(:uniris_node_keys)[:type],
       ...>    :ets.info(:uniris_available_nodes)[:type],
       ...>    :ets.info(:uniris_authorized_nodes)[:type],
-      ...>    :ets.info(:uniris_node_tx_keys)[:type]
       ...>  }
-      { :set, :set, :set, :set, :set }
+      { :set, :set, :set, :set }
   """
   @spec start_link([]) :: {:ok, pid()}
   def start_link(args \\ []) do
@@ -42,8 +40,6 @@ defmodule Uniris.P2P.MemTable do
     :ets.new(@availability_lookup_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@authorized_nodes_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@nodes_key_lookup_table, [:set, :named_table, :public, read_concurrency: true])
-
-    :ets.new(@node_transaction_lookup_table, [:set, :named_table, :public, read_concurrency: true])
 
     Logger.info("Initialize InMemory P2P view")
 

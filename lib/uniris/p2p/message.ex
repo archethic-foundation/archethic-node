@@ -8,6 +8,8 @@ defmodule Uniris.P2P.Message do
   alias Uniris.BeaconChain.Slot.NodeInfo
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
 
+  alias Uniris.Contracts
+
   alias Uniris.Crypto
 
   alias Uniris.Mining
@@ -262,12 +264,13 @@ defmodule Uniris.P2P.Message do
     <<243::8, bit_size(view)::8, view::bitstring>>
   end
 
-  def encode(%TransactionInputList{inputs: inputs}) do
+  def encode(%TransactionInputList{inputs: inputs, calls: calls}) do
     inputs_bin =
       Enum.map(inputs, &TransactionInput.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<244::8, length(inputs)::16, inputs_bin::bitstring>>
+    <<244::8, length(inputs)::16, inputs_bin::bitstring, length(calls)::16,
+      :erlang.list_to_binary(calls)::binary>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
@@ -585,11 +588,15 @@ defmodule Uniris.P2P.Message do
     %P2PView{nodes_view: Utils.unwrap_bitstring(rest, view_size)}
   end
 
-  def decode(<<244::8, length::16, rest::bitstring>>) do
-    {inputs, _} = deserialize_transaction_inputs(rest, length, [])
+  def decode(<<244::8, nb_inputs::16, rest::bitstring>>) do
+    {inputs, <<nb_calls::16, rest::bitstring>>} =
+      deserialize_transaction_inputs(rest, nb_inputs, [])
+
+    {calls, _} = deserialize_transaction_addresses(rest, nb_calls, [])
 
     %TransactionInputList{
-      inputs: inputs
+      inputs: inputs,
+      calls: calls
     }
   end
 
@@ -749,6 +756,18 @@ defmodule Uniris.P2P.Message do
   defp deserialize_transaction_inputs(rest, nb_inputs, acc) do
     {input, rest} = TransactionInput.deserialize(rest)
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
+  end
+
+  defp deserialize_transaction_addresses(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_transaction_addresses(rest, nb_addresses, acc)
+       when length(acc) == nb_addresses do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_transaction_addresses(rest, nb_addresses, acc) do
+    {address, rest} = deserialize_hash(rest)
+    deserialize_transaction_inputs(rest, nb_addresses, [address | acc])
   end
 
   defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
@@ -957,6 +976,9 @@ defmodule Uniris.P2P.Message do
 
       {:error, :transaction_not_exists} ->
         %NotFound{}
+
+      {:error, :invalid_transaction} ->
+        %NotFound{}
     end
   end
 
@@ -968,7 +990,8 @@ defmodule Uniris.P2P.Message do
 
   def process(%GetTransactionInputs{address: address}) do
     %TransactionInputList{
-      inputs: Account.get_inputs(address)
+      inputs: Account.get_inputs(address),
+      calls: Contracts.list_contract_transactions(address)
     }
   end
 

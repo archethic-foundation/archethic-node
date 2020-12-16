@@ -289,8 +289,10 @@ defmodule UnirisTest do
           type: :UCO
         })
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
-               Uniris.get_transaction_inputs("@Alice2")
+      assert %{
+               inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}],
+               calls: []
+             } = Uniris.get_transaction_inputs("@Alice2")
     end
 
     test "should fetch the inputs remotely when the current node is not a storage node" do
@@ -321,8 +323,10 @@ defmodule UnirisTest do
          }}
       end)
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
-               Uniris.get_transaction_inputs("@Alice2")
+      assert %{
+               inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}],
+               calls: []
+             } = Uniris.get_transaction_inputs("@Alice2")
     end
   end
 

@@ -4,6 +4,7 @@ defmodule Uniris do
   """
 
   alias __MODULE__.Account
+  alias __MODULE__.Contracts
   alias __MODULE__.Crypto
 
   alias __MODULE__.Mining
@@ -131,22 +132,25 @@ defmodule Uniris do
   @doc """
   Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(Crypto.key()) :: list(TransactionInput.t())
-  def get_transaction_inputs(address) do
+  @spec get_transaction_inputs(binary()) :: %{
+          inputs: list(TransactionInput.t()),
+          calls: list(binary())
+        }
+  def get_transaction_inputs(address) when is_binary(address) do
     storage_nodes =
       address
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      Account.get_inputs(address)
+      %{inputs: Account.get_inputs(address), calls: Contracts.list_contract_transactions(address)}
     else
-      %TransactionInputList{inputs: inputs} =
+      %TransactionInputList{inputs: inputs, calls: calls} =
         storage_nodes
         |> P2P.broadcast_message(%GetTransactionInputs{address: address})
         |> Enum.at(0)
 
-      inputs
+      %{inputs: inputs, calls: calls}
     end
   end
 
@@ -154,7 +158,7 @@ defmodule Uniris do
   Retrieve a transaction chain based on an address
   """
   @spec get_transaction_chain(binary()) :: list(Transaction.t())
-  def get_transaction_chain(address) do
+  def get_transaction_chain(address) when is_binary(address) do
     storage_nodes =
       address
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
@@ -176,7 +180,7 @@ defmodule Uniris do
   Retrieve the number of transaction in a transaction chain
   """
   @spec get_transaction_chain_length(binary()) :: non_neg_integer()
-  def get_transaction_chain_length(address) do
+  def get_transaction_chain_length(address) when is_binary(address) do
     storage_nodes =
       address
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
