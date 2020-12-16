@@ -28,9 +28,10 @@ defmodule Uniris.Governance do
   def list_code_proposals do
     TransactionChain.list_transactions_by_type(:code_proposal, @proposal_tx_select_fields)
     |> Stream.map(fn tx ->
-      tx
-      |> Proposal.from_transaction()
-      |> Proposal.add_approvals(
+      {:ok, proposal} = Proposal.from_transaction(tx)
+
+      Proposal.add_approvals(
+        proposal,
         TransactionChain.list_signatures_for_pending_transaction(tx.address)
       )
     end)
