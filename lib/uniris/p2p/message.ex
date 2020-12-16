@@ -29,6 +29,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
+  alias __MODULE__.GetLastTransactionAddress
   alias __MODULE__.GetP2PView
   alias __MODULE__.GetStorageNonce
   alias __MODULE__.GetTransaction
@@ -36,10 +37,12 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetTransactionChainLength
   alias __MODULE__.GetTransactionInputs
   alias __MODULE__.GetUnspentOutputs
+  alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
+  alias __MODULE__.NotifyLastTransactionAddress
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
   alias __MODULE__.ReplicateTransaction
@@ -102,6 +105,9 @@ defmodule Uniris.P2P.Message do
           | BootstrappingNodes.t()
           | P2PView.t()
           | SubscribeTransactionValidation.t()
+          | NotifyLastTransactionAddress.t()
+          | GetLastTransactionAddress.t()
+          | LastTransactionAddress.t()
 
   @doc """
   Serialize a message into binary
@@ -234,6 +240,18 @@ defmodule Uniris.P2P.Message do
 
   def encode(%GetFirstPublicKey{address: address}) do
     <<21::8, address::binary>>
+  end
+
+  def encode(%GetLastTransactionAddress{address: address}) do
+    <<22::8, address::binary>>
+  end
+
+  def encode(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
+    <<23::8, address::binary, previous_address::binary>>
+  end
+
+  def encode(%LastTransactionAddress{address: address}) do
+    <<241::8, address::binary>>
   end
 
   def encode(%FirstPublicKey{public_key: public_key}) do
@@ -536,6 +554,26 @@ defmodule Uniris.P2P.Message do
     %GetFirstPublicKey{
       address: address
     }
+  end
+
+  def decode(<<22::8, rest::binary>>) do
+    {address, _} = deserialize_hash(rest)
+
+    %GetLastTransactionAddress{
+      address: address
+    }
+  end
+
+  def decode(<<23::8, rest::binary>>) do
+    {address, rest} = deserialize_hash(rest)
+    {previous_address, _} = deserialize_hash(rest)
+
+    %NotifyLastTransactionAddress{address: address, previous_address: previous_address}
+  end
+
+  def decode(<<241::8, rest::binary>>) do
+    {address, _} = deserialize_hash(rest)
+    %LastTransactionAddress{address: address}
   end
 
   def decode(<<242::8, rest::binary>>) do
@@ -957,5 +995,15 @@ defmodule Uniris.P2P.Message do
       {:error, :transaction_not_exists} ->
         %NotFound{}
     end
+  end
+
+  def process(%GetLastTransactionAddress{address: address}) do
+    address = TransactionChain.get_last_address(address)
+    %LastTransactionAddress{address: address}
+  end
+
+  def process(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
+    :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address)
+    %Ok{}
   end
 end

@@ -159,7 +159,8 @@ defmodule Uniris.TransactionChain.TransactionData do
       content: Map.get(data, :content),
       code: Map.get(data, :code),
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.from_map(),
-      keys: Map.get(data, :keys, %Keys{}) |> Keys.from_map()
+      keys: Map.get(data, :keys, %Keys{}) |> Keys.from_map(),
+      recipients: Map.get(data, :recipients, [])
     }
   end
 
@@ -168,13 +169,15 @@ defmodule Uniris.TransactionChain.TransactionData do
         content: content,
         code: code,
         ledger: ledger,
-        keys: keys
+        keys: keys,
+        recipients: recipients
       }) do
     %{
       content: content,
       code: code,
       ledger: Ledger.to_map(ledger),
-      keys: Keys.to_map(keys)
+      keys: Keys.to_map(keys),
+      recipients: recipients
     }
   end
 end

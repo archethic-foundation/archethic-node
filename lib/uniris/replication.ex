@@ -21,6 +21,7 @@ defmodule Uniris.Replication do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.AcknowledgeStorage
+  alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
@@ -163,15 +164,25 @@ defmodule Uniris.Replication do
   end
 
   @doc """
-  Send an acknowledgment from the storage of the transaction to the welcome node
+  Send an acknowledgment of the replication of the transaction to the welcome node and the previous storage pool
   """
   @spec acknowledge_storage(Transaction.t()) :: :ok
-  def acknowledge_storage(%Transaction{
-        address: address,
-        validation_stamp: %ValidationStamp{
-          ledger_operations: %LedgerOperations{node_movements: node_movements}
-        }
-      }) do
+  def acknowledge_storage(tx = %Transaction{address: tx_address}) do
+    Task.start(fn -> notify_welcome_node(tx) end)
+
+    Task.start(fn ->
+      acknowledge_previous_storage_nodes(tx_address, Transaction.previous_address(tx))
+    end)
+
+    :ok
+  end
+
+  defp notify_welcome_node(%Transaction{
+         address: address,
+         validation_stamp: %ValidationStamp{
+           ledger_operations: %LedgerOperations{node_movements: node_movements}
+         }
+       }) do
     %Ok{} =
       node_movements
       |> Enum.find(&(:welcome_node in &1.roles))
@@ -180,6 +191,31 @@ defmodule Uniris.Replication do
       |> P2P.send_message(%AcknowledgeStorage{address: address})
 
     :ok
+  end
+
+  @doc """
+  Notify the previous storage pool than a new transaction on the chain is present
+  """
+  @spec acknowledge_previous_storage_nodes(binary(), binary()) :: :ok
+  def acknowledge_previous_storage_nodes(address, previous_address)
+      when is_binary(address) and is_binary(previous_address) do
+    :ok = TransactionChain.register_last_address(previous_address, address)
+
+    case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
+      {:ok, tx} ->
+        next_previous_address = Transaction.previous_address(tx)
+
+        next_previous_address
+        |> chain_storage_nodes(P2P.list_nodes())
+        |> P2P.broadcast_message(%NotifyLastTransactionAddress{
+          address: address,
+          previous_address: next_previous_address
+        })
+        |> Stream.run()
+
+      _ ->
+        :ok
+    end
   end
 
   @doc """

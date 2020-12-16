@@ -77,6 +77,23 @@ defmodule Uniris.DB do
     end
   end
 
+  @doc """
+  Reference a last address from a previous address
+  """
+  @spec add_last_transaction_address(binary(), binary()) :: :ok
+  def add_last_transaction_address(address, last_address)
+      when is_binary(address) and is_binary(last_address) do
+    impl().add_last_transaction_address(address, last_address)
+  end
+
+  @doc """
+  List the last transaction lookups
+  """
+  @spec list_last_transaction_addresses() :: list({binary(), binary()})
+  def list_last_transaction_addresses do
+    impl().list_last_transaction_addresses()
+  end
+
   defp impl do
     Application.get_env(:uniris, __MODULE__)[:impl]
   end

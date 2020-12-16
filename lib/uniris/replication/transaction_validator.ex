@@ -17,6 +17,7 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionInput
 
@@ -229,10 +230,22 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   defp new_ledger_operations(tx, previous_unspent_outputs) do
-    tx
-    |> Transaction.to_pending()
-    |> LedgerOperations.from_transaction()
+    %LedgerOperations{
+      fee: Transaction.fee(tx),
+      transaction_movements: resolve_transaction_movements(tx)
+    }
+    |> LedgerOperations.from_transaction(tx)
     |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
+  end
+
+  defp resolve_transaction_movements(tx) do
+    tx
+    |> Transaction.get_movements()
+    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
+      %{mvt | to: TransactionChain.resolve_last_address(to)}
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   defp valid_node_election?(

@@ -158,9 +158,25 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
       when is_binary(address) and is_binary(previous_public_key) do
     previous_address = Crypto.hash(previous_public_key)
 
-    true = :ets.insert(@chain_genesis_lookup, {previous_address, address})
+    :ok = register_last_address(previous_address, address)
     true = :ets.insert(@chain_public_key_lookup, {address, previous_public_key})
 
+    :ok
+  end
+
+  @doc """
+  Create link between a transaction address and the last transaction of its chain
+
+  ## Examples
+
+      iex> ChainLookup.start_link()
+      iex> ChainLookup.register_last_address("@Alice1", "@Alice10")
+      iex> ChainLookup.get_last_chain_address("@Alice1")
+      "@Alice10"
+  """
+  @spec register_last_address(binary(), binary()) :: :ok
+  def register_last_address(address, last_address) do
+    true = :ets.insert(@chain_genesis_lookup, {address, last_address})
     :ok
   end
 

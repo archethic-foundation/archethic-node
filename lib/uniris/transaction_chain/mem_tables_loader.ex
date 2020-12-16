@@ -22,6 +22,12 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
   end
 
   def init(_args) do
+    DB.list_last_transaction_addresses()
+    |> Stream.each(fn {address, last_address} ->
+      ChainLookup.register_last_address(address, last_address)
+    end)
+    |> Stream.run()
+
     DB.list_transactions(@query_fields)
     |> Stream.each(&load_transaction/1)
     |> Stream.run()

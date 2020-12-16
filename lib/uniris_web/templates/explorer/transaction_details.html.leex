@@ -106,8 +106,7 @@
                                 </span>
                                 <%= if @hide_content do %>
                                     <a phx-click="show_content">Show</a>
-                                <% end %>
-                                <%= if @hide_content do %>
+                                <% else %>
                                     <a phx-click="hide_content">Hide</a>
                                 <% end %>
                             </p>
@@ -367,6 +366,17 @@
 
                 <div class="columns mt-4">
                     <div class="column">
+                        <p class="heading">Resolved recipients</p>
+                        <%= for recipient <- @transaction.validation_stamp.recipients do %>
+                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(recipient)) do%>
+                                <p class="text_wrap"><%= Base.encode16(recipient) %></p>
+                            <% end %>
+                        <%  end %>
+                    </div>
+                </div>
+
+                <div class="columns mt-4">
+                    <div class="column">
                         <p class="heading">Coordinator signature</p>
                         <span class="text_wrap"><%= Base.encode16(@transaction.validation_stamp.signature) %></span>
                     </div>
@@ -400,7 +410,6 @@
         </div>
     <% end %>
 </div>
-
 
 <div class="mt-6 pb-6">
     <h3 class="subtitle is-size-4 heading has-text-white">Transaction inputs (<%= Enum.count(@inputs) %>)</h3>
@@ -445,6 +454,20 @@
                 </div>
             </div>
             </div>
+            <% end %>
+        </div> 
+    <% end %>
+</div>
+
+<div class="pb-6">
+    <h3 class="subtitle is-size-4 heading has-text-white">Contract calls (<%= Enum.count(@calls) %>)</h3>
+    <%= if Enum.count(@inputs) > 0 do %>
+        <div class="box">
+            <%= for tx_address <- @calls do %>
+                <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(tx_address)) do%>
+                    <span class="is-hidden-mobile"><%= Base.encode16(tx_address) %></span>
+                    <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx_address, 0, 12)) %>...</span>
+                <% end %>
             <% end %>
         </div> 
     <% end %>
