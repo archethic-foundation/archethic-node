@@ -14,7 +14,8 @@ config :git_hooks,
       tasks: [
         "mix compile --warnings-as-errors",
         "mix credo --strict",
-        "mix test --trace"
+        "mix test --trace",
+        "mix dialyzer"
       ]
     ]
   ]
