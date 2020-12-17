@@ -84,9 +84,9 @@ defmodule Uniris.BeaconChain.Subset do
       ) do
     listNodes =
       Enum.filter(P2P.list_nodes(), fn x -> :binary.part(x.first_public_key, 0, 1) == subset end)
-      Logger.info("List Node : ", listNodes)
 
-    _p2p_view_available = Enum.map(listNodes, fn x -> GenICMP.ping(x) end)
+    _p2p_view_available = Enum.map(listNodes, fn x -> GenICMP.ping(x.ip) end)
+
     new_registry = SlotRegistry.seal_current_slot(slot_registry, slot_time)
 
     {:noreply, %{state | slot_registry: new_registry}}
