@@ -241,10 +241,10 @@ defmodule Uniris.Crypto do
     {pub, _} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
     pub
   end
-  
+
   @doc """
   Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES). 
-  
+
   More details at `ec_decrypt/2`
   """
   @spec ec_decrypt_with_storage_nonce(iodata()) :: {:ok, binary()} | {:error, :decryption_failed}

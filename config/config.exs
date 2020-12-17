@@ -6,11 +6,16 @@ config :git_hooks,
   hooks: [
     pre_commit: [
       tasks: [
-        "mix format",
         "mix clean",
+        "mix format --check-formatted"
+      ]
+    ],
+    pre_push: [
+      tasks: [
         "mix compile --warnings-as-errors",
         "mix credo --strict",
-        "mix test --trace"
+        "mix test --trace",
+        "mix dialyzer"
       ]
     ]
   ]

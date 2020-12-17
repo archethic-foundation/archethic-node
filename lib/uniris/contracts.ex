@@ -138,10 +138,9 @@ defmodule Uniris.Contracts do
     to: TransactionLookup,
     as: :list_contract_transactions
 
-  
   @doc """
   Termine a smart contract execution when a new transaction on the chain happened 
   """
   @spec stop_contract(binary()) :: :ok
   defdelegate stop_contract(address), to: Loader
-end 
+end

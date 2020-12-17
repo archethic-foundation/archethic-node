@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 PROPOSAL_ADDRESS=$1
 PROPOSAL_PATCH_FILENAME=$2
 PROPOSAL_DESCRIPTION=$3
@@ -13,6 +15,7 @@ if [ $? -eq 0 ]; then
   echo "Commit"
   git add .
   git commit -m "$PROPOSAL_DESCRIPTION"
+  mix git_hooks.run pre_push
 else
   exit 1;
 fi
