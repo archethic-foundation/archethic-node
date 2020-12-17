@@ -93,11 +93,12 @@ defmodule Uniris.Contracts.Loader do
   @doc """
   Termine a contract execution
   """
-  @spec stop_contract(binary()) :: :ok 
+  @spec stop_contract(binary()) :: :ok
   def stop_contract(address) when is_binary(address) do
     case Registry.lookup(ContractRegistry, address) do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+
       _ ->
         :ok
     end
