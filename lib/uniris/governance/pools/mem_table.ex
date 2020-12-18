@@ -69,7 +69,7 @@ defmodule Uniris.Governance.Pools.MemTable do
 
   ## Examples
 
-      iex> {:ok, pid} = MemTable.start_link()
+      iex> {:ok, _pid} = MemTable.start_link()
       iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
       iex> MemTable.put_pool_member(:technical_council, "@Bob5", weighted?: true, weight_factor: 1)
       iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)

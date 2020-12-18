@@ -223,7 +223,7 @@ defmodule Uniris.Bootstrap.SyncTest do
                first_public_key: "key2",
                last_public_key: "key2"
              }
-           ] = P2P.list_nodes()
+           ] == P2P.list_nodes()
   end
 
   test "load_storage_nonce/1 should fetch the storage nonce, decrypt it with the node key" do

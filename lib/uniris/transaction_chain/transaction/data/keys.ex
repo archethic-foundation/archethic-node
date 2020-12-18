@@ -19,7 +19,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
 
       iex> secret_key = :crypto.strong_rand_bytes(32)
       iex> secret = "important message"
-      iex> {pub, pv} = Crypto.generate_deterministic_keypair("seed")
+      iex> {pub, _pv} = Crypto.generate_deterministic_keypair("seed")
       iex> %{ authorized_keys: authorized_keys, secret: _} = Keys.new([pub], secret_key, secret)
       iex> Map.keys(authorized_keys)
       [

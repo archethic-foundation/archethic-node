@@ -80,7 +80,7 @@ defmodule Uniris.TransactionChain.MemTables.PendingLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = PendingLedger.start_link()
+      iex> {:ok, _pid} = PendingLedger.start_link()
       iex> :ok = PendingLedger.add_address("@Alice2")
       iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
       iex> PendingLedger.already_signed?("@Alice2", "@Bob3")
@@ -106,7 +106,7 @@ defmodule Uniris.TransactionChain.MemTables.PendingLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = PendingLedger.start_link()
+      iex> {:ok, _pid} = PendingLedger.start_link()
       iex> :ok = PendingLedger.add_address("@Alice2")
       iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
       iex> PendingLedger.list_signatures("@Alice2")
@@ -122,7 +122,7 @@ defmodule Uniris.TransactionChain.MemTables.PendingLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = PendingLedger.start_link()
+      iex> {:ok, _pid} = PendingLedger.start_link()
       iex> :ok = PendingLedger.add_address("@Alice2")
       iex> :ok = PendingLedger.add_signature("@Alice2", "@Bob3")
       iex> PendingLedger.remove_address("@Alice2")
