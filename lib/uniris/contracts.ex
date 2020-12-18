@@ -7,10 +7,14 @@ defmodule Uniris.Contracts do
   alias __MODULE__.Contract
   alias __MODULE__.Contract.Conditions
   alias __MODULE__.Contract.Constants
+  alias __MODULE__.Contract.Trigger
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
   alias __MODULE__.TransactionLookup
   alias __MODULE__.Worker
+
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.DateChecker, as: CronDateChecker
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -115,20 +119,50 @@ defmodule Uniris.Contracts do
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: Loader
 
-  def accept_new_contract(
+  @spec accept_new_contract?(Transaction.t(), Transaction.t()) :: boolean()
+  def accept_new_contract?(
         prev_tx = %Transaction{data: %TransactionData{code: code}},
-        new_tx = %Transaction{}
+        next_tx = %Transaction{}
       ) do
-    {:ok, %Contract{conditions: %Conditions{inherit: inherit_constraints}}} =
-      Interpreter.parse(code)
+    {:ok,
+     %Contract{
+       triggers: triggers,
+       conditions: %Conditions{inherit: inherit_constraints}
+     }} = Interpreter.parse(code)
 
     inherit_constants = [
-      previous_transaction: Constants.from_transaction(prev_tx),
-      next_transaction: Constants.from_transaction(new_tx)
+      previous_transaction: prev_tx |> Constants.from_transaction() |> Enum.into(%{}),
+      next_transaction: next_tx |> Constants.from_transaction() |> Enum.into(%{})
     ]
 
-    Interpreter.can_execute?(inherit_constraints, inherit_constants)
+    with true <-
+           Interpreter.can_execute?(Macro.to_string(inherit_constraints), inherit_constants),
+         true <- Enum.any?(triggers, &valid_from_trigger?(&1, next_tx)) do
+      true
+    else
+      false ->
+        false
+
+      nil ->
+        false
+    end
   end
+
+  defp valid_from_trigger?(%Trigger{type: :datetime, opts: [at: datetime]}, %Transaction{
+         timestamp: timestamp
+       }) do
+    DateTime.diff(timestamp, datetime) == 0
+  end
+
+  defp valid_from_trigger?(%Trigger{type: :interval, opts: [at: interval]}, %Transaction{
+         timestamp: timestamp
+       }) do
+    interval
+    |> CronParser.parse!(true)
+    |> CronDateChecker.matches_date?(DateTime.to_naive(timestamp))
+  end
+
+  defp valid_from_trigger?(%Trigger{type: :transaction}, _), do: true
 
   @doc """
   List the address of the transaction which has contacted a smart contract 

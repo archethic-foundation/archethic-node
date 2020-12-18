@@ -25,6 +25,8 @@ defmodule Uniris.Mining.ValidationContext do
     replication_nodes_confirmation: <<>>
   ]
 
+  alias Uniris.Contracts
+
   alias Uniris.Crypto
 
   alias Uniris.Mining.ProofOfWork
@@ -654,12 +656,19 @@ defmodule Uniris.Mining.ValidationContext do
             previous_storage_nodes
           )
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
-        recipients: resolve_transaction_recipients(tx)
+        recipients: resolve_transaction_recipients(tx),
+        contract_validation: valid_smart_contract?(tx, prev_tx)
       }
       |> ValidationStamp.sign()
 
     add_io_storage_nodes(%{context | validation_stamp: validation_stamp})
   end
+
+  defp valid_smart_contract?(new_tx = %Transaction{}, prev_tx = %Transaction{}) do
+    Contracts.accept_new_contract?(prev_tx, new_tx)
+  end
+
+  defp valid_smart_contract?(%Transaction{}, nil), do: true
 
   defp resolve_transaction_movements(tx) do
     tx
