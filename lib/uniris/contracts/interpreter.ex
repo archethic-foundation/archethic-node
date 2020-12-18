@@ -19,7 +19,9 @@ defmodule Uniris.Contracts.Interpreter do
     :uco_ledger,
     :nft_ledger,
     :uco_transferred,
-    :nft_transferred
+    :nft_transferred,
+    :uco_transfers,
+    :nft_transfers
   ]
 
   @allowed_transaction_types [:transfer, :nft, :hosting]
@@ -309,6 +311,25 @@ defmodule Uniris.Contracts.Interpreter do
       {node, {:error, :invalid_origin_family}}
     end
   end
+
+  # Whitelist Access key based with brackets, ie. uco_transfers["Alice"]
+  defp prewalk(
+         node =
+           {{:., _, [Access, :get]}, _, [{{:., [_], [{subject, [_], nil}, field]}, _, []}, key]},
+         acc = {:ok, _}
+       )
+       when subject in [:next_transaction, :contract, :previous_transaction, :transaction] and
+              field in @transaction_fields and is_binary(key) do
+    case Base.decode16(key, case: :mixed) do
+      {:ok, _} ->
+        {node, acc}
+
+      _ ->
+        {node, {:error, :unexpected_token}}
+    end
+  end
+
+  defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, _}), do: {node, acc}
 
   # Whitelist the use of doted transaction fields in the inherit condition
   defp prewalk(
@@ -716,6 +737,22 @@ defmodule Uniris.Contracts.Interpreter do
 
   defp postwalk(node, {:ok, acc = %{scope: {:function, _, scope}}}) do
     {node, {:ok, %{acc | scope: scope}}}
+  end
+
+  # Convert Access key string to binary
+  defp postwalk(
+         {{:., meta1, [Access, :get]}, meta2,
+          [{{:., meta3, [{subject, meta4, nil}, field]}, meta5, []}, key]},
+         acc
+       ) do
+    {
+      {{:., meta1, [Access, :get]}, meta2,
+       [
+         {{:., meta3, [{subject, meta4, nil}, field]}, meta5, []},
+         Base.decode16!(key, case: :mixed)
+       ]},
+      acc
+    }
   end
 
   defp postwalk(node, e = {:error, _}), do: throw({e, node})
