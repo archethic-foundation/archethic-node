@@ -186,8 +186,7 @@ defmodule Uniris.Governance.Code do
   def succeessor_version?(%Version{}, %Version{}), do: false
 
   defp current_version do
-    {:ok, vsn} = :application.get_key(:uniris, :vsn)
-    List.to_string(vsn)
+    :uniris |> Application.spec(:vsn) |> List.to_string()
   end
 
   @spec list_proposal_CI_logs(binary()) :: Enumerable.t()
