@@ -1,6 +1,9 @@
 defmodule Uniris.Replication.TransactionValidator do
   @moduledoc false
 
+  alias Uniris.Election
+  alias Uniris.Election.ValidationConstraints
+
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
@@ -14,6 +17,8 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
@@ -59,16 +64,16 @@ defmodule Uniris.Replication.TransactionValidator do
   Validate transaction only
   """
   @spec validate(Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}), do: valid_transaction(tx)
+  def validate(tx = %Transaction{}), do: valid_transaction(tx, [])
 
-  defp valid_transaction(tx = %Transaction{}) do
+  defp valid_transaction(tx = %Transaction{}, []) do
     with :ok <- do_validate_transaction(tx),
          :ok <- validate_without_unspent_outputs(tx) do
       :ok
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs \\ []) do
+  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs) do
     with :ok <- do_validate_transaction(tx),
          :ok <- validate_without_unspent_outputs(tx),
          :ok <- validate_with_unspent_outputs(tx, previous_inputs_unspent_outputs) do
@@ -78,7 +83,7 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp do_validate_transaction(
          tx = %Transaction{
-           validation_stamp: validation_stamp,
+           validation_stamp: validation_stamp = %ValidationStamp{},
            cross_validation_stamps: cross_stamps
          }
        ) do
@@ -87,7 +92,7 @@ defmodule Uniris.Replication.TransactionValidator do
         {:error, :invalid_pending_transaction}
 
       !Transaction.atomic_commitment?(tx) ->
-        # TODO: start malicious detection if not
+        # TODO: start malicious detection
         {:error, :invalid_atomic_commitment}
 
       !Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp)) ->
@@ -225,10 +230,22 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   defp new_ledger_operations(tx, previous_unspent_outputs) do
-    tx
-    |> Transaction.to_pending()
-    |> LedgerOperations.from_transaction()
+    %LedgerOperations{
+      fee: Transaction.fee(tx),
+      transaction_movements: resolve_transaction_movements(tx)
+    }
+    |> LedgerOperations.from_transaction(tx)
     |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
+  end
+
+  defp resolve_transaction_movements(tx) do
+    tx
+    |> Transaction.get_movements()
+    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
+      %{mvt | to: TransactionChain.resolve_last_address(to)}
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   defp valid_node_election?(
@@ -241,17 +258,32 @@ defmodule Uniris.Replication.TransactionValidator do
            cross_validation_stamps: cross_validation_stamps
          }
        ) do
-    case P2P.get_node_info() do
-      %Node{authorized?: true} ->
-        coordinator_node_public_key =
-          get_coordinator_node_public_key_from_node_movements(node_movements)
+    coordinator_node_public_key =
+      get_coordinator_node_public_key_from_node_movements(node_movements)
 
-        validation_nodes =
-          Enum.uniq([
-            coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
-          ])
+    nb_of_validations_nodes =
+      case cross_validation_stamps do
+        [%CrossValidationStamp{node_public_key: key}] ->
+          if coordinator_node_public_key == key, do: 1, else: 2
 
-        Mining.valid_election?(Transaction.to_pending(tx), validation_nodes)
+        [_ | _] ->
+          length(cross_validation_stamps) + 1
+      end
+
+    %ValidationConstraints{validation_number: validation_number_fun} =
+      Election.get_validation_constraints()
+
+    with true <- validation_number_fun.(tx) == nb_of_validations_nodes,
+         %Node{authorized?: true} <- P2P.get_node_info() do
+      validation_nodes =
+        Enum.uniq([
+          coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
+        ])
+
+      Mining.valid_election?(Transaction.to_pending(tx), validation_nodes)
+    else
+      false ->
+        false
 
       %Node{} ->
         true

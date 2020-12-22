@@ -17,6 +17,7 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Message.GetLastTransaction
+  alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetStorageNonce
   alias Uniris.P2P.Message.GetTransaction
@@ -24,10 +25,12 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetTransactionChainLength
   alias Uniris.P2P.Message.GetTransactionInputs
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotFound
+  alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.P2PView
   alias Uniris.P2P.Message.ReplicateTransaction
@@ -729,6 +732,40 @@ defmodule Uniris.P2P.MessageTest do
     test "FirstPublicKey message" do
       msg = %FirstPublicKey{
         public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "GetLastTransactionAddress message" do
+      msg = %GetLastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "LastTransactionAddress message" do
+      msg = %LastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "NotifyLastTransactionAddress message" do
+      msg = %NotifyLastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

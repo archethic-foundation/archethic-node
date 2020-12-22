@@ -173,8 +173,11 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       ledger_operations:
-        tx
-        |> LedgerOperations.from_transaction()
+        %LedgerOperations{
+          fee: Transaction.fee(tx),
+          transaction_movements: Transaction.get_movements(tx)
+        }
+        |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
           welcome_node,
@@ -198,8 +201,11 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_work: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       ledger_operations:
-        tx
-        |> LedgerOperations.from_transaction()
+        %LedgerOperations{
+          fee: Transaction.fee(tx),
+          transaction_movements: Transaction.get_movements(tx)
+        }
+        |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
           welcome_node,

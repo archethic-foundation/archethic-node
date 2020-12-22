@@ -33,7 +33,9 @@ defmodule Uniris.Crypto.Ed25519 do
   """
   @spec encrypt(binary(), binary()) :: binary()
   def encrypt(_key = <<public_key::binary-32>>, data) do
-    {:ok, cipher} = GenServer.call(LibSodiumPort, {:encrypt, public_key, data})
+    {:ok, <<_cipher_length::32, cipher::binary>>} =
+      GenServer.call(LibSodiumPort, {:encrypt, public_key, data})
+
     cipher
   end
 

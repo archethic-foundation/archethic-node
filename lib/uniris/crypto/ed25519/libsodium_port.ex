@@ -39,7 +39,7 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
 
   def handle_call({:decrypt, <<secret_key::binary-64>>, cipher}, from, state)
       when is_binary(cipher) do
-    {id, state} = send_request(state, 4, secret_key <> cipher)
+    {id, state} = send_request(state, 4, secret_key <> <<byte_size(cipher)::32>> <> cipher)
     {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
   end
 

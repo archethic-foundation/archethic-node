@@ -50,7 +50,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
       iex> { :ets.tab2list(:uniris_nft_ledger), :ets.tab2list(:uniris_nft_unspent_output_index) }
@@ -84,7 +84,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
       iex> NFTLedger.get_unspent_outputs("@Alice2")
@@ -93,7 +93,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
         %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}},
       ]
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       []
   """
@@ -124,7 +124,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
@@ -148,7 +148,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
       iex> NFTLedger.get_inputs("@Alice2")
@@ -157,7 +157,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
         %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: false}
       ]
 
-      iex> {:ok, pid} = NFTLedger.start_link()
+      iex> {:ok, _pid} = NFTLedger.start_link()
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")

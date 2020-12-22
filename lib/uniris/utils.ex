@@ -50,8 +50,10 @@ defmodule Uniris.Utils do
   """
   @spec configurable_children(
           list(
-            {process :: atom(), args :: list(), opts :: list()}
-            | {process :: atom(), args :: list()}
+            process ::
+              atom()
+              | {process :: atom(), args :: list()}
+              | {process :: atom(), args :: list(), opts :: list()}
           )
         ) ::
           list(Supervisor.child_spec())
@@ -299,7 +301,7 @@ defmodule Uniris.Utils do
       iex> Utils.wrap_binary([[<<1::1, 1::1, 1::1>>, "abc"], "hello"])
       [ [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
   """
-  @spec wrap_binary(bitstring() | list(bitstring())) :: binary()
+  @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
   def wrap_binary(bits) when is_bitstring(bits) do
     size = bit_size(bits)
 
@@ -346,6 +348,8 @@ defmodule Uniris.Utils do
       iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
       <<1::1, 1::1, 0::1, 1::1>>
   """
+  def unwrap_bitstring("", 0), do: <<>>
+
   def unwrap_bitstring(bitstring, data_size)
       when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
     wrapped_bitstring_size = bit_size(bitstring)
@@ -368,7 +372,7 @@ defmodule Uniris.Utils do
      iex> Utils.take_in(%{a: "hello", b: %{c: "hi", d: "hola"}}, [:a, b: [:d]])
      %{a: "hello", b: %{d: "hola"}}
   """
-  @spec take_in(map(), Keyword.list()) :: map()
+  @spec take_in(map(), Keyword.t()) :: map()
   def take_in(map = %{}, []), do: map
 
   def take_in(map = %{}, fields) when is_list(fields) do

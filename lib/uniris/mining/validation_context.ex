@@ -25,6 +25,8 @@ defmodule Uniris.Mining.ValidationContext do
     replication_nodes_confirmation: <<>>
   ]
 
+  alias Uniris.Contracts
+
   alias Uniris.Crypto
 
   alias Uniris.Mining.ProofOfWork
@@ -39,13 +41,15 @@ defmodule Uniris.Mining.ValidationContext do
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionChain.TransactionData
 
   alias Uniris.Utils
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),
-          previous_transaction: Transaction.t(),
+          previous_transaction: nil | Transaction.t(),
           unspent_outputs: list(UnspentOutput.t()),
           welcome_node: Node.t(),
           coordinator_node: Node.t(),
@@ -55,7 +59,7 @@ defmodule Uniris.Mining.ValidationContext do
           beacon_storage_nodes: list(Node.t()),
           io_storage_nodes: list(Node.t()),
           cross_validation_nodes_confirmation: bitstring(),
-          validation_stamp: ValidationStamp.t(),
+          validation_stamp: nil | ValidationStamp.t(),
           full_replication_tree: list(bitstring()),
           sub_replication_tree: bitstring(),
           cross_validation_stamps: list(CrossValidationStamp.t()),
@@ -240,13 +244,18 @@ defmodule Uniris.Mining.ValidationContext do
           node_public_key: from
         }
       ) do
-    with true <- cross_validation_node?(context, from),
-         false <- cross_validation_stamp_exists?(context, from),
-         true <- CrossValidationStamp.valid_signature?(stamp, validation_stamp) do
-      Map.update!(context, :cross_validation_stamps, &[stamp | &1])
-    else
-      false ->
+    cond do
+      !cross_validation_node?(context, from) ->
         context
+
+      !CrossValidationStamp.valid_signature?(stamp, validation_stamp) ->
+        context
+
+      cross_validation_stamp_exists?(context, from) ->
+        context
+
+      true ->
+        Map.update!(context, :cross_validation_stamps, &[stamp | &1])
     end
   end
 
@@ -635,19 +644,47 @@ defmodule Uniris.Mining.ValidationContext do
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
         ledger_operations:
-          tx
-          |> LedgerOperations.from_transaction()
+          %LedgerOperations{
+            transaction_movements: resolve_transaction_movements(tx),
+            fee: Transaction.fee(tx)
+          }
+          |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.distribute_rewards(
             welcome_node,
             coordinator_node,
             cross_validation_nodes,
             previous_storage_nodes
           )
-          |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+          |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
+        recipients: resolve_transaction_recipients(tx),
+        contract_validation: valid_smart_contract?(tx, prev_tx)
       }
       |> ValidationStamp.sign()
 
     add_io_storage_nodes(%{context | validation_stamp: validation_stamp})
+  end
+
+  defp valid_smart_contract?(new_tx = %Transaction{}, prev_tx = %Transaction{}) do
+    Contracts.accept_new_contract?(prev_tx, new_tx)
+  end
+
+  defp valid_smart_contract?(%Transaction{}, nil), do: true
+
+  defp resolve_transaction_movements(tx) do
+    tx
+    |> Transaction.get_movements()
+    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
+      %{mvt | to: TransactionChain.resolve_last_address(to)}
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.into([], fn {:ok, res} -> res end)
+  end
+
+  defp resolve_transaction_recipients(%Transaction{data: %TransactionData{recipients: recipients}}) do
+    recipients
+    |> Task.async_stream(&TransactionChain.resolve_last_address/1)
+    |> Enum.filter(&match?({:ok, _}, &1))
+    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   defp add_io_storage_nodes(
@@ -746,19 +783,28 @@ defmodule Uniris.Mining.ValidationContext do
                    fee: fee,
                    transaction_movements: tx_movements,
                    unspent_outputs: next_unspent_outputs
-                 }
+                 },
+               recipients: tx_recipients
              }
          }
        ) do
+    resolved_transaction_movements = resolve_transaction_movements(tx)
+
     subsets_verifications = [
       signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
       proof_of_work: fn -> valid_proof_of_work?(pow, tx) end,
       proof_of_integrity: fn -> TransactionChain.proof_of_integrity([tx, prev_tx]) == poi end,
       transaction_fee: fn -> Transaction.fee(tx) == fee end,
-      transaction_movements: fn -> Transaction.get_movements(tx) == tx_movements end,
+      transaction_movements: fn -> resolved_transaction_movements == tx_movements end,
+      recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,
       node_movements: fn -> valid_node_movements?(operations, context) end,
       unspent_outputs: fn ->
-        valid_unspent_outputs?(tx, previous_unspent_outputs, next_unspent_outputs)
+        valid_unspent_outputs?(
+          tx,
+          previous_unspent_outputs,
+          next_unspent_outputs,
+          resolved_transaction_movements
+        )
       end
     ]
 
@@ -778,10 +824,18 @@ defmodule Uniris.Mining.ValidationContext do
     end
   end
 
-  defp valid_unspent_outputs?(tx, previous_unspent_outputs, next_unspent_outputs) do
+  defp valid_unspent_outputs?(
+         tx,
+         previous_unspent_outputs,
+         next_unspent_outputs,
+         resolved_transaction_movements
+       ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
-      tx
-      |> LedgerOperations.from_transaction()
+      %LedgerOperations{
+        fee: Transaction.fee(tx),
+        transaction_movements: resolved_transaction_movements
+      }
+      |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
 
     expected_unspent_outputs == next_unspent_outputs

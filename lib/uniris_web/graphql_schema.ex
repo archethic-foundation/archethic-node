@@ -3,13 +3,17 @@ defmodule UnirisWeb.GraphQLSchema do
 
   use Absinthe.Schema
 
+  alias Uniris.Crypto
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionInput
 
+  alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
 
   import_types(TransactionType)
+  import_types(SharedSecretsType)
 
   query do
     @desc """
@@ -98,6 +102,16 @@ defmodule UnirisWeb.GraphQLSchema do
       resolve(fn %{address: address}, _ ->
         inputs = Uniris.get_transaction_inputs(address)
         {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+      end)
+    end
+
+    field :shared_secrets, :shared_secrets do
+      resolve(fn _, _ ->
+        shared_secrets = %{
+          storage_nonce_public_key: Crypto.storage_nonce_public_key()
+        }
+
+        {:ok, shared_secrets}
       end)
     end
   end

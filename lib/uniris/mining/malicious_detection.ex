@@ -4,13 +4,16 @@ defmodule Uniris.Mining.MaliciousDetection do
   atomic commitment has not been reached.
   """
 
+  alias Uniris.Mining.ValidationContext
+
   use Task
 
-  def start_link(args) do
-    Task.start_link(__MODULE__, :run, args)
+  @spec start_link(ValidationContext.t()) :: {:ok, pid()}
+  def start_link(context = %ValidationContext{}) do
+    Task.start_link(__MODULE__, :run, [context])
   end
 
-  def run(_) do
+  def run(_context = %ValidationContext{}) do
     # TODO: Implement the algorithm
   end
 end

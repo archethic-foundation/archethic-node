@@ -77,7 +77,7 @@ defmodule Uniris.DB.CassandraImplTest do
     {:ok, _pid} = Cassandra.start_link()
 
     Enum.each(1..500, fn i ->
-      tx = create_transaction(seed: "seed_#{i}")
+      tx = create_transaction([], seed: "seed_#{i}")
       Cassandra.write_transaction(tx)
     end)
 
@@ -115,6 +115,23 @@ defmodule Uniris.DB.CassandraImplTest do
     assert :ok = Cassandra.write_transaction_chain(chain)
     chain = Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
     assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
+  end
+
+  @tag infrastructure: true
+  test "add_last_transaction_address/2 should reference a last address for a chain" do
+    {:ok, _pid} = Cassandra.start_link()
+    assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
+  end
+
+  @tag infrastructure: true
+  test "list_last_transaction_addresses/0 should retrieve the last transaction addresses" do
+    {:ok, _pid} = Cassandra.start_link()
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice3")
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice4")
+
+    assert [{"@Alice1", "@Alice4"}] =
+             Cassandra.list_last_transaction_addresses() |> Enum.to_list()
   end
 
   defp create_transaction(inputs \\ [], opts \\ []) do

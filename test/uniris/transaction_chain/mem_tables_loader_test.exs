@@ -58,8 +58,8 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  previous_public_key: "Contract1",
                  data: %TransactionData{
                    code: """
-                   condition response: regex(content, 'hello')
-                   actions do end
+                   condition transaction: regex_match?(content, \"hello\")
+                   actions triggered_by: transaction do end
                    """
                  },
                  type: :transfer
@@ -133,6 +133,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
           }
         ]
       end)
+      |> stub(:list_last_transaction_addresses, fn -> [{"@Alice1", "@Alice2"}] end)
 
       assert {:ok, _} = MemTablesLoader.start_link()
 
@@ -142,6 +143,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                ChainLookup.list_addresses_by_type(:transfer)
 
       assert ["@CodeProp1", "@CodeApproval1"] == PendingLedger.list_signatures("@CodeProp1")
+      assert assert "@Alice2" == ChainLookup.get_last_chain_address("@Alice1")
     end
   end
 end

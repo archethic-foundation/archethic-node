@@ -37,6 +37,7 @@ defmodule Uniris.Governance.Code.TestNet do
     #        impl().clean(address)
     #        {:error, :deployment_failed}
     #    end
+    :ok
   end
 
   #  defp checkout_code(tx = %Transaction{address: address}) do

@@ -30,7 +30,8 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Transaction.fee(tx)
+        fee: Transaction.fee(tx),
+        transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,

@@ -82,7 +82,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
   Otherwise the inconsistencies will be signed.
   """
   @spec cross_validate(
-          worker_pid :: binary(),
+          worker_pid :: pid() | {atom, any} | {:via, atom, any},
           ValidationStamp.t(),
           replication_tree :: list(bitstring())
         ) :: :ok

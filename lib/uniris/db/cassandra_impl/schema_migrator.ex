@@ -14,6 +14,7 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     create_cross_validation_stamp_user_type()
     create_transaction_table()
     create_transaction_chain_table()
+    create_chain_lookup_table()
 
     Logger.info("Schema database initialized")
   end
@@ -202,6 +203,18 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
       PRIMARY KEY ((chain_address, fork), timestamp)
     )
     WITH CLUSTERING ORDER BY (timestamp DESC);
+    """)
+  end
+
+  defp create_chain_lookup_table do
+    Logger.info("chain_lookup table creation...")
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TABLE IF NOT EXISTS uniris.chain_lookup(
+      transaction_address blob,
+      last_transaction_address blob,
+      PRIMARY KEY (transaction_address)
+    )
     """)
   end
 end

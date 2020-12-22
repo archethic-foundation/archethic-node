@@ -16,29 +16,31 @@ defmodule UnirisWeb.RootController do
   end
 
   defp get_dnslink_address(conn) do
-    case get_req_header(conn, "host") do
+    conn
+    |> get_req_header("host")
+    |> get_extract_dnslink_address_from_host_header()
+  end
+
+  defp get_extract_dnslink_address_from_host_header([]), do: nil
+
+  defp get_extract_dnslink_address_from_host_header([host]) do
+    dns_name =
+      host
+      |> to_string()
+      |> String.split(":")
+      |> List.first()
+
+    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt) do
       [] ->
         nil
 
-      [host] ->
-        dns_name =
-          host
-          |> to_string()
-          |> String.split(":")
-          |> List.first()
-
-        case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt) do
+      [[dnslink_entry]] ->
+        case Regex.scan(~r/(?<=dnslink=\/uniris\/).*/, to_string(dnslink_entry)) do
           [] ->
             nil
 
-          [[dnslink_entry]] ->
-            case Regex.scan(~r/(?<=dnslink=\/uniris\/).*/, to_string(dnslink_entry)) do
-              [] ->
-                nil
-
-              [match] ->
-                List.first(match)
-            end
+          [match] ->
+            List.first(match)
         end
     end
   end

@@ -15,6 +15,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.Bootstrap.NetworkInit
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler
@@ -44,6 +46,11 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       available?: true,
       geo_patch: "AAA"
     })
+
+    MockTransport
+    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
+      {:ok, %LastTransactionAddress{address: address}}
+    end)
 
     :ok
   end

@@ -35,9 +35,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
       {:error, :transaction_not_exists} ->
         {:noreply, handle_not_existing_transaction(socket, address)}
-
-      {:error, :invalid_transaction} ->
-        {:noreply, handle_ko_transaction(socket, address)}
     end
   end
 
@@ -96,12 +93,6 @@ defmodule UnirisWeb.TransactionDetailsLive do
     Uniris.search_transaction(address)
   end
 
-  defp handle_ko_transaction(socket, address) do
-    socket
-    |> assign(:ko?, true)
-    |> assign(:address, address)
-  end
-
   defp handle_transaction(
          socket,
          tx = %Transaction{address: address, data: %TransactionData{content: content}}
@@ -109,32 +100,24 @@ defmodule UnirisWeb.TransactionDetailsLive do
     balance = Uniris.get_balance(address)
     previous_address = Transaction.previous_address(tx)
 
-    inputs =
-      [
-        Uniris.get_transaction_inputs(address)
-        # Uniris.get_transaction_inputs(previous_address)
-      ]
-      |> :lists.flatten()
-      |> Enum.uniq()
-      |> Enum.reject(&(&1.amount == 0.0))
+    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
 
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
     |> assign(:balance, balance)
     |> assign(:inputs, inputs)
+    |> assign(:calls, calls)
     |> assign(:address, address)
     |> assign(:hide_content, byte_size(content) > 1000)
   end
 
   def handle_not_existing_transaction(socket, address) do
-    inputs =
-      address
-      |> Uniris.get_transaction_inputs()
-      |> Enum.reject(&(&1.amount == 0.0))
+    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
 
     socket
     |> assign(:address, address)
     |> assign(:inputs, inputs)
+    |> assign(:calls, calls)
   end
 end

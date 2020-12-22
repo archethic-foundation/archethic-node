@@ -2,7 +2,7 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger.Transfer do
   @moduledoc """
   Represents a UCO transfer
   """
-  defstruct [:to, :amount, :conditions]
+  defstruct [:to, :amount, conditions: []]
 
   alias Uniris.Crypto
 

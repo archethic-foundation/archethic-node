@@ -9,6 +9,13 @@ defmodule Uniris.TransactionChain do
 
   alias Uniris.PubSub
 
+  alias Uniris.P2P
+  alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.LastTransactionAddress
+  alias Uniris.P2P.Message.NotFound
+
+  alias Uniris.Replication
+
   alias __MODULE__.MemTables.ChainLookup
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -28,7 +35,8 @@ defmodule Uniris.TransactionChain do
   @doc """
   List all the transaction for a given transaction type sorted by timestamp in descent order
   """
-  @spec list_transactions_by_type(type :: Transaction.type(), fields :: list()) :: Enumerable.t()
+  @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
+          Enumerable.t()
   def list_transactions_by_type(type, fields) do
     Stream.resource(
       fn -> ChainLookup.list_addresses_by_type(type) end,
@@ -47,7 +55,7 @@ defmodule Uniris.TransactionChain do
   @doc """
   Get the number of transactions for a given type
   """
-  @spec count_transactions_by_type(Transaction.type()) :: non_neg_integer()
+  @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
   defdelegate count_transactions_by_type(type), to: ChainLookup, as: :count_addresses_by_type
 
   @doc """
@@ -57,6 +65,17 @@ defmodule Uniris.TransactionChain do
   defdelegate get_last_address(address),
     to: ChainLookup,
     as: :get_last_chain_address
+
+  @doc """
+  Register a last address from a previous address
+  """
+  @spec register_last_address(binary(), binary()) :: :ok
+  def register_last_address(previous_address, next_address)
+      when is_binary(previous_address) and is_binary(next_address) do
+    :ok = ChainLookup.register_last_address(previous_address, next_address)
+    :ok = DB.add_last_transaction_address(previous_address, next_address)
+    :ok
+  end
 
   @doc """
   Get the first public key from one the public key of the chain
@@ -193,7 +212,9 @@ defmodule Uniris.TransactionChain do
   Get the last transaction from a given chain address
   """
   @spec get_last_transaction(binary(), list()) ::
-          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t()}
+          | {:error, :transaction_not_exists}
+          | {:error, :invalid_transaction}
   def get_last_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
     address
     |> get_last_address()
@@ -422,4 +443,24 @@ defmodule Uniris.TransactionChain do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTablesLoader
+
+  @doc """
+  Retrieve the last address of a chain
+  """
+  @spec resolve_last_address(binary()) :: binary()
+  def resolve_last_address(address) when is_binary(address) do
+    res =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes())
+      |> P2P.broadcast_message(%GetLastTransactionAddress{address: address})
+      |> Enum.at(0)
+
+    case res do
+      %NotFound{} ->
+        address
+
+      %LastTransactionAddress{address: last_address} ->
+        last_address
+    end
+  end
 end

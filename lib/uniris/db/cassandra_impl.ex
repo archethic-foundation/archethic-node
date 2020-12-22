@@ -218,4 +218,40 @@ defmodule Uniris.DB.CassandraImpl do
   defp list_transactions_query(fields) do
     "SELECT #{CQL.list_to_cql(fields)} FROM uniris.transactions"
   end
+
+  @doc """
+  Reference a last address from a previous address
+  """
+  @impl DBImpl
+  @spec add_last_transaction_address(binary(), binary()) :: :ok
+  def add_last_transaction_address(tx_address, last_address) do
+    prepared_query = Xandra.prepare!(:xandra_conn, insert_chain_lookup_query())
+    {:ok, _} = Xandra.execute(:xandra_conn, prepared_query, [tx_address, last_address])
+    :ok
+  end
+
+  defp insert_chain_lookup_query do
+    """
+    INSERT INTO uniris.chain_lookup(transaction_address, last_transaction_address) VALUES(?, ?)
+    """
+  end
+
+  @doc """
+  List the last transaction lookups
+  """
+  @impl DBImpl
+  @spec list_last_transaction_addresses() :: Enumerable.t()
+  def list_last_transaction_addresses do
+    prepared = Xandra.prepare!(:xandra_conn, "SELECT * FROM uniris.chain_lookup")
+
+    :xandra_conn
+    |> Xandra.stream_pages!(prepared, [])
+    |> Stream.flat_map(& &1)
+    |> Stream.map(fn %{
+                       "transaction_address" => address,
+                       "last_transaction_address" => last_address
+                     } ->
+      {address, last_address}
+    end)
+  end
 end

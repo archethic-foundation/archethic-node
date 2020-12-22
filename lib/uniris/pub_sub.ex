@@ -17,7 +17,7 @@ defmodule Uniris.PubSub do
   @doc """
   Notify the registered processes than a new transaction has been validated
   """
-  @spec notify_new_transaction(binary(), Transaction.type(), DateTime.t()) :: :ok
+  @spec notify_new_transaction(binary(), Transaction.transaction_type(), DateTime.t()) :: :ok
   def notify_new_transaction(address, type, timestamp = %DateTime{})
       when is_binary(address) and is_atom(type) do
     dispatch(:new_transaction, {:new_transaction, address, type, timestamp})
@@ -54,7 +54,7 @@ defmodule Uniris.PubSub do
   @doc """
   Register a process to a new transaction publication by type
   """
-  @spec register_to_new_transaction_by_type(Transaction.type()) :: {:ok, pid()}
+  @spec register_to_new_transaction_by_type(Transaction.transaction_type()) :: {:ok, pid()}
   def register_to_new_transaction_by_type(type) when is_atom(type) do
     Registry.register(PubSubRegistry, {:new_transaction, type}, [])
   end

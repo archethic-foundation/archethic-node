@@ -24,7 +24,7 @@ defmodule Uniris.P2P.Transport.TCPImplTest do
 
     spawn(fn -> TCPTransport.accept(listen_socket) end)
 
-    assert {:ok, socket} =
+    assert {:ok, _socket} =
              :gen_tcp.connect({127, 0, 0, 1}, @port, [:binary, packet: 4, active: false])
 
     Process.sleep(500)

@@ -11,7 +11,7 @@ defmodule Uniris.Mining.ProofOfWork do
 
   alias Uniris.Contracts
   alias Uniris.Contracts.Contract
-  alias Uniris.Contracts.Contract.Conditions, as: ContractConditions
+  alias Uniris.Contracts.Contract.Conditions
 
   alias Uniris.Crypto
 
@@ -102,7 +102,7 @@ defmodule Uniris.Mining.ProofOfWork do
   @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
   def list_origin_public_keys_candidates(%Transaction{data: %TransactionData{code: code}})
       when code != "" do
-    %Contract{conditions: %ContractConditions{origin_family: family}} = Contracts.parse!(code)
+    %Contract{conditions: %Conditions{origin_family: family}} = Contracts.parse!(code)
 
     case family do
       nil ->

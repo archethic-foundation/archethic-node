@@ -13,7 +13,9 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.EncryptedStorageNonce
+  alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Node
@@ -32,6 +34,15 @@ defmodule Uniris.Bootstrap.SyncTest do
   @moduletag :capture_log
 
   import Mox
+
+  setup do
+    MockTransport
+    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
+      {:ok, %LastTransactionAddress{address: address}}
+    end)
+
+    :ok
+  end
 
   describe "should_initialize_network?/1" do
     test "should return true when the network has not been deployed and it's the first bootstrapping seed" do
@@ -212,7 +223,7 @@ defmodule Uniris.Bootstrap.SyncTest do
                first_public_key: "key2",
                last_public_key: "key2"
              }
-           ] = P2P.list_nodes()
+           ] == P2P.list_nodes()
   end
 
   test "load_storage_nonce/1 should fetch the storage nonce, decrypt it with the node key" do

@@ -17,6 +17,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
 
   alias Uniris.Crypto
 
+  alias Uniris.Mining
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.StartMining
 
@@ -99,7 +101,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
         :crypto.strong_rand_bytes(32)
       )
 
-    validation_nodes = P2P.list_nodes(authorized?: true, availability: :global)
+    validation_nodes = Mining.transaction_validation_nodes(tx)
 
     validation_nodes
     |> P2P.broadcast_message(%StartMining{

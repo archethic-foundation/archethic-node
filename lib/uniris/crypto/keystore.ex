@@ -11,13 +11,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_key(data :: iolist()) :: binary()
+  @spec sign_with_node_key(data :: iodata()) :: binary()
   def sign_with_node_key(data) do
     impl().sign_with_node_key(data)
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_key(data :: iolist(), index :: number()) :: binary()
+  @spec sign_with_node_key(data :: iodata(), index :: number()) :: binary()
   def sign_with_node_key(data, index) do
     impl().sign_with_node_key(data, index)
   end
@@ -29,13 +29,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec node_public_key() :: UnirisCrypto.key()
+  @spec node_public_key() :: Uniris.Crypto.key()
   def node_public_key do
     impl().node_public_key()
   end
 
   @impl KeystoreImpl
-  @spec node_public_key(index :: number()) :: UnirisCyrpto.key()
+  @spec node_public_key(index :: number()) :: Uniris.Crypto.key()
   def node_public_key(index) do
     impl().node_public_key(index)
   end
@@ -77,13 +77,13 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_shared_secrets_key(data :: iolist()) :: binary()
+  @spec sign_with_node_shared_secrets_key(data :: iodata()) :: binary()
   def sign_with_node_shared_secrets_key(data) do
     impl().sign_with_node_shared_secrets_key(data)
   end
 
   @impl KeystoreImpl
-  @spec sign_with_node_shared_secrets_key(data :: iolist(), index :: number()) :: binary()
+  @spec sign_with_node_shared_secrets_key(data :: iodata(), index :: number()) :: binary()
   def sign_with_node_shared_secrets_key(data, index) do
     impl().sign_with_node_shared_secrets_key(data, index)
   end
@@ -101,7 +101,7 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: UnirisCrypto.key()
+  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: Uniris.Crypto.key()
   def node_shared_secrets_public_key(index) do
     impl().node_shared_secrets_public_key(index)
   end

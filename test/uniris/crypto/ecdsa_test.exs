@@ -22,7 +22,7 @@ defmodule Uniris.Crypto.ECDSATest do
   test "encrypt/3 should return an cipher with ephemeral key exchange" do
     {pub, _} = :crypto.generate_key(:ecdh, :secp256r1)
 
-    assert <<key::binary-65, tag::binary-16, cipher::binary>> =
+    assert <<_key::binary-65, _tag::binary-16, _cipher::binary>> =
              ECDSA.encrypt(:secp256r1, pub, "hello")
   end
 

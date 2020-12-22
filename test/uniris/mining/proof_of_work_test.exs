@@ -36,16 +36,13 @@ defmodule Uniris.Mining.ProofOfWorkTest do
           %TransactionData{
             code: """
             condition origin_family: biometric
-            actions do
-
-            end
             """
           },
           "seed",
           0
         )
 
-      assert [other_public_key] = ProofOfWork.list_origin_public_keys_candidates(tx)
+      assert [other_public_key] == ProofOfWork.list_origin_public_keys_candidates(tx)
     end
   end
 end

@@ -37,7 +37,9 @@ defmodule UnirisWeb.TransactionListLive do
         socket = %{assigns: %{src_transactions: src_transactions, filter_type: filter_type}}
       ) do
     src_transactions =
-      Stream.concat(src_transactions, [%{address: address, type: type, timestamp: timestamp}])
+      src_transactions
+      |> Stream.concat([%{address: address, type: type, timestamp: timestamp}])
+      |> Enum.sort_by(& &1.timestamp)
 
     displayed_transactions =
       case filter_type do

@@ -4,6 +4,7 @@ defmodule Uniris.Contracts.Supervisor do
   use Supervisor
 
   alias Uniris.Contracts.Loader
+  alias Uniris.Contracts.TransactionLookup
 
   alias Uniris.Utils
 
@@ -12,7 +13,7 @@ defmodule Uniris.Contracts.Supervisor do
   end
 
   def init(_args) do
-    optional_children = [{Loader, [], []}]
+    optional_children = [{TransactionLookup, []}, {Loader, [], []}]
 
     static_children = [
       {Registry, keys: :unique, name: Uniris.ContractRegistry},

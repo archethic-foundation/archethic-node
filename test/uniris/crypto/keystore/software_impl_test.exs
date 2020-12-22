@@ -112,7 +112,7 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
                encrypted_key
              )
 
-    assert %{node_secrets_transaction_seed: transaction_seed} = :sys.get_state(SoftwareKeystore)
+    assert %{node_secrets_transaction_seed: ^transaction_seed} = :sys.get_state(SoftwareKeystore)
   end
 
   test "sign_with_node_shared_secrets_key/1 should sign the data with the latest node shared secrets private key" do

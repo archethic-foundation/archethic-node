@@ -4,7 +4,7 @@ defmodule Uniris.MixProject do
   def project do
     [
       app: :uniris,
-      version: "0.9.1",
+      version: "0.10.0",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -14,7 +14,8 @@ defmodule Uniris.MixProject do
       deps: deps(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: false]
+      elixirc_options: [warnings_as_errors: true],
+      dialyzer: [plt_add_apps: [:mix]]
     ]
   end
 
@@ -34,7 +35,7 @@ defmodule Uniris.MixProject do
     [
       {:flow, "~> 1.0"},
       {:xandra, "~> 0.11"},
-      {:phoenix, "~> 1.5"},
+      {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_html, "~> 2.14"},
       {:phoenix_live_view, "~> 0.14.0"},
@@ -51,6 +52,7 @@ defmodule Uniris.MixProject do
       {:crontab, "~> 1.1"},
       {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:mox, "~> 0.5.2"},
       {:stream_data, "~> 0.4.3"},
       {:elixir_make, "~> 0.6.0", runtime: false},
@@ -58,7 +60,8 @@ defmodule Uniris.MixProject do
       {:cubdb, "~> 0.17.0"},
       {:earmark, "~> 1.4"},
       {:humanize_time, "~> 1.0"},
-      {:sizeable, "~> 1.0"}
+      {:sizeable, "~> 1.0"},
+      {:exjsonpath, "~> 0.9.0"}
     ]
   end
 end
