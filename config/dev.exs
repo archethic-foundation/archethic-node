@@ -11,6 +11,16 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
+# Networking module configuration:
+# load_from_system_env - false if not defined
+# ip_provider options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, 
+# hostname - provides a constant IP address for Static
+# port - provides a P2P port number
+config :uniris, Uniris.Networking, 
+  ip_provider: Uniris.Networking.IPLookup.Static,
+  hostname: "127.0.0.1",
+  port: 3002
+
 config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "0 * * * * * *",
   # Trigger it 5 seconds before
