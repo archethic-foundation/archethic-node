@@ -78,6 +78,56 @@ defmodule Uniris.Governance.Code do
     end
   end
 
+  @doc """
+  Return true if version2 is a direct successor of version1.
+  Note that build and patch must not be set.
+
+  ## Examples
+
+    iex> Code.succeessor_version?("1.1.1", "1.1.2")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.0")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "2.0.0")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.2")
+    false
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.1")
+    false
+
+    iex> Code.succeessor_version?("1.1.1", "1.1.2-pre0")
+    false
+  """
+  @spec succeessor_version?(binary | Version.t(), binary | Version.t()) :: boolean
+  def succeessor_version?(version1, version2)
+      when is_binary(version1) and is_binary(version2) do
+    succeessor_version?(Version.parse!(version1), Version.parse!(version2))
+  end
+
+  def succeessor_version?(
+        %Version{major: ma, minor: mi, patch: pa1, pre: [], build: nil},
+        %Version{major: ma, minor: mi, patch: pa2, pre: [], build: nil}
+      ),
+      do: pa1 + 1 == pa2
+
+  def succeessor_version?(
+        %Version{major: ma, minor: mi1, patch: _, pre: [], build: nil},
+        %Version{major: ma, minor: mi2, patch: 0, pre: [], build: nil}
+      ),
+      do: mi1 + 1 == mi2
+
+  def succeessor_version?(
+        %Version{major: ma1, minor: _, patch: _, pre: [], build: nil},
+        %Version{major: ma2, minor: 0, patch: 0, pre: [], build: nil}
+      ),
+      do: ma1 + 1 == ma2
+
+  def succeessor_version?(%Version{}, %Version{}), do: false
+
   defp current_version do
     {:ok, vsn} = :application.get_key(:uniris, :vsn)
     List.to_string(vsn)

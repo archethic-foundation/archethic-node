@@ -8,4 +8,6 @@ defmodule Uniris.Governance.CodeTest do
     assert ".gitignore" in files
     assert "README.md" in files
   end
+
+  doctest Code
 end
