@@ -64,12 +64,12 @@ defmodule Uniris.Governance.Code do
 
   @doc """
   Ensure the code proposal is valid according to the defined rules:
-  - Version in the code proposal must be greater than the current running version.
+  - Version in the code proposal must be a direct successor of the current running version.
   - Git diff/patch must be valid. A fork is make to apply the diff and run the CI tasks
   """
   @spec valid_proposal?(Proposal.t()) :: boolean()
   def valid_proposal?(prop = %Proposal{version: version}) do
-    with :gt <- Version.compare(version, current_version()),
+    with true <- succeessor_version?(current_version(), version),
          :ok <- CI.run(prop) do
       true
     else
