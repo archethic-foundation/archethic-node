@@ -10,15 +10,12 @@ config :phoenix, :stacktrace_depth, 20
 config :phoenix, :plug_init_mode, :runtime
 
 # Networking module configuration:
-# load_from_system_env - false if not defined
-# ip_provider options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, 
-# hostname - provides a constant IP address for Static
-# port - provides a P2P port number
+# ip_provider(module) options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, Uniris.Networking.Nat 
+# hostname(string) - provides a constant IP address for Static (ex. "127.0.0.1")
+# port(pos_int) - provides a P2P port number (ex. 3002)
 config :uniris, Uniris.Networking, 
-  ip_provider: Uniris.Networking.IPLookup.Static,
-  hostname: "127.0.0.1",
-  port: 3002
-
+  ip_provider: Uniris.Networking.IPLookup.Nat
+  
 config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "0 * * * * * *",
   # Trigger it 5 seconds before
@@ -72,7 +69,8 @@ config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 config :uniris, Uniris.Crypto.SoftwareKeystore,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
 
-config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
+config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
+# config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
 
 config :uniris, Uniris.DB.KeyValueImpl,
   root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"

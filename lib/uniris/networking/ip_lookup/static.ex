@@ -3,31 +3,19 @@ defmodule Uniris.Networking.IPLookup.Static do
   Module provides static IP address of the current node
   fetched from ENV variable or compile-time configuration.
   """
-
-  alias Uniris.Networking.IPLookup.Config
-
-  @error_invalid_ip "Invalid IP address"
   
   # Public
 
-  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, binary}
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
   def get_node_ip do
-    Config.load_from_sys_env?
-    |> case do
-      {:error, reason} -> {:error, reason}
-      {:ok, false} -> Config.hostname_from_config()
-      {:ok, true} -> Config.hostname_from_env()
-    end
-    |> case do
-      {:error, reason} -> {:error, reason}
-      {:ok, hostname} ->
-        hostname
-        |> String.to_charlist
-        |> :inet.parse_address
-        |> case do
-          {:ok, ip} -> {:ok, ip}
-          {:error, :einval} -> {:error, @error_invalid_ip}
-        end
+    with config <- Application.get_env(:uniris, Uniris.Networking),
+    {:ok, hostname} when is_binary(hostname) <- Keyword.fetch(config, :hostname),
+    host_chars <- String.to_charlist(hostname),
+    {:ok, ip} <- :inet.parse_address(host_chars) do
+      {:ok, ip}
+    else
+      :error -> {:error, :invalid_ip_provider} 
+      {:error, :einval} -> {:error, :not_recognizable_ip}
     end
   end
 end

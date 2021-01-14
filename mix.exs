@@ -14,7 +14,7 @@ defmodule Uniris.MixProject do
       deps: deps(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: true],
+      elixirc_options: [warnings_as_errors: false],
       dialyzer: [plt_add_apps: [:mix]]
     ]
   end
@@ -61,7 +61,12 @@ defmodule Uniris.MixProject do
       {:earmark, "~> 1.4"},
       {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
-      {:exjsonpath, "~> 0.9.0"}
+      {:exjsonpath, "~> 0.9.0"},
+      {:rand_compat, "~> 0.0.3"},
+      {:inet_ext, "~> 1.0"},
+      {:statix, "~> 1.4"},
+      {:telemetry_metrics, "~> 0.6"},
+      {:telemetry_metrics_statsd, "~> 0.5"}
     ]
   end
 end

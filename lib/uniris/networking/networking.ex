@@ -12,19 +12,23 @@ defmodule Uniris.Networking do
   @doc """
   Provides current host IP address.
   """
-  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, binary}
-  defdelegate get_node_ip, to: IPLookup
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
+  def get_node_ip do 
+    IPLookup.get_node_ip
+    |> case do
+      {:ok, ip} ->
+        :telemetry.execute([:uniris, :iplookup, :success], %{}, %{"ip" => "#{inspect ip}"})
+        {:ok, ip}
+
+      {:error, reason} ->
+        :telemetry.execute([:uniris, :iplookup, :failure], %{}, %{"error" => "#{inspect reason}"})
+        {:error, reason}
+    end
+  end
 
   @doc """
   Provides P2P port number.
   """
-  @spec get_p2p_port() :: {:ok, pos_integer} | {:error, binary}
-  def get_p2p_port do
-    Config.load_from_sys_env?
-    |> case do
-      {:error, reason} -> {:error, reason}
-      {:ok, false} -> Config.p2p_port_from_config()
-      {:ok, true} -> Config.p2p_port_from_env()
-    end
-  end
+  @spec get_p2p_port() :: {:ok, pos_integer} | {:error, :invalid_port}
+  defdelegate get_p2p_port, to: Config
 end
