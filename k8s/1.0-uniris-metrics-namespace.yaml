@@ -1,0 +1,6 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: uniris-metrics
+  labels:
+    name: uniris

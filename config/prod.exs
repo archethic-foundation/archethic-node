@@ -9,7 +9,6 @@ config :logger, level: :info
 # hostname - provides a constant IP address for Static
 # port - provides a P2P port number
 config :uniris, Uniris.Networking, 
-  load_from_system_env: true,
   ip_provider: Uniris.Networking.IPLookup.Static
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl

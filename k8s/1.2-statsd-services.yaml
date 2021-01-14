@@ -1,0 +1,17 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: statsd-svc
+  namespace: uniris-metrics
+spec:
+  selector:
+    app: statsd
+  type: NodePort
+  ports:
+    - name: udp-statsd
+      protocol: UDP
+      port: 8125
+      targetPort: 8125
+      nodePort: 31125
+
+---
