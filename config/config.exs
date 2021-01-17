@@ -30,11 +30,6 @@ config :logger,
   handle_otp_reports: true,
   handle_sasl_reports: false
 
-config :statix,
-  prefix: "uniris",
-  host: "localhost",
-  port: 8125
-
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
