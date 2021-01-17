@@ -14,7 +14,7 @@ defmodule Uniris.MixProject do
       deps: deps(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: false],
+      elixirc_options: [warnings_as_errors: true],
       dialyzer: [plt_add_apps: [:mix]]
     ]
   end
@@ -64,6 +64,8 @@ defmodule Uniris.MixProject do
       {:exjsonpath, "~> 0.9.0"},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"}
+      {:rand_compat, "~> 0.0.3"},
+      {:inet_ext, "~> 1.0"}
     ]
   end
 end
