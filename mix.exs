@@ -62,10 +62,10 @@ defmodule Uniris.MixProject do
       {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
       {:exjsonpath, "~> 0.9.0"},
+      {:rand_compat, "~> 0.0.3"},
+      {:inet_ext, "~> 1.0"},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"}
-      {:rand_compat, "~> 0.0.3"},
-      {:inet_ext, "~> 1.0"}
     ]
   end
 end
