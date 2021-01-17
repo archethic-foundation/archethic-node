@@ -1,5 +1,6 @@
 defmodule UnirisWeb.LayoutHelpers do
   @moduledoc false
+
   def format_date(%DateTime{
         year: year,
         month: month,
@@ -21,15 +22,15 @@ defmodule UnirisWeb.LayoutHelpers do
     |> String.pad_leading(amount, "0")
   end
 
-  def format_bytes(nb_bytes) when nb_bytes < 1024 do
-    "#{nb_bytes} B"
+  def format_bytes(nb_bytes) do
+    Sizeable.filesize(nb_bytes)
   end
 
-  def format_bytes(nb_bytes) when nb_bytes >= 1024 and nb_bytes < 1_048_576 do
-    "#{Float.round(nb_bytes / 1024, 2)} KB"
+  def format_seconds(seconds) do
+    HumanizeTime.format_seconds(seconds)
   end
 
-  def format_bytes(nb_bytes) when nb_bytes >= 1_048_576 do
-    "#{Float.round(nb_bytes / 1_048_576, 2)} MB"
+  def format_float(float) when is_float(float) do
+    :erlang.float_to_binary(float, [:compact, decimals: 8])
   end
 end

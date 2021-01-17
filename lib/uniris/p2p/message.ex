@@ -8,6 +8,8 @@ defmodule Uniris.P2P.Message do
   alias Uniris.BeaconChain.Slot.NodeInfo
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
 
+  alias Uniris.Contracts
+
   alias Uniris.Crypto
 
   alias Uniris.Mining
@@ -29,6 +31,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
+  alias __MODULE__.GetLastTransactionAddress
   alias __MODULE__.GetP2PView
   alias __MODULE__.GetStorageNonce
   alias __MODULE__.GetTransaction
@@ -36,10 +39,12 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetTransactionChainLength
   alias __MODULE__.GetTransactionInputs
   alias __MODULE__.GetUnspentOutputs
+  alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
+  alias __MODULE__.NotifyLastTransactionAddress
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
   alias __MODULE__.ReplicateTransaction
@@ -75,7 +80,7 @@ defmodule Uniris.P2P.Message do
           | ListNodes.t()
           | GetTransaction.t()
           | GetTransactionChain.t()
-          | GetUnspentOutput.t()
+          | GetUnspentOutputs.t()
           | GetP2PView.t()
           | NewTransaction.t()
           | StartMining.t()
@@ -102,6 +107,9 @@ defmodule Uniris.P2P.Message do
           | BootstrappingNodes.t()
           | P2PView.t()
           | SubscribeTransactionValidation.t()
+          | NotifyLastTransactionAddress.t()
+          | GetLastTransactionAddress.t()
+          | LastTransactionAddress.t()
 
   @doc """
   Serialize a message into binary
@@ -236,6 +244,18 @@ defmodule Uniris.P2P.Message do
     <<21::8, address::binary>>
   end
 
+  def encode(%GetLastTransactionAddress{address: address}) do
+    <<22::8, address::binary>>
+  end
+
+  def encode(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
+    <<23::8, address::binary, previous_address::binary>>
+  end
+
+  def encode(%LastTransactionAddress{address: address}) do
+    <<241::8, address::binary>>
+  end
+
   def encode(%FirstPublicKey{public_key: public_key}) do
     <<242::8, public_key::binary>>
   end
@@ -244,12 +264,13 @@ defmodule Uniris.P2P.Message do
     <<243::8, bit_size(view)::8, view::bitstring>>
   end
 
-  def encode(%TransactionInputList{inputs: inputs}) do
+  def encode(%TransactionInputList{inputs: inputs, calls: calls}) do
     inputs_bin =
       Enum.map(inputs, &TransactionInput.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<244::8, length(inputs)::16, inputs_bin::bitstring>>
+    <<244::8, length(inputs)::16, inputs_bin::bitstring, length(calls)::16,
+      :erlang.list_to_binary(calls)::binary>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
@@ -275,8 +296,16 @@ defmodule Uniris.P2P.Message do
     <<247::8, digest::binary>>
   end
 
-  def encode(%Balance{uco: uco_balance}) do
-    <<248::8, uco_balance::float>>
+  def encode(%Balance{uco: uco_balance, nft: nft_balances}) do
+    nft_balances_binary =
+      nft_balances
+      |> Enum.reduce([], fn {nft_address, amount}, acc ->
+        [<<nft_address::binary, amount::float>> | acc]
+      end)
+      |> Enum.reverse()
+      |> :erlang.list_to_binary()
+
+    <<248::8, uco_balance::float, map_size(nft_balances)::16, nft_balances_binary::binary>>
   end
 
   def encode(%BeaconSlotList{slots: slots}) do
@@ -530,6 +559,26 @@ defmodule Uniris.P2P.Message do
     }
   end
 
+  def decode(<<22::8, rest::binary>>) do
+    {address, _} = deserialize_hash(rest)
+
+    %GetLastTransactionAddress{
+      address: address
+    }
+  end
+
+  def decode(<<23::8, rest::binary>>) do
+    {address, rest} = deserialize_hash(rest)
+    {previous_address, _} = deserialize_hash(rest)
+
+    %NotifyLastTransactionAddress{address: address, previous_address: previous_address}
+  end
+
+  def decode(<<241::8, rest::binary>>) do
+    {address, _} = deserialize_hash(rest)
+    %LastTransactionAddress{address: address}
+  end
+
   def decode(<<242::8, rest::binary>>) do
     {public_key, _} = deserialize_public_key(rest)
     %FirstPublicKey{public_key: public_key}
@@ -539,11 +588,15 @@ defmodule Uniris.P2P.Message do
     %P2PView{nodes_view: Utils.unwrap_bitstring(rest, view_size)}
   end
 
-  def decode(<<244::8, length::16, rest::bitstring>>) do
-    {inputs, _} = deserialize_transaction_inputs(rest, length, [])
+  def decode(<<244::8, nb_inputs::16, rest::bitstring>>) do
+    {inputs, <<nb_calls::16, rest::bitstring>>} =
+      deserialize_transaction_inputs(rest, nb_inputs, [])
+
+    {calls, _} = deserialize_transaction_addresses(rest, nb_calls, [])
 
     %TransactionInputList{
-      inputs: inputs
+      inputs: inputs,
+      calls: calls
     }
   end
 
@@ -571,9 +624,12 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<248::8, uco_balance::float>>) do
+  def decode(<<248::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
+    {nft_balances, _} = deserialize_nft_balances(rest, nb_nft_balances, %{})
+
     %Balance{
-      uco: uco_balance
+      uco: uco_balance,
+      nft: nft_balances
     }
   end
 
@@ -702,6 +758,29 @@ defmodule Uniris.P2P.Message do
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
   end
 
+  defp deserialize_transaction_addresses(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_transaction_addresses(rest, nb_addresses, acc)
+       when length(acc) == nb_addresses do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_transaction_addresses(rest, nb_addresses, acc) do
+    {address, rest} = deserialize_hash(rest)
+    deserialize_transaction_inputs(rest, nb_addresses, [address | acc])
+  end
+
+  defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
+
+  defp deserialize_nft_balances(rest, nft_balances, acc) when map_size(acc) == nft_balances do
+    {acc, rest}
+  end
+
+  defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
+    {nft_address, <<amount::float, rest::binary>>} = deserialize_hash(rest)
+    deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
+  end
+
   # TODO: support streaming
   @doc """
   Handle a P2P message by processing it through the dedicated context
@@ -715,7 +794,6 @@ defmodule Uniris.P2P.Message do
           | GetTransactionChain.t()
           | GetUnspentOutputs.t()
           | StartMining.t()
-          | AddContext.t()
           | ReplicateTransaction.t()
           | AcknowledgeStorage.t()
           | CrossValidate.t()
@@ -898,6 +976,9 @@ defmodule Uniris.P2P.Message do
 
       {:error, :transaction_not_exists} ->
         %NotFound{}
+
+      {:error, :invalid_transaction} ->
+        %NotFound{}
     end
   end
 
@@ -909,7 +990,8 @@ defmodule Uniris.P2P.Message do
 
   def process(%GetTransactionInputs{address: address}) do
     %TransactionInputList{
-      inputs: Account.get_inputs(address)
+      inputs: Account.get_inputs(address),
+      calls: Contracts.list_contract_transactions(address)
     }
   end
 
@@ -936,5 +1018,15 @@ defmodule Uniris.P2P.Message do
       {:error, :transaction_not_exists} ->
         %NotFound{}
     end
+  end
+
+  def process(%GetLastTransactionAddress{address: address}) do
+    address = TransactionChain.get_last_address(address)
+    %LastTransactionAddress{address: address}
+  end
+
+  def process(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
+    :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address)
+    %Ok{}
   end
 end

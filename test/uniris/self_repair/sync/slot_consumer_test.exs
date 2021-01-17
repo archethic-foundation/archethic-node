@@ -23,7 +23,7 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumerTest do
   alias Uniris.TransactionFactory
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.TransactionInput
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   import Mox
 
@@ -120,14 +120,14 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumerTest do
 
       P2P.add_node(node)
 
-      inputs = [%TransactionInput{from: "@Alice2", amount: 10.0}]
+      inputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       transfer_tx =
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
           seed: "transfer_seed"
         )
 
-      inputs = [%TransactionInput{from: "@Alice2", amount: 10.0}]
+      inputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       node_tx =
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,

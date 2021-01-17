@@ -33,11 +33,10 @@ Current implemented features:
 - P2P transfers and genesis pools allocation
 - Transaction explorer
 - Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
-
+- NFT creation and transfers
 ## Next features to appear very soon:
 - Sampling P2P view on the Beacon chain
 - Summary of the Beacon chain
-- Smart Contract Standard library functions
 - P2P messages encryption
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
@@ -49,7 +48,7 @@ Requirements:
 - OTP 23: generation of ed25519 key pairs
 
 Platforms supported:
-- Linux
+- Linux (Ubuntu 18.04)
 - Mac OS X
 
 Requires Cassandra/ScyllaDB installation to use for the backend storage

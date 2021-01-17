@@ -1,46 +1,60 @@
-<header class="row">
+<div class="columns">
     <div class="column">
-        <h4>Proposal discussion</h4>
+        <p class="heading">Proposal discussion</p>
     </div>
-</header>
+</div>
 
-<section class="row">
+<div class="columns">
     <div class="column">
-        <%= for %{ message: message, timestamp: timestamp } <- @chats do %>
-        <article style="padding-left: 10px; margin-bottom: 5px">
-            <div class="row">
-                <div class="column">
-                    <%= message %>
-                </div>
-            </div>
-            <div class="row">
-                <div class="column column-80"></div>
-                <div class="column" style="font-size: 0.6em">
-                    <div class="row">
-                        <div class="column"><%= format_date(timestamp) %></div>
-                    </div>
+        <%= for %{ comment: comment, timestamp: timestamp, name: name} <- @chats do %>
+        <article class="media">
+            <div class="media-content">
+                <div class="content">
+                    <p>
+                        <strong><%= name %></strong>
+                        <small>
+                            <%= 
+                                DateTime.utc_now()
+                                |> DateTime.diff(timestamp)
+                                |> format_seconds()
+                            %>
+                        </small>
+                        <br>
+                        <%= comment %>
+                    </p>
                 </div>
             </div>
         </article>
         <% end %>
     </div>
-</section>
+</div>
 
-<footer class="row" style="border-top: thin solid #ccc; margin-top: 20px; padding-top: 10px;">
-    <div class="column column-40">
-        <div class="row">
-            <div class="column">
-                <h5>New message</h5>
-            </div>
-        </div>
-        <div class="row">
-            <div class="column">
-                <form phx-submit="new_message">
-                    <label for="message">Enter your comment</label>
-                    <textarea id="message" name="message" required></textarea>
-                    <button>Submit</button>
-                </form>
+<form phx-submit="new_message">
+    <div class="columns">
+        <div class="column is-one-third-desktop">
+            <div class="field">
+                <label class="label" for="name">Name</label>
+                <div class="control">
+                    <input required class="input" id="name" name="name" type="text" placeholder="Enter your name">
+                </div>
             </div>
         </div>
     </div>
-</footer>
+    <div class="columns">
+        <div class="column is-one-third-desktop">
+            <div class="field">
+                <label class="label" for="comment">Comment</label>
+                <div class="control">
+                    <textarea required class="textarea" id="comment" name="comment" placeholder="Enter your comment"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column is-1-desktop">
+            <div class="control">
+                <button class="button is-primary is-outlined is-fullwidth">Submit</button>
+            </div>
+        </div>
+    </div>
+</form>

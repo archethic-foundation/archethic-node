@@ -11,7 +11,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     :signature,
     :proof_of_work,
     :proof_of_integrity,
-    ledger_operations: %LedgerOperations{}
+    ledger_operations: %LedgerOperations{},
+    recipients: [],
+    contract_validation: true
   ]
 
   @typedoc """
@@ -19,13 +21,17 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   - Proof of work: Origin public key matching the origin signature
   - Proof of integrity: Integrity proof from the entire transaction chain
   - Ledger Operations: Set of ledger operations taken by the network such as fee, node movements, transaction movements and unspent outputs
+  - Recipients: List of the last smart contract chain resolved addresses
+  - Contract validation: Determine if the transaction coming from a contract is valid according to the constraints
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
   """
   @type t :: %__MODULE__{
-          signature: binary(),
+          signature: nil | binary(),
           proof_of_work: Crypto.key(),
           proof_of_integrity: Crypto.versioned_hash(),
-          ledger_operations: LedgerOperations.t()
+          ledger_operations: LedgerOperations.t(),
+          recipients: list(Crypto.versioned_hash()),
+          contract_validation: boolean()
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
@@ -46,12 +52,16 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def extract_for_signature(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
-        ledger_operations: ops
+        ledger_operations: ops,
+        recipients: recipients,
+        contract_validation: contract_validation
       }) do
     %__MODULE__{
       proof_of_work: pow,
       proof_of_integrity: poi,
-      ledger_operations: ops
+      ledger_operations: ops,
+      recipients: recipients,
+      contract_validation: contract_validation
     }
   end
 
@@ -94,6 +104,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       0,
       # Nb of unspent outputs
       0,
+      # Nb of resolved recipients addresses,
+      0,
+      # Contract validation,
+      1::1,
       # Signature size,
       64,
       # Signature
@@ -108,28 +122,33 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_work: pow,
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
+        recipients: recipients,
+        contract_validation: contract_validation,
         signature: nil
       }) do
-    if pow == "" do
-      <<0::1, pow::binary, poi::binary, LedgerOperations.serialize(ledger_operations)::binary>>
-    else
-      <<1::1, pow::binary, poi::binary, LedgerOperations.serialize(ledger_operations)::binary>>
-    end
+    pow_bitstring = if pow, do: 1, else: 0
+    contract_validation = if contract_validation, do: 1, else: 0
+
+    <<pow_bitstring::1, pow::binary, poi::binary,
+      LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
+      :erlang.list_to_binary(recipients)::binary, contract_validation::1>>
   end
 
   def serialize(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
+        recipients: recipients,
+        contract_validation: contract_validation,
         signature: signature
       }) do
-    if pow == "" do
-      <<0::1, poi::binary, LedgerOperations.serialize(ledger_operations)::binary,
-        byte_size(signature)::8, signature::binary>>
-    else
-      <<1::1, pow::binary, poi::binary, LedgerOperations.serialize(ledger_operations)::binary,
-        byte_size(signature)::8, signature::binary>>
-    end
+    pow_bitstring = if pow, do: 1, else: 0
+    contract_validation = if contract_validation, do: 1, else: 0
+
+    <<pow_bitstring::1, pow::binary, poi::binary,
+      LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
+      :erlang.list_to_binary(recipients)::binary, contract_validation::1, byte_size(signature)::8,
+      signature::binary>>
   end
 
   @doc """
@@ -141,7 +160,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
-      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 64,
+      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 1::1, 64,
       ...> 67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...> 126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...> 238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -159,6 +178,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
             node_movements: [],
             unspent_outputs: []
           },
+          recipients: [],
+          contract_validation: true,
           signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
             126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
             238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -185,7 +206,13 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     hash_size = Crypto.hash_size(hash_id)
     <<hash::binary-size(hash_size), rest::bitstring>> = rest
 
-    {ledger_ops, rest} = LedgerOperations.deserialize(rest)
+    {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
+
+    {recipients, <<contract_validation::1, rest::bitstring>>} =
+      deserialize_list_of_recipients_addresses(rest, recipients_length, [])
+
+    contract_validation = if contract_validation == 1, do: true, else: false
+
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
     {
@@ -193,6 +220,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_work: pow,
         proof_of_integrity: <<hash_id::8>> <> hash,
         ledger_operations: ledger_ops,
+        recipients: recipients,
+        contract_validation: contract_validation,
         signature: signature
       },
       rest
@@ -206,6 +235,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       proof_of_integrity: Map.get(stamp, :proof_of_integrity),
       ledger_operations:
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
+      recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature)
     }
   end
@@ -215,12 +245,14 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_work: pow,
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
+        recipients: recipients,
         signature: signature
       }) do
     %{
       proof_of_work: pow,
       proof_of_integrity: poi,
       ledger_operations: LedgerOperations.to_map(ledger_operations),
+      recipients: recipients,
       signature: signature
     }
   end
@@ -229,12 +261,35 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   Determine if the validation stamp signature is valid
   """
   @spec valid_signature?(__MODULE__.t(), Crypto.key()) :: boolean()
-  def valid_signature?(stamp = %__MODULE__{}, public_key) do
+  def valid_signature?(%__MODULE__{signature: nil}, _public_key), do: false
+
+  def valid_signature?(stamp = %__MODULE__{signature: signature}, public_key)
+      when is_binary(signature) do
     raw_stamp =
       stamp
       |> extract_for_signature
       |> serialize
 
-    Crypto.verify(stamp.signature, raw_stamp, public_key)
+    Crypto.verify(signature, raw_stamp, public_key)
+  end
+
+  defp deserialize_list_of_recipients_addresses(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_list_of_recipients_addresses(rest, nb_recipients, acc)
+       when length(acc) == nb_recipients do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_list_of_recipients_addresses(
+         <<hash_id::8, rest::bitstring>>,
+         nb_recipients,
+         acc
+       ) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+
+    deserialize_list_of_recipients_addresses(rest, nb_recipients, [
+      <<hash_id::8, hash::binary>> | acc
+    ])
   end
 end

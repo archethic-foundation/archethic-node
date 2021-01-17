@@ -1,18 +1,4 @@
-<div class="row">
-    <div class="column column-20"><strong>Address</strong></div>
-    <div class="column column-40"><strong>Date</strong></div>
-    <div class="column column-40"><strong>Type</strong></div>
-</div>
 <%= for tx <- @transactions do %>
-<div class="row">
-    <div class="column column-20">
-        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(tx.address)), title: Base.encode16(tx.address) do%>
-            <span>
-                <%= Base.encode16(:binary.part(tx.address, 0, 3)) %>...
-            </span>
-        <% end %>
-    </div>
-    <div class="column column-40"><%= format_date(tx.timestamp) %></div>
-    <div class="column column-40"><%= tx.type %></div>
-</div>
+    <%= render "transaction_summary.html", transaction: tx, conn: @socket %>
+    <hr class="hr" />
 <% end %>

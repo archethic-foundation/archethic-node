@@ -8,9 +8,11 @@ defmodule Uniris.P2P do
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
+  alias __MODULE__.Message
   alias __MODULE__.Node
   alias __MODULE__.Transport
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger
@@ -218,7 +220,7 @@ defmodule Uniris.P2P do
   - ack_node?: can require node acknowledgement to return the node which respond
   - timeout: timeout before the concurrent request is cancelled
   """
-  @spec broadcast_message(list(Node.t()), Message.t(), opts :: Keyword.list()) :: Enumerable.t()
+  @spec broadcast_message(list(Node.t()), Message.t(), opts :: Keyword.t()) :: Enumerable.t()
   def broadcast_message(nodes, message, opts \\ [ack_node?: false, timeout: 5_000]) do
     ack_node? = Keyword.get(opts, :ack_node?, false)
     timeout = Keyword.get(opts, :timeout, 5_000)

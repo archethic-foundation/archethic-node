@@ -3,6 +3,7 @@ defmodule Uniris.Account.MemTablesLoader do
 
   use GenServer
 
+  alias Uniris.Account.MemTables.NFTLedger
   alias Uniris.Account.MemTables.UCOLedger
 
   alias Uniris.Bootstrap
@@ -13,6 +14,7 @@ defmodule Uniris.Account.MemTablesLoader do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
@@ -42,7 +44,8 @@ defmodule Uniris.Account.MemTablesLoader do
   defp allocate_genesis_unspent_outputs do
     UCOLedger.add_unspent_output(Bootstrap.genesis_unspent_output_address(), %UnspentOutput{
       from: Bootstrap.genesis_unspent_output_address(),
-      amount: Bootstrap.genesis_allocation()
+      amount: Bootstrap.genesis_allocation(),
+      type: :UCO
     })
   end
 
@@ -62,9 +65,10 @@ defmodule Uniris.Account.MemTablesLoader do
           }
         }
       }) do
-    previous_public_key
-    |> Crypto.hash()
-    |> UCOLedger.spend_all_unspent_outputs()
+    previous_address = Crypto.hash(previous_public_key)
+
+    UCOLedger.spend_all_unspent_outputs(previous_address)
+    NFTLedger.spend_all_unspent_outputs(previous_address)
 
     :ok = set_transaction_movements(address, transaction_movements)
     :ok = set_unspent_outputs(address, unspent_outputs)
@@ -76,14 +80,27 @@ defmodule Uniris.Account.MemTablesLoader do
   end
 
   defp set_transaction_movements(address, transaction_movements) do
-    Enum.each(
-      transaction_movements,
-      &UCOLedger.add_unspent_output(&1.to, %UnspentOutput{amount: &1.amount, from: address})
-    )
+    Enum.each(transaction_movements, fn
+      %TransactionMovement{to: to, amount: amount, type: :UCO} ->
+        UCOLedger.add_unspent_output(to, %UnspentOutput{amount: amount, from: address, type: :UCO})
+
+      %TransactionMovement{to: to, amount: amount, type: {:NFT, nft_address}} ->
+        NFTLedger.add_unspent_output(to, %UnspentOutput{
+          amount: amount,
+          from: address,
+          type: {:NFT, nft_address}
+        })
+    end)
   end
 
   defp set_unspent_outputs(address, unspent_outputs) do
-    Enum.each(unspent_outputs, &UCOLedger.add_unspent_output(address, &1))
+    Enum.each(unspent_outputs, fn
+      unspent_output = %UnspentOutput{type: :UCO} ->
+        UCOLedger.add_unspent_output(address, unspent_output)
+
+      unspent_output = %UnspentOutput{type: {:NFT, _nft_address}} ->
+        NFTLedger.add_unspent_output(address, unspent_output)
+    end)
   end
 
   defp set_node_rewards(address, node_movements) do
@@ -91,7 +108,8 @@ defmodule Uniris.Account.MemTablesLoader do
       node_movements,
       &UCOLedger.add_unspent_output(Crypto.hash(&1.to), %UnspentOutput{
         amount: &1.amount,
-        from: address
+        from: address,
+        type: :UCO
       })
     )
   end

@@ -2,6 +2,7 @@ defmodule UnirisCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
+  alias Uniris.Account.MemTables.NFTLedger
   alias Uniris.Account.MemTables.UCOLedger
 
   alias Uniris.Crypto
@@ -35,6 +36,8 @@ defmodule UnirisCase do
     |> stub(:write_transaction_chain, fn _ -> :ok end)
     |> stub(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
     |> stub(:get_transaction_chain, fn _, _ -> [] end)
+    |> stub(:list_last_transaction_addresses, fn -> [] end)
+    |> stub(:add_last_transaction_address, fn _, _ -> :ok end)
 
     {:ok, counter_node_keys_pid} = Agent.start_link(fn -> 0 end)
     {:ok, counter_node_shared_keys_pid} = Agent.start_link(fn -> 0 end)
@@ -92,6 +95,7 @@ defmodule UnirisCase do
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 
     start_supervised!(ChainLookup)
+    start_supervised!(NFTLedger)
     start_supervised!(UCOLedger)
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)

@@ -53,7 +53,10 @@ defmodule Uniris.SelfRepair.Scheduler do
     Task.start(fn ->
       timer = schedule_sync(me, Utils.time_offset(interval))
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Self-Repair will be started in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     new_state =
@@ -85,7 +88,10 @@ defmodule Uniris.SelfRepair.Scheduler do
     Task.start(fn ->
       timer = schedule_sync(me, Utils.time_offset(interval))
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Self-Repair will be started in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     {:noreply, Map.put(state, :last_sync_date, update_last_sync_date()), :hibernate}

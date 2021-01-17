@@ -5,7 +5,6 @@ defmodule Uniris.P2P.MemTable do
   @nodes_key_lookup_table :uniris_node_keys
   @availability_lookup_table :uniris_available_nodes
   @authorized_nodes_table :uniris_authorized_nodes
-  @node_transaction_lookup_table :uniris_node_tx_keys
 
   alias Uniris.Crypto
 
@@ -28,9 +27,8 @@ defmodule Uniris.P2P.MemTable do
       ...>    :ets.info(:uniris_node_keys)[:type],
       ...>    :ets.info(:uniris_available_nodes)[:type],
       ...>    :ets.info(:uniris_authorized_nodes)[:type],
-      ...>    :ets.info(:uniris_node_tx_keys)[:type]
       ...>  }
-      { :set, :set, :set, :set, :set }
+      { :set, :set, :set, :set }
   """
   @spec start_link([]) :: {:ok, pid()}
   def start_link(args \\ []) do
@@ -42,8 +40,6 @@ defmodule Uniris.P2P.MemTable do
     :ets.new(@availability_lookup_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@authorized_nodes_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@nodes_key_lookup_table, [:set, :named_table, :public, read_concurrency: true])
-
-    :ets.new(@node_transaction_lookup_table, [:set, :named_table, :public, read_concurrency: true])
 
     Logger.info("Initialize InMemory P2P view")
 
@@ -687,16 +683,20 @@ defmodule Uniris.P2P.MemTable do
   """
   @spec increase_node_availability(first_public_key :: Crypto.key()) :: :ok
   def increase_node_availability(first_public_key) when is_binary(first_public_key) do
-    case :ets.lookup_element(@discovery_table, first_public_key, 8) do
-      <<1::1, _::bitstring>> ->
-        :ok
+    if :ets.member(@discovery_table, first_public_key) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+        <<1::1, _::bitstring>> ->
+          :ok
 
-      <<0::1, _::bitstring>> = history ->
-        new_history = <<1::1, history::bitstring>>
-        true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
-        Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
-        notify_node_update(first_public_key)
-        :ok
+        <<0::1, _::bitstring>> = history ->
+          new_history = <<1::1, history::bitstring>>
+          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
+          notify_node_update(first_public_key)
+          :ok
+      end
+    else
+      :ok
     end
   end
 
@@ -719,16 +719,20 @@ defmodule Uniris.P2P.MemTable do
   """
   @spec decrease_node_availability(first_public_key :: Crypto.key()) :: :ok
   def decrease_node_availability(first_public_key) when is_binary(first_public_key) do
-    case :ets.lookup_element(@discovery_table, first_public_key, 8) do
-      <<0::1, _::bitstring>> ->
-        :ok
+    if :ets.member(@discovery_table, first_public_key) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+        <<0::1, _::bitstring>> ->
+          :ok
 
-      <<1::1, _::bitstring>> = history ->
-        new_history = <<0::1, history::bitstring>>
-        true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
-        Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
-        notify_node_update(first_public_key)
-        :ok
+        <<1::1, _::bitstring>> = history ->
+          new_history = <<0::1, history::bitstring>>
+          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
+          notify_node_update(first_public_key)
+          :ok
+      end
+    else
+      :ok
     end
   end
 

@@ -1,0 +1,38 @@
+<div class="columns">
+    <div class="column">
+        <p class="heading">Generate transaction</p>
+    </div>
+</div>
+<div class="columns">
+    <div class="column">
+        <div class="tabs">
+            <ul>
+                <li class="is-active"><a>Software</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+<div class="columns">
+    <div class="column">
+        <form phx-submit="sendTransaction">
+            <div class="columns">
+                <div class="column">
+                    <div class="field">
+                        <label class="label">TransactionChain Seed</label>
+                        <div class="control">
+                            <input class="input" type="text" placeholder="Enter your passphrase">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="columns">
+                <div class="column">
+                    <button class="button is-primary is-outlined">Sign the transaction</button>
+                </div>        
+            </div>
+            <input type="hidden" id="tx_index" value="0" />
+            <input type="hidden" id="tx_json" />
+        </form>
+    </div>
+</div>
+

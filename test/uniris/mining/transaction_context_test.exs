@@ -27,7 +27,7 @@ defmodule Uniris.Mining.TransactionContextTest do
         validation_stamp: %ValidationStamp{
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Alice1", amount: 10.0}
+              %TransactionMovement{to: "@Alice1", amount: 10.0, type: :UCO}
             ]
           }
         }
@@ -37,19 +37,25 @@ defmodule Uniris.Mining.TransactionContextTest do
       |> stub(:send_message, fn
         _, 3003, %GetUnspentOutputs{address: "@Alice1"} ->
           {:ok,
-           %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0}]}}
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+           }}
 
         _, 3002, %GetUnspentOutputs{address: "@Alice1"} ->
           Process.sleep(200)
 
           {:ok,
-           %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0}]}}
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+           }}
 
         _, 3005, %GetUnspentOutputs{address: "@Alice1"} ->
           Process.sleep(400)
 
           {:ok,
-           %UnspentOutputList{unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0}]}}
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+           }}
 
         _, 3003, %GetP2PView{} ->
           {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}

@@ -1,86 +1,68 @@
-<div class="row explorer-card">
-    <div class="column">
-
-        <header class="row">
+<div class="box">
+    <div class="columns">
+        <div class="column">
+            <h1 class="subtitle is-size-4 heading">Node information</h1>
+        </div>
+        <div class="column is-2-desktop">
+            <%= link class: "button is-primary is-outl-ned is-fullwidth", to: Routes.explorer_path(@conn, :chain, address: Base.encode16(@node_address), last: "on") do%>
+                Explore node chain
+            <% end %>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column">
+            <p class="heading">First public key</p>
+            <span class="text_wrap"><%= Base.encode16(@node.first_public_key) %></span>
+        </div>
+        <div class="column">
+            <p class="heading">Last public key</p>
+            <span class="text_wrap"><%= Base.encode16(@node.last_public_key) %></span>
+        </div>
+    </div>
+        <div class="columns">
+        <div class="column">
+            <p class="heading">IP</p>
+            <%= :inet_parse.ntoa(@node.ip) %>
+        </div>
+        <div class="column">
+            <p class="heading">Port</p>
+            <span><%= @node.port %></span>
+        </div>
+        <div class="column">
+            <p class="heading">Geo Patch</p>
+                <span><%= @node.geo_patch %></span>
+        </div>
+        <div class="column">
+            <p class="heading">Network Patch</p>
+            <span><%= @node.network_patch %></span>
+        </div>
+        <div class="column">
+            <p class="heading">Average availability</p>
+            <span><%= @node.average_availability %></span>
+        </div>
             <div class="column">
-                <div class="row">
-                    <div class="column">
-                        <h3>Node details</h3>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="column column-80">
-                        Last public key <br /><small><%= Base.encode16(@node.last_public_key) %></small>
-                    </div>
-
-                </div>
-                <div class="row">
-                    <div class="column column-80">
-                        First public key <br /><small><%= Base.encode16(@node.first_public_key) %></small>
-                    </div>
-                </div>
-                <div class="row" style="margin-top: 10px">
-                    <div class="column column-25">
-                        IP <br /><small><%= :inet_parse.ntoa(@node.ip) %></small>
-                    </div>
-                    <div class="column column-25">
-                        Port <br /><small><%= @node.port %></small>
-                    </div>
-                    <div class="column column-25">
-                        Geo patch <br /><small><%= @node.geo_patch %></small>
-                    </div>
-                    <div class="column column-25">
-                        Network patch <br /><small><%= @node.network_patch %></small>
-                    </div>
-                </div>
-                <div class="row" style="margin-top: 10px">
-                    <div class="column column-25">
-                        Average availability <br /><small><%= @node.average_availability %></small>
-                    </div>
-                    <div class="column column-25">
-                        Authorized <br /><small><%= @node.authorized? %></small>
-                    </div>
-                    <div class="column column-25">
-                        Authorization date <br /><small><%= format_date(@node.authorization_date) %></small>
-                    </div>
-                    <div class="column column-25">
-                        Enrollment date <br /><small><%= format_date(@node.enrollment_date) %></small>
-                    </div>
-                </div>
+            <p class="heading">Authorized</p>
+            <span><%= @node.authorized? %></span>
+        </div>
+    </div>
+    <div class="columns">
+        <div class="column">
+            <div>
+                <p class="heading">Authorization date</p>
+                <span><%= format_date(@node.authorization_date) %></span>
             </div>
-        </header>
-        <section class="row" style="margin-top: 40px">
-            <div class="column">
-                <header class="row">
-                    <div class="column column-80">
-                        <h4>Transaction involvements</h4>
-                    </div>
-                     <div class="column column-20">
-                        Balance <%= @balance %>
-                    </div>
-                </header>
-                <section class="row" style="margin-top: 20px">
-                    <div class="column">
-                        <%= if @inputs != [] do %>
-                        <div class="row" style="margin-bottom: 10px">
-                            <div class="column column-80"><strong>Transaction address</strong></div>
-                            <div class="column"><strong>Reward</strong></div>
-                        </div>
-                        <% end %>
-                        <%= for { from, amount } <- @inputs do %>
-                        <div class="row">
-                            <div class="column column-80">
-                                <%= link to: Routes.live_path(@conn, UnirisWeb.TransactionDetailsLive, address: Base.encode16(from)) do%>
-                                <%= Base.encode16(from) %>
-                                <% end %>
-                            </div>
-                            <div class="column"><%= amount %></div>
-                        </div>
-                        <% end %>
-                    </div>
-                </section>
+        </div>
+        <div class="column">
+            <div>
+                <p class="heading">Enrollment date</p>
+                <span><%= format_date(@node.enrollment_date) %></span>
             </div>
-        </section>
-
+        </div>
+        <div class="column">
+            <div>
+                <p class="heading">UCO Balance</p>
+                <span><strong><%= format_float(@uco_balance) %> UCO</strong></span>
+            </div>
+        </div>
     </div>
 </div>

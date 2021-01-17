@@ -73,7 +73,7 @@ defmodule Uniris.Bootstrap do
 
     patch = P2P.get_geo_patch(ip)
 
-    if Sync.should_initialize_network?(Crypto.node_public_key(0), bootstrapping_seeds) do
+    if Sync.should_initialize_network?(bootstrapping_seeds) do
       Sync.initialize_network(ip, port)
       SelfRepair.put_last_sync_date(DateTime.utc_now())
       :ok = SelfRepair.start_scheduler(patch)

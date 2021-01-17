@@ -25,12 +25,13 @@ defmodule Uniris.Bootstrap.NetworkInit do
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   require Logger
 
@@ -101,15 +102,14 @@ defmodule Uniris.Bootstrap.NetworkInit do
     genesis_transfers_amount =
       tx
       |> Transaction.get_movements()
-      |> Enum.reduce(0.0, &(&2 + &1.amount))
-
-    unspent_output_amount = genesis_transfers_amount + Transaction.fee(tx)
+      |> Enum.reduce(Transaction.fee(tx), &(&2 + &1.amount))
 
     tx
     |> self_validation!([
       %UnspentOutput{
         from: Bootstrap.genesis_unspent_output_address(),
-        amount: unspent_output_amount
+        amount: genesis_transfers_amount,
+        type: :UCO
       }
     ])
     |> self_replication()
@@ -150,8 +150,11 @@ defmodule Uniris.Bootstrap.NetworkInit do
     end
 
     operations =
-      tx
-      |> LedgerOperations.from_transaction()
+      %LedgerOperations{
+        fee: Transaction.fee(tx),
+        transaction_movements: resolve_transaction_movements(tx)
+      }
+      |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.distribute_rewards(
         %Node{last_public_key: Crypto.node_public_key()},
         %Node{last_public_key: Crypto.node_public_key()},
@@ -171,6 +174,16 @@ defmodule Uniris.Bootstrap.NetworkInit do
     cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+  end
+
+  defp resolve_transaction_movements(tx) do
+    tx
+    |> Transaction.get_movements()
+    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
+      %{mvt | to: TransactionChain.resolve_last_address(to)}
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   def self_replication(tx = %Transaction{}) do

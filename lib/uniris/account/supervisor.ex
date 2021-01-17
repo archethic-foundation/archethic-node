@@ -3,6 +3,7 @@ defmodule Uniris.Account.Supervisor do
 
   use Supervisor
 
+  alias Uniris.Account.MemTables.NFTLedger
   alias Uniris.Account.MemTables.UCOLedger
   alias Uniris.Account.MemTablesLoader
 
@@ -14,6 +15,7 @@ defmodule Uniris.Account.Supervisor do
 
   def init(_args) do
     children = [
+      NFTLedger,
       UCOLedger,
       MemTablesLoader
     ]

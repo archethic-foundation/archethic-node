@@ -166,52 +166,60 @@ void decrypt(unsigned char* buf, int pos, int len) {
                     int cipher_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
                     pos+=4;
 
-                    if (len < pos + cipher_len) {
-                        sodium_memzero(sk, sizeof(sk));
-                        sodium_memzero(pk, sizeof(pk));
-                        write_error(buf, "missing cipher", 14);
+                    if (cipher_len < crypto_box_SEALBYTES) {
+                      sodium_memzero(sk, sizeof(sk));
+                      sodium_memzero(pk, sizeof(pk));
+                      write_error(buf, "invalid cipher size", 19);
                     } else {
-                        unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
-                        
-                        for (int i = 0; i < cipher_len; i++) {
-                            ciphertext[i] = buf[pos+i];
-                        }
-                        pos += cipher_len;
-
-                        int message_size = cipher_len - crypto_box_SEALBYTES;
-
-                        unsigned char *decrypted = (unsigned char *) malloc(message_size);
-                        if(crypto_box_seal_open(decrypted, ciphertext, cipher_len, x25519_pk, x25519_sk) != 0) {
+                        if (len < pos + cipher_len) {
                             sodium_memzero(sk, sizeof(sk));
                             sodium_memzero(pk, sizeof(pk));
-                            sodium_memzero(ciphertext, cipher_len);
-                            sodium_memzero(decrypted, message_size);
-                            write_error(buf, "decryption failed", 17);
+                            write_error(buf, "missing cipher", 14);
                         } else {
-                            int response_len = 5+message_size;
-                            unsigned char *response = (unsigned char *) malloc(response_len);
-
-                            //Encode request id
-                            for (int i = 0; i < 4; i++) {
-                                response[i] = buf[i];
+                            unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
+                            
+                           for (int i = 0; i < cipher_len; i++) {
+                                ciphertext[i] = buf[pos+i];
                             }
+                            pos += cipher_len;
 
-                            //Encode response success type
-                            response[4] = 1;
+                            int message_size = cipher_len - crypto_box_SEALBYTES;
 
-                            //Encode decrypted message
-                            for (int i = 0; i < message_size; i++){
-                                response[5+i] = decrypted[i];
+                            unsigned char *decrypted = (unsigned char *) malloc(message_size);
+                            if(crypto_box_seal_open(decrypted, ciphertext, cipher_len, x25519_pk, x25519_sk) != 0) {
+                                sodium_memzero(sk, sizeof(sk));
+                                sodium_memzero(pk, sizeof(pk));
+                                sodium_memzero(ciphertext, cipher_len);
+                                sodium_memzero(decrypted, message_size);
+                                write_error(buf, "decryption failed", 17);
+                            } else {
+                                int response_len = 5+message_size;
+                                unsigned char *response = (unsigned char *) malloc(response_len);
+
+                                //Encode request id
+                                for (int i = 0; i < 4; i++) {
+                                    response[i] = buf[i];
+                                }
+
+                                //Encode response success type
+                                response[4] = 1;
+
+                                //Encode decrypted message
+                                for (int i = 0; i < message_size; i++){
+                                    response[5+i] = decrypted[i];
+                                }
+                                write_response(response, response_len);
+
+                                sodium_memzero(sk, sizeof(sk));
+                                sodium_memzero(pk, sizeof(pk));
+                                sodium_memzero(ciphertext, cipher_len);
+                                sodium_memzero(decrypted, message_size);
+                                sodium_memzero(response, response_len);
                             }
-                            write_response(response, response_len);
-
-                            sodium_memzero(sk, sizeof(sk));
-                            sodium_memzero(pk, sizeof(pk));
-                            sodium_memzero(ciphertext, cipher_len);
-                            sodium_memzero(decrypted, message_size);
-                            sodium_memzero(response, response_len);
                         }
+                        
                     }
+
                 }
             }
         }

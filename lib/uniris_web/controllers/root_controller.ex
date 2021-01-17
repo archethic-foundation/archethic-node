@@ -3,15 +3,52 @@ defmodule UnirisWeb.RootController do
 
   use UnirisWeb, :controller
 
-  alias UnirisWeb.TransactionController
+  alias UnirisWeb.API.TransactionController
 
-  @uniris_io_tx_address "00CCB0371A3CA0775B73B0E9DE5175609411C1E470AF92F689A6E1B4F1DEF6C5C2"
-
-  # TODO: Get the TX address from DNSLink from the host referral otherwise redirect to the explorer
   def index(conn, params) do
+    case get_dnslink_address(conn) do
+      nil ->
+        redirect(conn, to: "/explorer")
+
+      address ->
+        redirect_to_last_transaction_content(address, conn, params)
+    end
+  end
+
+  defp get_dnslink_address(conn) do
+    conn
+    |> get_req_header("host")
+    |> get_extract_dnslink_address_from_host_header()
+  end
+
+  defp get_extract_dnslink_address_from_host_header([]), do: nil
+
+  defp get_extract_dnslink_address_from_host_header([host]) do
+    dns_name =
+      host
+      |> to_string()
+      |> String.split(":")
+      |> List.first()
+
+    case :inet_res.lookup('_dnslink.#{dns_name}', :in, :txt) do
+      [] ->
+        nil
+
+      [[dnslink_entry]] ->
+        case Regex.scan(~r/(?<=dnslink=\/uniris\/).*/, to_string(dnslink_entry)) do
+          [] ->
+            nil
+
+          [match] ->
+            List.first(match)
+        end
+    end
+  end
+
+  defp redirect_to_last_transaction_content(address, conn, params) do
     params =
       params
-      |> Map.put("address", @uniris_io_tx_address)
+      |> Map.put("address", address)
       |> Map.put("mime", "text/html")
 
     TransactionController.last_transaction_content(conn, params)

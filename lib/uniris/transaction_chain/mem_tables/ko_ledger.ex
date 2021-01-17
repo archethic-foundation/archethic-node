@@ -6,6 +6,7 @@ defmodule Uniris.TransactionChain.MemTables.KOLedger do
   @table_name :uniris_ko_ledger
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
 
   use GenServer
 

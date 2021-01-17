@@ -1,6 +1,6 @@
 defmodule UnirisWeb.CodeProposalsLive do
   @moduledoc false
-  use Phoenix.LiveView
+  use UnirisWeb, :live_view
 
   alias Phoenix.View
 

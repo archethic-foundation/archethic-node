@@ -9,7 +9,6 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   alias Uniris.Crypto
 
-  alias Uniris.P2P
   alias Uniris.P2P.Node
 
   use GenServer
@@ -50,7 +49,6 @@ defmodule Uniris.P2P.BootstrappingSeeds do
           {seeds, ""}
       end
 
-    load_seeds_into_ledger(seeds)
     {:ok, %{seeds: seeds, file: file}}
   end
 
@@ -69,12 +67,6 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     end
   end
 
-  defp load_seeds_into_ledger(seeds) do
-    seeds
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> Enum.each(&P2P.add_node/1)
-  end
-
   def handle_call(:list_seeds, _from, state = %{seeds: seeds}) do
     {:reply, seeds, state}
   end
@@ -85,8 +77,10 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     do: {:reply, :ok, state}
 
   def handle_call({:new_seeds, seeds}, _from, state = %{file: file}) do
+    first_node_public_key = Crypto.node_public_key(0)
+
     seeds
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> Enum.reject(&(&1.first_public_key == first_node_public_key))
     |> nodes_to_seeds
     |> flush_seeds(file)
 

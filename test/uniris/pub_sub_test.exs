@@ -48,7 +48,7 @@ defmodule Uniris.PubSubTest do
       timestamp = DateTime.utc_now()
       assert :ok = PubSub.notify_new_transaction("@Alice2", :transfer, timestamp)
 
-      assert_receive {:new_transaction, "@Alice2", :transfer, timestamp}
+      assert_receive {:new_transaction, "@Alice2", :transfer, ^timestamp}
     end
 
     test "should  notify subscribers for a given address" do
@@ -79,7 +79,7 @@ defmodule Uniris.PubSubTest do
     {:ok, _} = PubSub.register_to_node_update()
     node = %Node{ip: {127, 0, 0, 1}}
     assert :ok = PubSub.notify_node_update(node)
-    assert_receive {:node_update, node}
+    assert_receive {:node_update, ^node}
   end
 
   test "notify_code_proposal_deployment/3 should notify subscribers for code deployment" do

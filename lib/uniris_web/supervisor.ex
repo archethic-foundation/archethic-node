@@ -12,13 +12,14 @@ defmodule UnirisWeb.Supervisor do
 
   def init(_) do
     children = [
+      {Phoenix.PubSub, [name: UnirisWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
       # Start the endpoint when the application starts
       Endpoint,
       {Absinthe.Subscription, Endpoint},
       TransactionSubscriber
     ]
 
-    opts = [strategy: :one_for_one, name: UnirisWeb.Supervisor]
+    opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
   end
 end

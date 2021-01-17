@@ -5,90 +5,92 @@ defmodule Uniris.Contracts do
   """
 
   alias __MODULE__.Contract
+  alias __MODULE__.Contract.Conditions
+  alias __MODULE__.Contract.Constants
+  alias __MODULE__.Contract.Trigger
   alias __MODULE__.Interpreter
   alias __MODULE__.Loader
+  alias __MODULE__.TransactionLookup
   alias __MODULE__.Worker
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.DateChecker, as: CronDateChecker
+
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
   @doc ~S"""
   Parse a smart contract code to check if it's valid or not
 
   ## Examples
 
-      iex> Contracts.valid_contract? "
-      ...>   trigger datetime: 1573745454
-      ...>   actions do
-      ...>    \"Closing votes\"
-      ...>   end
+      iex> "
+      ...>    condition origin_family: biometric
+      ...>    condition inherit: regex_match?(next_transaction.content, \"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
+      ...>    actions triggered_by: datetime, at: 1601039923 do
+      ...>      set_type hosting
+      ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
+      ...>    end  
       ...> "
+      ...> |> Contracts.valid_contract?()
       true
-
-  Returns false when an unexpected symbol is found.
-  Allows only whitelisted symbols to prevent access to critical functions and ensures safety.
-
-      iex> Contracts.valid_contract? "
-      ...>   actions do
-      ...>     System.user_home
-      ...>   end
-      ...> "
-      false
-
-  Returns false when type check errors for triggers or conditions
-
-      iex> Contracts.valid_contract? "
-      ...>   trigger datetime: 0000000111
-      ...> "
-      false
-
-      iex> Contracts.valid_contract? "
-      ...>   condition post_paid_fee: \"0000000000011198718\"
-      ...> "
-      false
-
   """
   @spec valid_contract?(binary()) :: boolean()
   def valid_contract?(contract_code) when is_binary(contract_code) do
-    case Interpreter.parse(contract_code) do
+    case parse(contract_code) do
       {:ok, _} ->
         true
 
-      {:error, _} ->
+      _ ->
         false
     end
   end
 
-  @doc """
+  @doc ~S"""
   Parse a smart contract code and return its representation
 
   ## Examples
 
       iex> "
-      ...>    trigger datetime: 1601039923
       ...>    condition origin_family: biometric
-      ...>    actions do
-      ...>
+      ...>    condition inherit: regex_match?(next_transaction.content, \"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
+      ...>    actions triggered_by: datetime, at: 1601039923 do
+      ...>      set_type hosting
+      ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
       ...>    end  
       ...> "
       ...> |> Contracts.parse()
-      {:ok, %Contract{
-        actions: {:__block__, [], []},
-        triggers: %Triggers{
-          datetime: ~U[2020-09-25 13:18:43Z]
-        },
-        conditions: %Conditions{
-          response: nil,
-          inherit: nil,
-          post_paid_fee: nil,
-          origin_family: :biometric
-        }
-      }}
+      {:ok,
+        %Contract{
+          conditions: %Conditions{
+            inherit: {:regex_match?, [line: 2], [{{:., [line: 2], [{:next_transaction, [line: 2], nil}, :content]}, [no_parens: true, line: 2], []}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]},
+            origin_family: :biometric,
+            transaction: nil
+          },
+          constants: %Constants{
+            contract: nil,
+            transaction: nil
+          },
+          triggers: [
+            %Trigger{
+              actions: {:__block__, [], [{:set_type, [line: 4], [{:hosting, [line: 4], nil}]}, {:set_content, [line: 5], ["Mr.X: 10, Mr.Y: 8"]}]},
+              opts: [at: ~U[2020-09-25 13:18:43Z]],
+              type: :datetime
+            }
+          ]
+        }}
   """
-  @spec parse(binary()) :: {:ok, Contract.t()} | {:error, Interpreter.parsing_error()}
-  def parse(code) do
-    case Interpreter.parse(code) do
-      {:ok, ast} ->
-        {:ok, Contract.from_ast(ast)}
+  @spec parse(binary()) ::
+          {:ok, Contract.t()}
+          | {:error, Interpreter.parsing_error()}
+          | {:error, :missing_inherit_constraints}
+  def parse(contract_code) when is_binary(contract_code) do
+    case Interpreter.parse(contract_code) do
+      {:ok, %Contract{conditions: %Conditions{inherit: nil}}} ->
+        {:error, :missing_inherit_constraints}
+
+      {:ok, contract = %Contract{}} ->
+        {:ok, contract}
 
       {:error, _} = e ->
         e
@@ -100,21 +102,79 @@ defmodule Uniris.Contracts do
   """
   @spec parse!(binary()) :: Contract.t()
   def parse!(contract_code) when is_binary(contract_code) do
-    {:ok, ast} = Interpreter.parse(contract_code)
-    Contract.from_ast(ast)
+    {:ok, contract} = parse(contract_code)
+    contract
   end
 
   @doc """
   Execute a contract retrieved from its address with an incoming transaction
   and validate it according to the smart contract conditions
   """
-  def execute(address, tx = %Transaction{}) when is_binary(address) do
-    Worker.execute(address, tx)
-  end
+  @spec execute(binary(), Transaction.t()) :: :ok | {:error, :invalid_condition}
+  defdelegate execute(address, tx), to: Worker
 
   @doc """
   Load transaction into the Smart Contract context leveraging the interpreter
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: Loader
+
+  @spec accept_new_contract?(Transaction.t(), Transaction.t()) :: boolean()
+  def accept_new_contract?(
+        prev_tx = %Transaction{data: %TransactionData{code: code}},
+        next_tx = %Transaction{}
+      ) do
+    {:ok,
+     %Contract{
+       triggers: triggers,
+       conditions: %Conditions{inherit: inherit_constraints}
+     }} = Interpreter.parse(code)
+
+    inherit_constants = [
+      previous_transaction: prev_tx |> Constants.from_transaction() |> Enum.into(%{}),
+      next_transaction: next_tx |> Constants.from_transaction() |> Enum.into(%{})
+    ]
+
+    with true <-
+           Interpreter.can_execute?(Macro.to_string(inherit_constraints), inherit_constants),
+         true <- Enum.any?(triggers, &valid_from_trigger?(&1, next_tx)) do
+      true
+    else
+      false ->
+        false
+
+      nil ->
+        false
+    end
+  end
+
+  defp valid_from_trigger?(%Trigger{type: :datetime, opts: [at: datetime]}, %Transaction{
+         timestamp: timestamp
+       }) do
+    DateTime.diff(timestamp, datetime) == 0
+  end
+
+  defp valid_from_trigger?(%Trigger{type: :interval, opts: [at: interval]}, %Transaction{
+         timestamp: timestamp
+       }) do
+    interval
+    |> CronParser.parse!(true)
+    |> CronDateChecker.matches_date?(DateTime.to_naive(timestamp))
+  end
+
+  defp valid_from_trigger?(%Trigger{type: :transaction}, _), do: true
+
+  @doc """
+  List the address of the transaction which has contacted a smart contract 
+  """
+  @spec list_contract_transactions(binary()) :: list(binary())
+  defdelegate list_contract_transactions(address),
+    to: TransactionLookup,
+    as: :list_contract_transactions
+
+  @doc """
+  Termine a smart contract execution when a new transaction on the chain happened 
+  """
+  @spec stop_contract(binary()) :: :ok
+  defdelegate stop_contract(address), to: Loader
 end

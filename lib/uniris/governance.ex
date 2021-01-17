@@ -28,9 +28,10 @@ defmodule Uniris.Governance do
   def list_code_proposals do
     TransactionChain.list_transactions_by_type(:code_proposal, @proposal_tx_select_fields)
     |> Stream.map(fn tx ->
-      tx
-      |> Proposal.from_transaction()
-      |> Proposal.add_approvals(
+      {:ok, proposal} = Proposal.from_transaction(tx)
+
+      Proposal.add_approvals(
+        proposal,
         TransactionChain.list_signatures_for_pending_transaction(tx.address)
       )
     end)
@@ -60,6 +61,12 @@ defmodule Uniris.Governance do
   defdelegate list_source_files, to: Code
 
   @doc """
+  Show the content of a file from the last changes
+  """
+  @spec file_content(binary()) :: binary()
+  defdelegate file_content(filename), to: Code
+
+  @doc """
   Determine if the proposal changes are valid
   """
   @spec valid_code_changes?(Proposal.t()) :: boolean
@@ -70,6 +77,12 @@ defmodule Uniris.Governance do
   """
   @spec pool_member?(Crypto.key(), Pools.pool()) :: boolean()
   defdelegate pool_member?(public_key, pool), to: Pools, as: :member_of?
+
+  @doc """
+  List the member keys in the given pool
+  """
+  @spec pool_members(Pools.pool()) :: list(Crypto.key())
+  defdelegate pool_members(pool), to: Pools, as: :members_of
 
   @doc """
   List the integration logs for the given code proposal address

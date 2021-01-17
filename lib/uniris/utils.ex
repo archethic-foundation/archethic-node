@@ -50,8 +50,10 @@ defmodule Uniris.Utils do
   """
   @spec configurable_children(
           list(
-            {process :: atom(), args :: list(), opts :: list()}
-            | {process :: atom(), args :: list()}
+            process ::
+              atom()
+              | {process :: atom(), args :: list()}
+              | {process :: atom(), args :: list(), opts :: list()}
           )
         ) ::
           list(Supervisor.child_spec())
@@ -120,25 +122,68 @@ defmodule Uniris.Utils do
 
   ## Examples
 
-      iex> %{ "a" => "hello", "b" => "hola", "c" => %{"d" => "hi"}} |> Utils.atomize_keys()
+      # iex> %{ "a" => "hello", "b" => "hola", "c" => %{"d" => "hi"}} |> Utils.atomize_keys()
+      # %{
+      #   a: "hello",
+      #   b: "hola",
+      #   c: %{
+      #     d: "hi"
+      #   }
+      # }
+
+      # iex> %{ "a" => "hello", "b.c" => "hi" } |> Utils.atomize_keys(true)
+      # %{
+      #   a: "hello",
+      #   b: %{
+      #     c: "hi"
+      #   }
+      # }
+
+      iex> %{ 
+      ...>  "address" => <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85,
+      ...>    181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51,
+      ...>    236, 70, 70>>,
+      ...>  "type" => "transfer",
+      ...>  "validation_stamp.ledger_operations.unspent_outputs" => [
+      ...>     %{
+      ...>       "amount" => 9.989999771118164,
+      ...>       "from" => <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90,
+      ...>         85, 181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4,
+      ...>         51, 236, 70, 70>>,
+      ...>       "nft_address" => nil,
+      ...>       "type" => "UCO"
+      ...>     }
+      ...>  ],
+      ...>  "validation_stamp.signature" => <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172,
+      ...>    88, 55, 168, 10, 33, 112, 140, 182, 231, 143, 105, 61, 245, 34, 34, 171,
+      ...>    221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2, 33, 0, 141, 28, 71,
+      ...>    218, 224, 201>>
+      ...> }
+      ...> |> Utils.atomize_keys(true)
       %{
-        a: "hello",
-        b: "hola",
-        c: %{
-          d: "hi"
+        address: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251, 
+                    55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
+        type: "transfer",
+        validation_stamp: %{
+          ledger_operations: %{
+            unspent_outputs: [%{
+              amount: 9.989999771118164,
+              from: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90,
+                85, 181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4,
+                51, 236, 70, 70>>,
+              type: "UCO",
+              nft_address: nil
+            }]
+          },
+          signature: <<48, 70, 2, 33, 0, 182, 126, 146, 243, 172,
+            88, 55, 168, 10, 33, 112, 140, 182, 231, 143, 105, 61, 245, 34, 34, 171,
+            221, 48, 165, 205, 196, 124, 240, 132, 54, 75, 237, 2, 33, 0, 141, 28, 71,
+            218, 224, 201>>
         }
       }
 
-      iex> %{ "a" => "hello", "b.c" => "hi" } |> Utils.atomize_keys(true)
-      %{
-        a: "hello",
-        b: %{
-          c: "hi"
-        }
-      }
-
-      iex> %{ "a.b.c" => "hello" } |> Utils.atomize_keys(false)
-      %{ "a.b.c": "hello"}
+      # iex> %{ "a.b.c" => "hello" } |> Utils.atomize_keys(false)
+      # %{ "a.b.c": "hello"}
   """
   @spec atomize_keys(map(), nest_dot? :: boolean()) :: map()
   def atomize_keys(map, nest_dot? \\ false)
@@ -153,7 +198,7 @@ defmodule Uniris.Utils do
       {k, v}, acc when is_binary(k) ->
         if String.valid?(k) do
           if nest_dot? and String.contains?(k, ".") do
-            path_insert(String.split(k, "."), atomize_keys(v, nest_dot?), acc)
+            put_in(acc, nested_path(String.split(k, ".")), atomize_keys(v, nest_dot?))
           else
             Map.put(acc, String.to_atom(k), atomize_keys(v, nest_dot?))
           end
@@ -176,12 +221,14 @@ defmodule Uniris.Utils do
     not_a_map
   end
 
-  defp path_insert([key | []], value, acc) do
-    Map.put(acc, String.to_atom(key), value)
+  defp nested_path(_keys, acc \\ [])
+
+  defp nested_path([key | []], acc) do
+    Enum.reverse([Access.key(String.to_atom(key)) | acc])
   end
 
-  defp path_insert([key | rest], value, acc) do
-    Map.put(acc, String.to_atom(key), path_insert(rest, value, %{}))
+  defp nested_path([key | rest], acc) do
+    nested_path(rest, [Access.key(String.to_atom(key), %{}) | acc])
   end
 
   @doc """
@@ -254,7 +301,7 @@ defmodule Uniris.Utils do
       iex> Utils.wrap_binary([[<<1::1, 1::1, 1::1>>, "abc"], "hello"])
       [ [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
   """
-  @spec wrap_binary(bitstring() | list(bitstring())) :: binary()
+  @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
   def wrap_binary(bits) when is_bitstring(bits) do
     size = bit_size(bits)
 
@@ -301,6 +348,8 @@ defmodule Uniris.Utils do
       iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
       <<1::1, 1::1, 0::1, 1::1>>
   """
+  def unwrap_bitstring("", 0), do: <<>>
+
   def unwrap_bitstring(bitstring, data_size)
       when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
     wrapped_bitstring_size = bit_size(bitstring)
@@ -323,7 +372,7 @@ defmodule Uniris.Utils do
      iex> Utils.take_in(%{a: "hello", b: %{c: "hi", d: "hola"}}, [:a, b: [:d]])
      %{a: "hello", b: %{d: "hola"}}
   """
-  @spec take_in(map(), Keyword.list()) :: map()
+  @spec take_in(map(), Keyword.t()) :: map()
   def take_in(map = %{}, []), do: map
 
   def take_in(map = %{}, fields) when is_list(fields) do

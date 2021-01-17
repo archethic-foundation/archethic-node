@@ -14,6 +14,7 @@ defmodule Uniris.TransactionChain.Transaction do
 
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
+  alias Uniris.TransactionChain.TransactionData.NFTLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   defstruct [
@@ -47,9 +48,9 @@ defmodule Uniris.TransactionChain.Transaction do
           type: transaction_type(),
           timestamp: DateTime.t(),
           data: TransactionData.t(),
-          previous_public_key: Crypto.key(),
-          previous_signature: binary(),
-          origin_signature: binary(),
+          previous_public_key: nil | Crypto.key(),
+          previous_signature: nil | binary(),
+          origin_signature: nil | binary(),
           validation_stamp: nil | ValidationStamp.t(),
           cross_validation_stamps: nil | list(CrossValidationStamp.t())
         }
@@ -68,6 +69,7 @@ defmodule Uniris.TransactionChain.Transaction do
           | :hosting
           | :code_proposal
           | :code_approval
+          | :nft
 
   @transaction_types [
     :identity,
@@ -79,7 +81,8 @@ defmodule Uniris.TransactionChain.Transaction do
     :beacon,
     :hosting,
     :code_proposal,
-    :code_approval
+    :code_approval,
+    :nft
   ]
 
   @doc """
@@ -260,6 +263,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:hosting), do: 7
   def serialize_type(:code_proposal), do: 8
   def serialize_type(:code_approval), do: 9
+  def serialize_type(:nft), do: 10
 
   @doc """
   Parse a serialize transaction type
@@ -275,6 +279,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(7), do: :hosting
   def parse_type(8), do: :code_proposal
   def parse_type(9), do: :code_approval
+  def parse_type(10), do: :nft
 
   @doc """
   Determines if a transaction type is a network one
@@ -297,16 +302,48 @@ defmodule Uniris.TransactionChain.Transaction do
 
   @doc """
   Get the transfers and transaction movements from a transaction
+
+  ## Examples
+
+      iex> %Transaction{
+      ...>  data: %TransactionData{
+      ...>    ledger: %Ledger{
+      ...>      uco: %UCOLedger{
+      ...>        transfers: [
+      ...>          %UCOLedger.Transfer{to: "@Alice1", amount: 10}
+      ...>        ]
+      ...>      },
+      ...>      nft: %NFTLedger{
+      ...>        transfers: [
+      ...>          %NFTLedger.Transfer{to: "@Alice1", amount: 3, nft: "@BobNFT"}
+      ...>        ]
+      ...>      }
+      ...>    }
+      ...>  }
+      ...> } |> Transaction.get_movements()
+      [
+        %TransactionMovement{
+          to: "@Alice1", amount: 10, type: :UCO,
+        },
+        %TransactionMovement{
+          to: "@Alice1", amount: 3, type: {:NFT, "@BobNFT"},
+        }
+      ]
   """
-  @spec get_movements(t()) :: TransactionMovement.t()
+  @spec get_movements(t()) :: list(TransactionMovement.t())
   def get_movements(%__MODULE__{
         data: %TransactionData{
           ledger: %Ledger{
-            uco: %UCOLedger{transfers: uco_transfers}
+            uco: %UCOLedger{transfers: uco_transfers},
+            nft: %NFTLedger{transfers: nft_transfers}
           }
         }
       }) do
-    Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount})
+    Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
+      Enum.map(
+        nft_transfers,
+        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:NFT, &1.nft}}
+      )
   end
 
   @doc """
@@ -412,6 +449,8 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>         node_movements: [],
       ...>         unspent_outputs: []
       ...>      },
+      ...>      recipients: [],
+      ...>      contract_validation: true,
       ...>      signature: <<47, 48, 215, 147, 153, 120, 199, 102, 130, 0, 51, 138, 164, 146, 99, 2, 74,
       ...>       116, 89, 117, 185, 72, 109, 10, 198, 124, 44, 66, 126, 43, 85, 186, 105, 169,
       ...>       159, 56, 129, 179, 207, 176, 97, 190, 162, 240, 186, 164, 58, 41, 221, 27,
@@ -446,7 +485,9 @@ defmodule Uniris.TransactionChain.Transaction do
       0, 0, 0, 0,
       # Nb authorized keys
       0,
-      # Nb transfers
+      # Nb UCO transfers
+      0,
+      # Nb NFT transfers
       0,
       # Nb recipients
       0,
@@ -485,6 +526,10 @@ defmodule Uniris.TransactionChain.Transaction do
       0,
       # Nb unspent outputs,
       0,
+      # Nb resolved recipients,
+      0,
+      # Contract validation
+      1::1,
       # Signature size
       64,
       # Signature
@@ -588,7 +633,7 @@ defmodule Uniris.TransactionChain.Transaction do
 
       iex> <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2, 0, 0, 1, 115, 40, 130, 21, 209,
-      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
+      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
       ...> 131, 180, 213, 64, 65, 66, 248, 246, 119, 69, 36, 103, 249, 201, 252, 154, 69, 24, 48, 18, 63,
       ...> 65, 5, 10, 248, 37, 245, 101, 19, 118, 235, 82, 161, 165, 62, 43, 249, 237,
@@ -602,7 +647,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...> 186, 184, 109, 13, 200, 136, 34, 241, 99, 99, 210, 172, 143, 104, 160, 99,
       ...> 0, 199, 216, 73, 158, 82, 76, 158, 8, 215, 22, 186, 166, 45, 153, 17, 22, 251,
       ...> 133, 212, 35, 220, 155, 242, 198, 93, 133, 134, 244, 226, 122, 87, 17,
-      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 64, 47, 48, 215, 147, 153, 120, 199,
+      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 1::1, 64, 47, 48, 215, 147, 153, 120, 199,
       ...> 102, 130, 0, 51, 138, 164, 146, 99, 2, 74, 116, 89, 117, 185, 72, 109, 10, 198, 124,
       ...> 44, 66, 126, 43, 85, 186, 105, 169, 159, 56, 129, 179, 207, 176, 97, 190, 162, 240,
       ...> 186, 164, 58, 41, 221, 27, 234, 185, 105, 75, 81, 238, 158, 13, 150, 184, 31, 247, 79, 251,
@@ -641,6 +686,7 @@ defmodule Uniris.TransactionChain.Transaction do
                 node_movements: [],
                 unspent_outputs: []
              },
+             recipients: [],
              signature: <<47, 48, 215, 147, 153, 120, 199, 102, 130, 0, 51, 138, 164, 146, 99, 2, 74,
               116, 89, 117, 185, 72, 109, 10, 198, 124, 44, 66, 126, 43, 85, 186, 105, 169,
               159, 56, 129, 179, 207, 176, 97, 190, 162, 240, 186, 164, 58, 41, 221, 27,
@@ -792,6 +838,8 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec fee(t()) :: float()
   def fee(%__MODULE__{type: :node}), do: 0.0
   def fee(%__MODULE__{type: :node_shared_secrets}), do: 0.0
+  def fee(%__MODULE__{type: :identity}), do: 0.0
+  def fee(%__MODULE__{type: :keychain}), do: 0.0
 
   def fee(%__MODULE__{address: address}) do
     if address == Bootstrap.genesis_address() do

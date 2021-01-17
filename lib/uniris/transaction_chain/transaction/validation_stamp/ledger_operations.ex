@@ -25,6 +25,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionInput
 
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements
@@ -40,20 +42,44 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
         }
 
   @doc """
-  Create a new ledger operations from a pending transaction
-  """
-  @spec from_transaction(Transaction.t()) :: t()
-  def from_transaction(tx = %Transaction{validation_stamp: nil, cross_validation_stamps: nil}) do
-    movements =
-      tx
-      |> Transaction.get_movements()
-      |> Enum.map(&%TransactionMovement{to: &1.to, amount: &1.amount})
+  Build some ledger operations from a specific transaction
 
-    %__MODULE__{
-      fee: Transaction.fee(tx),
-      transaction_movements: movements
+  ## Examples
+
+      iex> LedgerOperations.from_transaction(%LedgerOperations{},
+      ...>   %Transaction{
+      ...>     address: "@NFT2", 
+      ...>     type: :nft, 
+      ...>     data: %TransactionData{content: "initial supply: 1000"}
+      ...>   }
+      ...> )
+      %LedgerOperations{
+          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 1_000, type: {:NFT, "@NFT2"}}]
+      }
+  """
+  @spec from_transaction(t(), Transaction.t()) :: t()
+  def from_transaction(ops = %__MODULE__{}, %Transaction{
+        address: address,
+        type: :nft,
+        data: %TransactionData{content: content}
+      }) do
+    [[match | _]] = Regex.scan(~r/(?<=initial supply:).*\d/mi, content)
+
+    initial_supply =
+      match
+      |> String.trim()
+      |> String.replace(" ", "")
+      |> String.to_integer()
+
+    %{
+      ops
+      | unspent_outputs: [
+          %UnspentOutput{from: address, amount: initial_supply, type: {:NFT, address}}
+        ]
     }
   end
+
+  def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops
 
   @doc """
   Create node rewards and movements based on the transaction fee by distributing it using the different rates
@@ -248,38 +274,28 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 200.0, type: {:NFT, "@TomNFT"}},
       ...>    ],
       ...>    fee: 0.40
       ...> }
       ...> |> LedgerOperations.total_to_spend()
-      12.97
+      %{ uco: 12.97, nft: %{ "@TomNFT" => 200.0 } }
   """
-  @spec total_to_spend(t()) :: float()
+  @spec total_to_spend(t()) :: %{:uco => float(), :nft => %{binary() => float()}}
   def total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
-    uco_to_spend = Enum.reduce(transaction_movements, 0.0, &(&2 + &1.amount))
-    uco_to_spend + fee
+    ledger_balances(transaction_movements, %{uco: fee, nft: %{}})
   end
 
-  @doc """
-  Determine if the funds are sufficient with the given amount of unspent outputs for total of uco to spend
+  defp ledger_balances(movements, acc \\ %{uco: 0.0, nft: %{}}) do
+    Enum.reduce(movements, acc, fn
+      %{type: :UCO, amount: amount}, acc ->
+        Map.update!(acc, :uco, &(&1 + amount))
 
-  ## Examples
-
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17}
-      ...>    ],
-      ...>    fee: 0.40
-      ...> }
-      ...> |> LedgerOperations.enough_funds?(20.0)
-      true
-  """
-  @spec enough_funds?(t(), float()) :: boolean()
-  def enough_funds?(ops = %__MODULE__{}, amount) when is_float(amount) do
-    total_to_spend(ops) <= amount
+      %{type: {:NFT, nft_address}, amount: amount}, acc ->
+        update_in(acc, [:nft, Access.key(nft_address, 0.0)], &(&1 + amount))
+    end)
   end
 
   @doc """
@@ -289,8 +305,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
+      ...>      %TransactionMovement{to: "@Tom4", amount: 5, type: {:NFT, "@BobNFT"}}
       ...>    ],
       ...>    fee: 0.40
       ...> }
@@ -299,18 +316,51 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
+      ...>      %TransactionMovement{to: "@Tom4", amount: 5, type: {:NFT, "@BobNFT"}}
       ...>    ],
       ...>    fee: 0.40
       ...> }
-      ...> |> LedgerOperations.sufficient_funds?([%UnspentOutput{from: "@Charlie5", amount: 30}])
+      ...> |> LedgerOperations.sufficient_funds?([
+      ...>     %UnspentOutput{from: "@Charlie5", amount: 30, type: :UCO},
+      ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
+      ...> ])
+      true
+      
+      iex> %LedgerOperations{
+      ...>    transaction_movements: [],
+      ...>    fee: 0.40
+      ...> }
+      ...> |> LedgerOperations.sufficient_funds?([
+      ...>     %UnspentOutput{from: "@Charlie5", amount: 30, type: :UCO},
+      ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
+      ...> ])
       true
   """
   @spec sufficient_funds?(t(), list(UnspentOutput.t() | TransactionInput.t())) :: boolean()
   def sufficient_funds?(operations = %__MODULE__{}, inputs) when is_list(inputs) do
-    amount_received = Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
-    amount_received >= total_to_spend(operations)
+    %{uco: uco_balance, nft: nfts_received} = ledger_balances(inputs)
+    %{uco: uco_to_spend, nft: nfts_to_spend} = total_to_spend(operations)
+    uco_balance >= uco_to_spend and sufficient_nfts?(nfts_received, nfts_to_spend)
+  end
+
+  defp sufficient_nfts?(nfts_received = %{}, nft_to_spend = %{})
+       when map_size(nfts_received) == 0 and map_size(nft_to_spend) > 0,
+       do: false
+
+  defp sufficient_nfts?(_nfts_received, nfts_to_spend) when map_size(nfts_to_spend) == 0, do: true
+
+  defp sufficient_nfts?(nfts_received, nfts_to_spend) do
+    Enum.all?(nfts_to_spend, fn {nft_address, amount_to_spend} ->
+      case Map.get(nfts_received, nft_address) do
+        nil ->
+          false
+
+        recv_amount ->
+          recv_amount >= amount_to_spend
+      end
+    end)
   end
 
   @doc """
@@ -320,83 +370,148 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
   ## Examples
 
+    # When a single unspent output is sufficient to satisfy the transaction movements 
+
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
       ...>    ],
       ...>    fee: 0.40
       ...> }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", [%UnspentOutput{from: "@Bob3", amount: 20}])
+      ...> |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>    %UnspentOutput{from: "@Bob3", amount: 20, type: :UCO}
+      ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 10.4},
-            %TransactionMovement{to: "@Charlie2", amount: 2.17}
+            %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+            %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
           ],
           fee: 0.40,
           node_movements: [],
           unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 7.029999999999999}
+            %UnspentOutput{from: "@Alice2", amount: 7.029999999999999, type: :UCO}
+          ]
+      }
+
+    # When multiple little unspent output are sufficient to satisfy the transaction movements 
+
+      iex> %LedgerOperations{
+      ...>    transaction_movements: [
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
+      ...>    ],
+      ...>    fee: 0.40
+      ...> }
+      ...> |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>    %UnspentOutput{from: "@Bob3", amount: 5, type: :UCO},
+      ...>    %UnspentOutput{from: "@Tom4", amount: 7, type: :UCO},
+      ...>    %UnspentOutput{from: "@Christina", amount: 4, type: :UCO},
+      ...>    %UnspentOutput{from: "@Hugo", amount: 8, type: :UCO}
+      ...> ])
+      %LedgerOperations{
+          transaction_movements: [
+            %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
+            %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
+          ],
+          fee: 0.40,
+          node_movements: [],
+          unspent_outputs: [
+            %UnspentOutput{from: "@Alice2", amount: 11.0299999999999994, type: :UCO},
+          ]
+      }
+
+    # When using NFT unspent outputs are sufficient to satisfy the transaction movements 
+
+      iex> %LedgerOperations{
+      ...>    transaction_movements: [
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}},
+      ...>    ],
+      ...>    fee: 0.40
+      ...> }
+      ...> |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>    %UnspentOutput{from: "@Charlie1", amount: 2.0, type: :UCO},
+      ...>    %UnspentOutput{from: "@Bob3", amount: 12, type: {:NFT, "@CharlieNFT"}}
+      ...> ])
+      %LedgerOperations{
+          transaction_movements: [
+            %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+          ],
+          fee: 0.40,
+          node_movements: [],
+          unspent_outputs: [
+            %UnspentOutput{from: "@Alice2", amount: 1.60, type: :UCO},
+            %UnspentOutput{from: "@Alice2", amount: 2.0, type: {:NFT, "@CharlieNFT"}}
+          ]
+      }
+
+    #  When multiple NFT unspent outputs are sufficient to satisfy the transaction movements 
+
+      iex> %LedgerOperations{
+      ...>    transaction_movements: [
+      ...>      %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}},
+      ...>    ],
+      ...>    fee: 0.40
+      ...> }
+      ...> |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>    %UnspentOutput{from: "@Charlie1", amount: 2.0, type: :UCO},
+      ...>    %UnspentOutput{from: "@Bob3", amount: 5, type: {:NFT, "@CharlieNFT"}},
+      ...>    %UnspentOutput{from: "@Hugo5", amount: 7, type: {:NFT, "@CharlieNFT"}},
+      ...>    %UnspentOutput{from: "@Tom1", amount: 7, type: {:NFT, "@CharlieNFT"}}
+      ...> ])
+      %LedgerOperations{
+          transaction_movements: [
+            %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+          ],
+          fee: 0.40,
+          node_movements: [],
+          unspent_outputs: [
+            %UnspentOutput{from: "@Alice2", amount: 1.60, type: :UCO},
+            %UnspentOutput{from: "@Alice2", amount: 9.0, type: {:NFT, "@CharlieNFT"}}
           ]
       }
   """
   @spec consume_inputs(
           ledger_operations :: t(),
           change_address :: binary(),
-          inputs :: UnspentOutput.t() | TransactionInput.t()
+          inputs :: list(UnspentOutput.t() | TransactionInput.t())
         ) ::
           t()
-  def consume_inputs(ops = %__MODULE__{}, change_address, inputs) do
-    uco_amount = Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
+  def consume_inputs(ops = %__MODULE__{}, change_address, inputs)
+      when is_binary(change_address) and is_list(inputs) do
+    if sufficient_funds?(ops, inputs) do
+      %{uco: uco_balance, nft: nfts_received} = ledger_balances(inputs)
+      %{uco: uco_to_spend, nft: nfts_to_spend} = total_to_spend(ops)
 
-    if uco_amount >= total_to_spend(ops) do
-      sorted_inputs = Enum.sort_by(inputs, & &1.amount)
-
-      new_unspent_outputs =
-        do_consume_inputs(
-          change_address,
-          Enum.map(sorted_inputs, &%UnspentOutput{from: &1.from, amount: &1.amount}),
-          total_to_spend(ops),
-          0.0
-        )
-
-      %{ops | unspent_outputs: new_unspent_outputs}
+      %{
+        ops
+        | unspent_outputs: [
+            %UnspentOutput{from: change_address, amount: uco_balance - uco_to_spend, type: :UCO}
+            | new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address)
+          ]
+      }
     else
-      %{ops | unspent_outputs: []}
+      ops
     end
   end
 
-  defp do_consume_inputs(change_address, unspent_outputs, remaining, change)
-       when remaining == 0.0 and change > 0.0 do
-    [%UnspentOutput{amount: change, from: change_address} | unspent_outputs]
-  end
+  defp new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address) do
+    Enum.reduce(nfts_to_spend, [], fn {nft_address, amount_to_spend}, acc ->
+      case Map.get(nfts_received, nft_address) do
+        nil ->
+          acc
 
-  defp do_consume_inputs(_change_address, unspent_outputs, remaining, _change)
-       when remaining == 0.0,
-       do: unspent_outputs
-
-  # When a full unspent output is sufficient for the entire amount to spend
-  # The unspent output is fully consumed and remaining part is return as changed
-  defp do_consume_inputs(
-         change_address,
-         [%UnspentOutput{amount: amount} | rest],
-         remaining,
-         change
-       )
-       when amount >= remaining do
-    do_consume_inputs(change_address, rest, 0.0, change + (amount - remaining))
-  end
-
-  # When a the unspent_output is a part of the amount to spend
-  # The unspent_output is fully consumed and the iteration continue utils the the remaining amount to spend are consumed
-  defp do_consume_inputs(
-         change_address,
-         [%UnspentOutput{amount: amount} | rest],
-         remaining,
-         change
-       )
-       when amount < remaining do
-    do_consume_inputs(change_address, rest, abs(remaining - amount), change)
+        recv_amount ->
+          [
+            %UnspentOutput{
+              from: change_address,
+              amount: recv_amount - amount_to_spend,
+              type: {:NFT, nft_address}
+            }
+            | acc
+          ]
+      end
+    end)
   end
 
   @doc """
@@ -409,7 +524,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       iex> %LedgerOperations{
       ...>   transaction_movements: [
       ...>      %TransactionMovement{to: <<0, 167, 158, 251, 11, 241, 12, 240, 78, 125, 145, 72, 181, 180, 207, 109, 100,
-      ...>        239, 164, 17, 54, 91, 246, 111, 162, 112, 35, 174, 44, 92, 45, 57, 213>>, amount: 5.3}
+      ...>        239, 164, 17, 54, 91, 246, 111, 162, 112, 35, 174, 44, 92, 45, 57, 213>>, amount: 5.3, type: :UCO}
       ...>   ],
       ...>   node_movements: [
       ...>      %NodeMovement{to: <<82, 181, 95, 101, 84, 42, 93, 217, 66, 3, 234, 7, 7, 100, 88, 24, 65, 146, 60,
@@ -443,7 +558,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>     %TransactionMovement{
       ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 10.2
+      ...>       amount: 10.2,
+      ...>       type: :UCO
       ...>     }
       ...>   ],
       ...>   node_movements: [
@@ -458,7 +574,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>     %UnspentOutput{
       ...>       from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 2.0
+      ...>       amount: 2.0,
+      ...>       type: :UCO
       ...>     }
       ...>   ]
       ...> }
@@ -473,6 +590,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Transaction movement amount
       "@$ffffff",
+      # Transaction movement type (UCO)
+      0,
       # Nb of node movements
       1,
       # Node public key
@@ -490,7 +609,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Unspent output amount
-      64, 0, 0, 0, 0, 0, 0, 0
+      64, 0, 0, 0, 0, 0, 0, 0,
+      ## Unspent output type (UCO)
+      0
       >>
   """
   def serialize(%__MODULE__{
@@ -522,11 +643,11 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> <<63, 185, 153, 153, 153, 153, 153, 154, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195,
       ...> 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47,
-      ...> 158, 139, 207, "@$ffffff", 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
+      ...> 158, 139, 207, "@$ffffff", 0, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
       ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 63, 211, 51, 51, 51, 51, 51, 51, 4, 0, 1, 2, 3, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 64, 0, 0, 0, 0, 0, 0, 0 >>
+      ...> 64, 0, 0, 0, 0, 0, 0, 0, 0 >>
       ...> |> LedgerOperations.deserialize()
       {
         %LedgerOperations{
@@ -535,7 +656,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
             %TransactionMovement{
               to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 10.2
+              amount: 10.2,
+              type: :UCO
             }
           ],
           node_movements: [
@@ -550,7 +672,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
             %UnspentOutput{
               from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 2.0
+              amount: 2.0,
+              type: :UCO
             }
           ]
         },

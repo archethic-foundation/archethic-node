@@ -9,8 +9,8 @@ defmodule Uniris.ReleaseTask do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   # TODO: to remove once the Client UI developed
   def transfer_to_website_addresses(index \\ 0, destination_index \\ 0, amount \\ 1.0) do

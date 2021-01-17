@@ -13,7 +13,9 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.EncryptedStorageNonce
+  alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Node
@@ -33,13 +35,18 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   import Mox
 
-  describe "should_initialize_network?/0" do
+  setup do
+    MockTransport
+    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
+      {:ok, %LastTransactionAddress{address: address}}
+    end)
+
+    :ok
+  end
+
+  describe "should_initialize_network?/1" do
     test "should return true when the network has not been deployed and it's the first bootstrapping seed" do
-      assert true ==
-               Sync.should_initialize_network?("key1", [
-                 %Node{first_public_key: "key1"},
-                 %Node{first_public_key: "key1"}
-               ])
+      assert true == Sync.should_initialize_network?([])
     end
 
     test "should return false when the network has been initialized" do
@@ -62,7 +69,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         })
 
       assert false ==
-               Sync.should_initialize_network?("key2", [
+               Sync.should_initialize_network?([
                  %Node{first_public_key: "key1"},
                  %Node{first_public_key: "key1"}
                ])
@@ -175,7 +182,7 @@ defmodule Uniris.Bootstrap.SyncTest do
           |> Base.decode16!()
           |> Crypto.hash()
 
-        assert amount == Account.get_balance(address)
+        assert %{uco: amount, nft: %{}} == Account.get_balance(address)
       end)
     end
   end
@@ -216,7 +223,7 @@ defmodule Uniris.Bootstrap.SyncTest do
                first_public_key: "key2",
                last_public_key: "key2"
              }
-           ] = P2P.list_nodes()
+           ] == P2P.list_nodes()
   end
 
   test "load_storage_nonce/1 should fetch the storage nonce, decrypt it with the node key" do

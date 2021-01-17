@@ -6,11 +6,16 @@ config :git_hooks,
   hooks: [
     pre_commit: [
       tasks: [
-        "mix format",
         "mix clean",
+        "mix format --check-formatted"
+      ]
+    ],
+    pre_push: [
+      tasks: [
         "mix compile --warnings-as-errors",
         "mix credo --strict",
-        "mix test --trace"
+        "mix test --trace",
+        "mix dialyzer"
       ]
     ]
   ]
@@ -63,7 +68,7 @@ config :uniris, Uniris.P2P.Endpoint,
 config :uniris, UnirisWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",
   render_errors: [view: UnirisWeb.ErrorView, accepts: ~w(json)],
-  pubsub: [name: UnirisWeb.PubSub, adapter: Phoenix.PubSub.PG2],
+  pubsub_server: UnirisWeb.PubSub,
   live_view: [
     signing_salt: "3D6jYvx3",
     layout: {UnirisWeb.LayoutView, "live.html"}

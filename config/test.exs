@@ -4,6 +4,7 @@ use Mix.Config
 config :logger, level: :warning
 
 config :uniris, Uniris.Account.MemTablesLoader, enabled: false
+config :uniris, Uniris.Account.MemTables.NFTLedger, enabled: false
 config :uniris, Uniris.Account.MemTables.UCOLedger, enabled: false
 
 config :uniris, Uniris.BeaconChain.Subset, enabled: false

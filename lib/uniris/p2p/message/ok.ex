@@ -3,4 +3,6 @@ defmodule Uniris.P2P.Message.Ok do
   Represents an OK message
   """
   defstruct []
+
+  @type t :: %__MODULE__{}
 end

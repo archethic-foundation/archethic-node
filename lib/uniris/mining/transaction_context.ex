@@ -5,6 +5,8 @@ defmodule Uniris.Mining.TransactionContext do
   - unspent outputs
   """
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
   alias Uniris.P2P.Node
 

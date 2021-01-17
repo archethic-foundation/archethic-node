@@ -21,10 +21,10 @@ defmodule Uniris.P2P.Node do
     :port,
     :geo_patch,
     :network_patch,
+    :enrollment_date,
     available?: false,
     average_availability: 1.0,
     availability_history: <<1::1>>,
-    enrollment_date: nil,
     authorized?: false,
     authorization_date: nil,
     # TODO: support other transport (i.e udp/sctp)
@@ -32,18 +32,18 @@ defmodule Uniris.P2P.Node do
   ]
 
   @type t() :: %__MODULE__{
-          first_public_key: Crypto.key(),
+          first_public_key: nil | Crypto.key(),
           last_public_key: Crypto.key(),
-          ip: :inet.ip_address(),
-          port: :inet.port_number(),
-          geo_patch: binary(),
-          network_patch: binary(),
+          ip: nil | :inet.ip_address(),
+          port: nil | :inet.port_number(),
+          geo_patch: nil | binary(),
+          network_patch: nil | binary(),
           available?: boolean(),
           average_availability: float(),
           availability_history: bitstring(),
           authorized?: boolean(),
-          enrollment_date: DateTime.t(),
-          authorization_date: DateTime.t(),
+          enrollment_date: nil | DateTime.t(),
+          authorization_date: nil | DateTime.t(),
           transport: Transport.supported()
         }
 

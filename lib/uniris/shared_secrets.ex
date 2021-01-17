@@ -37,9 +37,9 @@ defmodule Uniris.SharedSecrets do
   for the authorized nodes public keys
   """
   @spec new_node_shared_secrets_transaction(
+          authorized_node_public_keys :: list(Crypto.key()),
           daily_nonce_seed :: binary(),
-          aes_key :: binary(),
-          authorized_nodes_public_keys :: list(Crypto.key())
+          aes_key :: binary()
         ) :: Transaction.t()
   defdelegate new_node_shared_secrets_transaction(
                 authorized_node_public_keys,

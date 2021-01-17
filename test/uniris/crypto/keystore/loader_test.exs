@@ -91,8 +91,8 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       assert :ok = KeystoreLoader.load_transaction(tx)
 
-      assert_receive {:transaction_seed, transaction_seed}
-      assert_receive {:daily_nonce_seed, daily_nonce_seed}
+      assert_receive {:transaction_seed, ^transaction_seed}
+      assert_receive {:daily_nonce_seed, ^daily_nonce_seed}
     end
 
     test "should increment the number of node keys" do

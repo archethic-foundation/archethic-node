@@ -15,6 +15,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.Bootstrap.NetworkInit
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler
@@ -26,8 +28,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+  alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   import Mox
 
@@ -44,6 +46,11 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       available?: true,
       geo_patch: "AAA"
     })
+
+    MockTransport
+    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
+      {:ok, %LastTransactionAddress{address: address}}
+    end)
 
     :ok
   end
@@ -69,18 +76,18 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
         0
       )
 
-    unspent_outputs = [%UnspentOutput{amount: 10_000, from: tx.address}]
+    unspent_outputs = [%UnspentOutput{amount: 10_000, from: tx.address, type: :UCO}]
     tx = NetworkInit.self_validation!(tx, unspent_outputs)
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
-                   %TransactionMovement{to: "@Alice2", amount: 5_000.0}
+                   %TransactionMovement{to: "@Alice2", amount: 5_000.0, type: :UCO}
                  ],
                  unspent_outputs: [
                    # TODO: use the right change when the fee algorithm is implemented
-                   %UnspentOutput{amount: 4999.99, from: _}
+                   %UnspentOutput{amount: 4999.99, from: _, type: :UCO}
                  ]
                }
              }
@@ -182,7 +189,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       |> Base.decode16!()
       |> Crypto.hash()
 
-    assert 3.82e9 == Account.get_balance(funding_address)
-    assert 1.46e9 == Account.get_balance("@network_pool")
+    assert %{uco: 3.82e9} = Account.get_balance(funding_address)
+    assert %{uco: 1.46e9} = Account.get_balance("@network_pool")
   end
 end

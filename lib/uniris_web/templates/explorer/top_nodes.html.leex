@@ -1,0 +1,49 @@
+<%= for node <- @nodes do %>
+    <div class="media">
+        <div class="media-content">
+            <div class="content">
+                <div class="level is-mobile">
+                    <div class="level-item" aria-label="node-public-key">
+                        <div>
+                            <p class="heading">Public key</p>
+                            <%= link to: Routes.node_path(@socket, :show, Base.encode16(node.last_public_key)) do%>
+                                <%= Base.encode16(:binary.part(node.last_public_key, 0, 5)) %>...
+                            <% end %>
+                        </div>
+                    </div>
+                    <div class="level-item" aria-label="node-port">
+                        <div>
+                            <p class="heading">Port</p>
+                            <span><%= node.port %></span>
+                        </div>
+                    </div>
+                    <div class="level-item" aria-label="node-ip">
+                        <div>
+                            <p class="heading">IP</p>
+                            <span><%= :inet_parse.ntoa(node.ip) %></span>
+                        </div>
+                    </div>
+                    <div class="level-item" aria-label="node-geographical-patch">
+                        <div>
+                            <p class="heading">Geo Patch</p>
+                            <span><%= node.geo_patch %></span>
+                        </div>
+                    </div>
+                    <div class="level-item" aria-label="node-average-availability">
+                        <div>
+                            <p class="heading">Avg availability</p>
+                            <span><%= node.average_availability %></span>
+                        </div>
+                    </div>
+                    <div class="level-item" aria-label="node-authorization">
+                        <div>
+                            <p class="heading">Authorized</p>
+                            <span><%= node.authorized? %></span>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+<% end %>

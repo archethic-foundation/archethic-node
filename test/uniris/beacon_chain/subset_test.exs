@@ -10,6 +10,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
   alias Uniris.TransactionChain.Transaction
 
+  alias Uniris.Utils
+
   setup do
     pid = start_supervised!({Subset, subset: <<0>>})
     {:ok, subset: <<0>>, pid: pid}
@@ -30,7 +32,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     assert %{
              slot_registry: %SlotRegistry{
-               current_slot: %Slot{transactions: [%TransactionInfo{address: tx_address}]}
+               current_slot: %Slot{transactions: [%TransactionInfo{address: ^tx_address}]}
              }
            } = :sys.get_state(pid)
   end
@@ -41,7 +43,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     assert %{
              slot_registry: %SlotRegistry{
-               current_slot: %Slot{nodes: [%NodeInfo{public_key: public_key}]}
+               current_slot: %Slot{nodes: [%NodeInfo{public_key: ^public_key}]}
              }
            } = :sys.get_state(pid)
   end
@@ -85,12 +87,12 @@ defmodule Uniris.BeaconChain.SubsetTest do
     assert {%Slot{
               transactions: [
                 %TransactionInfo{
-                  address: tx_adddress
+                  address: ^tx_address
                 }
               ],
               nodes: [
                 %NodeInfo{
-                  public_key: public_key
+                  public_key: ^public_key
                 }
               ]
             }, _} = Slot.deserialize(tx_content)
@@ -113,7 +115,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     Subset.add_node_info(subset, %NodeInfo{
       public_key: public_key,
-      timestamp: DateTime.utc_now(),
+      timestamp: tx_time,
       ready?: true
     })
 
@@ -126,13 +128,17 @@ defmodule Uniris.BeaconChain.SubsetTest do
              transactions: [
                %TransactionInfo{
                  address: tx_address,
-                 timestamp: tx_time,
+                 timestamp: Utils.truncate_datetime(tx_time),
                  type: :keychain
                }
              ],
              nodes: [
-               %NodeInfo{public_key: public_key, ready?: true}
+               %NodeInfo{
+                 public_key: public_key,
+                 ready?: true,
+                 timestamp: Utils.truncate_datetime(tx_time)
+               }
              ]
-           } = List.first(slots)
+           } == List.first(slots)
   end
 end

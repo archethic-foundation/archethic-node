@@ -17,6 +17,7 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Message.GetLastTransaction
+  alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetStorageNonce
   alias Uniris.P2P.Message.GetTransaction
@@ -24,10 +25,12 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetTransactionChainLength
   alias Uniris.P2P.Message.GetTransactionInputs
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotFound
+  alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.P2PView
   alias Uniris.P2P.Message.ReplicateTransaction
@@ -482,7 +485,8 @@ defmodule Uniris.P2P.MessageTest do
             from:
               <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
                 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-            amount: 10.5
+            amount: 10.5,
+            type: :UCO
           }
         ]
       }
@@ -555,11 +559,19 @@ defmodule Uniris.P2P.MessageTest do
     end
 
     test "Balance message" do
+      nft_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+
       assert %Balance{
-               uco: 10.5
+               uco: 10.5,
+               nft: %{
+                 nft_address => 10.0
+               }
              } ==
                %Balance{
-                 uco: 10.5
+                 uco: 10.5,
+                 nft: %{
+                   nft_address => 10.0
+                 }
                }
                |> Message.encode()
                |> Message.decode()
@@ -658,7 +670,8 @@ defmodule Uniris.P2P.MessageTest do
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
             amount: 10.5,
-            spent?: true
+            spent?: true,
+            type: :UCO
           }
         ]
       }
@@ -719,6 +732,40 @@ defmodule Uniris.P2P.MessageTest do
     test "FirstPublicKey message" do
       msg = %FirstPublicKey{
         public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "GetLastTransactionAddress message" do
+      msg = %GetLastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "LastTransactionAddress message" do
+      msg = %LastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "NotifyLastTransactionAddress message" do
+      msg = %NotifyLastTransactionAddress{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

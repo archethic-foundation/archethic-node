@@ -1,6 +1,8 @@
 defmodule Uniris.Mining.TransactionContext.DataFetcher do
   @moduledoc false
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
@@ -21,7 +23,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
 
   The request is performed concurrently and the first node to reply is returned
   """
-  @spec fetch_previous_transaction(binary(), list(Node.t())) :: {Transaction.t(), Node.t()}
+  @spec fetch_previous_transaction(binary(), list(Node.t())) ::
+          {:error, :not_found} | {:ok, Transaction.t(), Node.t()}
   def fetch_previous_transaction(previous_address, nodes) do
     response =
       nodes
@@ -98,34 +101,51 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
     end)
   end
 
-  defp confirm_unspent_output(
-         unspent_output = %UnspentOutput{from: from, amount: amount},
-         tx_address
-       ) do
-    response =
+  defp confirm_unspent_output(unspent_output = %UnspentOutput{from: from}, tx_address) do
+    {res, node} =
       from
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.broadcast_message(%GetTransaction{address: from}, ack_node?: true, timeout: 500)
       |> Enum.at(0)
 
-    case response do
-      {tx = %Transaction{}, node} ->
-        %Transaction{
-          validation_stamp: %ValidationStamp{
-            ledger_operations: %LedgerOperations{transaction_movements: tx_movements}
-          }
-        } = tx
-
-        if Enum.any?(tx_movements, &(&1.to == tx_address && &1.amount == amount)) do
-          {:ok, unspent_output, node}
-        else
-          {:error, :invalid_unspent_output}
-        end
-
-      _ ->
-        {:error, :invalid_unspent_output}
+    if valid_unspent_output?(tx_address, unspent_output, res) do
+      {:ok, unspent_output, node}
+    else
+      {:error, :invalid_unspent_output}
     end
   end
+
+  defp valid_unspent_output?(
+         tx_address,
+         %UnspentOutput{from: from, amount: amount, type: type},
+         %Transaction{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: %LedgerOperations{
+               transaction_movements: tx_movements,
+               unspent_outputs: unspent_outputs
+             }
+           }
+         }
+       ) do
+    cond do
+      Enum.any?(
+        tx_movements,
+        &(&1.to == tx_address and &1.amount == amount and &1.type == type)
+      ) ->
+        true
+
+      Enum.any?(
+        unspent_outputs,
+        &(&1.from == from and &1.type == type and &1.amount == amount)
+      ) ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp valid_unspent_output?(_, _, _), do: false
 
   @doc """
   Request to a set a storage nodes the P2P view of some nodes

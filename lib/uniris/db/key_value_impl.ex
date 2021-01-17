@@ -104,6 +104,32 @@ defmodule Uniris.DB.KeyValueImpl do
     :ok = CubDB.put(db, {"chain", chain_address}, transaction_addresses)
   end
 
+  @doc """
+  Reference a last address from a previous address
+  """
+  @impl DBImpl
+  @spec add_last_transaction_address(binary(), binary()) :: :ok
+  def add_last_transaction_address(tx_address, last_address) do
+    :ok = CubDB.put(get_db(), {"chain_lookup", tx_address}, last_address)
+  end
+
+  @doc """
+  List the last transaction lookups
+  """
+  @impl DBImpl
+  @spec list_last_transaction_addresses() :: Enumerable.t()
+  def list_last_transaction_addresses do
+    {:ok, lookup} =
+      CubDB.select(get_db(),
+        pipe: [
+          filter: fn {key, _} -> match?({"chain_lookup", _}, key) end,
+          map: fn {{"chain_lookup", address}, last_address} -> {address, last_address} end
+        ]
+      )
+
+    lookup
+  end
+
   @impl DBImpl
   @doc """
   List the transactions

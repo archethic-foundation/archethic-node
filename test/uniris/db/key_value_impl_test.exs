@@ -90,6 +90,23 @@ defmodule Uniris.DB.KeyValueImplTest do
     Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
   end
 
+  test "add_last_transaction_address/2 should reference a last address for a chain", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+    assert :ok = KV.add_last_transaction_address("@Alice1", "@Alice2")
+  end
+
+  test "list_last_transaction_addresses/0 should retrieve the last transaction addresses", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+    KV.add_last_transaction_address("@Alice1", "@Alice2")
+    KV.add_last_transaction_address("@Alice1", "@Alice3")
+    KV.add_last_transaction_address("@Alice1", "@Alice4")
+    assert [{"@Alice1", "@Alice4"}] = KV.list_last_transaction_addresses()
+  end
+
   defp create_transaction(index \\ 0) do
     welcome_node = %Node{
       first_public_key: "key1",

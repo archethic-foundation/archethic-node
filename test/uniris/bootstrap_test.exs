@@ -18,7 +18,9 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetBeaconSlots
   alias Uniris.P2P.Message.GetBootstrappingNodes
+  alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
@@ -62,6 +64,11 @@ defmodule Uniris.BootstrapTest do
 
   describe "run/4" do
     test "should initialize the network when nothing is set before" do
+      MockTransport
+      |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
+        {:ok, %LastTransactionAddress{address: address}}
+      end)
+
       seeds = [
         %Node{
           ip: {127, 0, 0, 1},
@@ -142,7 +149,7 @@ defmodule Uniris.BootstrapTest do
                 node_movements: [
                   %NodeMovement{
                     to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                    amount: 1,
+                    amount: 1.0,
                     roles: [
                       :welcome_node,
                       :coordinator_node,

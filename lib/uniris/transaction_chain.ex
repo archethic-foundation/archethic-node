@@ -9,6 +9,13 @@ defmodule Uniris.TransactionChain do
 
   alias Uniris.PubSub
 
+  alias Uniris.P2P
+  alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.LastTransactionAddress
+  alias Uniris.P2P.Message.NotFound
+
+  alias Uniris.Replication
+
   alias __MODULE__.MemTables.ChainLookup
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -28,7 +35,8 @@ defmodule Uniris.TransactionChain do
   @doc """
   List all the transaction for a given transaction type sorted by timestamp in descent order
   """
-  @spec list_transactions_by_type(type :: Transaction.type(), fields :: list()) :: Enumerable.t()
+  @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
+          Enumerable.t()
   def list_transactions_by_type(type, fields) do
     Stream.resource(
       fn -> ChainLookup.list_addresses_by_type(type) end,
@@ -47,7 +55,7 @@ defmodule Uniris.TransactionChain do
   @doc """
   Get the number of transactions for a given type
   """
-  @spec count_transactions_by_type(Transaction.type()) :: non_neg_integer()
+  @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
   defdelegate count_transactions_by_type(type), to: ChainLookup, as: :count_addresses_by_type
 
   @doc """
@@ -57,6 +65,17 @@ defmodule Uniris.TransactionChain do
   defdelegate get_last_address(address),
     to: ChainLookup,
     as: :get_last_chain_address
+
+  @doc """
+  Register a last address from a previous address
+  """
+  @spec register_last_address(binary(), binary()) :: :ok
+  def register_last_address(previous_address, next_address)
+      when is_binary(previous_address) and is_binary(next_address) do
+    :ok = ChainLookup.register_last_address(previous_address, next_address)
+    :ok = DB.add_last_transaction_address(previous_address, next_address)
+    :ok
+  end
 
   @doc """
   Get the first public key from one the public key of the chain
@@ -193,7 +212,9 @@ defmodule Uniris.TransactionChain do
   Get the last transaction from a given chain address
   """
   @spec get_last_transaction(binary(), list()) ::
-          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
+          {:ok, Transaction.t()}
+          | {:error, :transaction_not_exists}
+          | {:error, :invalid_transaction}
   def get_last_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
     address
     |> get_last_address()
@@ -246,8 +267,8 @@ defmodule Uniris.TransactionChain do
       ...>  ]
       ...>  |> TransactionChain.proof_of_integrity()
       # Hash of the transaction
-      <<0, 51, 88, 180, 249, 223, 216, 111, 207, 144, 158, 83, 19, 231, 40, 11, 52,
-        46, 113, 125, 121, 46, 182, 250, 186, 45, 72, 126, 229, 220, 111, 221, 240>>
+      <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
+        100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
 
     With multiple transactions
 
@@ -294,15 +315,15 @@ defmodule Uniris.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 51, 88, 180, 249, 223, 216, 111, 207, 144, 158, 83, 19, 231, 40, 11, 52,
-      ...>           46, 113, 125, 121, 46, 182, 250, 186, 45, 72, 126, 229, 220, 111, 221, 240>>
+      ...>         proof_of_integrity: <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
+      ...>           100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
       ...>      }
       ...>    }
       ...> ]
       ...> |> TransactionChain.proof_of_integrity()
       # Hash of the transaction + previous proof of integrity
-      <<0, 155, 254, 30, 19, 107, 70, 29, 112, 74, 169, 137, 198, 116, 67, 134, 7, 46,
-        251, 124, 214, 64, 45, 40, 104, 21, 58, 133, 133, 5, 133, 118, 28>>
+      <<0, 200, 7, 18, 182, 180, 36, 204, 30, 173, 77, 225, 44, 8, 160, 137, 240, 109,
+          39, 97, 151, 130, 32, 22, 218, 28, 66, 121, 188, 106, 156, 61, 181>>
   """
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
@@ -349,9 +370,9 @@ defmodule Uniris.TransactionChain do
       ...>       161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>       232, 135, 42, 112, 58, 181, 13>>,
       ...>     validation_stamp: %ValidationStamp{
-      ...>       proof_of_integrity: <<0, 155, 254, 30, 19, 107, 70, 29, 112, 74, 169, 137, 198, 116, 67, 134, 7, 46,
-      ...>        251, 124, 214, 64, 45, 40, 104, 21, 58, 133, 133, 5, 133, 118, 28>>
-      ...>     }
+      ...>       proof_of_integrity: <<0, 200, 7, 18, 182, 180, 36, 204, 30, 173, 77, 225, 44, 8, 160, 137, 240, 109,
+      ...>         39, 97, 151, 130, 32, 22, 218, 28, 66, 121, 188, 106, 156, 61, 181>>
+      ...>       }
       ...>    },
       ...>    %Transaction{
       ...>      address:
@@ -374,8 +395,8 @@ defmodule Uniris.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 51, 88, 180, 249, 223, 216, 111, 207, 144, 158, 83, 19, 231, 40, 11, 52,
-      ...>           46, 113, 125, 121, 46, 182, 250, 186, 45, 72, 126, 229, 220, 111, 221, 240>>
+      ...>         proof_of_integrity: <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
+      ...>           100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
       ...>      }
       ...>    }
       ...> ]
@@ -422,4 +443,24 @@ defmodule Uniris.TransactionChain do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTablesLoader
+
+  @doc """
+  Retrieve the last address of a chain
+  """
+  @spec resolve_last_address(binary()) :: binary()
+  def resolve_last_address(address) when is_binary(address) do
+    res =
+      address
+      |> Replication.chain_storage_nodes(P2P.list_nodes())
+      |> P2P.broadcast_message(%GetLastTransactionAddress{address: address})
+      |> Enum.at(0)
+
+    case res do
+      %NotFound{} ->
+        address
+
+      %LastTransactionAddress{address: last_address} ->
+        last_address
+    end
+  end
 end

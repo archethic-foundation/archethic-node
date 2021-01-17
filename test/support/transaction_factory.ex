@@ -18,7 +18,7 @@ defmodule Uniris.TransactionFactory do
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
-        inputs,
+        inputs \\ [],
         opts \\ []
       ) do
     type = Keyword.get(opts, :type, :transfer)
@@ -30,7 +30,8 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Transaction.fee(tx)
+        fee: Transaction.fee(tx),
+        transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
@@ -137,7 +138,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -176,7 +177,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -205,16 +206,17 @@ defmodule Uniris.TransactionFactory do
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
-    validation_stamp = %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
-    }
+    validation_stamp =
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        ledger_operations: ledger_operations
+      }
+      |> ValidationStamp.sign()
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -234,7 +236,7 @@ defmodule Uniris.TransactionFactory do
     ledger_operations =
       %LedgerOperations{
         fee: 0.01,
-        transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30}]
+        transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30, type: :UCO}]
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
@@ -244,16 +246,17 @@ defmodule Uniris.TransactionFactory do
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
-    validation_stamp = %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      ledger_operations: ledger_operations,
-      signature: :crypto.strong_rand_bytes(32)
-    }
+    validation_stamp =
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(0),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        ledger_operations: ledger_operations
+      }
+      |> ValidationStamp.sign()
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 
@@ -285,7 +288,7 @@ defmodule Uniris.TransactionFactory do
 
     cross_validation_stamp =
       CrossValidationStamp.sign(
-        %CrossValidationStamp{inconsistencies: [:signature]},
+        %CrossValidationStamp{},
         validation_stamp
       )
 

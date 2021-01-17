@@ -50,9 +50,9 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0})
+      iex> {:ok, _pid} = UCOLedger.start_link()
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
       iex> { :ets.tab2list(:uniris_uco_ledger), :ets.tab2list(:uniris_uco_unspent_output_index) }
       {
         [
@@ -67,7 +67,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   """
   @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount}) when is_binary(to) do
+  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount})
+      when is_binary(to) and is_float(amount) do
     true = :ets.insert(@ledger_table, {{to, from}, amount, false})
     true = :ets.insert(@unspent_output_index_table, {to, from})
     :ok
@@ -78,16 +79,16 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0})
+      iex> {:ok, _pid} = UCOLedger.start_link()
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
       iex> UCOLedger.get_unspent_outputs("@Alice2")
       [
-        %UnspentOutput{from: "@Charlie10", amount: 1.0},
-        %UnspentOutput{from: "@Bob3", amount: 3.0},
+        %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO},
+        %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO},
       ]
 
-      iex> {:ok, pid} = UCOLedger.start_link()
+      iex> {:ok, _pid} = UCOLedger.start_link()
       iex> UCOLedger.get_unspent_outputs("@Alice2")
       []
   """
@@ -101,7 +102,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
           [
             %UnspentOutput{
               from: from,
-              amount: amount
+              amount: amount,
+              type: :UCO
             }
             | acc
           ]
@@ -117,9 +119,9 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0})
+      iex> {:ok, _pid} = UCOLedger.start_link()
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
       iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
       iex> UCOLedger.get_unspent_outputs("@Alice2")
       []
@@ -139,23 +141,23 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   ## Examples
 
-      iex> {:ok, pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0})
+      iex> {:ok, _pid} = UCOLedger.start_link()
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
       iex> UCOLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: false},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: false}
+        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: false, type: :UCO},
+        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: false, type: :UCO}
       ]
 
-      iex> {:ok, pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0})
+      iex> {:ok, _pid} = UCOLedger.start_link()
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
       iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
       iex> UCOLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: true},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: true}
+        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: true, type: :UCO},
+        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: true, type: :UCO}
       ]
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
@@ -168,7 +170,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
       %TransactionInput{
         from: from,
         amount: amount,
-        spent?: spent?
+        spent?: spent?,
+        type: :UCO
       }
     end)
   end

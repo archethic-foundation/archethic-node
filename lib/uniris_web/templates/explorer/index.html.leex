@@ -1,0 +1,52 @@
+<div class="hero is-medium is-bold is-large explorer-main">
+  <div class="hero-body">
+      <div class="container">
+          <h1 class="title main_title">Uniris Explorer</h1>
+          <h2 class="subtitle main_subtitle">
+              <div class="columns">
+                <div class="column">
+                  Discover the most decentralized and unlimited P2P network
+                </div>
+              </div>
+              <form class="columns" phx-submit="search">
+                <div class="column is-half-desktop">
+                  <input class="input main_input" type="text" placeholder="Enter transaction address" required name="address">
+                </div>
+                <div class="column is-2-desktop">
+                  <button class="button is-fullwidth is-light is-outlined">
+                    Search transaction
+                  </button>
+                </div>
+              </form>
+            </div>
+          </h2>
+      </div>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column is-half-desktop">
+    <div class="card">
+      <div class="card-header">
+        <p class="card-header-title">Latest transactions</p>
+      </div>
+      <div class="card-content">
+        <div class="content">
+          <%= live_render(@socket, UnirisWeb.TopTransactionLive, id: "top_transactions") %>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="column is-half-desktop">
+    <div class="card">
+      <div class="card-header">
+        <p class="card-header-title">Top nodes</p>
+      </div>
+      <div class="card-content">
+        <div class="content">
+          <%= live_render(@socket, UnirisWeb.TopNodeLive, id: "top_nodes") %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

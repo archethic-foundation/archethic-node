@@ -24,8 +24,8 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   - Inconsistencies: a list of errors from the validation stamp
   """
   @type t :: %__MODULE__{
-          node_public_key: Crypto.key(),
-          signature: binary(),
+          node_public_key: nil | Crypto.key(),
+          signature: nil | binary(),
           inconsistencies: list(inconsistency())
         }
 

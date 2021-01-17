@@ -1,19 +1,30 @@
-<div class="row explorer-card">
-    <div class="column">
-        <header class="row">
-            <div class="column"><h3>Node list</h3></div>
-        </header>
+<h1 class="subtitle is-size-4 heading has-text-white">Node list (<%= Enum.count(@nodes) %>)</h1>
 
-        <%= for node <- @nodes do %>
-        <div class="row">
-            <div class="column">
-                <span>
-                    <%= link to: Routes.node_path(@conn, :show, Base.encode16(node.last_public_key)) do%>
-                        <%= Base.encode16(node.last_public_key) %>
-                    <% end %>
-                </span>
+<%= for node <- @nodes do %>
+    <div class="box">
+        <div class="media">
+            <div class="media-content">
+                <div class="content">
+                    <div class="level">
+                        <span class="level-item level-left" aria-label="transaction-date">
+                            <div>
+                                <p class="heading">Last public key</p>
+                                <%= link to: Routes.node_path(@conn, :show, Base.encode16(node.last_public_key)) do%>
+                                    <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.last_public_key, 0, 30)) %>...</span>
+                                    <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.last_public_key, 0, 13)) %>...</span>
+                                <% end %>
+                            </div>
+                        </span>
+                        <span class="level-item level-left" aria-label="transaction-type">
+                            <div>
+                                <p class="heading">First public key</p>
+                                <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
+                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...</span>
+                            </div>
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
-        <% end %>
     </div>
-</div>
+<% end %>

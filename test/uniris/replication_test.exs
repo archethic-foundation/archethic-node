@@ -12,6 +12,8 @@ defmodule Uniris.ReplicationTest do
 
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.NotifyLastTransactionAddress
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
 
@@ -195,7 +197,7 @@ defmodule Uniris.ReplicationTest do
 
     me = self()
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
     tx = create_valid_transaction(transaction_context(), unspent_outputs)
 
     MockDB
@@ -305,5 +307,49 @@ defmodule Uniris.ReplicationTest do
     cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+  end
+
+  describe "acknowledge_previous_storage_nodes/2" do
+    test "should register new address on chain" do
+      MockDB
+      |> stub(:add_last_transaction_address, fn _address, _last_address ->
+        :ok
+      end)
+
+      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2", "@Alice1")
+      assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
+    end
+
+    test "should notify previous storage pool if transaction exists" do
+      MockDB
+      |> stub(:add_last_transaction_address, fn _address, _last_address ->
+        :ok
+      end)
+      |> stub(:get_transaction, fn _, _ ->
+        {:ok, %Transaction{previous_public_key: "Alice1"}}
+      end)
+
+      me = self()
+
+      MockTransport
+      |> stub(:send_message, fn _, _, %NotifyLastTransactionAddress{address: _} ->
+        send(me, :notification_sent)
+        {:ok, %Ok{}}
+      end)
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        last_public_key: :crypto.strong_rand_bytes(32),
+        geo_patch: "AAA",
+        available?: true
+      })
+
+      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2", "@Alice1")
+      assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
+
+      assert_receive :notification_sent
+    end
   end
 end

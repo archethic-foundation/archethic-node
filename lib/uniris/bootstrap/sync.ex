@@ -31,13 +31,17 @@ defmodule Uniris.Bootstrap.Sync do
   @doc """
   Determines if network should be initialized
   """
-  @spec should_initialize_network?(Crypto.key(), list(Node.t())) :: boolean()
-  def should_initialize_network?(node_public_key, [%Node{first_public_key: key} | _])
-      when key == node_public_key do
+  @spec should_initialize_network?(list(Node.t())) :: boolean()
+  def should_initialize_network?([]) do
     TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
 
-  def should_initialize_network?(_, _), do: false
+  def should_initialize_network?([%Node{first_public_key: node_key} | _]) do
+    node_key == Crypto.node_public_key(0) and
+      TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
+  end
+
+  def should_initialize_network?(_), do: false
 
   @doc """
   Determines if the node requires an update

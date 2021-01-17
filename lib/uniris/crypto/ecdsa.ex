@@ -9,11 +9,20 @@ defmodule Uniris.Crypto.ECDSA do
   Generate an ECDSA keypair from a given secrets
   """
   @spec generate_keypair(curve(), binary()) :: {binary(), binary()}
+  def generate_keypair(curve, seed)
+      when curve in @curves and is_binary(seed) and byte_size(seed) < 32 do
+    :crypto.generate_key(
+      :ecdh,
+      curve,
+      :crypto.hash(:sha256, seed)
+    )
+  end
+
   def generate_keypair(curve, seed) when curve in @curves and is_binary(seed) do
     :crypto.generate_key(
       :ecdh,
       curve,
-      seed
+      :binary.part(seed, 0, 32)
     )
   end
 

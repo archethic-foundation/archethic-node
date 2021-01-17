@@ -2,22 +2,20 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
   @moduledoc """
   Represents a UCO ledger movement
   """
-  defstruct [:fee, transfers: []]
+  defstruct transfers: []
 
-  alias Uniris.TransactionChain.TransactionData.Ledger.Transfer
+  alias __MODULE__.Transfer
 
   @typedoc """
   UCO movement is composed from:
-  - Fee: End user can specify the fee to use (nodes will check if it's sufficient)
   - Transfers: List of UCO transfers
   """
   @type t :: %__MODULE__{
-          fee: float(),
           transfers: list(Transfer.t())
         }
 
   @doc """
-  Serialize uco ledger into binary format
+  Serialize a UCO ledger into binary format
 
   ## Examples
 
@@ -30,23 +28,23 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
       ...> ]}
       ...> |> UCOLedger.serialize()
       <<
-        # Number of transfers
+        # Number of UCO transfers
         1,
-        # Transfer recipient
+        # UCO recipient
         0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
-        # Transfer amount
+        # UCO amount
         64, 37, 0, 0, 0, 0, 0, 0
       >>
   """
-  @spec serialize(Uniris.TransactionChain.TransactionData.UCOLedger.t()) :: binary()
+  @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{transfers: transfers}) do
     transfers_bin = Enum.map(transfers, &Transfer.serialize/1) |> :erlang.list_to_binary()
     <<length(transfers)::8, transfers_bin::binary>>
   end
 
   @doc """
-  Deserialize an encoded uco ledger
+  Deserialize an encoded UCO ledger
 
   ## Examples
 
@@ -66,7 +64,7 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
+  @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<0::8, rest::bitstring>>) do
     {
       %__MODULE__{},
@@ -93,18 +91,16 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
     do_reduce_transfers(rest, nb_transfers, [transfer | acc])
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
+  @spec from_map(map()) :: t()
   def from_map(uco_ledger = %{}) do
     %__MODULE__{
-      fee: Map.get(uco_ledger, :fee),
       transfers: Map.get(uco_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
     }
   end
 
-  @spec to_map(__MODULE__.t()) :: map()
-  def to_map(%__MODULE__{fee: fee, transfers: transfers}) do
+  @spec to_map(t()) :: map()
+  def to_map(%__MODULE__{transfers: transfers}) do
     %{
-      fee: fee,
       transfers: Enum.map(transfers, &Transfer.to_map/1)
     }
   end
@@ -129,7 +125,7 @@ defmodule Uniris.TransactionChain.TransactionData.UCOLedger do
       ...> |> UCOLedger.total_amount()
       33.4
   """
-  @spec total_amount(__MODULE__.t()) :: float()
+  @spec total_amount(t()) :: float()
   def total_amount(%__MODULE__{transfers: transfers}) do
     Enum.reduce(transfers, 0.0, &(&2 + &1.amount))
   end

@@ -1,35 +1,25 @@
-defmodule Uniris.TransactionChain.TransactionData.Ledger.Transfer do
+defmodule Uniris.TransactionChain.TransactionData.UCOLedger.Transfer do
   @moduledoc """
-  Represents any ledger transfer
+  Represents a UCO transfer
   """
-  defstruct [:to, :amount, :conditions]
+  defstruct [:to, :amount, conditions: []]
 
   alias Uniris.Crypto
 
   @typedoc """
-  Recipient address of the ledger transfers
-  """
-  @type recipient :: binary()
-
-  @typedoc """
-  Set of conditions to spent the outputs transactions
-  """
-  @type conditions :: list(binary())
-
-  @typedoc """
   Transfer is composed from:
-  - to: receiver address of the asset
-  - amount: specify the number of asset to transfer to the recipients
-  - conditions: specify to which address the asset can be used
+  - to: receiver address of the UCO
+  - amount: specify the number of UCO to transfer to the recipients
+  - conditions: specify to which address the UCO can be used
   """
   @type t :: %__MODULE__{
-          to: recipient(),
+          to: binary(),
           amount: float(),
-          conditions: conditions()
+          conditions: list(binary())
         }
 
   @doc """
-  Serialize transaction transfer into binary format
+  Serialize UCO transfer into binary format
 
   ## Examples
 
@@ -40,10 +30,10 @@ defmodule Uniris.TransactionChain.TransactionData.Ledger.Transfer do
       ...> }
       ...> |> Transfer.serialize()
       <<
-        # Transfer recipient
+        # UCO recipient
         0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
         85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
-        # Transfer amount
+        # UCO amount
         64, 37, 0, 0, 0, 0, 0, 0
       >>
   """
@@ -52,7 +42,7 @@ defmodule Uniris.TransactionChain.TransactionData.Ledger.Transfer do
   end
 
   @doc """
-  Deserialize an encoded transfer
+  Deserialize an encoded UCO transfer
 
   ## Examples
 
@@ -81,7 +71,7 @@ defmodule Uniris.TransactionChain.TransactionData.Ledger.Transfer do
     }
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
+  @spec from_map(map()) :: t()
   def from_map(transfer = %{}) do
     %__MODULE__{
       to: Map.get(transfer, :to),
@@ -89,7 +79,7 @@ defmodule Uniris.TransactionChain.TransactionData.Ledger.Transfer do
     }
   end
 
-  @spec to_map(__MODULE__.t()) :: map()
+  @spec to_map(t()) :: map()
   def to_map(%__MODULE__{to: to, amount: amount}) do
     %{
       to: to,

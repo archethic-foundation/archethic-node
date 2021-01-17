@@ -31,6 +31,7 @@ defmodule Uniris.Crypto do
   alias __MODULE__.Keystore
   alias __MODULE__.KeystoreLoader
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger
@@ -233,6 +234,26 @@ defmodule Uniris.Crypto do
   defdelegate node_shared_secrets_public_key(index), to: Keystore
 
   @doc """
+  Return the storage nonce public key
+  """
+  @spec storage_nonce_public_key() :: binary()
+  def storage_nonce_public_key do
+    {pub, _} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    pub
+  end
+
+  @doc """
+  Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES). 
+
+  More details at `ec_decrypt/2`
+  """
+  @spec ec_decrypt_with_storage_nonce(iodata()) :: {:ok, binary()} | {:error, :decryption_failed}
+  def ec_decrypt_with_storage_nonce(data) when is_bitstring(data) or is_list(data) do
+    {_, pv} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    ec_decrypt(data, pv)
+  end
+
+  @doc """
   Increment the counter for the number of generated node private keys.
   This number is used for the key derivation to detect the latest index.
   """
@@ -278,10 +299,10 @@ defmodule Uniris.Crypto do
 
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed", :secp256r1)
       iex> pub
-      <<1, 4, 71, 234, 56, 77, 247, 36, 202, 205, 0, 115, 85, 40, 74, 90, 107, 180,
-      162, 184, 168, 248, 179, 160, 69, 68, 159, 128, 0, 23, 81, 29, 122, 89, 51,
-      182, 115, 31, 213, 158, 244, 116, 92, 197, 246, 196, 55, 27, 8, 205, 62, 39,
-      55, 227, 59, 94, 246, 213, 26, 22, 150, 137, 167, 23, 69, 144>>
+      <<1, 4, 140, 235, 188, 198, 146, 160, 92, 132, 81, 177, 113, 230, 39, 220, 122,
+      112, 231, 18, 90, 66, 156, 47, 54, 192, 141, 44, 45, 223, 115, 28, 30, 48,
+      105, 253, 171, 105, 87, 148, 108, 150, 86, 128, 28, 102, 163, 51, 28, 57, 33,
+      133, 109, 49, 202, 92, 184, 138, 187, 26, 123, 45, 5, 94, 180, 250>>
 
   """
   @spec generate_deterministic_keypair(
@@ -336,7 +357,7 @@ defmodule Uniris.Crypto do
   @doc """
   Sign the data with the last node private key
   """
-  @spec sign_with_node_key(data :: iodata()) :: binary()
+  @spec sign_with_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
   def sign_with_node_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
@@ -394,7 +415,12 @@ defmodule Uniris.Crypto do
       iex> Crypto.verify(sig, "myfakedata", pub)
       false
   """
-  @spec verify(signature :: binary(), data :: iodata(), public_key :: key()) :: boolean()
+  @spec verify(
+          signature :: binary(),
+          data :: iodata() | bitstring() | [bitstring],
+          public_key :: key()
+        ) ::
+          boolean()
   def verify(
         sig,
         data,
@@ -452,18 +478,18 @@ defmodule Uniris.Crypto do
 
   ## Examples
 
-      iex> cipher = <<0, 0, 0, 58, 211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
+      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
       ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
       ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
       ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
-      iex> {_pub, pv} = Uniris.Crypto.generate_deterministic_keypair("myseed")
+      iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> Uniris.Crypto.ec_decrypt!(cipher, pv)
       "myfakedata"
 
   Invalid message to decrypt or key return an error:
 
       ```
-      Crypto.generate_deterministic_keypair("myseed", :node)
+      Crypto.generate_deterministic_keypair("myseed")
       Crypto.ec_decrypt!(<<0, 0, 0>>, :node)
       ** (RuntimeError) Decryption failed
       ```
@@ -473,6 +499,36 @@ defmodule Uniris.Crypto do
     curve_id
     |> ID.to_curve()
     |> do_ec_decrypt!(cipher, key)
+  end
+
+  @doc """
+
+  ## Examples
+
+      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
+      ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
+      ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
+      ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
+      iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
+      iex> {:ok, "myfakedata"} = Crypto.ec_decrypt(cipher, pv)
+
+  Invalid message to decrypt return an error:
+
+      iex> {_, pv} = Crypto.generate_deterministic_keypair("myseed")
+      iex> Crypto.ec_decrypt(<<0, 0, 0>>, pv)
+      {:error, :decryption_failed}
+  """
+  @spec ec_decrypt(binary(), binary()) :: {:ok, binary()} | {:error, :decryption_failed}
+  def ec_decrypt(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
+    data =
+      curve_id
+      |> ID.to_curve()
+      |> do_ec_decrypt!(cipher, key)
+
+    {:ok, data}
+  rescue
+    _ ->
+      {:error, :decryption_failed}
   end
 
   @doc """
@@ -537,6 +593,31 @@ defmodule Uniris.Crypto do
       data ->
         data
     end
+  end
+
+  @doc """
+  Decrypt a ciphertext using the AES authenticated decryption.
+
+  ## Examples
+
+      iex> key = <<234, 210, 202, 129, 91, 76, 68, 14, 17, 212, 197, 49, 66, 168, 52, 111, 176,
+      ...> 182, 227, 156, 5, 32, 24, 105, 41, 152, 67, 191, 187, 209, 101, 36>>
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", key)
+      iex> Crypto.aes_decrypt(ciphertext, key)
+      {:ok, "sensitive data"}
+
+  Return an error when the key is invalid
+
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
+      iex> Crypto.aes_decrypt(ciphertext, :crypto.strong_rand_bytes(32))
+      {:error, :decryption_failed}
+
+  """
+  def aes_decrypt(data = <<_::binary-12, _::binary-16, _::binary>>, <<key::binary-32>>) do
+    {:ok, aes_decrypt!(data, key)}
+  rescue
+    _ ->
+      {:error, :decryption_failed}
   end
 
   @doc """

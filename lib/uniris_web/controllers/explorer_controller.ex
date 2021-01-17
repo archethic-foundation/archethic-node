@@ -6,7 +6,7 @@ defmodule UnirisWeb.ExplorerController do
   alias Uniris.TransactionChain.Transaction
 
   def index(conn, _params) do
-    render(conn, "index.html")
+    render(conn, "index.html", layout: {UnirisWeb.LayoutView, "index.html"})
   end
 
   def search(conn, _params = %{"address" => address}) do
@@ -27,34 +27,46 @@ defmodule UnirisWeb.ExplorerController do
     case Uniris.get_last_transaction(bin_address) do
       {:ok, %Transaction{address: last_address}} ->
         chain = Uniris.get_transaction_chain(last_address)
-        inputs = Uniris.get_transaction_inputs(bin_address)
+        %{uco: uco_balance} = Uniris.get_balance(bin_address)
 
         render(conn, "chain.html",
           transaction_chain: chain,
           chain_size: Enum.count(chain),
-          address: address,
-          balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
+          address: bin_address,
+          uco_balance: uco_balance,
+          last_checked?: true
         )
 
       _ ->
-        render(conn, "chain.html", transaction_chain: [], chain_size: 0, address: address)
+        render(conn, "chain.html",
+          transaction_chain: [],
+          chain_size: 0,
+          address: bin_address,
+          last_checked?: true
+        )
     end
   end
 
   def chain(conn, _params = %{"address" => address}) do
     bin_address = Base.decode16!(address, case: :mixed)
     chain = Uniris.get_transaction_chain(bin_address)
-    inputs = Uniris.get_transaction_inputs(bin_address)
+    %{uco: uco_balance} = Uniris.get_balance(bin_address)
 
     render(conn, "chain.html",
       transaction_chain: chain,
-      address: address,
+      address: bin_address,
       chain_size: Enum.count(chain),
-      balance: Enum.reduce(inputs, 0.0, &(&2 + &1.amount))
+      uco_balance: uco_balance,
+      last_checked?: false
     )
   end
 
   def chain(conn, _params) do
-    render(conn, "chain.html", transaction_chain: [], address: "", chain_size: 0)
+    render(conn, "chain.html",
+      transaction_chain: [],
+      address: "",
+      chain_size: 0,
+      last_checked?: false
+    )
   end
 end

@@ -11,6 +11,7 @@ defmodule Uniris.DB.CassandraImplTest do
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionFactory
 
   setup do
@@ -43,9 +44,9 @@ defmodule Uniris.DB.CassandraImplTest do
   test "write_transaction_chain/1 should persist the transaction chain" do
     {:ok, _pid} = Cassandra.start_link()
 
-    tx1 = create_transaction(index: 0)
+    tx1 = create_transaction([], index: 0)
     Process.sleep(100)
-    tx2 = create_transaction(index: 1)
+    tx2 = create_transaction([], index: 1)
 
     chain = [tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -76,7 +77,7 @@ defmodule Uniris.DB.CassandraImplTest do
     {:ok, _pid} = Cassandra.start_link()
 
     Enum.each(1..500, fn i ->
-      tx = create_transaction(seed: "seed_#{i}")
+      tx = create_transaction([], seed: "seed_#{i}")
       Cassandra.write_transaction(tx)
     end)
 
@@ -90,14 +91,15 @@ defmodule Uniris.DB.CassandraImplTest do
   test "get_transaction/2 should retrieve the transaction with the requested fields " do
     {:ok, _pid} = Cassandra.start_link()
 
-    tx = create_transaction()
+    tx = create_transaction([%UnspentOutput{from: "@Alice2", amount: 10, type: :UCO}])
+
     assert :ok = Cassandra.write_transaction(tx)
 
     assert {:ok, db_tx} =
              Cassandra.get_transaction(tx.address, [
                :address,
                :type,
-               validation_stamp: [:signature]
+               validation_stamp: [:signature, ledger_operations: [:unspent_outputs]]
              ])
 
     assert [:address, :type] not in empty_keys(tx)
@@ -109,13 +111,30 @@ defmodule Uniris.DB.CassandraImplTest do
   @tag infrastructure: true
   test "get_transaction_chain/2 should retrieve the transaction chain with the requested fields" do
     {:ok, _pid} = Cassandra.start_link()
-    chain = [create_transaction(index: 1), create_transaction(index: 0)]
+    chain = [create_transaction([], index: 1), create_transaction([], index: 0)]
     assert :ok = Cassandra.write_transaction_chain(chain)
     chain = Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
     assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
   end
 
-  defp create_transaction(opts \\ []) do
+  @tag infrastructure: true
+  test "add_last_transaction_address/2 should reference a last address for a chain" do
+    {:ok, _pid} = Cassandra.start_link()
+    assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
+  end
+
+  @tag infrastructure: true
+  test "list_last_transaction_addresses/0 should retrieve the last transaction addresses" do
+    {:ok, _pid} = Cassandra.start_link()
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice3")
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice4")
+
+    assert [{"@Alice1", "@Alice4"}] =
+             Cassandra.list_last_transaction_addresses() |> Enum.to_list()
+  end
+
+  defp create_transaction(inputs \\ [], opts \\ []) do
     welcome_node = %Node{
       first_public_key: "key1",
       last_public_key: "key1",
@@ -157,7 +176,7 @@ defmodule Uniris.DB.CassandraImplTest do
       storage_nodes: storage_nodes
     }
 
-    TransactionFactory.create_valid_transaction(context, [], opts)
+    TransactionFactory.create_valid_transaction(context, inputs, opts)
   end
 
   defp empty_keys(tx) do

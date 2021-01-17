@@ -63,18 +63,28 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStampTest do
   defp gen_transaction_movement do
     gen all(
           to <- StreamData.binary(length: 33),
-          amount <- StreamData.float(min: 0.0, max: 10.0)
+          amount <- StreamData.float(min: 0.0, max: 10.0),
+          type <-
+            StreamData.one_of([
+              StreamData.constant(:UCO),
+              StreamData.tuple({StreamData.constant(:NFT), StreamData.binary(length: 33)})
+            ])
         ) do
-      %TransactionMovement{to: to, amount: amount}
+      %TransactionMovement{to: to, amount: amount, type: type}
     end
   end
 
   defp gen_unspent_outputs do
     gen all(
           from <- StreamData.binary(length: 33),
-          amount <- StreamData.float(min: 0.0, max: 10.0)
+          amount <- StreamData.float(min: 0.0, max: 10.0),
+          type <-
+            StreamData.one_of([
+              StreamData.constant(:UCO),
+              StreamData.tuple({StreamData.constant(:NFT), StreamData.binary(length: 33)})
+            ])
         ) do
-      %UnspentOutput{from: from, amount: amount}
+      %UnspentOutput{from: from, amount: amount, type: type}
     end
   end
 

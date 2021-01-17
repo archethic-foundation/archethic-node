@@ -58,10 +58,11 @@ defmodule Uniris.Replication.TransactionValidatorTest do
   end
 
   describe "validate/1" do
-    test "should return {:error, :invalid} when the atomic commitment is not reached", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+    test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached",
+         context do
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
-      assert {:error, :invalid} =
+      assert {:error, :invalid_atomic_commitment} =
                context
                |> TransactionFactory.create_transaction_with_not_atomic_commitment(
                  unspent_outputs
@@ -69,17 +70,17 @@ defmodule Uniris.Replication.TransactionValidatorTest do
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when an invalid proof of work",
+    test "should return {:error, :invalid_proof_of_work} when an invalid proof of work",
          context do
-      assert {:error, :invalid} =
+      assert {:error, :invalid_proof_of_work} =
                context
                |> TransactionFactory.create_transaction_with_invalid_proof_of_work([])
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when the validation stamp signature is invalid",
+    test "should return {:error, :invalid_validation_stamp_signature} when the validation stamp signature is invalid",
          context do
-      assert {:error, :invalid} =
+      assert {:error, :invalid_validation_stamp_signature} =
                context
                |> TransactionFactory.create_transaction_with_invalid_validation_stamp_signature(
                  []
@@ -87,25 +88,27 @@ defmodule Uniris.Replication.TransactionValidatorTest do
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when the fees are invalid",
+    test "should return {:error, :invalid_transaction_fee} when the fees are invalid",
          context do
-      assert {:error, :invalid} =
+      assert {:error, :invalid_transaction_fee} =
                context
                |> TransactionFactory.create_transaction_with_invalid_fee([])
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when the transaction movements are invalid", context do
-      assert {:error, :invalid} =
+    test "should return {:error, :invalid_transaction_movements} when the transaction movements are invalid",
+         context do
+      assert {:error, :invalid_transaction_movements} =
                context
                |> TransactionFactory.create_transaction_with_invalid_transaction_movements([])
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when the node movements are invalid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+    test "should return {:error, ::invalid_cross_validation_nodes_movements} when the node movements are invalid",
+         context do
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
-      assert {:error, :invalid} =
+      assert {:error, :invalid_cross_validation_nodes_movements} =
                context
                |> TransactionFactory.create_transaction_with_invalid_node_movements(
                  unspent_outputs
@@ -113,11 +116,11 @@ defmodule Uniris.Replication.TransactionValidatorTest do
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid} when there is an atomic commitment but with inconsistencies",
+    test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies",
          context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
-      assert {:error, :invalid} =
+      assert {:error, :invalid_transaction_with_inconsistencies} =
                context
                |> TransactionFactory.create_valid_transaction_with_inconsistencies(
                  unspent_outputs
@@ -126,7 +129,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
     end
 
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert :ok =
                context
@@ -137,7 +140,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
 
   describe "validate/2" do
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 
       assert :ok =
                context

@@ -14,6 +14,7 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     create_cross_validation_stamp_user_type()
     create_transaction_table()
     create_transaction_chain_table()
+    create_chain_lookup_table()
 
     Logger.info("Schema database initialized")
   end
@@ -66,29 +67,44 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
   end
 
   defp create_transaction_data_ledger_type do
-    create_transaction_data_transfer_type()
     create_transaction_data_uco_ledger_type()
+    create_transaction_data_nft_ledger_type()
 
     Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.pending_transaction_ledger(
-      uco frozen<uco_ledger>
-    );
-    """)
-  end
-
-  defp create_transaction_data_transfer_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.transfer(
-      "to" blob,
-      amount float
+      uco frozen<uco_ledger>,
+      nft frozen<nft_ledger>
     );
     """)
   end
 
   defp create_transaction_data_uco_ledger_type do
     Xandra.execute!(:xandra_conn, """
+    CREATE TYPE IF NOT EXISTS uniris.uco_transfer(
+      "to" blob,
+      amount double
+    );
+    """)
+
+    Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.uco_ledger(
-      transfers LIST<frozen<transfer>>
+      transfers LIST<frozen<uco_transfer>>
+    );
+    """)
+  end
+
+  defp create_transaction_data_nft_ledger_type do
+    Xandra.execute!(:xandra_conn, """
+    CREATE TYPE IF NOT EXISTS uniris.nft_transfer(
+      "to" blob,
+      amount double,
+      nft blob
+    );
+    """)
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TYPE IF NOT EXISTS uniris.nft_ledger(
+      transfers LIST<frozen<nft_transfer>>
     );
     """)
   end
@@ -124,7 +140,7 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.ledger_operations_node_movement(
       "to" blob,
-      amount float,
+      amount double,
       roles list<text>
     );
     """)
@@ -134,7 +150,9 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.ledger_operations_transaction_movement(
       "to" blob,
-      amount float
+      amount double,
+      type varchar,
+      nft_address blob
     );
     """)
   end
@@ -143,7 +161,9 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.ledger_operations_unspent_output(
       "from" blob,
-      amount float
+      amount double,
+      type varchar,
+      nft_address blob
     );
     """)
   end
@@ -183,6 +203,18 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
       PRIMARY KEY ((chain_address, fork), timestamp)
     )
     WITH CLUSTERING ORDER BY (timestamp DESC);
+    """)
+  end
+
+  defp create_chain_lookup_table do
+    Logger.info("chain_lookup table creation...")
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TABLE IF NOT EXISTS uniris.chain_lookup(
+      transaction_address blob,
+      last_transaction_address blob,
+      PRIMARY KEY (transaction_address)
+    )
     """)
   end
 end

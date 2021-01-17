@@ -103,7 +103,7 @@ defmodule Uniris.SelfRepair.SyncTest do
     end
 
     test "should retrieve the missing beacon slots from the given date", context do
-      inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, spent?: true}]
+      inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, spent?: true, type: :UCO}]
       tx = TransactionFactory.create_valid_transaction(context, inputs)
 
       missing_slots = [

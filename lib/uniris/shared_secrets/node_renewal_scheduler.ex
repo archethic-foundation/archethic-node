@@ -17,6 +17,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
 
   alias Uniris.Crypto
 
+  alias Uniris.Mining
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.StartMining
 
@@ -62,7 +64,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     Task.start(fn ->
       timer = schedule_renewal_message(me, interval, trigger_offset)
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Node shared secrets will be renewed in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     {:noreply, state}
@@ -74,7 +79,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     Task.start(fn ->
       timer = schedule_renewal_message(me, interval, trigger_offset)
       remaining_seconds = remaining_seconds_from_timer(timer)
-      Logger.info("Node shared secrets will be renewed in #{remaining_seconds} seconds")
+
+      Logger.info(
+        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      )
     end)
 
     if NodeRenewal.initiator?() do
@@ -93,7 +101,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
         :crypto.strong_rand_bytes(32)
       )
 
-    validation_nodes = P2P.list_nodes(authorized?: true, availability: :global)
+    validation_nodes = Mining.transaction_validation_nodes(tx)
 
     validation_nodes
     |> P2P.broadcast_message(%StartMining{
