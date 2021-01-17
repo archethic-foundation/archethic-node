@@ -9,6 +9,12 @@ defmodule Uniris.Networking.IPLookup.Nat do
     |> discover
   end
 
+  @spec assign_port(list(atom)) :: {:ok, pos_integer} | {:error, any()}
+  def get_random_port do
+    [:natupnp_v1, :natupnp_v2, :natpmp]
+    |> assign_port
+  end
+
   # Private
 
   @spec discover(list(atom)) :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
@@ -22,6 +28,20 @@ defmodule Uniris.Networking.IPLookup.Nat do
       {:error, :einval} -> discover(protocol_modules)
       {:error, :no_nat} -> discover(protocol_modules)
       {:error, :timeout} -> discover(protocol_modules)
+    end
+  end
+
+  @spec assign_port(list(atom)) :: {:ok, pos_integer} | {:error, any()}
+  defp assign_port([]), do: {:error, :port_unassigned}
+  defp assign_port([protocol_module | protocol_modules]) do
+    with {:ok, router_ip} <- protocol_module.discover(),
+    {:ok, _since, port, _external_port, _} <- protocol_module.add_port_mapping(router_ip, :tcp, 0, 0, 0) do
+      {:ok, port}
+    else
+      {:error, :einval} -> discover(protocol_modules)
+      {:error, :no_nat} -> discover(protocol_modules)
+      {:error, :timeout} -> discover(protocol_modules)
+      {:error, reason} -> {:error, reason}
     end
   end
 end

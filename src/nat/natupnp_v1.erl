@@ -159,13 +159,18 @@ random_port_mapping(_Ctx, _Protocol, _InternalPort, _Lifetime, Error, 0) ->
     Error;
 random_port_mapping(Ctx, Protocol, InternalPort, Lifetime, _LastError, Tries) ->
     ExternalPort = nat_lib:random_port(),
-    Res = add_port_mapping1(Ctx, Protocol, InternalPort, ExternalPort, Lifetime),
+
+    Port = case InternalPort of
+      0 -> ExternalPort;
+      _ -> InternalPort
+    end,
+
+    Res = add_port_mapping1(Ctx, Protocol, Port, ExternalPort, Lifetime),
     case Res of
         {ok, _, _, _, _} ->
             Res;
         Error ->
-            random_port_mapping(Ctx, Protocol, InternalPort, Lifetime, Error,
-                                Tries -1)
+            random_port_mapping(Ctx, Protocol, Port, Lifetime, Error, Tries - 1)
     end.
 
 
