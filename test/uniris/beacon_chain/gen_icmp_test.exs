@@ -8,7 +8,7 @@ defmodule Uniris.BeaconChain.GenICMPTest do
   doctest GenICMP
 
   test "ping/1 should ping the destination node" do
-    assert {:ok} = GenICMP.ping({127, 0, 0, 1})
+    assert {:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}} = GenICMP.ping({127, 0, 0, 1})
   end
 
   test "should fetch the transaction locally when the current node is a storage node" do
@@ -44,6 +44,10 @@ defmodule Uniris.BeaconChain.GenICMPTest do
 
     p2p_view_available = Enum.map(P2P.list_nodes(), fn x -> GenICMP.ping(x.ip) end)
 
-    assert [{:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}}] = p2p_view_available
+    assert [
+             {:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}},
+             {:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}},
+             {:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}}
+           ] = p2p_view_available
   end
 end
