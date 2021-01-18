@@ -23,6 +23,8 @@ defmodule Uniris.Application do
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
   def start(_type, _args) do
+    :ok = Uniris.Telemetry.Instrumenter.setup()
+
     children = [
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
@@ -43,7 +45,12 @@ defmodule Uniris.Application do
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
-    Supervisor.start_link(Utils.configurable_children(children), opts)
+    res = Supervisor.start_link(Utils.configurable_children(children), opts)
+
+    :telemetry.execute([:uniris, :run_app, :success], %{"latency" => 1.2}, %{"hello" => "uniris"})
+    :telemetry.execute([:uniris, :run_app, :failure], %{"response time" => 2.1}, %{"failed" => "I'm failed"})
+
+    res
   end
 
   def config_change(changed, _new, removed) do

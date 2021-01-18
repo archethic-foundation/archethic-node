@@ -61,7 +61,9 @@ defmodule Uniris.MixProject do
       {:earmark, "~> 1.4"},
       {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
-      {:exjsonpath, "~> 0.9.0"}
+      {:exjsonpath, "~> 0.9.0"},
+      {:telemetry_metrics, "~> 0.6"},
+      {:telemetry_metrics_statsd, "~> 0.5"}
     ]
   end
 end
