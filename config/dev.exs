@@ -16,8 +16,10 @@ config :phoenix, :plug_init_mode, :runtime
 # hostname(string) - (for Static) provides a constant IP address for Static (ex. "127.0.0.1")
 # port(pos_int) - (for Static) provides a P2P port number (ex. 3002)
 #
-# config :uniris, Uniris.Networking, 
-#   port: 4000
+config :uniris, Uniris.Networking, 
+  # ip_provider: Uniris.Networking.IPLookup.Static,
+  # hostname: "127.0.0.1",
+  port: 5454
   
 config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "0 * * * * * *",
@@ -72,7 +74,8 @@ config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 config :uniris, Uniris.Crypto.SoftwareKeystore,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
 
-config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
+# config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
+config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
 
 config :uniris, Uniris.DB.KeyValueImpl,
   root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"

@@ -15,6 +15,10 @@ defmodule Uniris.Networking.IPLookup.Ipify do
       :inets.stop()
       {:ok, ip}
     else
+      {:error, {:failed_connect, _reason}} ->
+        :inets.stop()
+        {:error, :not_recognizable_ip}
+
       {:error, :einval} -> 
         :inets.stop()
         {:error, :not_recognizable_ip}
