@@ -74,8 +74,7 @@ config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 config :uniris, Uniris.Crypto.SoftwareKeystore,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
 
-# config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
-config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
+config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
 
 config :uniris, Uniris.DB.KeyValueImpl,
   root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
