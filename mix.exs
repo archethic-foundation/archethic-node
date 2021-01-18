@@ -52,7 +52,7 @@ defmodule Uniris.MixProject do
       {:crontab, "~> 1.1"},
       {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
-      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.0", runtime: false},
       {:mox, "~> 0.5.2"},
       {:stream_data, "~> 0.5.0"},
       {:elixir_make, "~> 0.6.0", runtime: false},
