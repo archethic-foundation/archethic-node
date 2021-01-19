@@ -46,12 +46,7 @@ defmodule Uniris.Application do
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
-    res = Supervisor.start_link(Utils.configurable_children(children), opts)
-
-    :telemetry.execute([:uniris, :run_app, :success], %{"latency" => 1.2}, %{"hello" => "uniris"})
-    :telemetry.execute([:uniris, :run_app, :failure], %{"response time" => 2.1}, %{"failed" => "I'm failed"})
-
-    res
+    Supervisor.start_link(Utils.configurable_children(children), opts)
   end
 
   def config_change(changed, _new, removed) do
