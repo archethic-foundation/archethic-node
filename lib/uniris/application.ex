@@ -26,6 +26,7 @@ defmodule Uniris.Application do
     :ok = Uniris.Telemetry.Instrumenter.setup()
 
     children = [
+      {Uniris.Telemetry, name: Uniris.Telemetry},
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
       TransactionChainSupervisor,

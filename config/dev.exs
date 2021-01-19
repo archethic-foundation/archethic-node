@@ -2,6 +2,8 @@ use Mix.Config
 
 # config :logger, handle_sasl_reports: true
 
+config :telemetry_poller, :default, period: 5_000
+
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
 config :phoenix, :stacktrace_depth, 20

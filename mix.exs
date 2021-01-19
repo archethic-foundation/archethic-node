@@ -63,7 +63,7 @@ defmodule Uniris.MixProject do
       {:sizeable, "~> 1.0"},
       {:exjsonpath, "~> 0.9.0"},
       {:telemetry_metrics, "~> 0.6"},
-      {:telemetry_metrics_statsd, "~> 0.5"}
+      {:telemetry_poller, "~> 0.5.1"}
     ]
   end
 end
