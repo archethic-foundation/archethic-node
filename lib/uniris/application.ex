@@ -23,7 +23,10 @@ defmodule Uniris.Application do
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
   def start(_type, _args) do
+    :ok = Uniris.Telemetry.Instrumenter.setup()
+
     children = [
+      {Uniris.Telemetry, name: Uniris.Telemetry},
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
       TransactionChainSupervisor,
