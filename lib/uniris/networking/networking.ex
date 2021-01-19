@@ -18,11 +18,11 @@ defmodule Uniris.Networking do
   """
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   def get_node_ip do
-    with config when not is_nil(config) <- Application.get_env(:uniris, Uniris.Networking),
-    {:ok, ip_provider} <- Keyword.fetch(config, :ip_provider) do
-      ip_provider.get_node_ip()
-    else
-      :error -> get_external_ip() # Provider is not defined in config
+    Application.get_env(:uniris, Uniris.Networking)
+    |> Keyword.fetch(:ip_provider)
+    |> case do
+      {:ok, ip_provider} -> ip_provider.get_node_ip()
+      :error -> get_external_ip()
     end
   end
 
@@ -35,17 +35,12 @@ defmodule Uniris.Networking do
   """
   @spec get_p2p_port() :: {:ok, pos_integer} | {:error, :invalid_port | :port_unassigned}
   def get_p2p_port do
-    with {:ok, port_to_open} <- Config.get_p2p_port,
+    with config <- Application.get_env(:uniris, Uniris.Networking),
+    {:ok, port_to_open} <- Keyword.fetch(config, :port),
     {:ok, port} <- IPLookup.Nat.open_port(port_to_open) do
       {:ok, port}
     else
-      {:error, :invalid_port} -> {:error, :invalid_port} 
-      {:error, :ip_discovery_error} -> 
-        IPLookup.Nat.get_random_port
-        |> case do
-          {:ok, port} -> {:ok, port}
-          {:error, _reason} -> {:error, :port_unassigned}
-        end
+      {:error, :ip_discovery_error} -> assign_random_port()
     end
   end
 
@@ -53,10 +48,29 @@ defmodule Uniris.Networking do
 
   @spec get_external_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   defp get_external_ip do
-    with {:ok, ip} <- IPLookup.Nat.get_node_ip do
-      {:ok, ip}
-    else
+    IPLookup.Nat.get_node_ip
+    |> case do
+      {:ok, ip} -> {:ok, ip}
       {:error, _} -> IPLookup.Ipify.get_node_ip()
+    end
+  end
+
+  @spec assign_random_port() :: {:ok, port} | {:error, :port_unassigned}
+  defp assign_random_port do
+    with config <- Application.get_env(:uniris, Uniris.Networking),
+    :error <- Keyword.fetch(config, :ip_provider) do
+      get_random_port()
+    else
+      {:ok, Uniris.Networking.IPLookup.Static} -> :port_unassigned
+    end
+  end
+
+  @spec get_random_port() :: {:ok, port} | {:error, :port_unassigned}
+  defp get_random_port do
+    IPLookup.Nat.get_random_port
+    |> case do
+      {:ok, port} -> {:ok, port}
+      {:error, _reason} -> {:error, :port_unassigned}
     end
   end
 end
