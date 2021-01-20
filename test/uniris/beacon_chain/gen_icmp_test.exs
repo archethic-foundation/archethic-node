@@ -11,7 +11,7 @@ defmodule Uniris.BeaconChain.GenICMPTest do
     assert {:ok, %{data: <<222, 173, 190, 239>>, id: 0, seq: 0}} = GenICMP.ping({127, 0, 0, 1})
   end
 
-  test "should fetch the transaction locally when the current node is a storage node" do
+  test "ping/1 should ping multiple destinations" do
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3005,
