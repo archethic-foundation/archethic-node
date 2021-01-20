@@ -26,7 +26,7 @@ defmodule Uniris.Governance.Code do
   """
   @spec list_source_files() :: list(binary())
   def list_source_files do
-    {files, 0} = System.cmd("git", ["ls-tree", "-r", "master", "--name-only"], cd: @src_dir)
+    {files, 0} = System.cmd("git", ["ls-tree", "-r", "HEAD", "--name-only"], cd: @src_dir)
     String.split(files, "\n", trim: true)
   end
 
