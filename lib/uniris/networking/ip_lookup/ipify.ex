@@ -5,7 +5,7 @@ defmodule Uniris.Networking.IPLookup.Ipify do
   """
 
   # Public
-  
+
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
   def get_node_ip do
     :inets.start()
@@ -19,7 +19,7 @@ defmodule Uniris.Networking.IPLookup.Ipify do
         :inets.stop()
         {:error, :not_recognizable_ip}
 
-      {:error, :einval} -> 
+      {:error, :einval} ->
         :inets.stop()
         {:error, :not_recognizable_ip}
     end

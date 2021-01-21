@@ -1,6 +1,6 @@
 defmodule Uniris.Networking.IPLookup.Nat do
   @moduledoc false
-  
+
   # Public
 
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
@@ -41,7 +41,7 @@ defmodule Uniris.Networking.IPLookup.Nat do
   defp assign_port([], _port), do: {:error, :port_unassigned}
   defp assign_port([protocol_module | protocol_modules], port) do
     with {:ok, router_ip} <- protocol_module.discover(),
-    {:ok, _since, internal_port, _external_port, _} <- protocol_module.add_port_mapping(router_ip, :tcp, port, port, 0) do
+    {:ok, _, internal_port, _, _} <- protocol_module.add_port_mapping(router_ip, :tcp, port, port, 0) do
       {:ok, internal_port}
     else
       {:error, {:http_error, _code, _reason}} -> discover(protocol_modules)

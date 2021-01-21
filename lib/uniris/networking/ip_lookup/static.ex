@@ -3,7 +3,7 @@ defmodule Uniris.Networking.IPLookup.Static do
   Module provides static IP address of the current node
   fetched from ENV variable or compile-time configuration.
   """
-  
+
   # Public
 
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
@@ -14,7 +14,7 @@ defmodule Uniris.Networking.IPLookup.Static do
     {:ok, ip} <- :inet.parse_address(host_chars) do
       {:ok, ip}
     else
-      :error -> {:error, :invalid_ip_provider} 
+      :error -> {:error, :invalid_ip_provider}
       {:error, :einval} -> {:error, :not_recognizable_ip}
     end
   end

@@ -1,4 +1,5 @@
 defmodule Uniris.Telemetry.Instrumenter do
+  @moduledoc false
 
   import Telemetry.Metrics
   require Logger
@@ -25,4 +26,4 @@ defmodule Uniris.Telemetry.Instrumenter do
   def handle_event([:uniris, :run_app, :failure], measurements, metadata, config) do
     Logger.debug "APP FAILED TO START: #{inspect measurements}, #{inspect metadata}"
   end
-end 
+end

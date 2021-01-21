@@ -4,9 +4,10 @@ defmodule Uniris.Networking do
   """
 
   alias __MODULE__.{Config, IPLookup}
+  alias IPLookup.{Ipify, Nat, Static}
 
   # Public
-  
+
   @doc """
   Provides current host IP address.
   1. Provider is defined in config - Static -> use hostname from config
@@ -18,7 +19,7 @@ defmodule Uniris.Networking do
   """
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   def get_node_ip do
-    Application.get_env(:uniris, Uniris.Networking)
+    Application.get_env(:uniris, __MODULE__)
     |> Keyword.fetch(:ip_provider)
     |> case do
       {:ok, ip_provider} -> ip_provider.get_node_ip()
@@ -35,9 +36,9 @@ defmodule Uniris.Networking do
   """
   @spec get_p2p_port() :: {:ok, pos_integer} | {:error, :invalid_port | :port_unassigned}
   def get_p2p_port do
-    with config <- Application.get_env(:uniris, Uniris.Networking),
+    with config <- Application.get_env(:uniris, __MODULE__),
     {:ok, port_to_open} <- Keyword.fetch(config, :port),
-    {:ok, port} <- IPLookup.Nat.open_port(port_to_open) do
+    {:ok, port} <- Nat.open_port(port_to_open) do
       {:ok, port}
     else
       {:error, :ip_discovery_error} -> assign_random_port()
@@ -48,26 +49,26 @@ defmodule Uniris.Networking do
 
   @spec get_external_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   defp get_external_ip do
-    IPLookup.Nat.get_node_ip
+    Nat.get_node_ip
     |> case do
       {:ok, ip} -> {:ok, ip}
-      {:error, _} -> IPLookup.Ipify.get_node_ip()
+      {:error, _} -> Ipify.get_node_ip()
     end
   end
 
   @spec assign_random_port() :: {:ok, port} | {:error, :port_unassigned}
   defp assign_random_port do
-    with config <- Application.get_env(:uniris, Uniris.Networking),
+    with config <- Application.get_env(:uniris, __MODULE__),
     :error <- Keyword.fetch(config, :ip_provider) do
       get_random_port()
     else
-      {:ok, Uniris.Networking.IPLookup.Static} -> :port_unassigned
+      {:ok, Static} -> :port_unassigned
     end
   end
 
   @spec get_random_port() :: {:ok, port} | {:error, :port_unassigned}
   defp get_random_port do
-    IPLookup.Nat.get_random_port
+    Nat.get_random_port
     |> case do
       {:ok, port} -> {:ok, port}
       {:error, _reason} -> {:error, :port_unassigned}
