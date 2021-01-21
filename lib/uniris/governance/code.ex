@@ -20,6 +20,7 @@ defmodule Uniris.Governance.Code do
   alias Uniris.Utils
 
   @src_dir Application.compile_env(:uniris, :src_dir)
+  @src_branch Application.compile_env(:uniris, :src_branch)
 
   @doc """
   List the source files from the master branch
@@ -65,17 +66,49 @@ defmodule Uniris.Governance.Code do
   @doc """
   Ensure the code proposal is valid according to the defined rules:
   - Version in the code proposal must be a direct successor of the current running version.
-  - Git diff/patch must be valid. A fork is make to apply the diff and run the CI tasks
+  - Git diff/patch must be valid.
   """
   @spec valid_proposal?(Proposal.t()) :: boolean()
   def valid_proposal?(prop = %Proposal{version: version}) do
     with true <- succeessor_version?(current_version(), version),
-         :ok <- CI.run(prop) do
+         true <- applicable_proposal?(prop) do
       true
     else
       _ ->
         false
     end
+  end
+
+  @doc """
+  Ensure the code proposal is an applicable on the given branch.
+  """
+  @spec applicable_proposal?(Proposal.t()) :: boolean()
+  def applicable_proposal?(
+        %Proposal{changes: changes, address: address},
+        branch \\ @src_branch,
+        src_dir \\ @src_dir
+      ) do
+    random = :crypto.strong_rand_bytes(4) |> Base.encode16()
+    prop_file = Path.join(System.tmp_dir!(), "prop_#{random}_#{Base.encode16(address)}")
+    File.write!(prop_file, changes)
+
+    cmd_options = [stderr_to_stdout: true, cd: src_dir]
+    git = fn args -> System.cmd("git", args, cmd_options) end
+
+    x = byte_size(branch)
+
+    res =
+      case git.(["symbolic-ref", "--short", "HEAD"]) do
+        {<<^branch::binary-size(x), _::binary>>, 0} ->
+          git.(["apply", "--check", prop_file])
+
+        otherwise ->
+          {:error, otherwise}
+      end
+
+    File.rm(prop_file)
+
+    match?({_, 0}, res)
   end
 
   @doc """
