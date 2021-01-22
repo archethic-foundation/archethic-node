@@ -15,7 +15,6 @@ defmodule Uniris.Application do
   alias Uniris.P2P.Supervisor, as: P2PSupervisor
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
-  alias Uniris.Telemetry.Instrumenter
   alias Uniris.TransactionChain.Supervisor, as: TransactionChainSupervisor
 
   alias Uniris.Utils
@@ -24,8 +23,6 @@ defmodule Uniris.Application do
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
   def start(_type, _args) do
-    :ok = Instrumenter.setup()
-
     children = [
       Uniris.Telemetry,
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},

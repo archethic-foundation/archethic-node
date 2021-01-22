@@ -3,8 +3,7 @@ defmodule Uniris.Networking do
   Module defines networking configuration of the node.
   """
 
-  alias __MODULE__.{Config, IPLookup}
-  alias IPLookup.{Ipify, Nat, Static}
+  alias __MODULE__.IPLookup.{Ipify, Nat, Static}
 
   # Public
 
