@@ -108,7 +108,7 @@ config :uniris, UnirisWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
-  version: Application.spec(:phoenix_app, :vsn),
+  version: Application.spec(:uniris, :vsn),
   check_origin: false,
   https: [
     port: 443,
