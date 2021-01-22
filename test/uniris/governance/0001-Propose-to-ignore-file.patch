@@ -1,0 +1,24 @@
+From bbb8d78601936785720d5f9099b5d7d69d57d887 Mon Sep 17 00:00:00 2001
+From: uniris <uniris@uniris.io>
+Date: Thu, 21 Jan 2021 16:04:09 +0200
+Subject: [PATCH] Propose to ignore file
+
+---
+ .gitignore | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.gitignore b/.gitignore
+index c2c7f3b..ba9f496 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -38,4 +38,5 @@ log_*
+ 
+ /.idea/
+ uniris-node.iml
+-projectFilesBackup
+\ No newline at end of file
++projectFilesBackup
++ignore-this-file
+-- 
+2.20.1
+
