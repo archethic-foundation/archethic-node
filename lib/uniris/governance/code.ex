@@ -95,11 +95,9 @@ defmodule Uniris.Governance.Code do
     cmd_options = [stderr_to_stdout: true, cd: src_dir]
     git = fn args -> System.cmd("git", args, cmd_options) end
 
-    x = byte_size(branch)
-
     res =
-      case git.(["symbolic-ref", "--short", "HEAD"]) do
-        {<<^branch::binary-size(x), _::binary>>, 0} ->
+      case status() do
+        {:clean, ^branch} ->
           git.(["apply", "--check", prop_file])
 
         otherwise ->
@@ -109,6 +107,32 @@ defmodule Uniris.Governance.Code do
     File.rm(prop_file)
 
     match?({_, 0}, res)
+  end
+
+  @doc """
+  Return tuple {state, branch_name} where state could be :clean or :dirty or
+  {:error, whatever}
+  """
+  @spec status() :: {:clean, String.t()} | {:dirty, String.t()} | {:error, any}
+  def status(src_dir \\ @src_dir) do
+    git = fn args -> System.cmd("git", args, stderr_to_stdout: true, cd: src_dir) end
+
+    case git.(["symbolic-ref", "--short", "HEAD"]) do
+      {branch, 0} ->
+        case git.(["status", "--porcelain"]) do
+          {"", 0} ->
+            {:clean, String.trim(branch)}
+
+          {_, 0} ->
+            {:dirty, String.trim(branch)}
+
+          otherwise ->
+            {:error, otherwise}
+        end
+
+      otherwise ->
+        {:error, otherwise}
+    end
   end
 
   @doc """
