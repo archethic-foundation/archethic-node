@@ -22,7 +22,7 @@ use Distillery.Releases.Config,
 # and environment configuration is called a profile
 
 environment :dev do
-  set include_erts: false
+  set include_erts: true
   set include_src: false
   set cookie: :"8y|aIx=xQ|1$Ip73CXG>HJz5@kWhR~OyzS?>_en(asysESIrl76Tr0H*RHV@LXK%"
 
