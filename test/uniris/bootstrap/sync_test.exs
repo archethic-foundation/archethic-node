@@ -18,6 +18,8 @@ defmodule Uniris.Bootstrap.SyncTest do
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler
@@ -151,8 +153,8 @@ defmodule Uniris.Bootstrap.SyncTest do
   describe "initialize_network/2" do
     setup do
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-      start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
-      start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *", trigger_offset: 0})
+      start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+      start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
@@ -244,5 +246,29 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     assert :ok = Sync.load_storage_nonce(node)
     assert "fake_storage_nonce" = :persistent_term.get(:storage_nonce)
+  end
+
+  test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do
+    BeaconSlotTimer.start_link(interval: "0 * * * * *")
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      available?: true,
+      geo_patch: "AAA"
+    })
+
+    me = self()
+
+    MockTransport
+    |> stub(:send_message, fn _, _, %NotifyEndOfNodeSync{} ->
+      send(me, :end_of_sync)
+      {:ok, %Ok{}}
+    end)
+
+    assert :ok = Sync.publish_end_of_sync()
+    assert_receive :end_of_sync
   end
 end

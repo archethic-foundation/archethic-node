@@ -65,7 +65,6 @@ defmodule Uniris.TransactionChain.Transaction do
           | :node
           | :node_shared_secrets
           | :origin_shared_secrets
-          | :beacon
           | :hosting
           | :code_proposal
           | :code_approval
@@ -78,7 +77,6 @@ defmodule Uniris.TransactionChain.Transaction do
     :node,
     :node_shared_secrets,
     :origin_shared_secrets,
-    :beacon,
     :hosting,
     :code_proposal,
     :code_approval,
@@ -100,7 +98,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec new(type :: transaction_type(), data :: TransactionData.t()) ::
           t()
   def new(type, data = %TransactionData{})
-      when type in [:node, :node_shared_secrets, :beacon] do
+      when type in [:node, :node_shared_secrets] do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
     %__MODULE__{
@@ -141,15 +139,25 @@ defmodule Uniris.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
-  defp get_transaction_public_keys(:node) do
-    key_index = Crypto.number_of_node_keys()
-    previous_public_key = Crypto.node_public_key(key_index)
-    next_public_key = Crypto.node_public_key(key_index + 1)
-    {previous_public_key, next_public_key}
+  def new(
+        type,
+        data = %TransactionData{},
+        previous_private_key,
+        previous_public_key,
+        next_public_key
+      ) do
+    %__MODULE__{
+      address: Crypto.hash(next_public_key),
+      type: type,
+      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
+      data: data,
+      previous_public_key: previous_public_key
+    }
+    |> previous_sign_transaction(previous_private_key)
+    |> origin_sign_transaction()
   end
 
-  # TODO: use the sync seed in the node shared secrets
-  defp get_transaction_public_keys(:beacon) do
+  defp get_transaction_public_keys(:node) do
     key_index = Crypto.number_of_node_keys()
     previous_public_key = Crypto.node_public_key(key_index)
     next_public_key = Crypto.node_public_key(key_index + 1)
@@ -164,19 +172,6 @@ defmodule Uniris.TransactionChain.Transaction do
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{type: :node}) do
-    key_index = Crypto.number_of_node_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_node_key(key_index)
-
-    %{tx | previous_signature: previous_signature}
-  end
-
-  # TODO: use the sync seed in the node shared secrets
-  defp previous_sign_transaction(tx = %__MODULE__{type: :beacon}) do
     key_index = Crypto.number_of_node_keys()
 
     previous_signature =
@@ -259,11 +254,10 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:node), do: 3
   def serialize_type(:node_shared_secrets), do: 4
   def serialize_type(:origin_shared_secrets), do: 5
-  def serialize_type(:beacon), do: 6
-  def serialize_type(:hosting), do: 7
-  def serialize_type(:code_proposal), do: 8
-  def serialize_type(:code_approval), do: 9
-  def serialize_type(:nft), do: 10
+  def serialize_type(:hosting), do: 6
+  def serialize_type(:code_proposal), do: 7
+  def serialize_type(:code_approval), do: 8
+  def serialize_type(:nft), do: 9
 
   @doc """
   Parse a serialize transaction type
@@ -275,11 +269,10 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(3), do: :node
   def parse_type(4), do: :node_shared_secrets
   def parse_type(5), do: :origin_shared_secrets
-  def parse_type(6), do: :beacon
-  def parse_type(7), do: :hosting
-  def parse_type(8), do: :code_proposal
-  def parse_type(9), do: :code_approval
-  def parse_type(10), do: :nft
+  def parse_type(6), do: :hosting
+  def parse_type(7), do: :code_proposal
+  def parse_type(8), do: :code_approval
+  def parse_type(9), do: :nft
 
   @doc """
   Determines if a transaction type is a network one
@@ -801,7 +794,13 @@ defmodule Uniris.TransactionChain.Transaction do
       validation_stamp:
         Map.get(tx, :validation_stamp, %ValidationStamp{}) |> ValidationStamp.from_map(),
       cross_validation_stamps:
-        Map.get(tx, :cross_validation_stamps, []) |> Enum.map(&CrossValidationStamp.from_map/1)
+        case Map.get(tx, :cross_validation_stamps, []) do
+          nil ->
+            nil
+
+          cross_stamps ->
+            Enum.map(cross_stamps, &CrossValidationStamp.from_map/1)
+        end
     }
   end
 

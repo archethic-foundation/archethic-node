@@ -1,15 +1,13 @@
-defmodule Uniris.BeaconChain.Slot.NodeInfo do
+defmodule Uniris.BeaconChain.Slot.EndOfNodeSync do
   @moduledoc """
-  Represents an information stored in the Beacon chain regarding a node
-  involving either readiness of the node or the P2P network coordinates
+  Represents an information stored in the Beacon chain to notify when a node finished its synchronization
   """
-  defstruct [:public_key, :ready?, :timestamp]
+  defstruct [:public_key, :timestamp]
 
   alias Uniris.Crypto
 
   @type t :: %__MODULE__{
           public_key: Crypto.key(),
-          ready?: boolean(),
           timestamp: DateTime.t()
         }
 
@@ -18,62 +16,69 @@ defmodule Uniris.BeaconChain.Slot.NodeInfo do
 
   ## Examples
 
-        iex> %NodeInfo{
+        iex> %EndOfNodeSync{
         ...>   public_key:  <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
         ...>    81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94>>,
         ...>   timestamp: ~U[2020-06-25 15:11:53Z],
-        ...>   ready?: true
         ...> }
-        ...> |> NodeInfo.serialize()
+        ...> |> EndOfNodeSync.serialize()
         <<
         # Public key
         0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
         81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94,
         # Timestamp
-        94, 244, 190, 185,
-        # Ready
-        1::1
+        94, 244, 190, 185
         >>
   """
-  def serialize(%__MODULE__{public_key: public_key, timestamp: timestamp, ready?: true}) do
-    <<public_key::binary, DateTime.to_unix(timestamp)::32, 1::1>>
-  end
-
-  def serialize(%__MODULE__{public_key: public_key, timestamp: timestamp, ready?: _}) do
-    <<public_key::binary, DateTime.to_unix(timestamp)::32, 0::1>>
+  @spec serialize(t()) :: binary()
+  def serialize(%__MODULE__{public_key: public_key, timestamp: timestamp}) do
+    <<public_key::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   @doc """
-  Deserialize an encoded NodeInfo
+  Deserialize an encoded EndOfNodeSync
 
   ## Examples
 
       iex> <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
-      ...> 81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94, 94, 244, 190, 185, 1::1>>
-      ...> |> NodeInfo.deserialize()
+      ...> 81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94, 94, 244, 190, 185>>
+      ...> |> EndOfNodeSync.deserialize()
       {
-        %NodeInfo{
+        %EndOfNodeSync{
           public_key:  <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
             81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94>>,
-          timestamp: ~U[2020-06-25 15:11:53Z],
-          ready?: true
+          timestamp: ~U[2020-06-25 15:11:53Z]
         },
         ""
       }
   """
+  @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<curve_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(key_size), timestamp::32, readiness::1, rest::bitstring>> = rest
-
-    ready? = if readiness == 1, do: true, else: false
+    <<key::binary-size(key_size), timestamp::32, rest::bitstring>> = rest
 
     {
       %__MODULE__{
-        ready?: ready?,
         public_key: <<curve_id::8>> <> key,
         timestamp: DateTime.from_unix!(timestamp)
       },
       rest
+    }
+  end
+
+  @spec to_map(t()) :: map()
+  def to_map(%__MODULE__{public_key: public_key, timestamp: timestamp}) do
+    %{
+      public_key: public_key,
+      timestamp: timestamp
+    }
+  end
+
+  @spec from_map(map()) :: t()
+  def from_map(%{public_key: public_key, timestamp: timestamp}) do
+    %__MODULE__{
+      public_key: public_key,
+      timestamp: timestamp
     }
   end
 end

@@ -1,7 +1,7 @@
 defmodule Uniris.P2P.Transport.TCPImpl do
   @moduledoc false
 
-  @server_options [:binary, {:packet, 4}, {:active, false}, {:reuseaddr, true}]
+  @server_options [:binary, {:packet, 4}, {:active, false}, {:reuseaddr, true}, {:backlog, 500}]
   @client_options [:binary, packet: 4, active: false]
 
   alias Uniris.P2P.Endpoint.ConnectionSupervisor
@@ -44,10 +44,23 @@ defmodule Uniris.P2P.Transport.TCPImpl do
           |> Message.encode()
           |> Utils.wrap_binary()
 
-        :gen_tcp.send(socket, encoded_result)
-        recv_loop(socket)
+        case :gen_tcp.send(socket, encoded_result) do
+          :ok ->
+            recv_loop(socket)
 
-      {:error, _} ->
+          {:error, :closed} ->
+            Logger.info("TCP connection closed")
+
+          {:error, reason} ->
+            Logger.error("TCP error during sending data - #{reason}")
+            recv_loop(socket)
+        end
+
+      {:error, :closed} ->
+        :gen_tcp.close(socket)
+
+      {:error, reason} ->
+        Logger.error("TCP error during receiving data - #{reason}")
         :gen_tcp.close(socket)
     end
   end

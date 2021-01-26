@@ -32,13 +32,14 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
         timeout: 500,
         ack_node?: true
       )
+      |> Stream.filter(&match?({%Transaction{}, %Node{}}, &1))
       |> Enum.at(0)
 
     case response do
       {tx = %Transaction{}, node} ->
         {:ok, tx, node}
 
-      {_, _} ->
+      _ ->
         {:error, :not_found}
     end
   end

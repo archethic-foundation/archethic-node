@@ -4,8 +4,10 @@ use Mix.Config
 config :logger, level: :info
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
-# 15 days
-config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 54_000
+
+config :uniris, Uniris.Bootstrap.Sync,
+  # 15 days
+  out_of_sync_date_threshold: 54_000
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   # TODO: provide the true addresses for the genesis UCO distribution
@@ -41,9 +43,12 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
   ]
 
 config :uniris, Uniris.BeaconChain.SlotTimer,
-  interval: "0 10 * * * * *",
-  # Trigger it 1 minute before
-  trigger_offset: 60
+  # Every 10 minutes at the 50th second
+  interval: "50 */10 * * * * *"
+
+config :uniris, Uniris.BeaconChain.SummaryTimer,
+  # Every day at midnight at the 50th second
+  interval: "50 0 0 * * * *"
 
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
@@ -62,28 +67,14 @@ config :uniris, Uniris.Governance.Pools,
   ]
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
-  interval: "0 0 0 * * * *",
-  # Trigger it 10 minute before
-  trigger_offset: 600
+  # Every day at midnight at the 50th second
+  interval: "50 0 0 * * * *"
 
-config :uniris, Uniris.SelfRepair.Sync,
-  last_sync_file: "priv/p2p/last_sync",
-  # TODO: specify the real network startup date
-  network_startup_date: %DateTime{
-    year: DateTime.utc_now().year,
-    month: DateTime.utc_now().month,
-    day: DateTime.utc_now().day,
-    hour: 0,
-    minute: 0,
-    second: 0,
-    microsecond: {0, 0},
-    utc_offset: 0,
-    std_offset: 0,
-    time_zone: "Etc/UTC",
-    zone_abbr: "UTC"
-  }
+config :uniris, Uniris.SelfRepair.Sync, last_sync_file: "priv/p2p/last_sync"
 
-config :uniris, Uniris.SelfRepair.Scheduler, interval: "0 0 0 * * * *"
+config :uniris, Uniris.SelfRepair.Scheduler,
+  # Every day at midnight
+  interval: "0 0 0 * * * *"
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information

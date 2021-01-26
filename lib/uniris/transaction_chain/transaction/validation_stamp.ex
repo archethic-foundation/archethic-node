@@ -236,9 +236,12 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ledger_operations:
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
       recipients: Map.get(stamp, :recipients, []),
-      signature: Map.get(stamp, :signature)
+      signature: Map.get(stamp, :signature),
+      contract_validation: Map.get(stamp, :contract_validation)
     }
   end
+
+  def from_map(nil), do: nil
 
   @spec to_map(__MODULE__.t()) :: map()
   def to_map(%__MODULE__{
@@ -246,16 +249,20 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
         recipients: recipients,
-        signature: signature
+        signature: signature,
+        contract_validation: contract_validation
       }) do
     %{
       proof_of_work: pow,
       proof_of_integrity: poi,
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
-      signature: signature
+      signature: signature,
+      contract_validation: contract_validation
     }
   end
+
+  def to_map(nil), do: nil
 
   @doc """
   Determine if the validation stamp signature is valid

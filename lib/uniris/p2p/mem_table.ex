@@ -830,7 +830,13 @@ defmodule Uniris.P2P.MemTable do
   end
 
   defp notify_node_update(public_key) do
-    {:ok, node} = get_node(public_key)
-    PubSub.notify_node_update(node)
+    case get_node(public_key) do
+      {:ok, node} ->
+        PubSub.notify_node_update(node)
+
+      _ ->
+        Logger.error("Node not found")
+        :ok
+    end
   end
 end

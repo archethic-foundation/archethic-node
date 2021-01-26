@@ -4,6 +4,8 @@ defmodule Uniris.Election do
   and constraints to ensure a fair distributed processing and data storage among its network.
   """
 
+  alias Uniris.BeaconChain
+
   alias Uniris.Crypto
 
   alias __MODULE__.Constraints
@@ -344,10 +346,11 @@ defmodule Uniris.Election do
         subset,
         date = %DateTime{},
         nodes,
-        storage_constraints \\ StorageConstraints.new()
-      ) do
+        storage_constraints = %StorageConstraints{} \\ StorageConstraints.new()
+      )
+      when is_binary(subset) and is_list(nodes) do
     subset
-    |> Crypto.derive_beacon_chain_address(date)
+    |> BeaconChain.summary_transaction_address(date)
     |> storage_nodes(nodes, storage_constraints)
   end
 end

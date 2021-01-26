@@ -36,7 +36,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
     P2P.add_node(%Node{
@@ -393,7 +393,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         previous_storage_nodes,
         <<1::1, 1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1>>
+        <<1::1, 1::1, 1::1>>
       )
 
       Workflow.add_mining_context(
@@ -402,7 +402,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         previous_storage_nodes,
         <<1::1, 1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1>>
+        <<1::1, 1::1, 1::1>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
@@ -567,7 +567,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         previous_storage_nodes,
         <<1::1, 1::1>>,
         <<0::1, 1::1, 0::1, 1::1>>,
-        <<1::1, 1::1>>
+        <<1::1, 1::1, 1::1, 1::1>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
