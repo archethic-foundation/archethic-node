@@ -24,7 +24,7 @@ use Distillery.Releases.Config,
 environment :dev do
   set include_erts: true
   set include_src: false
-  set cookie: :"8y|aIx=xQ|1$Ip73CXG>HJz5@kWhR~OyzS?>_en(asysESIrl76Tr0H*RHV@LXK%"
+  set cookie: :crypto.strong_rand_bytes(32) |> Base.encode16() |> String.to_atom()
 
   set config_providers: [
         {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
