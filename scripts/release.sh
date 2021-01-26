@@ -81,7 +81,7 @@ else
     echo "Install TestNet release"
     echo "Copy release into ${INSTALL_DIR}/testnet"
     tar zxvf ${INSTALL_DIR}/uniris_node.tar.gz -C ${INSTALL_DIR}/testnet
-    cp "rel/test_runtime_config.exs" ${INSTALL_DIR}/testnet/runtime_config.exs
+    cp "rel/dev_runtime_config.exs" ${INSTALL_DIR}/testnet/runtime_config.exs
 fi
 
 exit

@@ -25,12 +25,11 @@ environment :dev do
   set include_erts: true
   set include_src: false
   set cookie: :crypto.strong_rand_bytes(32) |> Base.encode16() |> String.to_atom()
+  set vm_args: "rel/vm.args"
 
   set config_providers: [
         {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
       ]
-
-  set vm_args: "rel/vm.args"
 
   set overlays: [
         {:copy, "rel/dev_runtime_config.exs", "runtime_config.exs"}
