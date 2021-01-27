@@ -22,9 +22,12 @@ config :uniris, Uniris.Networking,
   port: 3002
   
 config :uniris, Uniris.BeaconChain.SlotTimer,
-  interval: "0 * * * * * *",
-  # Trigger it 5 seconds before
-  trigger_offset: 5
+  # Every 10 seconds
+  interval: "*/10 * * * * *"
+
+config :uniris, Uniris.BeaconChain.SummaryTimer,
+  # At the 58th second  
+  interval: "58 * * * * *"
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.EnvImpl
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
@@ -87,28 +90,16 @@ config :uniris, Uniris.Governance.Pools,
     uniris: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"]
   ]
 
-config :uniris, Uniris.SelfRepair.Scheduler, interval: "0 * * * * * *"
+config :uniris, Uniris.SelfRepair.Scheduler,
+  # Every minute
+  interval: "0 * * * * * *"
 
 config :uniris, Uniris.SelfRepair.Sync,
-  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED")}",
-  network_startup_date: %DateTime{
-    year: DateTime.utc_now().year,
-    month: DateTime.utc_now().month,
-    day: DateTime.utc_now().day,
-    hour: DateTime.add(DateTime.utc_now(), -3600).hour,
-    minute: 0,
-    second: 0,
-    microsecond: {0, 0},
-    utc_offset: 0,
-    std_offset: 0,
-    time_zone: "Etc/UTC",
-    zone_abbr: "UTC"
-  }
+  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED")}"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
-  interval: "0 * * * * * *",
-  # Trigger it 20 seconds before
-  trigger_offset: 20
+  # At 40th second
+  interval: "40 * * * * * *"
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

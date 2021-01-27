@@ -1,8 +1,8 @@
-defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
+defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   use UnirisCase
 
   alias Uniris.BeaconChain
-  alias Uniris.BeaconChain.Slot.TransactionInfo
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
 
@@ -16,7 +16,7 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
-  alias Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandler
+  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
 
   alias Uniris.TransactionFactory
 
@@ -28,7 +28,7 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
 
   setup do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
 
     welcome_node = %Node{
       first_public_key: "key1",
@@ -75,7 +75,7 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
 
   test "download_transaction?/1 should return true when the node is a chain storage node" do
     assert true =
-             TransactionHandler.download_transaction?(%TransactionInfo{
+             TransactionHandler.download_transaction?(%TransactionSummary{
                address: "@Alice2"
              })
   end
@@ -99,8 +99,8 @@ defmodule Uniris.SelfRepair.Sync.SlotConsumer.TransactionHandlerTest do
       _, _, %GetTransactionInputs{} -> {:ok, %TransactionInputList{inputs: inputs}}
     end)
 
-    tx_info = %TransactionInfo{address: "@Alice2"}
-    assert :ok = TransactionHandler.download_transaction(tx_info, "AAA")
+    tx_summary = %TransactionSummary{address: "@Alice2"}
+    assert :ok = TransactionHandler.download_transaction(tx_summary, "AAA")
 
     assert_received :transaction_replicated
   end

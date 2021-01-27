@@ -1,6 +1,9 @@
 defmodule Uniris.DB do
   @moduledoc false
 
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Summary
+
   alias Uniris.TransactionChain.Transaction
 
   @spec migrate() :: :ok
@@ -92,6 +95,46 @@ defmodule Uniris.DB do
   @spec list_last_transaction_addresses() :: list({binary(), binary()})
   def list_last_transaction_addresses do
     impl().list_last_transaction_addresses()
+  end
+
+  @doc """
+  Get a beacon summary by its subset and its date
+  """
+  @spec get_beacon_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
+  def get_beacon_summary(subset, date = %DateTime{}) when is_binary(subset) do
+    impl().get_beacon_summary(subset, date)
+  end
+
+  @doc """
+  Register a beacon summary
+  """
+  @spec register_beacon_summary(Summary.t()) :: :ok
+  def register_beacon_summary(summary = %Summary{}) do
+    impl().register_beacon_summary(summary)
+  end
+
+  @doc """
+  Register a beacon slot
+  """
+  @spec register_beacon_slot(Slot.t()) :: :ok
+  def register_beacon_slot(slot = %Slot{}) do
+    impl().register_beacon_slot(slot)
+  end
+
+  @doc """
+  Get a beacon slot by its subset and its date
+  """
+  @spec get_beacon_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
+  def get_beacon_slot(subset, date = %DateTime{}) when is_binary(subset) do
+    impl().get_beacon_slot(subset, date)
+  end
+
+  @doc """
+  Get all the beacon slots for the given subset before a given date
+  """
+  @spec get_beacon_slots(binary(), DateTime.t()) :: Enumerable.t()
+  def get_beacon_slots(subset, from_date = %DateTime{}) when is_binary(subset) do
+    impl().get_beacon_slots(subset, from_date)
   end
 
   defp impl do

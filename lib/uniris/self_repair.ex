@@ -10,8 +10,8 @@ defmodule Uniris.SelfRepair do
   @doc """
   Start the self repair synchronization scheduler
   """
-  @spec start_scheduler(network_patch :: binary()) :: :ok
-  defdelegate start_scheduler(patch), to: Scheduler
+  @spec start_scheduler(DateTime.t()) :: :ok
+  defdelegate start_scheduler(last_sync_date), to: Scheduler
 
   @doc """
   Start the synchronization process using the last synchronization date

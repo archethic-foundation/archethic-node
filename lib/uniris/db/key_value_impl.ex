@@ -3,6 +3,9 @@ defmodule Uniris.DB.KeyValueImpl do
 
   use GenServer
 
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Summary
+
   alias Uniris.DBImpl
 
   alias Uniris.TransactionChain.Transaction
@@ -152,6 +155,94 @@ defmodule Uniris.DB.KeyValueImpl do
       )
 
     txs
+  end
+
+  @impl DBImpl
+  @spec get_beacon_slots(binary(), DateTime.t()) :: Enumerable.t()
+  def get_beacon_slots(subset, from_date = %DateTime{}) when is_binary(subset) do
+    Stream.resource(
+      fn -> CubDB.get(get_db(), {:beacon_slots, subset}) end,
+      fn
+        nil ->
+          {:halt, []}
+
+        [] ->
+          {:halt, []}
+
+        [time | rest] ->
+          if DateTime.compare(from_date, time) == :gt do
+            slot = CubDB.get(get_db(), {:beacon_slot, subset, time})
+            {[slot], rest}
+          else
+            {[], rest}
+          end
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  @impl DBImpl
+  @spec get_beacon_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
+  def get_beacon_slot(subset, date = %DateTime{}) when is_binary(subset) do
+    case CubDB.get(get_db(), {:beacon_slot, subset, date}) do
+      nil ->
+        {:error, :not_found}
+
+      slot ->
+        {:ok, slot}
+    end
+  end
+
+  @impl DBImpl
+  @spec get_beacon_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
+  def get_beacon_summary(subset, date = %DateTime{}) when is_binary(subset) do
+    case CubDB.get(get_db(), {:beacon_summary, subset, date}) do
+      nil ->
+        {:error, :not_found}
+
+      summary ->
+        {:ok, summary}
+    end
+  end
+
+  @impl DBImpl
+  def register_beacon_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
+    :ok = CubDB.put(get_db(), {:beacon_slot, subset, slot_time}, slot)
+    :ok = CubDB.update(get_db(), {:beacon_slots, subset}, [slot_time], &[slot_time | &1])
+    :ok
+  end
+
+  @impl DBImpl
+  def register_beacon_summary(summary = %Summary{subset: subset, summary_time: summary_time}) do
+    :ok = CubDB.put(get_db(), {:beacon_summary, subset, summary_time}, summary)
+    :ok = CubDB.put(get_db(), {:beacon_slots, subset}, [])
+
+    clean_beacon_slots(subset, summary_time)
+    :ok
+  end
+
+  defp clean_beacon_slots(subset, summary_time) do
+    keys_to_delete =
+      case CubDB.get(get_db(), {:beacon_slots, subset}) do
+        nil ->
+          []
+
+        times ->
+          times
+          |> Enum.filter(&(DateTime.compare(summary_time, &1) == :gt))
+          |> Enum.map(&{:beacon_slot, subset, &1})
+      end
+
+    case keys_to_delete do
+      [] ->
+        :ok
+
+      _ ->
+        Task.start(fn ->
+          Process.sleep(60_000)
+          CubDB.delete_multi(get_db(), keys_to_delete)
+        end)
+    end
   end
 
   @impl DBImpl

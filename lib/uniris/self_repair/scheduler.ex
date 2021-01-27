@@ -5,6 +5,9 @@ defmodule Uniris.SelfRepair.Scheduler do
   """
   use GenServer
 
+  alias Uniris.P2P
+  alias Uniris.P2P.Node
+
   alias Uniris.SelfRepair.Sync
 
   alias Uniris.Utils
@@ -25,54 +28,40 @@ defmodule Uniris.SelfRepair.Scheduler do
   @doc """
   Start the self repair synchronization scheduler
   """
-  @spec start_scheduler(network_patch :: binary()) :: :ok
-  def start_scheduler(patch) when is_binary(patch) do
-    GenServer.call(__MODULE__, {:start_sync, patch})
+  @spec start_scheduler(DateTime.t()) :: :ok
+  def start_scheduler(last_date_sync = %DateTime{}) do
+    GenServer.call(__MODULE__, {:start, last_date_sync})
   end
 
   @doc false
-  def start_scheduler(pid, patch) when is_pid(pid) and is_binary(patch) do
-    GenServer.call(pid, {:start_sync, patch})
+  def start_scheduler(pid, last_date_sync = %DateTime{}) when is_pid(pid) do
+    GenServer.call(pid, {:start, last_date_sync})
   end
 
   def init(opts) do
     interval = Keyword.get(opts, :interval)
 
-    {:ok,
-     %{
-       interval: interval,
-       last_sync_date: Sync.last_sync_date()
-     }}
+    {:ok, %{interval: interval}}
   end
 
-  def handle_call({:start_sync, patch}, _from, state = %{interval: interval}) do
-    Logger.info("Start the Self-Repair scheduler")
+  def handle_call({:start, last_sync_date}, _from, state = %{interval: interval}) do
+    Logger.info("Self-Repair scheduler is started")
 
-    me = self()
+    timer = schedule_sync(interval)
+    remaining_seconds = remaining_seconds_from_timer(timer)
 
-    Task.start(fn ->
-      timer = schedule_sync(me, Utils.time_offset(interval))
-      remaining_seconds = remaining_seconds_from_timer(timer)
+    Logger.info(
+      "Next Self-Repair Sync will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
+    )
 
-      Logger.info(
-        "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
-      )
-    end)
-
-    new_state =
-      state
-      |> Map.put(:last_sync_date, Sync.last_sync_date())
-      |> Map.put(:patch, patch)
-
-    {:reply, :ok, new_state}
+    {:reply, :ok, Map.put(state, :last_sync_date, last_sync_date)}
   end
 
   def handle_info(
         :sync,
         state = %{
           interval: interval,
-          last_sync_date: last_sync_date,
-          patch: patch
+          last_sync_date: last_sync_date
         }
       ) do
     Logger.info(
@@ -80,21 +69,22 @@ defmodule Uniris.SelfRepair.Scheduler do
     )
 
     Task.start(fn ->
-      Sync.load_missed_transactions(last_sync_date, patch)
+      Sync.load_missed_transactions(last_sync_date, get_node_patch())
     end)
 
-    me = self()
+    timer = schedule_sync(interval)
+    remaining_seconds = remaining_seconds_from_timer(timer)
 
-    Task.start(fn ->
-      timer = schedule_sync(me, Utils.time_offset(interval))
-      remaining_seconds = remaining_seconds_from_timer(timer)
-
-      Logger.info(
-        "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
-      )
-    end)
+    Logger.info(
+      "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
+    )
 
     {:noreply, Map.put(state, :last_sync_date, update_last_sync_date()), :hibernate}
+  end
+
+  defp get_node_patch do
+    %Node{network_patch: network_patch} = P2P.get_node_info()
+    network_patch
   end
 
   defp update_last_sync_date do
@@ -103,8 +93,8 @@ defmodule Uniris.SelfRepair.Scheduler do
     next_sync_date
   end
 
-  defp schedule_sync(pid, interval) do
-    Process.send_after(pid, :sync, interval * 1000)
+  defp schedule_sync(interval) do
+    Process.send_after(self(), :sync, Utils.time_offset(interval) * 1000)
   end
 
   defp last_sync_date_to_string(last_sync_date) do

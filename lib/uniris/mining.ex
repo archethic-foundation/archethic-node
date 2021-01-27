@@ -39,8 +39,8 @@ defmodule Uniris.Mining do
   """
   @spec start(
           transaction :: Transaction.t(),
-          welcome_node_public_key :: Uniris.Crypto.key(),
-          validation_node_public_keys :: list(Uniris.Crypto.key())
+          welcome_node_public_key :: Crypto.key(),
+          validation_node_public_keys :: list(Crypto.key())
         ) :: {:ok, pid()}
   def start(tx = %Transaction{}, welcome_node_public_key, [_ | []]) do
     StandaloneWorkflow.start_link(
@@ -92,7 +92,9 @@ defmodule Uniris.Mining do
   Determines if the transaction is accepted into the network
   """
   @spec accept_transaction?(Transaction.t()) :: boolean()
-  def accept_transaction?(tx = %Transaction{data: %TransactionData{code: code, keys: keys}}) do
+  def accept_transaction?(
+        tx = %Transaction{address: address, data: %TransactionData{code: code, keys: keys}}
+      ) do
     if Transaction.verify_previous_signature?(tx) do
       case code do
         "" ->
@@ -103,21 +105,32 @@ defmodule Uniris.Mining do
                authorized_keys <- Keys.list_authorized_keys(keys),
                true <- Crypto.storage_nonce_public_key() in authorized_keys do
             do_accept_transaction?(tx)
+          else
+            _ ->
+              Logger.error("Invalid smart contract code", transaction: Base.encode16(address))
+              false
           end
       end
     else
+      Logger.error("Invalid previous signature", transaction: Base.encode16(address))
       false
     end
   end
 
   defp do_accept_transaction?(%Transaction{
+         address: address,
          type: :node,
          data: %TransactionData{content: content}
        }) do
-    Regex.match?(~r/(?<=ip:|port:).*/m, content)
+    if Regex.match?(~r/(?<=ip:|port:).*/m, content) do
+      true
+    else
+      Logger.error("Invalid node transaction content", transaction: Base.encode16(address))
+    end
   end
 
   defp do_accept_transaction?(%Transaction{
+         address: address,
          type: :node_shared_secrets,
          data: %TransactionData{
            keys: keys = %Keys{secret: secret, authorized_keys: authorized_keys}
@@ -127,49 +140,97 @@ defmodule Uniris.Mining do
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
     nodes = P2P.list_nodes()
 
-    last_tx =
-      Enum.at(TransactionChain.list_transactions_by_type(:node_shared_secrets, [:address]), 0)
-
-    case last_tx do
+    case Enum.at(TransactionChain.list_transactions_by_type(:node_shared_secrets, [:address]), 0) do
       nil ->
-        Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1))
+        if Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) do
+          true
+        else
+          Logger.error("Node shared secrets can only contains public node list",
+            transaction: Base.encode16(address)
+          )
+        end
 
       %Transaction{address: prev_address} ->
-        Crypto.hash(previous_public_key) == prev_address &&
-          Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1))
+        cond do
+          Crypto.hash(previous_public_key) != prev_address ->
+            Logger.error("Node shared secrets chain does not match",
+              transaction: Base.encode16(address)
+            )
+
+            false
+
+          !Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) ->
+            Logger.error("Node shared secrets can only contains public node list",
+              transaction: Base.encode16(address)
+            )
+
+            false
+
+          true ->
+            true
+        end
     end
   end
 
-  defp do_accept_transaction?(%Transaction{type: :node_shared_secrets}), do: false
+  defp do_accept_transaction?(%Transaction{address: address, type: :node_shared_secrets}) do
+    Logger.error("Node shared secrets must contains a secret and some authorized nodes",
+      transaction: Base.encode16(address)
+    )
 
-  defp do_accept_transaction?(tx = %Transaction{type: :code_proposal}) do
+    false
+  end
+
+  defp do_accept_transaction?(tx = %Transaction{address: address, type: :code_proposal}) do
     case CodeProposal.from_transaction(tx) do
       {:ok, prop} ->
         Governance.valid_code_changes?(prop)
 
       _ ->
+        Logger.error("Invalid code proposal", transaction: Base.encode16(address))
         false
     end
   end
 
   defp do_accept_transaction?(
          tx = %Transaction{
+           address: address,
            type: :code_approval,
            data: %TransactionData{recipients: [proposal_address]}
          }
        ) do
     first_public_key = get_first_public_key(tx)
 
-    with true <- Governance.pool_member?(first_public_key, :technical_council),
-         {:ok, prop} <- Governance.get_code_proposal(proposal_address),
-         previous_address <- Transaction.previous_address(tx),
-         false <- CodeProposal.signed_by?(prop, previous_address) do
-      true
+    if Governance.pool_member?(first_public_key, :technical_council) do
+      case Governance.get_code_proposal(proposal_address) do
+        {:ok, prop} ->
+          previous_address = Transaction.previous_address(tx)
+
+          if CodeProposal.signed_by?(prop, previous_address) do
+            Logger.error("Proposal already signed by the transaction emitter",
+              transaction: Base.encode16(address)
+            )
+
+            false
+          else
+            true
+          end
+      end
+    else
+      Logger.error("Transaction emitter is not member of a the technical council",
+        transaction: Base.encode16(address)
+      )
+
+      false
     end
   end
 
   defp do_accept_transaction?(%Transaction{type: :nft, data: %TransactionData{content: content}}) do
-    Regex.match?(~r/(?<=initial supply:).*\d/mi, content)
+    if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
+      true
+    else
+      Logger.error("Invalid NFT transaction content")
+      false
+    end
   end
 
   defp do_accept_transaction?(_), do: true

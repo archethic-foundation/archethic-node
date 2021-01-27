@@ -6,20 +6,38 @@ defmodule Uniris.BeaconChain do
 
   alias Uniris.Election
 
-  alias Uniris.BeaconChain.Slot.TransactionInfo
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Slot.EndOfNodeSync
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Subset
+  alias Uniris.BeaconChain.Summary
+  alias Uniris.BeaconChain.SummaryTimer
+  alias Uniris.BeaconChain.SummaryValidation
+
+  alias Uniris.Crypto
+
+  alias Uniris.DB
+
+  alias Uniris.Election
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.PubSub
+
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.ValidationStamp
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  @type summary_pools ::
+          list({
+            subset :: binary(),
+            nodes_by_summary_date :: list({DateTime.t(), list(Node.t())})
+          })
 
   @doc """
   Initialize the beacon subsets (from 0 to 255 for a byte capacity)
   """
+  @spec init_subsets() :: :ok
   def init_subsets do
     subsets = Enum.map(0..255, &:binary.encode_unsigned(&1))
     :persistent_term.put(:beacon_subsets, subsets)
@@ -41,47 +59,30 @@ defmodule Uniris.BeaconChain do
   @doc """
   Retrieve the beacon storage nodes from a last synchronization date
 
-  For each subsets available, the computation will be done to find out the missing synchronization slots
+  For each subsets available, the computation will be done to find out the missing synchronization summaries
   """
-  @spec get_pools(DateTime.t()) :: list({subset :: binary(), nodes: list(Node.t())})
-  def get_pools(last_sync_date = %DateTime{}) do
-    slot_times = SlotTimer.previous_slots(last_sync_date)
-    nodes_by_subset(list_subsets(), slot_times, [])
+  @spec get_summary_pools(DateTime.t()) :: list({subset :: binary(), nodes: list(Node.t())})
+  def get_summary_pools(
+        last_sync_date = %DateTime{},
+        node_list \\ P2P.list_nodes(availability: :global)
+      ) do
+    summary_times = SummaryTimer.previous_summaries(last_sync_date)
+
+    Enum.reduce(list_subsets(), [], fn subset, acc ->
+      nodes_by_summary_time =
+        Enum.map(summary_times, fn time ->
+          {time, Election.beacon_storage_nodes(subset, time, node_list)}
+        end)
+
+      [{subset, nodes_by_summary_time} | acc]
+    end)
   end
-
-  defp nodes_by_subset([subset | rest], slots_times, acc) do
-    nodes =
-      slots_times
-      |> Stream.transform([], fn slot_time, acc ->
-        nodes = get_pool(subset, slot_time)
-        {nodes, acc}
-      end)
-      |> Stream.uniq_by(& &1.first_public_key)
-      |> Enum.to_list()
-
-    nodes_by_subset(rest, slots_times, [{subset, nodes} | acc])
-  end
-
-  defp nodes_by_subset([], _slots_times, acc), do: acc
 
   @doc """
-  Retrieve the beacon storage nodes from a given subset and datetime
+  Get the next beacon slot time from a given date
   """
-  @spec get_pool(subset :: binary(), last_sync_date :: DateTime.t()) :: list(Node.t())
-  def get_pool(subset, date = %DateTime{}) when is_binary(subset) do
-    next_slot_date = SlotTimer.next_slot(date)
-
-    storage_nodes =
-      [authorized?: true, availability: :global]
-      |> P2P.list_nodes()
-      |> Enum.filter(&(DateTime.compare(&1.authorization_date, date) == :lt))
-
-    Election.beacon_storage_nodes(
-      subset,
-      next_slot_date,
-      storage_nodes
-    )
-  end
+  @spec next_slot(last_sync_date :: DateTime.t()) :: DateTime.t()
+  defdelegate next_slot(last_sync_date), to: SlotTimer
 
   @doc """
   Extract the beacon subset from an address
@@ -101,30 +102,113 @@ defmodule Uniris.BeaconChain do
   @doc """
   Add a transaction to the beacon chain
   """
-  @spec add_transaction(Transaction.t()) :: :ok
-  def add_transaction(%Transaction{
-        address: address,
-        timestamp: timestamp,
-        type: type,
-        validation_stamp: %ValidationStamp{
-          ledger_operations: operations
-        }
-      }) do
-    movements_addresses = LedgerOperations.movement_addresses(operations)
-
+  @spec add_transaction_summary(Transaction.t()) :: :ok
+  def add_transaction_summary(tx = %Transaction{address: address}) do
     address
     |> subset_from_address()
-    |> Subset.add_transaction_info(%TransactionInfo{
-      address: address,
-      timestamp: timestamp,
-      movements_addresses: movements_addresses,
-      type: type
-    })
+    |> Subset.add_transaction_summary(TransactionSummary.from_transaction(tx))
+
+    PubSub.notify_new_transaction(address)
   end
 
   @doc """
-  Give the next beacon chain slot using the `SlotTimer` interval
+  Add a node entry into the beacon chain subset
   """
-  @spec next_slot(DateTime.t()) :: DateTime.t()
-  defdelegate next_slot(date), to: SlotTimer
+  @spec add_end_of_node_sync(Crypto.key(), DateTime.t()) :: :ok
+  def add_end_of_node_sync(node_public_key, timestamp = %DateTime{})
+      when is_binary(node_public_key) do
+    node_public_key
+    |> subset_from_address
+    |> Subset.add_end_of_node_sync(%EndOfNodeSync{
+      public_key: node_public_key,
+      timestamp: timestamp
+    })
+  end
+
+  @spec get_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
+  defdelegate get_summary(subset, date), to: DB, as: :get_beacon_summary
+
+  @doc """
+  Get the transaction address for a beacon chain daily summary based from a subset and date
+  """
+  @spec summary_transaction_address(binary(), DateTime.t()) :: binary()
+  def summary_transaction_address(subset, date = %DateTime{}) when is_binary(subset) do
+    {pub, _} =
+      Crypto.derive_keypair(
+        Crypto.storage_nonce(),
+        Crypto.hash([subset, <<DateTime.to_unix(date)::32>>])
+      )
+
+    Crypto.hash(pub)
+  end
+
+  @doc """
+  Get the beacon chain slot from the given subset and date
+  """
+  @spec get_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
+  defdelegate get_slot(subset, date), to: DB, as: :get_beacon_slot
+
+  @doc """
+  Get the current slot inside the subset worker
+  """
+  @spec get_current_slot(binary()) :: Slot.t()
+  defdelegate get_current_slot(subset), to: Subset
+
+  @doc """
+  Process a new incoming beacon slot to register into the DB if the checks pass.
+
+  If a slot was already persisted it will not rewrite it unless the new bring more new validations
+  """
+  @spec register_slot(Slot.t()) ::
+          :ok
+          | {:error, :not_storage_node}
+          | {:invalid_previous_hash}
+          | {:error, :invalid_signatures}
+  def register_slot(slot = %Slot{}) do
+    case validate_new_slot(slot) do
+      :ok ->
+        do_slot_registration(slot)
+
+      e ->
+        e
+    end
+  end
+
+  defp validate_new_slot(slot) do
+    cond do
+      !SummaryValidation.storage_node?(slot) ->
+        {:error, :not_storage_node}
+
+      !SummaryValidation.valid_previous_hash?(slot) ->
+        {:error, :invalid_previous_hash}
+
+      !SummaryValidation.valid_signatures?(slot) ->
+        {:error, :invalid_signatures}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp do_slot_registration(
+         slot = %Slot{subset: subset, slot_time: slot_time, validation_signatures: new_signatures}
+       ) do
+    case DB.get_beacon_slot(subset, slot_time) do
+      {:ok, %Slot{validation_signatures: signatures}} ->
+        if length(signatures) < length(Enum.uniq_by(new_signatures, &elem(&1, 0))) do
+          DB.register_beacon_slot(slot)
+        else
+          :ok
+        end
+
+      {:error, :not_found} ->
+        DB.register_beacon_slot(slot)
+    end
+  end
+
+  @doc """
+  Add a proof of the beacon slot for validation during the beacon slot consensus and synchronization
+  """
+  @spec add_slot_proof(binary(), binary(), Crypto.key(), binary()) :: :ok
+  defdelegate add_slot_proof(subset, digest, node_public_key, signature), to: Subset
 end

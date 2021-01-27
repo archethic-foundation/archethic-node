@@ -6,17 +6,16 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
+  alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Uniris.Bootstrap
 
   alias Uniris.P2P
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Message.AcknowledgeStorage
-  alias Uniris.P2P.Message.AddNodeInfo
-  alias Uniris.P2P.Message.BeaconSlotList
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
-  alias Uniris.P2P.Message.GetBeaconSlots
+  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
@@ -24,6 +23,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
+  alias Uniris.P2P.Message.NotFound
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
@@ -45,14 +46,15 @@ defmodule Uniris.BootstrapTest do
 
   setup do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
 
     start_supervised!(
       {SelfRepairScheduler, interval: "0 * * * * * *", last_sync_file: "priv/p2p/last_sync"}
     )
 
     start_supervised!(BootstrappingSeeds)
-    start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -175,12 +177,12 @@ defmodule Uniris.BootstrapTest do
              }}
 
           %ListNodes{} ->
-            {:ok, %NodeList{}}
+            {:ok, %NodeList{nodes: nodes}}
 
-          %GetBeaconSlots{} ->
-            {:ok, %BeaconSlotList{}}
+          %GetBeaconSummary{} ->
+            {:ok, %NotFound{}}
 
-          %AddNodeInfo{} ->
+          %NotifyEndOfNodeSync{} ->
             send(me, :node_ready)
             {:ok, %Ok{}}
 
