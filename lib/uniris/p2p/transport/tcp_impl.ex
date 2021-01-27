@@ -37,6 +37,7 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   defp recv_loop(socket) do
     case :gen_tcp.recv(socket, 0) do
       {:ok, data} ->
+        IO.puts "MESSAGE RECEIVED: #{inspect data}"
         encoded_result =
           data
           |> Message.decode()

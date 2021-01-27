@@ -69,6 +69,7 @@ defmodule Uniris.Replication do
   def process_transaction(_tx, _roles, _opts \\ [])
 
   def process_transaction(tx = %Transaction{}, [:chain | roles], opts) when is_list(opts) do
+    IO.puts "AAAA: #{inspect tx}"
     ack_storage? = Keyword.get(opts, :ack_storage?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
 
@@ -105,6 +106,7 @@ defmodule Uniris.Replication do
   end
 
   def process_transaction(tx = %Transaction{}, roles, _opts) when is_list(roles) do
+    IO.puts "BBBB: #{inspect tx}"
     case TransactionValidator.validate(tx) do
       :ok ->
         if :IO in roles do

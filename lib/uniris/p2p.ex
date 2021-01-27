@@ -124,8 +124,10 @@ defmodule Uniris.P2P do
          %Node{ip: ip, port: port, first_public_key: first_public_key, transport: transport},
          message
        ) do
+    IO.puts "DO SEND MESSAGE: #{inspect transport}, #{inspect ip}, #{inspect port}, #{inspect message}"
     case Transport.send_message(transport, ip, port, message) do
       {:ok, data} ->
+        IO.puts "DO SEND MESSAGE NODE RESPONSE: #{inspect data}"
         MemTable.increase_node_availability(first_public_key)
         data
 
@@ -222,6 +224,7 @@ defmodule Uniris.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.t(), opts :: Keyword.t()) :: Enumerable.t()
   def broadcast_message(nodes, message, opts \\ [ack_node?: false, timeout: 5_000]) do
+    IO.puts "BROADCAST TO NODES: #{inspect nodes}, MESSAGE: #{inspect message}"
     ack_node? = Keyword.get(opts, :ack_node?, false)
     timeout = Keyword.get(opts, :timeout, 5_000)
 

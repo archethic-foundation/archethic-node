@@ -70,6 +70,7 @@ defmodule Uniris.TransactionChain.Transaction do
           | :code_proposal
           | :code_approval
           | :nft
+          | :oracle
 
   @transaction_types [
     :identity,
@@ -82,7 +83,8 @@ defmodule Uniris.TransactionChain.Transaction do
     :hosting,
     :code_proposal,
     :code_approval,
-    :nft
+    :nft,
+    :oracle
   ]
 
   @doc """
@@ -100,7 +102,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec new(type :: transaction_type(), data :: TransactionData.t()) ::
           t()
   def new(type, data = %TransactionData{})
-      when type in [:node, :node_shared_secrets, :beacon] do
+      when type in [:node, :node_shared_secrets, :beacon, :oracle] do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
     %__MODULE__{
@@ -163,6 +165,13 @@ defmodule Uniris.TransactionChain.Transaction do
     {previous_public_key, next_public_key}
   end
 
+  defp get_transaction_public_keys(:oracle) do
+    key_index = Crypto.number_of_node_shared_secrets_keys()
+    previous_public_key = Crypto.node_shared_secrets_public_key(key_index)
+    next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
+  end
+
   defp previous_sign_transaction(tx = %__MODULE__{type: :node}) do
     key_index = Crypto.number_of_node_keys()
 
@@ -189,6 +198,18 @@ defmodule Uniris.TransactionChain.Transaction do
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}) do
+    key_index = Crypto.number_of_node_shared_secrets_keys()
+
+    previous_signature =
+      tx
+      |> extract_for_previous_signature()
+      |> serialize()
+      |> Crypto.sign_with_node_shared_secrets_key(key_index)
+
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp previous_sign_transaction(tx = %__MODULE__{type: :oracle}) do
     key_index = Crypto.number_of_node_shared_secrets_keys()
 
     previous_signature =
@@ -264,6 +285,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:code_proposal), do: 8
   def serialize_type(:code_approval), do: 9
   def serialize_type(:nft), do: 10
+  def serialize_type(:oracle), do: 11
 
   @doc """
   Parse a serialize transaction type
@@ -280,6 +302,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(8), do: :code_proposal
   def parse_type(9), do: :code_approval
   def parse_type(10), do: :nft
+  def parse_type(11), do: :oracle
 
   @doc """
   Determines if a transaction type is a network one
@@ -290,6 +313,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def network_type?(:origin_shared_secrets), do: true
   def network_type?(:code_proposal), do: true
   def network_type?(:code_approval), do: true
+  def network_type?(:oracle), do: true
   def network_type?(_), do: false
 
   @doc """
@@ -840,6 +864,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def fee(%__MODULE__{type: :node_shared_secrets}), do: 0.0
   def fee(%__MODULE__{type: :identity}), do: 0.0
   def fee(%__MODULE__{type: :keychain}), do: 0.0
+  def fee(%__MODULE__{type: :oracle}), do: 0.0
 
   def fee(%__MODULE__{address: address}) do
     if address == Bootstrap.genesis_address() do

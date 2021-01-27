@@ -83,8 +83,7 @@ defmodule Uniris.Bootstrap.Sync do
     |> NetworkInit.self_validation!()
     |> NetworkInit.self_replication()
 
-    P2P.set_node_globally_available(Crypto.node_public_key(0))
-
+    :ok = P2P.set_node_globally_available(Crypto.node_public_key(0))
     network_pool_seed = :crypto.strong_rand_bytes(32)
     NetworkInit.init_node_shared_secrets_chain(network_pool_seed)
 
