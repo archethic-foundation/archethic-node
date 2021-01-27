@@ -48,8 +48,8 @@ defmodule Uniris.Bootstrap do
   Once done, the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its readiness.
   Hence others nodes will be able to communicate with and support new transactions.
   """
-  @spec run(:inet.ip_address(), :inet.port_number(), list(Node.t()), DateTime.t()) :: :ok
-  def run(ip = {_, _, _, _}, port, bootstrapping_seeds, last_sync_date = %DateTime{})
+  @spec run(:inet.ip_address(), :inet.port_number(), list(Node.t()), DateTime.t() | nil) :: :ok
+  def run(ip = {_, _, _, _}, port, bootstrapping_seeds, last_sync_date)
       when is_number(port) and is_list(bootstrapping_seeds) do
     if should_bootstrap?(ip, port, last_sync_date) do
       start_bootstrap(ip, port, bootstrapping_seeds, last_sync_date)
@@ -58,13 +58,15 @@ defmodule Uniris.Bootstrap do
     end
   end
 
-  defp should_bootstrap?(ip, port, last_sync_date) do
-    already_bootstrapped? = match?({:ok, _}, P2P.get_node_info(Crypto.node_public_key(0)))
+  defp should_bootstrap?(_ip, _port, nil), do: true
 
-    if already_bootstrapped? do
-      Sync.require_update?(ip, port, last_sync_date)
-    else
-      true
+  defp should_bootstrap?(ip, port, last_sync_date) do
+    case P2P.get_node_info(Crypto.node_public_key(0)) do
+      {:ok, _} ->
+        Sync.require_update?(ip, port, last_sync_date)
+
+      _ ->
+        true
     end
   end
 
@@ -75,8 +77,8 @@ defmodule Uniris.Bootstrap do
 
     if Sync.should_initialize_network?(bootstrapping_seeds) do
       Sync.initialize_network(ip, port)
-      SelfRepair.put_last_sync_date(DateTime.utc_now())
-      :ok = SelfRepair.start_scheduler(patch)
+      :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+      :ok = SelfRepair.start_scheduler(DateTime.utc_now())
     else
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
@@ -117,9 +119,10 @@ defmodule Uniris.Bootstrap do
     :ok = SelfRepair.sync(patch)
     Logger.info("Synchronization finished")
 
-    :ok = SelfRepair.start_scheduler(patch)
+    :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+    :ok = SelfRepair.start_scheduler(DateTime.utc_now())
 
-    Sync.publish_readiness()
+    Sync.publish_end_of_sync()
   end
 
   defp update_node(ip, port, patch, bootstrapping_seeds) do
@@ -148,9 +151,10 @@ defmodule Uniris.Bootstrap do
         :ok = SelfRepair.sync(patch)
         Logger.info("Synchronization finished")
 
-        :ok = SelfRepair.start_scheduler(patch)
+        :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+        :ok = SelfRepair.start_scheduler(DateTime.utc_now())
 
-        Sync.publish_readiness()
+        Sync.publish_end_of_sync()
     end
   end
 

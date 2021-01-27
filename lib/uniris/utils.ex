@@ -470,4 +470,25 @@ defmodule Uniris.Utils do
   defp do_count_bits(<<1::1, rest::bitstring>>, acc), do: do_count_bits(rest, acc + 1)
   defp do_count_bits(<<0::1, rest::bitstring>>, acc), do: do_count_bits(rest, acc)
   defp do_count_bits(<<>>, acc), do: acc
+
+  @doc """
+  Convert datetime to a human readable time
+  """
+  @spec time_to_string(DateTime.t()) :: binary()
+  def time_to_string(time = %DateTime{}) do
+    time
+    |> truncate_datetime()
+    |> DateTime.to_string()
+  end
+
+  @spec get_keys_from_value_match(Keyword.t(), any()) :: list(atom())
+  def get_keys_from_value_match(list, value) when is_list(list) do
+    Enum.reduce(list, [], fn
+      {key, ^value}, acc ->
+        [key | acc]
+
+      _, acc ->
+        acc
+    end)
+  end
 end

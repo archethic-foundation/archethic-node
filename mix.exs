@@ -55,7 +55,7 @@ defmodule Uniris.MixProject do
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:mox, "~> 0.5.2"},
-      {:stream_data, "~> 0.4.3"},
+      {:stream_data, "~> 0.5.0"},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:logger_file_backend, "~> 0.0.11"},
       {:cubdb, "~> 0.17.0"},

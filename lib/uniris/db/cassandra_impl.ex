@@ -1,6 +1,11 @@
 defmodule Uniris.DB.CassandraImpl do
   @moduledoc false
 
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Slot.EndOfNodeSync
+  alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.Summary
+
   alias Uniris.DBImpl
 
   alias __MODULE__.CQL
@@ -9,8 +14,6 @@ defmodule Uniris.DB.CassandraImpl do
   alias Uniris.TransactionChain.Transaction
 
   alias Uniris.Utils
-
-  @fork System.get_env("UNIRIS_DB_BRANCH", "main")
 
   @behaviour DBImpl
 
@@ -86,7 +89,7 @@ defmodule Uniris.DB.CassandraImpl do
     prepared = Xandra.prepare!(:xandra_conn, get_transaction_chain_query())
 
     :xandra_conn
-    |> Xandra.stream_pages!(prepared, %{"chain_address" => address, "fork" => @fork})
+    |> Xandra.stream_pages!(prepared, %{"chain_address" => address})
     |> Stream.flat_map(& &1)
     |> Stream.map(fn %{"transaction_address" => address} ->
       {:ok, tx} = get_transaction(address, fields)
@@ -150,8 +153,7 @@ defmodule Uniris.DB.CassandraImpl do
       "chain_address" => chain_address,
       "transaction_address" => tx.address,
       "size" => chain_size,
-      "timestamp" => tx.timestamp,
-      "fork" => @fork
+      "timestamp" => tx.timestamp
     }
   end
 
@@ -191,13 +193,11 @@ defmodule Uniris.DB.CassandraImpl do
     """
     INSERT INTO uniris.transaction_chains(
       chain_address,
-      fork,
       size,
       transaction_address,
       timestamp)
     VALUES(
       :chain_address,
-      :fork,
       :size,
       :transaction_address,
       :timestamp)
@@ -208,7 +208,7 @@ defmodule Uniris.DB.CassandraImpl do
     """
     SELECT transaction_address
     FROM uniris.transaction_chains
-    WHERE chain_address=? and fork=?
+    WHERE chain_address=?
     """
   end
 
@@ -254,5 +254,324 @@ defmodule Uniris.DB.CassandraImpl do
                      } ->
       {address, last_address}
     end)
+  end
+
+  @impl DBImpl
+  @spec register_beacon_slot(Slot.t()) :: :ok
+  def register_beacon_slot(%Slot{
+        subset: subset,
+        slot_time: slot_time,
+        previous_hash: previous_hash,
+        transaction_summaries: transaction_summaries,
+        end_of_node_synchronizations: end_of_node_synchronizations,
+        p2p_view: p2p_view,
+        involved_nodes: involved_nodes,
+        validation_signatures: validation_signatures
+      }) do
+    prepared =
+      Xandra.prepare!(:xandra_conn, """
+      INSERT INTO uniris.beacon_chain_slot(
+        subset, 
+        slot_time,
+        previous_hash,
+        transaction_summaries,
+        end_of_node_synchronizations,
+        p2p_view,
+        involved_nodes,
+        validation_signatures)
+
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+      """)
+
+    tx_summaries =
+      case transaction_summaries do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(transaction_summaries, fn tx_summary ->
+            tx_summary
+            |> TransactionSummary.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    end_of_node_syncs =
+      case end_of_node_synchronizations do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(end_of_node_synchronizations, fn end_of_sync ->
+            end_of_sync
+            |> EndOfNodeSync.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    p2p_view =
+      case p2p_view do
+        nil ->
+          []
+
+        _ ->
+          p2p_view
+          |> Utils.bitstring_to_integer_list()
+          |> Enum.map(fn
+            1 -> true
+            0 -> false
+          end)
+      end
+
+    involved_nodes =
+      case involved_nodes do
+        nil ->
+          []
+
+        _ ->
+          involved_nodes
+          |> Utils.bitstring_to_integer_list()
+          |> Enum.map(fn
+            1 -> true
+            0 -> false
+          end)
+      end
+
+    Xandra.execute!(:xandra_conn, prepared, [
+      subset,
+      slot_time,
+      previous_hash,
+      tx_summaries,
+      end_of_node_syncs,
+      p2p_view,
+      involved_nodes,
+      validation_signatures
+    ])
+
+    :ok
+  end
+
+  @impl DBImpl
+  @spec get_beacon_slots(binary(), DateTime.t()) :: Enumerable.t()
+  def get_beacon_slots(subset, from_date = %DateTime{}) when is_binary(subset) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT * FROM uniris.beacon_chain_slot WHERE subset = ? and slot_time < ?"
+      )
+
+    :xandra_conn
+    |> Xandra.stream_pages!(prepared, [subset, from_date])
+    |> Stream.flat_map(& &1)
+    |> Stream.map(&format_slot_result(&1))
+  end
+
+  @impl DBImpl
+  @spec get_beacon_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
+  def get_beacon_slot(subset, date = %DateTime{}) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT * FROM uniris.beacon_chain_slot WHERE subset = ? and slot_time = ?"
+      )
+
+    res =
+      :xandra_conn
+      |> Xandra.execute!(prepared, [subset, date])
+      |> Enum.at(0)
+
+    case res do
+      nil ->
+        {:error, :not_found}
+
+      slot ->
+        {:ok, format_slot_result(slot)}
+    end
+  end
+
+  defp format_slot_result(%{
+         "subset" => subset,
+         "slot_time" => slot_time,
+         "previous_hash" => previous_hash,
+         "transaction_summaries" => transaction_summaries,
+         "end_of_node_synchronizations" => end_of_node_synchronizations,
+         "p2p_view" => p2p_view,
+         "involved_nodes" => involved_nodes,
+         "validation_signatures" => validation_signatures
+       }) do
+    %Slot{
+      subset: subset,
+      slot_time: slot_time,
+      previous_hash: previous_hash,
+      transaction_summaries:
+        case transaction_summaries do
+          nil ->
+            []
+
+          _ ->
+            Enum.map(transaction_summaries, fn summary ->
+              summary
+              |> Utils.atomize_keys()
+              |> TransactionSummary.from_map()
+            end)
+        end,
+      end_of_node_synchronizations:
+        case end_of_node_synchronizations do
+          nil ->
+            []
+
+          _ ->
+            Enum.map(end_of_node_synchronizations, fn end_of_sync ->
+              end_of_sync
+              |> Utils.atomize_keys()
+              |> EndOfNodeSync.from_map()
+            end)
+        end,
+      p2p_view:
+        case p2p_view do
+          nil ->
+            <<>>
+
+          _ ->
+            p2p_view
+            |> Enum.map(fn
+              true -> <<1::1>>
+              false -> <<0::1>>
+            end)
+            |> :erlang.list_to_bitstring()
+        end,
+      involved_nodes:
+        case involved_nodes do
+          nil ->
+            <<>>
+
+          _ ->
+            involved_nodes
+            |> Enum.map(fn
+              true -> <<1::1>>
+              false -> <<0::1>>
+            end)
+            |> :erlang.list_to_bitstring()
+        end,
+      validation_signatures: validation_signatures
+    }
+  end
+
+  @impl DBImpl
+  @spec register_beacon_summary(Summary.t()) :: :ok
+  def register_beacon_summary(%Summary{
+        subset: subset,
+        summary_time: summary_time,
+        transaction_summaries: transaction_summaries,
+        end_of_node_synchronizations: end_of_node_synchronizations
+      }) do
+    prepared =
+      Xandra.prepare!(:xandra_conn, """
+      INSERT INTO uniris.beacon_chain_summary(
+        subset, 
+        summary_time,
+        transaction_summaries,
+        end_of_node_synchronizations)
+
+      VALUES (?, ?, ?, ?) 
+      """)
+
+    tx_summaries =
+      case transaction_summaries do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(transaction_summaries, fn tx_summary ->
+            tx_summary
+            |> TransactionSummary.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    end_of_node_sync =
+      case end_of_node_synchronizations do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(end_of_node_synchronizations, fn tx_summary ->
+            tx_summary
+            |> EndOfNodeSync.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    Xandra.execute!(:xandra_conn, prepared, [
+      subset,
+      summary_time,
+      tx_summaries,
+      end_of_node_sync
+    ])
+
+    :ok
+  end
+
+  @impl DBImpl
+  @spec get_beacon_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
+  def get_beacon_summary(subset, date = %DateTime{}) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT * FROM uniris.beacon_chain_summary WHERE subset = ? and summary_time = ?"
+      )
+
+    res =
+      :xandra_conn
+      |> Xandra.execute!(prepared, [subset, date])
+      |> Enum.at(0)
+
+    case res do
+      nil ->
+        {:error, :not_found}
+
+      slot ->
+        {:ok, format_summary_result(slot)}
+    end
+  end
+
+  defp format_summary_result(%{
+         "subset" => subset,
+         "summary_time" => summary_time,
+         "transaction_summaries" => transaction_summaries,
+         "end_of_node_synchronizations" => end_of_node_synchronizations
+       }) do
+    tx_summaries =
+      case transaction_summaries do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(transaction_summaries, fn tx_summary ->
+            tx_summary
+            |> TransactionSummary.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    end_of_node_sync =
+      case end_of_node_synchronizations do
+        nil ->
+          []
+
+        _ ->
+          Enum.map(end_of_node_synchronizations, fn tx_summary ->
+            tx_summary
+            |> EndOfNodeSync.to_map()
+            |> Utils.stringify_keys()
+          end)
+      end
+
+    %Summary{
+      subset: subset,
+      summary_time: summary_time,
+      transaction_summaries: tx_summaries,
+      end_of_node_synchronizations: end_of_node_sync
+    }
   end
 end

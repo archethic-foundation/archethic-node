@@ -1,6 +1,5 @@
 defmodule Uniris.BeaconChain.SlotTimerTest do
   use ExUnit.Case
-  use ExUnitProperties
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer
@@ -15,7 +14,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
   end
 
   test "receive create_slot message after timer elapsed" do
-    SlotTimer.start_link([interval: "*/1 * * * * * *", trigger_offset: 0], [])
+    SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
 
     current = DateTime.utc_now()
 
@@ -26,7 +25,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
   end
 
   test "handle_info/3 receive a slot creation message" do
-    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
+    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
 
     send(pid, :new_slot)
 
@@ -42,11 +41,6 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
     assert nb_create_slot_messages == 256
   end
 
-  test "slot_interval/0 should return the slot interval" do
-    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
-    assert "0 * * * * * *" = SlotTimer.slot_interval(pid)
-  end
-
   test "next_slot/1 should get the slot time from a given date" do
     {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
     now = DateTime.utc_now()
@@ -54,14 +48,11 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
     assert 1 == abs(now.minute - next_slot_time.minute)
   end
 
-  property "previous_slots/1 should retrieve the previous slot time from a date" do
-    {:ok, pid} = SlotTimer.start_link([interval: "* * * * * * *", trigger_offset: 0], [])
+  test "previous_slot/2 should retrieve the previous slot time from a date" do
+    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
 
-    check all(previous_seconds <- StreamData.positive_integer()) do
-      previous_slots =
-        SlotTimer.previous_slots(pid, DateTime.utc_now() |> DateTime.add(-previous_seconds))
-
-      assert length(previous_slots) == previous_seconds
-    end
+    now = DateTime.utc_now()
+    previous_slot_time = SlotTimer.previous_slot(pid, now)
+    assert :gt == DateTime.compare(now, previous_slot_time)
   end
 end

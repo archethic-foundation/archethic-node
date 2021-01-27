@@ -22,19 +22,6 @@ defmodule Uniris.BeaconChain.SlotTimer do
   end
 
   @doc """
-  Return the interval for the slots
-  """
-  @spec slot_interval() :: binary()
-  def slot_interval do
-    GenServer.call(__MODULE__, :slot_interval)
-  end
-
-  @doc false
-  def slot_interval(pid) when is_pid(pid) do
-    GenServer.call(pid, :slot_interval)
-  end
-
-  @doc """
   Give the next beacon chain slot using the `SlotTimer` interval
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
@@ -48,36 +35,24 @@ defmodule Uniris.BeaconChain.SlotTimer do
   end
 
   @doc """
-  Returns the list of previous slots from the given date
+  Returns the previous slot from the given date
   """
-  @spec previous_slots(DateTime.t()) :: list(DateTime.t())
-  def previous_slots(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:previous_slots, date_from})
+  @spec previous_slot(DateTime.t()) :: DateTime.t()
+  def previous_slot(date_from = %DateTime{}) do
+    GenServer.call(__MODULE__, {:previous_slot, date_from})
   end
 
   @doc false
-  def previous_slots(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:previous_slots, date_from})
+  def previous_slot(pid, date_from = %DateTime{}) when is_pid(pid) do
+    GenServer.call(pid, {:previous_slot, date_from})
   end
 
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    trigger_offset = Keyword.get(opts, :trigger_offset)
 
-    me = self()
-    Task.start(fn -> schedule_new_slot(next_slot_time(interval, trigger_offset), me) end)
-
-    {:ok,
-     %{
-       interval: interval,
-       trigger_offset: trigger_offset
-     }}
-  end
-
-  @doc false
-  def handle_call(:slot_interval, _from, state = %{interval: interval}) do
-    {:reply, interval, state}
+    schedule_new_slot(interval)
+    {:ok, %{interval: interval}}
   end
 
   def handle_call({:next_slot, from_date}, _from, state = %{interval: interval}) do
@@ -90,36 +65,28 @@ defmodule Uniris.BeaconChain.SlotTimer do
     {:reply, next_date, state}
   end
 
-  def handle_call({:previous_slots, from_date}, _from, state = %{interval: interval}) do
-    previous_slots =
+  def handle_call({:previous_slot, from_date}, _from, state = %{interval: interval}) do
+    previous_slot =
       interval
       |> CronParser.parse!(true)
-      |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
-      |> Stream.take_while(fn datetime ->
-        datetime
-        |> DateTime.from_naive!("Etc/UTC")
-        |> DateTime.compare(from_date) == :gt
-      end)
-      |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
-      |> Enum.to_list()
+      |> CronScheduler.get_previous_run_date!(DateTime.to_naive(from_date))
+      |> DateTime.from_naive!("Etc/UTC")
 
-    {:reply, previous_slots, state}
+    {:reply, previous_slot, state}
   end
 
   @doc false
   def handle_info(
         :new_slot,
         state = %{
-          interval: interval,
-          trigger_offset: trigger_offset
+          interval: interval
         }
       ) do
-    me = self()
-    Task.start(fn -> schedule_new_slot(next_slot_time(interval, trigger_offset), me) end)
+    schedule_new_slot(interval)
 
-    slot_time = DateTime.utc_now()
+    slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
-    Logger.info("Trigger beacon slots creation at #{slot_time_to_string(slot_time)}")
+    Logger.info("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
 
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
@@ -129,22 +96,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
     {:noreply, state}
   end
 
-  defp schedule_new_slot(interval, pid) when is_integer(interval) and interval >= 0 do
-    Process.send_after(pid, :new_slot, interval * 1000)
-  end
-
-  defp next_slot_time(interval, trigger_offset) do
-    if Utils.time_offset(interval) - trigger_offset <= 0 do
-      Process.sleep(Utils.time_offset(interval) * 1000)
-      Utils.time_offset(interval) - trigger_offset
-    else
-      Utils.time_offset(interval) - trigger_offset
-    end
-  end
-
-  defp slot_time_to_string(slot_time) do
-    slot_time
-    |> Utils.truncate_datetime()
-    |> DateTime.to_string()
+  defp schedule_new_slot(interval) do
+    Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
   end
 end

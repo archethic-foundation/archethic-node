@@ -57,7 +57,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
      }}
   end
 
-  describe "validate/1" do
+  describe "validate/2" do
     test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached",
          context do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
@@ -138,7 +138,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
     end
   end
 
-  describe "validate/2" do
+  describe "validate/3" do
     test "should return :ok when the transaction is valid", context do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
 

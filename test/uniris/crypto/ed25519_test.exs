@@ -20,7 +20,7 @@ defmodule Uniris.Crypto.Ed25519Test do
 
   test "encrypt/2 should return an cipher with ephemeral key exchange" do
     {pub, _} = Ed25519.generate_keypair("myseed")
-    assert <<cipher::binary>> = Ed25519.encrypt(pub, "hello")
+    assert <<_::binary>> = Ed25519.encrypt(pub, "hello")
   end
 
   test "decrypt/2 should return an clear text from a cipher" do

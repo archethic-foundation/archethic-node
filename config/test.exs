@@ -11,8 +11,11 @@ config :uniris, Uniris.BeaconChain.Subset, enabled: false
 
 config :uniris, Uniris.BeaconChain.SlotTimer,
   enabled: false,
-  interval: 0,
-  trigger_offset: 0
+  interval: "0 * * * * *"
+
+config :uniris, Uniris.BeaconChain.SummaryTimer,
+  enabled: false,
+  interval: "0 * * * * *"
 
 config :uniris, Uniris.Bootstrap,
   ip_lookup_provider: MockIPLookup,

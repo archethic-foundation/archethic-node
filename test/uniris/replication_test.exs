@@ -4,8 +4,9 @@ defmodule Uniris.ReplicationTest do
   alias Uniris.Crypto
 
   alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias Uniris.BeaconChain.Subset.SlotRegistry
   alias Uniris.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
 
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
@@ -28,7 +29,6 @@ defmodule Uniris.ReplicationTest do
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
 
@@ -37,51 +37,8 @@ defmodule Uniris.ReplicationTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSlotTimer, [interval: "* * * * * *", trigger_offset: 0]})
+    start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
     :ok
-  end
-
-  describe "roles/2" do
-    test "should return all the replication roles for a given transaction" do
-      public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-      P2P.add_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        authorized?: true,
-        last_public_key: public_key,
-        first_public_key: public_key,
-        available?: true,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10)
-      })
-
-      tx = Transaction.new(:node, %TransactionData{})
-
-      validation_stamp = %ValidationStamp{
-        ledger_operations: %LedgerOperations{
-          node_movements: [
-            %NodeMovement{
-              to: public_key,
-              amount: 1.45,
-              roles: [
-                :welcome_node,
-                :coordinator_node,
-                :cross_validation_node,
-                :previous_storage_node
-              ]
-            }
-          ]
-        }
-      }
-
-      assert [:chain, :beacon, :IO] =
-               Replication.roles(
-                 %{tx | validation_stamp: validation_stamp},
-                 public_key
-               )
-    end
   end
 
   describe "chain_storage_node/2" do
@@ -224,8 +181,8 @@ defmodule Uniris.ReplicationTest do
     subset = BeaconChain.subset_from_address(tx.address)
     [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
 
-    %{slot_registry: slot_registry} = :sys.get_state(pid)
-    assert SlotRegistry.has_transaction?(slot_registry, tx.address)
+    assert %{current_slot: %Slot{transaction_summaries: [%TransactionSummary{}]}} =
+             :sys.get_state(pid)
   end
 
   defp transaction_context do

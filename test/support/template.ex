@@ -38,6 +38,11 @@ defmodule UnirisCase do
     |> stub(:get_transaction_chain, fn _, _ -> [] end)
     |> stub(:list_last_transaction_addresses, fn -> [] end)
     |> stub(:add_last_transaction_address, fn _, _ -> :ok end)
+    |> stub(:register_beacon_summary, fn _ -> :ok end)
+    |> stub(:register_beacon_slot, fn _ -> :ok end)
+    |> stub(:get_beacon_slot, fn _, _ -> {:error, :not_found} end)
+    |> stub(:get_beacon_slots, fn _, _ -> [] end)
+    |> stub(:get_beacon_summary, fn _, _ -> {:error, :not_found} end)
 
     {:ok, counter_node_keys_pid} = Agent.start_link(fn -> 0 end)
     {:ok, counter_node_shared_keys_pid} = Agent.start_link(fn -> 0 end)

@@ -24,7 +24,7 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
   import Mox
 
   test "run/1 should auto validate the transaction and request storage it" do
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},

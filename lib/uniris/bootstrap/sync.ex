@@ -1,23 +1,22 @@
 defmodule Uniris.Bootstrap.Sync do
   @moduledoc false
 
-  alias Uniris.BeaconChain
-  alias Uniris.BeaconChain.Slot.NodeInfo
-
   alias Uniris.Bootstrap.NetworkInit
   alias Uniris.Bootstrap.TransactionHandler
 
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.AddNodeInfo
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetStorageNonce
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Node
+
+  alias Uniris.Replication
 
   alias Uniris.TransactionChain
 
@@ -46,7 +45,9 @@ defmodule Uniris.Bootstrap.Sync do
   @doc """
   Determines if the node requires an update
   """
-  @spec require_update?(:inet.ip_address(), :inet.port_number(), DateTime.t()) :: boolean()
+  @spec require_update?(:inet.ip_address(), :inet.port_number(), DateTime.t() | nil) :: boolean()
+  def require_update?(_ip, _port, nil), do: false
+
   def require_update?(ip, port, last_sync_date) do
     first_node_public_key = Crypto.node_public_key(0)
 
@@ -146,23 +147,17 @@ defmodule Uniris.Bootstrap.Sync do
   @doc """
   Notify the beacon chain for the first node public key about the readiness of the node and the end of the bootstrapping
   """
-  @spec publish_readiness() :: :ok
-  def publish_readiness do
-    subset = BeaconChain.subset_from_address(Crypto.node_public_key(0))
-
+  @spec publish_end_of_sync() :: :ok
+  def publish_end_of_sync do
     ready_date = DateTime.utc_now()
 
-    message = %AddNodeInfo{
-      subset: subset,
-      node_info: %NodeInfo{
-        public_key: Crypto.node_public_key(),
-        timestamp: ready_date,
-        ready?: true
-      }
+    message = %NotifyEndOfNodeSync{
+      node_public_key: Crypto.node_public_key(),
+      timestamp: ready_date
     }
 
-    subset
-    |> BeaconChain.get_pool(ready_date)
+    Crypto.node_public_key(0)
+    |> Replication.beacon_storage_nodes(ready_date)
     |> P2P.broadcast_message(message)
     |> Stream.run()
   end

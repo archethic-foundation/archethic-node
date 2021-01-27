@@ -31,9 +31,9 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
         {:ok, :ok}
       end)
 
-      assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *", trigger_offset: 1], [])
+      assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
 
-      assert %{interval: "*/2 * * * * *", trigger_offset: 1} = :sys.get_state(pid)
+      assert %{interval: "*/2 * * * * *"} = :sys.get_state(pid)
 
       assert_receive :renewal_processed, 3_000
     end
