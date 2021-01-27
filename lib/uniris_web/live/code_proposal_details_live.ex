@@ -10,30 +10,37 @@ defmodule UnirisWeb.CodeProposalDetailsLive do
 
   alias Uniris.PubSub
 
-  def mount(_params, %{"address" => address}, socket) do
+  def mount(%{"address" => address}, _params, socket) do
     if connected?(socket) do
       PubSub.register_to_new_transaction_by_address(address)
       PubSub.register_to_code_proposal_deployment(address)
     end
 
-    bin_address = Base.decode16!(address, case: :mixed)
+    case Base.decode16(address, case: :mixed) do
+      {:ok, addr} ->
+        case Governance.get_code_proposal(addr) do
+          {:ok, prop} ->
+            new_socket =
+              socket
+              |> assign(:proposal, prop)
+              |> assign(:exists?, true)
+              |> assign(:address, addr)
+              |> assign(:deployed?, false)
 
-    new_socket =
-      socket
-      |> assign(:address, address)
-      |> assign(:deployed?, false)
+            {:ok, new_socket}
 
-    case Governance.get_code_proposal(bin_address) do
-      {:ok, prop = %Proposal{}} ->
-        new_socket =
-          new_socket
-          |> assign(:proposal, prop)
-          |> assign(:exists?, true)
+          _ ->
+            new_socket =
+              socket
+              |> assign(:address, addr)
+              |> assign(:deployed?, false)
+              |> assign(:exists?, false)
 
-        {:ok, new_socket}
+            {:ok, new_socket}
+        end
 
       _ ->
-        {:ok, assign(new_socket, :exists?, false)}
+        {:ok, assign(socket, :error, :invalid_address)}
     end
   end
 

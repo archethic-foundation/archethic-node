@@ -22,43 +22,65 @@ defmodule UnirisWeb.ExplorerController do
   end
 
   def chain(conn, _params = %{"address" => address, "last" => "on"}) do
-    bin_address = Base.decode16!(address, case: :mixed)
+    case Base.decode16(address, case: :mixed) do
+      {:ok, addr} ->
+        case Uniris.get_last_transaction(addr) do
+          {:ok, %Transaction{address: last_address}} ->
+            chain = Uniris.get_transaction_chain(last_address)
+            %{uco: uco_balance} = Uniris.get_balance(addr)
 
-    case Uniris.get_last_transaction(bin_address) do
-      {:ok, %Transaction{address: last_address}} ->
-        chain = Uniris.get_transaction_chain(last_address)
-        %{uco: uco_balance} = Uniris.get_balance(bin_address)
+            render(conn, "chain.html",
+              transaction_chain: chain,
+              chain_size: Enum.count(chain),
+              address: addr,
+              uco_balance: uco_balance,
+              last_checked?: true
+            )
 
-        render(conn, "chain.html",
-          transaction_chain: chain,
-          chain_size: Enum.count(chain),
-          address: bin_address,
-          uco_balance: uco_balance,
-          last_checked?: true
-        )
+          _ ->
+            render(conn, "chain.html",
+              transaction_chain: [],
+              chain_size: 0,
+              address: addr,
+              last_checked?: true
+            )
+        end
 
       _ ->
         render(conn, "chain.html",
           transaction_chain: [],
           chain_size: 0,
-          address: bin_address,
-          last_checked?: true
+          address: "",
+          last_checked?: true,
+          error: :invalid_address
         )
     end
   end
 
   def chain(conn, _params = %{"address" => address}) do
-    bin_address = Base.decode16!(address, case: :mixed)
-    chain = Uniris.get_transaction_chain(bin_address)
-    %{uco: uco_balance} = Uniris.get_balance(bin_address)
+    case Base.decode16(address, case: :mixed) do
+      {:ok, addr} ->
+        chain = Uniris.get_transaction_chain(addr)
+        %{uco: uco_balance} = Uniris.get_balance(addr)
 
-    render(conn, "chain.html",
-      transaction_chain: chain,
-      address: bin_address,
-      chain_size: Enum.count(chain),
-      uco_balance: uco_balance,
-      last_checked?: false
-    )
+        render(conn, "chain.html",
+          transaction_chain: chain,
+          address: addr,
+          chain_size: Enum.count(chain),
+          uco_balance: uco_balance,
+          last_checked?: false
+        )
+
+      _ ->
+        render(conn, "chain.html",
+          transaction_chain: [],
+          address: "",
+          chain_size: 0,
+          uco_balance: 0,
+          last_checked?: false,
+          error: :invalid_address
+        )
+    end
   end
 
   def chain(conn, _params) do

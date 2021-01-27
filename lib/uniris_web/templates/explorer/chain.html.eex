@@ -17,6 +17,9 @@
                             <div class="control">
                                 <input id="address" name="address" class="input" type="text" placeholder="Enter transaction address" required value="<%= Base.encode16(@address) %>">
                             </div>
+                            <%= if assigns[:error] != nil and @error == :invalid_address do %>
+                                <p class="help is-danger">Invalid address</p>
+                            <% end %>
                         </div>
                     </div>
                 </div>

@@ -37,7 +37,7 @@ defmodule UnirisWeb.Router do
     get("/node/:public_key", NodeController, :show)
     live("/code/viewer", CodeViewerLive)
     live("/code/proposals", CodeProposalsLive)
-    get("/code/proposal/:address", CodeController, :show_proposal)
+    live("/code/proposal/:address", CodeProposalDetailsLive)
     get("/code/download", CodeController, :download)
   end
 
