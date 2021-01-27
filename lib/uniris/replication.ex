@@ -130,18 +130,12 @@ defmodule Uniris.Replication do
     end
   end
 
-<<<<<<< HEAD
-  def process_transaction(tx = %Transaction{}, roles, _opts) when is_list(roles) do
-    IO.puts "BBBB: #{inspect tx}"
-    case TransactionValidator.validate(tx) do
-=======
   defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, opts)
        when is_list(roles) do
     self_repair? = Keyword.get(opts, :self_repair?, false)
     Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
 
     case TransactionValidator.validate(tx, self_repair?) do
->>>>>>> origin/master
       :ok ->
         if :IO in roles do
           :ok = TransactionChain.write_transaction(tx)

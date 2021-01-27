@@ -100,11 +100,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec new(type :: transaction_type(), data :: TransactionData.t()) ::
           t()
   def new(type, data = %TransactionData{})
-<<<<<<< HEAD
-      when type in [:node, :node_shared_secrets, :beacon, :oracle] do
-=======
-      when type in [:node, :node_shared_secrets] do
->>>>>>> origin/master
+      when type in [:node, :node_shared_secrets, :oracle] do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
     %__MODULE__{
@@ -279,19 +275,11 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:node), do: 3
   def serialize_type(:node_shared_secrets), do: 4
   def serialize_type(:origin_shared_secrets), do: 5
-<<<<<<< HEAD
-  def serialize_type(:beacon), do: 6
-  def serialize_type(:hosting), do: 7
-  def serialize_type(:code_proposal), do: 8
-  def serialize_type(:code_approval), do: 9
-  def serialize_type(:nft), do: 10
-  def serialize_type(:oracle), do: 11
-=======
   def serialize_type(:hosting), do: 6
   def serialize_type(:code_proposal), do: 7
   def serialize_type(:code_approval), do: 8
   def serialize_type(:nft), do: 9
->>>>>>> origin/master
+  def serialize_type(:oracle), do: 10
 
   @doc """
   Parse a serialize transaction type
@@ -303,19 +291,11 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(3), do: :node
   def parse_type(4), do: :node_shared_secrets
   def parse_type(5), do: :origin_shared_secrets
-<<<<<<< HEAD
-  def parse_type(6), do: :beacon
-  def parse_type(7), do: :hosting
-  def parse_type(8), do: :code_proposal
-  def parse_type(9), do: :code_approval
-  def parse_type(10), do: :nft
-  def parse_type(11), do: :oracle
-=======
   def parse_type(6), do: :hosting
   def parse_type(7), do: :code_proposal
   def parse_type(8), do: :code_approval
   def parse_type(9), do: :nft
->>>>>>> origin/master
+  def parse_type(10), do: :oracle
 
   @doc """
   Determines if a transaction type is a network one
