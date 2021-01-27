@@ -18,10 +18,10 @@ defmodule Uniris.Networking do
   """
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   def get_node_ip do
-    Application.get_env(:uniris, __MODULE__)
-    |> Keyword.fetch(:ip_provider)
-    |> case do
-      {:ok, ip_provider} -> ip_provider.get_node_ip()
+    with config <- Application.get_env(:uniris, __MODULE__),
+    {:ok, ip_provider} <- Keyword.fetch(config, :ip_provider) do
+      {:ok, ip_provider}
+    else
       :error -> get_external_ip()
     end
   end
@@ -48,8 +48,9 @@ defmodule Uniris.Networking do
 
   @spec get_external_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   defp get_external_ip do
-    Nat.get_node_ip
-    |> case do
+    maybe_ip = Nat.get_node_ip
+
+    case maybe_ip do
       {:ok, ip} -> {:ok, ip}
       {:error, _} -> Ipify.get_node_ip()
     end
@@ -67,8 +68,9 @@ defmodule Uniris.Networking do
 
   @spec get_random_port() :: {:ok, port} | {:error, :port_unassigned}
   defp get_random_port do
-    Nat.get_random_port
-    |> case do
+    maybe_port = Nat.get_random_port
+
+    case maybe_port do
       {:ok, port} -> {:ok, port}
       {:error, _reason} -> {:error, :port_unassigned}
     end
