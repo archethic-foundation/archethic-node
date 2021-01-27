@@ -35,10 +35,6 @@ config :phoenix, :json_library, Jason
 
 config :uniris, :src_dir, File.cwd!()
 
-config :uniris,
-       :src_branch,
-       System.cmd("git", ["symbolic-ref", "--short", "HEAD"], []) |> elem(0) |> String.trim()
-
 config :uniris, Uniris.Crypto,
   supported_curves: [
     :ed25519,

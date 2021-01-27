@@ -20,7 +20,6 @@ defmodule Uniris.Governance.Code do
   alias Uniris.Utils
 
   @src_dir Application.compile_env(:uniris, :src_dir)
-  @src_branch Application.compile_env(:uniris, :src_branch)
 
   @doc """
   List the source files from the master branch
@@ -80,12 +79,11 @@ defmodule Uniris.Governance.Code do
   end
 
   @doc """
-  Ensure the code proposal is an applicable on the given branch.
+  Ensure the code proposal is an applicable on the current branch.
   """
   @spec applicable_proposal?(Proposal.t()) :: boolean()
   def applicable_proposal?(
         %Proposal{changes: changes, address: address},
-        branch \\ @src_branch,
         src_dir \\ @src_dir
       ) do
     random = :crypto.strong_rand_bytes(4) |> Base.encode16()
@@ -97,7 +95,7 @@ defmodule Uniris.Governance.Code do
 
     res =
       case status() do
-        {:clean, ^branch} ->
+        {:clean, _} ->
           git.(["apply", "--check", prop_file])
 
         otherwise ->
