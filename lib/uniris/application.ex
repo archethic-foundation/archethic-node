@@ -12,6 +12,7 @@ defmodule Uniris.Application do
   alias Uniris.Election.Supervisor, as: ElectionSupervisor
   alias Uniris.Governance.Supervisor, as: GovernanceSupervisor
   alias Uniris.Mining.Supervisor, as: MiningSupervisor
+  alias Uniris.Oracles.Supervisor, as: OraclesSupervisor
   alias Uniris.P2P.Supervisor, as: P2PSupervisor
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
@@ -40,7 +41,8 @@ defmodule Uniris.Application do
       SelfRepairSupervisor,
       WebSupervisor,
       Bootstrap,
-      {Task.Supervisor, name: Uniris.TaskSupervisor}
+      {Task.Supervisor, name: Uniris.TaskSupervisor},
+      OraclesSupervisor
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]

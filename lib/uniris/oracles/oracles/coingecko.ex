@@ -60,11 +60,19 @@ defmodule Uniris.Oracles.Coingecko do
   use HTTPoison.Base
 
   @endpoint "https://api.coingecko.com/api/v3/coins/uniris/history?date="
-  # @expected_fields ~w(
-  #   id symbol name localization image market_data community_data developer_data public_interest_stats
-  # )
 
-  def process_request_url(date), do: @endpoint <> date
+  def fetch(date) do
+    "#{date.day}-#{date.month}-#{date.year}"
+    |> get!
+    |> Map.fetch!(:body)
+  end
 
-  def process_response_body(body), do: Jason.decode!(body)
+  defp process_request_url(date), do: @endpoint <> date
+
+  defp process_response_body(body) do
+    Jason.decode!(body)
+    |> Map.fetch!("market_data")
+    |> Map.fetch!("current_price")
+    |> Jason.encode!
+  end
 end
