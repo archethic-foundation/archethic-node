@@ -295,6 +295,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       %{type: {:NFT, nft_address}, amount: amount}, acc ->
         update_in(acc, [:nft, Access.key(nft_address, 0.0)], &(&1 + amount))
+
+      %{type: :call}, acc ->
+        acc
     end)
   end
 
@@ -483,13 +486,12 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       %{uco: uco_balance, nft: nfts_received} = ledger_balances(inputs)
       %{uco: uco_to_spend, nft: nfts_to_spend} = total_to_spend(ops)
 
-      %{
-        ops
-        | unspent_outputs: [
-            %UnspentOutput{from: change_address, amount: uco_balance - uco_to_spend, type: :UCO}
-            | new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address)
-          ]
-      }
+      new_unspent_outputs = [
+        %UnspentOutput{from: change_address, amount: uco_balance - uco_to_spend, type: :UCO}
+        | new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address)
+      ]
+
+      Map.update!(ops, :unspent_outputs, &(new_unspent_outputs ++ &1))
     else
       ops
     end
