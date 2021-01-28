@@ -33,13 +33,14 @@ defmodule Uniris.Networking do
   2. Port in config && Unable to publish port from config && UPnP or NAT PMP is available - get random port from the pool.
   3. Port in config && UPnP or NAT PMP not available -> return error :port_unassigned.
   """
-  @spec get_p2p_port() :: {:ok, pos_integer} | {:error, :invalid_port | :port_unassigned}
+  @spec get_p2p_port() :: {:ok, pos_integer()} | {:error, :invalid_port | :port_unassigned}
   def get_p2p_port do
     with config <- Application.get_env(:uniris, __MODULE__),
     {:ok, port_to_open} <- Keyword.fetch(config, :port),
     {:ok, port} <- Nat.open_port(port_to_open) do
       {:ok, port}
     else
+      :error -> assign_random_port()
       {:error, :ip_discovery_error} -> assign_random_port()
     end
   end
@@ -48,29 +49,25 @@ defmodule Uniris.Networking do
 
   @spec get_external_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip | :ip_discovery_error}
   defp get_external_ip do
-    maybe_ip = Nat.get_node_ip
-
-    case maybe_ip do
+    case Nat.get_node_ip do
       {:ok, ip} -> {:ok, ip}
       {:error, _} -> Ipify.get_node_ip()
     end
   end
 
-  @spec assign_random_port() :: {:ok, port} | {:error, :port_unassigned}
+  @spec assign_random_port() :: {:ok, pos_integer()} | {:error, :port_unassigned}
   defp assign_random_port do
     with config <- Application.get_env(:uniris, __MODULE__),
     :error <- Keyword.fetch(config, :ip_provider) do
       get_random_port()
     else
-      {:ok, Static} -> :port_unassigned
+      {:ok, Static} -> {:error, :port_unassigned}
     end
   end
 
-  @spec get_random_port() :: {:ok, port} | {:error, :port_unassigned}
+  @spec get_random_port() :: {:ok, pos_integer()} | {:error, :port_unassigned}
   defp get_random_port do
-    maybe_port = Nat.get_random_port
-
-    case maybe_port do
+    case Nat.get_random_port do
       {:ok, port} -> {:ok, port}
       {:error, _reason} -> {:error, :port_unassigned}
     end

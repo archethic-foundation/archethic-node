@@ -58,6 +58,30 @@ discover_with_addr(Parent, Ref, Addr) ->
             ok
     end.
 
+-spec to_list(X) -> list() when
+      X :: atom() | list() | binary() | integer() | float().
+to_list(X) when is_float(X) ->
+    mochinum:digits(X);
+to_list(X) when is_integer(X) ->
+    integer_to_list(X);
+to_list(X) when is_binary(X) ->
+    binary_to_list(X);
+to_list(X) when is_atom(X) ->
+    atom_to_list(X);
+to_list(X) when is_list(X) ->
+    X.
+
+-spec is_ipv4(Address) -> 
+    boolean() when Address :: string() | binary().
+is_ipv4(Address) when is_binary(Address) ->
+    is_ipv4(to_list(Address));
+is_ipv4(Address) when is_list(Address) ->
+    case inet_parse:ipv4_address(Address) of
+        {ok, _} ->
+            true;
+        {error, _} -> false
+    end.
+
 potential_gateways() ->
     Net_10 = inet_cidr:parse("10.0.0.0/8"),
     Net_172_16 = inet_cidr:parse("172.16.0.0/12"),
@@ -66,7 +90,7 @@ potential_gateways() ->
     lists:foldl(fun({_, {Addr, Mask}}, Acc) ->
                         case inet_ext:is_private_address(Networks) of
                             true ->
-                                case inet_cidr:is_ipv4(Addr) of
+                                case is_ipv4(Addr) of
                                     true ->
                                         Ip0 = mask(Addr, Mask),
                                         Ip = setelement(4, Ip0,

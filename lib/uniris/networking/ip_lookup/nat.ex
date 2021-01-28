@@ -9,13 +9,13 @@ defmodule Uniris.Networking.IPLookup.Nat do
     |> discover
   end
 
-  @spec get_random_port() :: {:ok, pos_integer} | {:error, :port_unassigned}
+  @spec get_random_port() :: {:ok, pos_integer()} | {:error, :port_unassigned}
   def get_random_port do
     [:natupnp_v1, :natupnp_v2, :natpmp]
     |> assign_port(0)
   end
 
-  @spec open_port(pos_integer) :: {:ok, pos_integer} | {:error, :port_unassigned}
+  @spec open_port(pos_integer) :: {:ok, pos_integer()} | {:error, :port_unassigned}
   def open_port(port) do
     [:natupnp_v1, :natupnp_v2, :natpmp]
     |> assign_port(port)
@@ -23,7 +23,7 @@ defmodule Uniris.Networking.IPLookup.Nat do
 
   # Private
 
-  @spec discover(list(atom)) :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
+  @spec discover(list(atom()) | []) :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
   defp discover([]), do: {:error, :ip_discovery_error}
   defp discover([protocol_module | protocol_modules]) do
     with {:ok, router_ip} <- protocol_module.discover(),
@@ -37,7 +37,7 @@ defmodule Uniris.Networking.IPLookup.Nat do
     end
   end
 
-  @spec assign_port(list(atom), pos_integer) :: {:ok, pos_integer} | {:error, :port_unassigned}
+  @spec assign_port(list(atom()), non_neg_integer()) :: {:ok, pos_integer()} | {:error, :port_unassigned}
   defp assign_port([], _port), do: {:error, :port_unassigned}
   defp assign_port([protocol_module | protocol_modules], port) do
     with {:ok, router_ip} <- protocol_module.discover(),
