@@ -741,6 +741,17 @@ defmodule Uniris.Crypto do
   def hash_size(4), do: 64
 
   @doc """
+  Determine if a hash is valid
+  """
+  @spec valid_hash?(binary()) :: boolean()
+  def valid_hash?(<<0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(_), do: false
+
+  @doc """
   Load the transaction for the Keystore indexing
   """
   @spec load_transaction(Transaction.t()) :: :ok
