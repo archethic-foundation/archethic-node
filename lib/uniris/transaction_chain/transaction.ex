@@ -768,7 +768,13 @@ defmodule Uniris.TransactionChain.Transaction do
       origin_signature: tx.origin_signature,
       validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
       cross_validation_stamps:
-        Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
+        case tx.cross_validation_stamps do
+          nil ->
+            []
+
+          _ ->
+            Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
+        end
     }
   end
 
