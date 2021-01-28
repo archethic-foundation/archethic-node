@@ -48,7 +48,7 @@ defmodule Uniris.Replication.TransactionValidator do
   @spec validate(
           validated_transaction :: Transaction.t(),
           previous_transaction :: Transaction.t(),
-          inputs_outputs :: list(UnspentOutput.t() | TransactionInput.t()),
+          inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t()),
           self_repair? :: boolean()
         ) ::
           :ok | {:error, error()}

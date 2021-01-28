@@ -635,6 +635,12 @@ defmodule Uniris.P2P.MessageTest do
             amount: 10.5,
             spent?: true,
             type: :UCO
+          },
+          %TransactionInput{
+            from:
+              <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
+                182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
+            type: :call
           }
         ]
       }

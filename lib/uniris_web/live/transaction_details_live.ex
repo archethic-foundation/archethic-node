@@ -103,25 +103,29 @@ defmodule UnirisWeb.TransactionDetailsLive do
     balance = Uniris.get_balance(address)
     previous_address = Transaction.previous_address(tx)
 
-    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
+    inputs = Uniris.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
     |> assign(:balance, balance)
-    |> assign(:inputs, inputs)
-    |> assign(:calls, calls)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
     |> assign(:address, address)
     |> assign(:hide_content, byte_size(content) > 1000)
   end
 
   def handle_not_existing_transaction(socket, address) do
-    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
+    inputs = Uniris.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
     socket
     |> assign(:address, address)
-    |> assign(:inputs, inputs)
-    |> assign(:calls, calls)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
     |> assign(:error, :not_exists)
   end
 
