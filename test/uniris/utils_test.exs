@@ -6,4 +6,6 @@ defmodule Uniris.UtilsTest do
   alias Uniris.Utils
 
   doctest Uniris.Utils
+  doctest Uniris.JobConductor
+  doctest Uniris.JobCache
 end
