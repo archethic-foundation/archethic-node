@@ -42,7 +42,7 @@ export MIX_ENV=prod
 mix deps.get
 
 # Builds WEB assets in production mode
-cd assets && npm install && npm run deploy && cd - && mix phx.digest
+cd assets && npm ci && npm run deploy && cd - && mix phx.digest
 
 VERSION=$(grep 'version:' mix.exs | cut -d '"' -f2)
 echo ""
