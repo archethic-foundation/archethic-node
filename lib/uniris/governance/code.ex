@@ -5,9 +5,8 @@ defmodule Uniris.Governance.Code do
 
   alias Uniris.Crypto
 
-  alias __MODULE__.CI
+  alias __MODULE__.CICD
   alias __MODULE__.Proposal
-  alias __MODULE__.TestNet
 
   alias Uniris.Governance.Pools
 
@@ -60,7 +59,7 @@ defmodule Uniris.Governance.Code do
   Deploy the proposal into a dedicated testnet
   """
   @spec deploy_proposal_testnet(Proposal.t()) :: :ok
-  defdelegate deploy_proposal_testnet(prop), to: TestNet, as: :deploy_proposal
+  defdelegate deploy_proposal_testnet(prop), to: Utils.impl(CICD), as: :run_testnet!
 
   @doc """
   Ensure the code proposal is valid according to the defined rules:
@@ -188,7 +187,5 @@ defmodule Uniris.Governance.Code do
   end
 
   @spec list_proposal_CI_logs(binary()) :: Enumerable.t()
-  defdelegate list_proposal_CI_logs(address),
-    to: CI,
-    as: :list_logs
+  defdelegate list_proposal_CI_logs(address), to: Utils.impl(CICD), as: :get_log
 end
