@@ -8,8 +8,7 @@ config :logger, level: :info
 # ip_provider options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, 
 # hostname - provides a constant IP address for Static
 # port - provides a P2P port number
-config :uniris, Uniris.Networking, 
-  ip_provider: Uniris.Networking.IPLookup.Static
+config :uniris, Uniris.Networking, ip_provider: Uniris.Networking.IPLookup.Static
 
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
 

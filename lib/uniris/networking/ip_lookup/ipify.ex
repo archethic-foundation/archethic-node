@@ -1,4 +1,3 @@
-
 defmodule Uniris.Networking.IPLookup.Ipify do
   @moduledoc """
   Module provides external IP address of the node identified by IPIFY service.
@@ -11,7 +10,7 @@ defmodule Uniris.Networking.IPLookup.Ipify do
     :inets.start()
 
     with {:ok, {_, _, inet_addr}} <- :httpc.request('http://api.ipify.org'),
-    {:ok, ip} <- :inet.parse_address(inet_addr) do
+         {:ok, ip} <- :inet.parse_address(inet_addr) do
       :inets.stop()
       {:ok, ip}
     else

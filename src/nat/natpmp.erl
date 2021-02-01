@@ -14,6 +14,7 @@
 -export([delete_port_mapping/4]).
 
 -include("nat.hrl").
+-include_lib("xmerl/include/xmerl.hrl").
 
 -define(NAT_PMP_PORT, 5351).
 
@@ -59,17 +60,9 @@ discover_with_addr(Parent, Ref, Addr) ->
     end.
 
 -spec to_list(X) -> list() when
-      X :: atom() | list() | binary() | integer() | float().
-to_list(X) when is_float(X) ->
-    mochinum:digits(X);
-to_list(X) when is_integer(X) ->
-    integer_to_list(X);
+    X :: binary().
 to_list(X) when is_binary(X) ->
-    binary_to_list(X);
-to_list(X) when is_atom(X) ->
-    atom_to_list(X);
-to_list(X) when is_list(X) ->
-    X.
+  binary_to_list(X).
 
 -spec is_ipv4(Address) -> 
     boolean() when Address :: string() | binary().
@@ -93,8 +86,7 @@ potential_gateways() ->
                                 case is_ipv4(Addr) of
                                     true ->
                                         Ip0 = mask(Addr, Mask),
-                                        Ip = setelement(4, Ip0,
-                                                        element(4, Ip0) bor 1),
+                                        Ip = setelement(4, Ip0, element(4, Ip0) bor 1),
                                         [Ip | Acc];
                                     false ->
                                         Acc
@@ -299,5 +291,8 @@ parse_status(5) -> {error, unsupported_opcode}.
 
 
 %% apply mask to the ip
-mask({A, B, C, D}, {E, F, G, H}) ->
+-spec mask(inet:ip4_address(), inet:ip4_address()) -> inet:ip4_address().
+mask(Addr, Mask) ->
+    {A, B, C, D} = Addr,
+    {E, F, G, H} = Mask,
     {A band E, B band F, C band G, D band H}.

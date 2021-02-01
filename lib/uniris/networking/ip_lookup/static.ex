@@ -6,12 +6,13 @@ defmodule Uniris.Networking.IPLookup.Static do
 
   # Public
 
-  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
+  @spec get_node_ip() ::
+          {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
   def get_node_ip do
     with config <- Application.get_env(:uniris, Uniris.Networking),
-    {:ok, hostname} when is_binary(hostname) <- Keyword.fetch(config, :hostname),
-    host_chars <- String.to_charlist(hostname),
-    {:ok, ip} <- :inet.parse_address(host_chars) do
+         {:ok, hostname} when is_binary(hostname) <- Keyword.fetch(config, :hostname),
+         host_chars <- String.to_charlist(hostname),
+         {:ok, ip} <- :inet.parse_address(host_chars) do
       {:ok, ip}
     else
       :error -> {:error, :invalid_ip_provider}
