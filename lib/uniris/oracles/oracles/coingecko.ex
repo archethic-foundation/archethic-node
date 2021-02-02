@@ -16,10 +16,10 @@ defmodule Uniris.Oracles.Coingecko do
 
   # HTTPoison.Base
 
-  @impl true
+  @impl HTTPoison.Base
   def process_request_url(date), do: @endpoint <> date
 
-  @impl true
+  @impl HTTPoison.Base
   def process_response_body(body) do
     Jason.decode!(body)
     |> Map.fetch!("market_data")
