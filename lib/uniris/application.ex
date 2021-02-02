@@ -41,8 +41,7 @@ defmodule Uniris.Application do
       SelfRepairSupervisor,
       WebSupervisor,
       Bootstrap,
-      {Task.Supervisor, name: Uniris.TaskSupervisor},
-      OraclesSupervisor
+      {Task.Supervisor, name: Uniris.TaskSupervisor}
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
