@@ -85,7 +85,9 @@ potential_gateways() ->
                             true ->
                                 case is_ipv4(Addr) of
                                     true ->
-                                        Ip0 = mask(Addr, Mask),
+                                        {ok, AddrParsed} = inet:parse_ipv4_address(Addr),
+                                        {ok, MaskParsed} = inet:parse_ipv4_address(Addr),
+                                        Ip0 = mask(AddrParsed, MaskParsed),
                                         Ip = setelement(4, Ip0, element(4, Ip0) bor 1),
                                         [Ip | Acc];
                                     false ->
@@ -292,7 +294,4 @@ parse_status(5) -> {error, unsupported_opcode}.
 
 %% apply mask to the ip
 -spec mask(inet:ip4_address(), inet:ip4_address()) -> inet:ip4_address().
-mask(Addr, Mask) ->
-    {A, B, C, D} = Addr,
-    {E, F, G, H} = Mask,
-    {A band E, B band F, C band G, D band H}.
+mask({A, B, C, D}, {E, F, G, H}) -> {A band E, B band F, C band G, D band H}.

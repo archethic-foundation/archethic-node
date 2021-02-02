@@ -98,11 +98,12 @@ discover_loop(Sock, Timeout) ->
 
 get_device_address(#nat_upnp{service_url=Url}) ->
     Res = case ?URI_MOD:parse(Url) of
-        {ok, {_Scheme, _UserInfo, Host, _Port, _Path, _Query}} ->
-            inet:getaddr(Host, inet);
-        {ok, {_Scheme, _UserInfo, Host, _Port, _Path, _Query, _Fragment}} ->
-            inet:getaddr(Host, inet);
-        Error -> Error
+        {error, _Error, Reason} -> Reason;
+        #{fragment := _Fragment, host := Host, path := _Path, port := _Port, query := _Query, scheme := _Scheme, userinfo := _UserInfo} ->
+            case inet:getaddr(Host, inet) of
+              {error, Reason} -> Reason;
+              {ok, Address} -> Address
+            end
     end,
     %% unparse the IP
     case Res of
