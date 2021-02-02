@@ -12,7 +12,6 @@ defmodule Uniris.Application do
   alias Uniris.Election.Supervisor, as: ElectionSupervisor
   alias Uniris.Governance.Supervisor, as: GovernanceSupervisor
   alias Uniris.Mining.Supervisor, as: MiningSupervisor
-  alias Uniris.Oracles.Supervisor, as: OraclesSupervisor
   alias Uniris.P2P.Supervisor, as: P2PSupervisor
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
