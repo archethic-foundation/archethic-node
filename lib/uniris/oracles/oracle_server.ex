@@ -1,21 +1,23 @@
 defmodule Uniris.Oracles.OracleCronServer do
-
   use GenServer
 
   # Public
 
+  @spec start_link(mfa: mfa(), interval: pos_integer()) ::
+          {:ok, pid()} | :ignore | {:error, {:already_started, pid()} | term()}
   def start_link([mfa: _, interval: _] = args) do
     GenServer.start_link(__MODULE__, args)
   end
 
+  @spec get_payload(pid()) :: {:ok, map()}
   def get_payload(pid), do: GenServer.call(pid, :get_payload)
 
   # Implementation
 
   @impl true
-  def init([mfa: mfa, interval: interval]) do
+  def init(mfa: mfa, interval: interval) do
     state = %{
-      mfa: mfa, 
+      mfa: mfa,
       interval: interval,
       subscribers: [],
       payload: nil
@@ -36,10 +38,11 @@ defmodule Uniris.Oracles.OracleCronServer do
   def handle_call(:get_payload, subscriber, %{payload: nil, subscribers: subscribers} = state) do
     {:noreply, %{state | subscribers: [subscriber | subscribers]}}
   end
-  def handle_call(:get_payload, subscriber, %{payload: payload} = state) do
+
+  def handle_call(:get_payload, _, %{payload: payload} = state) do
     {:reply, payload, state}
   end
-  
+
   @impl true
   def handle_info(:fetch, %{mfa: {m, f, a}} = state) do
     payload = apply(m, f, a)
@@ -50,16 +53,21 @@ defmodule Uniris.Oracles.OracleCronServer do
   end
 
   @impl true
-  def handle_info(:reschedule, %{interval: interval, payload: payload, subscribers: []} = state) do
+  def handle_info(:reschedule, %{interval: interval, subscribers: []} = state) do
     Process.send_after(self(), :fetch, interval)
     {:noreply, state}
   end
-  def handle_info(:reschedule, %{interval: interval, payload: payload, subscribers: [subscriber | subscribers]} = state) do
+
+  def handle_info(
+        :reschedule,
+        %{interval: interval, payload: payload, subscribers: [subscriber | subscribers]} = state
+      ) do
     GenServer.reply(subscriber, {:ok, payload})
 
     Process.send_after(self(), :reschedule, interval)
     {:noreply, %{state | subscribers: subscribers}}
   end
+
   def handle_info(:send_tx, %{payload: payload} = state) do
     data = %Uniris.TransactionChain.TransactionData{content: payload}
     tx = Uniris.TransactionChain.Transaction.new(:oracle, data)
