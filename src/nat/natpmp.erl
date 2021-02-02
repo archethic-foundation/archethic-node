@@ -86,7 +86,7 @@ potential_gateways() ->
                                 case is_ipv4(Addr) of
                                     true ->
                                         {ok, AddrParsed} = inet:parse_ipv4_address(Addr),
-                                        {ok, MaskParsed} = inet:parse_ipv4_address(Addr),
+                                        {ok, MaskParsed} = inet:parse_ipv4_address(Mask),
                                         Ip0 = mask(AddrParsed, MaskParsed),
                                         Ip = setelement(4, Ip0, element(4, Ip0) bor 1),
                                         [Ip | Acc];
