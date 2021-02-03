@@ -79,6 +79,9 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
 
 config :uniris, Uniris.SelfRepair.Sync, last_sync_file: "priv/p2p/last_sync"
 
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats"
+
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight
   interval: "0 0 0 * * * *"

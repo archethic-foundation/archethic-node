@@ -94,6 +94,10 @@ config :uniris, Uniris.SelfRepair.Sync,
   network_startup_date: DateTime.utc_now(),
   last_sync_file: "priv/p2p/last_sync_test"
 
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats_test",
+  enabled: false
+
 config :uniris, Uniris.SharedSecrets.MemTablesLoader, enabled: false
 config :uniris, Uniris.SharedSecrets.MemTables.OriginKeyLookup, enabled: false
 

@@ -4,6 +4,7 @@ defmodule Uniris.SelfRepair.Supervisor do
   use Supervisor
 
   alias Uniris.SelfRepair.Scheduler
+  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
 
   alias Uniris.Utils
 
@@ -13,7 +14,8 @@ defmodule Uniris.SelfRepair.Supervisor do
 
   def init(_arg) do
     children = [
-      {Scheduler, Application.get_env(:uniris, Scheduler)}
+      {Scheduler, Application.get_env(:uniris, Scheduler)},
+      NetworkStatistics
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)

@@ -95,7 +95,10 @@ config :uniris, Uniris.SelfRepair.Scheduler,
   interval: "0 * * * * * *"
 
 config :uniris, Uniris.SelfRepair.Sync,
-  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED")}"
+  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
+
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second
