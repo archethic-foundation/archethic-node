@@ -11,6 +11,8 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.SelfRepair
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -55,8 +57,8 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   """
   @spec next_authorized_node_public_keys() :: list(Crypto.key())
   def next_authorized_node_public_keys do
-    P2P.list_nodes(availability: :global)
-    |> Election.next_authorized_nodes(Election.get_validation_constraints())
+    SelfRepair.get_latest_tps()
+    |> Election.next_authorized_nodes(P2P.list_nodes(availability: :global))
     |> Enum.map(& &1.last_public_key)
   end
 
