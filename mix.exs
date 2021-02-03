@@ -22,7 +22,7 @@ defmodule Uniris.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :inets, :os_mon, :runtime_tools],
+      extra_applications: [:logger, :inets, :os_mon, :runtime_tools, :xmerl],
       mod: {Uniris.Application, []}
     ]
   end
@@ -62,6 +62,9 @@ defmodule Uniris.MixProject do
       {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
       {:exjsonpath, "~> 0.9.0"},
+      {:rand_compat, "~> 0.0.3"},
+      {:inet_ext, "~> 1.0"},
+      {:inet_cidr, "~> 1.1", hex: :erl_cidr, override: true},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"}
     ]
