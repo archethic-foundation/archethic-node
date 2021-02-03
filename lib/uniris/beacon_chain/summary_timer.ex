@@ -47,6 +47,19 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     GenServer.call(pid, {:previous_summaries, date_from})
   end
 
+  @doc """
+  Return the previous summary time
+  """
+  @spec previous_summary(DateTime.t()) :: DateTime.t()
+  def previous_summary(date_from = %DateTime{}) do
+    GenServer.call(__MODULE__, {:previous_summary, date_from})
+  end
+
+  @doc false
+  def previous_summary(pid, date_from = %DateTime{}) when is_pid(pid) do
+    GenServer.call(pid, {:previous_summary, date_from})
+  end
+
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
@@ -54,7 +67,22 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     {:ok, %{interval: interval}}
   end
 
-  def handle_call({:next_summary, from_date}, _from, state = %{interval: interval}) do
+  def handle_call(
+        {:next_summary, from_date = %DateTime{microsecond: {0, 0}}},
+        _from,
+        state = %{interval: interval}
+      ) do
+    next_date =
+      interval
+      |> CronParser.parse!(true)
+      |> CronScheduler.get_next_run_dates(DateTime.to_naive(from_date))
+      |> Enum.at(1)
+      |> DateTime.from_naive!("Etc/UTC")
+
+    {:reply, next_date, state}
+  end
+
+  def handle_call({:next_summary, from_date = %DateTime{}}, _from, state = %{interval: interval}) do
     next_date =
       interval
       |> CronParser.parse!(true)
@@ -62,6 +90,35 @@ defmodule Uniris.BeaconChain.SummaryTimer do
       |> DateTime.from_naive!("Etc/UTC")
 
     {:reply, next_date, state}
+  end
+
+  def handle_call(
+        {:previous_summary, from_date = %DateTime{microsecond: {0, 0}}},
+        _from,
+        state = %{interval: interval}
+      ) do
+    previous_date =
+      interval
+      |> CronParser.parse!(true)
+      |> CronScheduler.get_previous_run_dates(DateTime.to_naive(from_date))
+      |> Enum.at(1)
+      |> DateTime.from_naive!("Etc/UTC")
+
+    {:reply, previous_date, state}
+  end
+
+  def handle_call(
+        {:previous_summary, from_date = %DateTime{}},
+        _from,
+        state = %{interval: interval}
+      ) do
+    previous_date =
+      interval
+      |> CronParser.parse!(true)
+      |> CronScheduler.get_previous_run_date!(DateTime.to_naive(from_date))
+      |> DateTime.from_naive!("Etc/UTC")
+
+    {:reply, previous_date, state}
   end
 
   def handle_call({:previous_summaries, from_date}, _from, state = %{interval: interval}) do

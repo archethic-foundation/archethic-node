@@ -7,6 +7,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
   alias Uniris.BeaconChain.Summary, as: BeaconSummary
+  alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Uniris.Crypto
 
@@ -20,6 +21,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.P2P.Node
 
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler
+  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
 
   alias Uniris.TransactionFactory
 
@@ -118,6 +120,12 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   end
 
   describe "handle_missing_summaries/2" do
+    setup do
+      start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
+      start_supervised!({BeaconSummaryTimer, [interval: "0 * * * * *"]})
+      :ok
+    end
+
     test "should update P2P view with node synchronization ended" do
       node = %Node{
         ip: {127, 0, 0, 1},
@@ -199,10 +207,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
+      assert 2 == NetworkStatistics.get_nb_transactions()
     end
 
     test "should synchronize transactions when the node is in the storage node pools" do
-      start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       node = %Node{
@@ -291,6 +299,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
+      assert 2 == NetworkStatistics.get_nb_transactions()
 
       assert_received :transaction_stored
       assert_received :transaction_stored

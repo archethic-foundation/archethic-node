@@ -132,7 +132,7 @@ defmodule Uniris.SelfRepair.SyncTest do
 
       MockTransport
       |> stub(:send_message, fn
-        _, _, %GetBeaconSummary{} ->
+        _, _, %GetBeaconSummary{subset: <<0>>} ->
           {:ok,
            %BeaconSummary{
              subset: <<0>>,
@@ -144,6 +144,14 @@ defmodule Uniris.SelfRepair.SyncTest do
                  timestamp: DateTime.utc_now()
                }
              ]
+           }}
+
+        _, _, %GetBeaconSummary{subset: subset} ->
+          {:ok,
+           %BeaconSummary{
+             subset: subset,
+             summary_time: DateTime.utc_now(),
+             transaction_summaries: []
            }}
 
         _, _, %GetTransaction{} ->

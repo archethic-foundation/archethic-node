@@ -62,4 +62,13 @@ defmodule Uniris.BeaconChain.SummaryTimerTest do
       assert length(previous_summaries) == previous_seconds
     end
   end
+
+  test "previous_summary/1 should return the previous summary time" do
+    {:ok, pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+
+    assert ~U[2020-09-10 12:30:29Z] = SummaryTimer.previous_summary(pid, ~U[2020-09-10 12:30:30Z])
+
+    assert ~U[2021-02-03 13:07:37Z] =
+             SummaryTimer.previous_summary(pid, ~U[2021-02-03 13:07:37.761481Z])
+  end
 end

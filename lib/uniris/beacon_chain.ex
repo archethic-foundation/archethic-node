@@ -211,4 +211,10 @@ defmodule Uniris.BeaconChain do
   """
   @spec add_slot_proof(binary(), binary(), Crypto.key(), binary()) :: :ok
   defdelegate add_slot_proof(subset, digest, node_public_key, signature), to: Subset
+
+  @doc """
+  Return the previous summary time
+  """
+  @spec previous_summary_time(DateTime.t()) :: DateTime.t()
+  defdelegate previous_summary_time(date_from), to: SummaryTimer, as: :previous_summary
 end

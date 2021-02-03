@@ -13,6 +13,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetBeaconSummary
 
+  alias __MODULE__.NetworkStatistics
   alias __MODULE__.TransactionHandler
 
   alias Uniris.TransactionChain
@@ -57,23 +58,46 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
+    Task.start(fn -> load_summaries_in_db(summaries) end)
+
     %{
+      end_of_node_synchronizations: end_of_node_synchronizations,
       transaction_summaries: transaction_summaries,
-      end_of_node_synchronizations: end_of_node_synchronizations
+      nb_transactions_by_time: nb_transactions_by_time
     } = flatten_summaries(summaries)
 
     synchronize_transactions(transaction_summaries, node_patch)
-
     Enum.each(end_of_node_synchronizations, &P2P.set_node_globally_available(&1.public_key))
 
-    load_summaries_in_db(summaries)
+    update_statistics(nb_transactions_by_time)
+  end
+
+  defp update_statistics(nb_transactions_by_date) do
+    Enum.map(nb_transactions_by_date, fn {date, nb_transactions} ->
+      previous_summary_time =
+        date
+        |> Utils.truncate_datetime()
+        |> BeaconChain.previous_summary_time()
+
+      nb_seconds = abs(DateTime.diff(previous_summary_time, date))
+      {date, nb_transactions / nb_seconds, nb_transactions}
+    end)
+    |> Enum.each(fn {date, tps, nb_transactions} ->
+      NetworkStatistics.register_tps(date, tps, nb_transactions)
+      NetworkStatistics.increment_number_transactions(nb_transactions)
+    end)
   end
 
   defp flatten_summaries(summaries) do
     Enum.reduce(
       summaries,
-      %{end_of_node_synchronizations: [], transaction_summaries: []},
+      %{
+        end_of_node_synchronizations: [],
+        transaction_summaries: [],
+        nb_transactions_by_time: %{}
+      },
       fn %BeaconSummary{
+           summary_time: summary_time,
            transaction_summaries: transaction_summaries,
            end_of_node_synchronizations: end_of_node_synchronizations
          },
@@ -81,6 +105,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
         acc
         |> Map.update!(:end_of_node_synchronizations, &(end_of_node_synchronizations ++ &1))
         |> Map.update!(:transaction_summaries, &(transaction_summaries ++ &1))
+        |> update_in(
+          [:nb_transactions_by_time, Access.key(summary_time |> Utils.truncate_datetime(), 0)],
+          &(&1 + Enum.count(transaction_summaries))
+        )
       end
     )
   end
