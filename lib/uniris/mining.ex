@@ -101,14 +101,21 @@ defmodule Uniris.Mining do
           do_accept_transaction?(tx)
 
         _ ->
-          with true <- Contracts.valid_contract?(code),
-               authorized_keys <- Keys.list_authorized_keys(keys),
-               true <- Crypto.storage_nonce_public_key() in authorized_keys do
-            do_accept_transaction?(tx)
-          else
-            _ ->
-              Logger.error("Invalid smart contract code", transaction: Base.encode16(address))
+          if Contracts.valid_contract?(code) do
+            authorized_keys = Keys.list_authorized_keys(keys)
+
+            if Crypto.storage_nonce_public_key() in authorized_keys do
+              do_accept_transaction?(tx)
+            else
+              Logger.error("Smart contract requires authorized keys",
+                transaction: Base.encode16(address)
+              )
+
               false
+            end
+          else
+            Logger.error("Invalid smart contract code", transaction: Base.encode16(address))
+            false
           end
       end
     else
