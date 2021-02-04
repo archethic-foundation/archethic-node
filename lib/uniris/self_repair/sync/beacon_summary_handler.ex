@@ -58,7 +58,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    Task.start(fn -> load_summaries_in_db(summaries) end)
+    load_summaries_in_db(summaries)
 
     %{
       end_of_node_synchronizations: end_of_node_synchronizations,
