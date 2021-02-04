@@ -4,19 +4,30 @@ defmodule Uniris.Networking.IPLookup.Static do
   fetched from ENV variable or compile-time configuration.
   """
 
-  # Public
+  alias Uniris.Networking.IPLookup.Impl
 
-  @spec get_node_ip() ::
-          {:ok, :inet.ip_address()} | {:error, :invalid_ip_provider | :not_recognizable_ip}
+  @behaviour Impl
+
+  @impl Impl
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
   def get_node_ip do
-    with config <- Application.get_env(:uniris, Uniris.Networking),
-         {:ok, hostname} when is_binary(hostname) <- Keyword.fetch(config, :hostname),
-         host_chars <- String.to_charlist(hostname),
-         {:ok, ip} <- :inet.parse_address(host_chars) do
-      {:ok, ip}
-    else
-      :error -> {:error, :invalid_ip_provider}
-      {:error, :einval} -> {:error, :not_recognizable_ip}
+    case Application.get_env(:uniris, __MODULE__) do
+      nil ->
+        {:ok, {127, 0, 0, 1}}
+
+      conf ->
+        hostname =
+          conf
+          |> Keyword.get(:hostname, "127.0.0.1")
+          |> String.to_charlist()
+
+        case :inet.parse_address(hostname) do
+          {:ok, ip} ->
+            {:ok, ip}
+
+          _ ->
+            {:error, :not_recognizable_ip}
+        end
     end
   end
 end

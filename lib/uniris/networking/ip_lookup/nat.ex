@@ -1,27 +1,18 @@
-defmodule Uniris.Networking.IPLookup.Nat do
-  @moduledoc false
+defmodule Uniris.Networking.IPLookup.NAT do
+  @moduledoc """
+  Support the NAT IP discovery using UPnP or PmP
+  """
 
-  # Public
+  alias Uniris.Networking.IPLookup.Impl
 
+  @behaviour Impl
+
+  @impl Impl
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
   def get_node_ip do
     [:natupnp_v1, :natupnp_v2, :natpmp]
     |> discover
   end
-
-  @spec get_random_port() :: {:ok, pos_integer()} | {:error, :port_unassigned}
-  def get_random_port do
-    [:natupnp_v1, :natupnp_v2, :natpmp]
-    |> assign_port(0)
-  end
-
-  @spec open_port(pos_integer) :: {:ok, pos_integer()} | {:error, :port_unassigned}
-  def open_port(port) do
-    [:natupnp_v1, :natupnp_v2, :natpmp]
-    |> assign_port(port)
-  end
-
-  # Private
 
   @spec discover([atom()]) :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
   defp discover([]), do: {:error, :ip_discovery_error}
@@ -35,23 +26,6 @@ defmodule Uniris.Networking.IPLookup.Nat do
       {:error, :einval} -> discover(protocol_modules)
       {:error, :no_nat} -> discover(protocol_modules)
       {:error, :timeout} -> discover(protocol_modules)
-    end
-  end
-
-  @spec assign_port([atom()], non_neg_integer()) ::
-          {:ok, pos_integer()} | {:error, :port_unassigned}
-  defp assign_port([], _), do: {:error, :port_unassigned}
-
-  defp assign_port([protocol_module | protocol_modules], port) do
-    with {:ok, router_ip} <- protocol_module.discover(),
-         {:ok, _, internal_port, _, _} <-
-           protocol_module.add_port_mapping(router_ip, :tcp, port, port, 0) do
-      {:ok, internal_port}
-    else
-      {:error, {:http_error, _code, _reason}} -> assign_port(protocol_modules, port)
-      {:error, :einval} -> assign_port(protocol_modules, port)
-      {:error, :no_nat} -> assign_port(protocol_modules, port)
-      {:error, :timeout} -> assign_port(protocol_modules, port)
     end
   end
 end

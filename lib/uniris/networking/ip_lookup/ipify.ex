@@ -1,10 +1,13 @@
-defmodule Uniris.Networking.IPLookup.Ipify do
+defmodule Uniris.Networking.IPLookup.IPIFY do
   @moduledoc """
   Module provides external IP address of the node identified by IPIFY service.
   """
 
-  # Public
+  alias Uniris.Networking.IPLookup.Impl
 
+  @behaviour Impl
+
+  @impl Impl
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
   def get_node_ip do
     :inets.start()

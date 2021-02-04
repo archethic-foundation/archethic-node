@@ -3,15 +3,6 @@ use Mix.Config
 # Do not print debug messages in production
 config :logger, level: :info
 
-# Networking module configuration:
-# load_from_system_env - false if not defined
-# ip_provider options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, 
-# hostname - provides a constant IP address for Static
-# port - provides a P2P port number
-config :uniris, Uniris.Networking, ip_provider: Uniris.Networking.IPLookup.Static
-
-config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
-
 config :uniris, Uniris.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold: 54_000
@@ -72,6 +63,8 @@ config :uniris, Uniris.Governance.Pools,
     foundation: [],
     uniris: []
   ]
+
+config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.NAT
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day at midnight at the 50th second

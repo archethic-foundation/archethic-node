@@ -13,9 +13,9 @@ defmodule Uniris.P2P.Endpoint do
   end
 
   def init(args) do
-    port = Keyword.get(args, :port)
-    transport = Keyword.get(args, :transport)
-    nb_acceptors = Keyword.get(args, :nb_acceptors)
+    port = Keyword.fetch!(args, :port)
+    transport = Keyword.fetch!(args, :transport)
+    nb_acceptors = Keyword.get(args, :nb_acceptors, 10)
 
     {:ok, listen_socket} = Transport.listen(transport, port)
 

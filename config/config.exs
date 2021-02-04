@@ -60,9 +60,9 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
 config :uniris, Uniris.P2P.BootstrappingSeeds, file: "priv/p2p/seeds"
 
 config :uniris, Uniris.P2P.Endpoint,
-  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer(),
-  nb_acceptors: 10,
-  transport: :tcp
+  nb_acceptors: 100,
+  transport: :tcp,
+  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
 
 # Configure the endpoint
 config :uniris, UnirisWeb.Endpoint,
