@@ -122,7 +122,7 @@ defmodule Uniris.Mining do
          type: :node,
          data: %TransactionData{content: content}
        }) do
-    if Regex.match?(~r/(?<=ip:|port:).*/m, content) do
+    if Regex.match?(~r/(?<=ip:|port:|transport:).*/m, content) do
       true
     else
       Logger.error("Invalid node transaction content", transaction: Base.encode16(address))

@@ -25,9 +25,10 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
                content: """
                ip: 127.0.0.1
                port: 3000
+               transport: tcp
                """
              }
-           } = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000)
+           } = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000, :tcp)
   end
 
   test "send_transaction/2 should send the transaction to a welcome node" do
@@ -46,7 +47,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
       {:ok, %Ok{}}
     end)
 
-    tx = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000)
+    tx = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000, :tcp)
     assert :ok = TransactionHandler.send_transaction(tx, node)
   end
 

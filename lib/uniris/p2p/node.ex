@@ -53,7 +53,7 @@ defmodule Uniris.P2P.Node do
   @spec cast(tuple()) :: __MODULE__.t()
   def cast(
         {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
-         average_availability, availability_history, enrollment_date}
+         average_availability, availability_history, enrollment_date, transport}
       ) do
     %__MODULE__{
       ip: ip,
@@ -64,7 +64,8 @@ defmodule Uniris.P2P.Node do
       network_patch: network_patch,
       average_availability: average_availability,
       availability_history: availability_history,
-      enrollment_date: enrollment_date
+      enrollment_date: enrollment_date,
+      transport: transport
     }
   end
 

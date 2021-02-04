@@ -17,6 +17,8 @@ defmodule Uniris.P2P do
 
   require Logger
 
+  @type supported_transport :: :tcp
+
   @doc """
   Compute a geographical patch (zone) from an IP
   """

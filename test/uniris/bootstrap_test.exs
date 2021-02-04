@@ -64,7 +64,7 @@ defmodule Uniris.BootstrapTest do
     end)
   end
 
-  describe "run/4" do
+  describe "run/5" do
     test "should initialize the network when nothing is set before" do
       MockTransport
       |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
@@ -80,15 +80,16 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, MockTransport, seeds, DateTime.utc_now())
 
-      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true} | _] = P2P.list_nodes()
+      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: MockTransport} | _] =
+               P2P.list_nodes()
 
       assert 1 == TransactionChain.count_transactions_by_type(:node_shared_secrets)
     end
   end
 
-  describe "run/4 with an initialized network" do
+  describe "run/5 with an initialized network" do
     setup do
       me = self()
 
@@ -215,7 +216,7 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
     end
 
@@ -231,23 +232,25 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       %Node{
         ip: {127, 0, 0, 1},
         first_public_key: first_public_key,
-        last_public_key: last_public_key
+        last_public_key: last_public_key,
+        transport: :tcp
       } = P2P.get_node_info()
 
       assert first_public_key == Crypto.node_public_key(0)
       assert last_public_key == Crypto.node_public_key(0)
 
-      assert :ok = Bootstrap.run({200, 50, 20, 10}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({200, 50, 20, 10}, 3000, :sctp, seeds, DateTime.utc_now())
 
       %Node{
         ip: {200, 50, 20, 10},
         first_public_key: first_public_key,
-        last_public_key: last_public_key
+        last_public_key: last_public_key,
+        transport: :sctp
       } = P2P.get_node_info()
 
       assert first_public_key == Crypto.node_public_key(0)
@@ -266,12 +269,12 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.node_public_key(0))
 
       Process.sleep(200)
-      assert :ok == Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok == Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       Process.sleep(100)
     end

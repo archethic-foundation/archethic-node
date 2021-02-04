@@ -78,16 +78,17 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
   end
 
-  describe "require_update?/3" do
+  describe "require_update?/4" do
     test "should return false when only a node is involved in the network" do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
-      assert false == Sync.require_update?({193, 101, 10, 202}, 3000, DateTime.utc_now())
+      assert false == Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node ip change" do
@@ -95,17 +96,19 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
-      assert Sync.require_update?({193, 101, 10, 202}, 3000, DateTime.utc_now())
+      assert Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node port change" do
@@ -113,17 +116,19 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
-      assert Sync.require_update?({127, 0, 0, 1}, 3010, DateTime.utc_now())
+      assert Sync.require_update?({127, 0, 0, 1}, 3010, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the last date of sync diff is greater than 3 seconds" do
@@ -131,22 +136,45 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
       assert Sync.require_update?(
                {127, 0, 0, 1},
                3000,
+               :tcp,
                DateTime.utc_now()
                |> DateTime.add(-10)
              )
+    end
+
+    test "should return true when the transport change" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.node_public_key(0),
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3050,
+        first_public_key: "other_node_key",
+        last_public_key: "other_node_key",
+        transport: :tcp
+      })
+
+      assert true == Sync.require_update?({193, 101, 10, 202}, 3000, :sctp, DateTime.utc_now())
     end
   end
 
@@ -162,14 +190,24 @@ defmodule Uniris.Bootstrap.SyncTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(1),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        transport: MockTransport
       })
 
       :ok
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
-      Sync.initialize_network({127, 0, 0, 1}, 3000)
+      node_tx =
+        Transaction.new(:node, %TransactionData{
+          content: """
+          ip: 127.0.0.1
+          port: 3000
+          transport: MockTransport
+          """
+        })
+
+      Sync.initialize_network(node_tx)
 
       assert :persistent_term.get(:storage_nonce) != nil
 

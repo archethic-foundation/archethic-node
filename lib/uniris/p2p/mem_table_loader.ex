@@ -58,14 +58,15 @@ defmodule Uniris.P2P.MemTableLoader do
         data: %TransactionData{content: content}
       }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-    {ip, port} = extract_node_endpoint(content)
+    {ip, port, transport} = extract_node_endpoint(content)
 
     node = %Node{
       ip: ip,
       port: port,
       first_public_key: first_public_key,
       last_public_key: previous_public_key,
-      geo_patch: GeoPatch.from_ip(ip)
+      geo_patch: GeoPatch.from_ip(ip),
+      transport: transport
     }
 
     if first_node_change?(first_public_key, previous_public_key) do
@@ -98,21 +99,25 @@ defmodule Uniris.P2P.MemTableLoader do
   defp first_node_change?(_, _), do: false
 
   defp extract_node_endpoint(content) do
-    [ip_match, port_match] = Regex.scan(~r/(?<=ip:|port:).*/m, content)
+    [[ip_match], [port_match], [transport_match]] =
+      Regex.scan(~r/(?<=ip:|port:|transport:).*/m, content)
 
     {:ok, ip} =
       ip_match
-      |> List.first()
       |> String.trim()
       |> String.to_charlist()
       |> :inet.parse_address()
 
     port =
       port_match
-      |> List.first()
       |> String.trim()
       |> String.to_integer()
 
-    {ip, port}
+    transport =
+      transport_match
+      |> String.trim()
+      |> String.to_existing_atom()
+
+    {ip, port, transport}
   end
 end
