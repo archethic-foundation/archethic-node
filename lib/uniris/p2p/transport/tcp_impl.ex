@@ -26,16 +26,20 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   def accept(listen_socket) do
     case :gen_tcp.accept(listen_socket) do
       {:ok, socket} ->
-        Task.Supervisor.start_child(ConnectionSupervisor, fn -> recv_loop(socket) end)
-        accept(listen_socket)
+        {:ok, pid} =
+          Task.Supervisor.start_child(ConnectionSupervisor, fn -> recv_loop(socket) end)
+
+        :gen_tcp.controlling_process(listen_socket, pid)
 
       {:error, reason} ->
-        Logger.info("Connection failed: #{reason}")
+        Logger.info("TCP Connection failed: #{reason}")
     end
+
+    accept(listen_socket)
   end
 
   defp recv_loop(socket) do
-    case :gen_tcp.recv(socket, 0, 3_000) do
+    case :gen_tcp.recv(socket, 0) do
       {:ok, data} ->
         encoded_result =
           data
@@ -46,7 +50,6 @@ defmodule Uniris.P2P.Transport.TCPImpl do
 
         case :gen_tcp.send(socket, encoded_result) do
           :ok ->
-            recv_loop(socket)
             :gen_tcp.shutdown(socket, :write)
 
           {:error, :closed} ->
@@ -54,11 +57,12 @@ defmodule Uniris.P2P.Transport.TCPImpl do
 
           {:error, reason} ->
             Logger.error("TCP error during sending data - #{reason}")
+
             :gen_tcp.shutdown(socket, :write)
         end
 
       {:error, :closed} ->
-        :gen_tcp.shutdown(socket, :read_write)
+        Logger.info("TCP connection closed")
 
       {:error, reason} ->
         Logger.error("TCP error during receiving data - #{reason}")
@@ -75,19 +79,22 @@ defmodule Uniris.P2P.Transport.TCPImpl do
       |> Message.encode()
       |> Utils.wrap_binary()
 
-    case :gen_tcp.connect(ip, port, @client_options, 3_000) do
-      {:ok, socket} ->
-        with :ok <- :gen_tcp.send(socket, encoded_message),
-             {:ok, data} <- :gen_tcp.recv(socket, 0),
-             :ok <- :gen_tcp.close(socket) do
-          {:ok, Message.decode(data)}
-        else
-          {:error, _} = e ->
-            :gen_tcp.close(socket)
-            e
-        end
+    with {:connection, {:ok, socket}} <-
+           {:connection, :gen_tcp.connect(ip, port, @client_options, 3_000)},
+         {:send, :ok} <- {:send, :gen_tcp.send(socket, encoded_message)},
+         {:recv, {:ok, data}} <- {:recv, :gen_tcp.recv(socket, 0, 3_000)} do
+      {:ok, Message.decode(data)}
+    else
+      {:connection, {:error, reason} = e} ->
+        Logger.error("Connection failed #{:inet.ntoa(ip)} - #{inspect(reason)}")
+        e
 
-      {:error, _} = e ->
+      {:send, {:error, reason} = e} ->
+        Logger.error("Sending failed #{:inet.ntoa(ip)} - #{inspect(reason)}")
+        e
+
+      {:recv, {:error, reason} = e} ->
+        Logger.error("Receiving failed with #{:inet.ntoa(ip)} - #{inspect(reason)}")
         e
     end
   end
