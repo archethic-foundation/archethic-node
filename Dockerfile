@@ -29,6 +29,10 @@ WORKDIR /opt/code
 
 COPY . .
 
+RUN git config user.name uniris \
+ && git config user.email uniris@uniris.io \
+ && git remote add origin https://github.com/UNIRIS/uniris-node
+
 # Compile
 RUN mix deps.get \
  && cd assets \
