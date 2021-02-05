@@ -1,11 +1,25 @@
 defmodule Uniris.P2P.TransportImpl do
   @moduledoc false
 
-  alias Uniris.P2P.Message
-
-  @callback listen(:inet.port_number()) ::
+  @callback listen(:inet.port_number(), options :: list()) ::
               {:ok, :inet.socket()} | {:error, reason :: :system_limit | :inet.posix()}
-  @callback accept(:inet.socket()) :: :ok
-  @callback send_message(:inet.ip_address(), :inet.port_number(), Message.t()) ::
-              {:ok, Message.t()} | {:error, reason :: :timeout | :inet.posix()}
+
+  @callback accept(socket :: :inet.socket()) ::
+              {:ok, :inet.socket()} | {:error, :closed | :timeout | :system_limit | :inet.posix()}
+
+  @callback send_message(socket :: :inet.socket(), message :: binary()) ::
+              :ok | {:error, :closed | :inet.posix()}
+
+  @callback connect(
+              ip :: :inet.ip_address(),
+              port :: :inet.port_number(),
+              options :: list(),
+              timeout :: non_neg_integer()
+            ) :: {:ok, :inet.socket()} | {:error, :timeout | :inet.posix()}
+
+  @callback read_from_socket(
+              :inet.socket(),
+              size_to_read :: non_neg_integer(),
+              timeout :: non_neg_integer()
+            ) :: {:ok, binary()} | {:error, :closed | :timeout | :inet.posix()}
 end

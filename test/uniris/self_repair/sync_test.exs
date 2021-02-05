@@ -125,43 +125,55 @@ defmodule Uniris.SelfRepair.SyncTest do
       me = self()
 
       MockDB
+      |> stub(:get_beacon_summary, fn _, _ ->
+        {:ok,
+         %BeaconSummary{
+           subset: <<0>>,
+           summary_time: DateTime.utc_now(),
+           transaction_summaries: [
+             %TransactionSummary{
+               address: tx.address,
+               type: :transfer,
+               timestamp: DateTime.utc_now()
+             }
+           ]
+         }}
+      end)
       |> stub(:write_transaction_chain, fn _ ->
         send(me, :storage)
         :ok
       end)
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetBeaconSummary{subset: <<0>>} ->
-          {:ok,
-           %BeaconSummary{
-             subset: <<0>>,
-             summary_time: DateTime.utc_now(),
-             transaction_summaries: [
-               %TransactionSummary{
-                 address: tx.address,
-                 type: :transfer,
-                 timestamp: DateTime.utc_now()
-               }
-             ]
-           }}
+        _, %GetBeaconSummary{subset: <<0>>} ->
+          %BeaconSummary{
+            subset: <<0>>,
+            summary_time: DateTime.utc_now(),
+            transaction_summaries: [
+              %TransactionSummary{
+                address: tx.address,
+                type: :transfer,
+                timestamp: DateTime.utc_now()
+              }
+            ]
+          }
 
-        _, _, %GetBeaconSummary{subset: subset} ->
-          {:ok,
-           %BeaconSummary{
-             subset: subset,
-             summary_time: DateTime.utc_now(),
-             transaction_summaries: []
-           }}
+        _, %GetBeaconSummary{subset: subset} ->
+          %BeaconSummary{
+            subset: subset,
+            summary_time: DateTime.utc_now(),
+            transaction_summaries: []
+          }
 
-        _, _, %GetTransaction{} ->
-          {:ok, tx}
+        _, %GetTransaction{} ->
+          tx
 
-        _, _, %GetTransactionInputs{} ->
-          {:ok, %TransactionInputList{inputs: inputs}}
+        _, %GetTransactionInputs{} ->
+          %TransactionInputList{inputs: inputs}
 
-        _, _, %GetTransactionChain{} ->
-          {:ok, %TransactionList{transactions: []}}
+        _, %GetTransactionChain{} ->
+          %TransactionList{transactions: []}
       end)
 
       assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1), "AAA")

@@ -38,9 +38,9 @@ defmodule Uniris.Bootstrap.SyncTest do
   import Mox
 
   setup do
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-      {:ok, %LastTransactionAddress{address: address}}
+    MockClient
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      %LastTransactionAddress{address: address}
     end)
 
     :ok
@@ -237,20 +237,19 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     :ok = P2P.add_node(node)
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %ListNodes{} ->
-        {:ok,
-         %NodeList{
-           nodes: [
-             %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               first_public_key: "key2",
-               last_public_key: "key2"
-             }
-           ]
-         }}
+      _, %ListNodes{} ->
+        %NodeList{
+          nodes: [
+            %Node{
+              ip: {127, 0, 0, 1},
+              port: 3000,
+              first_public_key: "key2",
+              last_public_key: "key2"
+            }
+          ]
+        }
     end)
 
     assert :ok = Sync.load_node_list(node)
@@ -276,10 +275,10 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     :ok = P2P.add_node(node)
 
-    MockTransport
-    |> expect(:send_message, fn _, _, %GetStorageNonce{public_key: public_key} ->
+    MockClient
+    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
-      {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
+      %EncryptedStorageNonce{digest: encrypted_nonce}
     end)
 
     assert :ok = Sync.load_storage_nonce(node)
@@ -300,10 +299,10 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     me = self()
 
-    MockTransport
-    |> stub(:send_message, fn _, _, %NotifyEndOfNodeSync{} ->
+    MockClient
+    |> stub(:send_message, fn _, %NotifyEndOfNodeSync{} ->
       send(me, :end_of_sync)
-      {:ok, %Ok{}}
+      %Ok{}
     end)
 
     assert :ok = Sync.publish_end_of_sync()

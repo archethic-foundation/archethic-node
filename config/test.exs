@@ -83,6 +83,7 @@ config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
 config :uniris, Uniris.P2P.Endpoint, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
+config :uniris, Uniris.P2P.Client, impl: MockClient
 config :uniris, Uniris.P2P.Transport, impl: MockTransport
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false

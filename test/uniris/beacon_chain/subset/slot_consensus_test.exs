@@ -166,8 +166,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       me = self()
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %NotifyBeaconSlot{} ->
+      MockClient
+      |> expect(:send_message, fn _, %NotifyBeaconSlot{} ->
         send(me, :slot_sent)
         {:ok, %Ok{}}
       end)
@@ -229,18 +229,17 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
         ]
       }
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetCurrentBeaconSlot{} ->
-          {:ok, other_slot}
+        _, %GetCurrentBeaconSlot{} ->
+          other_slot
 
-        _, _, %GetTransactionSummary{} ->
-          {:ok,
-           %TransactionSummary{
-             address: added_addr,
-             timestamp: ~U[2021-01-20 23:53:41Z],
-             type: :transfer
-           }}
+        _, %GetTransactionSummary{} ->
+          %TransactionSummary{
+            address: added_addr,
+            timestamp: ~U[2021-01-20 23:53:41Z],
+            type: :transfer
+          }
       end)
 
       assert :ok =
@@ -303,13 +302,13 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
         ]
       }
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetCurrentBeaconSlot{} ->
-          {:ok, other_slot}
+        _, %GetCurrentBeaconSlot{} ->
+          other_slot
 
-        _, _, %GetTransactionSummary{} ->
-          {:ok, %NotFound{}}
+        _, %GetTransactionSummary{} ->
+          %NotFound{}
       end)
 
       assert :ok =

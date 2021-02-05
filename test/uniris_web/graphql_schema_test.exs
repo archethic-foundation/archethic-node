@@ -120,9 +120,9 @@ defmodule UUnirisWeb.GraphQLSchemaTest do
     test "should return an error when no last transaction on this chain", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      MockTransport
-      |> stub(:send_message, fn _, _, %GetLastTransaction{} ->
-        {:ok, %NotFound{}}
+      MockClient
+      |> stub(:send_message, fn _, %GetLastTransaction{} ->
+        %NotFound{}
       end)
 
       conn =

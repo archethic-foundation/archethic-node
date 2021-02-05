@@ -1,7 +1,7 @@
 defmodule Uniris.Mining.DistributedWorkflowTest do
   use UnirisCase, async: false
 
-  @moduletag capture_log: true
+  @moduletag capture_log: false
 
   alias Uniris.Crypto
 
@@ -77,21 +77,21 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
-      MockTransport
-      |> stub(:send_message, fn _, _, msg ->
+      MockClient
+      |> stub(:send_message, fn _, msg ->
         case msg do
           %GetUnspentOutputs{} ->
-            {:ok, %UnspentOutputList{}}
+            %UnspentOutputList{}
 
           %GetP2PView{node_public_keys: node_public_keys} ->
             view = Enum.reduce(node_public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-            {:ok, %P2PView{nodes_view: view}}
+            %P2PView{nodes_view: view}
 
           %GetTransaction{} ->
-            {:ok, %Transaction{}}
+            %Transaction{}
 
           %AddMiningContext{} ->
-            {:ok, %Ok{}}
+            %Ok{}
         end
       end)
 
@@ -148,20 +148,20 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{} ->
+          %UnspentOutputList{}
 
-        _, _, %GetP2PView{node_public_keys: node_public_keys} ->
+        _, %GetP2PView{node_public_keys: node_public_keys} ->
           view = Enum.reduce(node_public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+          %P2PView{nodes_view: view}
 
-        _, _, %GetTransaction{} ->
-          {:ok, %Transaction{}}
+        _, %GetTransaction{} ->
+          %Transaction{}
 
-        _, _, %AddMiningContext{} ->
-          {:ok, %Ok{}}
+        _, %AddMiningContext{} ->
+          %Ok{}
       end)
 
       welcome_node = %Node{
@@ -225,23 +225,23 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{} ->
+          %UnspentOutputList{}
 
-        _, _, %GetTransaction{} ->
-          {:ok, %NotFound{}}
+        _, %GetTransaction{} ->
+          %NotFound{}
 
-        _, _, %AddMiningContext{} ->
-          {:ok, %Ok{}}
+        _, %AddMiningContext{} ->
+          %Ok{}
 
-        _, _, %CrossValidate{} ->
-          {:ok, %Ok{}}
+        _, %CrossValidate{} ->
+          %Ok{}
 
-        _, _, %GetP2PView{node_public_keys: node_public_keys} ->
+        _, %GetP2PView{node_public_keys: node_public_keys} ->
           view = Enum.reduce(node_public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+          %P2PView{nodes_view: view}
       end)
 
       welcome_node = %Node{
@@ -325,28 +325,28 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
       me = self()
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{} ->
+          %UnspentOutputList{}
 
-        _, _, %GetTransaction{} ->
-          {:ok, %NotFound{}}
+        _, %GetTransaction{} ->
+          %NotFound{}
 
-        _, _, %GetP2PView{node_public_keys: node_public_keys} ->
+        _, %GetP2PView{node_public_keys: node_public_keys} ->
           view = Enum.reduce(node_public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+          %P2PView{nodes_view: view}
 
-        _, _, %AddMiningContext{} ->
-          {:ok, %Ok{}}
+        _, %AddMiningContext{} ->
+          %Ok{}
 
-        _, _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
           send(me, {stamp, tree})
-          {:ok, %Ok{}}
+          %Ok{}
 
-        _, _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
           send(me, {:cross_validation_done, stamp})
-          {:ok, %Ok{}}
+          %Ok{}
       end)
 
       welcome_node = %Node{
@@ -421,7 +421,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
       receive do
         {:cross_validation_done, _stamp} ->
-          {_, %{context: %ValidationContext{validation_stamp: validation_stamp}}} =
+          {:wait_cross_validation_stamps,
+           %{context: %ValidationContext{validation_stamp: validation_stamp}}} =
             :sys.get_state(coordinator_pid)
 
           [_ | cross_validation_nodes] = validation_nodes
@@ -473,32 +474,33 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
       me = self()
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{} ->
+          %UnspentOutputList{}
 
-        _, _, %GetTransaction{} ->
-          {:ok, %NotFound{}}
+        _, %GetTransaction{} ->
+          %NotFound{}
 
-        _, _, %GetP2PView{node_public_keys: node_public_keys} ->
+        _, %GetP2PView{node_public_keys: node_public_keys} ->
           view = Enum.reduce(node_public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+          %P2PView{nodes_view: view}
 
-        _, _, %AddMiningContext{} ->
-          {:ok, %Ok{}}
+        _, context = %AddMiningContext{} ->
+          send(me, {:add_context, context})
+          %Ok{}
 
-        _, _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
           send(me, {:cross_validate, stamp, tree})
-          {:ok, %Ok{}}
+          %Ok{}
 
-        _, _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
           send(me, {:cross_validation_done, stamp})
-          {:ok, %Ok{}}
+          %Ok{}
 
-        _, _, %ReplicateTransaction{transaction: tx} ->
+        _, %ReplicateTransaction{transaction: tx} ->
           send(me, {:replicate_transaction, tx})
-          {:ok, %Ok{}}
+          %Ok{}
       end)
 
       P2P.add_node(%Node{

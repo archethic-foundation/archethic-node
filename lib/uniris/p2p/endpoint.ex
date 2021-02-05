@@ -8,6 +8,14 @@ defmodule Uniris.P2P.Endpoint do
 
   require Logger
 
+  @server_options [
+    :binary,
+    {:packet, 4},
+    {:active, false},
+    {:reuseaddr, true},
+    {:backlog, 500}
+  ]
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
@@ -17,7 +25,7 @@ defmodule Uniris.P2P.Endpoint do
     transport = Keyword.fetch!(args, :transport)
     nb_acceptors = Keyword.get(args, :nb_acceptors, 10)
 
-    {:ok, listen_socket} = Transport.listen(transport, port)
+    {:ok, listen_socket} = Transport.listen(transport, port, @server_options)
 
     Logger.info("P2P #{transport} Endpoint running on port #{port}")
 

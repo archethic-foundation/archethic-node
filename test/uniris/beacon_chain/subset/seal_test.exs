@@ -24,9 +24,9 @@ defmodule Uniris.BeaconChain.SealingTest do
 
   describe "link_to_previous_slot/1" do
     test "should fetch the previous slot and link it by hash" do
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetBeaconSlot{} ->
-        {:ok, %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}}
+      MockClient
+      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
+        %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}
       end)
 
       P2P.add_node(%Node{
@@ -48,9 +48,9 @@ defmodule Uniris.BeaconChain.SealingTest do
     end
 
     test "should keep the genesis hash when not previous slot is found" do
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetBeaconSlot{} ->
-        {:ok, %NotFound{}}
+      MockClient
+      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
+        %NotFound{}
       end)
 
       P2P.add_node(%Node{

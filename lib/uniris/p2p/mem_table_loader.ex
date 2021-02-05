@@ -3,6 +3,7 @@ defmodule Uniris.P2P.MemTableLoader do
 
   use GenServer
 
+  alias Uniris.P2P.ConnectionPool
   alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Node
@@ -76,6 +77,8 @@ defmodule Uniris.P2P.MemTableLoader do
     else
       MemTable.add_node(node)
     end
+
+    ConnectionPool.add_node_connection_pool(node)
 
     Logger.info("Loaded into in memory p2p tables", node: Base.encode16(first_public_key))
   end

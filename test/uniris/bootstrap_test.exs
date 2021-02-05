@@ -66,9 +66,9 @@ defmodule Uniris.BootstrapTest do
 
   describe "run/5" do
     test "should initialize the network when nothing is set before" do
-      MockTransport
-      |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-        {:ok, %LastTransactionAddress{address: address}}
+      MockClient
+      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+        %LastTransactionAddress{address: address}
       end)
 
       seeds = [
@@ -130,75 +130,71 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(nodes, &P2P.add_node/1)
 
-      MockTransport
-      |> stub(:send_message, fn _, _, msg ->
-        case msg do
-          %GetBootstrappingNodes{} ->
-            {:ok,
-             %BootstrappingNodes{
-               new_seeds: [
-                 Enum.at(nodes, 0)
-               ],
-               closest_nodes: [
-                 Enum.at(nodes, 1)
-               ]
-             }}
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetBootstrappingNodes{} ->
+          %BootstrappingNodes{
+            new_seeds: [
+              Enum.at(nodes, 0)
+            ],
+            closest_nodes: [
+              Enum.at(nodes, 1)
+            ]
+          }
 
-          %NewTransaction{transaction: tx} ->
-            stamp = %ValidationStamp{
-              proof_of_work: "",
-              proof_of_integrity: "",
-              ledger_operations: %LedgerOperations{
-                node_movements: [
-                  %NodeMovement{
-                    to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                    amount: 1.0,
-                    roles: [
-                      :welcome_node,
-                      :coordinator_node,
-                      :cross_validation_node,
-                      :previous_storage_node
-                    ]
-                  }
-                ]
-              }
+        _, %NewTransaction{transaction: tx} ->
+          stamp = %ValidationStamp{
+            proof_of_work: "",
+            proof_of_integrity: "",
+            ledger_operations: %LedgerOperations{
+              node_movements: [
+                %NodeMovement{
+                  to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
+                  amount: 1.0,
+                  roles: [
+                    :welcome_node,
+                    :coordinator_node,
+                    :cross_validation_node,
+                    :previous_storage_node
+                  ]
+                }
+              ]
             }
+          }
 
-            validated_tx = %{tx | validation_stamp: stamp}
-            :ok = TransactionChain.write([validated_tx])
-            :ok = Replication.ingest_transaction(validated_tx)
-            :ok = Replication.acknowledge_storage(validated_tx)
+          validated_tx = %{tx | validation_stamp: stamp}
+          :ok = TransactionChain.write([validated_tx])
+          :ok = Replication.ingest_transaction(validated_tx)
+          :ok = Replication.acknowledge_storage(validated_tx)
 
-            {:ok, %Ok{}}
+          %Ok{}
 
-          %GetStorageNonce{} ->
-            {:ok,
-             %EncryptedStorageNonce{
-               digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
-             }}
+        _, %GetStorageNonce{} ->
+          %EncryptedStorageNonce{
+            digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+          }
 
-          %ListNodes{} ->
-            {:ok, %NodeList{nodes: nodes}}
+        _, %ListNodes{} ->
+          %NodeList{nodes: nodes}
 
-          %GetBeaconSummary{} ->
-            {:ok, %NotFound{}}
+        _, %GetBeaconSummary{} ->
+          %NotFound{}
 
-          %NotifyEndOfNodeSync{} ->
-            send(me, :node_ready)
-            {:ok, %Ok{}}
+        _, %NotifyEndOfNodeSync{} ->
+          send(me, :node_ready)
+          %Ok{}
 
-          %SubscribeTransactionValidation{address: address} ->
-            PubSub.register_to_new_transaction_by_address(address)
+        _, %SubscribeTransactionValidation{address: address} ->
+          PubSub.register_to_new_transaction_by_address(address)
 
-            receive do
-              {:new_transaction, ^address} ->
-                {:ok, %Ok{}}
-            end
+          receive do
+            {:new_transaction, ^address} ->
+              %Ok{}
+          end
 
-          %AcknowledgeStorage{address: address} ->
-            PubSub.notify_new_transaction(address)
-            {:ok, %Ok{}}
-        end
+        _, %AcknowledgeStorage{address: address} ->
+          PubSub.notify_new_transaction(address)
+          %Ok{}
       end)
 
       :ok

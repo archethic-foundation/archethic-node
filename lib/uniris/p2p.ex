@@ -5,19 +5,19 @@ defmodule Uniris.P2P do
   alias Uniris.Crypto
 
   alias __MODULE__.BootstrappingSeeds
+  alias __MODULE__.Client
+  alias __MODULE__.Client.TransportImpl
+  alias __MODULE__.ConnectionPool
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Message
   alias __MODULE__.Node
-  alias __MODULE__.Transport
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
 
   require Logger
-
-  @type supported_transport :: :tcp
 
   @doc """
   Compute a geographical patch (zone) from an IP
@@ -29,7 +29,31 @@ defmodule Uniris.P2P do
   Register a node
   """
   @spec add_node(Node.t()) :: :ok
-  defdelegate add_node(node), to: MemTable
+  def add_node(node) do
+    :ok = MemTable.add_node(node)
+    do_connect_node(node)
+  end
+
+  defp do_connect_node(node = %Node{first_public_key: key}) do
+    if key == Crypto.node_public_key(0) do
+      :ok
+    else
+      # Avoid to open connection during testing
+      transport_impl =
+        :uniris
+        |> Application.get_env(Client, impl: TransportImpl)
+        |> Keyword.fetch!(:impl)
+
+      case transport_impl do
+        TransportImpl ->
+          {:ok, _} = ConnectionPool.add_node_connection_pool(node)
+          :ok
+
+        _ ->
+          :ok
+      end
+    end
+  end
 
   @doc """
   List the nodes registered.
@@ -112,30 +136,13 @@ defmodule Uniris.P2P do
   If the exchange fails, the node availability history will decrease 
   and will be locally unavailable until the next exchange
   """
-  @spec send_message(Crypto.key() | Node.t() | list(Node.t()), Message.t()) :: Message.t()
+  @spec send_message(Crypto.key() | Node.t(), Message.t()) :: Message.t()
   def send_message(public_key, message) when is_binary(public_key) do
     {:ok, node} = get_node_info(public_key)
-    do_send_message(node, message)
+    send_message(node, message)
   end
 
-  def send_message(node = %Node{}, message) do
-    do_send_message(node, message)
-  end
-
-  defp do_send_message(
-         %Node{ip: ip, port: port, first_public_key: first_public_key, transport: transport},
-         message
-       ) do
-    case Transport.send_message(transport, ip, port, message) do
-      {:ok, data} ->
-        MemTable.increase_node_availability(first_public_key)
-        data
-
-      {:error, reason} ->
-        :ok = MemTable.decrease_node_availability(first_public_key)
-        raise "Messaging error with #{:inet.ntoa(ip)}:#{port} - reason: #{reason}"
-    end
-  end
+  def send_message(node = %Node{}, message), do: Client.send_message(node, message)
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with

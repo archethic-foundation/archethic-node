@@ -23,12 +23,9 @@ defmodule Uniris.Replication.TransactionContext do
   @spec fetch_transaction_chain(address :: Crypto.versioned_hash()) ::
           Enumerable.t() | list(Transaction.t())
   def fetch_transaction_chain(address) when is_binary(address) do
-    address
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-    |> P2P.nearest_nodes()
-    |> P2P.broadcast_message(%GetTransactionChain{address: address})
-    |> Stream.take(1)
-    |> Stream.flat_map(fn %TransactionList{transactions: transactions} -> transactions end)
+    message = %GetTransactionChain{address: address}
+
+    do_fetch(address, message, fn %TransactionList{transactions: transactions} -> transactions end)
   end
 
   @doc """
@@ -37,25 +34,25 @@ defmodule Uniris.Replication.TransactionContext do
   @spec fetch_unspent_outputs(address :: Crypto.versioned_hash()) ::
           Enumerable.t() | list(UnspentOutput.t())
   def fetch_unspent_outputs(address) when is_binary(address) do
-    address
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-    |> P2P.nearest_nodes()
-    |> P2P.broadcast_message(%GetUnspentOutputs{address: address})
-    |> Stream.take(1)
-    |> Enum.flat_map(fn %UnspentOutputList{unspent_outputs: unspent_outputs} ->
+    message = %GetUnspentOutputs{address: address}
+
+    do_fetch(address, message, fn %UnspentOutputList{unspent_outputs: unspent_outputs} ->
       unspent_outputs
     end)
   end
 
   @spec fetch_transaction_inputs(binary()) :: Enumerable.t() | list(TransactionInput.t())
   def fetch_transaction_inputs(address) when is_binary(address) do
+    message = %GetTransactionInputs{address: address}
+    do_fetch(address, message, fn %TransactionInputList{inputs: inputs} -> inputs end)
+  end
+
+  defp do_fetch(address, message, result_handler) do
     address
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
     |> P2P.nearest_nodes()
-    |> P2P.broadcast_message(%GetTransactionInputs{address: address})
-    |> Stream.take(1)
-    |> Stream.flat_map(fn %TransactionInputList{inputs: inputs} ->
-      inputs
-    end)
+    |> P2P.broadcast_message(message)
+    |> Enum.at(0)
+    |> result_handler.()
   end
 end

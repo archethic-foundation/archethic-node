@@ -163,13 +163,13 @@ defmodule Uniris.ReplicationTest do
       :ok
     end)
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %GetTransactionChain{} ->
-        {:ok, %TransactionList{transactions: []}}
+      _, %GetTransactionChain{} ->
+        %TransactionList{transactions: []}
 
-      _, _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
+      _, %GetUnspentOutputs{} ->
+        %UnspentOutputList{unspent_outputs: unspent_outputs}
     end)
 
     assert :ok = Replication.process_transaction(tx, [:chain, :beacon])
@@ -288,10 +288,10 @@ defmodule Uniris.ReplicationTest do
 
       me = self()
 
-      MockTransport
-      |> stub(:send_message, fn _, _, %NotifyLastTransactionAddress{address: _} ->
+      MockClient
+      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _} ->
         send(me, :notification_sent)
-        {:ok, %Ok{}}
+        %Ok{}
       end)
 
       P2P.add_node(%Node{

@@ -76,22 +76,22 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
     P2P.add_node(node3)
     P2P.add_node(node4)
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %GetBeaconSummary{subset: "A"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice2"}]}}
+      _, %GetBeaconSummary{subset: "A"} ->
+        %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice2"}]}
 
-      _, _, %GetBeaconSummary{subset: "B"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Charlie5"}]}}
+      _, %GetBeaconSummary{subset: "B"} ->
+        %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Charlie5"}]}
 
-      _, _, %GetBeaconSummary{subset: "D"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice3"}]}}
+      _, %GetBeaconSummary{subset: "D"} ->
+        %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice3"}]}
 
-      _, _, %GetBeaconSummary{subset: "E"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom1"}]}}
+      _, %GetBeaconSummary{subset: "E"} ->
+        %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom1"}]}
 
-      _, _, %GetBeaconSummary{subset: "F"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom2"}]}}
+      _, %GetBeaconSummary{subset: "F"} ->
+        %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom2"}]}
     end)
 
     expected_addresses = [
@@ -195,15 +195,15 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       me = self()
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetTransaction{address: "@Alice2"} ->
+        _, %GetTransaction{address: "@Alice2"} ->
           send(me, :transaction_downloaded)
-          {:ok, %Transaction{}}
+          %Transaction{}
 
-        _, _, %GetTransaction{address: "@Node1"} ->
+        _, %GetTransaction{address: "@Node1"} ->
           send(me, :transaction_downloaded)
-          {:ok, %Transaction{}}
+          %Transaction{}
       end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
@@ -278,25 +278,25 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         :ok
       end)
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetTransaction{address: address} ->
+        _, %GetTransaction{address: address} ->
           cond do
             address == transfer_tx.address ->
-              {:ok, transfer_tx}
+              transfer_tx
 
             address == node_tx.address ->
-              {:ok, node_tx}
+              node_tx
 
             true ->
               raise "Oops!"
           end
 
-        _, _, %GetTransactionInputs{} ->
-          {:ok, %TransactionInputList{inputs: inputs}}
+        _, %GetTransactionInputs{} ->
+          %TransactionInputList{inputs: inputs}
 
-        _, _, %GetTransactionChain{} ->
-          {:ok, %TransactionList{transactions: []}}
+        _, %GetTransactionChain{} ->
+          %TransactionList{transactions: []}
       end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")

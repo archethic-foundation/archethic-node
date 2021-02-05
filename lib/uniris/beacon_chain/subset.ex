@@ -82,7 +82,7 @@ defmodule Uniris.BeaconChain.Subset do
     if Slot.has_transaction?(current_slot, address) do
       {:reply, :ok, state}
     else
-      Logger.info("Transaction #{type}@#{Base.encode16(address)} summary added",
+      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
         beacon_subset: Base.encode16(subset)
       )
 
@@ -96,7 +96,8 @@ defmodule Uniris.BeaconChain.Subset do
         _from,
         state = %{current_slot: current_slot, subset: subset}
       ) do
-    Logger.info("Node #{Base.encode16(node_public_key)} synchronization ended",
+    Logger.info(
+      "Node #{Base.encode16(node_public_key)} synchronization ended added to the beacon chain",
       beacon_subset: Base.encode16(subset)
     )
 

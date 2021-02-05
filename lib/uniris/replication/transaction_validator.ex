@@ -137,6 +137,8 @@ defmodule Uniris.Replication.TransactionValidator do
 
     cross_validation_node_public_keys = Enum.map(cross_stamps, & &1.node_public_key)
 
+    resolved_tx_movements = resolve_transaction_movements(tx)
+
     cond do
       !Transaction.verify_origin_signature?(tx, pow) ->
         {:error, :invalid_proof_of_work}
@@ -147,7 +149,7 @@ defmodule Uniris.Replication.TransactionValidator do
       fee != Transaction.fee(tx) ->
         {:error, :invalid_transaction_fee}
 
-      transaction_movements != Transaction.get_movements(tx) ->
+      transaction_movements != resolved_tx_movements ->
         {:error, :invalid_transaction_movements}
 
       !LedgerOperations.valid_node_movements_roles?(ops) ->

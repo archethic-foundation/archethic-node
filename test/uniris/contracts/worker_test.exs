@@ -40,11 +40,11 @@ defmodule Uniris.Contracts.WorkerTest do
 
     me = self()
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %StartMining{transaction: tx} ->
+      _, %StartMining{transaction: tx} ->
         send(me, {:transaction_sent, tx})
-        {:ok, %Ok{}}
+        %Ok{}
     end)
 
     aes_key = :crypto.strong_rand_bytes(32)
@@ -174,7 +174,9 @@ defmodule Uniris.Contracts.WorkerTest do
       }
 
       {:ok, _pid} = Worker.start_link(contract)
-      assert {:error, :no_transaction_trigger} = Worker.execute(contract_address, %Transaction{})
+
+      assert {:error, :no_transaction_trigger} =
+               Worker.execute(contract_address, %Transaction{address: "@Alice2"})
 
       refute_receive {:transaction_sent, _}
     end

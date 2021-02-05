@@ -15,12 +15,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   At 00.00 UTC, nodes receives will applied the node shared secrets for the transaction mining
   """
 
-  alias Uniris.Crypto
-
-  alias Uniris.Mining
-
-  alias Uniris.P2P
-  alias Uniris.P2P.Message.StartMining
+  alias Uniris
 
   alias Uniris.SharedSecrets.NodeRenewal
 
@@ -85,22 +80,12 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   end
 
   defp make_renewal do
-    tx =
-      NodeRenewal.next_authorized_node_public_keys()
-      |> NodeRenewal.new_node_shared_secrets_transaction(
-        :crypto.strong_rand_bytes(32),
-        :crypto.strong_rand_bytes(32)
-      )
-
-    validation_nodes = Mining.transaction_validation_nodes(tx)
-
-    validation_nodes
-    |> P2P.broadcast_message(%StartMining{
-      transaction: tx,
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-      welcome_node_public_key: Crypto.node_public_key()
-    })
-    |> Stream.run()
+    NodeRenewal.next_authorized_node_public_keys()
+    |> NodeRenewal.new_node_shared_secrets_transaction(
+      :crypto.strong_rand_bytes(32),
+      :crypto.strong_rand_bytes(32)
+    )
+    |> Uniris.send_new_transaction()
 
     Logger.info("Node shared secrets renewal transaction sent")
   end

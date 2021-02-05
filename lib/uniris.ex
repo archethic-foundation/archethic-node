@@ -62,7 +62,10 @@ defmodule Uniris do
   @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
   def send_new_transaction(tx = %Transaction{}) do
     validation_nodes = Mining.transaction_validation_nodes(tx)
+    do_send_transaction(tx, validation_nodes)
+  end
 
+  defp do_send_transaction(tx, validation_nodes) do
     message = %StartMining{
       transaction: tx,
       welcome_node_public_key: Crypto.node_public_key(),

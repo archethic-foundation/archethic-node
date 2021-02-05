@@ -92,11 +92,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
       :ok
     end)
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %GetTransaction{} -> {:ok, tx}
-      _, _, %GetTransactionChain{} -> {:ok, %TransactionList{transactions: []}}
-      _, _, %GetTransactionInputs{} -> {:ok, %TransactionInputList{inputs: inputs}}
+      _, %GetTransaction{} -> tx
+      _, %GetTransactionChain{} -> %TransactionList{transactions: []}
+      _, %GetTransactionInputs{} -> %TransactionInputList{inputs: inputs}
     end)
 
     tx_summary = %TransactionSummary{address: "@Alice2"}

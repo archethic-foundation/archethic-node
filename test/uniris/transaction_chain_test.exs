@@ -16,9 +16,9 @@ defmodule Uniris.TransactionChainTest do
   import Mox
 
   test "resolve_last_address/1 should retrieve the last address for a chain" do
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{} ->
-      {:ok, %LastTransactionAddress{address: "@Alice10"}}
+    MockClient
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{} ->
+      %LastTransactionAddress{address: "@Alice10"}
     end)
 
     P2P.add_node(%Node{
