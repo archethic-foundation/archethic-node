@@ -4,8 +4,8 @@ defmodule Uniris.Oracles.Supervisor do
   use Supervisor
 
   alias Uniris.Oracles.{
-    UcoPrice,
-    Scheduler
+    Scheduler,
+    UcoPrice
   }
 
   alias Uniris.Utils

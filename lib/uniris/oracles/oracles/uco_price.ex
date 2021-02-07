@@ -1,7 +1,9 @@
 defmodule Uniris.Oracles.UcoPrice do
+  @moduledoc false
+
   alias Uniris.Oracles.Coingecko
 
-  @oracles [Coingecko, Coingecko]
+  @oracles [Coingecko]
 
   # Public
 
