@@ -2,7 +2,7 @@ defmodule Uniris.TransactionChain.TransactionInput do
   @moduledoc """
   Represents an transaction sent to an account either spent or unspent
   """
-  defstruct [:from, :amount, :type, :spent?]
+  defstruct [:from, :amount, :type, spent?: false]
 
   alias Uniris.Crypto
 
@@ -13,7 +13,7 @@ defmodule Uniris.TransactionChain.TransactionInput do
           from: Crypto.versioned_hash(),
           amount: float(),
           spent?: boolean(),
-          type: TransactionMovementType.t()
+          type: TransactionMovementType.t() | :call
         }
 
   @doc """
@@ -33,21 +33,31 @@ defmodule Uniris.TransactionChain.TransactionInput do
       # From
       0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
+      # Type
+      1::1,
+      # Spent
+      1::1,
       # Amount
       64, 37, 0, 0, 0, 0, 0, 0,
       # Input type (UCO)
-      0,
-      # Spent
-      1::1
+      0
       >>
   """
   @spec serialize(__MODULE__.t()) :: bitstring()
+  def serialize(%__MODULE__{from: from, amount: _, type: :call, spent?: true}) do
+    <<from::binary, 0::1, 1::1>>
+  end
+
+  def serialize(%__MODULE__{from: from, amount: _, type: :call, spent?: _}) do
+    <<from::binary, 0::1, 0::1>>
+  end
+
   def serialize(%__MODULE__{from: from, amount: amount, type: type, spent?: true}) do
-    <<from::binary, amount::float, TransactionMovementType.serialize(type)::binary, 1::1>>
+    <<from::binary, 1::1, 1::1, amount::float, TransactionMovementType.serialize(type)::binary>>
   end
 
   def serialize(%__MODULE__{from: from, amount: amount, type: type, spent?: _}) do
-    <<from::binary, amount::float, TransactionMovementType.serialize(type)::binary, 0::1>>
+    <<from::binary, 1::1, 0::1, amount::float, TransactionMovementType.serialize(type)::binary>>
   end
 
   @doc """
@@ -57,7 +67,8 @@ defmodule Uniris.TransactionChain.TransactionInput do
 
       iex> <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       ...>   166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
-      ...>   64, 37, 0, 0, 0, 0, 0, 0, 0, 1::1>>
+      ...>   1::1, 1::1,
+      ...>   64, 37, 0, 0, 0, 0, 0, 0, 0>>
       ...> |> TransactionInput.deserialize()
       {
         %TransactionInput{
@@ -73,28 +84,30 @@ defmodule Uniris.TransactionChain.TransactionInput do
   @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring()}
   def deserialize(<<hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
-    <<from::binary-size(hash_size), amount::float, rest::bitstring>> = rest
-    {type, rest} = TransactionMovementType.deserialize(rest)
+    <<from::binary-size(hash_size), type_bit::1, spent_bit::1, rest::bitstring>> = rest
+    spent? = if spent_bit == 1, do: true, else: false
 
-    case rest do
-      <<0::1, rest::bitstring>> ->
+    case type_bit do
+      0 ->
         {
           %__MODULE__{
             from: <<hash_id::8, from::binary>>,
-            amount: amount,
-            type: type,
-            spent?: false
+            spent?: spent?,
+            type: :call
           },
           rest
         }
 
-      <<1::1, rest::bitstring>> ->
+      1 ->
+        <<amount::float, rest::bitstring>> = rest
+        {movement_type, rest} = TransactionMovementType.deserialize(rest)
+
         {
           %__MODULE__{
             from: <<hash_id::8, from::binary>>,
+            spent?: spent?,
             amount: amount,
-            type: type,
-            spent?: true
+            type: movement_type
           },
           rest
         }
@@ -109,16 +122,24 @@ defmodule Uniris.TransactionChain.TransactionInput do
       spent?: Map.get(input, :spent?)
     }
 
-    if Map.has_key?(input, :type) do
-      case Map.get(input, :nft_address) do
-        nil ->
-          %{res | type: :UCO}
+    case Map.get(input, :type) do
+      :UCO ->
+        %{res | type: :UCO}
 
-        nft_address ->
-          %{res | type: {:NFT, nft_address}}
-      end
-    else
-      res
+      :NFT ->
+        case Map.get(input, :nft_address) do
+          nil ->
+            res
+
+          nft_address ->
+            %{res | type: {:NFT, nft_address}}
+        end
+
+      :call ->
+        %{res | type: :call}
+
+      nil ->
+        res
     end
   end
 
@@ -138,6 +159,14 @@ defmodule Uniris.TransactionChain.TransactionInput do
       from: from,
       type: :NFT,
       nft_address: nft_address,
+      spent?: spent?
+    }
+  end
+
+  def to_map(%__MODULE__{amount: _, from: from, spent?: spent?, type: :call}) do
+    %{
+      from: from,
+      type: :call,
       spent?: spent?
     }
   end

@@ -104,6 +104,14 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
 
   def handle_event(
         :cast,
+        {:validate_and_notify_slot, %Slot{}},
+        _,
+        _data
+      ),
+      do: {:keep_state_and_data, :postpone}
+
+  def handle_event(
+        :cast,
         {:add_slot_proof, recv_digest, node_public_key, signature},
         :waiting_proofs,
         data = %{

@@ -11,6 +11,16 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
+# Networking module configuration:
+# ip_provider(module) - (must be defined) options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, Uniris.Networking.Nat 
+# hostname(string) - (for Static) provides a constant IP address for Static (ex. "127.0.0.1")
+# port(pos_int) - (must be defined) provides a P2P port number (ex. 3002)
+#
+config :uniris, Uniris.Networking,
+  # ip_provider: Uniris.Networking.IPLookup.Static,
+  # hostname: "127.0.0.1",
+  port: 3002
+
 config :uniris, Uniris.BeaconChain.SlotTimer,
   # Every 10 seconds
   interval: "*/10 * * * * *"
@@ -85,7 +95,10 @@ config :uniris, Uniris.SelfRepair.Scheduler,
   interval: "0 * * * * * *"
 
 config :uniris, Uniris.SelfRepair.Sync,
-  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED")}"
+  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
+
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second

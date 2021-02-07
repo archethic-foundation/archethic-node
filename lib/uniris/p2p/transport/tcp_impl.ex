@@ -35,7 +35,7 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   end
 
   defp recv_loop(socket) do
-    case :gen_tcp.recv(socket, 0) do
+    case :gen_tcp.recv(socket, 0, 3_000) do
       {:ok, data} ->
         encoded_result =
           data
@@ -47,21 +47,22 @@ defmodule Uniris.P2P.Transport.TCPImpl do
         case :gen_tcp.send(socket, encoded_result) do
           :ok ->
             recv_loop(socket)
+            :gen_tcp.shutdown(socket, :write)
 
           {:error, :closed} ->
             Logger.info("TCP connection closed")
 
           {:error, reason} ->
             Logger.error("TCP error during sending data - #{reason}")
-            recv_loop(socket)
+            :gen_tcp.shutdown(socket, :write)
         end
 
       {:error, :closed} ->
-        :gen_tcp.close(socket)
+        :gen_tcp.shutdown(socket, :read_write)
 
       {:error, reason} ->
         Logger.error("TCP error during receiving data - #{reason}")
-        :gen_tcp.close(socket)
+        :gen_tcp.shutdown(socket, :read_write)
     end
   end
 
@@ -74,7 +75,7 @@ defmodule Uniris.P2P.Transport.TCPImpl do
       |> Message.encode()
       |> Utils.wrap_binary()
 
-    case :gen_tcp.connect(ip, port, @client_options) do
+    case :gen_tcp.connect(ip, port, @client_options, 3_000) do
       {:ok, socket} ->
         with :ok <- :gen_tcp.send(socket, encoded_message),
              {:ok, data} <- :gen_tcp.recv(socket, 0),

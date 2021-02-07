@@ -6,6 +6,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
+
   alias Uniris.SharedSecrets
   alias Uniris.SharedSecrets.NodeRenewal
 
@@ -93,58 +95,117 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
     end
   end
 
-  test "next_authorized_node_public_keys/0" do
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "key1",
-      first_public_key: "key1",
-      network_patch: "AAA",
-      geo_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+  describe "next_authorized_node_public_keys/0" do
+    test "should not add new nodes with a low tps" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key1",
+        first_public_key: "key1",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "key2",
-      first_public_key: "key2",
-      network_patch: "DEF",
-      geo_patch: "DEF",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key2",
+        first_public_key: "key2",
+        network_patch: "DEF",
+        geo_patch: "DEF",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "key3",
-      first_public_key: "key3",
-      network_patch: "FA1",
-      geo_patch: "FA1",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key3",
+        first_public_key: "key3",
+        network_patch: "FA1",
+        geo_patch: "FA1",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      last_public_key: "key4",
-      first_public_key: "key4",
-      network_patch: "321",
-      geo_patch: "321",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key4",
+        first_public_key: "key4",
+        network_patch: "321",
+        geo_patch: "321",
+        available?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    assert Enum.all?(
-             NodeRenewal.next_authorized_node_public_keys(),
-             &(&1 in ["key2", "key1", "key3"])
-           )
+      NetworkStatistics.register_tps(DateTime.utc_now(), 10.0, 100)
+
+      assert Enum.all?(
+               NodeRenewal.next_authorized_node_public_keys(),
+               &(&1 in ["key2", "key1", "key3"])
+             )
+    end
+
+    test "should add new nodes with a high tps" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key1",
+        first_public_key: "key1",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key2",
+        first_public_key: "key2",
+        network_patch: "DEF",
+        geo_patch: "DEF",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key3",
+        first_public_key: "key3",
+        network_patch: "FA1",
+        geo_patch: "FA1",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        last_public_key: "key4",
+        first_public_key: "key4",
+        network_patch: "321",
+        geo_patch: "321",
+        available?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      NetworkStatistics.register_tps(DateTime.utc_now(), 1000.0, 500)
+
+      assert Enum.all?(
+               NodeRenewal.next_authorized_node_public_keys(),
+               &(&1 in ["key2", "key1", "key3", "key4"])
+             )
+    end
   end
 end

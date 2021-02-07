@@ -3,6 +3,13 @@ use Mix.Config
 # Do not print debug messages in production
 config :logger, level: :info
 
+# Networking module configuration:
+# load_from_system_env - false if not defined
+# ip_provider options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, 
+# hostname - provides a constant IP address for Static
+# port - provides a P2P port number
+config :uniris, Uniris.Networking, ip_provider: Uniris.Networking.IPLookup.Static
+
 config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.IPFYImpl
 
 config :uniris, Uniris.Bootstrap.Sync,
@@ -71,6 +78,9 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   interval: "50 0 0 * * * *"
 
 config :uniris, Uniris.SelfRepair.Sync, last_sync_file: "priv/p2p/last_sync"
+
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats"
 
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight

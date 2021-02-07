@@ -314,13 +314,20 @@ defmodule Uniris.Mining do
     |> DistributedWorkflow.add_cross_validation_stamp(stamp)
   end
 
-  defp get_mining_process!(tx_address) do
+  defp get_mining_process!(tx_address, sleep_time \\ 200, retries \\ 0, max_retries \\ 5)
+
+  defp get_mining_process!(_, _, retries, max_retries) when retries == max_retries do
+    raise "No mining process for the transaction"
+  end
+
+  defp get_mining_process!(tx_address, sleep_time, retries, max_retries) do
     case Registry.lookup(WorkflowRegistry, tx_address) do
       [{pid, _}] ->
         pid
 
       _ ->
-        raise "No mining process for the transaction"
+        Process.sleep(sleep_time)
+        get_mining_process!(tx_address, sleep_time, retries + 1, max_retries)
     end
   end
 end

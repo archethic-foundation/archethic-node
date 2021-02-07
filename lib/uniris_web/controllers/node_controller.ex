@@ -12,17 +12,25 @@ defmodule UnirisWeb.NodeController do
   end
 
   def show(conn, _params = %{"public_key" => public_key}) do
-    pub = Base.decode16!(public_key, case: :mixed)
+    case Base.decode16(public_key, case: :mixed) do
+      {:ok, pub} ->
+        case P2P.get_node_info(pub) do
+          {:ok, node = %Node{last_public_key: last_public_key}} ->
+            node_address = Crypto.hash(last_public_key)
+            %{uco: uco_balance} = Uniris.get_balance(node_address)
 
-    case P2P.get_node_info(pub) do
-      {:ok, node = %Node{last_public_key: last_public_key}} ->
-        node_address = Crypto.hash(last_public_key)
-        %{uco: uco_balance} = Uniris.get_balance(node_address)
+            render(conn, "show.html",
+              node: node,
+              uco_balance: uco_balance,
+              node_address: node_address
+            )
 
-        render(conn, "show.html", node: node, uco_balance: uco_balance, node_address: node_address)
+          _ ->
+            render(conn, "show.html", node: nil, balance: 0.0)
+        end
 
       _ ->
-        render(conn, "show.html", node: nil, balance: 0.0)
+        render(conn, "show.html", node: nil, balance: 0.0, error: :invalid_public_key)
     end
   end
 end

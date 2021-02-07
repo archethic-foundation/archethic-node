@@ -8,7 +8,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   import_types(UnirisWeb.GraphQLSchema.ContentType)
   import_types(UnirisWeb.GraphQLSchema.AddressType)
 
-  alias Uniris.Crypto
+  alias UnirisWeb.GraphQLSchema.Resolver
 
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
   object :transaction do
@@ -22,22 +22,21 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
     field(:validation_stamp, :validation_stamp)
     field(:cross_validation_stamps, list_of(:cross_validation_stamp))
 
-    field :unspent_outputs, list_of(:unspent_output) do
+    field :inputs, list_of(:transaction_input) do
       resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Uniris.get_transaction_inputs(address)}
+        {:ok, Resolver.get_inputs(address)}
       end)
     end
 
     field :chain_length, :integer do
       resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Uniris.get_transaction_chain_length(address)}
+        {:ok, Resolver.get_chain_length(address)}
       end)
     end
 
-    field :previous_transaction, :transaction do
-      resolve(fn _, %{source: %{previous_public_key: previous_public_key}} ->
-        previous_address = Crypto.hash(previous_public_key)
-        Uniris.search_transaction(previous_address)
+    field :balance, :balance do
+      resolve(fn _, %{source: %{address: address}} ->
+        {:ok, Resolver.get_balance(address)}
       end)
     end
   end
@@ -149,15 +148,15 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   end
 
   @desc """
-  [Input] represents the inputs from the transaction
+  [TransactionInput] represents the inputs from the transaction
   It includes:
   - From: transaction which send the amount of assets
   - Amount: asset amount
-  - Type: UCO/NFT
+  - Type: UCO/NFT/Call
   - NFT address: address of the NFT if the type is NFT
   - Spent: determines if the input has been spent
   """
-  object :input do
+  object :transaction_input do
     field(:from, :hex)
     field(:amount, :float)
     field(:type, :string)

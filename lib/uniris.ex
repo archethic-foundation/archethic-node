@@ -4,13 +4,13 @@ defmodule Uniris do
   """
 
   alias __MODULE__.Account
-  alias __MODULE__.Contracts
   alias __MODULE__.Crypto
 
   alias __MODULE__.Mining
 
   alias __MODULE__.P2P
 
+  alias __MODULE__.P2P.Message
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.GetLastTransaction
@@ -26,7 +26,6 @@ defmodule Uniris do
 
   alias __MODULE__.Replication
 
-  alias __MODULE__.TransactionChain
   alias __MODULE__.TransactionChain.Transaction
   alias __MODULE__.TransactionChain.TransactionInput
 
@@ -43,21 +42,17 @@ defmodule Uniris do
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
+    message = %GetTransaction{address: address}
+
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      TransactionChain.get_transaction(address)
+      message
+      |> Message.process()
+      |> handle_transaction_result()
     else
-      response =
-        storage_nodes
-        |> P2P.broadcast_message(%GetTransaction{address: address})
-        |> Enum.at(0)
-
-      case response do
-        %NotFound{} ->
-          {:error, :transaction_not_exists}
-
-        tx = %Transaction{} ->
-          {:ok, tx}
-      end
+      storage_nodes
+      |> P2P.broadcast_message(message)
+      |> Enum.at(0)
+      |> handle_transaction_result()
     end
   end
 
@@ -82,27 +77,24 @@ defmodule Uniris do
   @spec get_last_transaction(address :: binary()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_last_transaction(address) do
-    case TransactionChain.get_last_transaction(address) do
+    message = %GetLastTransaction{address: address}
+
+    case handle_transaction_result(Message.process(message)) do
       {:ok, tx} ->
         {:ok, tx}
 
       {:error, :transaction_not_exists} ->
-        response =
-          address
-          |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-          |> P2P.nearest_nodes()
-          |> P2P.broadcast_message(%GetLastTransaction{address: address})
-          |> Enum.at(0)
-
-        case response do
-          %NotFound{} ->
-            {:error, :transaction_not_exists}
-
-          tx = %Transaction{} ->
-            {:ok, tx}
-        end
+        address
+        |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+        |> P2P.nearest_nodes()
+        |> P2P.broadcast_message(message)
+        |> Enum.at(0)
+        |> handle_transaction_result()
     end
   end
+
+  defp handle_transaction_result(tx = %Transaction{}), do: {:ok, tx}
+  defp handle_transaction_result(%NotFound{}), do: {:error, :transaction_not_exists}
 
   @doc """
   Retrieve the balance from an address.
@@ -117,42 +109,49 @@ defmodule Uniris do
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      Account.get_balance(address)
-    else
-      %Balance{uco: uco_balance, nft: nft_balances} =
-        storage_nodes
-        |> P2P.broadcast_message(%GetBalance{address: address})
-        |> Enum.at(0)
+    message = %GetBalance{address: address}
 
-      %{uco: uco_balance, nft: nft_balances}
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      message
+      |> Message.process()
+      |> handle_balance_result()
+    else
+      storage_nodes
+      |> P2P.broadcast_message(message)
+      |> Enum.at(0)
+      |> handle_balance_result()
     end
+  end
+
+  defp handle_balance_result(%Balance{uco: uco_balance, nft: nft_balances}) do
+    %{uco: uco_balance, nft: nft_balances}
   end
 
   @doc """
   Request to fetch the inputs for a transaction address
   """
-  @spec get_transaction_inputs(binary()) :: %{
-          inputs: list(TransactionInput.t()),
-          calls: list(binary())
-        }
+  @spec get_transaction_inputs(binary()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) when is_binary(address) do
     storage_nodes =
       address
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      %{inputs: Account.get_inputs(address), calls: Contracts.list_contract_transactions(address)}
-    else
-      %TransactionInputList{inputs: inputs, calls: calls} =
-        storage_nodes
-        |> P2P.broadcast_message(%GetTransactionInputs{address: address})
-        |> Enum.at(0)
+    message = %GetTransactionInputs{address: address}
 
-      %{inputs: inputs, calls: calls}
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      message
+      |> Message.process()
+      |> handle_inputs_result
+    else
+      storage_nodes
+      |> P2P.broadcast_message(message)
+      |> Enum.at(0)
+      |> handle_inputs_result()
     end
   end
+
+  defp handle_inputs_result(%TransactionInputList{inputs: inputs}), do: inputs
 
   @doc """
   Retrieve a transaction chain based on an address
@@ -164,17 +163,21 @@ defmodule Uniris do
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      TransactionChain.get(address)
-    else
-      %TransactionList{transactions: chain} =
-        storage_nodes
-        |> P2P.broadcast_message(%GetTransactionChain{address: address})
-        |> Enum.at(0)
+    message = %GetTransactionChain{address: address}
 
-      chain
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      message
+      |> Message.process()
+      |> handle_chain_result()
+    else
+      storage_nodes
+      |> P2P.broadcast_message(message)
+      |> Enum.at(0)
+      |> handle_chain_result()
     end
   end
+
+  defp handle_chain_result(%TransactionList{transactions: chain}), do: chain
 
   @doc """
   Retrieve the number of transaction in a transaction chain
@@ -186,15 +189,19 @@ defmodule Uniris do
       |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
       |> P2P.nearest_nodes()
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      TransactionChain.size(address)
-    else
-      %TransactionChainLength{length: length} =
-        storage_nodes
-        |> P2P.broadcast_message(%GetTransactionChainLength{address: address})
-        |> Enum.at(0)
+    message = %GetTransactionChainLength{address: address}
 
-      length
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      message
+      |> Message.process()
+      |> handle_chain_length_result
+    else
+      storage_nodes
+      |> P2P.broadcast_message(message)
+      |> Enum.at(0)
+      |> handle_chain_length_result()
     end
   end
+
+  defp handle_chain_length_result(%TransactionChainLength{length: length}), do: length
 end

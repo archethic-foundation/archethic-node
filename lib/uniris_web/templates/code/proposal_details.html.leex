@@ -1,57 +1,80 @@
-<div class="box">
-    <div class="columns">
-        <div class="column">
-        <p class="heading">Code proposal</h1>
-        <h1 class="subtitle text_wrap">
-           <%= Base.encode16(@address) %>
-        </h1>
-        </div>
-        <div class="column is-2-desktop">
-            <button class="button is-outlined is-primary is-fullwidth" type="button">Approve the proposal</button>
-        </div>
-    </div>
+<%= if assigns[:error] != nil and @error == :invalid_address do %>
+    <h1 class="subtitle is-size-4 heading has-text-white">Code proposal - <small>Invalid address</small></h1>
+<% else %>
+    <h1 class="subtitle is-size-4 heading has-text-white">Code proposal - <small><%= Base.encode16(@address) %></small></h1>
+<% end %>
 
-    <div class="columns is-multiline">
-        <div class="column is-10-desktop">
-            <p class="heading">Description</p>
-            <div class="text_wrap">
-                <%= raw(format_description(@description)) %>
+<div class="box">
+
+    <%= cond do %>
+        <% assigns[:error] != nil and @error == :invalid_address -> %>
+            <p>The proposal address is invalid.</p>
+            <hr />
+            <div class="mt-4 box has-background-warning-light">
+                <small>Please check the transaction address validity.</small>
+            </div>
+        <% !@exists? -> %>
+            <p>The proposal does not exists yet. </p>
+            <hr />
+            <div class="mt-4 box has-background-warning-light">
+                <small>It may appears later. <br />Please retry when the proposal will be processed.</small>
+            </div>
+        <% true -> %>
+        <div class="columns">
+            <div class="column">
+            <p class="heading">Code proposal</h1>
+            <h1 class="subtitle text_wrap">
+                <%= Base.encode16(@address) %>
+            </h1>
+            </div>
+            <div class="column is-2-desktop">
+                <button class="button is-outlined is-primary is-fullwidth" type="button">Approve the proposal</button>
             </div>
         </div>
-        <div class="column is-2-desktop">
-            <p class="heading">Version</p>
-            <%= version_tag(Version.parse!(@version)) %>
-            <small>(<%= @version %>)</small>
-        </div>
-    </div>
 
-    <div class="columns">
-        <div class="column">
-            <p class="heading">Changes</p>
-            <div id="diff_src" style="display: none" phx-hook="Diff"></div>
-            <div id="diff"></div>
-        </div>
-    </div>
-
-    <div class="columns">
-        <div class="column">
-            <p class="heading">Approvals (2)</p>
-            <%= for approval <- @approvals do %>
-                <div class="columns">
-                    <div class="column">
-                        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(approval)) do%>
-                            <span class="text_wrap"><%= Base.encode16(approval) %></span>
-                        <% end %>
-                    </div>
+        <div class="columns is-multiline">
+            <div class="column is-10-desktop">
+                <p class="heading">Description</p>
+                <div class="text_wrap">
+                    <%= raw(format_description(@description)) %>
                 </div>
-            <% end %>
+            </div>
+            <div class="column is-2-desktop">
+                <p class="heading">Version</p>
+                <%= version_tag(Version.parse!(@version)) %>
+                <small>(<%= @version %>)</small>
+            </div>
         </div>
-    </div>
+
+        <div class="columns">
+            <div class="column">
+                <p class="heading">Changes</p>
+                <div id="diff_src" style="display: none" phx-hook="Diff"></div>
+                <div id="diff"></div>
+            </div>
+        </div>
+
+        <div class="columns">
+            <div class="column">
+                <p class="heading">Approvals (2)</p>
+                <%= for approval <- @approvals do %>
+                    <div class="columns">
+                        <div class="column">
+                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(approval)) do%>
+                                <span class="text_wrap"><%= Base.encode16(approval) %></span>
+                            <% end %>
+                        </div>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+
+        <div class="box">
+            <%= live_render(@socket, UnirisWeb.CodeProposalChatLive, id: "chat", session: %{"proposal_address" => @address}) %>
+        </div>
+    <% end %>
 </div>
 
-<div class="box">
-    <%= live_render(@socket, UnirisWeb.CodeProposalChatLive, id: "chat", session: %{"proposal_address" => @address}) %>
-</div>
 
 <div class="modal is-clipped">
     <div class="modal-background"></div>
@@ -88,134 +111,3 @@
     </div>
     <button class="modal-close is-large" aria-label="close"></button>
 </div>
-
-
-<!--<div class="row explorer-card">
-    <div class="column">
-        <header class="row">
-            <div class="column column-80">
-                <h4>Code proposal <%= @address %></h4>
-            </div>
-        </header>
-
-        <%= if @exists? do %>
-            <div class="row">
-                <div class="column column-20">
-                    <a href="#discussion">See discussion</a>
-                </div>
-                <div class="column column-20">
-                    <a href="#" onclick="openApprovalConfirmation()">Approve change</a>
-                </div>
-            </div>
-
-            <%= if @deployed? do %>
-                <div class="row">
-                    <div class="column">
-                        Testnet deployed to the port <%= @web_port %> with P2P ports <%= @p2p_port %>
-                    </div> 
-                </div>
-            <% end %>
-
-            <div class="row" style="margin-top: 50px">
-                <div class="column">
-                    <h5>
-                        <u>Approvals</u>
-                    </h5>
-                </div>
-            </div>
-
-            <%= if  @approvals == [] do %>
-            <div class="row">
-                <div class="column">N/A</div>
-            </div>
-            <% else %>
-                <%= for approval <- @approvals do %>
-                <div class="row">
-                    <div class="column">
-                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, address: Base.encode16(approval)) do%>
-                        <%= Base.encode16(approval) %>
-                    <% end %>
-                    </div>
-                </div>
-                <% end %>
-            <% end %>
-
-            <div class="row" style="margin-top: 20px">
-                <div class="column">
-                    <h5><u>Description</u></h5>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="column">
-                    <%= if @description == "" do %>
-                        <p>N/A</p>
-                    <% else %>
-                        <pre style="padding: 20px"><%= @description %></pre>
-                    <% end %>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="column">
-                    <h6><u>Changes</u></h6>
-                </div>
-            </div>
-
-            <div class="row" style="margin-top: 20px">
-                <div class="column">
-                    <div id="diff_src" style="display: none" phx-hook="Diff"><%= @changes %></div>
-                    <div id="diff"></div>
-                </div>
-            </div>
-
-            <div class="row" id="discussion">
-                <div class="column">
-                    <%= live_render(@socket, UnirisWeb.CodeProposalChatLive, id: "chat", session: %{ "proposal" => @address }) %>
-                </div>
-            </div>
-        <% else %>
-            <div class="row">
-                <div class="column">
-                    Transaction not exists yet...
-                </div>
-            </div>
-        <% end %>
-    </div>
-</div>
-
-<div class="modal" id="proposal_approval_modal">
-    <div class="modal-content">
-        <header>
-            <span class="close" onclick="closeApprovalConfirmation()">&times;</span>
-            <h5>Approve the proposal</h5>
-        </header>
-        <div id="confirmation">
-            <p>Do you confirm the approval of this proposal ?</p>
-            <button onclick="show_form_sign_approval()">Yes</button>
-            <button onclick="closeApprovalConfirmation()">No</button>
-        </div>
-
-        <form onsubmit="signProposalApprovalTransaction(event)" id="form_sign_approval" style="display: none">
-            <h5>Generate transaction</h5>
-            <div style="box-shadow: 0px 0px 10px #f5f5f5;border: thin solid #ddd; margin-bottom: 10px">
-                <header style="background: #f5f5f5;padding: 10px;">
-                    Software
-                </header>
-                <div style="padding: 10px;">
-                    <label for="seed">Enter your passphrase (Chain Seed)</label>
-                    <input type="hidden" value="<%= @address %>" id="proposal_address" />
-                    <input type="password" required id="tx_seed" onchange="fetchTransactionIndex()" />
-                </div>
-
-            </div>
-            <input type="hidden" id="tx_index" value="0" />
-            <input type="hidden" id="tx_json" />
-            <p id="tx_address_info" style="display: none">Transaction address: <span id="tx_address"></span></p>
-            <button id="btn_sign_approval" style="display: none">Sign the transaction</button>
-        </form>
-        <pre style="display: none; padding: 10px" id="tx_viewer"></pre>
-        <button id="btn_send_approval" style="display: none" onclick="sendApprovalTransaction()">Send the transaction</button>
-    </div>
-</div>
--->

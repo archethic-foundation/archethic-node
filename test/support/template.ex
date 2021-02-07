@@ -14,6 +14,8 @@ defmodule UnirisCase do
 
   alias Uniris.P2P.MemTable, as: P2PMemTable
 
+  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
+
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
 
   alias Uniris.TransactionChain.MemTables.ChainLookup
@@ -29,6 +31,7 @@ defmodule UnirisCase do
     :persistent_term.put(:storage_nonce, "nonce")
 
     File.rm_rf(Application.app_dir(:uniris, "priv/p2p/last_sync_test"))
+    Path.wildcard("priv/p2p/network_stats*") |> Enum.each(&File.rm_rf!/1)
 
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
@@ -108,6 +111,7 @@ defmodule UnirisCase do
     start_supervised!(P2PMemTable)
     start_supervised!(Constraints)
     start_supervised!(PoolsMemTable)
+    start_supervised!(NetworkStatistics)
 
     :ok
   end

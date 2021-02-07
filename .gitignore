@@ -22,6 +22,7 @@ erl_crash.dump
 /priv/p2p/test_seeds
 /priv/proposal_logs/
 /priv/uniris_node.zip
+/priv/p2p/network_stats*
 
 # Since we are building assets from assets/,
 # we ignore priv/static. You may want to comment

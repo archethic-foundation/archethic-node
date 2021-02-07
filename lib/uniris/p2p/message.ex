@@ -305,13 +305,12 @@ defmodule Uniris.P2P.Message do
     <<244::8, bit_size(view)::8, view::bitstring>>
   end
 
-  def encode(%TransactionInputList{inputs: inputs, calls: calls}) do
+  def encode(%TransactionInputList{inputs: inputs}) do
     inputs_bin =
       Enum.map(inputs, &TransactionInput.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<245::8, length(inputs)::16, inputs_bin::bitstring, length(calls)::16,
-      :erlang.list_to_binary(calls)::binary>>
+    <<245::8, length(inputs)::16, inputs_bin::bitstring>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
@@ -662,14 +661,10 @@ defmodule Uniris.P2P.Message do
   end
 
   def decode(<<245::8, nb_inputs::16, rest::bitstring>>) do
-    {inputs, <<nb_calls::16, rest::bitstring>>} =
-      deserialize_transaction_inputs(rest, nb_inputs, [])
-
-    {calls, _} = deserialize_transaction_addresses(rest, nb_calls, [])
+    {inputs, _} = deserialize_transaction_inputs(rest, nb_inputs, [])
 
     %TransactionInputList{
-      inputs: inputs,
-      calls: calls
+      inputs: inputs
     }
   end
 
@@ -810,18 +805,6 @@ defmodule Uniris.P2P.Message do
   defp deserialize_transaction_inputs(rest, nb_inputs, acc) do
     {input, rest} = TransactionInput.deserialize(rest)
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
-  end
-
-  defp deserialize_transaction_addresses(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_transaction_addresses(rest, nb_addresses, acc)
-       when length(acc) == nb_addresses do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_transaction_addresses(rest, nb_addresses, acc) do
-    {address, rest} = deserialize_hash(rest)
-    deserialize_transaction_inputs(rest, nb_addresses, [address | acc])
   end
 
   defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
@@ -1058,16 +1041,23 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%GetBalance{address: address}) do
+    %{uco: uco, nft: nft} = Account.get_balance(address)
+
     %Balance{
-      uco: Account.get_balance(address)
+      uco: uco,
+      nft: nft
     }
   end
 
   def process(%GetTransactionInputs{address: address}) do
-    %TransactionInputList{
-      inputs: Account.get_inputs(address),
-      calls: Contracts.list_contract_transactions(address)
-    }
+    ledger_inputs = Account.get_inputs(address)
+
+    contract_inputs =
+      address
+      |> Contracts.list_contract_transactions()
+      |> Enum.map(&%TransactionInput{from: &1, type: :call})
+
+    %TransactionInputList{inputs: ledger_inputs ++ contract_inputs}
   end
 
   def process(%GetTransactionChainLength{address: address}) do
