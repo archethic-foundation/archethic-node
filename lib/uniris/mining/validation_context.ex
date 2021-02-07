@@ -29,7 +29,10 @@ defmodule Uniris.Mining.ValidationContext do
 
   alias Uniris.Crypto
 
-  alias Uniris.Mining.ProofOfWork
+  alias Uniris.Mining.{
+    ProofOfExistence,
+    ProofOfWork
+  }
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
@@ -736,11 +739,22 @@ defmodule Uniris.Mining.ValidationContext do
     }
   end
 
+  # TODO: HOW TO UPDATE TRANSACTION??????
   defp do_proof_of_work(tx) do
     result =
       tx
       |> ProofOfWork.list_origin_public_keys_candidates()
       |> ProofOfWork.find_transaction_origin_public_key(tx)
+
+    result =
+      if tx.type == :oracle do
+        case ProofOfExistence.do_proof_of_existence(tx) do
+          true -> result
+          false -> {:error, :not_found}
+        end
+      else
+        result
+      end
 
     case result do
       {:ok, pow} ->

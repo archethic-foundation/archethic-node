@@ -3,6 +3,8 @@ defmodule Uniris.Oracles.Scheduler do
 
   use GenServer
 
+  alias Uniris.Oracles.TransactionContent
+
   alias Uniris.TransactionChain.{
     Transaction,
     TransactionData
@@ -57,14 +59,16 @@ defmodule Uniris.Oracles.Scheduler do
 
   @impl GenServer
   def handle_info(:fetch, state = %{mfa: {m, f, a}}) do
+    args_with_date = [date: DateTime.utc_now()] ++ a
+
     payload =
-      apply(m, f, [date: DateTime.utc_now()] ++ a)
+      apply(m, f, args_with_date)
       |> :erlang.list_to_binary()
 
     Process.send_after(self(), :send_tx, 0)
 
     Process.send_after(self(), :reschedule, 0)
-    {:noreply, %{state | payload: payload}}
+    {:noreply, %{state | payload: payload, mfa: {m, f, args_with_date}}}
   end
 
   @impl GenServer
@@ -85,8 +89,12 @@ defmodule Uniris.Oracles.Scheduler do
   end
 
   @impl GenServer
-  def handle_info(:send_tx, state = %{payload: payload}) do
-    data = %TransactionData{content: payload}
+  def handle_info(:send_tx, state = %{payload: payload, mfa: mfa}) do
+    tx_content =
+      %TransactionContent{mfa: mfa, payload: payload, status: :unverified}
+      |> :erlang.term_to_binary()
+
+    data = %TransactionData{content: tx_content}
     tx = Transaction.new(:oracle, data)
     :ok = Uniris.send_new_transaction(tx)
 

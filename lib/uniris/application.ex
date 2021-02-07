@@ -24,7 +24,7 @@ defmodule Uniris.Application do
 
   def start(_type, _args) do
     children = [
-      Uniris.Telemetry,
+      # Uniris.Telemetry, # REVERT
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
       TransactionChainSupervisor,
@@ -40,7 +40,9 @@ defmodule Uniris.Application do
       SelfRepairSupervisor,
       WebSupervisor,
       Bootstrap,
-      {Task.Supervisor, name: Uniris.TaskSupervisor}
+      {Task.Supervisor, name: Uniris.TaskSupervisor},
+      # REVERT
+      Uniris.Oracles.Supervisor
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
