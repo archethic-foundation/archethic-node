@@ -24,7 +24,7 @@ defmodule Uniris.Application do
 
   def start(_type, _args) do
     children = [
-      # Uniris.Telemetry, # REVERT
+      Uniris.Telemetry,
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
       TransactionChainSupervisor,

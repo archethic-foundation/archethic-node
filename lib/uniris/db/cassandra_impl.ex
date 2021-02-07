@@ -26,9 +26,7 @@ defmodule Uniris.DB.CassandraImpl do
   """
   @spec start_link(Keyword.t()) :: {:ok, pid()}
   def start_link(opts \\ []) do
-    # nodes = Keyword.get(opts, :nodes, ["127.0.0.1:9042"])
-    # REVERT
-    nodes = Keyword.get(opts, :nodes, ["cassandra.gambitstream.com:31300"])
+    nodes = Keyword.get(opts, :nodes, ["127.0.0.1:9042"])
 
     {:ok, pid} =
       Xandra.start_link(
