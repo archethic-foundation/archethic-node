@@ -42,7 +42,7 @@ export MIX_ENV=prod
 mix deps.get
 
 # Builds WEB assets in production mode
-cd assets && npm install && npm run deploy && cd - && mix phx.digest
+cd assets && npm ci && npm run deploy && cd - && mix phx.digest
 
 VERSION=$(grep 'version:' mix.exs | cut -d '"' -f2)
 echo ""
@@ -81,7 +81,7 @@ else
     echo "Install TestNet release"
     echo "Copy release into ${INSTALL_DIR}/testnet"
     tar zxvf ${INSTALL_DIR}/uniris_node.tar.gz -C ${INSTALL_DIR}/testnet
-    cp "rel/test_runtime_config.exs" ${INSTALL_DIR}/testnet/runtime_config.exs
+    cp "rel/dev_runtime_config.exs" ${INSTALL_DIR}/testnet/runtime_config.exs
 fi
 
 exit

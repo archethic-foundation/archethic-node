@@ -5,9 +5,8 @@ defmodule Uniris.Governance.Code do
 
   alias Uniris.Crypto
 
-  alias __MODULE__.CI
+  alias __MODULE__.CICD
   alias __MODULE__.Proposal
-  alias __MODULE__.TestNet
 
   alias Uniris.Governance.Pools
 
@@ -20,7 +19,6 @@ defmodule Uniris.Governance.Code do
   alias Uniris.Utils
 
   @src_dir Application.compile_env(:uniris, :src_dir)
-  @src_branch Application.compile_env(:uniris, :src_branch)
 
   @doc """
   List the source files from the master branch
@@ -61,7 +59,7 @@ defmodule Uniris.Governance.Code do
   Deploy the proposal into a dedicated testnet
   """
   @spec deploy_proposal_testnet(Proposal.t()) :: :ok
-  defdelegate deploy_proposal_testnet(prop), to: TestNet, as: :deploy_proposal
+  defdelegate deploy_proposal_testnet(prop), to: Utils.impl(CICD), as: :run_testnet!
 
   @doc """
   Ensure the code proposal is valid according to the defined rules:
@@ -80,12 +78,11 @@ defmodule Uniris.Governance.Code do
   end
 
   @doc """
-  Ensure the code proposal is an applicable on the given branch.
+  Ensure the code proposal is an applicable on the current branch.
   """
   @spec applicable_proposal?(Proposal.t()) :: boolean()
   def applicable_proposal?(
         %Proposal{changes: changes, address: address},
-        branch \\ @src_branch,
         src_dir \\ @src_dir
       ) do
     random = :crypto.strong_rand_bytes(4) |> Base.encode16()
@@ -95,11 +92,9 @@ defmodule Uniris.Governance.Code do
     cmd_options = [stderr_to_stdout: true, cd: src_dir]
     git = fn args -> System.cmd("git", args, cmd_options) end
 
-    x = byte_size(branch)
-
     res =
-      case git.(["symbolic-ref", "--short", "HEAD"]) do
-        {<<^branch::binary-size(x), _::binary>>, 0} ->
+      case status() do
+        {:clean, _} ->
           git.(["apply", "--check", prop_file])
 
         otherwise ->
@@ -109,6 +104,32 @@ defmodule Uniris.Governance.Code do
     File.rm(prop_file)
 
     match?({_, 0}, res)
+  end
+
+  @doc """
+  Return tuple {state, branch_name} where state could be :clean or :dirty or
+  {:error, whatever}
+  """
+  @spec status() :: {:clean, String.t()} | {:dirty, String.t()} | {:error, any}
+  def status(src_dir \\ @src_dir) do
+    git = fn args -> System.cmd("git", args, stderr_to_stdout: true, cd: src_dir) end
+
+    case git.(["symbolic-ref", "--short", "HEAD"]) do
+      {branch, 0} ->
+        case git.(["status", "--porcelain"]) do
+          {"", 0} ->
+            {:clean, String.trim(branch)}
+
+          {_, 0} ->
+            {:dirty, String.trim(branch)}
+
+          otherwise ->
+            {:error, otherwise}
+        end
+
+      otherwise ->
+        {:error, otherwise}
+    end
   end
 
   @doc """
@@ -162,12 +183,9 @@ defmodule Uniris.Governance.Code do
   def succeessor_version?(%Version{}, %Version{}), do: false
 
   defp current_version do
-    {:ok, vsn} = :application.get_key(:uniris, :vsn)
-    List.to_string(vsn)
+    :uniris |> Application.spec(:vsn) |> List.to_string()
   end
 
   @spec list_proposal_CI_logs(binary()) :: Enumerable.t()
-  defdelegate list_proposal_CI_logs(address),
-    to: CI,
-    as: :list_logs
+  defdelegate list_proposal_CI_logs(address), to: Utils.impl(CICD), as: :get_log
 end

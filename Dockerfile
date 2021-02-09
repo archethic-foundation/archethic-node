@@ -1,45 +1,70 @@
-FROM bitwalker/alpine-elixir:latest
+FROM elixir:alpine AS uniris-ci
 
-# Install system requirements
-RUN apk add --no-cache --update
-    openssl \
-    build-base \
-    gcc \
-    git \
-    npm \
-    python3 \
-    wget
+# CI
+#  - compile
+#  - release
+#  - gen PLT
 
-# Install Libsodium
-RUN wget https://download.libsodium.org/libsodium/releases/LATEST.tar.gz && \
-    mkdir /opt/libsodium && \
-    tar zxvf LATEST.tar.gz -C /opt/libsodium && \
-    cd /opt/libsodium/libsodium-stable && \
-    ./configure && \
-    make && \
-    make install
+# running CI with proposal should generate release upgrade
+#  - commit proposal
+#  - compile
+#  - run ci
+#  - generate release upgrade
 
-WORKDIR /opt/app
+######### TODO
+# TESTNET
+#  - code
+#  - release
 
-ENV MIX_ENV prod
+# running TESTNET with release upgrade should ???
+
+RUN apk add --no-cache --update \
+  build-base bash gcc git npm python3 wget openssl libsodium-dev
+
+# Install hex and rebar
+RUN mix local.rebar --force \
+ && mix local.hex --if-missing --force
+
+WORKDIR /opt/code
 
 COPY . .
 
-# Install dependencies
-# Cache Elixir deps
-RUN mix deps.get --only prod
-RUN mix deps.compile
+RUN git config user.name uniris \
+ && git config user.email uniris@uniris.io \
+ && git remote add origin https://github.com/UNIRIS/uniris-node
 
-WORKDIR /opt/app/assets
+# Compile
+RUN mix deps.get \
+ && cd assets \
+ && npm ci \
+ && npm run deploy
 
-# Cache Node deps
-RUN npm install
+# Release
+RUN mix phx.digest \
+ && mix distillery.release
 
-# Compile JavaScript
-RUN npm run deploy
+# gen PLT
+RUN mix git_hooks.run pre_push
+
+# Install
+RUN mkdir /opt/app \
+ && cd /opt/app \
+ && tar zxf /opt/code/_build/dev/rel/uniris_node/releases/*/uniris_node.tar.gz
+CMD /opt/app/bin/uniris_node foreground
+
+################################################################################
+
+FROM uniris-ci as build
+
+FROM alpine
+
+RUN apk add --no-cache --update bash git openssl libsodium
+
+COPY --from=build /opt/app /opt/app
+COPY --from=build /opt/code/.git /opt/code/.git
+
+WORKDIR /opt/code
+RUN git reset --hard
 
 WORKDIR /opt/app
-
-# Prepare the image
-RUN mix compile
-RUN mix phx.digest
+CMD /opt/app/bin/uniris_node foreground

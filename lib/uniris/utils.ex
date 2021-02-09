@@ -491,4 +491,10 @@ defmodule Uniris.Utils do
         acc
     end)
   end
+
+  def impl(mod) do
+    :uniris
+    |> Application.get_env(mod)
+    |> Keyword.fetch!(:impl)
+  end
 end

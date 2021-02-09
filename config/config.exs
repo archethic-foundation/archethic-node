@@ -35,10 +35,6 @@ config :phoenix, :json_library, Jason
 
 config :uniris, :src_dir, File.cwd!()
 
-config :uniris,
-       :src_branch,
-       System.cmd("git", ["symbolic-ref", "--short", "HEAD"], []) |> elem(0) |> String.trim()
-
 config :uniris, Uniris.Crypto,
   supported_curves: [
     :ed25519,
@@ -77,6 +73,8 @@ config :uniris, UnirisWeb.Endpoint,
     signing_salt: "3D6jYvx3",
     layout: {UnirisWeb.LayoutView, "live.html"}
   ]
+
+config :uniris, Uniris.Governance.Code.CICD, impl: Uniris.Governance.Code.CICD.Docker
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
