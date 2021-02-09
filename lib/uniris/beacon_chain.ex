@@ -200,7 +200,7 @@ defmodule Uniris.BeaconChain do
     case DB.get_beacon_slot(subset, slot_time) do
       {:ok, %Slot{validation_signatures: signatures}} ->
         if length(signatures) < length(Enum.uniq_by(new_signatures, &elem(&1, 0))) do
-          Logger.info("Beacon slot for #{Utils.time_to_string(slot_time)} updated",
+          Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} updated",
             beacon_subset: Base.encode16(subset)
           )
 
@@ -210,7 +210,7 @@ defmodule Uniris.BeaconChain do
         end
 
       {:error, :not_found} ->
-        Logger.info("Beacon slot for #{Utils.time_to_string(slot_time)} registered",
+        Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} registered",
           beacon_subset: Base.encode16(subset)
         )
 
