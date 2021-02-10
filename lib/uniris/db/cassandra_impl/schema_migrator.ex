@@ -15,6 +15,9 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     create_transaction_table()
     create_transaction_chain_table()
     create_chain_lookup_table()
+    create_beacon_chain_types()
+    create_beacon_chain_slot_table()
+    create_beacon_chain_summary_table()
 
     Logger.info("Schema database initialized")
   end
@@ -196,11 +199,10 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     Xandra.execute!(:xandra_conn, """
     CREATE TABLE IF NOT EXISTS uniris.transaction_chains(
       chain_address blob,
-      fork varchar,
       size int,
       transaction_address blob,
       timestamp timestamp,
-      PRIMARY KEY ((chain_address, fork), timestamp)
+      PRIMARY KEY (chain_address, timestamp)
     )
     WITH CLUSTERING ORDER BY (timestamp DESC);
     """)
@@ -215,6 +217,58 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
       last_transaction_address blob,
       PRIMARY KEY (transaction_address)
     )
+    """)
+  end
+
+  defp create_beacon_chain_types do
+    Xandra.execute!(:xandra_conn, """
+    CREATE TYPE IF NOT EXISTS uniris.beacon_chain_transaction_summary(
+      address blob,
+      type varchar,
+      timestamp timestamp,
+      movements_addresses LIST<blob>
+    );
+    """)
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TYPE IF NOT EXISTS uniris.beacon_chain_end_of_node_sync(
+      node_public_key blob,
+      timestamp timestamp
+    );
+    """)
+  end
+
+  defp create_beacon_chain_slot_table do
+    Logger.info("beacon_chain_slot table creation...")
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TABLE IF NOT EXISTS uniris.beacon_chain_slot(
+      subset blob,
+      slot_time timestamp,
+      previous_hash blob,
+      transaction_summaries LIST<frozen<beacon_chain_transaction_summary>>,
+      end_of_node_synchronizations LIST<frozen<beacon_chain_end_of_node_sync>>,
+      p2p_view LIST<boolean>,
+      involved_nodes LIST<boolean>,
+      validation_signatures LIST<frozen<tuple<int, blob>>>,
+      PRIMARY KEY (subset, slot_time)
+    )
+    WITH CLUSTERING ORDER BY (slot_time DESC) AND default_time_to_live = 1200;
+    """)
+  end
+
+  defp create_beacon_chain_summary_table do
+    Logger.info("beacon_chain_summary table creation...")
+
+    Xandra.execute!(:xandra_conn, """
+    CREATE TABLE IF NOT EXISTS uniris.beacon_chain_summary(
+      subset blob,
+      summary_time timestamp,
+      transaction_summaries LIST<frozen<beacon_chain_transaction_summary>>,
+      end_of_node_synchronizations LIST<frozen<beacon_chain_end_of_node_sync>>,
+      PRIMARY KEY (subset, summary_time)
+    )
+    WITH CLUSTERING ORDER BY (summary_time DESC);
     """)
   end
 end

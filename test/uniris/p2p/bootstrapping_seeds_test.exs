@@ -34,8 +34,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
       {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
       seed_str = """
-      127.0.0.1:3005:#{Base.encode16(pub1)}
-      127.0.0.1:3003:#{Base.encode16(pub2)}
+      127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
+      127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
       """
 
       File.write(file_path, seed_str, [:write])
@@ -50,7 +50,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
     test "should load from conf if present" do
       Application.put_env(:uniris, BootstrappingSeeds,
-        seeds: "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"
+        seeds:
+          "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8:tcp"
       )
 
       {:ok, pid} = BootstrappingSeeds.start_link()
@@ -58,7 +59,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
       %{seeds: seeds, file: file} = :sys.get_state(pid)
       assert file == ""
 
-      assert [%Node{port: 3002, first_public_key: node_key}] = seeds
+      assert [%Node{port: 3002, first_public_key: node_key, transport: :tcp}] = seeds
 
       assert node_key ==
                Base.decode16!(
@@ -72,15 +73,16 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
     seed_str = """
-    127.0.0.1:3005:#{Base.encode16(pub1)}
-    127.0.0.1:3003:#{Base.encode16(pub2)}
+    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
+    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
     """
 
     File.write(file_path, seed_str, [:write])
 
     {:ok, _pid} = BootstrappingSeeds.start_link(file: file_path)
 
-    assert [%Node{port: 3005}, %Node{port: 3003}] = BootstrappingSeeds.list()
+    assert [%Node{port: 3005, transport: :tcp}, %Node{port: 3003, transport: :tcp}] =
+             BootstrappingSeeds.list()
   end
 
   test "update/1 should refresh the seeds and flush them to disk", %{file_path: file_path} do
@@ -88,8 +90,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
     seed_str = """
-    127.0.0.1:3005:#{Base.encode16(pub1)}
-    127.0.0.1:3003:#{Base.encode16(pub2)}
+    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
+    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
     """
 
     File.write(file_path, seed_str, [:write])
@@ -99,8 +101,18 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     assert [%Node{port: 3005}, %Node{port: 3003}] = BootstrappingSeeds.list()
 
     new_seeds = [
-      %Node{ip: {90, 20, 10, 20}, port: 3002, first_public_key: :crypto.strong_rand_bytes(32)},
-      %Node{ip: {100, 50, 115, 80}, port: 3002, first_public_key: :crypto.strong_rand_bytes(32)}
+      %Node{
+        ip: {90, 20, 10, 20},
+        port: 3002,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        transport: :tcp
+      },
+      %Node{
+        ip: {100, 50, 115, 80},
+        port: 3002,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        transport: :tcp
+      }
     ]
 
     assert :ok = BootstrappingSeeds.update(new_seeds)

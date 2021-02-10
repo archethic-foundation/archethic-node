@@ -3,15 +3,16 @@ defmodule Uniris.Bootstrap do
   Manage Uniris Node Bootstrapping
   """
 
-  alias __MODULE__.IPLookup
   alias __MODULE__.NetworkInit
   alias __MODULE__.Sync
   alias __MODULE__.TransactionHandler
 
   alias Uniris.Crypto
 
+  alias Uniris.Networking
+
   alias Uniris.P2P
-  alias Uniris.P2P.Endpoint, as: P2PEndpoint
+  alias Uniris.P2P.Transport
 
   alias Uniris.SelfRepair
 
@@ -26,13 +27,15 @@ defmodule Uniris.Bootstrap do
   Start the bootstrapping as a task
   """
   @spec start_link(list()) :: {:ok, pid()}
-  def start_link(_args \\ []) do
-    ip = IPLookup.get_ip()
-    port = Application.get_env(:uniris, P2PEndpoint)[:port]
+  def start_link(args \\ []) do
+    ip = Networking.get_node_ip()
+    port = Keyword.get(args, :port)
+    transport = Keyword.get(args, :transport)
+
     last_sync_date = SelfRepair.last_sync_date()
     bootstrapping_seeds = P2P.list_bootstrapping_seeds()
 
-    Task.start_link(__MODULE__, :run, [ip, port, bootstrapping_seeds, last_sync_date])
+    Task.start_link(__MODULE__, :run, [ip, port, transport, bootstrapping_seeds, last_sync_date])
   end
 
   @doc """
@@ -48,43 +51,54 @@ defmodule Uniris.Bootstrap do
   Once done, the synchronization/self repair mechanism is terminated, the node will publish to the Beacon chain its readiness.
   Hence others nodes will be able to communicate with and support new transactions.
   """
-  @spec run(:inet.ip_address(), :inet.port_number(), list(Node.t()), DateTime.t()) :: :ok
-  def run(ip = {_, _, _, _}, port, bootstrapping_seeds, last_sync_date = %DateTime{})
+  @spec run(
+          :inet.ip_address(),
+          :inet.port_number(),
+          Transport.supported(),
+          list(Node.t()),
+          DateTime.t() | nil
+        ) :: :ok
+  def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date)
       when is_number(port) and is_list(bootstrapping_seeds) do
-    if should_bootstrap?(ip, port, last_sync_date) do
-      start_bootstrap(ip, port, bootstrapping_seeds, last_sync_date)
+    if should_bootstrap?(ip, port, transport, last_sync_date) do
+      start_bootstrap(ip, port, transport, bootstrapping_seeds, last_sync_date)
     else
       P2P.set_node_globally_available(Crypto.node_public_key(0))
     end
   end
 
-  defp should_bootstrap?(ip, port, last_sync_date) do
-    already_bootstrapped? = match?({:ok, _}, P2P.get_node_info(Crypto.node_public_key(0)))
+  defp should_bootstrap?(_ip, _port, _, nil), do: true
 
-    if already_bootstrapped? do
-      Sync.require_update?(ip, port, last_sync_date)
-    else
-      true
+  defp should_bootstrap?(ip, port, transport, last_sync_date) do
+    case P2P.get_node_info(Crypto.node_public_key(0)) do
+      {:ok, _} ->
+        Sync.require_update?(ip, port, transport, last_sync_date)
+
+      _ ->
+        true
     end
   end
 
-  defp start_bootstrap(ip, port, bootstrapping_seeds, last_sync_date) do
+  defp start_bootstrap(ip, port, transport, bootstrapping_seeds, last_sync_date) do
     Logger.info("Bootstrapping starting")
 
     patch = P2P.get_geo_patch(ip)
 
     if Sync.should_initialize_network?(bootstrapping_seeds) do
-      Sync.initialize_network(ip, port)
-      SelfRepair.put_last_sync_date(DateTime.utc_now())
-      :ok = SelfRepair.start_scheduler(patch)
+      Logger.info("Create first node transaction")
+      tx = TransactionHandler.create_node_transaction(ip, port, transport)
+      Sync.initialize_network(tx)
+
+      :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+      :ok = SelfRepair.start_scheduler(DateTime.utc_now())
     else
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
-        first_initialization(ip, port, patch, bootstrapping_seeds)
+        first_initialization(ip, port, transport, patch, bootstrapping_seeds)
       else
-        if Sync.require_update?(ip, port, last_sync_date) do
+        if Sync.require_update?(ip, port, transport, last_sync_date) do
           Logger.info("Update node chain...")
-          update_node(ip, port, patch, bootstrapping_seeds)
+          update_node(ip, port, transport, patch, bootstrapping_seeds)
         else
           :ok
         end
@@ -94,13 +108,15 @@ defmodule Uniris.Bootstrap do
     Logger.info("Bootstrapping finished!")
   end
 
-  defp first_initialization(ip, port, patch, bootstrapping_seeds) do
+  defp first_initialization(ip, port, transport, patch, bootstrapping_seeds) do
+    Enum.each(bootstrapping_seeds, &P2P.add_node/1)
+
     closest_node =
       bootstrapping_seeds
       |> Sync.get_closest_nodes_and_renew_seeds(patch)
       |> List.first()
 
-    tx = TransactionHandler.create_node_transaction(ip, port)
+    tx = TransactionHandler.create_node_transaction(ip, port, transport)
 
     ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
 
@@ -117,12 +133,13 @@ defmodule Uniris.Bootstrap do
     :ok = SelfRepair.sync(patch)
     Logger.info("Synchronization finished")
 
-    :ok = SelfRepair.start_scheduler(patch)
+    :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+    :ok = SelfRepair.start_scheduler(DateTime.utc_now())
 
-    Sync.publish_readiness()
+    Sync.publish_end_of_sync()
   end
 
-  defp update_node(ip, port, patch, bootstrapping_seeds) do
+  defp update_node(ip, port, transport, patch, bootstrapping_seeds) do
     case Enum.reject(bootstrapping_seeds, &(&1.first_public_key == Crypto.node_public_key(0))) do
       [] ->
         Logger.warn("Not enough nodes in the network. No node update")
@@ -133,7 +150,7 @@ defmodule Uniris.Bootstrap do
           |> Sync.get_closest_nodes_and_renew_seeds(patch)
           |> List.first()
 
-        tx = TransactionHandler.create_node_transaction(ip, port)
+        tx = TransactionHandler.create_node_transaction(ip, port, transport)
 
         ack_task =
           Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
@@ -148,9 +165,10 @@ defmodule Uniris.Bootstrap do
         :ok = SelfRepair.sync(patch)
         Logger.info("Synchronization finished")
 
-        :ok = SelfRepair.start_scheduler(patch)
+        :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
+        :ok = SelfRepair.start_scheduler(DateTime.utc_now())
 
-        Sync.publish_readiness()
+        Sync.publish_end_of_sync()
     end
   end
 

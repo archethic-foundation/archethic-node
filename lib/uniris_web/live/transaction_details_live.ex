@@ -18,23 +18,26 @@ defmodule UnirisWeb.TransactionDetailsLive do
        previous_address: nil,
        transaction: nil,
        hide_content: true,
-       tab_panel: "pending_tx",
+       tab_panel: "tx",
        data_section: "code",
        operation_section: "transaction_movements"
      })}
   end
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
-    address = Base.decode16!(address, case: :mixed)
+    case Base.decode16(address, case: :mixed) do
+      {:ok, addr} ->
+        case get_transaction(addr, opts) do
+          {:ok, tx} ->
+            {:noreply, handle_transaction(socket, tx)}
 
-    PubSub.register_to_new_transaction_by_address(address)
+          _ ->
+            PubSub.register_to_new_transaction_by_address(addr)
+            {:noreply, handle_not_existing_transaction(socket, addr)}
+        end
 
-    case get_transaction(address, opts) do
-      {:ok, tx} ->
-        {:noreply, handle_transaction(socket, tx)}
-
-      {:error, :transaction_not_exists} ->
-        {:noreply, handle_not_existing_transaction(socket, address)}
+      _ ->
+        {:noreply, handle_invalid_address(socket, address)}
     end
   end
 
@@ -100,24 +103,37 @@ defmodule UnirisWeb.TransactionDetailsLive do
     balance = Uniris.get_balance(address)
     previous_address = Transaction.previous_address(tx)
 
-    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
+    inputs = Uniris.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
     socket
     |> assign(:transaction, tx)
     |> assign(:previous_address, previous_address)
     |> assign(:balance, balance)
-    |> assign(:inputs, inputs)
-    |> assign(:calls, calls)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
     |> assign(:address, address)
     |> assign(:hide_content, byte_size(content) > 1000)
   end
 
   def handle_not_existing_transaction(socket, address) do
-    %{inputs: inputs, calls: calls} = Uniris.get_transaction_inputs(address)
+    inputs = Uniris.get_transaction_inputs(address)
+    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
     socket
     |> assign(:address, address)
-    |> assign(:inputs, inputs)
-    |> assign(:calls, calls)
+    |> assign(:inputs, ledger_inputs)
+    |> assign(:calls, contract_inputs)
+    |> assign(:error, :not_exists)
+  end
+
+  def handle_invalid_address(socket, address) do
+    socket
+    |> assign(:address, address)
+    |> assign(:inputs, [])
+    |> assign(:calls, [])
+    |> assign(:error, :invalid_address)
   end
 end

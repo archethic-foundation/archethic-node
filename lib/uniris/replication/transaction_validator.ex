@@ -45,10 +45,15 @@ defmodule Uniris.Replication.TransactionValidator do
   @doc """
   Validate transaction with context
   """
-  @spec validate(Transaction.t(), Transaction.t(), list(UnspentOutput.t() | TransactionInput.t())) ::
+  @spec validate(
+          validated_transaction :: Transaction.t(),
+          previous_transaction :: Transaction.t(),
+          inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t()),
+          self_repair? :: boolean()
+        ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs_outputs) do
-    with :ok <- valid_transaction(tx, inputs_outputs),
+  def validate(tx = %Transaction{}, previous_transaction, inputs_outputs, self_repair? \\ false) do
+    with :ok <- valid_transaction(tx, inputs_outputs, self_repair?),
          true <- TransactionChain.valid?([tx, previous_transaction]) do
       :ok
     else
@@ -63,18 +68,20 @@ defmodule Uniris.Replication.TransactionValidator do
   @doc """
   Validate transaction only
   """
-  @spec validate(Transaction.t()) :: :ok | {:error, error()}
-  def validate(tx = %Transaction{}), do: valid_transaction(tx, [])
+  @spec validate(validated_tx :: Transaction.t(), self_repair? :: boolean()) ::
+          :ok | {:error, error()}
+  def validate(tx = %Transaction{}, self_repair? \\ false),
+    do: valid_transaction(tx, [], self_repair?)
 
-  defp valid_transaction(tx = %Transaction{}, []) do
-    with :ok <- do_validate_transaction(tx),
+  defp valid_transaction(tx = %Transaction{}, [], self_repair?) do
+    with :ok <- do_validate_transaction(tx, self_repair?),
          :ok <- validate_without_unspent_outputs(tx) do
       :ok
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs) do
-    with :ok <- do_validate_transaction(tx),
+  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs, self_repair?) do
+    with :ok <- do_validate_transaction(tx, self_repair?),
          :ok <- validate_without_unspent_outputs(tx),
          :ok <- validate_with_unspent_outputs(tx, previous_inputs_unspent_outputs) do
       :ok
@@ -85,7 +92,8 @@ defmodule Uniris.Replication.TransactionValidator do
          tx = %Transaction{
            validation_stamp: validation_stamp = %ValidationStamp{},
            cross_validation_stamps: cross_stamps
-         }
+         },
+         self_repair?
        ) do
     cond do
       !Mining.accept_transaction?(tx) ->
@@ -101,7 +109,7 @@ defmodule Uniris.Replication.TransactionValidator do
       !Enum.all?(cross_stamps, &(&1.inconsistencies == [])) ->
         {:error, :invalid_transaction_with_inconsistencies}
 
-      !valid_node_election?(tx) ->
+      !valid_node_election?(tx, self_repair?) ->
         {:error, :invalid_node_election}
 
       true ->
@@ -129,6 +137,8 @@ defmodule Uniris.Replication.TransactionValidator do
 
     cross_validation_node_public_keys = Enum.map(cross_stamps, & &1.node_public_key)
 
+    resolved_tx_movements = resolve_transaction_movements(tx)
+
     cond do
       !Transaction.verify_origin_signature?(tx, pow) ->
         {:error, :invalid_proof_of_work}
@@ -139,7 +149,7 @@ defmodule Uniris.Replication.TransactionValidator do
       fee != Transaction.fee(tx) ->
         {:error, :invalid_transaction_fee}
 
-      transaction_movements != Transaction.get_movements(tx) ->
+      transaction_movements != resolved_tx_movements ->
         {:error, :invalid_transaction_movements}
 
       !LedgerOperations.valid_node_movements_roles?(ops) ->
@@ -248,6 +258,8 @@ defmodule Uniris.Replication.TransactionValidator do
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
+  defp valid_node_election?(_tx, true), do: true
+
   defp valid_node_election?(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
@@ -256,7 +268,8 @@ defmodule Uniris.Replication.TransactionValidator do
              }
            },
            cross_validation_stamps: cross_validation_stamps
-         }
+         },
+         _self_repair?
        ) do
     coordinator_node_public_key =
       get_coordinator_node_public_key_from_node_movements(node_movements)

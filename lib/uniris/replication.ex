@@ -64,27 +64,53 @@ defmodule Uniris.Replication do
   - ack_storage?: Determines if the storage node must notify the welcome node about the replication
   - self_repair?: Determines if the replication is from a self repair cycle. This switch will be determine to fetch unspent outputs or transaction inputs for a chain role validation
   """
-  @spec process_transaction(Transaction.t(), list(role()), Keyword.t()) ::
+  @spec process_transaction(
+          validated_tx :: Transaction.t(),
+          role_list :: list(role()),
+          options :: [ack_storage?: boolean(), self_repair?: boolean()]
+        ) ::
           :ok | {:error, :invalid_transaction}
-  def process_transaction(_tx, _roles, _opts \\ [])
+  def process_transaction(tx = %Transaction{}, roles, opts \\ [])
+      when is_list(roles) and is_list(opts) do
+    if :chain in roles do
+      do_process_transaction_as_chain_storage_node(tx, roles, opts)
+    else
+      do_process_transaction(tx, roles, opts)
+    end
+  end
 
-  def process_transaction(tx = %Transaction{}, [:chain | roles], opts) when is_list(opts) do
+  defp do_process_transaction_as_chain_storage_node(
+         tx = %Transaction{address: address, type: type},
+         roles,
+         opts
+       ) do
     ack_storage? = Keyword.get(opts, :ack_storage?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
 
+    Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
+
+    Logger.info("Retrieve chain and unspent outputs...",
+      transaction: "#{type}@#{Base.encode16(address)}"
+    )
+
     {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+
+    Logger.info("Size of the chain retrieved: #{Enum.count(chain)}",
+      transaction: "#{type}@#{Base.encode16(address)}"
+    )
 
     case TransactionValidator.validate(
            tx,
            Enum.at(chain, 0),
-           Enum.to_list(inputs_unspent_outputs)
+           Enum.to_list(inputs_unspent_outputs),
+           self_repair?
          ) do
       :ok ->
         :ok = TransactionChain.write(Stream.concat([tx], chain))
         :ok = ingest_transaction(tx)
 
         if :beacon in roles do
-          BeaconChain.add_transaction(tx)
+          BeaconChain.add_transaction_summary(tx)
         end
 
         if ack_storage? do
@@ -97,15 +123,19 @@ defmodule Uniris.Replication do
         :ok = TransactionChain.write_ko_transaction(tx)
 
         Logger.error("Invalid transaction for replication - #{inspect(reason)}",
-          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+          transaction: "#{type}@#{Base.encode16(address)}"
         )
 
         {:error, :invalid_transaction}
     end
   end
 
-  def process_transaction(tx = %Transaction{}, roles, _opts) when is_list(roles) do
-    case TransactionValidator.validate(tx) do
+  defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, opts)
+       when is_list(roles) do
+    self_repair? = Keyword.get(opts, :self_repair?, false)
+    Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
+
+    case TransactionValidator.validate(tx, self_repair?) do
       :ok ->
         if :IO in roles do
           :ok = TransactionChain.write_transaction(tx)
@@ -113,7 +143,7 @@ defmodule Uniris.Replication do
         end
 
         if :beacon in roles do
-          BeaconChain.add_transaction(tx)
+          BeaconChain.add_transaction_summary(tx)
         end
 
         :ok
@@ -122,7 +152,7 @@ defmodule Uniris.Replication do
         :ok = TransactionChain.write_ko_transaction(tx)
 
         Logger.error("Invalid transaction for replication - #{inspect(reason)}",
-          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+          transaction: "#{type}@#{Base.encode16(address)}"
         )
 
         {:error, :invalid_transaction}
@@ -391,58 +421,37 @@ defmodule Uniris.Replication do
     :ok
   end
 
-  @doc """
-  Determines the replication roles based for given transaction and node public key
-  A node can be in multiple roles: ie. being chain storage nodes but also beacon chain storage node
-  """
-  @spec roles(Transaction.t(), Crypto.key(), nodes_by_roles()) :: list(role())
-  def roles(
-        %Transaction{
-          address: address,
-          type: type,
-          timestamp: timestamp,
-          validation_stamp: %ValidationStamp{
-            ledger_operations: ops
-          }
-        },
+  @spec chain_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def chain_storage_node?(
+        %Transaction{address: address, type: type},
         public_key,
-        node_list_by_role \\ []
-      )
-      when is_binary(public_key) and is_list(node_list_by_role) do
-    nodes_for_chain_role =
-      Keyword.get(node_list_by_role, :chain, P2P.list_nodes(availability: :global))
+        node_list \\ P2P.list_nodes(availability: :global)
+      ) do
+    address
+    |> chain_storage_nodes(type, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
 
-    nodes_for_beacon_role =
-      Keyword.get(
-        node_list_by_role,
-        :beacon,
-        P2P.list_nodes(availability: :global, authorized?: true)
-      )
+  @spec beacon_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def beacon_storage_node?(
+        %Transaction{address: address, timestamp: timestamp},
+        public_key,
+        node_list \\ P2P.list_nodes(availability: :global)
+      ) do
+    address
+    |> beacon_storage_nodes(timestamp, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
 
-    nodes_for_io_role = Keyword.get(node_list_by_role, :IO, P2P.list_nodes(availability: :global))
-
-    chain_node? =
-      address
-      |> chain_storage_nodes(type, nodes_for_chain_role)
-      |> Utils.key_in_node_list?(public_key)
-
-    beacon_node? =
-      address
-      |> beacon_storage_nodes(timestamp, nodes_for_beacon_role)
-      |> Utils.key_in_node_list?(public_key)
-
-    io_node? =
-      ops
-      |> io_storage_nodes(nodes_for_io_role)
-      |> Utils.key_in_node_list?(public_key)
-
-    [
-      {:chain, chain_node?},
-      {:beacon, beacon_node?},
-      {:IO, io_node?}
-    ]
-    |> Enum.filter(fn {_, res} -> res end)
-    |> Enum.map(fn {role, _} -> role end)
+  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def io_storage_node?(
+        %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}},
+        public_key,
+        node_list \\ P2P.list_nodes(availability: :global)
+      ) do
+    ops
+    |> io_storage_nodes(node_list)
+    |> Utils.key_in_node_list?(public_key)
   end
 
   @doc """
@@ -486,17 +495,17 @@ defmodule Uniris.Replication do
   @spec beacon_storage_nodes(binary(), DateTime.t(), list(Node.t())) :: list(Node.t())
   def beacon_storage_nodes(
         address,
-        timestamp,
-        node_list \\ P2P.list_nodes(authorized?: true, availability: :global)
-      ) do
-    storage_nodes =
-      Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, timestamp) == :lt))
+        timestamp = %DateTime{},
+        node_list \\ P2P.list_nodes(availability: :global)
+      )
+      when is_binary(address) and is_list(node_list) do
+    subset = BeaconChain.subset_from_address(address)
+    slot_time = BeaconChain.next_slot(timestamp)
 
-    address
-    |> BeaconChain.subset_from_address()
-    |> Election.beacon_storage_nodes(
-      BeaconChain.next_slot(timestamp),
-      storage_nodes,
+    Election.beacon_storage_nodes(
+      subset,
+      slot_time,
+      node_list,
       Election.get_storage_constraints()
     )
   end

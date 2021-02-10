@@ -150,6 +150,7 @@ defmodule Uniris.P2P.MemTableLoaderTest do
         content: """
         ip: 127.0.0.1
         port: 3003
+        transport: tcp
         """
       },
       previous_public_key: "Node1",

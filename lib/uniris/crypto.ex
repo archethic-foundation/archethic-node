@@ -95,19 +95,42 @@ defmodule Uniris.Crypto do
   """
   @spec derive_keypair(
           seed :: binary(),
-          index :: non_neg_integer(),
+          additional_data :: non_neg_integer() | binary(),
           curve :: __MODULE__.supported_curve()
         ) :: {public_key :: key(), private_key :: key()}
   def derive_keypair(
         seed,
-        index,
+        additional_data,
         curve \\ Application.get_env(:uniris, __MODULE__)[:default_curve]
+      )
+
+  def derive_keypair(
+        seed,
+        index,
+        curve
       )
       when is_binary(seed) and is_integer(index) do
     seed
-    |> get_extended_seed(index)
+    |> get_extended_seed(<<index>>)
     |> generate_deterministic_keypair(curve)
   end
+
+  def derive_keypair(
+        seed,
+        additional_data,
+        curve
+      )
+      when is_binary(seed) and is_binary(additional_data) do
+    seed
+    |> get_extended_seed(additional_data)
+    |> generate_deterministic_keypair(curve)
+  end
+
+  @doc """
+  Retrieve the storage nonce
+  """
+  @spec storage_nonce() :: binary()
+  def storage_nonce, do: :persistent_term.get(:storage_nonce)
 
   @doc """
   Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
@@ -170,7 +193,7 @@ defmodule Uniris.Crypto do
   @doc """
   Encrypt the storage nonce from memory using the given public key
   """
-  @spec encrypt_storage_nonce(Uniris.Crypto.key()) :: binary()
+  @spec encrypt_storage_nonce(key()) :: binary()
   def encrypt_storage_nonce(public_key) when is_binary(public_key) do
     ec_encrypt(:persistent_term.get(:storage_nonce), public_key)
   end
@@ -198,11 +221,11 @@ defmodule Uniris.Crypto do
   @spec encrypt_node_shared_secrets_transaction_seed(aes_key :: binary()) :: binary()
   defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: Keystore
 
-  defp get_extended_seed(seed, index) do
+  defp get_extended_seed(seed, additional_data) do
     <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
 
     <<extended_pv::binary-32, _::binary-32>> =
-      :crypto.hmac(:sha512, master_entropy, master_key <> <<index>>)
+      :crypto.hmac(:sha512, master_entropy, master_key <> additional_data)
 
     extended_pv
   end
@@ -210,7 +233,7 @@ defmodule Uniris.Crypto do
   @doc """
   Return the last node public key
   """
-  @spec node_public_key() :: Uniris.Crypto.key()
+  @spec node_public_key() :: key()
   defdelegate node_public_key, to: Keystore
 
   @doc """
@@ -224,13 +247,13 @@ defmodule Uniris.Crypto do
     iex> pub0 != pub10 and pub0 == pub0_bis
     true
   """
-  @spec node_public_key(index :: number()) :: Uniris.Crypto.key()
+  @spec node_public_key(index :: number()) :: key()
   defdelegate node_public_key(index), to: Keystore
 
   @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
   """
-  @spec node_shared_secrets_public_key(index :: number()) :: Uniris.Crypto.key()
+  @spec node_shared_secrets_public_key(index :: number()) :: key()
   defdelegate node_shared_secrets_public_key(index), to: Keystore
 
   @doc """
@@ -716,6 +739,17 @@ defmodule Uniris.Crypto do
   def hash_size(2), do: 32
   def hash_size(3), do: 64
   def hash_size(4), do: 64
+
+  @doc """
+  Determine if a hash is valid
+  """
+  @spec valid_hash?(binary()) :: boolean()
+  def valid_hash?(<<0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(_), do: false
 
   @doc """
   Load the transaction for the Keystore indexing

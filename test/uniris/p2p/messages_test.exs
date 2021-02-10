@@ -1,19 +1,23 @@
 defmodule Uniris.P2P.MessageTest do
   use UnirisCase
 
+  alias Uniris.BeaconChain.Slot
+
+  alias Uniris.Crypto
+
   alias Uniris.P2P.Message
   alias Uniris.P2P.Message.AcknowledgeStorage
+  alias Uniris.P2P.Message.AddBeaconSlotProof
   alias Uniris.P2P.Message.AddMiningContext
-  alias Uniris.P2P.Message.AddNodeInfo
   alias Uniris.P2P.Message.Balance
-  alias Uniris.P2P.Message.BeaconSlotList
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.CrossValidate
   alias Uniris.P2P.Message.CrossValidationDone
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetBalance
-  alias Uniris.P2P.Message.GetBeaconSlots
+  alias Uniris.P2P.Message.GetBeaconSlot
+  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Message.GetLastTransaction
@@ -24,12 +28,15 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionChainLength
   alias Uniris.P2P.Message.GetTransactionInputs
+  alias Uniris.P2P.Message.GetTransactionSummary
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotFound
+  alias Uniris.P2P.Message.NotifyBeaconSlot
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.P2PView
@@ -40,8 +47,7 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.TransactionInputList
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
-
-  alias Uniris.Crypto
+  alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
@@ -52,17 +58,11 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionInput
 
-  alias Uniris.P2P.Node
-
-  alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.NodeInfo, as: BeaconNodeInfo
-  alias Uniris.BeaconChain.Slot.TransactionInfo, as: BeaconTransactionInfo
-
   alias Uniris.Utils
 
   doctest Message
 
-  describe "symetric encoding/decoding of" do
+  describe "symmetric encoding/decoding of" do
     test "GetBootstrappingNodes message" do
       assert %GetBootstrappingNodes{patch: "AAA"} ==
                %GetBootstrappingNodes{patch: "AAA"}
@@ -318,10 +318,10 @@ defmodule Uniris.P2P.MessageTest do
                |> Message.decode()
     end
 
-    test "GetBeaconSlots message" do
-      msg = %GetBeaconSlots{
+    test "GetBeaconSummary message" do
+      msg = %GetBeaconSummary{
         subset: <<1>>,
-        last_sync_date: ~U[2020-06-25 15:11:53Z]
+        date: ~U[2020-06-25 15:11:53Z]
       }
 
       assert msg ==
@@ -330,16 +330,12 @@ defmodule Uniris.P2P.MessageTest do
                |> Message.decode()
     end
 
-    test "AddNodeInfo message" do
-      msg = %AddNodeInfo{
-        subset: <<0>>,
-        node_info: %BeaconNodeInfo{
-          public_key:
-            <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-              100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
-          timestamp: ~U[2020-06-25 15:11:53Z] |> Utils.truncate_datetime(),
-          ready?: true
-        }
+    test "NotifyEndOfNodeSync message" do
+      msg = %NotifyEndOfNodeSync{
+        node_public_key:
+          <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91, 100,
+            169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
+        timestamp: ~U[2020-06-25 15:11:53Z] |> Utils.truncate_datetime()
       }
 
       assert msg ==
@@ -525,39 +521,6 @@ defmodule Uniris.P2P.MessageTest do
                |> Message.decode()
     end
 
-    test "BeaconSlotList message" do
-      msg = %BeaconSlotList{
-        slots: [
-          %BeaconSlot{
-            transactions: [
-              %BeaconTransactionInfo{
-                address:
-                  <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232,
-                    166, 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255,
-                    12>>,
-                timestamp: ~U[2020-06-25 15:11:53Z],
-                type: :transfer,
-                movements_addresses: []
-              }
-            ],
-            nodes: [
-              %BeaconNodeInfo{
-                public_key:
-                  <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190,
-                    91, 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
-                timestamp: ~U[2020-06-25 15:11:53.000Z],
-                ready?: true
-              }
-            ]
-          }
-        ]
-      }
-
-      assert msg
-             |> Message.encode()
-             |> Message.decode()
-    end
-
     test "Balance message" do
       nft_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -672,6 +635,12 @@ defmodule Uniris.P2P.MessageTest do
             amount: 10.5,
             spent?: true,
             type: :UCO
+          },
+          %TransactionInput{
+            from:
+              <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
+                182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
+            type: :call
           }
         ]
       }
@@ -766,6 +735,57 @@ defmodule Uniris.P2P.MessageTest do
       msg = %NotifyLastTransactionAddress{
         address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
         previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "AddBeaconSlotProof message" do
+      msg = %AddBeaconSlotProof{
+        subset: <<0>>,
+        digest: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        signature: :crypto.strong_rand_bytes(32)
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "GetBeaconSlot message" do
+      msg = %GetBeaconSlot{
+        subset: <<0>>,
+        slot_time: DateTime.utc_now() |> Utils.truncate_datetime()
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "GetTransactionSummary message" do
+      msg = %GetTransactionSummary{
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+    end
+
+    test "NotifyBeaconSlot message" do
+      msg = %NotifyBeaconSlot{
+        slot: %Slot{
+          subset: <<0>>,
+          slot_time: DateTime.utc_now() |> Utils.truncate_datetime()
+        }
       }
 
       assert msg ==

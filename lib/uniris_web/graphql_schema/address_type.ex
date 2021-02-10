@@ -17,8 +17,8 @@ defmodule UnirisWeb.GraphQLSchema.AddressType do
 
   @spec parse_address(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_address(%Absinthe.Blueprint.Input.String{value: hash}) do
-    with {:ok, hash = <<hash_id::8, rest::binary>>} <- Base.decode16(hash, case: :mixed),
-         true <- Crypto.hash_size(hash_id) == byte_size(rest) do
+    with {:ok, hash} <- Base.decode16(hash, case: :mixed),
+         true <- Crypto.valid_hash?(hash) do
       {:ok, hash}
     else
       _ ->

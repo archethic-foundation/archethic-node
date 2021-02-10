@@ -97,14 +97,19 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     seeds_str
     |> String.split("\n", trim: true)
     |> Enum.map(fn seed ->
-      [ip, port, public_key] = String.split(seed, ":")
+      [ip, port, public_key, transport] = String.split(seed, ":")
       {:ok, ip} = ip |> String.to_charlist() |> :inet.parse_address()
 
       %Node{
         ip: ip,
         port: String.to_integer(port),
         last_public_key: Base.decode16!(public_key, case: :mixed),
-        first_public_key: Base.decode16!(public_key, case: :mixed)
+        first_public_key: Base.decode16!(public_key, case: :mixed),
+        transport:
+          case transport do
+            "tcp" ->
+              :tcp
+          end
       }
     end)
   end
@@ -114,15 +119,21 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   ## Examples
 
-      iex> [ %Node{ip: {127, 0, 0, 1}, port: 3000, first_public_key: "mykey"} ]
+      iex> [ %Node{ip: {127, 0, 0, 1}, port: 3000, first_public_key: "mykey", transport: :tcp} ]
       ...> |> BootstrappingSeeds.nodes_to_seeds()
-      "127.0.0.1:3000:6D796B6579"
+      "127.0.0.1:3000:6D796B6579:tcp"
   """
   @spec nodes_to_seeds(list(Node.t())) :: binary()
   def nodes_to_seeds(nodes) when is_list(nodes) do
     nodes
-    |> Enum.reduce([], fn %Node{ip: ip, port: port, first_public_key: public_key}, acc ->
-      acc ++ ["#{:inet_parse.ntoa(ip)}:#{port}:#{Base.encode16(public_key)}"]
+    |> Enum.reduce([], fn %Node{
+                            ip: ip,
+                            port: port,
+                            first_public_key: public_key,
+                            transport: transport
+                          },
+                          acc ->
+      acc ++ ["#{:inet_parse.ntoa(ip)}:#{port}:#{Base.encode16(public_key)}:#{transport}"]
     end)
     |> Enum.join("\n")
   end

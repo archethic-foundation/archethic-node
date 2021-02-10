@@ -90,9 +90,9 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetTransaction{} ->
-        {:ok, %Transaction{address: "@Alice2"}}
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{} ->
+        %Transaction{address: "@Alice2"}
       end)
 
       assert {:ok, %Transaction{address: "@Alice2"}} = Uniris.search_transaction("@Alice2")
@@ -118,9 +118,9 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetTransaction{} ->
-        {:ok, %NotFound{}}
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{} ->
+        %NotFound{}
       end)
 
       assert {:error, :transaction_not_exists} = Uniris.search_transaction("@Alice2")
@@ -132,8 +132,8 @@ defmodule UnirisTest do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(),
-        last_public_key: Crypto.node_public_key(),
+        first_public_key: Crypto.node_public_key(1),
+        last_public_key: Crypto.node_public_key(1),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -143,10 +143,10 @@ defmodule UnirisTest do
 
       me = self()
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %StartMining{} ->
+      MockClient
+      |> expect(:send_message, fn _, %StartMining{} ->
         send(me, :ack_mining)
-        {:ok, %Ok{}}
+        %Ok{}
       end)
 
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
@@ -190,13 +190,22 @@ defmodule UnirisTest do
         first_public_key: Crypto.node_public_key(),
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        last_public_key: :crypto.strong_rand_bytes(32),
+        network_patch: "AAA",
         geo_patch: "AAA",
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetLastTransaction{} ->
-        {:ok, %Transaction{previous_public_key: "Alice1"}}
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransaction{} ->
+        %Transaction{previous_public_key: "Alice1"}
       end)
 
       assert {:ok, %Transaction{previous_public_key: "Alice1"}} =
@@ -210,13 +219,22 @@ defmodule UnirisTest do
         first_public_key: Crypto.node_public_key(),
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
+        geo_patch: "AAA"
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: :crypto.strong_rand_bytes(32),
+        last_public_key: :crypto.strong_rand_bytes(32),
+        network_patch: "AAA",
         geo_patch: "AAA",
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetLastTransaction{} ->
-        {:ok, %NotFound{}}
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransaction{} ->
+        %NotFound{}
       end)
 
       assert {:error, :transaction_not_exists} =
@@ -261,9 +279,9 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetBalance{} ->
-        {:ok, %Balance{uco: 10.0}}
+      MockClient
+      |> expect(:send_message, fn _, %GetBalance{} ->
+        %Balance{uco: 10.0}
       end)
 
       assert %{uco: 10.0} = Uniris.get_balance("@Alice2")
@@ -289,10 +307,8 @@ defmodule UnirisTest do
           type: :UCO
         })
 
-      assert %{
-               inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}],
-               calls: []
-             } = Uniris.get_transaction_inputs("@Alice2")
+      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
+               Uniris.get_transaction_inputs("@Alice2")
     end
 
     test "should fetch the inputs remotely when the current node is not a storage node" do
@@ -315,18 +331,15 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetTransactionInputs{} ->
-        {:ok,
-         %TransactionInputList{
-           inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}]
-         }}
+      MockClient
+      |> expect(:send_message, fn _, %GetTransactionInputs{} ->
+        %TransactionInputList{
+          inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}]
+        }
       end)
 
-      assert %{
-               inputs: [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}],
-               calls: []
-             } = Uniris.get_transaction_inputs("@Alice2")
+      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
+               Uniris.get_transaction_inputs("@Alice2")
     end
   end
 
@@ -371,12 +384,11 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetTransactionChain{} ->
-        {:ok,
-         %TransactionList{
-           transactions: [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]
-         }}
+      MockClient
+      |> expect(:send_message, fn _, %GetTransactionChain{} ->
+        %TransactionList{
+          transactions: [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]
+        }
       end)
 
       assert [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}] =
@@ -424,12 +436,11 @@ defmodule UnirisTest do
         available?: true
       })
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetTransactionChainLength{} ->
-        {:ok,
-         %TransactionChainLength{
-           length: 3
-         }}
+      MockClient
+      |> expect(:send_message, fn _, %GetTransactionChainLength{} ->
+        %TransactionChainLength{
+          length: 3
+        }
       end)
 
       assert 3 == Uniris.get_transaction_chain_length("@Alice2")

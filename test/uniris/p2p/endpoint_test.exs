@@ -12,7 +12,7 @@ defmodule Uniris.P2P.EndpointTest do
     me = self()
 
     MockTransport
-    |> expect(:listen, fn _port -> {:ok, me} end)
+    |> expect(:listen, fn _, _port -> {:ok, me} end)
     |> stub(:accept, fn _socket ->
       receive do
       end

@@ -189,6 +189,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
   def self_replication(tx = %Transaction{}) do
     :ok = TransactionChain.write([tx])
     :ok = Replication.ingest_transaction(tx)
-    :ok = BeaconChain.add_transaction(tx)
+    :ok = BeaconChain.add_transaction_summary(tx)
   end
 end

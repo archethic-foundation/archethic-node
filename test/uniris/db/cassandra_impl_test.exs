@@ -3,6 +3,9 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @moduletag capture_log: true
 
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Summary
+
   alias Uniris.Crypto
 
   alias Uniris.DB.CassandraImpl, as: Cassandra
@@ -13,6 +16,8 @@ defmodule Uniris.DB.CassandraImplTest do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionFactory
+
+  alias Uniris.Utils
 
   setup do
     on_exit(fn ->
@@ -62,13 +67,12 @@ defmodule Uniris.DB.CassandraImplTest do
     chain_prepared_query =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT * FROM uniris.transaction_chains WHERE chain_address = ? and fork = ?"
+        "SELECT * FROM uniris.transaction_chains WHERE chain_address = ?"
       )
 
     assert {:ok, %Xandra.Page{content: [_ | _]}} =
              Xandra.execute(:xandra_conn, chain_prepared_query, [
-               List.first(chain).address,
-               "main"
+               List.first(chain).address
              ])
   end
 
@@ -99,6 +103,7 @@ defmodule Uniris.DB.CassandraImplTest do
              Cassandra.get_transaction(tx.address, [
                :address,
                :type,
+               :cross_validation_stamps,
                validation_stamp: [:signature, ledger_operations: [:unspent_outputs]]
              ])
 
@@ -106,6 +111,7 @@ defmodule Uniris.DB.CassandraImplTest do
     assert tx.address == db_tx.address
     assert tx.type == db_tx.type
     assert tx.validation_stamp.signature == db_tx.validation_stamp.signature
+    assert tx.cross_validation_stamps == db_tx.cross_validation_stamps
   end
 
   @tag infrastructure: true
@@ -132,6 +138,113 @@ defmodule Uniris.DB.CassandraImplTest do
 
     assert [{"@Alice1", "@Alice4"}] =
              Cassandra.list_last_transaction_addresses() |> Enum.to_list()
+  end
+
+  @tag infrastructure: true
+  test "register_beacon_slot/1 should register a beacon slot" do
+    {:ok, _pid} = Cassandra.start_link()
+    slot_time = DateTime.utc_now()
+    assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: slot_time})
+
+    prepared_tx_query =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT * FROM uniris.beacon_chain_slot WHERE subset = ? and slot_time = ?"
+      )
+
+    assert {:ok, %Xandra.Page{content: [_]}} =
+             Xandra.execute(:xandra_conn, prepared_tx_query, [<<0>>, slot_time])
+  end
+
+  describe "get_beacon_slots/1" do
+    @tag infrastructure: true
+    test "should return an empty list when not previous slots were registered" do
+      {:ok, _pid} = Cassandra.start_link()
+      assert 0 == Cassandra.get_beacon_slots(<<0>>, DateTime.utc_now()) |> Enum.count()
+    end
+
+    @tag infrastructure: true
+    test "should return a list of beacon slots registered" do
+      {:ok, _pid} = Cassandra.start_link()
+
+      assert :ok =
+               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+
+      assert :ok =
+               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+
+      assert :ok =
+               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+
+      assert 3 ==
+               Cassandra.get_beacon_slots(<<0>>, DateTime.utc_now() |> DateTime.add(2))
+               |> Enum.count()
+    end
+  end
+
+  describe "get_beacon_slot/2" do
+    @tag infrastructure: true
+    test "should retrieve a given slot by subset and slot time" do
+      {:ok, _pid} = Cassandra.start_link()
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
+
+      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
+      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<1>>, slot_time: d2})
+
+      assert {:ok, %Slot{slot_time: slot_time}} = Cassandra.get_beacon_slot(<<1>>, d2)
+      assert Utils.truncate_datetime(slot_time) == d2
+    end
+
+    @tag infrastructure: true
+    test "should return an error when not slot is found for the given subset and date" do
+      {:ok, _pid} = Cassandra.start_link()
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
+
+      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
+      assert {:error, :not_found} = Cassandra.get_beacon_slot(<<1>>, d2)
+    end
+  end
+
+  @tag infrastructure: true
+  test "register_beacon_summary/1 should register the summary into the database" do
+    {:ok, _pid} = Cassandra.start_link()
+
+    assert :ok =
+             Cassandra.register_beacon_summary(%Summary{
+               subset: <<0>>,
+               summary_time: DateTime.utc_now()
+             })
+  end
+
+  describe "get_beacon_summary/2" do
+    @tag infrastructure: true
+    test "should retrieve a given summary by subset and summary time" do
+      {:ok, _pid} = Cassandra.start_link()
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
+
+      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
+      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<1>>, summary_time: d2})
+
+      assert {:ok, %Summary{summary_time: summary_time}} = Cassandra.get_beacon_summary(<<1>>, d2)
+      assert Utils.truncate_datetime(summary_time) == d2
+    end
+
+    @tag infrastructure: true
+    test "should return an error when not summary is found for the given subset and date" do
+      {:ok, _pid} = Cassandra.start_link()
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2)
+
+      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
+      assert {:error, :not_found} = Cassandra.get_beacon_summary(<<1>>, d2)
+    end
   end
 
   defp create_transaction(inputs \\ [], opts \\ []) do

@@ -1,6 +1,9 @@
 defmodule Uniris.DB.KeyValueImplTest do
   use UnirisCase, async: false
 
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Summary
+
   alias Uniris.Crypto
 
   alias Uniris.DB.KeyValueImpl, as: KV
@@ -105,6 +108,106 @@ defmodule Uniris.DB.KeyValueImplTest do
     KV.add_last_transaction_address("@Alice1", "@Alice3")
     KV.add_last_transaction_address("@Alice1", "@Alice4")
     assert [{"@Alice1", "@Alice4"}] = KV.list_last_transaction_addresses()
+  end
+
+  test "register_beacon_slot/1 should register a beacon slot", %{root_dir: root_dir} do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+    assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+  end
+
+  describe "get_beacon_slots/2" do
+    test "should return an empty list when not previous slots were registered", %{
+      root_dir: root_dir
+    } do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+      assert [] == KV.get_beacon_slots(<<0>>, DateTime.utc_now()) |> Enum.to_list()
+    end
+
+    test "should return a list of beacon slots registered before a given date", %{
+      root_dir: root_dir
+    } do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+
+      assert [%Slot{}, %Slot{}, %Slot{}] =
+               KV.get_beacon_slots(<<0>>, DateTime.utc_now() |> DateTime.add(2)) |> Enum.to_list()
+    end
+
+    test "should return an empty list of beacon slots registered after a given date", %{
+      root_dir: root_dir
+    } do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+
+      assert [] =
+               KV.get_beacon_slots(<<0>>, DateTime.utc_now() |> DateTime.add(-2))
+               |> Enum.to_list()
+    end
+  end
+
+  describe "get_beacon_slot/2" do
+    test "should retrieve a given slot by subset and slot time", %{root_dir: root_dir} do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2)
+
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<1>>, slot_time: d2})
+
+      assert {:ok, %Slot{slot_time: ^d2}} = KV.get_beacon_slot(<<1>>, d2)
+    end
+
+    test "should return an error when not slot is found for the given subset and date", %{
+      root_dir: root_dir
+    } do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2)
+
+      assert :ok = KV.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
+      assert {:error, :not_found} = KV.get_beacon_slot(<<1>>, d2)
+    end
+  end
+
+  test "register_beacon_summary/1 should register the summary into the database", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    assert :ok =
+             KV.register_beacon_summary(%Summary{subset: <<0>>, summary_time: DateTime.utc_now()})
+  end
+
+  describe "get_beacon_summary/2" do
+    test "should retrieve a given summary by subset and summary time", %{root_dir: root_dir} do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2)
+
+      assert :ok = KV.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
+      assert :ok = KV.register_beacon_summary(%Summary{subset: <<1>>, summary_time: d2})
+
+      assert {:ok, %Summary{summary_time: ^d2}} = KV.get_beacon_summary(<<1>>, d2)
+    end
+
+    test "should return an error when not summary is found for the given subset and date", %{
+      root_dir: root_dir
+    } do
+      {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(2)
+
+      assert :ok = KV.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
+      assert {:error, :not_found} = KV.get_beacon_summary(<<1>>, d2)
+    end
   end
 
   defp create_transaction(index \\ 0) do

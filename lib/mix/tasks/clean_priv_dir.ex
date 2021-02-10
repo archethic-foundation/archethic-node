@@ -15,5 +15,8 @@ defmodule Mix.Tasks.CleanPrivDir do
 
     IO.puts("Delete last sync snapshots...")
     Path.wildcard("priv/p2p/last_sync*") |> Enum.each(&File.rm_rf!/1)
+
+    IO.puts("Delete network stats snapshots...")
+    Path.wildcard("priv/p2p/network_stats*") |> Enum.each(&File.rm_rf!/1)
   end
 end

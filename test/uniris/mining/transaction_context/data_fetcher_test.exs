@@ -22,8 +22,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
   describe "fetch_previous_transaction/2" do
     test "should return the previous transaction and node involve if exists" do
-      stub(MockTransport, :send_message, fn _, _, %GetTransaction{} ->
-        {:ok, %Transaction{}}
+      stub(MockClient, :send_message, fn _, %GetTransaction{} ->
+        %Transaction{}
       end)
 
       node = %Node{
@@ -40,8 +40,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should return nil and node node involved if not exists" do
-      stub(MockTransport, :send_message, fn _, _, %GetTransaction{} ->
-        {:ok, %NotFound{}}
+      stub(MockClient, :send_message, fn _, %GetTransaction{} ->
+        %NotFound{}
       end)
 
       node = %Node{
@@ -57,13 +57,13 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should retrieve from the first node replying" do
-      stub(MockTransport, :send_message, fn
-        _, 5000, %GetTransaction{} ->
-          {:ok, %Transaction{}}
+      stub(MockClient, :send_message, fn
+        %Node{port: 5000}, %GetTransaction{} ->
+          %Transaction{}
 
-        _, 3000, %GetTransaction{} ->
+        %Node{port: 3000}, %GetTransaction{} ->
           Process.sleep(300)
-          {:ok, %Transaction{}}
+          %Transaction{}
       end)
 
       node1 = %Node{
@@ -101,16 +101,15 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         }
       }
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetUnspentOutputs{} ->
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
-           }}
+        _, %GetUnspentOutputs{} ->
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
+          }
 
-        _, _, %GetTransaction{address: "@Bob3"} ->
-          {:ok, unspent_output}
+        _, %GetTransaction{address: "@Bob3"} ->
+          unspent_output
       end)
 
       node1 = %Node{
@@ -129,12 +128,11 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should return the unspent outputs and nodes involved if exists" do
-      MockTransport
-      |> stub(:send_message, fn _, _, %GetUnspentOutputs{} ->
-        {:ok,
-         %UnspentOutputList{
-           unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
-         }}
+      MockClient
+      |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
+        %UnspentOutputList{
+          unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}]
+        }
       end)
 
       node1 = %Node{
@@ -153,9 +151,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should return an empty list of unspent outputs and nodes involved if not exists" do
-      MockTransport
-      |> stub(:send_message, fn _, _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: []}}
+      MockClient
+      |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
+        %UnspentOutputList{unspent_outputs: []}
       end)
 
       node = %Node{
@@ -181,28 +179,26 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         }
       }
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, 3003, %GetUnspentOutputs{address: "@Alice2"} ->
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-           }}
+        %Node{port: 3003}, %GetUnspentOutputs{address: "@Alice2"} ->
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+          }
 
-        _, 3002, %GetUnspentOutputs{address: "@Alice2"} ->
+        %Node{port: 3002}, %GetUnspentOutputs{address: "@Alice2"} ->
           Process.sleep(200)
 
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-           }}
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+          }
 
-        _, 3002, %GetTransaction{address: "@Bob3"} ->
-          {:ok, unspent_output}
+        %Node{port: 3002}, %GetTransaction{address: "@Bob3"} ->
+          unspent_output
 
-        _, 3003, %GetTransaction{address: "@Bob3"} ->
+        %Node{port: 3003}, %GetTransaction{address: "@Bob3"} ->
           Process.sleep(200)
-          {:ok, unspent_output}
+          unspent_output
       end)
 
       node1 = %Node{
@@ -234,8 +230,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
   describe "fetch_p2p_view/2" do
     test "should retrieve the P2P view for a list of node public keys" do
-      stub(MockTransport, :send_message, fn _, _, %GetP2PView{} ->
-        {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+      stub(MockClient, :send_message, fn _, %GetP2PView{} ->
+        %P2PView{nodes_view: <<1::1, 1::1>>}
       end)
 
       node = %Node{
@@ -252,13 +248,13 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should retrieve the P2P view for a list of node public keys from the first reply" do
-      stub(MockTransport, :send_message, fn
-        _, 3002, %GetP2PView{} ->
+      stub(MockClient, :send_message, fn
+        %Node{port: 3002}, %GetP2PView{} ->
           Process.sleep(200)
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+          %P2PView{nodes_view: <<1::1, 1::1>>}
 
-        _, 3005, %GetP2PView{} ->
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+        %Node{port: 3005}, %GetP2PView{} ->
+          %P2PView{nodes_view: <<1::1, 1::1>>}
       end)
 
       node1 = %Node{

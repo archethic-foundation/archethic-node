@@ -199,9 +199,9 @@ defmodule Uniris.MiningTest do
          }}
       end)
 
-      MockTransport
-      |> expect(:send_message, fn _, _, %GetFirstPublicKey{} ->
-        {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
+      MockClient
+      |> expect(:send_message, fn _, %GetFirstPublicKey{} ->
+        %FirstPublicKey{public_key: tx.previous_public_key}
       end)
 
       assert true = Mining.accept_transaction?(tx)

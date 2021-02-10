@@ -4,9 +4,9 @@ defmodule Uniris.SelfRepair.Sync do
   alias Uniris.BeaconChain
 
   alias Uniris.P2P
+  alias Uniris.P2P.Node
 
-  alias __MODULE__.SlotConsumer
-  alias __MODULE__.SlotFinder
+  alias __MODULE__.BeaconSummaryHandler
 
   alias Uniris.Utils
 
@@ -15,20 +15,34 @@ defmodule Uniris.SelfRepair.Sync do
   @doc """
   Return the last synchronization date from the previous cycle of self repair
   """
-  @spec last_sync_date() :: DateTime.t()
+  @spec last_sync_date() :: DateTime.t() | nil
   def last_sync_date do
     file = last_sync_file()
 
     if File.exists?(file) do
-      file
-      |> File.read!()
-      |> String.to_integer()
-      |> DateTime.from_unix!()
-      |> Utils.truncate_datetime()
+      content = File.read!(file)
+
+      with {int, _} <- Integer.parse(content),
+           {:ok, date} <- DateTime.from_unix(int) do
+        Utils.truncate_datetime(date)
+      else
+        _ ->
+          nil
+      end
     else
-      :uniris
-      |> Application.get_env(__MODULE__)
-      |> Keyword.fetch!(:network_startup_date)
+      case P2P.list_nodes() do
+        [] ->
+          nil
+
+        nodes ->
+          %Node{enrollment_date: enrollment_date} =
+            nodes
+            |> Enum.reject(&(&1.enrollment_date == nil))
+            |> Enum.sort_by(& &1.enrollment_date)
+            |> Enum.at(0)
+
+          enrollment_date
+      end
     end
   end
 
@@ -70,9 +84,8 @@ defmodule Uniris.SelfRepair.Sync do
   @spec load_missed_transactions(last_sync_date :: DateTime.t(), patch :: binary()) :: :ok
   def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
     last_sync_date
-    |> BeaconChain.get_pools()
-    |> Stream.map(fn {subset, nodes} -> {subset, P2P.nearest_nodes(nodes, patch)} end)
-    |> SlotFinder.get_beacon_slots(last_sync_date)
-    |> SlotConsumer.handle_missing_slots(patch)
+    |> BeaconChain.get_summary_pools()
+    |> BeaconSummaryHandler.get_beacon_summaries(patch)
+    |> BeaconSummaryHandler.handle_missing_summaries(patch)
   end
 end

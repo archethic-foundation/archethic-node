@@ -60,9 +60,9 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
 config :uniris, Uniris.P2P.BootstrappingSeeds, file: "priv/p2p/seeds"
 
 config :uniris, Uniris.P2P.Endpoint,
-  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer(),
-  nb_acceptors: 10,
-  transport: :tcp
+  nb_acceptors: 100,
+  transport: :tcp,
+  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
 
 # Configure the endpoint
 config :uniris, UnirisWeb.Endpoint,
@@ -73,6 +73,8 @@ config :uniris, UnirisWeb.Endpoint,
     signing_salt: "3D6jYvx3",
     layout: {UnirisWeb.LayoutView, "live.html"}
   ]
+
+config :uniris, Uniris.Governance.Code.CICD, impl: Uniris.Governance.Code.CICD.Docker
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

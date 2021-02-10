@@ -11,12 +11,13 @@ config :uniris, Uniris.BeaconChain.Subset, enabled: false
 
 config :uniris, Uniris.BeaconChain.SlotTimer,
   enabled: false,
-  interval: 0,
-  trigger_offset: 0
+  interval: "0 * * * * *"
 
-config :uniris, Uniris.Bootstrap,
-  ip_lookup_provider: MockIPLookup,
-  enabled: false
+config :uniris, Uniris.BeaconChain.SummaryTimer,
+  enabled: false,
+  interval: "0 * * * * *"
+
+config :uniris, Uniris.Bootstrap, enabled: false
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_pools: [
@@ -76,9 +77,13 @@ config :uniris, Uniris.Governance.Pools,
 config :uniris, Uniris.Governance.Pools.MemTable, enabled: false
 config :uniris, Uniris.Governance.Pools.MemTableLoader, enabled: false
 
+config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
+config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
+
 config :uniris, Uniris.P2P.Endpoint, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
+config :uniris, Uniris.P2P.Client, impl: MockClient
 config :uniris, Uniris.P2P.Transport, impl: MockTransport
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false
@@ -90,6 +95,10 @@ config :uniris, Uniris.SelfRepair.Scheduler,
 config :uniris, Uniris.SelfRepair.Sync,
   network_startup_date: DateTime.utc_now(),
   last_sync_file: "priv/p2p/last_sync_test"
+
+config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
+  dump_dir: "priv/p2p/network_stats_test",
+  enabled: false
 
 config :uniris, Uniris.SharedSecrets.MemTablesLoader, enabled: false
 config :uniris, Uniris.SharedSecrets.MemTables.OriginKeyLookup, enabled: false

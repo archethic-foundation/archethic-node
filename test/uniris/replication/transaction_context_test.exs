@@ -1,6 +1,8 @@
 defmodule Uniris.Replication.TransactionContextTest do
   use UnirisCase
 
+  alias Uniris.Account.MemTables.UCOLedger
+
   alias Uniris.Crypto
 
   alias Uniris.P2P
@@ -18,9 +20,9 @@ defmodule Uniris.Replication.TransactionContextTest do
   import Mox
 
   test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetTransactionChain{} ->
-      {:ok, %TransactionList{transactions: [%Transaction{}]}}
+    MockClient
+    |> stub(:send_message, fn _, %GetTransactionChain{} ->
+      %TransactionList{transactions: [%Transaction{}]}
     end)
 
     P2P.add_node(%Node{
@@ -37,12 +39,17 @@ defmodule Uniris.Replication.TransactionContextTest do
   end
 
   test "fetch_unspent_outputs/1 should retrieve the previous unspent outputs" do
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetUnspentOutputs{} ->
-      {:ok,
-       %UnspentOutputList{
-         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
-       }}
+    UCOLedger.add_unspent_output("@Alice1", %UnspentOutput{
+      from: "@Bob3",
+      amount: 0.193,
+      type: :UCO
+    })
+
+    MockClient
+    |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
+      %UnspentOutputList{
+        unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
+      }
     end)
 
     P2P.add_node(%Node{

@@ -44,20 +44,6 @@ defmodule CryptoTest do
     assert Crypto.hash(["mynonce", "hello"]) == Crypto.hash_with_storage_nonce("hello")
   end
 
-  test "derivate_beacon_chain_address/2 should derivate an address based on subset and datetime using storage nonce" do
-    :persistent_term.put(:storage_nonce, "mynonce")
-
-    assert <<0, 183, 141, 221, 115, 126, 50, 147, 243, 172, 74, 18, 196, 67, 112, 97, 105, 51,
-             248, 181, 12, 204, 70, 150, 133, 155, 137, 7, 113, 198, 241, 33,
-             225>> = Crypto.derive_beacon_chain_address(<<0>>, ~U[2020-09-01 09:52:13.038337Z])
-
-    assert Crypto.derive_beacon_chain_address(<<0>>, ~U[2020-09-01 09:52:13.038337Z]) ==
-             Crypto.derive_beacon_chain_address(<<0>>, ~U[2020-09-01 09:52:13.038337Z])
-
-    assert Crypto.derive_beacon_chain_address(<<0>>, ~U[2020-09-01 09:52:13.038337Z]) !=
-             Crypto.derive_beacon_chain_address(<<1>>, ~U[2020-09-01 09:52:13.038337Z])
-  end
-
   test "decrypt_and_set_storage_nonce/1 should decrypt storage nonce using node last key and and load storage nonce" do
     storage_nonce = :crypto.strong_rand_bytes(32)
 

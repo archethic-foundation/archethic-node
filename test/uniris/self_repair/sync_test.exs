@@ -2,16 +2,15 @@ defmodule Uniris.SelfRepair.SyncTest do
   use UnirisCase, async: false
 
   alias Uniris.BeaconChain
-  alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.TransactionInfo
-  alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
+  alias Uniris.BeaconChain.Summary, as: BeaconSummary
+  alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.BeaconSlotList
-  alias Uniris.P2P.Message.GetBeaconSlots
+  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
@@ -30,10 +29,27 @@ defmodule Uniris.SelfRepair.SyncTest do
   import Mox
 
   describe "last_sync_date/0" do
-    test "should get the network startup date if not last sync file" do
-      assert Sync.last_sync_date() |> Utils.truncate_datetime() ==
-               Application.get_env(:uniris, Sync)[:network_startup_date]
-               |> Utils.truncate_datetime()
+    test "should get the first node enrollment date if not last sync file" do
+      d1 = DateTime.utc_now()
+      d2 = DateTime.utc_now() |> DateTime.add(200)
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "key1",
+        last_public_key: "key2",
+        enrollment_date: d1
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3005,
+        first_public_key: "key2",
+        last_public_key: "key2",
+        enrollment_date: d2
+      })
+
+      assert Sync.last_sync_date() == d1
     end
 
     test "should get the last sync date from the stored filed file" do
@@ -56,7 +72,7 @@ defmodule Uniris.SelfRepair.SyncTest do
 
   describe "load_missed_transactions/2" do
     setup do
-      start_supervised!({BeaconSlotTimer, interval: "* * * * * *", trigger_offset: 0})
+      start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       welcome_node = %Node{
@@ -102,43 +118,62 @@ defmodule Uniris.SelfRepair.SyncTest do
        }}
     end
 
-    test "should retrieve the missing beacon slots from the given date", context do
+    test "should retrieve the missing beacon summaries from the given date", context do
       inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, spent?: true, type: :UCO}]
       tx = TransactionFactory.create_valid_transaction(context, inputs)
-
-      missing_slots = [
-        %BeaconSlot{
-          transactions: [
-            %TransactionInfo{
-              address: tx.address,
-              type: :transfer,
-              timestamp: DateTime.utc_now()
-            }
-          ]
-        }
-      ]
 
       me = self()
 
       MockDB
+      |> stub(:get_beacon_summary, fn _, _ ->
+        {:ok,
+         %BeaconSummary{
+           subset: <<0>>,
+           summary_time: DateTime.utc_now(),
+           transaction_summaries: [
+             %TransactionSummary{
+               address: tx.address,
+               type: :transfer,
+               timestamp: DateTime.utc_now()
+             }
+           ]
+         }}
+      end)
       |> stub(:write_transaction_chain, fn _ ->
         send(me, :storage)
         :ok
       end)
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, _, %GetBeaconSlots{} ->
-          {:ok, %BeaconSlotList{slots: missing_slots}}
+        _, %GetBeaconSummary{subset: <<0>>} ->
+          %BeaconSummary{
+            subset: <<0>>,
+            summary_time: DateTime.utc_now(),
+            transaction_summaries: [
+              %TransactionSummary{
+                address: tx.address,
+                type: :transfer,
+                timestamp: DateTime.utc_now()
+              }
+            ]
+          }
 
-        _, _, %GetTransaction{} ->
-          {:ok, tx}
+        _, %GetBeaconSummary{subset: subset} ->
+          %BeaconSummary{
+            subset: subset,
+            summary_time: DateTime.utc_now(),
+            transaction_summaries: []
+          }
 
-        _, _, %GetTransactionInputs{} ->
-          {:ok, %TransactionInputList{inputs: inputs}}
+        _, %GetTransaction{} ->
+          tx
 
-        _, _, %GetTransactionChain{} ->
-          {:ok, %TransactionList{transactions: []}}
+        _, %GetTransactionInputs{} ->
+          %TransactionInputList{inputs: inputs}
+
+        _, %GetTransactionChain{} ->
+          %TransactionList{transactions: []}
       end)
 
       assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1), "AAA")

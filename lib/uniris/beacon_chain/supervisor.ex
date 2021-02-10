@@ -6,6 +6,7 @@ defmodule Uniris.BeaconChain.Supervisor do
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Subset
+  alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.Utils
 
@@ -15,15 +16,15 @@ defmodule Uniris.BeaconChain.Supervisor do
 
   def init(_args) do
     BeaconChain.init_subsets()
-
-    interval = Application.get_env(:uniris, SlotTimer)[:interval]
-    trigger_offset = Application.get_env(:uniris, SlotTimer)[:trigger_offset]
-
     subsets = BeaconChain.list_subsets()
 
     optional_children = [
-      {SlotTimer, [interval: interval, trigger_offset: trigger_offset], []}
-      | Enum.map(subsets, &{Subset, [subset: &1], [id: &1]})
+      {SlotTimer, Application.get_env(:uniris, SlotTimer), []},
+      {SummaryTimer, Application.get_env(:uniris, SummaryTimer), []}
+      | Enum.map(
+          subsets,
+          &{Subset, [subset: &1], [id: &1]}
+        )
     ]
 
     static_children = [

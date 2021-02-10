@@ -3,6 +3,7 @@ defmodule Uniris.Governance.Supervisor do
 
   use Supervisor
 
+  alias Uniris.Governance.Code.CICD
   alias Uniris.Governance.Pools.MemTable
   alias Uniris.Governance.Pools.MemTableLoader
 
@@ -14,6 +15,7 @@ defmodule Uniris.Governance.Supervisor do
 
   def init(_args) do
     children = [
+      Utils.impl(CICD),
       MemTable,
       MemTableLoader
     ]

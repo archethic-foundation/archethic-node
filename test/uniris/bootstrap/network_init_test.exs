@@ -6,10 +6,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.TransactionInfo
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
-  alias Uniris.BeaconChain.Subset.SlotRegistry
   alias Uniris.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
 
   alias Uniris.Bootstrap.NetworkInit
@@ -34,9 +33,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *", trigger_offset: 0})
+    start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -47,9 +46,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       geo_patch: "AAA"
     })
 
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-      {:ok, %LastTransactionAddress{address: address}}
+    MockClient
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      %LastTransactionAddress{address: address}
     end)
 
     :ok
@@ -128,13 +127,13 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     subset = BeaconChain.subset_from_address(tx.address)
     [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
 
+    tx_address = tx.address
+
     %{
-      slot_registry: %SlotRegistry{
-        current_slot: %BeaconSlot{
-          transactions: [
-            %TransactionInfo{}
-          ]
-        }
+      current_slot: %BeaconSlot{
+        transaction_summaries: [
+          %TransactionSummary{address: ^tx_address}
+        ]
       }
     } = :sys.get_state(pid)
   end

@@ -3,12 +3,7 @@ defmodule UnirisWeb.GraphQLSchema do
 
   use Absinthe.Schema
 
-  alias Uniris.Crypto
-
-  alias Uniris.TransactionChain
-  alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.TransactionInput
-
+  alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
 
@@ -23,9 +18,7 @@ defmodule UnirisWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        with {:ok, tx} <- Uniris.search_transaction(address) do
-          {:ok, Transaction.to_map(tx)}
-        end
+        Resolver.get_transaction(address)
       end)
     end
 
@@ -36,9 +29,7 @@ defmodule UnirisWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        with {:ok, tx} <- Uniris.get_last_transaction(address) do
-          {:ok, Transaction.to_map(tx)}
-        end
+        Resolver.get_last_transaction(address)
       end)
     end
 
@@ -46,11 +37,11 @@ defmodule UnirisWeb.GraphQLSchema do
     Query the network to find all the transactions locally stored
     """
     field :transactions, list_of(:transaction) do
-      resolve(fn _, _ ->
-        {:ok,
-         TransactionChain.list_all()
-         |> Stream.reject(&(&1.type == :beacon))
-         |> Stream.map(&Transaction.to_map/1)}
+      arg(:page, :integer)
+
+      resolve(fn args, _ ->
+        page = Map.get(args, :page, 1)
+        {:ok, Resolver.paginate_local_transactions(page)}
       end)
     end
 
@@ -59,13 +50,11 @@ defmodule UnirisWeb.GraphQLSchema do
     """
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
+      arg(:page, :integer)
 
-      resolve(fn %{address: address}, _ ->
-        chain =
-          Uniris.get_transaction_chain(address)
-          |> Enum.map(&Transaction.to_map/1)
-
-        {:ok, chain}
+      resolve(fn args = %{address: address}, _ ->
+        page = Map.get(args, :page, 1)
+        {:ok, Resolver.paginate_chain(address, page)}
       end)
     end
 
@@ -76,42 +65,24 @@ defmodule UnirisWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        %{uco: uco, nft: nft_balances} = Uniris.get_balance(address)
-
-        res = %{
-          uco: uco,
-          nft:
-            Enum.map(nft_balances, fn {address, amount} ->
-              %{
-                address: address,
-                amount: amount
-              }
-            end)
-        }
-
-        {:ok, res}
+        {:ok, Resolver.get_balance(address)}
       end)
     end
 
     @desc """
     Query the network to list the transaction inputs from an address
     """
-    field :transaction_inputs, list_of(:input) do
+    field :transaction_inputs, list_of(:transaction_input) do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        inputs = Uniris.get_transaction_inputs(address)
-        {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+        {:ok, Resolver.get_inputs(address)}
       end)
     end
 
     field :shared_secrets, :shared_secrets do
       resolve(fn _, _ ->
-        shared_secrets = %{
-          storage_nonce_public_key: Crypto.storage_nonce_public_key()
-        }
-
-        {:ok, shared_secrets}
+        {:ok, Resolver.shared_secrets()}
       end)
     end
   end
@@ -126,10 +97,7 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
 
       resolve(fn address, _, _ ->
-        case Uniris.search_transaction(address) do
-          {:ok, tx} ->
-            {:ok, Transaction.to_map(tx)}
-        end
+        Resolver.get_transaction(address)
       end)
     end
 
@@ -144,8 +112,7 @@ defmodule UnirisWeb.GraphQLSchema do
       end)
 
       resolve(fn address, _, _ ->
-        {:ok, tx} = Uniris.search_transaction(address)
-        {:ok, Transaction.to_map(tx)}
+        Resolver.get_transaction(address)
       end)
     end
   end

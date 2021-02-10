@@ -11,5 +11,4 @@ config :uniris, UnirisWeb.Endpoint,
     certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH", "")
   ]
 
-config :uniris, Uniris.Crypto.SoftwareKeystore,
-  seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")
+config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.fetch_env!("UNIRIS_CRYPTO_SEED")

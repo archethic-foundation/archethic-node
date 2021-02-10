@@ -6,17 +6,16 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
+  alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Uniris.Bootstrap
 
   alias Uniris.P2P
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Message.AcknowledgeStorage
-  alias Uniris.P2P.Message.AddNodeInfo
-  alias Uniris.P2P.Message.BeaconSlotList
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
-  alias Uniris.P2P.Message.GetBeaconSlots
+  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
@@ -24,6 +23,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
+  alias Uniris.P2P.Message.NotFound
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
@@ -45,14 +46,15 @@ defmodule Uniris.BootstrapTest do
 
   setup do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
 
     start_supervised!(
       {SelfRepairScheduler, interval: "0 * * * * * *", last_sync_file: "priv/p2p/last_sync"}
     )
 
     start_supervised!(BootstrappingSeeds)
-    start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *", trigger_offset: 0})
+    start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -62,11 +64,11 @@ defmodule Uniris.BootstrapTest do
     end)
   end
 
-  describe "run/4" do
+  describe "run/5" do
     test "should initialize the network when nothing is set before" do
-      MockTransport
-      |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-        {:ok, %LastTransactionAddress{address: address}}
+      MockClient
+      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+        %LastTransactionAddress{address: address}
       end)
 
       seeds = [
@@ -78,15 +80,16 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, MockTransport, seeds, DateTime.utc_now())
 
-      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true} | _] = P2P.list_nodes()
+      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: MockTransport} | _] =
+               P2P.list_nodes()
 
       assert 1 == TransactionChain.count_transactions_by_type(:node_shared_secrets)
     end
   end
 
-  describe "run/4 with an initialized network" do
+  describe "run/5 with an initialized network" do
     setup do
       me = self()
 
@@ -127,75 +130,71 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(nodes, &P2P.add_node/1)
 
-      MockTransport
-      |> stub(:send_message, fn _, _, msg ->
-        case msg do
-          %GetBootstrappingNodes{} ->
-            {:ok,
-             %BootstrappingNodes{
-               new_seeds: [
-                 Enum.at(nodes, 0)
-               ],
-               closest_nodes: [
-                 Enum.at(nodes, 1)
-               ]
-             }}
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetBootstrappingNodes{} ->
+          %BootstrappingNodes{
+            new_seeds: [
+              Enum.at(nodes, 0)
+            ],
+            closest_nodes: [
+              Enum.at(nodes, 1)
+            ]
+          }
 
-          %NewTransaction{transaction: tx} ->
-            stamp = %ValidationStamp{
-              proof_of_work: "",
-              proof_of_integrity: "",
-              ledger_operations: %LedgerOperations{
-                node_movements: [
-                  %NodeMovement{
-                    to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                    amount: 1.0,
-                    roles: [
-                      :welcome_node,
-                      :coordinator_node,
-                      :cross_validation_node,
-                      :previous_storage_node
-                    ]
-                  }
-                ]
-              }
+        _, %NewTransaction{transaction: tx} ->
+          stamp = %ValidationStamp{
+            proof_of_work: "",
+            proof_of_integrity: "",
+            ledger_operations: %LedgerOperations{
+              node_movements: [
+                %NodeMovement{
+                  to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
+                  amount: 1.0,
+                  roles: [
+                    :welcome_node,
+                    :coordinator_node,
+                    :cross_validation_node,
+                    :previous_storage_node
+                  ]
+                }
+              ]
             }
+          }
 
-            validated_tx = %{tx | validation_stamp: stamp}
-            :ok = TransactionChain.write([validated_tx])
-            :ok = Replication.ingest_transaction(validated_tx)
-            :ok = Replication.acknowledge_storage(validated_tx)
+          validated_tx = %{tx | validation_stamp: stamp}
+          :ok = TransactionChain.write([validated_tx])
+          :ok = Replication.ingest_transaction(validated_tx)
+          :ok = Replication.acknowledge_storage(validated_tx)
 
-            {:ok, %Ok{}}
+          %Ok{}
 
-          %GetStorageNonce{} ->
-            {:ok,
-             %EncryptedStorageNonce{
-               digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
-             }}
+        _, %GetStorageNonce{} ->
+          %EncryptedStorageNonce{
+            digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+          }
 
-          %ListNodes{} ->
-            {:ok, %NodeList{}}
+        _, %ListNodes{} ->
+          %NodeList{nodes: nodes}
 
-          %GetBeaconSlots{} ->
-            {:ok, %BeaconSlotList{}}
+        _, %GetBeaconSummary{} ->
+          %NotFound{}
 
-          %AddNodeInfo{} ->
-            send(me, :node_ready)
-            {:ok, %Ok{}}
+        _, %NotifyEndOfNodeSync{} ->
+          send(me, :node_ready)
+          %Ok{}
 
-          %SubscribeTransactionValidation{address: address} ->
-            PubSub.register_to_new_transaction_by_address(address)
+        _, %SubscribeTransactionValidation{address: address} ->
+          PubSub.register_to_new_transaction_by_address(address)
 
-            receive do
-              {:new_transaction, ^address} ->
-                {:ok, %Ok{}}
-            end
+          receive do
+            {:new_transaction, ^address} ->
+              %Ok{}
+          end
 
-          %AcknowledgeStorage{address: address} ->
-            PubSub.notify_new_transaction(address)
-            {:ok, %Ok{}}
-        end
+        _, %AcknowledgeStorage{address: address} ->
+          PubSub.notify_new_transaction(address)
+          %Ok{}
       end)
 
       :ok
@@ -213,7 +212,7 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
     end
 
@@ -229,23 +228,25 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       %Node{
         ip: {127, 0, 0, 1},
         first_public_key: first_public_key,
-        last_public_key: last_public_key
+        last_public_key: last_public_key,
+        transport: :tcp
       } = P2P.get_node_info()
 
       assert first_public_key == Crypto.node_public_key(0)
       assert last_public_key == Crypto.node_public_key(0)
 
-      assert :ok = Bootstrap.run({200, 50, 20, 10}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({200, 50, 20, 10}, 3000, :sctp, seeds, DateTime.utc_now())
 
       %Node{
         ip: {200, 50, 20, 10},
         first_public_key: first_public_key,
-        last_public_key: last_public_key
+        last_public_key: last_public_key,
+        transport: :sctp
       } = P2P.get_node_info()
 
       assert first_public_key == Crypto.node_public_key(0)
@@ -264,12 +265,12 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.node_public_key(0))
 
       Process.sleep(200)
-      assert :ok == Bootstrap.run({127, 0, 0, 1}, 3000, seeds, DateTime.utc_now())
+      assert :ok == Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
 
       Process.sleep(100)
     end

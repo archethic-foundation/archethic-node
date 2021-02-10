@@ -6,12 +6,13 @@ defmodule Uniris.SelfRepair do
 
   alias __MODULE__.Scheduler
   alias __MODULE__.Sync
+  alias __MODULE__.Sync.BeaconSummaryHandler.NetworkStatistics
 
   @doc """
   Start the self repair synchronization scheduler
   """
-  @spec start_scheduler(network_patch :: binary()) :: :ok
-  defdelegate start_scheduler(patch), to: Scheduler
+  @spec start_scheduler(DateTime.t()) :: :ok
+  defdelegate start_scheduler(last_sync_date), to: Scheduler
 
   @doc """
   Start the synchronization process using the last synchronization date
@@ -33,4 +34,16 @@ defmodule Uniris.SelfRepair do
   """
   @spec put_last_sync_date(DateTime.t()) :: :ok
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
+
+  @doc """
+  Return the last TPS recorded
+  """
+  @spec get_latest_tps() :: float()
+  defdelegate get_latest_tps, to: NetworkStatistics
+
+  @doc """
+  Return the number of transactions in the whole network
+  """
+  @spec get_nb_transactions :: non_neg_integer()
+  defdelegate get_nb_transactions, to: NetworkStatistics
 end

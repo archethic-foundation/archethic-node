@@ -51,6 +51,14 @@ defmodule Uniris.PubSub do
     )
   end
 
+  def notify_new_tps(tps) when is_float(tps) do
+    dispatch(:new_tps, {:new_tps, tps})
+  end
+
+  def notify_new_transaction_number(nb_transactions) when is_integer(nb_transactions) do
+    dispatch(:new_transaction_number, {:new_transaction_number, nb_transactions})
+  end
+
   @doc """
   Register a process to a new transaction publication by type
   """
@@ -97,6 +105,22 @@ defmodule Uniris.PubSub do
   @spec register_to_code_proposal_deployment(address :: binary()) :: {:ok, pid()}
   def register_to_code_proposal_deployment(address) when is_binary(address) do
     Registry.register(PubSubRegistry, {:code_proposal_deployment, address}, [])
+  end
+
+  @doc """
+  Register a process to a new TPS
+  """
+  @spec register_to_new_tps :: {:ok, pid()}
+  def register_to_new_tps do
+    Registry.register(PubSubRegistry, :new_tps, [])
+  end
+
+  @doc """
+  Register a process to a increment of transaction number
+  """
+  @spec register_to_new_transaction_number :: {:ok, pid()}
+  def register_to_new_transaction_number do
+    Registry.register(PubSubRegistry, :new_transaction_number, [])
   end
 
   defp dispatch(topic, message) do

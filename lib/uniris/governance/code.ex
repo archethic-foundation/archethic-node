@@ -5,9 +5,8 @@ defmodule Uniris.Governance.Code do
 
   alias Uniris.Crypto
 
-  alias __MODULE__.CI
+  alias __MODULE__.CICD
   alias __MODULE__.Proposal
-  alias __MODULE__.TestNet
 
   alias Uniris.Governance.Pools
 
@@ -26,7 +25,7 @@ defmodule Uniris.Governance.Code do
   """
   @spec list_source_files() :: list(binary())
   def list_source_files do
-    {files, 0} = System.cmd("git", ["ls-tree", "-r", "master", "--name-only"], cd: @src_dir)
+    {files, 0} = System.cmd("git", ["ls-tree", "-r", "HEAD", "--name-only"], cd: @src_dir)
     String.split(files, "\n", trim: true)
   end
 
@@ -60,17 +59,17 @@ defmodule Uniris.Governance.Code do
   Deploy the proposal into a dedicated testnet
   """
   @spec deploy_proposal_testnet(Proposal.t()) :: :ok
-  defdelegate deploy_proposal_testnet(prop), to: TestNet, as: :deploy_proposal
+  defdelegate deploy_proposal_testnet(prop), to: Utils.impl(CICD), as: :run_testnet!
 
   @doc """
   Ensure the code proposal is valid according to the defined rules:
-  - Version in the code proposal must be greater than the current running version.
-  - Git diff/patch must be valid. A fork is make to apply the diff and run the CI tasks
+  - Version in the code proposal must be a direct successor of the current running version.
+  - Git diff/patch must be valid.
   """
   @spec valid_proposal?(Proposal.t()) :: boolean()
   def valid_proposal?(prop = %Proposal{version: version}) do
-    with :gt <- Version.compare(version, current_version()),
-         :ok <- CI.run(prop) do
+    with true <- succeessor_version?(current_version(), version),
+         true <- applicable_proposal?(prop) do
       true
     else
       _ ->
@@ -78,13 +77,115 @@ defmodule Uniris.Governance.Code do
     end
   end
 
+  @doc """
+  Ensure the code proposal is an applicable on the current branch.
+  """
+  @spec applicable_proposal?(Proposal.t()) :: boolean()
+  def applicable_proposal?(
+        %Proposal{changes: changes, address: address},
+        src_dir \\ @src_dir
+      ) do
+    random = :crypto.strong_rand_bytes(4) |> Base.encode16()
+    prop_file = Path.join(System.tmp_dir!(), "prop_#{random}_#{Base.encode16(address)}")
+    File.write!(prop_file, changes)
+
+    cmd_options = [stderr_to_stdout: true, cd: src_dir]
+    git = fn args -> System.cmd("git", args, cmd_options) end
+
+    res =
+      case status() do
+        {:clean, _} ->
+          git.(["apply", "--check", prop_file])
+
+        otherwise ->
+          {:error, otherwise}
+      end
+
+    File.rm(prop_file)
+
+    match?({_, 0}, res)
+  end
+
+  @doc """
+  Return tuple {state, branch_name} where state could be :clean or :dirty or
+  {:error, whatever}
+  """
+  @spec status() :: {:clean, String.t()} | {:dirty, String.t()} | {:error, any}
+  def status(src_dir \\ @src_dir) do
+    git = fn args -> System.cmd("git", args, stderr_to_stdout: true, cd: src_dir) end
+
+    case git.(["symbolic-ref", "--short", "HEAD"]) do
+      {branch, 0} ->
+        case git.(["status", "--porcelain"]) do
+          {"", 0} ->
+            {:clean, String.trim(branch)}
+
+          {_, 0} ->
+            {:dirty, String.trim(branch)}
+
+          otherwise ->
+            {:error, otherwise}
+        end
+
+      otherwise ->
+        {:error, otherwise}
+    end
+  end
+
+  @doc """
+  Return true if version2 is a direct successor of version1.
+  Note that build and patch must not be set.
+
+  ## Examples
+
+    iex> Code.succeessor_version?("1.1.1", "1.1.2")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.0")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "2.0.0")
+    true
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.2")
+    false
+
+    iex> Code.succeessor_version?("1.1.1", "1.2.1")
+    false
+
+    iex> Code.succeessor_version?("1.1.1", "1.1.2-pre0")
+    false
+  """
+  @spec succeessor_version?(binary | Version.t(), binary | Version.t()) :: boolean
+  def succeessor_version?(version1, version2)
+      when is_binary(version1) and is_binary(version2) do
+    succeessor_version?(Version.parse!(version1), Version.parse!(version2))
+  end
+
+  def succeessor_version?(
+        %Version{major: ma, minor: mi, patch: pa1, pre: [], build: nil},
+        %Version{major: ma, minor: mi, patch: pa2, pre: [], build: nil}
+      ),
+      do: pa1 + 1 == pa2
+
+  def succeessor_version?(
+        %Version{major: ma, minor: mi1, patch: _, pre: [], build: nil},
+        %Version{major: ma, minor: mi2, patch: 0, pre: [], build: nil}
+      ),
+      do: mi1 + 1 == mi2
+
+  def succeessor_version?(
+        %Version{major: ma1, minor: _, patch: _, pre: [], build: nil},
+        %Version{major: ma2, minor: 0, patch: 0, pre: [], build: nil}
+      ),
+      do: ma1 + 1 == ma2
+
+  def succeessor_version?(%Version{}, %Version{}), do: false
+
   defp current_version do
-    {:ok, vsn} = :application.get_key(:uniris, :vsn)
-    List.to_string(vsn)
+    :uniris |> Application.spec(:vsn) |> List.to_string()
   end
 
   @spec list_proposal_CI_logs(binary()) :: Enumerable.t()
-  defdelegate list_proposal_CI_logs(address),
-    to: CI,
-    as: :list_logs
+  defdelegate list_proposal_CI_logs(address), to: Utils.impl(CICD), as: :get_log
 end

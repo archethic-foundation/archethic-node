@@ -15,12 +15,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   At 00.00 UTC, nodes receives will applied the node shared secrets for the transaction mining
   """
 
-  alias Uniris.Crypto
-
-  alias Uniris.Mining
-
-  alias Uniris.P2P
-  alias Uniris.P2P.Message.StartMining
+  alias Uniris
 
   alias Uniris.SharedSecrets.NodeRenewal
 
@@ -38,7 +33,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   - trigger_offset: How many seconds before the interval, the node renewal must be done and sent to all the nodes
   """
   @spec start_link(
-          args :: [interval: binary(), trigger_offset: non_neg_integer()],
+          args :: [interval: binary()],
           opts :: Keyword.t()
         ) ::
           {:ok, pid()}
@@ -49,41 +44,32 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    trigger_offset = Keyword.get(opts, :trigger_offset)
-    {:ok, %{interval: interval, trigger_offset: trigger_offset}, {:continue, :start_scheduler}}
+    {:ok, %{interval: interval}, {:continue, :start_scheduler}}
   end
 
   def handle_continue(
         :start_scheduler,
-        state = %{interval: interval, trigger_offset: trigger_offset}
+        state = %{interval: interval}
       ) do
     Logger.info("Start node shared secrets scheduler")
 
-    me = self()
+    timer = schedule_renewal_message(interval)
+    remaining_seconds = remaining_seconds_from_timer(timer)
 
-    Task.start(fn ->
-      timer = schedule_renewal_message(me, interval, trigger_offset)
-      remaining_seconds = remaining_seconds_from_timer(timer)
-
-      Logger.info(
-        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
-      )
-    end)
+    Logger.info(
+      "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+    )
 
     {:noreply, state}
   end
 
-  def handle_info(:make_renewal, state = %{interval: interval, trigger_offset: trigger_offset}) do
-    me = self()
+  def handle_info(:make_renewal, state = %{interval: interval}) do
+    timer = schedule_renewal_message(interval)
+    remaining_seconds = remaining_seconds_from_timer(timer)
 
-    Task.start(fn ->
-      timer = schedule_renewal_message(me, interval, trigger_offset)
-      remaining_seconds = remaining_seconds_from_timer(timer)
-
-      Logger.info(
-        "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
-      )
-    end)
+    Logger.info(
+      "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+    )
 
     if NodeRenewal.initiator?() do
       Logger.info("Node shared secrets renewal creation...")
@@ -94,38 +80,18 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   end
 
   defp make_renewal do
-    tx =
-      NodeRenewal.next_authorized_node_public_keys()
-      |> NodeRenewal.new_node_shared_secrets_transaction(
-        :crypto.strong_rand_bytes(32),
-        :crypto.strong_rand_bytes(32)
-      )
-
-    validation_nodes = Mining.transaction_validation_nodes(tx)
-
-    validation_nodes
-    |> P2P.broadcast_message(%StartMining{
-      transaction: tx,
-      validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
-      welcome_node_public_key: Crypto.node_public_key()
-    })
-    |> Stream.run()
+    NodeRenewal.next_authorized_node_public_keys()
+    |> NodeRenewal.new_node_shared_secrets_transaction(
+      :crypto.strong_rand_bytes(32),
+      :crypto.strong_rand_bytes(32)
+    )
+    |> Uniris.send_new_transaction()
 
     Logger.info("Node shared secrets renewal transaction sent")
   end
 
-  defp schedule_renewal_message(pid, interval, trigger_offset) do
-    next_time = next_renewal_offset(interval, trigger_offset)
-    Process.send_after(pid, :make_renewal, next_time * 1000)
-  end
-
-  defp next_renewal_offset(interval, trigger_offset) do
-    if Utils.time_offset(interval) - trigger_offset <= 0 do
-      Process.sleep(Utils.time_offset(interval) * 1000)
-      Utils.time_offset(interval) - trigger_offset
-    else
-      Utils.time_offset(interval) - trigger_offset
-    end
+  defp schedule_renewal_message(interval) do
+    Process.send_after(self(), :make_renewal, Utils.time_offset(interval) * 1000)
   end
 
   defp remaining_seconds_from_timer(timer) do

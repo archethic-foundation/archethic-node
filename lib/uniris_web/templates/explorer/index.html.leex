@@ -18,6 +18,34 @@
                   </button>
                 </div>
               </form>
+              <div class="mt-6">
+                <div class="columns">
+                  <div class="column">
+                    <p class="heading is-size-7">Last beacon chain summary statistics</p>
+                  </div>
+                </div>
+                <div class="columns">
+                  
+                  <div class="column is-3">
+                    <div class="box has-text-centered">
+                      <p class="heading">Last TPS</p>
+                      <p class="title"><%= Float.floor(@tps, 3) %></p>
+                    </div>
+                  </div>
+                  <div class="column is-3">
+                    <div class="box has-text-centered">
+                      <p class="heading">Total Transactions</p>
+                      <p class="title"><%= @nb_transactions %></p>
+                    </div>
+                  </div>
+                  <div class="column is-3">
+                    <div class="box has-text-centered">
+                      <p class="heading">Active Nodes</p>
+                      <p class="title"><%= @nb_nodes %></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </h2>
       </div>

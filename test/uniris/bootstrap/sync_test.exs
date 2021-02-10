@@ -18,6 +18,8 @@ defmodule Uniris.Bootstrap.SyncTest do
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
+  alias Uniris.P2P.Message.NotifyEndOfNodeSync
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler
@@ -36,9 +38,9 @@ defmodule Uniris.Bootstrap.SyncTest do
   import Mox
 
   setup do
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-      {:ok, %LastTransactionAddress{address: address}}
+    MockClient
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      %LastTransactionAddress{address: address}
     end)
 
     :ok
@@ -76,16 +78,17 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
   end
 
-  describe "require_update?/3" do
+  describe "require_update?/4" do
     test "should return false when only a node is involved in the network" do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
-      assert false == Sync.require_update?({193, 101, 10, 202}, 3000, DateTime.utc_now())
+      assert false == Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node ip change" do
@@ -93,17 +96,19 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
-      assert Sync.require_update?({193, 101, 10, 202}, 3000, DateTime.utc_now())
+      assert Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node port change" do
@@ -111,17 +116,19 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
-      assert Sync.require_update?({127, 0, 0, 1}, 3010, DateTime.utc_now())
+      assert Sync.require_update?({127, 0, 0, 1}, 3010, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the last date of sync diff is greater than 3 seconds" do
@@ -129,30 +136,53 @@ defmodule Uniris.Bootstrap.SyncTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1)
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
       })
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
-        last_public_key: "other_node_key"
+        last_public_key: "other_node_key",
+        transport: :tcp
       })
 
       assert Sync.require_update?(
                {127, 0, 0, 1},
                3000,
+               :tcp,
                DateTime.utc_now()
                |> DateTime.add(-10)
              )
+    end
+
+    test "should return true when the transport change" do
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.node_public_key(0),
+        last_public_key: Crypto.node_public_key(1),
+        transport: :tcp
+      })
+
+      P2P.add_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3050,
+        first_public_key: "other_node_key",
+        last_public_key: "other_node_key",
+        transport: :tcp
+      })
+
+      assert true == Sync.require_update?({193, 101, 10, 202}, 3000, :sctp, DateTime.utc_now())
     end
   end
 
   describe "initialize_network/2" do
     setup do
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
-      start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
-      start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *", trigger_offset: 0})
+      start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+      start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
@@ -160,14 +190,24 @@ defmodule Uniris.Bootstrap.SyncTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(1),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        transport: MockTransport
       })
 
       :ok
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
-      Sync.initialize_network({127, 0, 0, 1}, 3000)
+      node_tx =
+        Transaction.new(:node, %TransactionData{
+          content: """
+          ip: 127.0.0.1
+          port: 3000
+          transport: MockTransport
+          """
+        })
+
+      Sync.initialize_network(node_tx)
 
       assert :persistent_term.get(:storage_nonce) != nil
 
@@ -197,20 +237,19 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     :ok = P2P.add_node(node)
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %ListNodes{} ->
-        {:ok,
-         %NodeList{
-           nodes: [
-             %Node{
-               ip: {127, 0, 0, 1},
-               port: 3000,
-               first_public_key: "key2",
-               last_public_key: "key2"
-             }
-           ]
-         }}
+      _, %ListNodes{} ->
+        %NodeList{
+          nodes: [
+            %Node{
+              ip: {127, 0, 0, 1},
+              port: 3000,
+              first_public_key: "key2",
+              last_public_key: "key2"
+            }
+          ]
+        }
     end)
 
     assert :ok = Sync.load_node_list(node)
@@ -236,13 +275,37 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     :ok = P2P.add_node(node)
 
-    MockTransport
-    |> expect(:send_message, fn _, _, %GetStorageNonce{public_key: public_key} ->
+    MockClient
+    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
-      {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
+      %EncryptedStorageNonce{digest: encrypted_nonce}
     end)
 
     assert :ok = Sync.load_storage_nonce(node)
     assert "fake_storage_nonce" = :persistent_term.get(:storage_nonce)
+  end
+
+  test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do
+    BeaconSlotTimer.start_link(interval: "0 * * * * *")
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      available?: true,
+      geo_patch: "AAA"
+    })
+
+    me = self()
+
+    MockClient
+    |> stub(:send_message, fn _, %NotifyEndOfNodeSync{} ->
+      send(me, :end_of_sync)
+      %Ok{}
+    end)
+
+    assert :ok = Sync.publish_end_of_sync()
+    assert_receive :end_of_sync
   end
 end

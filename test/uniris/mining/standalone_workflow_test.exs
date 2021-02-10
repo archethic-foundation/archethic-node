@@ -23,8 +23,8 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
 
   import Mox
 
-  test "run/1 should auto validate the transaction and request storage it" do
-    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *", trigger_offset: 0})
+  test "run/1 should auto validate the transaction and request storage" do
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -41,20 +41,20 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
 
     me = self()
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
+      _, %GetUnspentOutputs{} ->
+        %UnspentOutputList{unspent_outputs: unspent_outputs}
 
-      _, _, %GetP2PView{} ->
-        {:ok, %P2PView{nodes_view: <<1::1>>}}
+      _, %GetP2PView{} ->
+        %P2PView{nodes_view: <<1::1>>}
 
-      _, _, %GetTransaction{} ->
-        {:ok, %NotFound{}}
+      _, %GetTransaction{} ->
+        %NotFound{}
 
-      _, _, %ReplicateTransaction{} ->
+      _, %ReplicateTransaction{} ->
         send(me, :transaction_replicated)
-        {:ok, %Ok{}}
+        %Ok{}
     end)
 
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)

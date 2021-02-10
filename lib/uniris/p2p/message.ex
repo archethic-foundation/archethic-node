@@ -4,9 +4,10 @@ defmodule Uniris.P2P.Message do
   """
   alias Uniris.Account
 
-  alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.NodeInfo
-  alias Uniris.BeaconChain.Subset, as: BeaconSubset
+  alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.Slot
+  alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.Summary
 
   alias Uniris.Contracts
 
@@ -17,18 +18,19 @@ defmodule Uniris.P2P.Message do
   alias Uniris.P2P
 
   alias __MODULE__.AcknowledgeStorage
+  alias __MODULE__.AddBeaconSlotProof
   alias __MODULE__.AddMiningContext
-  alias __MODULE__.AddNodeInfo
   alias __MODULE__.Balance
-  alias __MODULE__.BeaconSlotList
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
   alias __MODULE__.EncryptedStorageNonce
   alias __MODULE__.FirstPublicKey
   alias __MODULE__.GetBalance
-  alias __MODULE__.GetBeaconSlots
+  alias __MODULE__.GetBeaconSlot
+  alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
+  alias __MODULE__.GetCurrentBeaconSlot
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
@@ -38,12 +40,15 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetTransactionChain
   alias __MODULE__.GetTransactionChainLength
   alias __MODULE__.GetTransactionInputs
+  alias __MODULE__.GetTransactionSummary
   alias __MODULE__.GetUnspentOutputs
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
+  alias __MODULE__.NotifyBeaconSlot
+  alias __MODULE__.NotifyEndOfNodeSync
   alias __MODULE__.NotifyLastTransactionAddress
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
@@ -88,8 +93,6 @@ defmodule Uniris.P2P.Message do
           | CrossValidate.t()
           | CrossValidationDone.t()
           | ReplicateTransaction.t()
-          | GetBeaconSlots.t()
-          | AddNodeInfo.t()
           | GetLastTransaction.t()
           | GetBalance.t()
           | GetTransactionInputs.t()
@@ -97,7 +100,6 @@ defmodule Uniris.P2P.Message do
           | TransactionChainLength.t()
           | Ok.t()
           | NotFound.t()
-          | BeaconSlotList.t()
           | TransactionList.t()
           | Transaction.t()
           | NodeList.t()
@@ -110,6 +112,12 @@ defmodule Uniris.P2P.Message do
           | NotifyLastTransactionAddress.t()
           | GetLastTransactionAddress.t()
           | LastTransactionAddress.t()
+          | NotifyEndOfNodeSync.t()
+          | AddBeaconSlotProof.t()
+          | NotifyBeaconSlot.t()
+          | GetBeaconSummary.t()
+          | GetBeaconSlot.t()
+          | GetCurrentBeaconSlot.t()
 
   @doc """
   Serialize a message into binary
@@ -208,12 +216,12 @@ defmodule Uniris.P2P.Message do
     <<12::8, address::binary>>
   end
 
-  def encode(%GetBeaconSlots{subset: subset, last_sync_date: last_sync_date}) do
-    <<13::8, DateTime.to_unix(last_sync_date)::32, subset::binary>>
+  def encode(%GetBeaconSummary{subset: subset, date: date}) do
+    <<13::8, subset::binary, DateTime.to_unix(date)::32>>
   end
 
-  def encode(%AddNodeInfo{subset: subset, node_info: node_info}) do
-    <<14::8, subset::binary, NodeInfo.serialize(node_info)::bitstring>>
+  def encode(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
+    <<14::8, public_key::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   def encode(%GetLastTransaction{address: address}) do
@@ -252,29 +260,61 @@ defmodule Uniris.P2P.Message do
     <<23::8, address::binary, previous_address::binary>>
   end
 
+  def encode(%GetTransactionSummary{address: address}) do
+    <<24::8, address::binary>>
+  end
+
+  def encode(%NotifyBeaconSlot{slot: slot}) do
+    <<25::8, Slot.serialize(slot)::bitstring>>
+  end
+
+  def encode(%AddBeaconSlotProof{
+        subset: subset,
+        digest: digest,
+        public_key: public_key,
+        signature: signature
+      }) do
+    <<26::8, subset::binary, digest::binary, public_key::binary, signature::binary>>
+  end
+
+  def encode(%GetBeaconSlot{subset: subset, slot_time: slot_time}) do
+    <<27::8, subset::binary, DateTime.to_unix(slot_time)::32>>
+  end
+
+  def encode(tx_summary = %TransactionSummary{}) do
+    <<239::8, TransactionSummary.serialize(tx_summary)::binary>>
+  end
+
+  def encode(summary = %Summary{}) do
+    <<240::8, Summary.serialize(summary)::binary>>
+  end
+
+  def encode(slot = %Slot{}) do
+    <<241::8, Slot.serialize(slot)::binary>>
+  end
+
   def encode(%LastTransactionAddress{address: address}) do
-    <<241::8, address::binary>>
+    <<242::8, address::binary>>
   end
 
   def encode(%FirstPublicKey{public_key: public_key}) do
-    <<242::8, public_key::binary>>
+    <<243::8, public_key::binary>>
   end
 
   def encode(%P2PView{nodes_view: view}) do
-    <<243::8, bit_size(view)::8, view::bitstring>>
+    <<244::8, bit_size(view)::8, view::bitstring>>
   end
 
-  def encode(%TransactionInputList{inputs: inputs, calls: calls}) do
+  def encode(%TransactionInputList{inputs: inputs}) do
     inputs_bin =
       Enum.map(inputs, &TransactionInput.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<244::8, length(inputs)::16, inputs_bin::bitstring, length(calls)::16,
-      :erlang.list_to_binary(calls)::binary>>
+    <<245::8, length(inputs)::16, inputs_bin::bitstring>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
-    <<245::8, length::32>>
+    <<246::8, length::32>>
   end
 
   def encode(%BootstrappingNodes{new_seeds: new_seeds, closest_nodes: closest_nodes}) do
@@ -288,12 +328,12 @@ defmodule Uniris.P2P.Message do
       |> Enum.map(&Node.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<246::8, length(new_seeds)::8, new_seeds_bin::bitstring, length(closest_nodes)::8,
+    <<247::8, length(new_seeds)::8, new_seeds_bin::bitstring, length(closest_nodes)::8,
       closest_nodes_bin::bitstring>>
   end
 
   def encode(%EncryptedStorageNonce{digest: digest}) do
-    <<247::8, digest::binary>>
+    <<248::8, digest::binary>>
   end
 
   def encode(%Balance{uco: uco_balance, nft: nft_balances}) do
@@ -305,16 +345,7 @@ defmodule Uniris.P2P.Message do
       |> Enum.reverse()
       |> :erlang.list_to_binary()
 
-    <<248::8, uco_balance::float, map_size(nft_balances)::16, nft_balances_binary::binary>>
-  end
-
-  def encode(%BeaconSlotList{slots: slots}) do
-    slots_bin =
-      slots
-      |> Enum.map(&BeaconSlot.serialize/1)
-      |> :erlang.list_to_bitstring()
-
-    <<249::8, length(slots)::16, slots_bin::bitstring>>
+    <<249::8, uco_balance::float, map_size(nft_balances)::16, nft_balances_binary::binary>>
   end
 
   def encode(%NodeList{nodes: nodes}) do
@@ -493,19 +524,19 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<13::8, last_sync_date::32, subset::binary-size(1)>>) do
-    %GetBeaconSlots{
-      last_sync_date: DateTime.from_unix!(last_sync_date),
+  def decode(<<13::8, subset::binary-size(1), timestamp::32>>) do
+    %GetBeaconSummary{
+      date: DateTime.from_unix!(timestamp),
       subset: subset
     }
   end
 
-  def decode(<<14::8, subset::8, rest::bitstring>>) do
-    {node_info, _} = NodeInfo.deserialize(rest)
+  def decode(<<14::8, rest::bitstring>>) do
+    {public_key, <<timestamp::32>>} = deserialize_public_key(rest)
 
-    %AddNodeInfo{
-      subset: <<subset>>,
-      node_info: node_info
+    %NotifyEndOfNodeSync{
+      node_public_key: public_key,
+      timestamp: DateTime.from_unix!(timestamp)
     }
   end
 
@@ -574,39 +605,76 @@ defmodule Uniris.P2P.Message do
     %NotifyLastTransactionAddress{address: address, previous_address: previous_address}
   end
 
-  def decode(<<241::8, rest::binary>>) do
+  def decode(<<24::8, rest::binary>>) do
+    {address, _} = deserialize_hash(rest)
+    %GetTransactionSummary{address: address}
+  end
+
+  def decode(<<25::8, rest::bitstring>>) do
+    {slot, _} = Slot.deserialize(rest)
+    %NotifyBeaconSlot{slot: slot}
+  end
+
+  def decode(<<26::8, subset::binary-size(1), rest::binary>>) do
+    {digest, rest} = deserialize_hash(rest)
+    {public_key, signature} = deserialize_public_key(rest)
+
+    %AddBeaconSlotProof{
+      subset: subset,
+      digest: digest,
+      public_key: public_key,
+      signature: signature
+    }
+  end
+
+  def decode(<<27::8, subset::binary-size(1), timestamp::32>>) do
+    %GetBeaconSlot{subset: subset, slot_time: DateTime.from_unix!(timestamp)}
+  end
+
+  def decode(<<239::8, rest::bitstring>>) do
+    {tx_summary, _} = TransactionSummary.deserialize(rest)
+    tx_summary
+  end
+
+  def decode(<<240::8, rest::bitstring>>) do
+    {summary, _} = Summary.deserialize(rest)
+    summary
+  end
+
+  def decode(<<241::8, rest::bitstring>>) do
+    {slot, _} = Slot.deserialize(rest)
+    slot
+  end
+
+  def decode(<<242::8, rest::binary>>) do
     {address, _} = deserialize_hash(rest)
     %LastTransactionAddress{address: address}
   end
 
-  def decode(<<242::8, rest::binary>>) do
+  def decode(<<243::8, rest::binary>>) do
     {public_key, _} = deserialize_public_key(rest)
     %FirstPublicKey{public_key: public_key}
   end
 
-  def decode(<<243::8, view_size::8, rest::bitstring>>) do
+  def decode(<<244::8, view_size::8, rest::bitstring>>) do
     %P2PView{nodes_view: Utils.unwrap_bitstring(rest, view_size)}
   end
 
-  def decode(<<244::8, nb_inputs::16, rest::bitstring>>) do
-    {inputs, <<nb_calls::16, rest::bitstring>>} =
-      deserialize_transaction_inputs(rest, nb_inputs, [])
-
-    {calls, _} = deserialize_transaction_addresses(rest, nb_calls, [])
+  def decode(<<245::8, nb_inputs::16, rest::bitstring>>) do
+    {inputs, _} = deserialize_transaction_inputs(rest, nb_inputs, [])
 
     %TransactionInputList{
-      inputs: inputs,
-      calls: calls
+      inputs: inputs
     }
   end
 
-  def decode(<<245::8, length::32>>) do
+  def decode(<<246::8, length::32>>) do
     %TransactionChainLength{
       length: length
     }
   end
 
-  def decode(<<246::8, nb_new_seeds::8, rest::bitstring>>) do
+  def decode(<<247::8, nb_new_seeds::8, rest::bitstring>>) do
     {new_seeds, <<nb_closest_nodes::8, rest::bitstring>>} =
       deserialize_node_list(rest, nb_new_seeds, [])
 
@@ -618,26 +686,18 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<247::8, digest::binary>>) do
+  def decode(<<248::8, digest::binary>>) do
     %EncryptedStorageNonce{
       digest: digest
     }
   end
 
-  def decode(<<248::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
+  def decode(<<249::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
     {nft_balances, _} = deserialize_nft_balances(rest, nb_nft_balances, %{})
 
     %Balance{
       uco: uco_balance,
       nft: nft_balances
-    }
-  end
-
-  def decode(<<249::8, nb_slots::16, rest::bitstring>>) do
-    {slots, _} = deserialize_beacon_slots(rest, nb_slots, [])
-
-    %BeaconSlotList{
-      slots: slots
     }
   end
 
@@ -714,17 +774,6 @@ defmodule Uniris.P2P.Message do
     deserialize_unspent_output_list(rest, nb_unspent_outputs, [unspent_output | acc])
   end
 
-  defp deserialize_beacon_slots(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_beacon_slots(rest, nb_slots, acc) when length(acc) == nb_slots do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_beacon_slots(rest, nb_slots, acc) do
-    {slot, rest} = BeaconSlot.deserialize(rest)
-    deserialize_beacon_slots(rest, nb_slots, [slot | acc])
-  end
-
   defp deserialize_hash(<<hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
     <<hash::binary-size(hash_size), rest::bitstring>> = rest
@@ -758,18 +807,6 @@ defmodule Uniris.P2P.Message do
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
   end
 
-  defp deserialize_transaction_addresses(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_transaction_addresses(rest, nb_addresses, acc)
-       when length(acc) == nb_addresses do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_transaction_addresses(rest, nb_addresses, acc) do
-    {address, rest} = deserialize_hash(rest)
-    deserialize_transaction_inputs(rest, nb_addresses, [address | acc])
-  end
-
   defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
 
   defp deserialize_nft_balances(rest, nft_balances, acc) when map_size(acc) == nft_balances do
@@ -798,13 +835,17 @@ defmodule Uniris.P2P.Message do
           | AcknowledgeStorage.t()
           | CrossValidate.t()
           | CrossValidationDone.t()
-          | GetBeaconSlots.t()
-          | AddNodeInfo.t()
+          | NotifyEndOfNodeSync.t()
+          | NotifyBeaconSlot.t()
           | GetLastTransaction.t()
           | GetBalance.t()
           | GetTransactionInputs.t()
           | GetTransactionChainLength.t()
           | GetP2PView.t()
+          | GetTransactionSummary.t()
+          | GetBeaconSlot.t()
+          | GetBeaconSummary.t()
+          | GetCurrentBeaconSlot.t()
         ) ::
           Ok.t()
           | NotFound.t()
@@ -813,12 +854,16 @@ defmodule Uniris.P2P.Message do
           | NodeList.t()
           | TransactionList.t()
           | Transaction.t()
-          | BeaconSlotList.t()
           | Balance.t()
           | TransactionInputList.t()
           | TransactionChainLength.t()
           | UnspentOutputList.t()
           | P2PView.t()
+          | NotFound.t()
+          | TransactionSummary.t()
+          | Slot.t()
+          | Summary.t()
+
   def process(%GetBootstrappingNodes{patch: patch}) do
     top_nodes = P2P.list_nodes(authorized?: true, availability: :local)
 
@@ -923,7 +968,15 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%ReplicateTransaction{transaction: tx}) do
-    case Replication.roles(tx, Crypto.node_public_key()) do
+    roles =
+      [
+        chain: Replication.chain_storage_node?(tx, Crypto.node_public_key()),
+        beacon: Replication.beacon_storage_node?(tx, Crypto.node_public_key()),
+        IO: Replication.io_storage_node?(tx, Crypto.node_public_key())
+      ]
+      |> Utils.get_keys_from_value_match(true)
+
+    case roles do
       [] ->
         %Ok{}
 
@@ -959,13 +1012,18 @@ defmodule Uniris.P2P.Message do
     %Ok{}
   end
 
-  def process(%GetBeaconSlots{last_sync_date: last_sync_date, subset: subset}) do
-    slots = BeaconSubset.missing_slots(subset, last_sync_date)
-    %BeaconSlotList{slots: slots}
+  def process(%GetBeaconSummary{date: date, subset: subset}) do
+    case BeaconChain.get_summary(subset, date) do
+      {:ok, summary} ->
+        summary
+
+      _ ->
+        %NotFound{}
+    end
   end
 
-  def process(%AddNodeInfo{subset: subset, node_info: node_info}) do
-    :ok = BeaconSubset.add_node_info(subset, node_info)
+  def process(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
+    :ok = BeaconChain.add_end_of_node_sync(public_key, timestamp)
     %Ok{}
   end
 
@@ -983,16 +1041,23 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%GetBalance{address: address}) do
+    %{uco: uco, nft: nft} = Account.get_balance(address)
+
     %Balance{
-      uco: Account.get_balance(address)
+      uco: uco,
+      nft: nft
     }
   end
 
   def process(%GetTransactionInputs{address: address}) do
-    %TransactionInputList{
-      inputs: Account.get_inputs(address),
-      calls: Contracts.list_contract_transactions(address)
-    }
+    ledger_inputs = Account.get_inputs(address)
+
+    contract_inputs =
+      address
+      |> Contracts.list_contract_transactions()
+      |> Enum.map(&%TransactionInput{from: &1, type: :call})
+
+    %TransactionInputList{inputs: ledger_inputs ++ contract_inputs}
   end
 
   def process(%GetTransactionChainLength{address: address}) do
@@ -1028,5 +1093,48 @@ defmodule Uniris.P2P.Message do
   def process(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
     :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address)
     %Ok{}
+  end
+
+  def process(%GetTransactionSummary{address: address}) do
+    case TransactionChain.get_transaction(address, [
+           :address,
+           :type,
+           :timestamp,
+           validation_stamp: [:node_movements, :transaction_movements]
+         ]) do
+      {:ok, tx} ->
+        TransactionSummary.from_transaction(tx)
+
+      _ ->
+        %NotFound{}
+    end
+  end
+
+  def process(%GetBeaconSlot{subset: subset, slot_time: slot_time}) do
+    case BeaconChain.get_slot(subset, slot_time) do
+      {:ok, slot = %Slot{}} ->
+        slot
+
+      {:error, :not_found} ->
+        %NotFound{}
+    end
+  end
+
+  def process(%GetCurrentBeaconSlot{subset: subset}) do
+    BeaconChain.get_current_slot(subset)
+  end
+
+  def process(%NotifyBeaconSlot{slot: slot}) do
+    BeaconChain.register_slot(slot)
+    %Ok{}
+  end
+
+  def process(%AddBeaconSlotProof{
+        subset: subset,
+        digest: digest,
+        public_key: node_public_key,
+        signature: signature
+      }) do
+    BeaconChain.add_slot_proof(subset, digest, node_public_key, signature)
   end
 end
