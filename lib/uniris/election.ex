@@ -54,6 +54,7 @@ defmodule Uniris.Election do
   defp do_validation_node_election(nodes, tx, nb_validations, min_geo_patch) do
     tx_hash =
       tx
+      |> Transaction.to_pending()
       |> Transaction.serialize()
       |> Crypto.hash()
 
