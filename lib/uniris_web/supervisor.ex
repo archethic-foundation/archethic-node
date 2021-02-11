@@ -8,6 +8,8 @@ defmodule UnirisWeb.Supervisor do
   alias UnirisWeb.Endpoint
   alias UnirisWeb.TransactionSubscriber
 
+  require Logger
+
   def start_link(opts) do
     Supervisor.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -35,6 +37,7 @@ defmodule UnirisWeb.Supervisor do
 
   defp try_open_port(conf) do
     port = Keyword.get(conf, :port)
+    Logger.info("Try to open the port #{port}")
     Networking.try_open_port(port, false)
   end
 end

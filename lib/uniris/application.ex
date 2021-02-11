@@ -26,13 +26,14 @@ defmodule Uniris.Application do
   alias UnirisWeb.Endpoint, as: WebEndpoint
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
+  require Logger
+
   def start(_type, _args) do
     p2p_endpoint_conf = Application.get_env(:uniris, Uniris.P2P.Endpoint)
 
-    port =
-      p2p_endpoint_conf
-      |> Keyword.fetch!(:port)
-      |> Networking.try_open_port(true)
+    port = Keyword.fetch!(p2p_endpoint_conf, :port)
+    Logger.info("Try to open the port #{port}")
+    port = Networking.try_open_port(port, true)
 
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 

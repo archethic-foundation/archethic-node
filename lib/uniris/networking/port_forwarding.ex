@@ -16,6 +16,7 @@ defmodule Uniris.Networking.PortForwarding do
         port
 
       {:error, _} ->
+        Logger.error("Cannot publish the port #{port}")
         fallback(port, force?)
     end
   end
@@ -40,6 +41,7 @@ defmodule Uniris.Networking.PortForwarding do
   defp fallback(port, _force? = true) do
     case do_try_open_port(0) do
       {:ok, port} ->
+        Logger.info("Use the random port #{port} as fallback")
         port
 
       {:error, _} ->
@@ -54,7 +56,7 @@ defmodule Uniris.Networking.PortForwarding do
   end
 
   defp fallback(port, _force? = false) do
-    Logger.error("Cannot publish the port #{port}")
+    Logger.error("No fallback provided for the port #{port}")
 
     Logger.info(
       "Port from configuration is used but requires a manuel port forwarding setting on the router"
