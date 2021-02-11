@@ -3,13 +3,14 @@ defmodule UnirisWeb.ErrorView do
 
   use UnirisWeb, :view
 
+  alias Ecto.Changeset
   alias Phoenix.Controller
 
   # If you want to customize a particular status code
   # for a certain format, you may uncomment below.
-  # def render("500.json", _assigns) do
-  #   %{errors: %{detail: "Internal Server Error"}}
-  # end
+  def render("400.json", %{changeset: changeset}) do
+    %{status: "invalid", errors: Changeset.traverse_errors(changeset, &translate_error/1)}
+  end
 
   # By default, Phoenix returns the status message from
   # the template name. For example, "404.json" becomes

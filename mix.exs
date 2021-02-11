@@ -66,7 +66,8 @@ defmodule Uniris.MixProject do
       {:inet_cidr, "~> 1.1", hex: :erl_cidr, override: true},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"},
-      {:poolboy, "~> 1.5.1"}
+      {:poolboy, "~> 1.5.1"},
+      {:ecto, "~> 3.5"}
     ]
   end
 end
