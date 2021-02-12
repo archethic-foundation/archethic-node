@@ -74,4 +74,15 @@ defmodule Uniris.Contracts.InterpreterTest do
              """
              |> Interpreter.parse()
   end
+
+  test "execute_inherit_condition/2 should execute code and call library functions with the inherit condition subject " do
+    code = "regex_match?(\"hello\")"
+    assert false == Interpreter.execute_inherit_condition(code, "abc")
+
+    code = "regex_match?(\"hello\")"
+    assert true == Interpreter.execute_inherit_condition(code, "hello")
+
+    code = "regex_match?(\"hello\") and hash() == \"abc\" "
+    assert false == Interpreter.execute_inherit_condition(code, "hello")
+  end
 end

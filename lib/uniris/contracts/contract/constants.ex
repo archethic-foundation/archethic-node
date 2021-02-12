@@ -46,8 +46,6 @@ defmodule Uniris.Contracts.Contract.Constants do
       address: address,
       content: content,
       code: code,
-      uco_transfers: uco_transfers,
-      nft_transfers: nft_transfers,
       authorized_keys: authorized_keys,
       secret: secret,
       previous_public_key: previous_public_key,
