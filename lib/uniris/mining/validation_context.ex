@@ -657,18 +657,14 @@ defmodule Uniris.Mining.ValidationContext do
           )
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
         recipients: resolve_transaction_recipients(tx),
-        contract_validation: valid_smart_contract?(tx, prev_tx)
+        contract_validation: valid_smart_contract?(prev_tx, tx)
       }
       |> ValidationStamp.sign()
 
     add_io_storage_nodes(%{context | validation_stamp: validation_stamp})
   end
 
-  defp valid_smart_contract?(new_tx = %Transaction{}, prev_tx = %Transaction{}) do
-    Contracts.accept_new_contract?(prev_tx, new_tx)
-  end
-
-  defp valid_smart_contract?(%Transaction{}, nil), do: true
+  defp valid_smart_contract?(prev_tx, new_tx), do: Contracts.accept_new_contract?(prev_tx, new_tx)
 
   defp resolve_transaction_movements(tx) do
     tx
@@ -784,7 +780,8 @@ defmodule Uniris.Mining.ValidationContext do
                    transaction_movements: tx_movements,
                    unspent_outputs: next_unspent_outputs
                  },
-               recipients: tx_recipients
+               recipients: tx_recipients,
+               contract_validation: valid_contract?
              }
          }
        ) do
@@ -805,7 +802,8 @@ defmodule Uniris.Mining.ValidationContext do
           next_unspent_outputs,
           resolved_transaction_movements
         )
-      end
+      end,
+      contract_validation: fn -> valid_smart_contract?(prev_tx, tx) == valid_contract? end
     ]
 
     subsets_verifications
