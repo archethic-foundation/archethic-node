@@ -15,21 +15,21 @@ usage() {
 }
 
 while getopts :uhd: option
-do 
-    case "${option}" 
-    in 
-        d) INSTALL_DIR=${OPTARG};; 
-        u) UPGRADE=1;; 
-        h) 
+do
+    case "${option}"
+    in
+        d) INSTALL_DIR=${OPTARG};;
+        u) UPGRADE=1;;
+        h)
           usage
           exit 0
           ;;
-        *) 
+        *)
           usage
           exit 1
           ;;
-    esac 
-done 
+    esac
+done
 shift $((OPTIND -1))
 
 # Install updated versions of hex/rebar
@@ -57,12 +57,13 @@ then
     # Build upgrade releases
     echo "Build the upgrade release"
     mix distillery.release --upgrade
+    MIX_ENV=dev mix distillery.release --upgrade
 
     echo "Copy upgraded release into ${INSTALL_DIR}/mainnet/releases/${VERSION}"
     echo "Copy upgraded release into ${INSTALL_DIR}/testnet/releases/${VERSION}"
 
     cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/mainnet/releases/${VERSION}
-    cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/testnet/releases/${VERSION}
+    cp "_build/dev/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/testnet/releases/${VERSION}
 
     echo "Run the upgrade"
     ${INSTALL_DIR}/mainnet/bin/uniris_node upgrade ${VERSION}
@@ -81,7 +82,7 @@ else
     echo "Install TestNet release"
     echo "Copy release into ${INSTALL_DIR}/testnet"
     tar zxvf ${INSTALL_DIR}/uniris_node.tar.gz -C ${INSTALL_DIR}/testnet
-    cp "rel/dev_runtime_config.exs" ${INSTALL_DIR}/testnet/runtime_config.exs
+    cp "config/dev.exs" ${INSTALL_DIR}/testnet/releases/${VERSION}/runtime_config.exs
 fi
 
 exit

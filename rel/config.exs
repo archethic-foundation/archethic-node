@@ -28,11 +28,11 @@ environment Mix.env() do
   set vm_args: "rel/vm.args"
 
   set config_providers: [
-        {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
+        {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
       ]
 
   set overlays: [
-        {:copy, "config/#{Mix.env()}.exs", "runtime_config.exs"}
+        {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"}
       ]
 end
 
