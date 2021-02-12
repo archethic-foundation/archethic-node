@@ -385,6 +385,8 @@ defmodule Uniris.TransactionChain.Transaction do
   Verify if the public key match the origin signature of the transaction
   """
   @spec verify_origin_signature?(t(), Crypto.key()) :: boolean()
+  def verify_origin_signature?(%__MODULE__{}, ""), do: false
+
   def verify_origin_signature?(tx = %__MODULE__{origin_signature: origin_signature}, public_key)
       when is_binary(public_key) do
     raw_tx =
