@@ -62,7 +62,7 @@ config :uniris, Uniris.P2P.BootstrappingSeeds, file: "priv/p2p/seeds"
 config :uniris, Uniris.P2P.Endpoint,
   nb_acceptors: 100,
   transport: :tcp,
-  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
+  port: 3002
 
 # Configure the endpoint
 config :uniris, UnirisWeb.Endpoint,

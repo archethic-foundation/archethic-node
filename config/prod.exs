@@ -49,6 +49,9 @@ config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight
   interval: "0 0 0 * * * *"
 
+config :uniris, Uniris.P2P.Endpoint,
+  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
+
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
 # when generating URLs.

@@ -63,6 +63,9 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second
   interval: "40 * * * * * *"
 
+config :uniris, Uniris.P2P.Endpoint,
+  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
+
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
