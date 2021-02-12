@@ -26,6 +26,7 @@ environment Mix.env() do
   set include_src: false
   set cookie: :crypto.strong_rand_bytes(32) |> Base.encode16() |> String.to_atom()
   set vm_args: "rel/vm.args"
+  set pre_configure_hooks: "rel/pre_configure"
 
   set config_providers: [
         {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
