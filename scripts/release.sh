@@ -56,7 +56,7 @@ if [ $UPGRADE == 1 ]
 then
     # Build upgrade releases
     echo "Build the upgrade release"
-    mix distillery.release --upgrade
+    MIX_ENV=prod mix distillery.release --upgrade
     MIX_ENV=dev mix distillery.release --upgrade
 
     echo "Copy upgraded release into ${INSTALL_DIR}/mainnet/releases/${VERSION}"
@@ -72,17 +72,14 @@ else
     # Build the releases
 
     echo "Generate release"
-    mix distillery.release
+    MIX_ENV=prod mix distillery.release
+    MIX_ENV=dev mix distillery.release
 
     echo "Install MainNet release"
-    echo "Copy release into ${INSTALL_DIR}/mainnet"
-    cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}
-    tar zxvf ${INSTALL_DIR}/uniris_node.tar.gz -C ${INSTALL_DIR}/mainnet
+    tar zxvf "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}/mainnet
 
     echo "Install TestNet release"
-    echo "Copy release into ${INSTALL_DIR}/testnet"
-    tar zxvf ${INSTALL_DIR}/uniris_node.tar.gz -C ${INSTALL_DIR}/testnet
-    cp "config/dev.exs" ${INSTALL_DIR}/testnet/releases/${VERSION}/runtime_config.exs
+    tar zxvf "_build/dev/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}/testnet
 fi
 
 exit
