@@ -66,6 +66,7 @@ defmodule Uniris.Contracts.Worker do
 
     case Enum.find(triggers, &(&1.type == :transaction)) do
       nil ->
+        Logger.info("No transaction trigger for this contract")
         {:reply, {:error, :no_transaction_trigger}, state}
 
       %Trigger{} ->
@@ -171,25 +172,7 @@ defmodule Uniris.Contracts.Worker do
     Logger.error("#{inspect(e)}")
   end
 
-  defp handle_new_transaction(
-         {:ok,
-          contract = %Contract{
-            next_transaction: next_tx,
-            constants: %Constants{contract: contract_constants},
-            conditions: %Conditions{inherit: inherit_constraints}
-          }}
-       ) do
-    inherit_constants = [
-      previous_transaction: Enum.into(contract_constants, %{}),
-      next_transaction: next_tx |> Constants.from_transaction() |> Enum.into(%{})
-    ]
-
-    if Interpreter.can_execute?(Macro.to_string(inherit_constraints), inherit_constants) do
-      dispatch_transaction(contract)
-    else
-      :ok
-    end
-  end
+  defp handle_new_transaction({:ok, contract}), do: dispatch_transaction(contract)
 
   defp dispatch_transaction(%Contract{
          next_transaction: next_tx,
