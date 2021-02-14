@@ -714,6 +714,15 @@ defmodule Uniris.Crypto do
   def key_size(2), do: 65
 
   @doc """
+  Determine if a public key is valid
+  """
+  @spec valid_public_key?(binary()) :: boolean()
+  def valid_public_key?(<<0::8, _::binary-size(32)>>), do: true
+  def valid_public_key?(<<1::8, _::binary-size(65)>>), do: true
+  def valid_public_key?(<<2::8, _::binary-size(65)>>), do: true
+  def valid_public_key?(_), do: false
+
+  @doc """
   Return the size of hash using the algorithm id
 
   ## Examples

@@ -28,7 +28,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
         102>>
       ]
   """
-  @spec new(list(Crypto.key()), secret_key :: binary(), secret :: binary()) :: __MODULE__.t()
+  @spec new(list(Crypto.key()), secret_key :: binary(), secret :: binary()) :: t()
   def new(authorized_public_keys, secret_key, secret)
       when is_list(authorized_public_keys) and is_binary(secret_key) do
     Enum.reduce(authorized_public_keys, %__MODULE__{secret: secret}, fn public_key, acc = %{} ->
@@ -113,7 +113,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
         <<>>
       }
   """
-  @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
+  @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<secret_size::32, secret::binary-size(secret_size), 0::8, rest::bitstring>>) do
     {
       %__MODULE__{
@@ -159,19 +159,23 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
     {Map.put(acc, <<curve_id::8, public_key::binary>>, encrypted_key), rest}
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
+  @spec from_map(map()) :: t()
   def from_map(keys = %{}) do
     %__MODULE__{
-      secret: Map.get(keys, :secret),
+      secret: Map.get(keys, :secret, ""),
       authorized_keys: Map.get(keys, :authorized_keys, %{})
     }
   end
 
-  @spec to_map(__MODULE__.t()) :: map()
-  def to_map(%__MODULE__{secret: secret, authorized_keys: authorized_keys}) do
+  @spec to_map(t() | nil) :: map()
+  def to_map(nil) do
+    %{secret: "", authorized_keys: %{}}
+  end
+
+  def to_map(keys = %__MODULE__{}) do
     %{
-      secret: secret,
-      authorized_keys: authorized_keys
+      secret: Map.get(keys, :secret, ""),
+      authorized_keys: Map.get(keys, :authorized_keys, %{})
     }
   end
 
@@ -196,7 +200,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
       ...> 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>>)
       true
   """
-  @spec authorized_key?(__MODULE__.t(), Crypto.key()) :: boolean()
+  @spec authorized_key?(t(), Crypto.key()) :: boolean()
   def authorized_key?(%__MODULE__{authorized_keys: auth_keys}, node_public_key) do
     Map.has_key?(auth_keys, node_public_key)
   end
@@ -224,7 +228,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
           83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>>
       ]
   """
-  @spec list_authorized_keys(__MODULE__.t()) :: list(Crypto.key())
+  @spec list_authorized_keys(t()) :: list(Crypto.key())
   def list_authorized_keys(%__MODULE__{authorized_keys: auth_keys}), do: Map.keys(auth_keys)
 
   @doc """
@@ -252,7 +256,7 @@ defmodule Uniris.TransactionChain.TransactionData.Keys do
         212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
         224, 214, 225, 146, 44, 83, 111, 34, 239, 99, 1, 126, 241, 246>>
   """
-  @spec get_encrypted_key(__MODULE__.t(), Crypto.key()) :: binary()
+  @spec get_encrypted_key(t(), Crypto.key()) :: binary()
   def get_encrypted_key(%__MODULE__{authorized_keys: auth_keys}, public_key) do
     Map.get(auth_keys, public_key)
   end

@@ -936,11 +936,14 @@ defmodule Uniris.P2P.Message do
         welcome_node_public_key: welcome_node_public_key,
         validation_node_public_keys: validation_nodes
       }) do
-    with true <- Mining.accept_transaction?(tx),
+    with :ok <- Mining.validate_pending_transaction(tx),
          true <- Mining.valid_election?(tx, validation_nodes) do
       {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
       %Ok{}
     else
+      {:error, _reason} ->
+        raise "Invalid transaction mining request"
+
       false ->
         raise "Invalid transaction mining request"
     end

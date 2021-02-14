@@ -104,7 +104,9 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit: next_transaction.uco_transferred == 10.04
+      condition inherit,
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+
       actions triggered_by: datetime, at: #{
         DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()
       } do
@@ -126,6 +128,9 @@ defmodule Uniris.Contracts.WorkerTest do
         {:transaction_sent, tx} ->
           assert tx.address == expected_tx.address
           assert tx.data.code == code
+      after
+        3_000 ->
+          raise "Timeout"
       end
     end
 
@@ -134,7 +139,8 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit: next_transaction.uco_transferred == 10.04
+      condition inherit,
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
 
       actions triggered_by: interval, at: "* * * * * *" do
         set_type transfer
@@ -160,7 +166,13 @@ defmodule Uniris.Contracts.WorkerTest do
             {:transaction_sent, tx} ->
               assert tx.address == expected_tx.address
               assert tx.data.code == code
+          after
+            3_000 ->
+              raise "Timeout"
           end
+      after
+        3_000 ->
+          raise "Timeout"
       end
     end
   end
@@ -186,7 +198,9 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit: next_transaction.uco_transferred == 10.04
+      condition inherit,
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
@@ -213,6 +227,9 @@ defmodule Uniris.Contracts.WorkerTest do
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == code
+      after
+        3_000 ->
+          raise "Timeout"
       end
     end
 
@@ -223,7 +240,9 @@ defmodule Uniris.Contracts.WorkerTest do
          } do
       code = """
       condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
-      condition inherit: next_transaction.uco_transferred == 10.04
+
+      condition inherit,
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
 
       actions triggered_by: transaction do
         set_type transfer 
@@ -251,6 +270,9 @@ defmodule Uniris.Contracts.WorkerTest do
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == code
+      after
+        3_000 ->
+          raise "Timeout"
       end
 
       assert {:error, :invalid_condition} =
@@ -268,13 +290,19 @@ defmodule Uniris.Contracts.WorkerTest do
     } do
       code = ~s"""
       condition transaction: regex_match?(content, "^Mr.Y|Mr.X{1}$")
-      condition inherit: next_transaction.uco_transferred == 10.04
+
+      condition inherit,
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04
         set_code "
           condition transaction: regex_match?(content, \\"^Mr.Y|Mr.X{1}$\\")
-          condition inherit: next_transaction.uco_transferred == 9.20
+
+          condition inherit,
+            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\": 9.20}
+
           actions triggered_by: transaction do 
             set_type transfer
             add_uco_transfer to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9.20
@@ -303,11 +331,17 @@ defmodule Uniris.Contracts.WorkerTest do
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == "
     condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
-    condition inherit: next_transaction.uco_transferred == 9.20
+
+    condition inherit,
+      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\": 9.20}
+
     actions triggered_by: transaction do 
       set_type transfer
       add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9.20
     end"
+      after
+        3_000 ->
+          raise "Timeout"
       end
     end
   end

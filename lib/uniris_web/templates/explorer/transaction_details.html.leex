@@ -512,10 +512,10 @@
 
                  <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>">
                     <%= if Enum.count(@calls) > 0 do %>
-                        <%= for tx_address <- @calls do %>
-                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(tx_address)) do%>
-                                <span class="is-hidden-mobile"><%= Base.encode16(tx_address) %></span>
-                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx_address, 0, 12)) %>...</span>
+                        <%= for call <- @calls do %>
+                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
+                                <span class="is-hidden-mobile"><%= Base.encode16(call.from) %></span>
+                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(call.from, 0, 12)) %>...</span>
                             <% end %>
                         <% end %>
                     <% else %>

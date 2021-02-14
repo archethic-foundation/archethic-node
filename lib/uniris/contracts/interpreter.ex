@@ -24,15 +24,19 @@ defmodule Uniris.Contracts.Interpreter do
     :nft_transfers
   ]
 
+  @inherit_fields [
+    :code,
+    :secret,
+    :content,
+    :uco_transferred,
+    :nft_transferred,
+    :uco_transfers,
+    :nft_transfers
+  ]
+
   @allowed_transaction_types [:transfer, :nft, :hosting]
 
   @allowed_atoms [
-                   # Should be fixed in v1.11
-                   :do,
-                   :end,
-                   :if,
-                   :else,
-                   #
                    :condition,
                    :origin_family,
                    :inherit,
@@ -51,14 +55,6 @@ defmodule Uniris.Contracts.Interpreter do
                    @transaction_fields ++
                    SharedSecrets.list_origin_families()
 
-  @type parsing_error_type ::
-          :unexpected_token
-          | :invalid_datetime
-          | :invalid_interval
-          | :invalid_origin_family
-
-  @type parsing_error :: {err :: parsing_error_type(), node :: tuple()}
-
   @doc ~S"""
   Parse a smart contract code and return the filtered AST representation.
 
@@ -68,7 +64,12 @@ defmodule Uniris.Contracts.Interpreter do
 
       iex> Interpreter.parse("
       ...>    condition origin_family: biometric
+      ...>
       ...>    condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
+      ...>
+      ...>    condition inherit,
+      ...>       content: regex_match?(\"hello\")
+      ...>
       ...>    actions triggered_by: datetime, at: 1603270603 do
       ...>      set_type transfer
       ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 10.04
@@ -77,75 +78,9 @@ defmodule Uniris.Contracts.Interpreter do
       {:ok,
         %Contract{
          conditions: %Conditions{
-            inherit: {:and, [line: 5],
-            [
-              {:and, [line: 4],
-              [
-                {:and, [line: 3],
-                  [
-                    {:and, [line: 2],
-                    [
-                      {:and, [line: 1],
-                        [
-                          {:==, [line: 1],
-                          [
-                            {{:., [line: 1],
-                              [{:next_transaction, [line: 1], nil}, :code]},
-                              [no_parens: true, line: 1], []},
-                            {{:., [line: 1],
-                              [{:previous_transaction, [line: 1], nil}, :code]},
-                              [no_parens: true, line: 1], []}
-                          ]},
-                          {:==, [line: 2],
-                          [
-                            {{:., [line: 2],
-                              [{:next_transaction, [line: 2], nil}, :authorized_keys]},
-                              [no_parens: true, line: 2], []},
-                            {{:., [line: 2],
-                              [
-                                {:previous_transaction, [line: 2], nil},
-                                :authorized_keys
-                              ]}, [no_parens: true, line: 2], []}
-                          ]}
-                        ]},
-                      {:==, [line: 3],
-                        [
-                          {{:., [line: 3],
-                            [{:next_transaction, [line: 3], nil}, :secret]},
-                          [no_parens: true, line: 3], []},
-                          {{:., [line: 3],
-                            [{:previous_transaction, [line: 3], nil}, :secret]},
-                          [no_parens: true, line: 3], []}
-                        ]}
-                    ]},
-                    {:==, [line: 4],
-                    [
-                      {{:., [line: 4],
-                        [{:next_transaction, [line: 4], nil}, :content]},
-                        [no_parens: true, line: 4], []},
-                      {{:., [line: 4],
-                        [{:previous_transaction, [line: 4], nil}, :content]},
-                        [no_parens: true, line: 4], []}
-                    ]}
-                  ]},
-                {:==, [line: 5],
-                  [
-                    {{:., [line: 5],
-                      [{:next_transaction, [line: 5], nil}, :uco_transferred]},
-                    [no_parens: true, line: 5], []},
-                    0.0
-                  ]}
-              ]},
-              {:==, [line: 5],
-              [
-                {{:., [line: 5],
-                  [{:next_transaction, [line: 5], nil}, :nft_transferred]},
-                  [no_parens: true, line: 5], []},
-                0.0
-              ]}
-            ]},
+            inherit: [content: {:regex_match?, [line: 6], ["hello"]}],
             origin_family: :biometric,
-            transaction: {:regex_match?, [line: 2], [{:content, [line: 2], nil}, "^Mr.Y|Mr.X{1}$"]}
+            transaction: {:regex_match?, [line: 3], [{:content, [line: 3], nil}, "^Mr.Y|Mr.X{1}$"]}
          },
          constants: %Constants{},
          next_transaction: %Transaction{ data: %TransactionData{}},
@@ -153,8 +88,8 @@ defmodule Uniris.Contracts.Interpreter do
            %Trigger{
              actions: {:__block__, [],
               [
-                {:set_type, [line: 4], [{:transfer, [line: 4], nil}]},
-                {:add_uco_transfer, [line: 5],
+                {:set_type, [line: 9], [{:transfer, [line: 9], nil}]},
+                {:add_uco_transfer, [line: 10],
                  [
                    [
                      to: "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10",
@@ -175,7 +110,7 @@ defmodule Uniris.Contracts.Interpreter do
        ...>    actions triggered_by: datetime, at: 0000000 do
        ...>    end
        ...> ")
-       {:error, :invalid_datetime}
+       {:error, "invalid trigger - invalid datetime - arguments at:0 - L1"}
 
      Returns an error when a invalid term is provided
 
@@ -184,9 +119,9 @@ defmodule Uniris.Contracts.Interpreter do
        ...>       System.user_home
        ...>    end
        ...> ")
-       {:error, :unexpected_token}
+       {:error, "unexpected token - System - L2:C8"}
   """
-  @spec parse(code :: binary()) :: {:ok, term()} | {:error, parsing_error() | any()}
+  @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, reason :: binary()}
   def parse(code) when is_binary(code) do
     with {:ok, ast} <-
            Code.string_to_quoted(String.trim(code), static_atoms_encoder: &atom_encode/2),
@@ -199,15 +134,45 @@ defmodule Uniris.Contracts.Interpreter do
            ) do
       {:ok, contract}
     else
-      {:error, _} ->
-        {:error, :unexpected_token}
+      {:error, reason} ->
+        {:error, format_error_reason(reason)}
     end
   catch
-    {{:error, _} = e, _node} ->
-      e
+    {{:error, reason}, _node} ->
+      {:error, format_error_reason(reason)}
 
     e ->
       e
+  end
+
+  defp format_error_reason({metadata, message, cause}) do
+    message =
+      if message == "unexpected token: " do
+        "unexpected token"
+      else
+        message
+      end
+
+    line = Keyword.get(metadata, :line)
+    column = Keyword.get(metadata, :column)
+
+    metadata_string = "L#{line}"
+
+    metadata_string =
+      if column == nil do
+        metadata_string
+      else
+        metadata_string <> ":C#{column}"
+      end
+
+    message =
+      if is_atom(message) do
+        message |> Atom.to_string() |> String.replace("_", " ")
+      else
+        message
+      end
+
+    "#{message} - #{cause} - #{metadata_string}"
   end
 
   defp atom_encode(atom, _meta) do
@@ -242,7 +207,7 @@ defmodule Uniris.Contracts.Interpreter do
 
   # Whitelist the triggered_by DSL in the actions
   defp prewalk(
-         node = [{:triggered_by, {trigger_type, [line: _], _}} | trigger_opts],
+         node = [{:triggered_by, {trigger_type, meta = [line: _], _}} | trigger_opts],
          {:ok, acc = %{scope: :actions}}
        )
        when trigger_type in [:datetime, :interval, :transaction] do
@@ -250,8 +215,9 @@ defmodule Uniris.Contracts.Interpreter do
       :ok ->
         {node, {:ok, %{acc | scope: :actions_triggered_by}}}
 
-      {:error, _} = e ->
-        {node, e}
+      {:error, reason} ->
+        params = Enum.map(trigger_opts, fn {k, v} -> "#{k}:#{v}" end) |> Enum.join(", ")
+        {node, {:error, {meta, "invalid trigger - #{reason}", "arguments #{params}"}}}
     end
   end
 
@@ -289,8 +255,13 @@ defmodule Uniris.Contracts.Interpreter do
     {node, {:ok, %{acc | scope: {:condition, :origin_family}}}}
   end
 
-  # Whitelist the condition 'inherit'
-  defp prewalk(node = [inherit: {_, [line: _], _}], {:ok, acc = %{scope: :condition}}) do
+  # Whitelist the condition 'inherit' with brackets
+  defp prewalk(node = [inherit: _], {:ok, acc = %{scope: :condition}}) do
+    {node, {:ok, %{acc | scope: {:condition, :inherit}}}}
+  end
+
+  # Whitelist the condition 'inherit' with comma and without brackets
+  defp prewalk(node = {:inherit, _, _}, {:ok, acc = %{scope: :condition}}) do
     {node, {:ok, %{acc | scope: {:condition, :inherit}}}}
   end
 
@@ -329,28 +300,38 @@ defmodule Uniris.Contracts.Interpreter do
     end
   end
 
+  # Whitelist access to map field
   defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, _}), do: {node, acc}
 
-  # Whitelist the use of doted transaction fields in the inherit condition
-  defp prewalk(
-         node = {:., _, [{key, _, _}, field]},
-         acc = {:ok, %{scope: {:condition, :inherit}}}
-       )
-       when key in [:next_transaction, :previous_transaction] and field in @transaction_fields do
+  # Whitelist the use of define set of keyword in the inherit condition
+  defp prewalk(node = fields, acc = {:ok, %{scope: {:condition, :inherit}}})
+       when is_list(fields) do
+    if Enum.all?(fields, fn {field, _} -> field in @inherit_fields end) do
+      {node, acc}
+    else
+      {node, {:error, :unexpected_token}}
+    end
+  end
+
+  # Whitelist usage of map inside inherit conditions
+  defp prewalk(node = {field, {:%{}, _, _}}, acc = {:ok, %{scope: {:condition, :inherit}}})
+       when field in @inherit_fields do
     {node, acc}
   end
 
-  defp prewalk(node = {key, _, _}, acc = {:ok, %{scope: {:condition, :inherit}}})
-       when key in [:next_transaction, :previous_transaction] do
+  defp prewalk(node = {:%{}, _, _}, acc = {:ok, %{scope: {:condition, :inherit}}}) do
     {node, acc}
   end
 
-  defp prewalk(
-         node = {field, [line: _], _},
-         acc = {:ok, %{scope: {:condition, :inherit}}}
-       )
-       when field in @transaction_fields do
-    {node, acc}
+  # Whitelist usage of functions inside inherit conditions
+  defp prewalk(node = {key, _, args}, {:ok, acc = %{scope: scope = {:condition, :inherit}}}) do
+    case Enum.find(inherit_conditions_functions(), &(elem(&1, 0) == key)) do
+      {_, arity} when length(args) == arity ->
+        {node, {:ok, %{acc | scope: {:function, key, scope}}}}
+
+      _ ->
+        {node, {:error, :unexpected_token}}
+    end
   end
 
   # Whitelist the use of transaction fields in the transaction condition
@@ -379,10 +360,10 @@ defmodule Uniris.Contracts.Interpreter do
     {node, acc}
   end
 
-  # Whitelist the used of functions in the conditions
-  defp prewalk(node = {key, _, [args]}, {:ok, acc = %{scope: scope = {:condition, _}}})
+  # Whitelist the used of functions in the transaction condition
+  defp prewalk(node = {key, _, args}, {:ok, acc = %{scope: scope = {:condition, :transaction}}})
        when is_atom(key) and is_list(args) do
-    case Enum.find(conditions_functions(), &(elem(&1, 0) == key)) do
+    case Enum.find(transaction_conditions_functions(), &(elem(&1, 0) == key)) do
       {_, arity} when length(args) == arity ->
         {node, {:ok, %{acc | scope: {:function, key, scope}}}}
 
@@ -391,20 +372,9 @@ defmodule Uniris.Contracts.Interpreter do
     end
   end
 
-  defp prewalk(node = {key, _, args}, {:ok, acc = %{scope: scope = {:condition, _}}})
-       when is_atom(key) and is_list(args) do
-    case Enum.find(conditions_functions(), &(elem(&1, 0) == key)) do
-      {_, arity} when length(args) == arity ->
-        {node, {:ok, %{acc | scope: {:function, key, scope}}}}
-
-      _ ->
-        {node, {:error, :unexpected_token}}
-    end
-  end
-
-  defp prewalk(node = {key, _, args}, {:ok, acc = %{scope: scope = {:condition, _}}})
+  defp prewalk(node = {key, _, args}, {:ok, acc = %{scope: scope = {:condition, :transaction}}})
        when is_atom(key) and is_tuple(args) do
-    case Enum.find(conditions_functions(), &(elem(&1, 0) == key)) do
+    case Enum.find(transaction_conditions_functions(), &(elem(&1, 0) == key)) do
       {_, 1} ->
         {node, {:ok, %{acc | scope: {:function, key, scope}}}}
 
@@ -455,28 +425,29 @@ defmodule Uniris.Contracts.Interpreter do
     end
   end
 
-  # Whitelist for functions calls for string conditions
-  defp prewalk(node, acc = {:ok, %{scope: {:function, fun, {:condition, :inherit}}}})
-       when fun in [:regex_match?, :regex_extract, :json_path_extract, :hash] do
-    case node do
-      bin when is_binary(bin) ->
-        {node, acc}
+  # # Whitelist for functions calls for string conditions
+  # defp prewalk(node, acc = {:ok, %{scope: {:function, fun, {:condition, :inherit, _}}}})
+  #      when fun in [:regex_match?, :regex_extract, :json_path_extract, :hash] do
+  #       IO.puts "string call #{fun} with #{node}"
+  #   case node do
+  #     bin when is_binary(bin) ->
+  #       {node, acc}
 
-      {{:., _, [{key, _, nil}, field]}, _, _}
-      when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
-        {node, acc}
+  #   #   # {{:., _, [{key, _, nil}, field]}, _, _}
+  #   #   # when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
+  #   #   #   {node, acc}
 
-      {:., _, [{key, _, nil}, field]}
-      when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
-        {node, acc}
+  #   #   {:., _, [{key, _, nil}, field]}
+  #   #   when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
+  #   #     {node, acc}
 
-      {key, _, _} when key in [:previous_transaction, :next_transaction] ->
-        {node, acc}
+  #   #   {key, _, _} when key in [:previous_transaction, :next_transaction] ->
+  #   #     {node, acc}
 
-      _ ->
-        {node, {:error, :unexpected_token}}
-    end
-  end
+  #     _ ->
+  #       {node, {:error, :unexpected_token}}
+  #   end
+  # end
 
   # Whitelist for functions calls for transaction condition
   defp prewalk(node, acc = {:ok, %{scope: {:function, fun, {:condition, :transaction}}}})
@@ -629,6 +600,12 @@ defmodule Uniris.Contracts.Interpreter do
   # Whitelist the in operation
   defp prewalk(node = {:in, _, [_, _]}, acc = {:ok, _}), do: {node, acc}
 
+  # Whitelist maps
+  defp prewalk(node = {:%{}, _, fields}, acc = {:ok, _}) when is_list(fields), do: {node, acc}
+
+  # Whitelist keyword list or map key value definition
+  defp prewalk(node = {key, _value}, acc = {:ok, _}) when is_atom(key), do: {node, acc}
+
   # Blacklist anything else
   defp prewalk(node, {:ok, _acc}) do
     {node, {:error, :unexpected_token}}
@@ -684,8 +661,22 @@ defmodule Uniris.Contracts.Interpreter do
     {node, {:ok, new_acc}}
   end
 
+  # Add inherit conditions with brackets
   defp postwalk(
          node = {:condition, _, [[inherit: conditions]]},
+         {:ok, acc}
+       ) do
+    new_acc =
+      acc
+      |> Map.update!(:contract, &Contract.add_condition(&1, :inherit, conditions))
+      |> Map.put(:scope, :root)
+
+    {node, {:ok, new_acc}}
+  end
+
+  # Add inherit conditions with comma instead of brackets
+  defp postwalk(
+         node = {:condition, _, [{:inherit, _, nil}, conditions]},
          {:ok, acc}
        ) do
     new_acc =
@@ -720,20 +711,20 @@ defmodule Uniris.Contracts.Interpreter do
     {node, {:ok, new_acc}}
   end
 
-  defp postwalk(node, {:ok, acc = %{scope: {:function, :regex_match?, scope}}})
-       when is_binary(node) do
-    {node, {:ok, %{acc | scope: scope}}}
-  end
+  # defp postwalk(node, {:ok, acc = %{scope: {:function, :regex_match?, scope}}})
+  #      when is_binary(node) do
+  #   {node, {:ok, %{acc | scope: scope}}}
+  # end
 
-  defp postwalk(node, {:ok, acc = %{scope: {:function, :regex_extract, scope}}})
-       when is_binary(node) do
-    {node, {:ok, %{acc | scope: scope}}}
-  end
+  # defp postwalk(node, {:ok, acc = %{scope: {:function, :regex_extract, scope}}})
+  #      when is_binary(node) do
+  #   {node, {:ok, %{acc | scope: scope}}}
+  # end
 
-  defp postwalk(node, {:ok, acc = %{scope: {:function, :json_path_extract, scope}}})
-       when is_binary(node) do
-    {node, {:ok, %{acc | scope: scope}}}
-  end
+  # defp postwalk(node, {:ok, acc = %{scope: {:function, :json_path_extract, scope}}})
+  #      when is_binary(node) do
+  #   {node, {:ok, %{acc | scope: scope}}}
+  # end
 
   defp postwalk(node, {:ok, acc = %{scope: {:function, _, scope}}}) do
     {node, {:ok, %{acc | scope: scope}}}
@@ -755,19 +746,39 @@ defmodule Uniris.Contracts.Interpreter do
     }
   end
 
+  # Convert map key to binary
+  defp postwalk({:%{}, meta, params}, acc = {:ok, %{scope: {:condition, :inherit}}}) do
+    encoded_params =
+      Enum.map(params, fn
+        {key, value} when is_atom(key) ->
+          case Base.decode16(Atom.to_string(key), case: :mixed) do
+            {:ok, bin} ->
+              {bin, value}
+
+            :error ->
+              {key, value}
+          end
+
+        {key, value} ->
+          {key, value}
+      end)
+
+    {{:%{}, meta, encoded_params}, acc}
+  end
+
   defp postwalk(node, e = {:error, _}), do: throw({e, node})
   defp postwalk(node, acc), do: {node, acc}
 
   defp valid_trigger_opts(:datetime, at: datetime) do
     if length(Integer.digits(datetime)) != 10 do
-      {:error, :invalid_datetime}
+      {:error, "invalid datetime"}
     else
       case DateTime.from_unix(datetime) do
         {:ok, _} ->
           :ok
 
         _ ->
-          {:error, :invalid_datetime}
+          {:error, "invalid datetime"}
       end
     end
   end
@@ -778,12 +789,12 @@ defmodule Uniris.Contracts.Interpreter do
         :ok
 
       {:error, _} ->
-        {:error, :invalid_interval}
+        {:error, "invalid interval"}
     end
   end
 
   defp valid_trigger_opts(:transaction, []), do: :ok
-  defp valid_trigger_opts(_, _), do: {:error, :unexpected_token}
+  defp valid_trigger_opts(_, _), do: {:error, "unexpected token"}
 
   @doc """
 
@@ -870,17 +881,69 @@ defmodule Uniris.Contracts.Interpreter do
        true
   """
   @spec execute(binary(), Keyword.t()) :: any()
-  def execute(code, constants \\ []) when is_binary(code) do
-    env = Map.update!(__ENV__, :functions, &[{Library, Library.__info__(:functions)} | &1])
+  def execute(code, constants \\ [])
 
-    bindings =
-      @allowed_transaction_types
-      |> Enum.map(&{&1, &1})
-      |> Keyword.merge(constants)
+  def execute(code, constants) when is_binary(code),
+    do: do_execute(Code.string_to_quoted!(code), constants)
 
-    {output, _} = Code.eval_string(code, bindings, env)
-    output
+  def execute(code, constants), do: do_execute(code, constants)
+
+  defp do_execute(code, constants) do
+    library_function_names =
+      Enum.reject(Library.__info__(:functions), fn {fun, _} -> fun == :allowed_atoms end)
+
+    library_bindings =
+      Enum.map(library_function_names, fn {fun, _} ->
+        {fun, fn params -> apply(Library, fun, params) end}
+      end)
+
+    bindings = library_bindings ++ constants ++ Enum.map(@allowed_transaction_types, &{&1, &1})
+    execute_with_custom_function_bindings(code, bindings, library_function_names)
   end
+
+  @doc ~S"""
+  Execute the inherit condition on the given subset
+
+  ## Examples
+
+      iex> Interpreter.execute_inherit_condition("regex_match?(\"hello\")", "hello")
+      true
+
+      iex> Interpreter.execute_inherit_condition("hash()", "hello")
+      <<0, 44, 242, 77, 186, 95, 176, 163, 14, 38, 232, 59, 42, 197, 185, 226, 158, 27,
+      22, 30, 92, 31, 167, 66, 94, 115, 4, 51, 98, 147, 139, 152, 36>>
+  """
+  @spec execute_inherit_condition(binary(), term()) :: term()
+  def execute_inherit_condition(code, subject) when is_binary(code) do
+    bindings =
+      Enum.map(inherit_conditions_functions(), fn {fun, _arity} ->
+        {fun, fn params -> apply(Library, fun, [subject | params]) end}
+      end)
+
+    execute_with_custom_function_bindings(
+      Code.string_to_quoted!(code),
+      bindings,
+      inherit_conditions_functions()
+    )
+  end
+
+  defp execute_with_custom_function_bindings(code, bindings, function_list) do
+    new_ast = Macro.postwalk(code, &append_dot(&1, function_list))
+    {result, _} = Code.eval_quoted(new_ast, bindings)
+    result
+  end
+
+  defp append_dot(ast = {key, meta, params}, function_list) do
+    case Enum.find(function_list, &(elem(&1, 0) == key)) do
+      {_, _arity} ->
+        {{:., meta, [{key, meta, nil}]}, meta, [params]}
+
+      nil ->
+        ast
+    end
+  end
+
+  defp append_dot(ast, _), do: ast
 
   @doc """
   Determine if the contract can be executed based on some condition to assert.
@@ -905,12 +968,21 @@ defmodule Uniris.Contracts.Interpreter do
     execute(condition, constants) == true
   end
 
-  defp conditions_functions do
+  defp transaction_conditions_functions do
     [
       {:hash, 1},
       {:regex_match?, 2},
       {:regex_extract, 2},
       {:json_path_extract, 2}
+    ]
+  end
+
+  defp inherit_conditions_functions do
+    [
+      {:hash, 1},
+      {:regex_match?, 1},
+      {:regex_extract, 1},
+      {:json_path_extract, 1}
     ]
   end
 

@@ -91,36 +91,37 @@ defmodule Uniris.Mining do
   @doc """
   Determines if the transaction is accepted into the network
   """
-  @spec accept_transaction?(Transaction.t()) :: boolean()
-  def accept_transaction?(
+  @spec validate_pending_transaction(Transaction.t()) :: :ok | {:error, any()}
+  def validate_pending_transaction(
         tx = %Transaction{address: address, data: %TransactionData{code: code, keys: keys}}
       ) do
     if Transaction.verify_previous_signature?(tx) do
-      case code do
-        "" ->
+      case validate_contract(code, Keys.list_authorized_keys(keys)) do
+        :ok ->
           do_accept_transaction?(tx)
 
-        _ ->
-          if Contracts.valid_contract?(code) do
-            authorized_keys = Keys.list_authorized_keys(keys)
-
-            if Crypto.storage_nonce_public_key() in authorized_keys do
-              do_accept_transaction?(tx)
-            else
-              Logger.error("Smart contract requires authorized keys",
-                transaction: Base.encode16(address)
-              )
-
-              false
-            end
-          else
-            Logger.error("Invalid smart contract code", transaction: Base.encode16(address))
-            false
-          end
+        {:error, reason} ->
+          Logger.error("Invalid smart contract - #{reason}", transaction: Base.encode16(address))
+          {:error, "Smart contract invalid - #{reason}"}
       end
     else
       Logger.error("Invalid previous signature", transaction: Base.encode16(address))
-      false
+      {:error, "Invalid previous signature"}
+    end
+  end
+
+  defp validate_contract("", _), do: :ok
+
+  defp validate_contract(code, authorized_keys) do
+    with {:ok, _contract} <- Contracts.parse(code),
+         true <- Crypto.storage_nonce_public_key() in authorized_keys do
+      :ok
+    else
+      {:error, reason} ->
+        {:error, reason}
+
+      false ->
+        {:error, "Requires storage nonce public key as authorized keys"}
     end
   end
 
@@ -130,9 +131,10 @@ defmodule Uniris.Mining do
          data: %TransactionData{content: content}
        }) do
     if Regex.match?(~r/(?<=ip:|port:|transport:).*/m, content) do
-      true
+      :ok
     else
       Logger.error("Invalid node transaction content", transaction: Base.encode16(address))
+      {:error, "Invalid node transaction"}
     end
   end
 
@@ -150,11 +152,13 @@ defmodule Uniris.Mining do
     case Enum.at(TransactionChain.list_transactions_by_type(:node_shared_secrets, [:address]), 0) do
       nil ->
         if Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) do
-          true
+          :ok
         else
           Logger.error("Node shared secrets can only contains public node list",
             transaction: Base.encode16(address)
           )
+
+          {:error, "Invalid node shared secrets transaction"}
         end
 
       %Transaction{address: prev_address} ->
@@ -164,17 +168,17 @@ defmodule Uniris.Mining do
               transaction: Base.encode16(address)
             )
 
-            false
+            {:error, "Invalid node shared secrets transaction"}
 
           !Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) ->
             Logger.error("Node shared secrets can only contains public node list",
               transaction: Base.encode16(address)
             )
 
-            false
+            {:error, "Invalid node shared secrets transaction"}
 
           true ->
-            true
+            :ok
         end
     end
   end
@@ -184,17 +188,17 @@ defmodule Uniris.Mining do
       transaction: Base.encode16(address)
     )
 
-    false
+    {:error, "Invalid node shared secrets transaction"}
   end
 
   defp do_accept_transaction?(tx = %Transaction{address: address, type: :code_proposal}) do
-    case CodeProposal.from_transaction(tx) do
-      {:ok, prop} ->
-        Governance.valid_code_changes?(prop)
-
+    with {:ok, prop} <- CodeProposal.from_transaction(tx),
+         true <- Governance.valid_code_changes?(prop) do
+      :ok
+    else
       _ ->
         Logger.error("Invalid code proposal", transaction: Base.encode16(address))
-        false
+        {:error, "Invalid code proposal"}
     end
   end
 
@@ -207,40 +211,41 @@ defmodule Uniris.Mining do
        ) do
     first_public_key = get_first_public_key(tx)
 
-    if Governance.pool_member?(first_public_key, :technical_council) do
-      case Governance.get_code_proposal(proposal_address) do
-        {:ok, prop} ->
-          previous_address = Transaction.previous_address(tx)
-
-          if CodeProposal.signed_by?(prop, previous_address) do
-            Logger.error("Proposal already signed by the transaction emitter",
-              transaction: Base.encode16(address)
-            )
-
-            false
-          else
-            true
-          end
-      end
+    with {:member, true} <-
+           {:member, Governance.pool_member?(first_public_key, :technical_council)},
+         {:ok, prop} <- Governance.get_code_proposal(proposal_address),
+         previous_address <- Transaction.previous_address(tx),
+         {:signed, false} <- {:signed, CodeProposal.signed_by?(prop, previous_address)} do
+      :ok
     else
-      Logger.error("Transaction emitter is not member of a the technical council",
-        transaction: Base.encode16(address)
-      )
+      {:member, false} ->
+        Logger.error("No technical council member", transaction: Base.encode16(address))
+        {:error, "No technical council member"}
 
-      false
+      {:error, :not_found} ->
+        Logger.error("Code proposal does not exist", transaction: Base.encode16(address))
+        {:error, "Code proposal doest not exist"}
+
+      {:signed, true} ->
+        Logger.error("Code proposal already signed", transaction: Base.encode16(address))
+        {:error, "Code proposal already signed"}
     end
   end
 
-  defp do_accept_transaction?(%Transaction{type: :nft, data: %TransactionData{content: content}}) do
+  defp do_accept_transaction?(%Transaction{
+         address: address,
+         type: :nft,
+         data: %TransactionData{content: content}
+       }) do
     if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
-      true
+      :ok
     else
-      Logger.error("Invalid NFT transaction content")
-      false
+      Logger.error("Invalid NFT transaction content", transaction: Base.encode16(address))
+      {:error, "Invalid NFT content"}
     end
   end
 
-  defp do_accept_transaction?(_), do: true
+  defp do_accept_transaction?(_), do: :ok
 
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
     previous_address = Transaction.previous_address(tx)

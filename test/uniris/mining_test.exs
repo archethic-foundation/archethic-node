@@ -19,8 +19,8 @@ defmodule Uniris.MiningTest do
 
   import Mox
 
-  describe "accept_transaction?/1" do
-    test "should true when a node transaction data content contains node endpoint information" do
+  describe "validate_pending_transaction/1" do
+    test "should :ok when a node transaction data content contains node endpoint information" do
       tx =
         Transaction.new(
           :node,
@@ -34,10 +34,10 @@ defmodule Uniris.MiningTest do
           0
         )
 
-      assert true = Mining.accept_transaction?(tx)
+      assert :ok = Mining.validate_pending_transaction(tx)
     end
 
-    test "should return true when a node shared secrets transaction data keys contains existing node public keys with first tx" do
+    test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -68,10 +68,10 @@ defmodule Uniris.MiningTest do
           }
         )
 
-      assert true = Mining.accept_transaction?(tx)
+      assert :ok = Mining.validate_pending_transaction(tx)
     end
 
-    test "should return true when a node shared secrets transaction data keys contains existing node public keys with next tx" do
+    test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with next tx" do
       prev_address1 =
         Crypto.hash(
           Crypto.node_shared_secrets_public_key(Crypto.number_of_node_shared_secrets_keys())
@@ -139,10 +139,10 @@ defmodule Uniris.MiningTest do
           }
         )
 
-      assert true = Mining.accept_transaction?(tx)
+      assert :ok = Mining.validate_pending_transaction(tx)
     end
 
-    test "should return true when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
+    test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
       tx =
         Transaction.new(
           :code_approval,
@@ -204,7 +204,36 @@ defmodule Uniris.MiningTest do
         %FirstPublicKey{public_key: tx.previous_public_key}
       end)
 
-      assert true = Mining.accept_transaction?(tx)
+      assert :ok = Mining.validate_pending_transaction(tx)
+    end
+
+    test "should return :ok when a transaction contains a valid smart contract code" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :transfer,
+          %TransactionData{
+            code: """
+            condition inherit,
+              content: "hello"
+
+            actions triggered_by: transaction do
+              set_content "hello"
+            end
+            """,
+            keys:
+              Keys.new(
+                [Crypto.storage_nonce_public_key()],
+                :crypto.strong_rand_bytes(32),
+                tx_seed
+              )
+          },
+          tx_seed,
+          0
+        )
+
+      assert :ok = Mining.validate_pending_transaction(tx)
     end
   end
 end

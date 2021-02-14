@@ -3,6 +3,9 @@ defmodule Uniris.Networking.PortForwarding do
   Manage the port forwarding
   """
 
+  alias Uniris.Networking.IPLookup
+  alias Uniris.Networking.IPLookup.NAT
+
   require Logger
 
   @doc """
@@ -11,12 +14,29 @@ defmodule Uniris.Networking.PortForwarding do
   @spec try_open_port(port_to_open :: :inet.port_number(), force? :: boolean()) ::
           :inet.port_number()
   def try_open_port(port, force?) when is_integer(port) and port >= 0 and is_boolean(force?) do
-    case do_try_open_port(port) do
-      {:ok, port} ->
-        port
+    if required?() do
+      case do_try_open_port(port) do
+        {:ok, port} ->
+          port
 
-      {:error, _} ->
-        fallback(port, force?)
+        {:error, _} ->
+          Logger.error("Cannot publish the port #{port}")
+          fallback(port, force?)
+      end
+    else
+      Logger.info("Port forwarding is skipped - reason: IP lookup provider is not NAT")
+      Logger.info("Port must be open manually")
+      port
+    end
+  end
+
+  defp required? do
+    case Application.get_env(:uniris, IPLookup) |> Keyword.get(:impl) do
+      NAT ->
+        true
+
+      _ ->
+        false
     end
   end
 
@@ -40,6 +60,7 @@ defmodule Uniris.Networking.PortForwarding do
   defp fallback(port, _force? = true) do
     case do_try_open_port(0) do
       {:ok, port} ->
+        Logger.info("Use the random port #{port} as fallback")
         port
 
       {:error, _} ->
@@ -54,7 +75,7 @@ defmodule Uniris.Networking.PortForwarding do
   end
 
   defp fallback(port, _force? = false) do
-    Logger.error("Cannot publish the port #{port}")
+    Logger.error("No fallback provided for the port #{port}")
 
     Logger.info(
       "Port from configuration is used but requires a manuel port forwarding setting on the router"

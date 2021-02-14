@@ -128,7 +128,14 @@ defmodule Uniris.TransactionChain.TransactionData.Ledger do
     }
   end
 
-  @spec to_map(t()) :: map()
+  @spec to_map(t() | nil) :: map()
+  def to_map(nil) do
+    %{
+      uco: UCOLedger.to_map(nil),
+      nft: NFTLedger.to_map(nil)
+    }
+  end
+
   def to_map(%__MODULE__{uco: uco, nft: nft}) do
     %{
       uco: UCOLedger.to_map(uco),

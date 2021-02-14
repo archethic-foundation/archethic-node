@@ -153,31 +153,35 @@ defmodule Uniris.TransactionChain.TransactionData do
     reduce_recipients(rest, nb_recipients, [<<hash_id::8>> <> address | acc])
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
+  @spec from_map(map()) :: t()
   def from_map(data = %{}) do
     %__MODULE__{
-      content: Map.get(data, :content),
-      code: Map.get(data, :code),
+      content: Map.get(data, :content, ""),
+      code: Map.get(data, :code, ""),
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.from_map(),
       keys: Map.get(data, :keys, %Keys{}) |> Keys.from_map(),
       recipients: Map.get(data, :recipients, [])
     }
   end
 
-  @spec to_map(__MODULE__.t()) :: map()
-  def to_map(%__MODULE__{
-        content: content,
-        code: code,
-        ledger: ledger,
-        keys: keys,
-        recipients: recipients
-      }) do
+  @spec to_map(t() | nil) :: map()
+  def to_map(nil) do
     %{
-      content: content,
-      code: code,
-      ledger: Ledger.to_map(ledger),
-      keys: Keys.to_map(keys),
-      recipients: recipients
+      content: "",
+      code: "",
+      ledger: Ledger.to_map(nil),
+      keys: Keys.to_map(nil),
+      recipients: []
+    }
+  end
+
+  def to_map(data = %__MODULE__{}) do
+    %{
+      content: Map.get(data, :content, ""),
+      code: Map.get(data, :code, ""),
+      ledger: data |> Map.get(:ledger) |> Ledger.to_map(),
+      keys: data |> Map.get(:keys) |> Keys.to_map(),
+      recipients: Map.get(data, :recipients, [])
     }
   end
 end

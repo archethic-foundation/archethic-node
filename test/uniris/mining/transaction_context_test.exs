@@ -47,7 +47,7 @@ defmodule Uniris.Mining.TransactionContextTest do
             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
           }
 
-        3005, %GetUnspentOutputs{address: "@Alice1"} ->
+        %Node{port: 3005}, %GetUnspentOutputs{address: "@Alice1"} ->
           Process.sleep(400)
 
           %UnspentOutputList{

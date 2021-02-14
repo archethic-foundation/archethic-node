@@ -83,7 +83,12 @@ defmodule Uniris.Contracts.Contract do
     %{contract | conditions: %{conditions | transaction: macro}}
   end
 
-  def add_condition(contract = %__MODULE__{conditions: conditions}, :inherit, macro) do
-    %{contract | conditions: %{conditions | inherit: macro}}
+  def add_condition(
+        contract = %__MODULE__{conditions: conditions = %Conditions{}},
+        :inherit,
+        inherit_conditions
+      )
+      when is_list(inherit_conditions) do
+    %{contract | conditions: %{conditions | inherit: inherit_conditions}}
   end
 end

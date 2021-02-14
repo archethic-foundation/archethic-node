@@ -1,6 +1,8 @@
 defmodule Uniris.Replication.TransactionValidator do
   @moduledoc false
 
+  alias Uniris.Contracts
+
   alias Uniris.Election
   alias Uniris.Election.ValidationConstraints
 
@@ -54,6 +56,7 @@ defmodule Uniris.Replication.TransactionValidator do
           :ok | {:error, error()}
   def validate(tx = %Transaction{}, previous_transaction, inputs_outputs, self_repair? \\ false) do
     with :ok <- valid_transaction(tx, inputs_outputs, self_repair?),
+         true <- Contracts.accept_new_contract?(previous_transaction, tx),
          true <- TransactionChain.valid?([tx, previous_transaction]) do
       :ok
     else
@@ -95,25 +98,32 @@ defmodule Uniris.Replication.TransactionValidator do
          },
          self_repair?
        ) do
-    cond do
-      !Mining.accept_transaction?(tx) ->
+    with {:transaction, :ok} <- {:transaction, Mining.validate_pending_transaction(tx)},
+         {:atomic_commitment, true} <-
+           {:atomic_commitment, Transaction.atomic_commitment?(tx)},
+         {:cross_stamps_signatures, true} <-
+           {:cross_stamps_signatures,
+            Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp))},
+         {:no_inconsistencies, true} <-
+           {:no_inconsistencies, Enum.all?(cross_stamps, &(&1.inconsistencies == []))},
+         {:election, true} <- {:election, valid_node_election?(tx, self_repair?)} do
+      :ok
+    else
+      {:transaction, {:error, _reason}} ->
         {:error, :invalid_pending_transaction}
 
-      !Transaction.atomic_commitment?(tx) ->
+      {:atomic_commitment, false} ->
         # TODO: start malicious detection
         {:error, :invalid_atomic_commitment}
 
-      !Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp)) ->
+      {:cross_stamps_signatures, false} ->
         {:error, :invalid_cross_validation_stamp_signatures}
 
-      !Enum.all?(cross_stamps, &(&1.inconsistencies == [])) ->
+      {:no_inconsistencies, false} ->
         {:error, :invalid_transaction_with_inconsistencies}
 
-      !valid_node_election?(tx, self_repair?) ->
+      {:election, false} ->
         {:error, :invalid_node_election}
-
-      true ->
-        :ok
     end
   end
 
@@ -127,7 +137,8 @@ defmodule Uniris.Replication.TransactionValidator do
                    fee: fee,
                    node_movements: node_movements,
                    transaction_movements: transaction_movements
-                 }
+                 },
+               contract_validation: valid_contract?
              },
            cross_validation_stamps: cross_stamps
          }
@@ -139,33 +150,48 @@ defmodule Uniris.Replication.TransactionValidator do
 
     resolved_tx_movements = resolve_transaction_movements(tx)
 
-    cond do
-      !Transaction.verify_origin_signature?(tx, pow) ->
+    with {:pow, true} <- {:pow, Transaction.verify_origin_signature?(tx, pow)},
+         {:signature, true} <-
+           {:signature,
+            ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key)},
+         {:fee, true} <- {:fee, fee == Transaction.fee(tx)},
+         {:tx_movements, true} <- {:tx_movements, resolved_tx_movements == transaction_movements},
+         {:node_movements_roles, true} <-
+           {:node_movements_roles, LedgerOperations.valid_node_movements_roles?(ops)},
+         {:node_movements_election, true} <-
+           {:node_movements_election,
+            LedgerOperations.valid_node_movements_cross_validation_nodes?(
+              ops,
+              cross_validation_node_public_keys
+            )},
+         {:node_movements_rewards, true} <-
+           {:node_movements_rewards, LedgerOperations.valid_reward_distribution?(ops)},
+         {:contract_valid, true} <- {:contract_valid, valid_contract?} do
+      :ok
+    else
+      {:pow, false} ->
         {:error, :invalid_proof_of_work}
 
-      !ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key) ->
+      {:signature, false} ->
         {:error, :invalid_validation_stamp_signature}
 
-      fee != Transaction.fee(tx) ->
+      {:fee, false} ->
         {:error, :invalid_transaction_fee}
 
-      transaction_movements != resolved_tx_movements ->
+      {:tx_movements, false} ->
         {:error, :invalid_transaction_movements}
 
-      !LedgerOperations.valid_node_movements_roles?(ops) ->
+      {:node_movements_roles, false} ->
         {:error, :invalid_node_movements_roles}
 
-      !LedgerOperations.valid_node_movements_cross_validation_nodes?(
-        ops,
-        cross_validation_node_public_keys
-      ) ->
+      {:node_movements_election, false} ->
         {:error, :invalid_cross_validation_nodes_movements}
 
-      !LedgerOperations.valid_reward_distribution?(ops) ->
+      {:node_movements_rewards, false} ->
         {:error, :invalid_reward_distribution}
 
-      true ->
-        :ok
+      {:contract_valid, false} ->
+        {:error, :invalid_smart_contract}
     end
   end
 
