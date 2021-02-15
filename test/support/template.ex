@@ -22,6 +22,8 @@ defmodule UnirisCase do
   alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.MemTables.PendingLedger
 
+  alias Uniris.Utils
+
   import Mox
 
   setup :verify_on_exit!
@@ -30,8 +32,8 @@ defmodule UnirisCase do
   setup do
     :persistent_term.put(:storage_nonce, "nonce")
 
-    File.rm_rf(Application.app_dir(:uniris, "priv/p2p/last_sync_test"))
-    Path.wildcard("priv/p2p/network_stats*") |> Enum.each(&File.rm_rf!/1)
+    File.rm_rf(Utils.mut_dir("priv/p2p/last_sync_test"))
+    Path.wildcard(Utils.mut_dir("priv/p2p/network_stats*")) |> Enum.each(&File.rm_rf!/1)
 
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)

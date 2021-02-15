@@ -35,6 +35,8 @@ config :phoenix, :json_library, Jason
 
 config :uniris, :src_dir, File.cwd!()
 
+config :uniris, :mut_dir, "data"
+
 config :uniris, Uniris.Crypto,
   supported_curves: [
     :ed25519,

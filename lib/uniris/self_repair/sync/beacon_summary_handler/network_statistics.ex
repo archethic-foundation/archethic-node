@@ -112,6 +112,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics do
 
   defp dump_dirname do
     dump_dir = Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:dump_dir)
-    Application.app_dir(:uniris, dump_dir)
+    Utils.mut_dir(dump_dir)
   end
 end

@@ -2,6 +2,8 @@ defmodule UnirisWeb.CodeController do
   @moduledoc false
   use UnirisWeb, :controller
 
+  alias Uniris.Utils
+
   # alias Uniris.TransactionChain
 
   # alias UnirisWeb.CodeProposalDetailsLive
@@ -25,7 +27,7 @@ defmodule UnirisWeb.CodeController do
   # end
 
   def download(conn, _) do
-    archive_file = Application.app_dir(:uniris, "priv/uniris_node.zip")
+    archive_file = Utils.mut_dir("priv/uniris_node.zip")
     {_, 0} = System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir)
 
     conn
