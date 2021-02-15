@@ -11,6 +11,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     :signature,
     :proof_of_work,
     :proof_of_integrity,
+    :proof_of_existence,
     ledger_operations: %LedgerOperations{},
     recipients: [],
     contract_validation: true
@@ -29,6 +30,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
           signature: nil | binary(),
           proof_of_work: Crypto.key(),
           proof_of_integrity: Crypto.versioned_hash(),
+          proof_of_existence: boolean(),
           ledger_operations: LedgerOperations.t(),
           recipients: list(Crypto.versioned_hash()),
           contract_validation: boolean()
@@ -52,6 +54,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def extract_for_signature(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_existence: poe,
         ledger_operations: ops,
         recipients: recipients,
         contract_validation: contract_validation
@@ -59,6 +62,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %__MODULE__{
       proof_of_work: pow,
       proof_of_integrity: poi,
+      proof_of_existence: poe,
       ledger_operations: ops,
       recipients: recipients,
       contract_validation: contract_validation
@@ -121,15 +125,17 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def serialize(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_existence: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         contract_validation: contract_validation,
         signature: nil
       }) do
     pow_bitstring = if pow, do: 1, else: 0
+    poe = if poe, do: 1, else: 0
     contract_validation = if contract_validation, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary,
+    <<pow_bitstring::1, pow::binary, poi::binary, poe::1,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, contract_validation::1>>
   end
@@ -137,15 +143,17 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def serialize(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_existence: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         contract_validation: contract_validation,
         signature: signature
       }) do
     pow_bitstring = if pow, do: 1, else: 0
+    poe = if poe, do: 1, else: 0
     contract_validation = if contract_validation, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary,
+    <<pow_bitstring::1, pow::binary, poi::binary, poe::1,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, contract_validation::1, byte_size(signature)::8,
       signature::binary>>
@@ -172,6 +180,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
             155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,>>,
           proof_of_integrity: << 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
             28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
+          proof_of_existence: true,
           ledger_operations: %ValidationStamp.LedgerOperations{
             fee: 0.1,
             transaction_movements: [],
@@ -206,6 +215,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     hash_size = Crypto.hash_size(hash_id)
     <<hash::binary-size(hash_size), rest::bitstring>> = rest
 
+    <<poe::1, rest::bitstring>> = rest
+    poe = if poe == 1, do: true, else: false
+
     {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
 
     {recipients, <<contract_validation::1, rest::bitstring>>} =
@@ -219,6 +231,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       %__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: <<hash_id::8>> <> hash,
+        proof_of_existence: poe,
         ledger_operations: ledger_ops,
         recipients: recipients,
         contract_validation: contract_validation,
@@ -233,6 +246,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %__MODULE__{
       proof_of_work: Map.get(stamp, :proof_of_work),
       proof_of_integrity: Map.get(stamp, :proof_of_integrity),
+      proof_of_existence: Map.get(stamp, :proof_of_existence),
       ledger_operations:
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
       recipients: Map.get(stamp, :recipients, []),
@@ -247,6 +261,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def to_map(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_existence: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         signature: signature,
@@ -255,6 +270,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %{
       proof_of_work: pow,
       proof_of_integrity: poi,
+      proof_of_existence: poe,
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,

@@ -14,7 +14,9 @@ defmodule Uniris.MixProject do
       deps: deps(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      elixirc_options: [warnings_as_errors: true],
+      # elixirc_options: [warnings_as_errors: true],
+      # REVERT
+      elixirc_options: [warnings_as_errors: false],
       dialyzer: [plt_add_apps: [:mix]]
     ]
   end

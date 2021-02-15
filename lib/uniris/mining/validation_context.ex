@@ -735,22 +735,11 @@ defmodule Uniris.Mining.ValidationContext do
     }
   end
 
-  # TODO: HOW TO UPDATE TRANSACTION??????
   defp do_proof_of_work(tx) do
     result =
       tx
       |> ProofOfWork.list_origin_public_keys_candidates()
       |> ProofOfWork.find_transaction_origin_public_key(tx)
-
-    result =
-      if tx.type == :oracle do
-        case ProofOfExistence.do_proof_of_existence(tx) do
-          true -> result
-          false -> {:error, :not_found}
-        end
-      else
-        result
-      end
 
     case result do
       {:ok, pow} ->
@@ -788,6 +777,7 @@ defmodule Uniris.Mining.ValidationContext do
              stamp = %ValidationStamp{
                proof_of_work: pow,
                proof_of_integrity: poi,
+               proof_of_existence: poe,
                ledger_operations:
                  operations = %LedgerOperations{
                    fee: fee,
@@ -801,10 +791,13 @@ defmodule Uniris.Mining.ValidationContext do
        ) do
     resolved_transaction_movements = resolve_transaction_movements(tx)
 
+    IO.puts("AAAAA: #{inspect(context)}")
+
     subsets_verifications = [
       signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
       proof_of_work: fn -> valid_proof_of_work?(pow, tx) end,
       proof_of_integrity: fn -> TransactionChain.proof_of_integrity([tx, prev_tx]) == poi end,
+      proof_of_existence: fn -> true end,
       transaction_fee: fn -> Transaction.fee(tx) == fee end,
       transaction_movements: fn -> resolved_transaction_movements == tx_movements end,
       recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,

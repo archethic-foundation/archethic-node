@@ -43,7 +43,7 @@ defmodule Uniris.Oracles.Scheduler do
   def handle_continue(:prepare, state = %{mfa: {m, _, _}}) do
     m.start()
 
-    Process.send_after(self(), :fetch, 0)
+    Process.send_after(self(), :fetch, 5_000)
     {:noreply, state}
   end
 
@@ -91,12 +91,15 @@ defmodule Uniris.Oracles.Scheduler do
   @impl GenServer
   def handle_info(:send_tx, state = %{payload: payload, mfa: mfa}) do
     tx_content =
-      %TransactionContent{mfa: mfa, payload: payload, status: :unverified}
-      |> :erlang.term_to_binary()
+      %TransactionContent{mfa: mfa, payload: payload}
+      |> TransactionContent.serialize()
+      |> TransactionContent.deserialize()
 
-    data = %TransactionData{content: tx_content}
-    tx = Transaction.new(:oracle, data)
-    :ok = Uniris.send_new_transaction(tx)
+    # |> :erlang.term_to_binary()
+
+    # data = %TransactionData{content: tx_content}
+    # tx = Transaction.new(:oracle, data)
+    # :ok = Uniris.send_new_transaction(tx)
 
     {:noreply, state}
   end
