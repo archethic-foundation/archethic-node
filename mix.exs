@@ -48,7 +48,7 @@ defmodule Uniris.MixProject do
       {:phoenix_live_dashboard, "~> 0.2.7"},
       {:ex_doc, "~> 0.21.2"},
       {:observer_cli, "~> 1.5"},
-      {:distillery, "~> 2.0"},
+      {:distillery, github: "bitwalker/distillery", ref: "6700edb"},
       {:crontab, "~> 1.1"},
       {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
