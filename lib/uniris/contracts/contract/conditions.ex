@@ -3,18 +3,10 @@ defmodule Uniris.Contracts.Contract.Conditions do
   Represents the smart contract conditions
   """
 
-  @default_inherit_constraints Code.string_to_quoted!("""
-                                 next_transaction.code == previous_transaction.code and
-                                   next_transaction.authorized_keys == previous_transaction.authorized_keys and
-                                   next_transaction.secret == previous_transaction.secret and
-                                   next_transaction.content == previous_transaction.content and
-                                   next_transaction.uco_transferred == 0.0 and next_transaction.nft_transferred == 0.0
-                               """)
-
   defstruct [
     :transaction,
     :origin_family,
-    inherit: @default_inherit_constraints
+    inherit: []
   ]
 
   alias Uniris.SharedSecrets
@@ -27,7 +19,16 @@ defmodule Uniris.Contracts.Contract.Conditions do
   """
   @type t :: %__MODULE__{
           transaction: Macro.t(),
-          inherit: Macro.t(),
+          inherit:
+            list(
+              {:code
+               | :secret
+               | :content
+               | :uco_transferred
+               | :nft_transferred
+               | :uco_transfers
+               | :nft_transfers, Macro.t()}
+            ),
           origin_family: nil | SharedSecrets.origin_family()
         }
 end

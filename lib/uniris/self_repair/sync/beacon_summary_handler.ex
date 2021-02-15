@@ -32,19 +32,32 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     Task.async_stream(summary_pools, fn {subset, nodes_by_summary_time} ->
       Task.async_stream(
         nodes_by_summary_time,
-        fn {summary_time, nodes} ->
-          nodes
-          |> P2P.nearest_nodes(patch)
-          |> P2P.broadcast_message(%GetBeaconSummary{subset: subset, date: summary_time})
-          |> Stream.filter(&match?(%BeaconSummary{}, &1))
-          |> Enum.at(0)
-        end,
+        fn {summary_time, nodes} -> do_fetch_summary(subset, summary_time, nodes, patch) end,
         ordered: false
       )
       |> Stream.reject(&match?({:ok, nil}, &1))
       |> Enum.map(fn {:ok, res} -> res end)
     end)
     |> Enum.flat_map(fn {:ok, res} -> res end)
+  end
+
+  defp do_fetch_summary(subset, summary_time, nodes, patch) do
+    if Utils.key_in_node_list?(nodes, Crypto.node_public_key(0)) do
+      case DB.get_beacon_summary(subset, summary_time) do
+        {:ok, summary} ->
+          summary
+
+        _ ->
+          nil
+      end
+    else
+      nodes
+      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> P2P.nearest_nodes(patch)
+      |> P2P.broadcast_message(%GetBeaconSummary{subset: subset, date: summary_time})
+      |> Stream.filter(&match?(%BeaconSummary{}, &1))
+      |> Enum.at(0)
+    end
   end
 
   @doc """
@@ -58,7 +71,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    Task.start(fn -> load_summaries_in_db(summaries) end)
+    load_summaries_in_db(summaries)
 
     %{
       end_of_node_synchronizations: end_of_node_synchronizations,

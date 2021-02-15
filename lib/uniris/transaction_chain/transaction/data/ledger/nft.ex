@@ -106,10 +106,15 @@ defmodule Uniris.TransactionChain.TransactionData.NFTLedger do
     }
   end
 
-  @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{transfers: transfers}) do
+  @spec to_map(t() | nil) :: map()
+  def to_map(nil), do: %{transfers: []}
+
+  def to_map(nft_ledger = %__MODULE__{}) do
     %{
-      transfers: Enum.map(transfers, &Transfer.to_map/1)
+      transfers:
+        nft_ledger
+        |> Map.get(:transfers, [])
+        |> Enum.map(&Transfer.to_map/1)
     }
   end
 

@@ -46,9 +46,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       geo_patch: "AAA"
     })
 
-    MockTransport
-    |> stub(:send_message, fn _, _, %GetLastTransactionAddress{address: address} ->
-      {:ok, %LastTransactionAddress{address: address}}
+    MockClient
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      %LastTransactionAddress{address: address}
     end)
 
     :ok

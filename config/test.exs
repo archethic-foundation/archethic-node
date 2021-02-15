@@ -17,9 +17,7 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
   enabled: false,
   interval: "0 * * * * *"
 
-config :uniris, Uniris.Bootstrap,
-  ip_lookup_provider: MockIPLookup,
-  enabled: false
+config :uniris, Uniris.Bootstrap, enabled: false
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_pools: [
@@ -79,9 +77,13 @@ config :uniris, Uniris.Governance.Pools,
 config :uniris, Uniris.Governance.Pools.MemTable, enabled: false
 config :uniris, Uniris.Governance.Pools.MemTableLoader, enabled: false
 
+config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
+config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
+
 config :uniris, Uniris.P2P.Endpoint, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
+config :uniris, Uniris.P2P.Client, impl: MockClient
 config :uniris, Uniris.P2P.Transport, impl: MockTransport
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false

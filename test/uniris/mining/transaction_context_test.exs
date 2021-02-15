@@ -33,62 +33,59 @@ defmodule Uniris.Mining.TransactionContextTest do
         }
       }
 
-      MockTransport
+      MockClient
       |> stub(:send_message, fn
-        _, 3003, %GetUnspentOutputs{address: "@Alice1"} ->
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-           }}
+        %Node{port: 3003}, %GetUnspentOutputs{address: "@Alice1"} ->
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+          }
 
-        _, 3002, %GetUnspentOutputs{address: "@Alice1"} ->
+        %Node{port: 3002}, %GetUnspentOutputs{address: "@Alice1"} ->
           Process.sleep(200)
 
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-           }}
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+          }
 
-        _, 3005, %GetUnspentOutputs{address: "@Alice1"} ->
+        %Node{port: 3005}, %GetUnspentOutputs{address: "@Alice1"} ->
           Process.sleep(400)
 
-          {:ok,
-           %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-           }}
+          %UnspentOutputList{
+            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+          }
 
-        _, 3003, %GetP2PView{} ->
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+        %Node{port: 3003}, %GetP2PView{} ->
+          %P2PView{nodes_view: <<1::1, 1::1>>}
 
-        _, 3002, %GetP2PView{} ->
+        %Node{port: 3002}, %GetP2PView{} ->
           Process.sleep(200)
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+          %P2PView{nodes_view: <<1::1, 1::1>>}
 
-        _, 3005, %GetP2PView{} ->
+        %Node{port: 3005}, %GetP2PView{} ->
           Process.sleep(400)
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+          %P2PView{nodes_view: <<1::1, 1::1>>}
 
-        _, 3002, %GetTransaction{address: "@Bob3"} ->
-          {:ok, unspent_output}
+        %Node{port: 3002}, %GetTransaction{address: "@Bob3"} ->
+          unspent_output
 
-        _, 3003, %GetTransaction{address: "@Bob3"} ->
+        %Node{port: 3003}, %GetTransaction{address: "@Bob3"} ->
           Process.sleep(200)
-          {:ok, unspent_output}
+          unspent_output
 
-        _, 3005, %GetTransaction{address: "@Bob3"} ->
+        %Node{port: 3005}, %GetTransaction{address: "@Bob3"} ->
           Process.sleep(500)
-          {:ok, unspent_output}
+          unspent_output
 
-        _, 3003, %GetTransaction{address: "@Alice1"} ->
+        %Node{port: 3003}, %GetTransaction{address: "@Alice1"} ->
           Process.sleep(300)
-          {:ok, %Transaction{}}
+          %Transaction{}
 
-        _, 3005, %GetTransaction{address: "@Alice1"} ->
-          {:ok, %Transaction{}}
+        %Node{port: 3005}, %GetTransaction{address: "@Alice1"} ->
+          %Transaction{}
 
-        _, 3002, %GetTransaction{address: "@Alice1"} ->
+        %Node{port: 3002}, %GetTransaction{address: "@Alice1"} ->
           Process.sleep(200)
-          {:ok, %Transaction{}}
+          %Transaction{}
       end)
 
       node1 = %Node{

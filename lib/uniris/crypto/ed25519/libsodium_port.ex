@@ -4,15 +4,15 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
 
   require Logger
 
-  @libsodium_exec_file Application.app_dir(:uniris, "/priv/crypto/c_dist/libsodium")
-
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   def init(_opts) do
+    libsodium = Application.app_dir(:uniris, "/priv/crypto/c_dist/libsodium")
+
     port =
-      Port.open({:spawn_executable, @libsodium_exec_file}, [
+      Port.open({:spawn_executable, libsodium}, [
         :binary,
         :exit_status,
         {:packet, 4}

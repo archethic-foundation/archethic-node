@@ -11,16 +11,6 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
-# Networking module configuration:
-# ip_provider(module) - (must be defined) options: Uniris.Networking.IPLookup.Static, Uniris.Networking.IPLookup.Ipify, Uniris.Networking.Nat 
-# hostname(string) - (for Static) provides a constant IP address for Static (ex. "127.0.0.1")
-# port(pos_int) - (must be defined) provides a P2P port number (ex. 3002)
-#
-config :uniris, Uniris.Networking,
-  # ip_provider: Uniris.Networking.IPLookup.Static,
-  # hostname: "127.0.0.1",
-  port: 3002
-
 config :uniris, Uniris.BeaconChain.SlotTimer,
   # Every 10 seconds
   interval: "*/10 * * * * *"
@@ -29,7 +19,6 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
   # At the 58th second  
   interval: "58 * * * * *"
 
-config :uniris, Uniris.Bootstrap, ip_lookup_provider: Uniris.Bootstrap.IPLookup.EnvImpl
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
 
 config :uniris, Uniris.P2P.BootstrappingSeeds,
@@ -37,7 +26,7 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
   seeds:
     System.get_env(
       "UNIRIS_P2P_SEEDS",
-      "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"
+      "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8:tcp"
     )
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
@@ -89,6 +78,8 @@ config :uniris, Uniris.Governance.Pools,
     foundation: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"],
     uniris: ["00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"]
   ]
+
+config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
 
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every minute

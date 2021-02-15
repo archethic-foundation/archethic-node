@@ -54,7 +54,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>   }
       ...> )
       %LedgerOperations{
-          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 1_000, type: {:NFT, "@NFT2"}}]
+          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 1_000.0, type: {:NFT, "@NFT2"}}]
       }
   """
   @spec from_transaction(t(), Transaction.t()) :: t()
@@ -65,11 +65,11 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       }) do
     [[match | _]] = Regex.scan(~r/(?<=initial supply:).*\d/mi, content)
 
-    initial_supply =
+    {initial_supply, _} =
       match
       |> String.trim()
       |> String.replace(" ", "")
-      |> String.to_integer()
+      |> Float.parse()
 
     %{
       ops

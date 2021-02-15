@@ -248,15 +248,12 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   defp notify_summary_pool(current_slot = %Slot{subset: subset}) do
     next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
 
-    summary_storage_nodes =
-      Election.beacon_storage_nodes(
-        subset,
-        next_summary_time,
-        P2P.list_nodes(availability: :global),
-        Election.get_storage_constraints()
-      )
-
-    summary_storage_nodes
+    subset
+    |> Election.beacon_storage_nodes(
+      next_summary_time,
+      P2P.list_nodes(availability: :global),
+      Election.get_storage_constraints()
+    )
     |> P2P.broadcast_message(%NotifyBeaconSlot{slot: current_slot})
     |> Stream.run()
   end

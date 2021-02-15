@@ -13,6 +13,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics do
   end
 
   def init(_opts) do
+    init_dump_dir()
+
     unless File.exists?(dump_filename(:uniris_tps)) do
       :ets.new(:uniris_tps, [:named_table, :ordered_set, :public, read_concurrency: true])
     end
@@ -101,8 +103,15 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics do
   end
 
   defp dump_filename(table) do
+    Path.join(dump_dirname(), Atom.to_string(table))
+  end
+
+  defp init_dump_dir do
+    File.mkdir_p!(dump_dirname())
+  end
+
+  defp dump_dirname do
     dump_dir = Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:dump_dir)
-    File.mkdir_p!(dump_dir)
-    Application.app_dir(:uniris, Path.join(dump_dir, Atom.to_string(table)))
+    Application.app_dir(:uniris, dump_dir)
   end
 end

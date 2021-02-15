@@ -12,7 +12,11 @@ defmodule Uniris.Application do
   alias Uniris.Election.Supervisor, as: ElectionSupervisor
   alias Uniris.Governance.Supervisor, as: GovernanceSupervisor
   alias Uniris.Mining.Supervisor, as: MiningSupervisor
+
+  alias Uniris.Networking
+
   alias Uniris.P2P.Supervisor, as: P2PSupervisor
+
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
   alias Uniris.TransactionChain.Supervisor, as: TransactionChainSupervisor
@@ -22,7 +26,17 @@ defmodule Uniris.Application do
   alias UnirisWeb.Endpoint, as: WebEndpoint
   alias UnirisWeb.Supervisor, as: WebSupervisor
 
+  require Logger
+
   def start(_type, _args) do
+    p2p_endpoint_conf = Application.get_env(:uniris, Uniris.P2P.Endpoint)
+
+    port = Keyword.fetch!(p2p_endpoint_conf, :port)
+    Logger.info("Try to open the port #{port}")
+    port = Networking.try_open_port(port, true)
+
+    transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
+
     children = [
       Uniris.Telemetry,
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
@@ -30,7 +44,7 @@ defmodule Uniris.Application do
       TransactionChainSupervisor,
       CryptoSupervisor,
       ElectionSupervisor,
-      P2PSupervisor,
+      {P2PSupervisor, port: port},
       MiningSupervisor,
       ContractsSupervisor,
       BeaconChainSupervisor,
@@ -39,7 +53,7 @@ defmodule Uniris.Application do
       GovernanceSupervisor,
       SelfRepairSupervisor,
       WebSupervisor,
-      Bootstrap,
+      {Bootstrap, port: port, transport: transport},
       {Task.Supervisor, name: Uniris.TaskSupervisor},
       Uniris.Oracles.Supervisor
     ]

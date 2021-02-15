@@ -88,19 +88,14 @@ defmodule Uniris.Utils do
 
   ## Examples
 
-      iex> date = Utils.truncate_datetime(DateTime.utc_now())
-      iex> date.microsecond
-      {0, 0}
+      iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z])
+      ~U[2021-02-08 16:52:37Z]
 
-      iex> date = Utils.truncate_datetime(DateTime.utc_now(), second?: true, microsecond?: true)
-      iex> date.second
-      0
-      iex> date.microsecond
-      {0, 0}
+      iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z], second?: true, microsecond?: true)
+      ~U[2021-02-08 16:52:00Z]
 
-      iex> date = Utils.truncate_datetime(DateTime.utc_now(), second?: true)
-      iex> date.second
-      0
+      iex> Utils.truncate_datetime(~U[2021-02-08 16:52:37.542918Z], second?: true)
+      ~U[2021-02-08 16:52:00.542918Z]
   """
   def truncate_datetime(date = %DateTime{}, opts \\ [second?: false, microsecond?: true]) do
     Enum.reduce(opts, date, fn opt, acc ->
@@ -490,5 +485,11 @@ defmodule Uniris.Utils do
       _, acc ->
         acc
     end)
+  end
+
+  def impl(mod) do
+    :uniris
+    |> Application.get_env(mod)
+    |> Keyword.fetch!(:impl)
   end
 end

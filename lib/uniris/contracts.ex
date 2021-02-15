@@ -19,32 +19,7 @@ defmodule Uniris.Contracts do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
 
-  @doc ~S"""
-  Parse a smart contract code to check if it's valid or not
-
-  ## Examples
-
-      iex> "
-      ...>    condition origin_family: biometric
-      ...>    condition inherit: regex_match?(next_transaction.content, \"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
-      ...>    actions triggered_by: datetime, at: 1601039923 do
-      ...>      set_type hosting
-      ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
-      ...>    end  
-      ...> "
-      ...> |> Contracts.valid_contract?()
-      true
-  """
-  @spec valid_contract?(binary()) :: boolean()
-  def valid_contract?(contract_code) when is_binary(contract_code) do
-    case parse(contract_code) do
-      {:ok, _} ->
-        true
-
-      _ ->
-        false
-    end
-  end
+  require Logger
 
   @doc ~S"""
   Parse a smart contract code and return its representation
@@ -53,7 +28,10 @@ defmodule Uniris.Contracts do
 
       iex> "
       ...>    condition origin_family: biometric
-      ...>    condition inherit: regex_match?(next_transaction.content, \"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
+      ...>
+      ...>    condition inherit,
+      ...>       content: regex_match?(\"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
+      ...>
       ...>    actions triggered_by: datetime, at: 1601039923 do
       ...>      set_type hosting
       ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
@@ -63,7 +41,9 @@ defmodule Uniris.Contracts do
       {:ok,
         %Contract{
           conditions: %Conditions{
-            inherit: {:regex_match?, [line: 2], [{{:., [line: 2], [{:next_transaction, [line: 2], nil}, :content]}, [no_parens: true, line: 2], []}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]},
+            inherit: [
+              content: {:regex_match?, [line: 4], ["^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]}
+            ],
             origin_family: :biometric,
             transaction: nil
           },
@@ -73,21 +53,21 @@ defmodule Uniris.Contracts do
           },
           triggers: [
             %Trigger{
-              actions: {:__block__, [], [{:set_type, [line: 4], [{:hosting, [line: 4], nil}]}, {:set_content, [line: 5], ["Mr.X: 10, Mr.Y: 8"]}]},
+              actions: {:__block__, [], [
+                {:set_type, [line: 7], [{:hosting, [line: 7], nil}]},
+                {:set_content, [line: 8], ["Mr.X: 10, Mr.Y: 8"]}
+              ]},
               opts: [at: ~U[2020-09-25 13:18:43Z]],
               type: :datetime
             }
           ]
         }}
   """
-  @spec parse(binary()) ::
-          {:ok, Contract.t()}
-          | {:error, Interpreter.parsing_error()}
-          | {:error, :missing_inherit_constraints}
+  @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
   def parse(contract_code) when is_binary(contract_code) do
     case Interpreter.parse(contract_code) do
-      {:ok, %Contract{conditions: %Conditions{inherit: nil}}} ->
-        {:error, :missing_inherit_constraints}
+      {:ok, %Contract{triggers: [_ | _], conditions: %Conditions{inherit: []}}} ->
+        {:error, "missing inherit constraints"}
 
       {:ok, contract = %Contract{}} ->
         {:ok, contract}
@@ -119,7 +99,10 @@ defmodule Uniris.Contracts do
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: Loader
 
-  @spec accept_new_contract?(Transaction.t(), Transaction.t()) :: boolean()
+  @spec accept_new_contract?(Transaction.t() | nil, Transaction.t()) :: boolean()
+  def accept_new_contract?(nil, _), do: true
+  def accept_new_contract?(%Transaction{data: %TransactionData{code: ""}}, _), do: true
+
   def accept_new_contract?(
         prev_tx = %Transaction{data: %TransactionData{code: code}},
         next_tx = %Transaction{}
@@ -130,21 +113,49 @@ defmodule Uniris.Contracts do
        conditions: %Conditions{inherit: inherit_constraints}
      }} = Interpreter.parse(code)
 
-    inherit_constants = [
-      previous_transaction: prev_tx |> Constants.from_transaction() |> Enum.into(%{}),
-      next_transaction: next_tx |> Constants.from_transaction() |> Enum.into(%{})
+    constants = [
+      previous: Constants.from_transaction(prev_tx),
+      next: Constants.from_transaction(next_tx)
     ]
 
-    with true <-
-           Interpreter.can_execute?(Macro.to_string(inherit_constraints), inherit_constants),
-         true <- Enum.any?(triggers, &valid_from_trigger?(&1, next_tx)) do
+    default_inherit_conditions = [
+      code: nil,
+      content: nil,
+      uco_transfers: nil,
+      nft_transfer: nil
+    ]
+
+    inherit_conditions = Keyword.merge(default_inherit_conditions, inherit_constraints)
+
+    with {:inherit, true} <-
+           {:inherit, Enum.all?(inherit_conditions, &do_valid_condition?(&1, constants))},
+         {:origin, true} <- {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx))} do
       true
     else
-      false ->
+      {:inherit, false} ->
+        Logger.error("Inherit constraints not respected")
         false
 
-      nil ->
+      {:origin, false} ->
+        Logger.error("Transaction not processed by a valid smart contract trigger")
         false
+    end
+  end
+
+  defp do_valid_condition?({field, nil}, previous: prev, next: next) do
+    Keyword.get(prev, field) == Keyword.get(next, field)
+  end
+
+  defp do_valid_condition?({field, value}, constants) do
+    next = Keyword.get(constants, :next)
+    subject = Keyword.get(next, field)
+
+    result = Interpreter.execute_inherit_condition(Macro.to_string(value), subject)
+
+    if is_boolean(result) do
+      result == true
+    else
+      result == Keyword.get(next, field)
     end
   end
 

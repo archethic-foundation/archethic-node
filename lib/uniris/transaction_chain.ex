@@ -10,6 +10,7 @@ defmodule Uniris.TransactionChain do
   alias Uniris.PubSub
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.NotFound
@@ -23,6 +24,8 @@ defmodule Uniris.TransactionChain do
 
   alias __MODULE__.Transaction
   alias __MODULE__.Transaction.ValidationStamp
+
+  alias Uniris.Utils
 
   require Logger
 
@@ -449,18 +452,22 @@ defmodule Uniris.TransactionChain do
   """
   @spec resolve_last_address(binary()) :: binary()
   def resolve_last_address(address) when is_binary(address) do
-    res =
-      address
-      |> Replication.chain_storage_nodes(P2P.list_nodes())
-      |> P2P.broadcast_message(%GetLastTransactionAddress{address: address})
+    message = %GetLastTransactionAddress{address: address}
+
+    storage_nodes = Replication.chain_storage_nodes(address, P2P.list_nodes())
+
+    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+      message
+      |> Message.process()
+      |> handle_resolve_result(address)
+    else
+      storage_nodes
+      |> P2P.broadcast_message(message)
       |> Enum.at(0)
-
-    case res do
-      %NotFound{} ->
-        address
-
-      %LastTransactionAddress{address: last_address} ->
-        last_address
+      |> handle_resolve_result(address)
     end
   end
+
+  defp handle_resolve_result(%NotFound{}, address), do: address
+  defp handle_resolve_result(%LastTransactionAddress{address: last_address}, _), do: last_address
 end

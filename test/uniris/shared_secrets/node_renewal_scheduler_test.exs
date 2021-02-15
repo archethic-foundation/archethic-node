@@ -1,15 +1,26 @@
 defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
   use UnirisCase, async: false
 
+  alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Uniris.BeaconChain.SubsetRegistry
+
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler, as: Scheduler
 
   import Mox
+
+  setup do
+    start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
+    Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
+    :ok
+  end
 
   describe "start_link/1" do
     test "should initiate the node renewal scheduler and trigger node renewal every each seconds" do
@@ -25,10 +36,11 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
 
       me = self()
 
-      MockTransport
-      |> stub(:send_message, fn _, _, %StartMining{} ->
-        send(me, :renewal_processed)
-        {:ok, :ok}
+      MockClient
+      |> stub(:send_message, fn
+        _, %StartMining{} ->
+          send(me, :renewal_processed)
+          %Ok{}
       end)
 
       assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])

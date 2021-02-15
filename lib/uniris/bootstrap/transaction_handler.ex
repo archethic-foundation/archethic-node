@@ -6,6 +6,7 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
+  alias Uniris.P2P.Transport
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -29,12 +30,15 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @doc """
   Create a new node transaction
   """
-  @spec create_node_transaction(:inet.ip_address(), :inet.port_number()) :: Transaction.t()
-  def create_node_transaction(ip = {_, _, _, _}, port) when is_number(port) and port >= 0 do
+  @spec create_node_transaction(:inet.ip_address(), :inet.port_number(), Transport.supported()) ::
+          Transaction.t()
+  def create_node_transaction(ip = {_, _, _, _}, port, transport)
+      when is_number(port) and port >= 0 do
     Transaction.new(:node, %TransactionData{
       content: """
       ip: #{:inet_parse.ntoa(ip)}
       port: #{port}
+      transport: #{Atom.to_string(transport)}
       """
     })
   end

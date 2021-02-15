@@ -52,12 +52,11 @@ defmodule Uniris.MixProject do
       {:crontab, "~> 1.1"},
       {:credo, "~> 1.5", runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
-      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.0", runtime: false},
       {:mox, "~> 0.5.2"},
       {:stream_data, "~> 0.5.0"},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:logger_file_backend, "~> 0.0.11"},
-      {:cubdb, "~> 0.17.0"},
       {:earmark, "~> 1.4"},
       {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
@@ -67,7 +66,9 @@ defmodule Uniris.MixProject do
       {:inet_cidr, "~> 1.1", hex: :erl_cidr, override: true},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"},
-      {:httpoison, "~> 1.8"}
+      {:httpoison, "~> 1.8"},
+      {:poolboy, "~> 1.5.1"},
+      {:ecto, "~> 3.5"}
     ]
   end
 end

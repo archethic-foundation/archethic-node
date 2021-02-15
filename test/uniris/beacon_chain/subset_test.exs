@@ -160,10 +160,10 @@ defmodule Uniris.BeaconChain.SubsetTest do
     slot_time = DateTime.utc_now()
     send(pid, {:create_slot, slot_time})
 
-    MockTransport
+    MockClient
     |> stub(:send_message, fn
-      _, _, %AddBeaconSlotProof{} ->
-        {:ok, %Ok{}}
+      _, %AddBeaconSlotProof{} ->
+        %Ok{}
     end)
 
     slot_digest =

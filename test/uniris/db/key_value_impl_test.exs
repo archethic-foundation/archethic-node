@@ -15,6 +15,8 @@ defmodule Uniris.DB.KeyValueImplTest do
   alias Uniris.TransactionFactory
 
   setup do
+    File.rm_rf!(Application.app_dir(:uniris, "priv/storage/kv_test"))
+
     path = Path.join("priv/storage/kv_test", Base.encode16(:crypto.strong_rand_bytes(16)))
     root_dir = Application.app_dir(:uniris, path)
 
@@ -26,35 +28,38 @@ defmodule Uniris.DB.KeyValueImplTest do
   end
 
   test "start_link/1 should initiate a KV store instance", %{root_dir: root_dir} do
-    {:ok, pid} = KV.start_link(root_dir: root_dir)
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
     assert File.dir?(root_dir)
 
-    assert ["0.cub"] == File.ls!(root_dir)
-
-    assert %{db: _} = :sys.get_state(pid)
+    assert :undefined != :ets.info(:uniris_kv_db_transactions)
+    assert :undefined != :ets.info(:uniris_kv_db_chain)
+    assert :undefined != :ets.info(:uniris_kv_db_beacon_slots)
+    assert :undefined != :ets.info(:uniris_kv_db_beacon_slot)
+    assert :undefined != :ets.info(:uniris_kv_db_beacon_summary)
   end
 
   test "write_transaction/1 should persist the transaction in the KV", %{root_dir: root_dir} do
-    {:ok, pid} = KV.start_link(root_dir: root_dir)
-    %{db: db} = :sys.get_state(pid)
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
 
     tx = create_transaction()
     assert :ok = KV.write_transaction(tx)
 
-    assert CubDB.get(db, {"transaction", tx.address}) == tx
+    assert [{_, ^tx}] = :ets.lookup(:uniris_kv_db_transactions, tx.address)
   end
 
   test "write_transaction_chain/1 should persist the transaction chain in the KV and index it", %{
     root_dir: root_dir
   } do
-    {:ok, pid} = KV.start_link(root_dir: root_dir)
-    %{db: db} = :sys.get_state(pid)
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
 
     chain = [create_transaction(1), create_transaction(0)]
     assert :ok = KV.write_transaction_chain(chain)
 
-    assert CubDB.get(db, {"chain", List.first(chain).address}) == Enum.map(chain, & &1.address)
-    assert Enum.all?(chain, &(CubDB.get(db, {"transaction", &1.address}) == &1))
+    [{_, _}, {_, _}] = :ets.lookup(:uniris_kv_db_chain, List.first(chain).address)
+
+    Enum.all?(chain, fn tx ->
+      assert [{_, _}] = :ets.lookup(:uniris_kv_db_transactions, tx.address)
+    end)
   end
 
   test "list_transactions/1 should stream the entire list of transactions with the requested fields",
@@ -63,7 +68,7 @@ defmodule Uniris.DB.KeyValueImplTest do
 
     Enum.each(1..100, fn i ->
       tx = create_transaction(i)
-      KV.write_transaction(tx)
+      :ok = KV.write_transaction(tx)
     end)
 
     transactions = KV.list_transactions([:address, :type])
@@ -107,7 +112,7 @@ defmodule Uniris.DB.KeyValueImplTest do
     KV.add_last_transaction_address("@Alice1", "@Alice2")
     KV.add_last_transaction_address("@Alice1", "@Alice3")
     KV.add_last_transaction_address("@Alice1", "@Alice4")
-    assert [{"@Alice1", "@Alice4"}] = KV.list_last_transaction_addresses()
+    assert [{"@Alice1", "@Alice4"}] = KV.list_last_transaction_addresses() |> Enum.to_list()
   end
 
   test "register_beacon_slot/1 should register a beacon slot", %{root_dir: root_dir} do
@@ -208,6 +213,21 @@ defmodule Uniris.DB.KeyValueImplTest do
       assert :ok = KV.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
       assert {:error, :not_found} = KV.get_beacon_summary(<<1>>, d2)
     end
+  end
+
+  test "should dump the tables after a delay", %{root_dir: root_dir} do
+    Process.flag(:trap_exit, true)
+
+    {:ok, pid} = KV.start_link(root_dir: root_dir, dump_delay: 1_000)
+    tx = create_transaction()
+    assert :ok = KV.write_transaction(tx)
+
+    Process.sleep(1_000)
+    Process.exit(pid, :kill)
+    Process.sleep(100)
+
+    {:ok, _pid} = KV.start_link(root_dir: root_dir, dump_delay: 0)
+    assert 1 == KV.list_transactions() |> Enum.count()
   end
 
   defp create_transaction(index \\ 0) do
