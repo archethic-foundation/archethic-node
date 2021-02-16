@@ -2,6 +2,7 @@ defmodule Uniris.Crypto.Supervisor do
   @moduledoc false
   use Supervisor
 
+  alias Uniris.Crypto
   alias Uniris.Crypto.Ed25519.LibSodiumPort
 
   alias Uniris.Crypto.Keystore
@@ -27,8 +28,8 @@ defmodule Uniris.Crypto.Supervisor do
   end
 
   defp load_storage_nonce do
-    rel_filepath = Application.get_env(:uniris, Uniris.Crypto)[:storage_nonce_file]
-    abs_filepath = Application.app_dir(:uniris, rel_filepath)
+    abs_filepath = Crypto.storage_nonce_filepath()
+    File.mkdir_p(abs_filepath)
 
     case File.read(abs_filepath) do
       {:ok, storage_nonce} ->

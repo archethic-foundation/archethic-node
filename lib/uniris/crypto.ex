@@ -766,7 +766,11 @@ defmodule Uniris.Crypto do
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: KeystoreLoader
 
-  defp storage_nonce_filepath do
+  @doc """
+  Return the storage nonce filepath
+  """
+  @spec storage_nonce_filepath() :: binary()
+  def storage_nonce_filepath do
     rel_filepath = Application.get_env(:uniris, __MODULE__)[:storage_nonce_file]
     Application.app_dir(:uniris, rel_filepath)
   end
