@@ -9,7 +9,7 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
   end
 
   def init(_opts) do
-    libsodium = Application.app_dir(:uniris, "/priv/crypto/c_dist/libsodium")
+    libsodium = Application.app_dir(:uniris, "/priv/c_dist/libsodium")
 
     port =
       Port.open({:spawn_executable, libsodium}, [

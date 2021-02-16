@@ -15,7 +15,7 @@ erl_crash.dump
 
 .DS_Store
 
-/priv/crypto/c_dist
+/priv/c_dist
 /priv/crypto/storage_nonce
 /priv/storage
 /priv/p2p/last_sync*
