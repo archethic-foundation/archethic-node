@@ -53,7 +53,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     test "should load from conf if present" do
       Application.put_env(:uniris, BootstrappingSeeds,
         seeds:
-          "127.0.0.1:3002:00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8:tcp"
+          "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
       )
 
       {:ok, pid} = BootstrappingSeeds.start_link()
@@ -65,7 +65,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
       assert node_key ==
                Base.decode16!(
-                 "00682FF302BFA84702A00D81D5F97610E02573C0487FBCD6D00A66CCBC0E0656E8"
+                 "00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491"
                )
     end
   end

@@ -4,7 +4,6 @@ defmodule CryptoTest do
 
   alias Uniris.Crypto
   alias Uniris.Crypto.ID
-  alias Uniris.Utils
 
   doctest Crypto
 

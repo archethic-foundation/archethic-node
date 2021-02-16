@@ -111,7 +111,7 @@ defmodule Uniris.Crypto do
       )
       when is_binary(seed) and is_integer(index) do
     seed
-    |> get_extended_seed(<<index>>)
+    |> get_extended_seed(<<index::32>>)
     |> generate_deterministic_keypair(curve)
   end
 
