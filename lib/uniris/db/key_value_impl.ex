@@ -204,7 +204,7 @@ defmodule Uniris.DB.KeyValueImpl do
 
   @impl GenServer
   def init(opts) do
-    root_dir = Keyword.get(opts, :root_dir, Application.app_dir(:uniris, "priv/storage"))
+    root_dir = Utils.mut_dir(Keyword.get(opts, :root_dir, "priv/storage"))
     dump_delay = Keyword.get(opts, :dump_delay, 0)
 
     File.mkdir_p!(root_dir)

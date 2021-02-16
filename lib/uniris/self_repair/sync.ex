@@ -69,7 +69,7 @@ defmodule Uniris.SelfRepair.Sync do
       |> Application.get_env(__MODULE__)
       |> Keyword.get(:last_sync_file, "priv/p2p/last_sync")
 
-    Application.app_dir(:uniris, relative_filepath)
+    Utils.mut_dir(relative_filepath)
   end
 
   @doc """

@@ -29,7 +29,7 @@ defmodule Uniris.Crypto.Supervisor do
 
   defp load_storage_nonce do
     abs_filepath = Crypto.storage_nonce_filepath()
-    File.mkdir_p(abs_filepath)
+    :ok = File.mkdir_p!(Path.dirname(abs_filepath))
 
     case File.read(abs_filepath) do
       {:ok, storage_nonce} ->

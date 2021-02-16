@@ -15,14 +15,12 @@ erl_crash.dump
 
 .DS_Store
 
+# mutable storage for dev and test environment
+/data
+/data_test
+
+# erlang ports
 /priv/c_dist
-/priv/crypto/storage_nonce
-/priv/storage
-/priv/p2p/last_sync*
-/priv/p2p/test_seeds
-/priv/proposal_logs/
-/priv/uniris_node.zip
-/priv/p2p/network_stats*
 
 # Since we are building assets from assets/,
 # we ignore priv/static. You may want to comment
@@ -31,7 +29,6 @@ erl_crash.dump
 
 # Self signed cert are used for local and dev purposes
 /priv/cert
-
 
 /assets/node_modules
 

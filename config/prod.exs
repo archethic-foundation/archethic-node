@@ -3,6 +3,8 @@ import Config
 # Do not print debug messages in production
 config :logger, level: :info
 
+config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "/opt/data")
+
 config :uniris, Uniris.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold: 54_000

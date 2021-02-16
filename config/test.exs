@@ -3,6 +3,8 @@ import Config
 # Print only warnings and errors during test
 config :logger, level: :warning
 
+config :uniris, :mut_dir, "data_test"
+
 config :uniris, Uniris.Account.MemTablesLoader, enabled: false
 config :uniris, Uniris.Account.MemTables.NFTLedger, enabled: false
 config :uniris, Uniris.Account.MemTables.UCOLedger, enabled: false

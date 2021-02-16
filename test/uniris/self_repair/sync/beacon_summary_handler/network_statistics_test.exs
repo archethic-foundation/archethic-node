@@ -2,11 +2,12 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatisticsTest do
   use ExUnit.Case, async: false
 
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
+  alias Uniris.Utils
 
   doctest NetworkStatistics
 
   setup do
-    Path.wildcard("priv/p2p/network_stats*") |> Enum.each(&File.rm_rf!/1)
+    Path.wildcard(Utils.mut_dir("priv/p2p/network_stats*")) |> Enum.each(&File.rm_rf!/1)
     :ok
   end
 
