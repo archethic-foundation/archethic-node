@@ -19,14 +19,16 @@ defmodule Uniris.P2P.Supervisor do
     port = Keyword.fetch!(args, :port)
 
     endpoint_conf = Application.get_env(:uniris, Endpoint)
-    bootstrapping_seeds_file = Application.get_env(:uniris, BootstrappingSeeds, [])[:file]
+
+    bootstrapping_seeds_file =
+      Application.get_env(:uniris, BootstrappingSeeds, []) |> Keyword.fetch!(:file)
 
     optional_children = [
       ConnectionPoolSupervisor,
       MemTable,
       MemTableLoader,
       {Endpoint, [{:port, port} | endpoint_conf]},
-      {BootstrappingSeeds, [file: Application.app_dir(:uniris, bootstrapping_seeds_file)]}
+      {BootstrappingSeeds, [file: Utils.mut_dir(bootstrapping_seeds_file)]}
     ]
 
     children = Utils.configurable_children(optional_children)

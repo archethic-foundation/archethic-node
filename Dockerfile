@@ -19,7 +19,7 @@ FROM elixir:alpine AS uniris-ci
 # running TESTNET with release upgrade should ???
 
 RUN apk add --no-cache --update \
-  build-base bash gcc git npm python3 wget openssl libsodium-dev
+  build-base bash gcc git npm python3 wget openssl libsodium-dev gmp-dev
 
 # Install hex and rebar
 RUN mix local.rebar --force \

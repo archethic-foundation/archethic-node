@@ -53,7 +53,8 @@ defmodule Uniris.SelfRepair.SyncTest do
     end
 
     test "should get the last sync date from the stored filed file" do
-      file = Application.get_env(:uniris, Sync) |> Keyword.fetch!(:last_sync_file)
+      file =
+        Application.get_env(:uniris, Sync) |> Keyword.fetch!(:last_sync_file) |> Utils.mut_dir()
 
       last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
 

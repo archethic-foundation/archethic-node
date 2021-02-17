@@ -409,7 +409,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
       receive do
         {stamp = %ValidationStamp{}, tree} ->
-          assert [<<0::1, 0::1, 1::1>>, <<0::1, 1::1, 0::1>>, <<1::1, 0::1, 0::1>>] = tree
+          assert [<<0::1, 1::1, 0::1>>, <<0::1, 0::1, 1::1>>, <<1::1, 0::1, 0::1>>] = tree
           Workflow.cross_validate(cross_validator_pid, stamp, tree)
 
           {:wait_cross_validation_stamps,

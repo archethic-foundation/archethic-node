@@ -34,7 +34,6 @@ defmodule Uniris.P2P.ConnectionPool.Worker do
   end
 
   def init(args) do
-    Logger.debug("INIT")
     ip = Keyword.get(args, :ip)
     port = Keyword.get(args, :port)
     transport = Keyword.get(args, :transport)

@@ -28,8 +28,6 @@ defmodule Uniris.BeaconChain do
 
   alias Uniris.TransactionChain.Transaction
 
-  alias Uniris.Utils
-
   require Logger
 
   @type summary_pools ::
@@ -200,20 +198,12 @@ defmodule Uniris.BeaconChain do
     case DB.get_beacon_slot(subset, slot_time) do
       {:ok, %Slot{validation_signatures: signatures}} ->
         if length(signatures) < length(Enum.uniq_by(new_signatures, &elem(&1, 0))) do
-          Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} updated",
-            beacon_subset: Base.encode16(subset)
-          )
-
           DB.register_beacon_slot(slot)
         else
           :ok
         end
 
       {:error, :not_found} ->
-        Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} registered",
-          beacon_subset: Base.encode16(subset)
-        )
-
         DB.register_beacon_slot(slot)
     end
   end

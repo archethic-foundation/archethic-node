@@ -52,8 +52,8 @@ defmodule CryptoTest do
                Crypto.ec_encrypt(storage_nonce, Crypto.node_public_key())
              )
 
-    assert {:ok, _} = File.read(Application.app_dir(:uniris, "priv/crypto/storage_nonce"))
-    File.rm(Application.app_dir(:uniris, "priv/crypto/storage_nonce"))
+    assert {:ok, _} = File.read(Crypto.storage_nonce_filepath())
+    File.rm(Crypto.storage_nonce_filepath())
   end
 
   test "encrypt_storage_nonce/1 should encrypt storage nonce using a public key" do

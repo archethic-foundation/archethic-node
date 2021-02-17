@@ -21,33 +21,19 @@ use Distillery.Releases.Config,
 # when building in that environment, this combination of release
 # and environment configuration is called a profile
 
-environment :dev do
+environment Mix.env() do
   set include_erts: true
   set include_src: false
   set cookie: :crypto.strong_rand_bytes(32) |> Base.encode16() |> String.to_atom()
   set vm_args: "rel/vm.args"
+  set pre_configure_hooks: "rel/pre_configure"
 
   set config_providers: [
-        {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
+        {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
       ]
 
   set overlays: [
-        {:copy, "rel/dev_runtime_config.exs", "runtime_config.exs"}
-      ]
-end
-
-environment :prod do
-  set include_erts: true
-  set include_src: false
-  set cookie: :crypto.strong_rand_bytes(32) |> Base.encode16() |> String.to_atom()
-  set vm_args: "rel/vm.args"
-
-  set config_providers: [
-        {Distillery.Releases.Config.Providers.Elixir, ["${RELEASE_ROOT_DIR}/runtime_config.exs"]}
-      ]
-
-  set overlays: [
-        {:copy, "rel/main_runtime_config.exs", "runtime_config.exs"}
+        {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"}
       ]
 end
 
