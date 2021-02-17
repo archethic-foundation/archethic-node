@@ -33,9 +33,8 @@ defmodule Uniris.Oracles.TransactionContent do
         k = String.to_atom(k_str)
 
         v =
-          cond do
-            k == :date -> elem(DateTime.from_iso8601(v), 1)
-            true -> v
+          if k == :date do
+            elem(DateTime.from_iso8601(v), 1)
           end
 
         [{k, v} | acc]
