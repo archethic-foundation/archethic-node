@@ -34,8 +34,6 @@ defmodule Uniris.Mining.ValidationContext do
     ProofOfWork
   }
 
-  alias Uniris.Oracles.TransactionContent
-
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
@@ -779,7 +777,7 @@ defmodule Uniris.Mining.ValidationContext do
              stamp = %ValidationStamp{
                proof_of_work: pow,
                proof_of_integrity: poi,
-               proof_of_existence: poe,
+               proof_of_existence: _poe,
                ledger_operations:
                  operations = %LedgerOperations{
                    fee: fee,
