@@ -34,6 +34,8 @@ defmodule Uniris.Mining.ValidationContext do
     ProofOfWork
   }
 
+  alias Uniris.Oracles.TransactionContent
+
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
@@ -791,13 +793,18 @@ defmodule Uniris.Mining.ValidationContext do
        ) do
     resolved_transaction_movements = resolve_transaction_movements(tx)
 
-    IO.puts("AAAAA: #{inspect(context)}")
+    oracle_data_exists =
+      if tx.type == :oracle do
+        ProofOfExistence.do_proof_of_existence(tx)
+      else
+        false
+      end
 
     subsets_verifications = [
       signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
       proof_of_work: fn -> valid_proof_of_work?(pow, tx) end,
       proof_of_integrity: fn -> TransactionChain.proof_of_integrity([tx, prev_tx]) == poi end,
-      proof_of_existence: fn -> true end,
+      proof_of_existence: fn -> oracle_data_exists end,
       transaction_fee: fn -> Transaction.fee(tx) == fee end,
       transaction_movements: fn -> resolved_transaction_movements == tx_movements end,
       recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,

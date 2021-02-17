@@ -12,35 +12,38 @@ defmodule Uniris.Oracles.TransactionContent do
 
     a_binary =
       a
-      |> Enum.map_join("&", fn {k, v} -> "#{k}:#{v}" end)
+      |> Enum.map_join("&", fn {k, v} -> "#{k}|#{v}" end)
 
     <<byte_size(m_binary)::8, m_binary::binary, byte_size(f_binary)::8, f_binary::binary,
       byte_size(a_binary)::8, a_binary::binary, payload::binary>>
   end
 
   def deserialize(
-        <<m_size::8, m::binary-size(m_size), f_size::8, f::binary-size(f_size), a_size::8,
-          a::binary-size(a_size), payload_binary::binary>>
+        <<m_size::8, m_str::binary-size(m_size), f_size::8, f_str::binary-size(f_size), a_size::8,
+          a_str::binary-size(a_size), payload::binary>>
       ) do
-    IO.puts("DESERIALIZE MSIZE: #{inspect(m_size)}")
-    IO.puts("DESERIALIZE M: #{inspect(m)}")
-    IO.puts("DESERIALIZE FSIZE: #{inspect(f_size)}")
-    IO.puts("DESERIALIZE F: #{inspect(f)}")
-    IO.puts("DESERIALIZE ASIZE: #{inspect(a_size)}")
-    IO.puts("DESERIALIZE A: #{inspect(a)}")
-    IO.puts("DESERIALIZE PAYLOAD BINARY: #{inspect(payload_binary)}")
+    args =
+      a_str
+      |> String.split("&")
+      |> Enum.reduce([], fn arg, acc ->
+        [k_str, v] =
+          arg
+          |> String.split("|")
 
-    a =
-      a
-      |> Enum.chunk(2)
-      |> Map.new(fn [k, v] -> {k, v} end)
+        k = String.to_atom(k_str)
 
-    IO.puts("DESERIALIZE PAYLOAD: #{inspect(a)}")
+        v =
+          cond do
+            k == :date -> elem(DateTime.from_iso8601(v), 1)
+            true -> v
+          end
 
-    # IO.puts "DESERIALIZE MFA: #{inspect mfa}"
-    # IO.puts "DESERIALIZE PAYLOAD: #{inspect payload}"
-    # {
-    #   %__MODULE__{mfa: mfa, payload: payload}
-    # }
+        [{k, v} | acc]
+      end)
+
+    module = String.to_atom(m_str)
+    fun = String.to_atom(f_str)
+
+    %__MODULE__{mfa: {module, fun, args}, payload: payload}
   end
 end

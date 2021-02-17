@@ -13,7 +13,9 @@ defmodule Uniris.Mining.ProofOfExistence do
   @spec do_proof_of_existence(Transaction.t()) :: boolean()
   def do_proof_of_existence(tx) do
     %TransactionData{content: content} = tx.data
-    %TransactionContent{mfa: {m, f, a}, payload: payload} = :erlang.binary_to_term(content)
+
+    %TransactionContent{mfa: {m, f, a}, payload: payload} =
+      TransactionContent.deserialize(content)
 
     response =
       apply(m, f, a)

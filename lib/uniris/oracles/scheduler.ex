@@ -93,13 +93,10 @@ defmodule Uniris.Oracles.Scheduler do
     tx_content =
       %TransactionContent{mfa: mfa, payload: payload}
       |> TransactionContent.serialize()
-      |> TransactionContent.deserialize()
 
-    # |> :erlang.term_to_binary()
-
-    # data = %TransactionData{content: tx_content}
-    # tx = Transaction.new(:oracle, data)
-    # :ok = Uniris.send_new_transaction(tx)
+    data = %TransactionData{content: tx_content}
+    tx = Transaction.new(:oracle, data)
+    :ok = Uniris.send_new_transaction(tx)
 
     {:noreply, state}
   end
