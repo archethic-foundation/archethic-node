@@ -122,12 +122,12 @@ defmodule Uniris.TransactionChain do
       PubSub.notify_new_transaction(address, type, timestamp)
     else
       true ->
-        Logger.error("Transaction already stored",
+        Logger.info("Transaction already stored",
           transaction: "#{type}@#{Base.encode16(address)}"
         )
 
       {:error, :transaction_already_exists} ->
-        Logger.error("Transaction already stored",
+        Logger.info("Transaction already stored",
           transaction: "#{type}@#{Base.encode16(address)}"
         )
     end
@@ -156,12 +156,12 @@ defmodule Uniris.TransactionChain do
       PubSub.notify_new_transaction(tx_address, tx_type, timestamp)
     else
       true ->
-        Logger.info("Transaction Chain already stored",
+        Logger.debug("Transaction Chain already stored in the cache",
           transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
         )
 
       {:error, :transaction_already_exists} ->
-        Logger.info("Transaction Chain already stored",
+        Logger.debug("Transaction Chain already stored",
           transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
         )
     end

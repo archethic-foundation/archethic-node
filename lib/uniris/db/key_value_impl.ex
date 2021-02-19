@@ -79,6 +79,7 @@ defmodule Uniris.DB.KeyValueImpl do
   @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{address: address}) do
     true = :ets.insert(@transaction_db_name, {address, tx})
+    Logger.debug("Transaction #{Base.encode16(address)} stored")
     :ok
   end
 
@@ -95,6 +96,10 @@ defmodule Uniris.DB.KeyValueImpl do
       :ok = write_transaction(tx)
     end)
     |> Stream.run()
+
+    Logger.debug(
+      "TransactionChain #{Base.encode16(chain_address)} stored (size: #{Enum.count(chain)})"
+    )
   end
 
   @doc """
