@@ -138,10 +138,13 @@ defmodule Uniris.TransactionChain do
   """
   @spec write(Enumerable.t()) :: :ok
   def write(chain) do
-    %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} = Enum.at(chain, 0)
+    sorted_chain = Enum.sort_by(chain, & &1.timestamp, {:desc, DateTime})
+
+    %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} =
+      Enum.at(sorted_chain, 0)
 
     with false <- ChainLookup.transaction_exists?(tx_address),
-         :ok <- DB.write_transaction_chain(chain) do
+         :ok <- DB.write_transaction_chain(sorted_chain) do
       chain
       |> Stream.each(&KOLedger.remove_transaction(&1.address))
       |> Stream.run()
