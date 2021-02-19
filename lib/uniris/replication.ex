@@ -237,7 +237,7 @@ defmodule Uniris.Replication do
         next_previous_address = Transaction.previous_address(tx)
 
         next_previous_address
-        |> chain_storage_nodes(P2P.list_nodes())
+        |> chain_storage_nodes(P2P.list_nodes(availability: :global))
         |> P2P.broadcast_message(%NotifyLastTransactionAddress{
           address: address,
           previous_address: next_previous_address
@@ -418,6 +418,7 @@ defmodule Uniris.Replication do
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx)
     Contracts.load_transaction(tx)
+    BeaconChain.load_transaction(tx)
     :ok
   end
 

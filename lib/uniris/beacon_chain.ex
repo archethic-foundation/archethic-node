@@ -26,6 +26,7 @@ defmodule Uniris.BeaconChain do
 
   alias Uniris.PubSub
 
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
 
   require Logger
@@ -219,4 +220,25 @@ defmodule Uniris.BeaconChain do
   """
   @spec previous_summary_time(DateTime.t()) :: DateTime.t()
   defdelegate previous_summary_time(date_from), to: SummaryTimer, as: :previous_summary
+
+  @doc """
+  Load the transaction in the beacon chain context
+  """
+  @spec load_transaction(Transaction.t()) :: :ok
+  def load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
+    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
+
+    if Crypto.node_public_key(0) == first_public_key do
+      start_schedulers()
+    else
+      :ok
+    end
+  end
+
+  def load_transaction(_), do: :ok
+
+  defp start_schedulers do
+    SlotTimer.start_scheduler()
+    SummaryTimer.start_scheduler()
+  end
 end

@@ -14,7 +14,8 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
   end
 
   test "receive create_slot message after timer elapsed" do
-    SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+    SlotTimer.start_scheduler(pid)
 
     current = DateTime.utc_now()
 
@@ -26,6 +27,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
   test "handle_info/3 receive a slot creation message" do
     {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
+    SlotTimer.start_scheduler(pid)
 
     send(pid, :new_slot)
 

@@ -6,8 +6,11 @@ defmodule Uniris.SharedSecrets do
   alias __MODULE__.MemTables.OriginKeyLookup
   alias __MODULE__.MemTablesLoader
   alias __MODULE__.NodeRenewal
+  alias __MODULE__.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
 
   @type origin_family :: :software | :usb | :biometric
 
@@ -50,8 +53,24 @@ defmodule Uniris.SharedSecrets do
 
   @doc """
   Load the transaction into the Shared Secrets context
-  by filling memory tables and setup the new node shared secret renewal if applicable
+  by filling memory tables and setup the new node shared secret renewal if applicable.
+
+  It also start the scheduler if the node is elected as validation node and if the scheduler is not already started.
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  defdelegate load_transaction(tx), to: MemTablesLoader
+  def load_transaction(tx = %Transaction{}) do
+    MemTablesLoader.load_transaction(tx)
+    do_load_transaction(tx)
+  end
+
+  defp do_load_transaction(%Transaction{
+         type: :node_shared_secrets,
+         data: %TransactionData{keys: keys}
+       }) do
+    if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
+      NodeRenewalScheduler.start_scheduling()
+    end
+  end
+
+  defp do_load_transaction(_), do: :ok
 end

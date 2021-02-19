@@ -60,11 +60,24 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     GenServer.call(pid, {:previous_summary, date_from})
   end
 
+  @doc """
+  Start the scheduler
+  """
+  @spec start_scheduler() :: :ok
+  def start_scheduler, do: GenServer.cast(__MODULE__, :start_scheduler)
+
+  @doc false
+  def start_scheduler(pid), do: GenServer.cast(pid, :start_scheduler)
+
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    schedule_new_summary(interval)
     {:ok, %{interval: interval}}
+  end
+
+  def handle_cast(:start_scheduler, state = %{interval: interval}) do
+    schedule_new_summary(interval)
+    {:noreply, state}
   end
 
   def handle_call(

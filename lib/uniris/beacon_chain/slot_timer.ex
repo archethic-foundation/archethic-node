@@ -47,12 +47,24 @@ defmodule Uniris.BeaconChain.SlotTimer do
     GenServer.call(pid, {:previous_slot, date_from})
   end
 
+  @doc """
+  Start the scheduler
+  """
+  @spec start_scheduler() :: :ok
+  def start_scheduler, do: GenServer.cast(__MODULE__, :start_scheduler)
+
+  @doc false
+  def start_scheduler(pid), do: GenServer.cast(pid, :start_scheduler)
+
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-
-    schedule_new_slot(interval)
     {:ok, %{interval: interval}}
+  end
+
+  def handle_cast(:start_scheduler, state = %{interval: interval}) do
+    schedule_new_slot(interval)
+    {:noreply, state}
   end
 
   def handle_call({:next_slot, from_date}, _from, state = %{interval: interval}) do
