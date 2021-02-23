@@ -74,8 +74,8 @@ config :uniris, Uniris.P2P.Endpoint,
 # with webpack to recompile .js and .css sources.
 config :uniris, UnirisWeb.Endpoint,
   http: [port: 4000],
+  server: true,
   debug_errors: true,
-  code_reloader: true,
   check_origin: false,
   watchers: [
     node: [
