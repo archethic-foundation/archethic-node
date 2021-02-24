@@ -119,11 +119,12 @@ defmodule Uniris.Bootstrap do
     tx = TransactionHandler.create_node_transaction(ip, port, transport)
 
     ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
+    Logger.info("Subscribe to the transaction validation", transaction: Base.encode16(tx.address))
 
+    Logger.info("Send node transaction...", transaction: Base.encode16(tx.address))
     :ok = TransactionHandler.send_transaction(tx, closest_node)
-    Logger.info("Node transaction sent")
 
-    Logger.info("Waiting transaction replication")
+    Logger.info("Waiting transaction replication", transaction: Base.encode16(tx.address))
     :ok = Task.await(ack_task, :infinity)
 
     :ok = Sync.load_storage_nonce(closest_node)
@@ -156,9 +157,9 @@ defmodule Uniris.Bootstrap do
           Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
 
         :ok = TransactionHandler.send_transaction(tx, closest_node)
-        Logger.info("Node transaction sent")
+        Logger.info("Node transaction sent", transaction: Base.encode16(tx.address))
 
-        Logger.info("Waiting transaction replication")
+        Logger.info("Waiting transaction replication", transaction: Base.encode16(tx.address))
         :ok = Task.await(ack_task, :infinity)
 
         Logger.info("Synchronization started")

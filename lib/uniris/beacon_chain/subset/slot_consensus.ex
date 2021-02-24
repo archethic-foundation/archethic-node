@@ -1,6 +1,6 @@
 defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   @moduledoc """
-  Process a BeaconChain Slot by starting the consensus verification 
+  Process a BeaconChain Slot by starting the consensus verification
   among the beacon slot storage nodes and notify the summary pool
   """
 
@@ -43,7 +43,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
 
   If enough valid proofs and signatures are received, the summary can be notified
   Otherwise a resync step is started excluding any malicious behavior
-  for the invalid transaction summaries 
+  for the invalid transaction summaries
   """
   @spec add_slot_proof(pid(), binary(), Crypto.key(), binary()) :: :ok | {:error, :invalid_proof}
   def add_slot_proof(pid, slot_digest, node_public_key, signature)

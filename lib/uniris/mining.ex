@@ -98,7 +98,7 @@ defmodule Uniris.Mining do
     if Transaction.verify_previous_signature?(tx) do
       case validate_contract(code, Keys.list_authorized_keys(keys)) do
         :ok ->
-          do_accept_transaction?(tx)
+          do_accept_transaction(tx)
 
         {:error, reason} ->
           Logger.error("Invalid smart contract - #{reason}", transaction: Base.encode16(address))
@@ -125,7 +125,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(%Transaction{
+  defp do_accept_transaction(%Transaction{
          address: address,
          type: :node,
          data: %TransactionData{content: content}
@@ -138,7 +138,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(%Transaction{
+  defp do_accept_transaction(%Transaction{
          address: address,
          type: :node_shared_secrets,
          data: %TransactionData{
@@ -183,7 +183,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(%Transaction{address: address, type: :node_shared_secrets}) do
+  defp do_accept_transaction(%Transaction{address: address, type: :node_shared_secrets}) do
     Logger.error("Node shared secrets must contains a secret and some authorized nodes",
       transaction: Base.encode16(address)
     )
@@ -191,7 +191,7 @@ defmodule Uniris.Mining do
     {:error, "Invalid node shared secrets transaction"}
   end
 
-  defp do_accept_transaction?(tx = %Transaction{address: address, type: :code_proposal}) do
+  defp do_accept_transaction(tx = %Transaction{address: address, type: :code_proposal}) do
     with {:ok, prop} <- CodeProposal.from_transaction(tx),
          true <- Governance.valid_code_changes?(prop) do
       :ok
@@ -202,7 +202,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(
+  defp do_accept_transaction(
          tx = %Transaction{
            address: address,
            type: :code_approval,
@@ -232,7 +232,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(%Transaction{
+  defp do_accept_transaction(%Transaction{
          address: address,
          type: :nft,
          data: %TransactionData{content: content}
@@ -245,7 +245,7 @@ defmodule Uniris.Mining do
     end
   end
 
-  defp do_accept_transaction?(_), do: :ok
+  defp do_accept_transaction(_), do: :ok
 
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
     previous_address = Transaction.previous_address(tx)

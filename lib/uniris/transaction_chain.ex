@@ -473,4 +473,6 @@ defmodule Uniris.TransactionChain do
 
   defp handle_resolve_result(%NotFound{}, address), do: address
   defp handle_resolve_result(%LastTransactionAddress{address: last_address}, _), do: last_address
+
+  # defdelegate adds_transation_subscription(address, node_public_key), to: PendingLedger
 end

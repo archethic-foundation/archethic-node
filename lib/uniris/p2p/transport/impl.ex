@@ -4,9 +4,6 @@ defmodule Uniris.P2P.TransportImpl do
   @callback listen(:inet.port_number(), options :: list()) ::
               {:ok, :inet.socket()} | {:error, reason :: :system_limit | :inet.posix()}
 
-  @callback accept(socket :: :inet.socket()) ::
-              {:ok, :inet.socket()} | {:error, :closed | :timeout | :system_limit | :inet.posix()}
-
   @callback send_message(socket :: :inet.socket(), message :: binary()) ::
               :ok | {:error, :closed | :inet.posix()}
 
@@ -19,7 +16,8 @@ defmodule Uniris.P2P.TransportImpl do
 
   @callback read_from_socket(
               :inet.socket(),
+              (binary() -> :ok),
               size_to_read :: non_neg_integer(),
               timeout :: non_neg_integer()
-            ) :: {:ok, binary()} | {:error, :closed | :timeout | :inet.posix()}
+            ) :: :ok | {:error, :closed | :timeout | :inet.posix()}
 end

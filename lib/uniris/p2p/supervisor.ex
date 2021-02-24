@@ -2,8 +2,8 @@ defmodule Uniris.P2P.Supervisor do
   @moduledoc false
 
   alias Uniris.P2P.BootstrappingSeeds
-  alias Uniris.P2P.ConnectionPool.Supervisor, as: ConnectionPoolSupervisor
   alias Uniris.P2P.Endpoint
+  alias Uniris.P2P.Endpoint.Supervisor, as: EndpointSupervisor
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.MemTableLoader
 
@@ -18,16 +18,17 @@ defmodule Uniris.P2P.Supervisor do
   def init(args) do
     port = Keyword.fetch!(args, :port)
 
-    endpoint_conf = Application.get_env(:uniris, Endpoint)
+    endpoint_conf = Application.get_env(:uniris, Endpoint, [])
 
     bootstrapping_seeds_file =
       Application.get_env(:uniris, BootstrappingSeeds, []) |> Keyword.fetch!(:file)
 
     optional_children = [
-      ConnectionPoolSupervisor,
+      {Registry, keys: :unique, name: Uniris.P2P.ConnectionRegistry},
+      {DynamicSupervisor, name: Uniris.P2P.ConnectionSupervisor, strategy: :one_for_one},
       MemTable,
       MemTableLoader,
-      {Endpoint, [{:port, port} | endpoint_conf]},
+      {EndpointSupervisor, Keyword.put(endpoint_conf, :port, port)},
       {BootstrappingSeeds, [file: Utils.mut_dir(bootstrapping_seeds_file)]}
     ]
 

@@ -60,6 +60,9 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
 
+  # alias Uniris.P2P.Multiplexer
+  # alias Uniris.P2P.Multiplexer.Stream
+
   alias Uniris.P2P.Node
 
   alias Uniris.PubSub
@@ -822,31 +825,7 @@ defmodule Uniris.P2P.Message do
   @doc """
   Handle a P2P message by processing it through the dedicated context
   """
-  @spec process(
-          GetBootstrappingNodes.t()
-          | GetStorageNonce.t()
-          | ListNodes.t()
-          | NewTransaction.t()
-          | GetTransaction.t()
-          | GetTransactionChain.t()
-          | GetUnspentOutputs.t()
-          | StartMining.t()
-          | ReplicateTransaction.t()
-          | AcknowledgeStorage.t()
-          | CrossValidate.t()
-          | CrossValidationDone.t()
-          | NotifyEndOfNodeSync.t()
-          | NotifyBeaconSlot.t()
-          | GetLastTransaction.t()
-          | GetBalance.t()
-          | GetTransactionInputs.t()
-          | GetTransactionChainLength.t()
-          | GetP2PView.t()
-          | GetTransactionSummary.t()
-          | GetBeaconSlot.t()
-          | GetBeaconSummary.t()
-          | GetCurrentBeaconSlot.t()
-        ) ::
+  @spec process(t()) ::
           Ok.t()
           | NotFound.t()
           | BootstrappingNodes.t()
@@ -863,7 +842,6 @@ defmodule Uniris.P2P.Message do
           | TransactionSummary.t()
           | Slot.t()
           | Summary.t()
-
   def process(%GetBootstrappingNodes{patch: patch}) do
     top_nodes = P2P.list_nodes(authorized?: true, availability: :local)
 
@@ -1069,13 +1047,8 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def process(%SubscribeTransactionValidation{address: address}) do
-    PubSub.register_to_new_transaction_by_address(address)
-
-    receive do
-      {:new_transaction, _} ->
-        %Ok{}
-    end
+  def process(%SubscribeTransactionValidation{address: _}) do
+    %Ok{}
   end
 
   def process(%GetFirstPublicKey{address: address}) do
@@ -1093,7 +1066,10 @@ defmodule Uniris.P2P.Message do
     %LastTransactionAddress{address: address}
   end
 
-  def process(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
+  def process(%NotifyLastTransactionAddress{
+        address: address,
+        previous_address: previous_address
+      }) do
     :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address)
     %Ok{}
   end

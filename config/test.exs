@@ -1,7 +1,7 @@
 import Config
 
-# Print only warnings and errors during test
-config :logger, level: :warning
+# Print only errors during test
+config :logger, level: :error
 
 config :uniris, :mut_dir, "data_test"
 
@@ -50,7 +50,7 @@ config :uniris, Uniris.Governance.Pools.MemTableLoader, enabled: false
 config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
 config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
 
-config :uniris, Uniris.P2P.Endpoint, enabled: false
+config :uniris, Uniris.P2P.Endpoint.Listener, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
 config :uniris, Uniris.P2P.Client, impl: MockClient

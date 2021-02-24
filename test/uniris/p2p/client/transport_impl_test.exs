@@ -4,14 +4,15 @@ defmodule Uniris.P2P.Client.TransportImplTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Client.TransportImpl
   alias Uniris.P2P.Message
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Node
 
-  import ExUnit.CaptureLog
-
   import Mox
+
+  @moduletag capture_log: true
 
   setup do
     Application.put_env(:uniris, Uniris.P2P.Client, impl: Uniris.P2P.Client.TransportImpl)
@@ -28,7 +29,7 @@ defmodule Uniris.P2P.Client.TransportImplTest do
       MockTransport
       |> stub(:connect, fn _, _, _, _ -> {:ok, self()} end)
       |> stub(:send_message, fn _, _ -> :ok end)
-      |> stub(:read_from_socket, fn _, _, _ -> {:ok, Message.encode(%NotFound{})} end)
+      |> stub(:read_from_socket, fn _, _, _, _ -> {:ok, Message.encode(%NotFound{})} end)
 
       node = %Node{
         ip: {127, 0, 0, 1},
@@ -41,7 +42,9 @@ defmodule Uniris.P2P.Client.TransportImplTest do
       P2P.add_node(node)
 
       assert %NotFound{} =
-               P2P.send_message(node, %GetTransaction{address: :crypto.strong_rand_bytes(32)})
+               TransportImpl.send_message(node, %GetTransaction{
+                 address: :crypto.strong_rand_bytes(32)
+               })
 
       {:ok, %Node{availability_history: <<1::1, _::bitstring>>}} =
         P2P.get_node_info(Crypto.node_public_key())
@@ -51,6 +54,7 @@ defmodule Uniris.P2P.Client.TransportImplTest do
       MockTransport
       |> stub(:connect, fn _, _, _, _ -> {:ok, self()} end)
       |> stub(:send_message, fn _, _ -> {:error, :closed} end)
+      |> stub(:read_from_socket, fn _, _, _, _ -> :ok end)
 
       node_key = :crypto.strong_rand_bytes(32)
 
@@ -64,11 +68,13 @@ defmodule Uniris.P2P.Client.TransportImplTest do
 
       P2P.add_node(node)
 
-      assert capture_log(fn ->
-               P2P.send_message(node, %GetTransaction{
-                 address: :crypto.strong_rand_bytes(32)
-               })
-             end) =~ "Messaging error with 127.0.0.1:3000 - reason: disconnected"
+      assert_raise RuntimeError,
+                   "Messaging error with 127.0.0.1:3000 - reason: disconnected",
+                   fn ->
+                     TransportImpl.send_message(node, %GetTransaction{
+                       address: :crypto.strong_rand_bytes(32)
+                     })
+                   end
 
       {:ok, %Node{availability_history: <<0::1, _::bitstring>>}} = P2P.get_node_info(node_key)
     end

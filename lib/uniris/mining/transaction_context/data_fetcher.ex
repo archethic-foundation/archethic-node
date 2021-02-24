@@ -45,12 +45,12 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   end
 
   @doc """
-  Retrieve the previous unspent outputs. 
+  Retrieve the previous unspent outputs.
 
-  An optional confirmation can be processed to confirm 
+  An optional confirmation can be processed to confirm
   the unspent output has been really consumed.
 
-  This confirmation request the storage pool of the unspent output 
+  This confirmation request the storage pool of the unspent output
   and asserts the transaction address correspond as a transaction movement or node movement.
 
   All those requests are performed concurrently and the first nodes to reply are returned
