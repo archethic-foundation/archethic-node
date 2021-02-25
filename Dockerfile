@@ -1,5 +1,7 @@
 FROM elixir:alpine AS uniris-ci
 
+ARG skip_tests=0
+
 # CI
 #  - compile
 #  - release
@@ -44,7 +46,7 @@ RUN mix phx.digest \
  && mix distillery.release
 
 # gen PLT
-RUN mix git_hooks.run pre_push
+RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
 
 # Install
 RUN mkdir /opt/app \
