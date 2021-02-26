@@ -65,6 +65,8 @@ defmodule Uniris.Bootstrap do
     else
       P2P.set_node_globally_available(Crypto.node_public_key(0))
     end
+
+    :persistent_term.put(:uniris_up, :up)
   end
 
   defp should_bootstrap?(_ip, _port, _, nil), do: true
