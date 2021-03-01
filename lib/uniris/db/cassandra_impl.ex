@@ -541,30 +541,20 @@ defmodule Uniris.DB.CassandraImpl do
          "end_of_node_synchronizations" => end_of_node_synchronizations
        }) do
     tx_summaries =
-      case transaction_summaries do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(transaction_summaries, fn tx_summary ->
-            tx_summary
-            |> TransactionSummary.from_map()
-            |> Utils.atomize_keys()
-          end)
-      end
+      (transaction_summaries || [])
+      |> Enum.map(fn tx_summary ->
+        tx_summary
+        |> Utils.atomize_keys()
+        |> TransactionSummary.from_map()
+      end)
 
     end_of_node_sync =
-      case end_of_node_synchronizations do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(end_of_node_synchronizations, fn tx_summary ->
-            tx_summary
-            |> EndOfNodeSync.from_map()
-            |> Utils.atomize_keys()
-          end)
-      end
+      (end_of_node_synchronizations || [])
+      |> Enum.map(fn tx_summary ->
+        tx_summary
+        |> Utils.atomize_keys()
+        |> EndOfNodeSync.from_map()
+      end)
 
     %Summary{
       subset: subset,
