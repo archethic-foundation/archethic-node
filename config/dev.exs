@@ -16,7 +16,7 @@ config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "*/10 * * * * *"
 
 config :uniris, Uniris.BeaconChain.SummaryTimer,
-  # At the 58th second  
+  # At the 58th second
   interval: "58 * * * * *"
 
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
@@ -46,6 +46,12 @@ config :uniris, Uniris.Governance.Pools,
     foundation: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"],
     uniris: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"]
   ]
+
+config :uniris, Uniris.OracleChain.Scheduler,
+  # Poll new changes every 10 seconds
+  polling_interval: "*/10 * * * * *",
+  # Aggregate chain every minute
+  summary_interval: "0 * * * * *"
 
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
 

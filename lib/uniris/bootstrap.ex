@@ -3,6 +3,8 @@ defmodule Uniris.Bootstrap do
   Manage Uniris Node Bootstrapping
   """
 
+  # alias Uniris.BeaconChain
+
   alias __MODULE__.NetworkInit
   alias __MODULE__.Sync
   alias __MODULE__.TransactionHandler
@@ -13,6 +15,8 @@ defmodule Uniris.Bootstrap do
 
   alias Uniris.P2P
   alias Uniris.P2P.Transport
+
+  # alias Uniris.OracleChain
 
   alias Uniris.SelfRepair
 
@@ -64,6 +68,8 @@ defmodule Uniris.Bootstrap do
       start_bootstrap(ip, port, transport, bootstrapping_seeds, last_sync_date)
     else
       P2P.set_node_globally_available(Crypto.node_public_key(0))
+      # BeaconChain.start_schedulers()
+      # OracleChain.start_scheduling()
     end
 
     :persistent_term.put(:uniris_up, :up)

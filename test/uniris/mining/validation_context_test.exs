@@ -100,6 +100,19 @@ defmodule Uniris.Mining.ValidationContextTest do
         )
         |> ValidationContext.cross_validate()
     end
+
+    test "should get inconsistency when the errors are invalid" do
+      validation_context = create_context()
+
+      %ValidationContext{
+        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:errors]}]
+      } =
+        validation_context
+        |> ValidationContext.add_validation_stamp(
+          create_validation_stamp_with_invalid_errors(validation_context)
+        )
+        |> ValidationContext.cross_validate()
+    end
   end
 
   defp create_context do
@@ -368,6 +381,34 @@ defmodule Uniris.Mining.ValidationContextTest do
           }
         ]
       }
+    }
+    |> ValidationStamp.sign()
+  end
+
+  defp create_validation_stamp_with_invalid_errors(%ValidationContext{
+         transaction: tx,
+         welcome_node: welcome_node,
+         coordinator_node: coordinator_node,
+         cross_validation_nodes: cross_validation_nodes,
+         previous_storage_nodes: previous_storage_nodes,
+         unspent_outputs: unspent_outputs
+       }) do
+    %ValidationStamp{
+      proof_of_work: Crypto.node_public_key(0),
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      ledger_operations:
+        %LedgerOperations{
+          fee: Transaction.fee(tx),
+          transaction_movements: Transaction.get_movements(tx)
+        }
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+        |> LedgerOperations.distribute_rewards(
+          welcome_node,
+          coordinator_node,
+          cross_validation_nodes,
+          previous_storage_nodes
+        ),
+      errors: [:contract_validation]
     }
     |> ValidationStamp.sign()
   end

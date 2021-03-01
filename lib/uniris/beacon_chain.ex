@@ -237,7 +237,11 @@ defmodule Uniris.BeaconChain do
 
   def load_transaction(_), do: :ok
 
-  defp start_schedulers do
+  @doc """
+  Start the beacon chain timers
+  """
+  @spec start_schedulers() :: :ok
+  def start_schedulers do
     SlotTimer.start_scheduler()
     SummaryTimer.start_scheduler()
   end

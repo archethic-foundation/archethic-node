@@ -7,14 +7,18 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   alias __MODULE__.LedgerOperations
 
+  alias Uniris.Utils
+
   defstruct [
     :signature,
     :proof_of_work,
     :proof_of_integrity,
     ledger_operations: %LedgerOperations{},
     recipients: [],
-    contract_validation: true
+    errors: []
   ]
+
+  @type error :: :contract_validation | :oracle_validation
 
   @typedoc """
   Validation performed by a coordinator:
@@ -31,7 +35,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
           proof_of_integrity: Crypto.versioned_hash(),
           ledger_operations: LedgerOperations.t(),
           recipients: list(Crypto.versioned_hash()),
-          contract_validation: boolean()
+          errors: list(atom())
         }
 
   @spec sign(__MODULE__.t()) :: __MODULE__.t()
@@ -54,14 +58,14 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_integrity: poi,
         ledger_operations: ops,
         recipients: recipients,
-        contract_validation: contract_validation
+        errors: errors
       }) do
     %__MODULE__{
       proof_of_work: pow,
       proof_of_integrity: poi,
       ledger_operations: ops,
       recipients: recipients,
-      contract_validation: contract_validation
+      errors: errors
     }
   end
 
@@ -76,9 +80,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...>   proof_of_integrity: <<0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...>     28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
       ...>   ledger_operations: %LedgerOperations{
-      ...>      fee: 0.1, 
-      ...>      transaction_movements: [], 
-      ...>      node_movements: [], 
+      ...>      fee: 0.1,
+      ...>      transaction_movements: [],
+      ...>      node_movements: [],
       ...>      unspent_outputs: []
       ...>   },
       ...>   signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
@@ -106,8 +110,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       0,
       # Nb of resolved recipients addresses,
       0,
-      # Contract validation,
-      1::1,
+      # No errors reported,
+      0::1, 0::1,
       # Signature size,
       64,
       # Signature
@@ -123,15 +127,14 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
         recipients: recipients,
-        contract_validation: contract_validation,
+        errors: errors,
         signature: nil
       }) do
     pow_bitstring = if pow, do: 1, else: 0
-    contract_validation = if contract_validation, do: 1, else: 0
 
     <<pow_bitstring::1, pow::binary, poi::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
-      :erlang.list_to_binary(recipients)::binary, contract_validation::1>>
+      :erlang.list_to_binary(recipients)::binary, serialize_errors(errors)::bitstring>>
   end
 
   def serialize(%__MODULE__{
@@ -139,16 +142,15 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_integrity: poi,
         ledger_operations: ledger_operations,
         recipients: recipients,
-        contract_validation: contract_validation,
+        errors: errors,
         signature: signature
       }) do
     pow_bitstring = if pow, do: 1, else: 0
-    contract_validation = if contract_validation, do: 1, else: 0
 
     <<pow_bitstring::1, pow::binary, poi::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
-      :erlang.list_to_binary(recipients)::binary, contract_validation::1, byte_size(signature)::8,
-      signature::binary>>
+      :erlang.list_to_binary(recipients)::binary, serialize_errors(errors)::bitstring,
+      byte_size(signature)::8, signature::binary>>
   end
 
   @doc """
@@ -160,7 +162,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
-      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 1::1, 64,
+      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0::1, 0::1, 64,
       ...> 67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...> 126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...> 238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -179,7 +181,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
             unspent_outputs: []
           },
           recipients: [],
-          contract_validation: true,
+          errors: [],
           signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
             126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
             238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -208,10 +210,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
     {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
 
-    {recipients, <<contract_validation::1, rest::bitstring>>} =
-      deserialize_list_of_recipients_addresses(rest, recipients_length, [])
+    {recipients, rest} = deserialize_list_of_recipients_addresses(rest, recipients_length, [])
 
-    contract_validation = if contract_validation == 1, do: true, else: false
+    {errors, rest} = deserialize_errors(rest)
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
@@ -221,7 +222,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         proof_of_integrity: <<hash_id::8>> <> hash,
         ledger_operations: ledger_ops,
         recipients: recipients,
-        contract_validation: contract_validation,
+        errors: errors,
         signature: signature
       },
       rest
@@ -237,7 +238,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
-      contract_validation: Map.get(stamp, :contract_validation)
+      errors: Map.get(stamp, :errors)
     }
   end
 
@@ -250,7 +251,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         ledger_operations: ledger_operations,
         recipients: recipients,
         signature: signature,
-        contract_validation: contract_validation
+        errors: errors
       }) do
     %{
       proof_of_work: pow,
@@ -258,7 +259,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,
-      contract_validation: contract_validation
+      errors: errors
     }
   end
 
@@ -299,4 +300,32 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       <<hash_id::8, hash::binary>> | acc
     ])
   end
+
+  defp serialize_errors(errors, acc \\ <<0::1, 0::1>>)
+
+  defp serialize_errors([error | rest], acc) do
+    serialize_errors(rest, Utils.set_bitstring_bit(acc, error_to_pos(error)))
+  end
+
+  defp serialize_errors([], acc), do: acc
+
+  defp deserialize_errors(bitstring, nb_errors \\ 2, pos \\ 0, acc \\ [])
+
+  defp deserialize_errors(<<rest::bitstring>>, nb_errors, pos, acc) when pos == nb_errors do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_errors(<<1::1, rest::bitstring>>, nb_errors, pos, acc) do
+    deserialize_errors(rest, nb_errors, pos + 1, [pos_to_error(pos) | acc])
+  end
+
+  defp deserialize_errors(<<0::1, rest::bitstring>>, nb_errors, pos, acc) do
+    deserialize_errors(rest, nb_errors, pos + 1, acc)
+  end
+
+  defp error_to_pos(:contract_validation), do: 0
+  defp error_to_pos(:oracle_validation), do: 1
+
+  defp pos_to_error(0), do: :contract_validation
+  defp pos_to_error(1), do: :oracle_validation
 end

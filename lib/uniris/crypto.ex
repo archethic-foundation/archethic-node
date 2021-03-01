@@ -150,6 +150,17 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
+  Derive a keypair for oracle transactions based on a name and a datetime
+  """
+  @spec derive_oracle_keypair(DateTime.t()) :: {key(), key()}
+  def derive_oracle_keypair(datetime = %DateTime{}) do
+    derive_keypair(
+      :persistent_term.get(:storage_nonce),
+      hash([<<DateTime.to_unix(datetime)::32>>])
+    )
+  end
+
+  @doc """
   Store the encrypted daily nonce seed in the keystore by decrypting with the given secret key
   """
   @spec decrypt_and_set_daily_nonce_seed(
@@ -268,7 +279,7 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES). 
+  Decrypt a cipher using the storage nonce public key using an authenticated encryption (ECIES).
 
   More details at `ec_decrypt/2`
   """

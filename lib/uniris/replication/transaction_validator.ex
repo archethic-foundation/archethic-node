@@ -43,6 +43,7 @@ defmodule Uniris.Replication.TransactionValidator do
           | :insufficient_funds
           | :invalid_unspent_outputs
           | :invalid_chain
+          | {:transaction_errors_detected, list(ValidationStamp.error())}
 
   @doc """
   Validate transaction with context
@@ -93,7 +94,7 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp do_validate_transaction(
          tx = %Transaction{
-           validation_stamp: validation_stamp = %ValidationStamp{},
+           validation_stamp: validation_stamp = %ValidationStamp{errors: errors},
            cross_validation_stamps: cross_stamps
          },
          self_repair?
@@ -106,7 +107,8 @@ defmodule Uniris.Replication.TransactionValidator do
             Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp))},
          {:no_inconsistencies, true} <-
            {:no_inconsistencies, Enum.all?(cross_stamps, &(&1.inconsistencies == []))},
-         {:election, true} <- {:election, valid_node_election?(tx, self_repair?)} do
+         {:election, true} <- {:election, valid_node_election?(tx, self_repair?)},
+         {:errors, true} <- {:errors, errors == []} do
       :ok
     else
       {:transaction, {:error, _reason}} ->
@@ -124,6 +126,9 @@ defmodule Uniris.Replication.TransactionValidator do
 
       {:election, false} ->
         {:error, :invalid_node_election}
+
+      {:errors, false} ->
+        {:error, {:transaction_errors_detected, errors}}
     end
   end
 
@@ -138,7 +143,7 @@ defmodule Uniris.Replication.TransactionValidator do
                    node_movements: node_movements,
                    transaction_movements: transaction_movements
                  },
-               contract_validation: valid_contract?
+               errors: errors
              },
            cross_validation_stamps: cross_stamps
          }
@@ -166,7 +171,7 @@ defmodule Uniris.Replication.TransactionValidator do
             )},
          {:node_movements_rewards, true} <-
            {:node_movements_rewards, LedgerOperations.valid_reward_distribution?(ops)},
-         {:contract_valid, true} <- {:contract_valid, valid_contract?} do
+         {:errors, true} <- {:errors, errors == []} do
       :ok
     else
       {:pow, false} ->
@@ -190,8 +195,8 @@ defmodule Uniris.Replication.TransactionValidator do
       {:node_movements_rewards, false} ->
         {:error, :invalid_reward_distribution}
 
-      {:contract_valid, false} ->
-        {:error, :invalid_smart_contract}
+      {:errors, false} ->
+        {:error, {:transaction_errors_detected, errors}}
     end
   end
 

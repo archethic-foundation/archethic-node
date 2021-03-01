@@ -110,6 +110,14 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     ]
   ]
 
+config :uniris, Uniris.OracleChain,
+  services: [
+    uco: Uniris.OracleChain.Services.UCOPrice
+  ]
+
+config :uniris, Uniris.OracleChain.Services.UCOPrice,
+  provider: Uniris.OracleChain.Services.UCOPrice.Providers.Coingecko
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"

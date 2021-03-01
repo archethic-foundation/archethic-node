@@ -25,6 +25,8 @@ defmodule Uniris.Replication do
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
+  alias Uniris.OracleChain
+
   alias Uniris.SharedSecrets
 
   alias __MODULE__.TransactionContext
@@ -419,6 +421,7 @@ defmodule Uniris.Replication do
     Account.load_transaction(tx)
     Contracts.load_transaction(tx)
     BeaconChain.load_transaction(tx)
+    OracleChain.load_transaction(tx)
     :ok
   end
 
