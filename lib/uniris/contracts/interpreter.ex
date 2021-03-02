@@ -11,17 +11,23 @@ defmodule Uniris.Contracts.Interpreter do
 
   @transaction_fields [
     :address,
+    :type,
+    :timestamp,
     :previous_signature,
     :previous_public_key,
     :origin_signature,
     :content,
     :keys,
+    :code,
     :uco_ledger,
     :nft_ledger,
     :uco_transferred,
     :nft_transferred,
     :uco_transfers,
-    :nft_transfers
+    :nft_transfers,
+    :authorized_keys,
+    :secret,
+    :recipients
   ]
 
   @inherit_fields [
@@ -41,13 +47,16 @@ defmodule Uniris.Contracts.Interpreter do
                    :origin_family,
                    :inherit,
                    :transaction,
+                   :contract,
                    :actions,
                    :triggered_by,
                    :interval,
                    :datetime,
                    :at,
                    :next_transaction,
-                   :previous_transaction
+                   :previous_transaction,
+                   :if,
+                   :else
                  ] ++
                    ActionStatements.allowed_atoms() ++
                    Library.allowed_atoms() ++
