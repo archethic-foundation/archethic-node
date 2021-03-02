@@ -76,8 +76,16 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   end
 
   def handle_cast(:start_scheduler, state = %{interval: interval}) do
-    schedule_new_summary(interval)
-    {:noreply, state}
+    case Map.get(state, :timer) do
+      nil ->
+        :ok
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
+    timer = schedule_new_summary(interval)
+    {:noreply, Map.put(state, :timer, timer)}
   end
 
   def handle_call(

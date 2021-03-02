@@ -63,8 +63,16 @@ defmodule Uniris.BeaconChain.SlotTimer do
   end
 
   def handle_cast(:start_scheduler, state = %{interval: interval}) do
-    schedule_new_slot(interval)
-    {:noreply, state}
+    case Map.get(state, :timer) do
+      nil ->
+        :ok
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
+    timer = schedule_new_slot(interval)
+    {:noreply, Map.put(state, :timer, timer)}
   end
 
   def handle_call({:next_slot, from_date}, _from, state = %{interval: interval}) do
