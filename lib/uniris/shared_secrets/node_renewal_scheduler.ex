@@ -41,17 +41,28 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     GenServer.start_link(__MODULE__, args, opts)
   end
 
+  @doc """
+  Start the scheduler
+  """
+  @spec start_scheduling() :: :ok
+  def start_scheduling, do: GenServer.cast(__MODULE__, :start_scheduling)
+
+  @doc false
+  def start_scheduling(pid), do: GenServer.cast(pid, :start_scheduling)
+
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    {:ok, %{interval: interval}, {:continue, :start_scheduler}}
+    {:ok, %{interval: interval}}
   end
 
-  def handle_continue(
-        :start_scheduler,
+  def handle_cast(:start_scheduling, state = %{scheduler_started?: true}), do: {:noreply, state}
+
+  def handle_cast(
+        :start_scheduling,
         state = %{interval: interval}
       ) do
-    Logger.info("Start node shared secrets scheduler")
+    Logger.info("Start node shared secrets scheduling")
 
     timer = schedule_renewal_message(interval)
     remaining_seconds = remaining_seconds_from_timer(timer)
@@ -60,7 +71,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
       "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
     )
 
-    {:noreply, state}
+    {:noreply, Map.put(state, :scheduler_started?, true)}
   end
 
   def handle_info(:make_renewal, state = %{interval: interval}) do

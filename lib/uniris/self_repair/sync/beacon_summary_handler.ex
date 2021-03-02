@@ -48,6 +48,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
           summary
 
         _ ->
+          Logger.warn(
+            "Beacon summary at #{Utils.time_to_string(summary_time)} should be present!",
+            subset: Base.encode16(subset)
+          )
+
           nil
       end
     else

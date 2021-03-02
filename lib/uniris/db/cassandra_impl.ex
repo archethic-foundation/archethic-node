@@ -548,8 +548,8 @@ defmodule Uniris.DB.CassandraImpl do
         _ ->
           Enum.map(transaction_summaries, fn tx_summary ->
             tx_summary
-            |> TransactionSummary.to_map()
-            |> Utils.stringify_keys()
+            |> TransactionSummary.from_map()
+            |> Utils.atomize_keys()
           end)
       end
 
@@ -561,8 +561,8 @@ defmodule Uniris.DB.CassandraImpl do
         _ ->
           Enum.map(end_of_node_synchronizations, fn tx_summary ->
             tx_summary
-            |> EndOfNodeSync.to_map()
-            |> Utils.stringify_keys()
+            |> EndOfNodeSync.from_map()
+            |> Utils.atomize_keys()
           end)
       end
 

@@ -53,7 +53,7 @@ defmodule Uniris.Replication do
   - Beacon chain storage: will verify the transaction integrity and will store the transaction in the beacon chain
   - IO storage node: will verify the transaction integrity and store the transaction
 
-  Once the transaction is stored, the transaction is loaded into the system, 
+  Once the transaction is stored, the transaction is loaded into the system,
   so for instance if the transaction is a network transaction, a dedicated behavior will be applied
   - Node: Identification of a a new node or a node update
   - Node Shared Secrets: schedule of the node shared secret renewal
@@ -237,7 +237,7 @@ defmodule Uniris.Replication do
         next_previous_address = Transaction.previous_address(tx)
 
         next_previous_address
-        |> chain_storage_nodes(P2P.list_nodes())
+        |> chain_storage_nodes(P2P.list_nodes(availability: :global))
         |> P2P.broadcast_message(%NotifyLastTransactionAddress{
           address: address,
           previous_address: next_previous_address
@@ -299,10 +299,10 @@ defmodule Uniris.Replication do
       | S7  | S13 | S11 | S10 | S9  |
       | S2  | S5  | S3  | S12 | S15 |
       |     |     |     |     | S16 |
-       
+
 
   ## Examples
-        
+
       iex> validation_nodes = [
       ...>   %Node{network_patch: "AC2", last_public_key: "key_v1"},
       ...>   %Node{network_patch: "DF3", last_public_key: "key_v2"},
@@ -418,6 +418,7 @@ defmodule Uniris.Replication do
     SharedSecrets.load_transaction(tx)
     Account.load_transaction(tx)
     Contracts.load_transaction(tx)
+    BeaconChain.load_transaction(tx)
     :ok
   end
 

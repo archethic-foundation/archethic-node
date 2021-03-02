@@ -15,7 +15,8 @@ defmodule Uniris.BeaconChain.SummaryTimerTest do
   end
 
   test "receive create_summary message after timer elapsed" do
-    SummaryTimer.start_link([interval: "*/1 * * * * * *"], [])
+    {:ok, pid} = SummaryTimer.start_link([interval: "*/1 * * * * * *"], [])
+    SummaryTimer.start_scheduler(pid)
 
     current = DateTime.utc_now()
 
@@ -27,6 +28,7 @@ defmodule Uniris.BeaconChain.SummaryTimerTest do
 
   test "handle_info/3 receive a summary creation message" do
     {:ok, pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
+    SummaryTimer.start_scheduler(pid)
 
     send(pid, :new_summary)
 

@@ -4,6 +4,8 @@ defmodule Uniris.Election.Supervisor do
   use Supervisor
 
   alias Uniris.Election.Constraints
+  alias Uniris.Election.HypergeometricDistribution
+
   alias Uniris.Utils
 
   def start_link(args) do
@@ -11,7 +13,10 @@ defmodule Uniris.Election.Supervisor do
   end
 
   def init(_args) do
-    optional_children = [{Constraints, [], []}]
+    optional_children = [
+      {Constraints, [], []},
+      {HypergeometricDistribution, [], []}
+    ]
 
     children = Utils.configurable_children(optional_children)
 

@@ -492,4 +492,18 @@ defmodule Uniris.Utils do
     |> Application.get_env(mod)
     |> Keyword.fetch!(:impl)
   end
+
+  @doc """
+  Returns path in the mutable storage directory
+  """
+  @spec mut_dir(String.t() | nonempty_list(Path.t())) :: Path.t()
+  def mut_dir(path) when is_binary(path) do
+    Path.join(Application.get_env(:uniris, :mut_dir), path)
+  end
+
+  def mut_dir(path = [_]) when is_list(path) do
+    Path.join([Application.get_env(:uniris, :mut_dir) | path])
+  end
+
+  def mut_dir, do: mut_dir("")
 end

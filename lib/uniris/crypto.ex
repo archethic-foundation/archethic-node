@@ -111,7 +111,7 @@ defmodule Uniris.Crypto do
       )
       when is_binary(seed) and is_integer(index) do
     seed
-    |> get_extended_seed(<<index>>)
+    |> get_extended_seed(<<index::32>>)
     |> generate_deterministic_keypair(curve)
   end
 
@@ -168,7 +168,9 @@ defmodule Uniris.Crypto do
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
     storage_nonce = ec_decrypt_with_node_key!(encrypted_nonce)
-    :ok = File.write(storage_nonce_filepath(), storage_nonce, [:write])
+    storage_nonce_path = storage_nonce_filepath()
+    :ok = File.mkdir_p!(Path.dirname(storage_nonce_path))
+    :ok = File.write(storage_nonce_path, storage_nonce, [:write])
     :ok = :persistent_term.put(:storage_nonce, storage_nonce)
     Logger.info("Storage nonce stored")
   end
@@ -766,8 +768,12 @@ defmodule Uniris.Crypto do
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: KeystoreLoader
 
-  defp storage_nonce_filepath do
-    rel_filepath = Application.get_env(:uniris, __MODULE__)[:storage_nonce_file]
-    Application.app_dir(:uniris, rel_filepath)
+  @doc """
+  Return the storage nonce filepath
+  """
+  @spec storage_nonce_filepath() :: binary()
+  def storage_nonce_filepath do
+    rel_filepath = Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:storage_nonce_file)
+    Utils.mut_dir(rel_filepath)
   end
 end

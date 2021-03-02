@@ -3,7 +3,10 @@ defmodule Uniris.P2P.MemTableLoader do
 
   use GenServer
 
-  alias Uniris.P2P.ConnectionPool
+  alias Uniris.Crypto
+
+  alias Uniris.P2P.ClientConnection
+  alias Uniris.P2P.ConnectionSupervisor
   alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Node
@@ -78,7 +81,13 @@ defmodule Uniris.P2P.MemTableLoader do
       MemTable.add_node(node)
     end
 
-    ConnectionPool.add_node_connection_pool(node)
+    unless first_public_key == Crypto.node_public_key(0) do
+      DynamicSupervisor.start_child(
+        ConnectionSupervisor,
+        {ClientConnection,
+         ip: ip, port: port, transport: transport, node_public_key: first_public_key}
+      )
+    end
 
     Logger.info("Loaded into in memory p2p tables", node: Base.encode16(first_public_key))
   end

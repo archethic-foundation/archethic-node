@@ -14,22 +14,23 @@ defmodule Uniris.DB.KeyValueImplTest do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionFactory
 
+  alias Uniris.Utils
+
   setup do
-    File.rm_rf!(Application.app_dir(:uniris, "priv/storage/kv_test"))
+    File.rm_rf!(Utils.mut_dir("priv/storage/kv_test"))
 
     path = Path.join("priv/storage/kv_test", Base.encode16(:crypto.strong_rand_bytes(16)))
-    root_dir = Application.app_dir(:uniris, path)
 
     on_exit(fn ->
-      File.rm_rf!(Application.app_dir(:uniris, "priv/storage/kv_test"))
+      File.rm_rf!(Utils.mut_dir("priv/storage/kv_test"))
     end)
 
-    {:ok, %{root_dir: root_dir}}
+    {:ok, %{root_dir: path}}
   end
 
   test "start_link/1 should initiate a KV store instance", %{root_dir: root_dir} do
     {:ok, _pid} = KV.start_link(root_dir: root_dir)
-    assert File.dir?(root_dir)
+    assert File.dir?(Utils.mut_dir(root_dir))
 
     assert :undefined != :ets.info(:uniris_kv_db_transactions)
     assert :undefined != :ets.info(:uniris_kv_db_chain)

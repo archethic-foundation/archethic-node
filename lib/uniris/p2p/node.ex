@@ -27,7 +27,6 @@ defmodule Uniris.P2P.Node do
     availability_history: <<1::1>>,
     authorized?: false,
     authorization_date: nil,
-    # TODO: support other transport (i.e udp/sctp)
     transport: Application.get_env(:uniris, Transport, impl: :tcp) |> Keyword.fetch!(:impl)
   ]
 

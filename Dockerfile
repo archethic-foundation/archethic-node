@@ -1,5 +1,7 @@
 FROM elixir:alpine AS uniris-ci
 
+ARG skip_tests=0
+
 # CI
 #  - compile
 #  - release
@@ -19,7 +21,7 @@ FROM elixir:alpine AS uniris-ci
 # running TESTNET with release upgrade should ???
 
 RUN apk add --no-cache --update \
-  build-base bash gcc git npm python3 wget openssl libsodium-dev
+  build-base bash gcc git npm python3 wget openssl libsodium-dev gmp-dev
 
 # Install hex and rebar
 RUN mix local.rebar --force \
@@ -44,7 +46,7 @@ RUN mix phx.digest \
  && mix distillery.release
 
 # gen PLT
-RUN mix git_hooks.run pre_push
+RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
 
 # Install
 RUN mkdir /opt/app \

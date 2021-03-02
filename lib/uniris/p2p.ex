@@ -7,7 +7,8 @@ defmodule Uniris.P2P do
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
   alias __MODULE__.Client.TransportImpl
-  alias __MODULE__.ConnectionPool
+  alias __MODULE__.ClientConnection
+  alias __MODULE__.ConnectionSupervisor
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
@@ -29,12 +30,12 @@ defmodule Uniris.P2P do
   Register a node
   """
   @spec add_node(Node.t()) :: :ok
-  def add_node(node) do
+  def add_node(node = %Node{}) do
     :ok = MemTable.add_node(node)
     do_connect_node(node)
   end
 
-  defp do_connect_node(node = %Node{first_public_key: key}) do
+  defp do_connect_node(%Node{first_public_key: key, ip: ip, port: port, transport: transport}) do
     if key == Crypto.node_public_key(0) do
       :ok
     else
@@ -46,7 +47,11 @@ defmodule Uniris.P2P do
 
       case transport_impl do
         TransportImpl ->
-          {:ok, _} = ConnectionPool.add_node_connection_pool(node)
+          DynamicSupervisor.start_child(
+            ConnectionSupervisor,
+            {ClientConnection, ip: ip, port: port, transport: transport, node_public_key: key}
+          )
+
           :ok
 
         _ ->
@@ -133,7 +138,7 @@ defmodule Uniris.P2P do
   @doc """
   Send a P2P message to a node.
 
-  If the exchange fails, the node availability history will decrease 
+  If the exchange fails, the node availability history will decrease
   and will be locally unavailable until the next exchange
   """
   @spec send_message(Crypto.key() | Node.t(), Message.t()) :: Message.t()

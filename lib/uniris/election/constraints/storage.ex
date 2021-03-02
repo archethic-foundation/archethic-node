@@ -9,6 +9,8 @@ defmodule Uniris.Election.StorageConstraints do
     :number_replicas
   ]
 
+  alias Uniris.Election.HypergeometricDistribution
+
   alias Uniris.P2P.Node
 
   @default_min_geo_patch 4
@@ -41,7 +43,7 @@ defmodule Uniris.Election.StorageConstraints do
   def new(
         min_geo_patch_fun \\ &min_geo_patch/0,
         min_geo_patch_avg_availability_fun \\ &min_geo_patch_avg_availability/0,
-        number_replicas_fun \\ &number_replicas_by_2log10/1
+        number_replicas_fun \\ &hypergeometric_distribution/1
       )
       when is_function(min_geo_patch_fun) and is_function(min_geo_patch_avg_availability_fun) and
              is_function(number_replicas_fun) do
@@ -100,4 +102,15 @@ defmodule Uniris.Election.StorageConstraints do
     end)
     |> Map.get(:nb)
   end
+
+  @doc """
+  Run a simulation of the hypergeometric distribution based on a number of nodes
+  """
+  @spec hypergeometric_distribution(list(Node.t())) :: pos_integer()
+  def hypergeometric_distribution(nodes)
+      when is_list(nodes) and length(nodes) >= 0 and length(nodes) <= 10,
+      do: nodes
+
+  def hypergeometric_distribution(nodes) when is_list(nodes) and length(nodes) >= 0,
+    do: HypergeometricDistribution.run_simulation(length(nodes))
 end

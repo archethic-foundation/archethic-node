@@ -122,12 +122,12 @@ defmodule Uniris.TransactionChain do
       PubSub.notify_new_transaction(address, type, timestamp)
     else
       true ->
-        Logger.error("Transaction already stored",
+        Logger.info("Transaction already stored",
           transaction: "#{type}@#{Base.encode16(address)}"
         )
 
       {:error, :transaction_already_exists} ->
-        Logger.error("Transaction already stored",
+        Logger.info("Transaction already stored",
           transaction: "#{type}@#{Base.encode16(address)}"
         )
     end
@@ -138,10 +138,13 @@ defmodule Uniris.TransactionChain do
   """
   @spec write(Enumerable.t()) :: :ok
   def write(chain) do
-    %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} = Enum.at(chain, 0)
+    sorted_chain = Enum.sort_by(chain, & &1.timestamp, {:desc, DateTime})
+
+    %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} =
+      Enum.at(sorted_chain, 0)
 
     with false <- ChainLookup.transaction_exists?(tx_address),
-         :ok <- DB.write_transaction_chain(chain) do
+         :ok <- DB.write_transaction_chain(sorted_chain) do
       chain
       |> Stream.each(&KOLedger.remove_transaction(&1.address))
       |> Stream.run()
@@ -153,12 +156,12 @@ defmodule Uniris.TransactionChain do
       PubSub.notify_new_transaction(tx_address, tx_type, timestamp)
     else
       true ->
-        Logger.error("Transaction Chain already stored",
+        Logger.debug("Transaction Chain already stored in the cache",
           transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
         )
 
       {:error, :transaction_already_exists} ->
-        Logger.error("Transaction Chain already stored",
+        Logger.debug("Transaction Chain already stored",
           transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
         )
     end
@@ -470,4 +473,6 @@ defmodule Uniris.TransactionChain do
 
   defp handle_resolve_result(%NotFound{}, address), do: address
   defp handle_resolve_result(%LastTransactionAddress{address: last_address}, _), do: last_address
+
+  # defdelegate adds_transation_subscription(address, node_public_key), to: PendingLedger
 end

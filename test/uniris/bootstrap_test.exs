@@ -42,17 +42,15 @@ defmodule Uniris.BootstrapTest do
 
   alias Uniris.PubSub
 
+  alias Uniris.Utils
+
   import Mox
 
   setup do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
-
-    start_supervised!(
-      {SelfRepairScheduler, interval: "0 * * * * * *", last_sync_file: "priv/p2p/last_sync"}
-    )
-
+    start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
@@ -60,7 +58,7 @@ defmodule Uniris.BootstrapTest do
     |> stub(:write_transaction_chain, fn _ -> :ok end)
 
     on_exit(fn ->
-      File.rm(Application.app_dir(:uniris, "priv/p2p/last_sync"))
+      File.rm(Utils.mut_dir("priv/p2p/last_sync"))
     end)
   end
 

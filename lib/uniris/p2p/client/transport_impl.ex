@@ -3,10 +3,11 @@ defmodule Uniris.P2P.Client.TransportImpl do
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P.ClientConnection
   alias Uniris.P2P.ClientImpl
-  alias Uniris.P2P.ConnectionPool
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Message
+
   alias Uniris.P2P.Node
 
   alias Uniris.Utils
@@ -22,13 +23,16 @@ defmodule Uniris.P2P.Client.TransportImpl do
     end
   end
 
-  defp do_send_remotely(%Node{first_public_key: first_public_key, ip: ip, port: port}, message) do
+  defp do_send_remotely(
+         %Node{first_public_key: first_public_key, ip: ip, port: port},
+         message
+       ) do
     encoded_message =
       message
       |> Message.encode()
       |> Utils.wrap_binary()
 
-    case ConnectionPool.send_message(first_public_key, encoded_message) do
+    case ClientConnection.send_message(first_public_key, encoded_message) do
       {:ok, data} ->
         MemTable.increase_node_availability(first_public_key)
         Message.decode(data)

@@ -1,12 +1,11 @@
 defmodule Uniris.P2P.MemTableLoaderTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.MemTableLoader
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.MemTables.ChainLookup
-  alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -15,13 +14,6 @@ defmodule Uniris.P2P.MemTableLoaderTest do
 
   setup :verify_on_exit!
   setup :set_mox_global
-
-  setup do
-    start_supervised!(MemTable)
-    start_supervised!(ChainLookup)
-    start_supervised!(KOLedger)
-    :ok
-  end
 
   describe "load_transaction/1" do
     test "should extract from transaction the node endpoint and the node to the table" do

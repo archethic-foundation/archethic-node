@@ -23,6 +23,7 @@ defmodule UnirisWeb.Router do
     pipe_through(:browser)
 
     get("/", RootController, :index)
+    get("/up", UpController, :up)
     live_dashboard("/dashboard")
   end
 

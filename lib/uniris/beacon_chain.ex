@@ -26,9 +26,8 @@ defmodule Uniris.BeaconChain do
 
   alias Uniris.PubSub
 
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
-
-  alias Uniris.Utils
 
   require Logger
 
@@ -200,20 +199,12 @@ defmodule Uniris.BeaconChain do
     case DB.get_beacon_slot(subset, slot_time) do
       {:ok, %Slot{validation_signatures: signatures}} ->
         if length(signatures) < length(Enum.uniq_by(new_signatures, &elem(&1, 0))) do
-          Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} updated",
-            beacon_subset: Base.encode16(subset)
-          )
-
           DB.register_beacon_slot(slot)
         else
           :ok
         end
 
       {:error, :not_found} ->
-        Logger.debug("Beacon slot for #{Utils.time_to_string(slot_time)} registered",
-          beacon_subset: Base.encode16(subset)
-        )
-
         DB.register_beacon_slot(slot)
     end
   end
@@ -229,4 +220,25 @@ defmodule Uniris.BeaconChain do
   """
   @spec previous_summary_time(DateTime.t()) :: DateTime.t()
   defdelegate previous_summary_time(date_from), to: SummaryTimer, as: :previous_summary
+
+  @doc """
+  Load the transaction in the beacon chain context
+  """
+  @spec load_transaction(Transaction.t()) :: :ok
+  def load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
+    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
+
+    if Crypto.node_public_key(0) == first_public_key do
+      start_schedulers()
+    else
+      :ok
+    end
+  end
+
+  def load_transaction(_), do: :ok
+
+  defp start_schedulers do
+    SlotTimer.start_scheduler()
+    SummaryTimer.start_scheduler()
+  end
 end

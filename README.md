@@ -68,9 +68,9 @@ To start a second node
 UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 iex -S mix
 ```
 
-To clean the environment before, execute the following mix task
-```
-mix clean_priv_dir
+To clean the environment simply remove mutable storage folder
+```bash
+rm -rf data data_test
 ```
 
 ## Contribution

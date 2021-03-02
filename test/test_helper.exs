@@ -1,4 +1,4 @@
-Mix.Tasks.CleanPrivDir.run([])
+File.rm_rf!(Uniris.Utils.mut_dir())
 
 ExUnit.start(
   exclude: [:infrastructure, :CI],

@@ -19,7 +19,7 @@ echo -e "${CYAN}"
 echo "1/ System requirements..."
 echo -e "${NC}"
 
-apt-get update && apt-get install -y wget gnupg2 build-essential -y locales git libz-dev && \
+apt-get update && apt-get install -y wget gnupg2 build-essential -y locales git libz-dev libgmp-dev && \
     locale-gen en_US.UTF-8
 
 echo -e "${CYAN}"

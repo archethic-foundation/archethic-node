@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+
+  node1:
+    build:
+      context: .
+      args:
+        skip_tests: 1
+    image: uniris-node:latest
+    environment:
+      - UNIRIS_CRYPTO_SEED=node1
+      - UNIRIS_MUT_DIR=/opt/data
+    volumes:
+      - ./data1:/opt/data
+    networks:
+      testnet:
+        ipv4_address: 172.16.16.101
+
+  node2:
+    build:
+      context: .
+      args:
+        skip_tests: 1
+    image: uniris-node:latest
+    depends_on:
+      - node1
+    environment:
+      - UNIRIS_CRYPTO_SEED=node2
+      - UNIRIS_MUT_DIR=/opt/data
+      - UNIRIS_P2P_SEEDS=172.16.16.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+    volumes:
+      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+      - ./data2:/opt/data
+    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+    networks:
+      testnet:
+        ipv4_address: 172.16.16.102
+
+networks:
+  testnet:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.16.0/24"
