@@ -79,7 +79,7 @@ config :uniris, Uniris.P2P.Endpoint,
 # watchers to your application. For example, we use it
 # with webpack to recompile .js and .css sources.
 config :uniris, UnirisWeb.Endpoint,
-  http: [port: 4000],
+  http: [port: System.get_env("UNIRIS_HTTP_PORT", "4000") |> String.to_integer()],
   server: true,
   debug_errors: true,
   check_origin: false,

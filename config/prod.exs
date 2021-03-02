@@ -70,7 +70,7 @@ config :uniris, Uniris.P2P.Endpoint,
 # which you should run after static files are built and
 # before starting your production server.
 config :uniris, UnirisWeb.Endpoint,
-  http: [:inet6, port: 80],
+  http: [:inet6, port: System.get_env("UNIRIS_HTTP_PORT", "80") |> String.to_integer()],
   url: [host: "*", port: 443],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
