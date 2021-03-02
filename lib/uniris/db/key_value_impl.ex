@@ -250,11 +250,11 @@ defmodule Uniris.DB.KeyValueImpl do
   defp init_table(root_dir, table_name, type) do
     table_filename = table_dump_file(root_dir, table_name)
 
-    unless File.exists?(table_filename) do
+    if File.exists?(table_filename) do
+      :ets.file2tab(String.to_charlist(table_filename))
+    else
       :ets.new(table_name, [:named_table, type, :public, read_concurrency: true])
     end
-
-    :ets.file2tab(String.to_charlist(table_filename))
   end
 
   defp table_dump_file(root_dir, table_name) do
