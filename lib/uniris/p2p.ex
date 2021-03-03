@@ -5,6 +5,7 @@ defmodule Uniris.P2P do
   alias Uniris.Crypto
 
   alias __MODULE__.BootstrappingSeeds
+  alias __MODULE__.Batcher
   alias __MODULE__.Client
   alias __MODULE__.Client.TransportImpl
   alias __MODULE__.ClientConnection
@@ -343,4 +344,30 @@ defmodule Uniris.P2P do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTableLoader
+
+  @doc """
+  Send a message using a batcher to send multiple message at once for the given nodes.
+
+  The batched request will be delivered after a certain timeframe
+  """
+  @spec broadcast_in_batch(list(Node.t()), Message.t()) :: :ok | {:error, Client.error()}
+  defdelegate broadcast_in_batch(nodes, message), to: Batcher, as: :add_broadcast_request
+
+  @doc """
+  Send a message to a list of nodes by batching the messages and getting the first node which responses depending
+  on the closest nodes.
+
+  The batched request will be delivered after a certain timeframe
+  """
+  @spec reply_first(list(Node.t()), Message.t()) :: {:ok, Message.t()} | {:error, Client.error()}
+  defdelegate reply_first(nodes, message), to: Batcher, as: :request_first_reply
+
+  @doc """
+  Same as `reply_first/2` except if returns the node which reply the first
+  """
+  @spec reply_first_with_ack(list(Node.t()), Message.t()) ::
+          {:ok, Message.t(), Node.t()} | {:error, Client.error()}
+  defdelegate reply_first_with_ack(nodes, message),
+    to: Batcher,
+    as: :request_first_reply_with_ack
 end

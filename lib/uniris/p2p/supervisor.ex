@@ -1,6 +1,7 @@
 defmodule Uniris.P2P.Supervisor do
   @moduledoc false
 
+  alias Uniris.P2P.Batcher
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Endpoint
   alias Uniris.P2P.Endpoint.Supervisor, as: EndpointSupervisor
@@ -29,7 +30,8 @@ defmodule Uniris.P2P.Supervisor do
       MemTable,
       MemTableLoader,
       {EndpointSupervisor, Keyword.put(endpoint_conf, :port, port)},
-      {BootstrappingSeeds, [file: Utils.mut_dir(bootstrapping_seeds_file)]}
+      {BootstrappingSeeds, [file: Utils.mut_dir(bootstrapping_seeds_file)]},
+      {Batcher, []}
     ]
 
     children = Utils.configurable_children(optional_children)

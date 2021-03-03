@@ -21,6 +21,8 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.AddBeaconSlotProof
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
+  alias __MODULE__.BatchRequests
+  alias __MODULE__.BatchResponses
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
@@ -59,9 +61,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
-
-  # alias Uniris.P2P.Multiplexer
-  # alias Uniris.P2P.Multiplexer.Stream
 
   alias Uniris.P2P.Node
 
@@ -121,6 +120,8 @@ defmodule Uniris.P2P.Message do
           | GetBeaconSummary.t()
           | GetBeaconSlot.t()
           | GetCurrentBeaconSlot.t()
+          | BatchRequests.t()
+          | BatchResponses.t()
 
   @doc """
   Serialize a message into binary
@@ -282,6 +283,20 @@ defmodule Uniris.P2P.Message do
 
   def encode(%GetBeaconSlot{subset: subset, slot_time: slot_time}) do
     <<27::8, subset::binary, DateTime.to_unix(slot_time)::32>>
+  end
+
+  def encode(%BatchRequests{requests: requests}) do
+    <<28::8, length(requests)::16, Enum.map(requests, &encode/1) |> :erlang.list_to_bitstring()>>
+  end
+
+  def encode(%BatchResponses{responses: responses}) do
+    responses_binary =
+      Enum.map(responses, fn {index, response} ->
+        <<index::16, encode(response)::bitstring>>
+      end)
+      |> :erlang.list_to_bitstring()
+
+    <<238::8, length(responses)::16, responses_binary::bitstring>>
   end
 
   def encode(tx_summary = %TransactionSummary{}) do
@@ -634,6 +649,22 @@ defmodule Uniris.P2P.Message do
     %GetBeaconSlot{subset: subset, slot_time: DateTime.from_unix!(timestamp)}
   end
 
+  def decode(<<28::8, nb_requests::16, rest::bitstring>>) do
+    {requests, _} = deserialize_batched_requests(rest, nb_requests, [])
+
+    %BatchRequests{
+      requests: requests
+    }
+  end
+
+  def decode(<<238::8, nb_responses::16, rest::bitstring>>) do
+    {responses, _} = deserialize_batched_responses(rest, nb_responses, [])
+
+    %BatchResponses{
+      responses: responses
+    }
+  end
+
   def decode(<<239::8, rest::bitstring>>) do
     {tx_summary, _} = TransactionSummary.deserialize(rest)
     tx_summary
@@ -821,6 +852,30 @@ defmodule Uniris.P2P.Message do
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
+  defp deserialize_batched_requests(rest, nb_requests, acc)
+       when length(nb_requests) == length(acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_batched_requests(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_batched_requests(rest, nb_requests, acc) do
+    {request, rest} = decode(rest)
+    deserialize_batched_requests(rest, nb_requests, [request | acc])
+  end
+
+  defp deserialize_batched_responses(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_batched_responses(<<index::16, rest::bitstring>>, nb_responses, acc) do
+    {response, rest} = decode(rest)
+    deserialize_batched_responses(rest, nb_responses, [{index, response} | acc])
+  end
+
+  defp deserialize_batched_responses(rest, nb_responses, acc)
+       when length(nb_responses) == length(acc) do
+    {Enum.reverse(acc), rest}
+  end
+
   # TODO: support streaming
   @doc """
   Handle a P2P message by processing it through the dedicated context
@@ -842,6 +897,7 @@ defmodule Uniris.P2P.Message do
           | TransactionSummary.t()
           | Slot.t()
           | Summary.t()
+          | BatchResponses.t()
   def process(%GetBootstrappingNodes{patch: patch}) do
     top_nodes = P2P.list_nodes(authorized?: true, availability: :local)
 
@@ -1115,5 +1171,16 @@ defmodule Uniris.P2P.Message do
         signature: signature
       }) do
     BeaconChain.add_slot_proof(subset, digest, node_public_key, signature)
+  end
+
+  def process(%BatchRequests{requests: requests}) do
+    responses =
+      requests
+      |> Enum.with_index()
+      |> Enum.map(fn {request, index} ->
+        {index, process(request)}
+      end)
+
+    %BatchResponses{responses: responses}
   end
 end

@@ -60,6 +60,7 @@ config :uniris, Uniris.OracleChain.Services.UCOPrice, provider: MockUCOPriceProv
 config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
 config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
 
+config :uniris, Uniris.P2P.Batcher, enabled: false
 config :uniris, Uniris.P2P.Endpoint.Listener, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
