@@ -26,12 +26,10 @@ defmodule Uniris.BeaconChain.SlotTimer do
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
   def next_slot(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:next_slot, date_from})
-  end
-
-  @doc false
-  def next_slot(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:next_slot, date_from})
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
   @doc """
@@ -39,12 +37,15 @@ defmodule Uniris.BeaconChain.SlotTimer do
   """
   @spec previous_slot(DateTime.t()) :: DateTime.t()
   def previous_slot(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:previous_slot, date_from})
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
-  @doc false
-  def previous_slot(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:previous_slot, date_from})
+  defp get_interval do
+    [{_, interval}] = :ets.lookup(:uniris_slot_timer_timer, :interval)
+    interval
   end
 
   @doc """
@@ -59,6 +60,8 @@ defmodule Uniris.BeaconChain.SlotTimer do
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
+    :ets.new(:uniris_slot_timer_timer, [:named_table, :public, read_concurrency: true])
+    :ets.insert(:uniris_slot_timer_timer, {:interval, interval})
     {:ok, %{interval: interval}}
   end
 
@@ -72,27 +75,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
     end
 
     timer = schedule_new_slot(interval)
-    {:noreply, Map.put(state, :timer, timer)}
-  end
-
-  def handle_call({:next_slot, from_date}, _from, state = %{interval: interval}) do
-    next_date =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_next_run_date!(DateTime.to_naive(from_date))
-      |> DateTime.from_naive!("Etc/UTC")
-
-    {:reply, next_date, state}
-  end
-
-  def handle_call({:previous_slot, from_date}, _from, state = %{interval: interval}) do
-    previous_slot =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_previous_run_date!(DateTime.to_naive(from_date))
-      |> DateTime.from_naive!("Etc/UTC")
-
-    {:reply, previous_slot, state}
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   @doc false
@@ -113,7 +96,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
       send(pid, {:create_slot, slot_time})
     end)
 
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   defp schedule_new_slot(interval) do
