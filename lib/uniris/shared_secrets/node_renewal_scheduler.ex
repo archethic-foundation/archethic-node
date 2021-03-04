@@ -53,7 +53,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    {:ok, %{interval: interval}}
+    {:ok, %{interval: interval}, :hibernate}
   end
 
   def handle_cast(:start_scheduling, state = %{scheduler_started?: true}), do: {:noreply, state}
@@ -71,7 +71,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
       "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
     )
 
-    {:noreply, Map.put(state, :scheduler_started?, true)}
+    {:noreply, Map.put(state, :scheduler_started?, true), :hibernate}
   end
 
   def handle_info(:make_renewal, state = %{interval: interval}) do
@@ -87,7 +87,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
       Task.start(&make_renewal/0)
     end
 
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   defp make_renewal do

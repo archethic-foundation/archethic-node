@@ -210,7 +210,7 @@ defmodule Uniris.DB.KeyValueImpl do
   @impl GenServer
   def init(opts) do
     root_dir = Utils.mut_dir(Keyword.get(opts, :root_dir, "priv/storage"))
-    dump_delay = Keyword.get(opts, :dump_delay, 0)
+    dump_delay = Keyword.get(opts, :dump_delay, 5_000)
 
     File.mkdir_p!(root_dir)
 
@@ -244,7 +244,7 @@ defmodule Uniris.DB.KeyValueImpl do
 
     Process.send_after(self(), :dump, dump_delay)
 
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   defp init_table(root_dir, table_name, type) do

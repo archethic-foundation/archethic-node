@@ -21,6 +21,7 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetStorageNonce
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransaction
@@ -31,7 +32,6 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
-  alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
 
   alias Uniris.Replication
@@ -41,6 +41,7 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement

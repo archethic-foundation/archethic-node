@@ -6,13 +6,14 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
   alias Uniris.Bootstrap.TransactionHandler
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.Ok
-  alias Uniris.P2P.Message.SubscribeTransactionValidation
 
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   alias Uniris.PubSub
@@ -53,13 +54,13 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
   test "await_validation/1 should return :ok when the transaction is validated" do
     MockClient
-    |> stub(:send_message, fn _, %SubscribeTransactionValidation{address: address} ->
-      PubSub.register_to_new_transaction_by_address(address)
-
-      receive do
-        {:new_transaction, ^address} ->
-          {:ok, %Ok{}}
-      end
+    |> stub(:send_message, fn _, %GetTransaction{address: address} ->
+      {:ok,
+       %Transaction{
+         address: address,
+         validation_stamp: %ValidationStamp{},
+         cross_validation_stamps: [%{}]
+       }}
     end)
 
     node = %Node{
