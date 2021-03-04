@@ -17,17 +17,20 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   alias Uniris.P2P.Message.GetCurrentBeaconSlot
   alias Uniris.P2P.Message.GetTransactionSummary
   alias Uniris.P2P.Message.NotifyBeaconSlot
+  alias Uniris.P2P.Node
 
   alias Uniris.Replication
 
   alias Uniris.Utils
+
+  require Logger
 
   @doc """
   Start the consensus worker
   """
   @spec start_link(list()) :: {:ok, pid()}
   def start_link(args \\ []) do
-    :gen_statem.start_link(__MODULE__, [args], [])
+    :gen_statem.start_link(__MODULE__, args, [])
   end
 
   @doc """
@@ -55,8 +58,9 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
     end
   end
 
-  def init(_args) do
-    {:ok, :idle, %{}}
+  def init(args) do
+    node_public_key = Keyword.fetch!(args, :node_public_key)
+    {:ok, :idle, %{node_public_key: node_public_key}}
   end
 
   def callback_mode do
@@ -67,7 +71,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
         :cast,
         {:validate_and_notify_slot, slot = %Slot{subset: subset, slot_time: slot_time}},
         :idle,
-        _data
+        data = %{node_public_key: node_public_key}
       ) do
     storage_nodes =
       Election.beacon_storage_nodes(
@@ -80,8 +84,9 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
     digest = Slot.digest(slot)
     notify_digest(subset, digest, storage_nodes)
 
-    case Enum.find_index(storage_nodes, &(&1.last_public_key == Crypto.node_public_key())) do
+    case Enum.find_index(storage_nodes, &(&1.first_public_key == node_public_key)) do
       nil ->
+        Logger.error("Not found")
         # Node is not ready or doesn't need it for now
         :keep_state_and_data
 
@@ -96,9 +101,21 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
             validation_signatures: [{node_pos, Crypto.sign_with_node_key(digest)}]
         }
 
-        {:next_state, :waiting_proofs,
-         %{current_slot: current_slot, storage_nodes: storage_nodes, digest: digest},
-         {{:timeout, :sync_to_summary_pool}, 5_000, :any}}
+        case storage_nodes do
+          [%Node{first_public_key: ^node_public_key}] ->
+            notify_summary_pool(current_slot)
+            {:next_state, :idle, %{node_public_key: node_public_key}}
+
+          _ ->
+            new_data =
+              data
+              |> Map.put(:current_slot, current_slot)
+              |> Map.put(:storage_nodes, storage_nodes)
+              |> Map.put(:digest, digest)
+
+            {:next_state, :waiting_proofs, new_data,
+             {{:timeout, :sync_to_summary_pool}, 5_000, :any}}
+        end
     end
   end
 
@@ -132,7 +149,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
 
     if length(new_slot.validation_signatures) == length(storage_nodes) do
       notify_summary_pool(current_slot)
-      {:next_state, :idle, %{}}
+      {:next_state, :idle, %{node_public_key: node_public_key}}
     else
       {:keep_state, Map.put(data, :current_slot, new_slot)}
     end
@@ -148,14 +165,10 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
           current_slot: current_slot = %Slot{subset: subset}
         }
       ) do
-    node_pos = Enum.find_index(storage_nodes, &(&1.last_public_key == node_public_key))
-
-    res =
-      storage_nodes
-      |> Enum.find(&(&1.first_public_key == node_public_key))
-      |> P2P.send_message(%GetCurrentBeaconSlot{subset: subset})
-
-    with remote_slot = %Slot{} <- res,
+    with node_pos when node_pos != nil <-
+           Enum.find_index(storage_nodes, &(&1.last_public_key == node_public_key)),
+         remote_node <- Enum.at(storage_nodes, node_pos),
+         remote_slot <- P2P.send_message!(remote_node, %GetCurrentBeaconSlot{subset: subset}),
          {:ok, new_slot} <- handle_conflicts(current_slot, remote_slot) do
       notify_digest(subset, Slot.serialize(new_slot), storage_nodes)
 
@@ -171,9 +184,14 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   def handle_event(:cast, {:add_slot_proof, _, _, _}, :idle, _),
     do: {:keep_state_and_data, :postpone}
 
-  def handle_event({:timeout, :sync_to_summary_pool}, :any, _state, _data = %{current_slot: slot}) do
+  def handle_event(
+        {:timeout, :sync_to_summary_pool},
+        :any,
+        _state,
+        _data = %{current_slot: slot, node_public_key: node_public_key}
+      ) do
     notify_summary_pool(slot)
-    {:next_state, :idle, %{}}
+    {:next_state, :idle, %{node_public_key: node_public_key}}
   end
 
   defp handle_conflicts(
@@ -233,16 +251,19 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   end
 
   defp get_valid_diff_transaction_summaries(summaries) do
-    Task.async_stream(summaries, fn summary = %TransactionSummary{address: address} ->
-      address
-      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-      |> P2P.broadcast_message(%GetTransactionSummary{address: address})
-      |> Enum.to_list()
-      |> Stream.filter(&(&1 == summary))
-      |> Enum.at(0)
+    Enum.map(summaries, fn summary = %TransactionSummary{address: address} ->
+      storage_nodes =
+        Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+
+      case P2P.reply_first(storage_nodes, %GetTransactionSummary{address: address}) do
+        {:ok, ^summary = %TransactionSummary{}} ->
+          summary
+
+        _ ->
+          nil
+      end
     end)
-    |> Stream.filter(&match?({:ok, %TransactionSummary{}}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
+    |> Enum.reject(&match?(nil, &1))
   end
 
   defp notify_summary_pool(current_slot = %Slot{subset: subset}) do
@@ -255,6 +276,5 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
       Election.get_storage_constraints()
     )
     |> P2P.broadcast_message(%NotifyBeaconSlot{slot: current_slot})
-    |> Stream.run()
   end
 end

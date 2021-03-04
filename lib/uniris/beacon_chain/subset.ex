@@ -1,6 +1,6 @@
 defmodule Uniris.BeaconChain.Subset do
   @moduledoc """
-  Represents a beacon slot running inside a process 
+  Represents a beacon slot running inside a process
   waiting to receive transactions to register in a beacon slot
   """
 
@@ -62,7 +62,10 @@ defmodule Uniris.BeaconChain.Subset do
 
   def init([subset]) do
     Process.flag(:trap_exit, true)
-    {:ok, consensus_worker_pid} = SlotConsensus.start_link()
+
+    {:ok, consensus_worker_pid} =
+      SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
+
     Process.monitor(consensus_worker_pid)
 
     {:ok,
@@ -149,7 +152,9 @@ defmodule Uniris.BeaconChain.Subset do
         state = %{consensus_worker: consensus_worker_pid}
       )
       when pid == consensus_worker_pid do
-    {:ok, consensus_worker_pid} = SlotConsensus.start_link()
+    {:ok, consensus_worker_pid} =
+      SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
+
     Process.monitor(consensus_worker_pid)
     {:noreply, Map.put(state, :consensus_worker, consensus_worker_pid)}
   end

@@ -1,6 +1,6 @@
 defmodule Uniris.TransactionChain do
   @moduledoc """
-  Handle the logic managing transaction chain  
+  Handle the logic managing transaction chain
   """
 
   alias Uniris.Crypto
@@ -13,7 +13,6 @@ defmodule Uniris.TransactionChain do
   alias Uniris.P2P.Message
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.LastTransactionAddress
-  alias Uniris.P2P.Message.NotFound
 
   alias Uniris.Replication
 
@@ -247,7 +246,7 @@ defmodule Uniris.TransactionChain do
   ## Examples
 
     With only one transaction
-    
+
       iex> [
       ...>    %Transaction{
       ...>      address:
@@ -460,19 +459,16 @@ defmodule Uniris.TransactionChain do
     storage_nodes = Replication.chain_storage_nodes(address, P2P.list_nodes())
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
-      message
-      |> Message.process()
-      |> handle_resolve_result(address)
+      handle_resolve_result({:ok, Message.process(message)}, address)
     else
       storage_nodes
-      |> P2P.broadcast_message(message)
-      |> Enum.at(0)
+      |> P2P.reply_first(message)
       |> handle_resolve_result(address)
     end
   end
 
-  defp handle_resolve_result(%NotFound{}, address), do: address
-  defp handle_resolve_result(%LastTransactionAddress{address: last_address}, _), do: last_address
+  defp handle_resolve_result({:ok, %LastTransactionAddress{address: last_address}}, _),
+    do: last_address
 
-  # defdelegate adds_transation_subscription(address, node_public_key), to: PendingLedger
+  defp handle_resolve_result(_, address), do: address
 end

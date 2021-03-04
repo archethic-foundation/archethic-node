@@ -24,6 +24,7 @@ defmodule Uniris.BeaconChainTest do
 
   setup do
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
+    Enum.each(BeaconChain.list_subsets(), &Subset.start_link(subset: &1))
     :ok
   end
 

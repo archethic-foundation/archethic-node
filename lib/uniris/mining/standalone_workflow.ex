@@ -75,6 +75,5 @@ defmodule Uniris.Mining.StandaloneWorkflow do
     context
     |> ValidationContext.get_storage_nodes()
     |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
-    |> Stream.run()
   end
 end

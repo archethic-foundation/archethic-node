@@ -25,9 +25,6 @@ defmodule Uniris.BeaconChain.Subset.Seal do
     previous_storage_nodes = previous_storage_nodes(subset, previous_slot_time)
 
     case fetch_previous_slot(subset, previous_slot_time, previous_storage_nodes) do
-      nil ->
-        slot
-
       prev_slot = %Slot{} ->
         previous_hash =
           prev_slot
@@ -35,6 +32,9 @@ defmodule Uniris.BeaconChain.Subset.Seal do
           |> Crypto.hash()
 
         %{slot | previous_hash: previous_hash}
+
+      _ ->
+        slot
     end
   end
 
@@ -49,10 +49,10 @@ defmodule Uniris.BeaconChain.Subset.Seal do
 
   defp fetch_previous_slot(subset, slot_time = %DateTime{}, storage_nodes)
        when is_binary(subset) and is_list(storage_nodes) do
-    storage_nodes
-    |> P2P.broadcast_message(%GetBeaconSlot{subset: subset, slot_time: slot_time})
-    |> Stream.filter(&match?(%Slot{}, &1))
-    |> Enum.at(0)
+    {:ok, slot} =
+      P2P.reply_first(storage_nodes, %GetBeaconSlot{subset: subset, slot_time: slot_time})
+
+    slot
   end
 
   @spec new_summary(binary(), DateTime.t()) :: :ok

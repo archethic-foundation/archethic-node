@@ -141,16 +141,17 @@ defmodule Uniris.P2P.BatcherTest do
       P2P.add_node(%Node{first_public_key: Crypto.node_public_key(0), network_patch: "AAA"})
 
       assert 256 ==
-               Enum.map(0..255, fn i ->
-                 Task.async(fn ->
+               Task.async_stream(
+                 0..255,
+                 fn i ->
                    Batcher.request_first_reply(
                      pid,
                      [%Node{first_public_key: "key1", network_patch: "AAA"}],
                      %GetBeaconSlot{subset: <<i>>, slot_time: DateTime.utc_now()}
                    )
-                 end)
-               end)
-               |> Enum.map(&Task.await/1)
+                 end,
+                 max_concurrency: 256
+               )
                |> Enum.count()
 
       assert %{first_reply_queue: %{}, timer: timer} = :sys.get_state(pid)
@@ -175,8 +176,9 @@ defmodule Uniris.P2P.BatcherTest do
       P2P.add_node(%Node{first_public_key: Crypto.node_public_key(0), network_patch: "EDF"})
 
       assert 256 ==
-               Enum.map(0..255, fn i ->
-                 Task.async(fn ->
+               Task.async_stream(
+                 0..255,
+                 fn i ->
                    Batcher.request_first_reply(
                      pid,
                      [
@@ -188,9 +190,9 @@ defmodule Uniris.P2P.BatcherTest do
                      ],
                      %GetBeaconSlot{subset: <<i>>, slot_time: DateTime.utc_now()}
                    )
-                 end)
-               end)
-               |> Enum.map(&Task.await/1)
+                 end,
+                 max_concurrency: 256
+               )
                |> Enum.count()
 
       assert %{first_reply_queue: %{}, timer: timer} = :sys.get_state(pid)
@@ -222,8 +224,9 @@ defmodule Uniris.P2P.BatcherTest do
       P2P.add_node(%Node{first_public_key: Crypto.node_public_key(0), network_patch: "EDF"})
 
       assert 256 ==
-               Enum.map(0..255, fn i ->
-                 Task.async(fn ->
+               Task.async_stream(
+                 0..255,
+                 fn i ->
                    Batcher.request_first_reply(
                      pid,
                      [
@@ -235,9 +238,9 @@ defmodule Uniris.P2P.BatcherTest do
                      ],
                      %GetBeaconSlot{subset: <<i>>, slot_time: DateTime.utc_now()}
                    )
-                 end)
-               end)
-               |> Enum.map(&Task.await/1)
+                 end,
+                 max_concurrency: 256
+               )
                |> Enum.count()
 
       assert %{first_reply_queue: %{}, timer: timer} = :sys.get_state(pid)
@@ -270,15 +273,16 @@ defmodule Uniris.P2P.BatcherTest do
           DateTime.utc_now()
         }
       end)
-      |> Enum.map(fn {nodes, subset, slot_time} ->
-        Task.async(fn ->
+      |> Task.async_stream(
+        fn {nodes, subset, slot_time} ->
           Batcher.request_first_reply(pid, nodes, %GetBeaconSlot{
             subset: subset,
             slot_time: slot_time
           })
-        end)
-      end)
-      |> Enum.map(&Task.await/1)
+        end,
+        max_concurrency: 256
+      )
+      |> Enum.to_list()
     end
   end
 

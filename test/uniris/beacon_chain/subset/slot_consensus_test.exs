@@ -10,6 +10,10 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.AddBeaconSlotProof
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetCurrentBeaconSlot
   alias Uniris.P2P.Message.GetTransactionSummary
   alias Uniris.P2P.Message.NotFound
@@ -26,6 +30,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
   setup do
     start_supervised!({SlotTimer, interval: "0 * * * * *"})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
+    start_supervised!(Batcher)
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -33,7 +38,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       available?: true,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA"
     })
 
     P2P.add_node(%Node{
@@ -42,7 +48,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       first_public_key: Crypto.node_public_key(1),
       last_public_key: Crypto.node_public_key(1),
       available?: true,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA"
     })
 
     P2P.add_node(%Node{
@@ -51,20 +58,21 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       first_public_key: Crypto.node_public_key(2),
       last_public_key: Crypto.node_public_key(2),
       available?: true,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA"
     })
 
     :ok
   end
 
   test "start_link/1 should start a slot consensus worker" do
-    {:ok, pid} = SlotConsensus.start_link()
+    {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
     Process.sleep(100)
     assert Process.alive?(pid)
   end
 
   test "validate_and_notify_slot/2 should start the validation process" do
-    {:ok, pid} = SlotConsensus.start_link()
+    {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
     assert :ok =
              SlotConsensus.validate_and_notify_slot(pid, %Slot{
@@ -84,7 +92,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
   describe "add_slot_proof/2" do
     test "should reject a proof which is not cryptographically valid" do
-      {:ok, pid} = SlotConsensus.start_link()
+      {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
       slot = %Slot{
         subset: <<0>>,
@@ -110,7 +118,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
     end
 
     test "should accept the proof and wait to receive enough proofs" do
-      {:ok, pid} = SlotConsensus.start_link()
+      {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
       slot = %Slot{
         subset: <<0>>,
@@ -123,6 +131,12 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
           }
         ]
       }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %BatchRequests{requests: [%AddBeaconSlotProof{}]} ->
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+      end)
 
       :ok = SlotConsensus.validate_and_notify_slot(pid, slot)
       Process.sleep(100)
@@ -148,7 +162,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
     end
 
     test "should notify the summary pool when enough valid signatures has been gathered" do
-      {:ok, pid} = SlotConsensus.start_link()
+      {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
       slot = %Slot{
         subset: <<0>>,
@@ -162,15 +176,19 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
         ]
       }
 
-      :ok = SlotConsensus.validate_and_notify_slot(pid, slot)
-
       me = self()
 
       MockClient
-      |> expect(:send_message, fn _, %NotifyBeaconSlot{} ->
-        send(me, :slot_sent)
-        {:ok, %Ok{}}
+      |> stub(:send_message, fn
+        _, %BatchRequests{requests: [%NotifyBeaconSlot{}]} ->
+          send(me, :slot_sent)
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+
+        _, %BatchRequests{requests: [%NotifyBeaconSlot{}, %AddBeaconSlotProof{}]} ->
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}, {1, %Ok{}}]}}
       end)
+
+      :ok = SlotConsensus.validate_and_notify_slot(pid, slot)
 
       assert :ok =
                SlotConsensus.add_slot_proof(
@@ -188,11 +206,11 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
                  Crypto.sign_with_node_key(Slot.digest(slot), 2)
                )
 
-      assert_receive :slot_sent
+      assert_receive :slot_sent, 1_000
     end
 
     test "should request beacon slot details and correct current slot" do
-      {:ok, pid} = SlotConsensus.start_link()
+      {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
       initial_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -207,8 +225,6 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
           }
         ]
       }
-
-      :ok = SlotConsensus.validate_and_notify_slot(pid, slot)
 
       added_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -231,16 +247,27 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetCurrentBeaconSlot{} ->
-          other_slot
+        _, %BatchRequests{requests: [%AddBeaconSlotProof{}]} ->
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %GetTransactionSummary{} ->
-          %TransactionSummary{
-            address: added_addr,
-            timestamp: ~U[2021-01-20 23:53:41Z],
-            type: :transfer
-          }
+        _, %BatchRequests{requests: [%GetTransactionSummary{}]} ->
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0,
+                %TransactionSummary{
+                  address: added_addr,
+                  timestamp: ~U[2021-01-20 23:53:41Z],
+                  type: :transfer
+                }}
+             ]
+           }}
+
+        _, %GetCurrentBeaconSlot{} ->
+          {:ok, other_slot}
       end)
+
+      :ok = SlotConsensus.validate_and_notify_slot(pid, slot)
 
       assert :ok =
                SlotConsensus.add_slot_proof(
@@ -267,7 +294,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
     end
 
     test "should refute invalid transaction summary" do
-      {:ok, pid} = SlotConsensus.start_link()
+      {:ok, pid} = SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
 
       initial_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -304,11 +331,14 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetCurrentBeaconSlot{} ->
-          other_slot
+        _, %BatchRequests{requests: [%AddBeaconSlotProof{}]} ->
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %GetTransactionSummary{} ->
-          %NotFound{}
+        _, %BatchRequests{requests: [%GetTransactionSummary{}]} ->
+          {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
+
+        _, %GetCurrentBeaconSlot{} ->
+          {:ok, other_slot}
       end)
 
       assert :ok =

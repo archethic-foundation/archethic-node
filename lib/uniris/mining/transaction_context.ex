@@ -117,7 +117,10 @@ defmodule Uniris.Mining.TransactionContext do
     ]
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:ok, prev_tx = %Transaction{}, prev_tx_node}}}, acc) do
+  defp reduce_tasks(
+         {%Task{}, {:ok, {:ok, prev_tx = %Transaction{}, prev_tx_node = %Node{}}}},
+         acc
+       ) do
     acc
     |> Map.put(:previous_transaction, prev_tx)
     |> Map.update(
@@ -130,7 +133,7 @@ defmodule Uniris.Mining.TransactionContext do
   defp reduce_tasks({%Task{}, {:ok, {:error, :not_found}}}, acc), do: acc
 
   defp reduce_tasks({%Task{}, {:ok, {unspent_outputs, unspent_outputs_nodes}}}, acc)
-       when is_list(unspent_outputs) do
+       when is_list(unspent_outputs) and is_list(unspent_outputs_nodes) do
     acc
     |> Map.put(:unspent_outputs, unspent_outputs)
     |> Map.update(
@@ -140,7 +143,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:chain, {view, node}}}}, acc) do
+  defp reduce_tasks({%Task{}, {:ok, {:chain, {view, node = %Node{}}}}}, acc) do
     acc
     |> Map.put(:chain_storage_nodes_view, view)
     |> Map.update(
@@ -150,7 +153,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:beacon, {view, node}}}}, acc) do
+  defp reduce_tasks({%Task{}, {:ok, {:beacon, {view, node = %Node{}}}}}, acc) do
     acc
     |> Map.put(:beacon_storage_nodes_view, view)
     |> Map.update(
@@ -160,7 +163,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:validation, {view, node}}}}, acc) do
+  defp reduce_tasks({%Task{}, {:ok, {:validation, {view, node = %Node{}}}}}, acc) do
     acc
     |> Map.put(:validation_nodes_view, view)
     |> Map.update(

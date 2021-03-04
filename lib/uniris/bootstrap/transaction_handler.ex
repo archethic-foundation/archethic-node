@@ -19,7 +19,7 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @spec send_transaction(Transaction.t(), Node.t()) :: :ok | {:error, :network_issue}
   def send_transaction(tx = %Transaction{}, node = %Node{}) do
     message = %NewTransaction{transaction: tx}
-    %Ok{} = P2P.send_message(node, message)
+    %Ok{} = P2P.send_message!(node, message)
     :ok
   catch
     e ->
@@ -49,7 +49,7 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @spec await_validation(binary(), Node.t()) :: :ok | {:error, :network_issue}
   def await_validation(address, node = %Node{}) when is_binary(address) do
     message = %SubscribeTransactionValidation{address: address}
-    %Ok{} = P2P.send_message(node, message)
+    %Ok{} = P2P.send_message!(node, message)
     :ok
   end
 end

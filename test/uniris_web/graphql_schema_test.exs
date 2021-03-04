@@ -1,4 +1,4 @@
-defmodule UUnirisWeb.GraphQLSchemaTest do
+defmodule UnirisWeb.GraphQLSchemaTest do
   use UnirisCase
   use UnirisWeb.ConnCase
   use UnirisWeb.GraphQLSubscriptionCase
@@ -9,6 +9,9 @@ defmodule UUnirisWeb.GraphQLSchemaTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetLastTransaction
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Node
@@ -32,6 +35,8 @@ defmodule UUnirisWeb.GraphQLSchemaTest do
       geo_patch: "AAA",
       available?: true
     })
+
+    start_supervised!(Batcher)
 
     :ok
   end
@@ -121,8 +126,8 @@ defmodule UUnirisWeb.GraphQLSchemaTest do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{} ->
-        %NotFound{}
+      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]} ->
+        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
 
       conn =

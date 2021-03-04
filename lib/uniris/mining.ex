@@ -254,15 +254,13 @@ defmodule Uniris.Mining do
       Replication.chain_storage_nodes(previous_address, P2P.list_nodes(availability: :global))
 
     response_message =
-      storage_nodes
-      |> P2P.broadcast_message(%GetFirstPublicKey{address: previous_address})
-      |> Enum.at(0)
+      P2P.reply_first(storage_nodes, %GetFirstPublicKey{address: previous_address})
 
     case response_message do
-      %NotFound{} ->
+      {:ok, %NotFound{}} ->
         previous_public_key
 
-      %FirstPublicKey{public_key: public_key} ->
+      {:ok, %FirstPublicKey{public_key: public_key}} ->
         public_key
     end
   end

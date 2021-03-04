@@ -7,6 +7,7 @@ defmodule Uniris.P2P.Batcher do
   use GenServer
 
   alias Uniris.P2P
+  alias Uniris.P2P.Client
   alias Uniris.P2P.Message.BatchRequests
   alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Node
@@ -16,6 +17,11 @@ defmodule Uniris.P2P.Batcher do
     GenServer.start_link(__MODULE__, args, opts)
   end
 
+  @doc """
+  Register a broadcast request for a list of nodes.
+
+  This request will be process at the end of the timeframe
+  """
   @spec add_broadcast_request(list(Node.t()), Message.t()) :: :ok
   def add_broadcast_request(nodes, request) do
     GenServer.cast(__MODULE__, {:add_broadcast_request, request, nodes})
@@ -26,28 +32,50 @@ defmodule Uniris.P2P.Batcher do
     GenServer.cast(pid, {:add_broadcast_request, request, nodes})
   end
 
-  def request_first_reply(nodes, request) do
-    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, false}, 10_000)
+  @doc """
+  Request a list nodes and reply to the first closest nodes
+
+  This request will be process at the end of the timeframe
+  """
+  @spec request_first_reply(list(Node.t()), Message.t()) ::
+          {:ok, Message.t()} | {:error, Client.error()}
+  def request_first_reply(nodes, request) when is_list(nodes) do
+    %Node{network_patch: patch} = P2P.get_node_info()
+    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
+  end
+
+  @spec request_first_reply(list(Node.t()), Message.t(), binary()) ::
+          {:ok, Message.t()} | {:error, Client.error()}
+  def request_first_reply(nodes, request, patch) when is_list(nodes) and is_binary(patch) do
+    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
   end
 
   @doc false
-  def request_first_reply(pid, nodes, request) do
-    GenServer.call(pid, {:add_first_reply_request, request, nodes, false}, 10_000)
+  def request_first_reply(pid, nodes, request) when is_pid(pid) do
+    %Node{network_patch: patch} = P2P.get_node_info()
+    GenServer.call(pid, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
   end
 
+  @doc """
+  Same as `request_first_reply/2` but return also the node which reply the first
+  """
+  @spec request_first_reply(list(Node.t()), Message.t()) ::
+          {:ok, Message.t(), Node.t()} | {:error, Client.error()}
   def request_first_reply_with_ack(nodes, request) do
-    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, true}, 10_000)
+    %Node{network_patch: patch} = P2P.get_node_info()
+    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, true, patch}, 10_000)
   end
 
   def request_first_reply_with_ack(pid, nodes, request) do
-    GenServer.call(pid, {:add_first_reply_request, request, nodes, true}, 10_000)
+    %Node{network_patch: patch} = P2P.get_node_info()
+    GenServer.call(pid, {:add_first_reply_request, request, nodes, true, patch}, 10_000)
   end
 
   @spec init(Keyword.t()) ::
           {:ok,
            %{broadcast_queue: %{}, timeout: timeout(), first_reply_queue: %{}, timer: reference()}}
   def init(args) do
-    timeout = Keyword.get(args, :timeout, 1000)
+    timeout = Keyword.get(args, :timeout, 100)
     timer = schedule_dispatch(timeout)
 
     {:ok, %{timeout: timeout, broadcast_queue: %{}, first_reply_queue: %{}, timer: timer}}
@@ -66,7 +94,7 @@ defmodule Uniris.P2P.Batcher do
   end
 
   def handle_call(
-        {:add_first_reply_request, request, nodes, ack?},
+        {:add_first_reply_request, request, nodes, ack?, patch},
         from,
         state = %{first_reply_queue: queue}
       ) do
@@ -74,9 +102,9 @@ defmodule Uniris.P2P.Batcher do
       Map.update(
         queue,
         request,
-        {nodes, [{from, ack?}]},
-        fn {nodes, froms} ->
-          {nodes, [{from, ack?} | froms]}
+        {nodes, [{from, ack?}], patch},
+        fn {nodes, froms, patch} ->
+          {nodes, [{from, ack?} | froms], patch}
         end
       )
 
@@ -117,8 +145,8 @@ defmodule Uniris.P2P.Batcher do
 
   defp handle_first_reply_queue(queue) when map_size(queue) > 0 do
     sorted_nodes_by_request =
-      Enum.map(queue, fn {request, {nodes, from}} ->
-        {request, {P2P.nearest_nodes(nodes), from}}
+      Enum.map(queue, fn {request, {nodes, from, patch}} ->
+        {request, {P2P.nearest_nodes(nodes, patch), from}}
       end)
       |> Enum.into(%{})
 

@@ -17,14 +17,14 @@ defmodule Uniris.P2P.Client.TransportImpl do
   @impl ClientImpl
   def send_message(node = %Node{first_public_key: first_public_key}, message) do
     if first_public_key == Crypto.node_public_key(0) do
-      Message.process(message)
+      {:ok, Message.process(message)}
     else
       do_send_remotely(node, message)
     end
   end
 
   defp do_send_remotely(
-         %Node{first_public_key: first_public_key, ip: ip, port: port},
+         %Node{first_public_key: first_public_key},
          message
        ) do
     encoded_message =
@@ -35,11 +35,12 @@ defmodule Uniris.P2P.Client.TransportImpl do
     case ClientConnection.send_message(first_public_key, encoded_message) do
       {:ok, data} ->
         MemTable.increase_node_availability(first_public_key)
-        Message.decode(data)
+        {data, _} = Message.decode(data)
+        {:ok, data}
 
       {:error, reason} ->
         :ok = MemTable.decrease_node_availability(first_public_key)
-        raise "Messaging error with #{:inet.ntoa(ip)}:#{port} - reason: #{reason}"
+        {:error, reason}
     end
   end
 end

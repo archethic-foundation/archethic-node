@@ -41,7 +41,7 @@ defmodule Uniris.P2P.Client.TransportImplTest do
 
       P2P.add_node(node)
 
-      assert %NotFound{} =
+      assert {:ok, %NotFound{}} =
                TransportImpl.send_message(node, %GetTransaction{
                  address: :crypto.strong_rand_bytes(32)
                })
@@ -68,13 +68,10 @@ defmodule Uniris.P2P.Client.TransportImplTest do
 
       P2P.add_node(node)
 
-      assert_raise RuntimeError,
-                   "Messaging error with 127.0.0.1:3000 - reason: disconnected",
-                   fn ->
-                     TransportImpl.send_message(node, %GetTransaction{
-                       address: :crypto.strong_rand_bytes(32)
-                     })
-                   end
+      assert {:error, :disconnected} =
+               TransportImpl.send_message(node, %GetTransaction{
+                 address: :crypto.strong_rand_bytes(32)
+               })
 
       {:ok, %Node{availability_history: <<0::1, _::bitstring>>}} = P2P.get_node_info(node_key)
     end

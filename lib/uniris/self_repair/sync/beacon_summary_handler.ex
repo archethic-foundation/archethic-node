@@ -29,23 +29,27 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec get_beacon_summaries(BeaconChain.summary_pools(), binary()) :: Enumerable.t()
   def get_beacon_summaries(summary_pools, patch) when is_binary(patch) do
-    Task.async_stream(summary_pools, fn {subset, nodes_by_summary_time} ->
-      Task.async_stream(
-        nodes_by_summary_time,
-        fn {summary_time, nodes} -> do_fetch_summary(subset, summary_time, nodes, patch) end,
-        ordered: false
-      )
-      |> Stream.reject(&match?({:ok, nil}, &1))
-      |> Enum.map(fn {:ok, res} -> res end)
+    Enum.map(summary_pools, fn {subset, nodes_by_summary_time} ->
+      Enum.map(nodes_by_summary_time, fn {summary_time, nodes} ->
+        {nodes, subset, summary_time}
+      end)
     end)
-    |> Enum.flat_map(fn {:ok, res} -> res end)
+    |> :lists.flatten()
+    |> Task.async_stream(
+      fn {nodes, subset, summary_time} ->
+        do_fetch_summary(subset, summary_time, nodes, patch)
+      end,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
+    |> Stream.map(fn {:ok, {:ok, res}} -> res end)
   end
 
   defp do_fetch_summary(subset, summary_time, nodes, patch) do
     if Utils.key_in_node_list?(nodes, Crypto.node_public_key(0)) do
       case DB.get_beacon_summary(subset, summary_time) do
         {:ok, summary} ->
-          summary
+          {:ok, summary}
 
         _ ->
           Logger.warn(
@@ -53,15 +57,12 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
             subset: Base.encode16(subset)
           )
 
-          nil
+          {:error, :not_found}
       end
     else
       nodes
       |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-      |> P2P.nearest_nodes(patch)
-      |> P2P.broadcast_message(%GetBeaconSummary{subset: subset, date: summary_time})
-      |> Stream.filter(&match?(%BeaconSummary{}, &1))
-      |> Enum.at(0)
+      |> P2P.reply_first(%GetBeaconSummary{subset: subset, date: summary_time}, patch)
     end
   end
 
@@ -134,9 +135,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   defp synchronize_transactions(transaction_summaries, node_patch) do
     transactions_to_sync =
       transaction_summaries
-      |> Stream.uniq_by(& &1.address)
-      |> Stream.reject(&TransactionChain.transaction_exists?(&1.address))
-      |> Stream.filter(&TransactionHandler.download_transaction?/1)
+      |> Enum.uniq_by(& &1.address)
+      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+      |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
     Logger.info("Need to synchronize #{Enum.count(transactions_to_sync)} transactions")
 

@@ -10,7 +10,7 @@ defmodule Uniris.Utils do
   import Bitwise
 
   @doc """
-  Compute an offset of the next shift in seconds for a given time interval 
+  Compute an offset of the next shift in seconds for a given time interval
 
   ## Examples
 
@@ -134,7 +134,7 @@ defmodule Uniris.Utils do
       #   }
       # }
 
-      iex> %{ 
+      iex> %{
       ...>  "address" => <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85,
       ...>    181, 180, 228, 251, 55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51,
       ...>    236, 70, 70>>,
@@ -156,7 +156,7 @@ defmodule Uniris.Utils do
       ...> }
       ...> |> Utils.atomize_keys(true)
       %{
-        address: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251, 
+        address: <<0, 177, 211, 117, 14, 219, 147, 129, 201, 107, 26, 151, 90, 85, 181, 180, 228, 251,
                     55, 191, 171, 16, 76, 16, 176, 182, 201, 160, 4, 51, 236, 70, 70>>,
         type: "transfer",
         validation_stamp: %{
@@ -337,23 +337,23 @@ defmodule Uniris.Utils do
 
       # Bitstring wrapped and padded as <<128>> binary
       iex> Utils.unwrap_bitstring(<<1::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, 2)
-      <<1::1, 0::1>>
+      {<<1::1, 0::1>>, ""}
 
       # Bitstring wrapped and padded as <<208>> binary
       iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
-      <<1::1, 1::1, 0::1, 1::1>>
+      {<<1::1, 1::1, 0::1, 1::1>>, ""}
   """
-  def unwrap_bitstring("", 0), do: <<>>
+  def unwrap_bitstring("", 0), do: {<<>>, <<>>}
 
   def unwrap_bitstring(bitstring, data_size)
       when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
     wrapped_bitstring_size = bit_size(bitstring)
     padding_bitstring_size = abs(data_size - wrapped_bitstring_size)
 
-    <<data_bitstring::bitstring-size(data_size), _::bitstring-size(padding_bitstring_size)>> =
-      bitstring
+    <<data_bitstring::bitstring-size(data_size), _::bitstring-size(padding_bitstring_size),
+      rest::bitstring>> = bitstring
 
-    data_bitstring
+    {data_bitstring, rest}
   end
 
   @doc """

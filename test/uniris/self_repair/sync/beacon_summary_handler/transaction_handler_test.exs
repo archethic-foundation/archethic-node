@@ -9,6 +9,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
@@ -29,6 +32,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   setup do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+    start_supervised!(Batcher)
 
     welcome_node = %Node{
       first_public_key: "key1",
@@ -94,9 +98,17 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{} -> tx
-      _, %GetTransactionChain{} -> %TransactionList{transactions: []}
-      _, %GetTransactionInputs{} -> %TransactionInputList{inputs: inputs}
+      _, %BatchRequests{requests: [%GetTransaction{}]} ->
+        {:ok, %BatchResponses{responses: [{0, tx}]}}
+
+      _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]} ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %TransactionInputList{inputs: inputs}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
     end)
 
     tx_summary = %TransactionSummary{address: "@Alice2"}

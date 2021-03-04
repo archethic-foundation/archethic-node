@@ -36,7 +36,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
     MockClient
     |> stub(:send_message, fn
       _, %GetBeaconSummary{} ->
-        %NotFound{}
+        {:ok, %NotFound{}}
     end)
 
     {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
@@ -53,7 +53,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
     MockClient
     |> stub(:send_message, fn
       _, %GetBeaconSummary{} ->
-        %NotFound{}
+        {:ok, %NotFound{}}
     end)
 
     P2P.add_node(%Node{

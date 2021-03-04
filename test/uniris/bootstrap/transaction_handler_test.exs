@@ -44,7 +44,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
     MockClient
     |> expect(:send_message, fn _, %NewTransaction{} ->
-      %Ok{}
+      {:ok, %Ok{}}
     end)
 
     tx = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000, :tcp)
@@ -58,7 +58,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
       receive do
         {:new_transaction, ^address} ->
-          %Ok{}
+          {:ok, %Ok{}}
       end
     end)
 

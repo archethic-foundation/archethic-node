@@ -406,7 +406,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
          node_public_key
        ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      P2P.send_message(coordinator_node, %AddMiningContext{
+      P2P.send_message!(coordinator_node, %AddMiningContext{
         address: tx_address,
         validation_node_public_key: node_public_key,
         previous_storage_nodes_public_keys:
@@ -427,7 +427,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
     TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(
       cross_validation_nodes,
-      &P2P.send_message(&1, %CrossValidate{
+      &P2P.send_message!(&1, %CrossValidate{
         address: tx_address,
         validation_stamp: validation_stamp,
         replication_tree: replication_tree
@@ -455,7 +455,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       nodes,
-      &P2P.send_message(&1, %CrossValidationDone{
+      &P2P.send_message!(&1, %CrossValidationDone{
         address: tx_address,
         cross_validation_stamp: cross_validation_stamp
       })
@@ -473,7 +473,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
       storage_nodes,
       fn node = %Node{last_public_key: node_key} ->
         %Ok{} =
-          P2P.send_message(node, %ReplicateTransaction{
+          P2P.send_message!(node, %ReplicateTransaction{
             transaction: ValidationContext.get_validated_transaction(context)
           })
 

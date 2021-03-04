@@ -6,6 +6,9 @@ defmodule Uniris.Replication.TransactionContextTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.TransactionList
@@ -19,10 +22,15 @@ defmodule Uniris.Replication.TransactionContextTest do
 
   import Mox
 
+  setup do
+    start_supervised!(Batcher)
+    :ok
+  end
+
   test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
-    |> stub(:send_message, fn _, %GetTransactionChain{} ->
-      %TransactionList{transactions: [%Transaction{}]}
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetTransactionChain{}]} ->
+      {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: [%Transaction{}]}}]}}
     end)
 
     P2P.add_node(%Node{
@@ -46,10 +54,16 @@ defmodule Uniris.Replication.TransactionContextTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
-      %UnspentOutputList{
-        unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
-      }
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+      {:ok,
+       %BatchResponses{
+         responses: [
+           {0,
+            %UnspentOutputList{
+              unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
+            }}
+         ]
+       }}
     end)
 
     P2P.add_node(%Node{

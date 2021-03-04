@@ -11,6 +11,9 @@ defmodule Uniris.BeaconChain.SealingTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetBeaconSlot
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Node
@@ -19,14 +22,22 @@ defmodule Uniris.BeaconChain.SealingTest do
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
+    start_supervised!(Batcher)
+
+    P2P.add_node(%Node{
+      first_public_key: Crypto.node_public_key(0),
+      network_patch: "AAA"
+    })
+
     :ok
   end
 
   describe "link_to_previous_slot/1" do
     test "should fetch the previous slot and link it by hash" do
       MockClient
-      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
-        %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]} ->
+        {:ok,
+         %BatchResponses{responses: [{0, %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}}]}}
       end)
 
       P2P.add_node(%Node{
@@ -35,6 +46,7 @@ defmodule Uniris.BeaconChain.SealingTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: "AAA",
+        network_patch: "AAA",
         available?: true
       })
 
@@ -49,8 +61,8 @@ defmodule Uniris.BeaconChain.SealingTest do
 
     test "should keep the genesis hash when not previous slot is found" do
       MockClient
-      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
-        %NotFound{}
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]} ->
+        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
 
       P2P.add_node(%Node{
@@ -59,6 +71,7 @@ defmodule Uniris.BeaconChain.SealingTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: "AAA",
+        network_patch: "AAA",
         available?: true
       })
 

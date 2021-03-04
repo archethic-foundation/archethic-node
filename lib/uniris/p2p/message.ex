@@ -56,7 +56,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.P2PView
   alias __MODULE__.ReplicateTransaction
   alias __MODULE__.StartMining
-  alias __MODULE__.SubscribeTransactionValidation
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
@@ -110,7 +109,6 @@ defmodule Uniris.P2P.Message do
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
           | P2PView.t()
-          | SubscribeTransactionValidation.t()
           | NotifyLastTransactionAddress.t()
           | GetLastTransactionAddress.t()
           | LastTransactionAddress.t()
@@ -248,28 +246,24 @@ defmodule Uniris.P2P.Message do
     <<19::8, length(node_public_keys)::16, :erlang.list_to_binary(node_public_keys)::binary>>
   end
 
-  def encode(%SubscribeTransactionValidation{address: address}) do
+  def encode(%GetFirstPublicKey{address: address}) do
     <<20::8, address::binary>>
   end
 
-  def encode(%GetFirstPublicKey{address: address}) do
+  def encode(%GetLastTransactionAddress{address: address}) do
     <<21::8, address::binary>>
   end
 
-  def encode(%GetLastTransactionAddress{address: address}) do
-    <<22::8, address::binary>>
-  end
-
   def encode(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
-    <<23::8, address::binary, previous_address::binary>>
+    <<22::8, address::binary, previous_address::binary>>
   end
 
   def encode(%GetTransactionSummary{address: address}) do
-    <<24::8, address::binary>>
+    <<23::8, address::binary>>
   end
 
   def encode(%NotifyBeaconSlot{slot: slot}) do
-    <<25::8, Slot.serialize(slot)::bitstring>>
+    <<24::8, Slot.serialize(slot)::bitstring>>
   end
 
   def encode(%AddBeaconSlotProof{
@@ -278,15 +272,17 @@ defmodule Uniris.P2P.Message do
         public_key: public_key,
         signature: signature
       }) do
-    <<26::8, subset::binary, digest::binary, public_key::binary, signature::binary>>
+    <<25::8, subset::binary, digest::binary, public_key::binary, byte_size(signature)::8,
+      signature::binary>>
   end
 
   def encode(%GetBeaconSlot{subset: subset, slot_time: slot_time}) do
-    <<27::8, subset::binary, DateTime.to_unix(slot_time)::32>>
+    <<26::8, subset::binary, DateTime.to_unix(slot_time)::32>>
   end
 
   def encode(%BatchRequests{requests: requests}) do
-    <<28::8, length(requests)::16, Enum.map(requests, &encode/1) |> :erlang.list_to_bitstring()>>
+    <<27::8, length(requests)::16,
+      Enum.map(requests, &encode/1) |> :erlang.list_to_bitstring()::bitstring>>
   end
 
   def encode(%BatchResponses{responses: responses}) do
@@ -351,7 +347,7 @@ defmodule Uniris.P2P.Message do
   end
 
   def encode(%EncryptedStorageNonce{digest: digest}) do
-    <<248::8, digest::binary>>
+    <<248::8, byte_size(digest)::8, digest::binary>>
   end
 
   def encode(%Balance{uco: uco_balance, nft: nft_balances}) do
@@ -408,56 +404,52 @@ defmodule Uniris.P2P.Message do
   @doc """
   Decode an encoded message
   """
-  @spec decode(bitstring()) :: t()
-  def decode(<<0::8, patch::binary-size(3)>>) do
-    %GetBootstrappingNodes{
-      patch: patch
+  @spec decode(bitstring()) :: {t(), bitstring}
+  def decode(<<0::8, patch::binary-size(3), rest::bitstring>>) do
+    {
+      %GetBootstrappingNodes{patch: patch},
+      rest
     }
   end
 
   def decode(<<1::8, curve_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
-    <<public_key::binary-size(key_size), _::bitstring>> = rest
+    <<public_key::binary-size(key_size), rest::bitstring>> = rest
 
-    %GetStorageNonce{
-      public_key: <<curve_id::8, public_key::binary>>
+    {
+      %GetStorageNonce{
+        public_key: <<curve_id::8, public_key::binary>>
+      },
+      rest
     }
   end
 
-  def decode(<<2::8>>) do
-    %ListNodes{}
+  def decode(<<2::8, rest::bitstring>>) do
+    {%ListNodes{}, rest}
   end
 
   def decode(<<3::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetTransaction{
-      address: address
+    {
+      %GetTransaction{address: address},
+      rest
     }
   end
 
   def decode(<<4::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
-
-    %GetTransactionChain{
-      address: address
-    }
+    {address, rest} = deserialize_hash(rest)
+    {%GetTransactionChain{address: address}, rest}
   end
 
   def decode(<<5::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
-
-    %GetUnspentOutputs{
-      address: address
-    }
+    {address, rest} = deserialize_hash(rest)
+    {%GetUnspentOutputs{address: address}, rest}
   end
 
   def decode(<<6::8, rest::bitstring>>) do
-    {tx, _} = Transaction.deserialize(rest)
-
-    %NewTransaction{
-      transaction: tx
-    }
+    {tx, rest} = Transaction.deserialize(rest)
+    {%NewTransaction{transaction: tx}, rest}
   end
 
   def decode(<<7::8, rest::bitstring>>) do
@@ -466,13 +458,14 @@ defmodule Uniris.P2P.Message do
     {welcome_node_public_key, <<nb_validation_nodes::8, rest::bitstring>>} =
       deserialize_public_key(rest)
 
-    {validation_node_public_keys, _} = deserialize_public_key_list(rest, nb_validation_nodes, [])
+    {validation_node_public_keys, rest} =
+      deserialize_public_key_list(rest, nb_validation_nodes, [])
 
-    %StartMining{
-      transaction: tx,
-      welcome_node_public_key: welcome_node_public_key,
-      validation_node_public_keys: validation_node_public_keys
-    }
+    {%StartMining{
+       transaction: tx,
+       welcome_node_public_key: welcome_node_public_key,
+       validation_node_public_keys: validation_node_public_keys
+     }, rest}
   end
 
   def decode(<<8::8, hash_id::8, rest::bitstring>>) do
@@ -490,16 +483,16 @@ defmodule Uniris.P2P.Message do
       chain_storage_nodes_view::bitstring-size(chain_storage_nodes_view_size),
       beacon_storage_nodes_view_size::8,
       beacon_storage_nodes_view::bitstring-size(beacon_storage_nodes_view_size),
-      _::bitstring>> = rest
+      rest::bitstring>> = rest
 
-    %AddMiningContext{
-      address: <<hash_id::8, address::binary>>,
-      validation_node_public_key: <<curve_id::8, key::binary>>,
-      validation_nodes_view: validation_nodes_view,
-      chain_storage_nodes_view: chain_storage_nodes_view,
-      beacon_storage_nodes_view: beacon_storage_nodes_view,
-      previous_storage_nodes_public_keys: previous_storage_nodes_keys
-    }
+    {%AddMiningContext{
+       address: <<hash_id::8, address::binary>>,
+       validation_node_public_key: <<curve_id::8, key::binary>>,
+       validation_nodes_view: validation_nodes_view,
+       chain_storage_nodes_view: chain_storage_nodes_view,
+       beacon_storage_nodes_view: beacon_storage_nodes_view,
+       previous_storage_nodes_public_keys: previous_storage_nodes_keys
+     }, rest}
   end
 
   def decode(<<9::8, rest::bitstring>>) do
@@ -507,260 +500,246 @@ defmodule Uniris.P2P.Message do
     {validation_stamp, rest} = ValidationStamp.deserialize(rest)
 
     <<nb_sequences::8, sequence_size::8, rest::bitstring>> = rest
-    {replication_tree, _} = deserialize_bit_sequences(rest, nb_sequences, sequence_size, [])
+    {replication_tree, rest} = deserialize_bit_sequences(rest, nb_sequences, sequence_size, [])
 
-    %CrossValidate{
-      address: address,
-      validation_stamp: validation_stamp,
-      replication_tree: replication_tree
-    }
+    {%CrossValidate{
+       address: address,
+       validation_stamp: validation_stamp,
+       replication_tree: replication_tree
+     }, rest}
   end
 
   def decode(<<10::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
-    {stamp, _} = CrossValidationStamp.deserialize(rest)
+    {stamp, rest} = CrossValidationStamp.deserialize(rest)
 
-    %CrossValidationDone{
-      address: address,
-      cross_validation_stamp: stamp
-    }
+    {%CrossValidationDone{
+       address: address,
+       cross_validation_stamp: stamp
+     }, rest}
   end
 
   def decode(<<11::8, rest::bitstring>>) do
-    {tx, _} = Transaction.deserialize(rest)
+    {tx, rest} = Transaction.deserialize(rest)
 
-    %ReplicateTransaction{
-      transaction: tx
-    }
+    {%ReplicateTransaction{
+       transaction: tx
+     }, rest}
   end
 
   def decode(<<12::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %AcknowledgeStorage{
-      address: address
-    }
+    {%AcknowledgeStorage{
+       address: address
+     }, rest}
   end
 
-  def decode(<<13::8, subset::binary-size(1), timestamp::32>>) do
-    %GetBeaconSummary{
-      date: DateTime.from_unix!(timestamp),
-      subset: subset
-    }
+  def decode(<<13::8, subset::binary-size(1), timestamp::32, rest::bitstring>>) do
+    {%GetBeaconSummary{
+       date: DateTime.from_unix!(timestamp),
+       subset: subset
+     }, rest}
   end
 
   def decode(<<14::8, rest::bitstring>>) do
-    {public_key, <<timestamp::32>>} = deserialize_public_key(rest)
+    {public_key, <<timestamp::32, rest::bitstring>>} = deserialize_public_key(rest)
 
-    %NotifyEndOfNodeSync{
-      node_public_key: public_key,
-      timestamp: DateTime.from_unix!(timestamp)
-    }
+    {%NotifyEndOfNodeSync{
+       node_public_key: public_key,
+       timestamp: DateTime.from_unix!(timestamp)
+     }, rest}
   end
 
   def decode(<<15::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetLastTransaction{
-      address: address
-    }
+    {%GetLastTransaction{address: address}, rest}
   end
 
   def decode(<<16::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetBalance{
-      address: address
-    }
+    {%GetBalance{address: address}, rest}
   end
 
   def decode(<<17::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetTransactionInputs{
-      address: address
-    }
+    {%GetTransactionInputs{address: address}, rest}
   end
 
   def decode(<<18::8, rest::bitstring>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetTransactionChainLength{
-      address: address
-    }
+    {%GetTransactionChainLength{address: address}, rest}
   end
 
   def decode(<<19::8, nb_node_public_keys::16, rest::binary>>) do
-    {public_keys, _} = deserialize_public_key_list(rest, nb_node_public_keys, [])
-    %GetP2PView{node_public_keys: public_keys}
+    {public_keys, rest} = deserialize_public_key_list(rest, nb_node_public_keys, [])
+    {%GetP2PView{node_public_keys: public_keys}, rest}
   end
 
   def decode(<<20::8, rest::binary>>) do
-    {address, _} = deserialize_hash(rest)
-    %SubscribeTransactionValidation{address: address}
+    {address, rest} = deserialize_hash(rest)
+
+    {%GetFirstPublicKey{
+       address: address
+     }, rest}
   end
 
   def decode(<<21::8, rest::binary>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
 
-    %GetFirstPublicKey{
-      address: address
-    }
+    {%GetLastTransactionAddress{
+       address: address
+     }, rest}
   end
 
   def decode(<<22::8, rest::binary>>) do
-    {address, _} = deserialize_hash(rest)
+    {address, rest} = deserialize_hash(rest)
+    {previous_address, rest} = deserialize_hash(rest)
 
-    %GetLastTransactionAddress{
-      address: address
-    }
+    {%NotifyLastTransactionAddress{address: address, previous_address: previous_address}, rest}
   end
 
   def decode(<<23::8, rest::binary>>) do
     {address, rest} = deserialize_hash(rest)
-    {previous_address, _} = deserialize_hash(rest)
-
-    %NotifyLastTransactionAddress{address: address, previous_address: previous_address}
+    {%GetTransactionSummary{address: address}, rest}
   end
 
-  def decode(<<24::8, rest::binary>>) do
-    {address, _} = deserialize_hash(rest)
-    %GetTransactionSummary{address: address}
+  def decode(<<24::8, rest::bitstring>>) do
+    {slot, rest} = Slot.deserialize(rest)
+    {%NotifyBeaconSlot{slot: slot}, rest}
   end
 
-  def decode(<<25::8, rest::bitstring>>) do
-    {slot, _} = Slot.deserialize(rest)
-    %NotifyBeaconSlot{slot: slot}
-  end
-
-  def decode(<<26::8, subset::binary-size(1), rest::binary>>) do
+  def decode(<<25::8, subset::binary-size(1), rest::binary>>) do
     {digest, rest} = deserialize_hash(rest)
-    {public_key, signature} = deserialize_public_key(rest)
 
-    %AddBeaconSlotProof{
-      subset: subset,
-      digest: digest,
-      public_key: public_key,
-      signature: signature
-    }
+    {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
+      deserialize_public_key(rest)
+
+    {%AddBeaconSlotProof{
+       subset: subset,
+       digest: digest,
+       public_key: public_key,
+       signature: signature
+     }, rest}
   end
 
-  def decode(<<27::8, subset::binary-size(1), timestamp::32>>) do
-    %GetBeaconSlot{subset: subset, slot_time: DateTime.from_unix!(timestamp)}
+  def decode(<<26::8, subset::binary-size(1), timestamp::32, rest::bitstring>>) do
+    {%GetBeaconSlot{subset: subset, slot_time: DateTime.from_unix!(timestamp)}, rest}
   end
 
-  def decode(<<28::8, nb_requests::16, rest::bitstring>>) do
-    {requests, _} = deserialize_batched_requests(rest, nb_requests, [])
+  def decode(<<27::8, nb_requests::16, rest::bitstring>>) do
+    {requests, rest} = deserialize_batched_requests(rest, nb_requests, [])
 
-    %BatchRequests{
-      requests: requests
-    }
+    {%BatchRequests{
+       requests: requests
+     }, rest}
   end
 
   def decode(<<238::8, nb_responses::16, rest::bitstring>>) do
-    {responses, _} = deserialize_batched_responses(rest, nb_responses, [])
+    {responses, rest} = deserialize_batched_responses(rest, nb_responses, [])
 
-    %BatchResponses{
-      responses: responses
-    }
+    {%BatchResponses{
+       responses: responses
+     }, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
-    {tx_summary, _} = TransactionSummary.deserialize(rest)
-    tx_summary
+    TransactionSummary.deserialize(rest)
   end
 
   def decode(<<240::8, rest::bitstring>>) do
-    {summary, _} = Summary.deserialize(rest)
-    summary
+    Summary.deserialize(rest)
   end
 
   def decode(<<241::8, rest::bitstring>>) do
-    {slot, _} = Slot.deserialize(rest)
-    slot
+    Slot.deserialize(rest)
   end
 
   def decode(<<242::8, rest::binary>>) do
-    {address, _} = deserialize_hash(rest)
-    %LastTransactionAddress{address: address}
+    {address, rest} = deserialize_hash(rest)
+    {%LastTransactionAddress{address: address}, rest}
   end
 
   def decode(<<243::8, rest::binary>>) do
-    {public_key, _} = deserialize_public_key(rest)
-    %FirstPublicKey{public_key: public_key}
+    {public_key, rest} = deserialize_public_key(rest)
+    {%FirstPublicKey{public_key: public_key}, rest}
   end
 
   def decode(<<244::8, view_size::8, rest::bitstring>>) do
-    %P2PView{nodes_view: Utils.unwrap_bitstring(rest, view_size)}
+    {nodes_view, rest} = Utils.unwrap_bitstring(rest, view_size)
+    {%P2PView{nodes_view: nodes_view}, rest}
   end
 
   def decode(<<245::8, nb_inputs::16, rest::bitstring>>) do
-    {inputs, _} = deserialize_transaction_inputs(rest, nb_inputs, [])
+    {inputs, rest} = deserialize_transaction_inputs(rest, nb_inputs, [])
 
-    %TransactionInputList{
-      inputs: inputs
-    }
+    {%TransactionInputList{
+       inputs: inputs
+     }, rest}
   end
 
-  def decode(<<246::8, length::32>>) do
-    %TransactionChainLength{
-      length: length
-    }
+  def decode(<<246::8, length::32, rest::bitstring>>) do
+    {%TransactionChainLength{
+       length: length
+     }, rest}
   end
 
   def decode(<<247::8, nb_new_seeds::8, rest::bitstring>>) do
     {new_seeds, <<nb_closest_nodes::8, rest::bitstring>>} =
       deserialize_node_list(rest, nb_new_seeds, [])
 
-    {closest_nodes, _} = deserialize_node_list(rest, nb_closest_nodes, [])
+    {closest_nodes, rest} = deserialize_node_list(rest, nb_closest_nodes, [])
 
-    %BootstrappingNodes{
-      new_seeds: new_seeds,
-      closest_nodes: closest_nodes
-    }
+    {%BootstrappingNodes{
+       new_seeds: new_seeds,
+       closest_nodes: closest_nodes
+     }, rest}
   end
 
-  def decode(<<248::8, digest::binary>>) do
-    %EncryptedStorageNonce{
-      digest: digest
-    }
+  def decode(<<248::8, digest_size::8, digest::binary-size(digest_size), rest::bitstring>>) do
+    {%EncryptedStorageNonce{
+       digest: digest
+     }, rest}
   end
 
   def decode(<<249::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
-    {nft_balances, _} = deserialize_nft_balances(rest, nb_nft_balances, %{})
+    {nft_balances, rest} = deserialize_nft_balances(rest, nb_nft_balances, %{})
 
-    %Balance{
-      uco: uco_balance,
-      nft: nft_balances
-    }
+    {%Balance{
+       uco: uco_balance,
+       nft: nft_balances
+     }, rest}
   end
 
   def decode(<<250::8, nb_nodes::16, rest::bitstring>>) do
-    {nodes, _} = deserialize_node_list(rest, nb_nodes, [])
-    %NodeList{nodes: nodes}
+    {nodes, rest} = deserialize_node_list(rest, nb_nodes, [])
+    {%NodeList{nodes: nodes}, rest}
   end
 
   def decode(<<251::8, nb_unspent_outputs::32, rest::bitstring>>) do
-    {unspent_outputs, _} = deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
-    %UnspentOutputList{unspent_outputs: unspent_outputs}
+    {unspent_outputs, rest} = deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
+    {%UnspentOutputList{unspent_outputs: unspent_outputs}, rest}
   end
 
   def decode(<<252::8, nb_transactions::32, rest::bitstring>>) do
-    {transactions, _} = deserialize_tx_list(rest, nb_transactions, [])
-    %TransactionList{transactions: transactions}
+    {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
+    {%TransactionList{transactions: transactions}, rest}
   end
 
   def decode(<<253::8, rest::bitstring>>) do
-    {tx, _} = Transaction.deserialize(rest)
-    tx
+    Transaction.deserialize(rest)
   end
 
-  def decode(<<254::8>>) do
-    %NotFound{}
+  def decode(<<254::8, rest::bitstring>>) do
+    {%NotFound{}, rest}
   end
 
-  def decode(<<255::8>>) do
-    %Ok{}
+  def decode(<<255::8, rest::bitstring>>) do
+    {%Ok{}, rest}
   end
 
   defp deserialize_node_list(rest, 0, _acc), do: {[], rest}
@@ -852,8 +831,7 @@ defmodule Uniris.P2P.Message do
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
-  defp deserialize_batched_requests(rest, nb_requests, acc)
-       when length(nb_requests) == length(acc) do
+  defp deserialize_batched_requests(rest, nb_requests, acc) when nb_requests == length(acc) do
     {Enum.reverse(acc), rest}
   end
 
@@ -871,8 +849,7 @@ defmodule Uniris.P2P.Message do
     deserialize_batched_responses(rest, nb_responses, [{index, response} | acc])
   end
 
-  defp deserialize_batched_responses(rest, nb_responses, acc)
-       when length(nb_responses) == length(acc) do
+  defp deserialize_batched_responses(rest, nb_responses, acc) when nb_responses == length(acc) do
     {Enum.reverse(acc), rest}
   end
 
@@ -1101,10 +1078,6 @@ defmodule Uniris.P2P.Message do
     %TransactionChainLength{
       length: TransactionChain.size(address)
     }
-  end
-
-  def process(%SubscribeTransactionValidation{address: _}) do
-    %Ok{}
   end
 
   def process(%GetFirstPublicKey{address: address}) do

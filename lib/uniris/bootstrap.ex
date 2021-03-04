@@ -81,9 +81,16 @@ defmodule Uniris.Bootstrap do
   defp should_bootstrap?(ip, port, transport, last_sync_date) do
     case P2P.get_node_info(Crypto.node_public_key(0)) do
       {:ok, _} ->
-        Sync.require_update?(ip, port, transport, last_sync_date)
+        if Sync.require_update?(ip, port, transport, last_sync_date) do
+          Logger.debug("Node chain need to updated")
+          true
+        else
+          Logger.debug("Node chain doesn't need to be updated")
+          false
+        end
 
       _ ->
+        Logger.debug("Node doesn't exists. It will be bootstrap and create a new chain")
         true
     end
   end
@@ -94,7 +101,8 @@ defmodule Uniris.Bootstrap do
     patch = P2P.get_geo_patch(ip)
 
     if Sync.should_initialize_network?(bootstrapping_seeds) do
-      Logger.info("Create first node transaction")
+      Logger.info("This node should initialize the network!!")
+      Logger.debug("Create first node transaction")
       tx = TransactionHandler.create_node_transaction(ip, port, transport)
       Sync.initialize_network(tx)
 

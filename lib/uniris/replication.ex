@@ -220,7 +220,7 @@ defmodule Uniris.Replication do
       |> Enum.find(&(:welcome_node in &1.roles))
       |> Map.get(:to)
       |> P2P.get_node_info!()
-      |> P2P.send_message(%AcknowledgeStorage{address: address})
+      |> P2P.send_message!(%AcknowledgeStorage{address: address})
 
     :ok
   end
@@ -244,7 +244,6 @@ defmodule Uniris.Replication do
           address: address,
           previous_address: next_previous_address
         })
-        |> Stream.run()
 
       _ ->
         :ok

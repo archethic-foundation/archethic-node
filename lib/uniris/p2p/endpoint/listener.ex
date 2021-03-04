@@ -42,10 +42,11 @@ defmodule Uniris.P2P.Endpoint.Listener do
   defp handle_requests(requests, opts) do
     muxer_pid = Keyword.get(opts, :muxer_pid)
 
-    Enum.each(requests, fn <<id::32, data::binary>> ->
+    Enum.each(requests, fn <<id::32, data::bitstring>> ->
+      {data, _} = Message.decode(data)
+
       response =
         data
-        |> Message.decode()
         |> Message.process()
         |> Message.encode()
         |> Utils.wrap_binary()

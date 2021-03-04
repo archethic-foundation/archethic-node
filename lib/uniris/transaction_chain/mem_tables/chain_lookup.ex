@@ -130,7 +130,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   end
 
   @doc """
-  Create link from a previous transaction to a new one using the previous public key 
+  Create link from a previous transaction to a new one using the previous public key
   to able to lookup to the last transaction of a chain from a genesis address
 
   ## Examples
