@@ -8,6 +8,7 @@ defmodule Uniris.P2P.Batcher do
 
   alias Uniris.P2P
   alias Uniris.P2P.Client
+  alias Uniris.P2P.Message
   alias Uniris.P2P.Message.BatchRequests
   alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Node
@@ -59,13 +60,14 @@ defmodule Uniris.P2P.Batcher do
   @doc """
   Same as `request_first_reply/2` but return also the node which reply the first
   """
-  @spec request_first_reply(list(Node.t()), Message.t()) ::
+  @spec request_first_reply_with_ack(list(Node.t()), Message.t()) ::
           {:ok, Message.t(), Node.t()} | {:error, Client.error()}
   def request_first_reply_with_ack(nodes, request) do
     %Node{network_patch: patch} = P2P.get_node_info()
     GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, true, patch}, 10_000)
   end
 
+  @doc false
   def request_first_reply_with_ack(pid, nodes, request) do
     %Node{network_patch: patch} = P2P.get_node_info()
     GenServer.call(pid, {:add_first_reply_request, request, nodes, true, patch}, 10_000)

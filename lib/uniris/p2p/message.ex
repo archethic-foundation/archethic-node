@@ -80,7 +80,9 @@ defmodule Uniris.P2P.Message do
 
   require Logger
 
-  @type t() ::
+  @type t :: request() | response()
+
+  @type request ::
           GetBootstrappingNodes.t()
           | GetStorageNonce.t()
           | ListNodes.t()
@@ -98,8 +100,18 @@ defmodule Uniris.P2P.Message do
           | GetBalance.t()
           | GetTransactionInputs.t()
           | GetTransactionChainLength.t()
-          | TransactionChainLength.t()
-          | Ok.t()
+          | NotifyEndOfNodeSync.t()
+          | AddBeaconSlotProof.t()
+          | NotifyBeaconSlot.t()
+          | GetBeaconSummary.t()
+          | GetBeaconSlot.t()
+          | GetCurrentBeaconSlot.t()
+          | GetLastTransactionAddress.t()
+          | BatchRequests.t()
+          | NotifyLastTransactionAddress.t()
+
+  @type response ::
+          Ok.t()
           | NotFound.t()
           | TransactionList.t()
           | Transaction.t()
@@ -109,16 +121,13 @@ defmodule Uniris.P2P.Message do
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
           | P2PView.t()
-          | NotifyLastTransactionAddress.t()
-          | GetLastTransactionAddress.t()
+          | Transaction.t()
+          | Slot.t()
+          | TransactionSummary.t()
           | LastTransactionAddress.t()
-          | NotifyEndOfNodeSync.t()
-          | AddBeaconSlotProof.t()
-          | NotifyBeaconSlot.t()
-          | GetBeaconSummary.t()
-          | GetBeaconSlot.t()
-          | GetCurrentBeaconSlot.t()
-          | BatchRequests.t()
+          | FirstPublicKey.t()
+          | TransactionChainLength.t()
+          | TransactionInputList.t()
           | BatchResponses.t()
 
   @doc """
@@ -857,24 +866,7 @@ defmodule Uniris.P2P.Message do
   @doc """
   Handle a P2P message by processing it through the dedicated context
   """
-  @spec process(t()) ::
-          Ok.t()
-          | NotFound.t()
-          | BootstrappingNodes.t()
-          | EncryptedStorageNonce.t()
-          | NodeList.t()
-          | TransactionList.t()
-          | Transaction.t()
-          | Balance.t()
-          | TransactionInputList.t()
-          | TransactionChainLength.t()
-          | UnspentOutputList.t()
-          | P2PView.t()
-          | NotFound.t()
-          | TransactionSummary.t()
-          | Slot.t()
-          | Summary.t()
-          | BatchResponses.t()
+  @spec process(request()) :: response()
   def process(%GetBootstrappingNodes{patch: patch}) do
     top_nodes = P2P.list_nodes(authorized?: true, availability: :local)
 
@@ -943,19 +935,17 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%StartMining{
-        transaction: tx,
+        transaction: tx = %Transaction{},
         welcome_node_public_key: welcome_node_public_key,
         validation_node_public_keys: validation_nodes
-      }) do
+      })
+      when length(validation_nodes) > 0 do
     with :ok <- Mining.validate_pending_transaction(tx),
          true <- Mining.valid_election?(tx, validation_nodes) do
       {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
       %Ok{}
     else
-      {:error, _reason} ->
-        raise "Invalid transaction mining request"
-
-      false ->
+      _ ->
         raise "Invalid transaction mining request"
     end
   end

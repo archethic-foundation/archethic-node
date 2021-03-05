@@ -43,7 +43,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   @doc """
   Returns the list of previous summaries times from the given date
   """
-  @spec previous_summaries(DateTime.t()) :: DateTime.t()
+  @spec previous_summary(DateTime.t()) :: DateTime.t()
   def previous_summary(date_from = %DateTime{microsecond: {0, 0}}) do
     get_interval()
     |> CronParser.parse!(true)

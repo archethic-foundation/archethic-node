@@ -24,8 +24,11 @@ defmodule Uniris.BeaconChain.Subset.Seal do
     previous_slot_time = SlotTimer.previous_slot(slot_time)
     previous_storage_nodes = previous_storage_nodes(subset, previous_slot_time)
 
-    case fetch_previous_slot(subset, previous_slot_time, previous_storage_nodes) do
-      prev_slot = %Slot{} ->
+    case P2P.reply_first(previous_storage_nodes, %GetBeaconSlot{
+           subset: subset,
+           slot_time: slot_time
+         }) do
+      {:ok, prev_slot = %Slot{}} ->
         previous_hash =
           prev_slot
           |> Slot.serialize()
@@ -45,14 +48,6 @@ defmodule Uniris.BeaconChain.Subset.Seal do
       P2P.list_nodes(availability: :global),
       Election.get_storage_constraints()
     )
-  end
-
-  defp fetch_previous_slot(subset, slot_time = %DateTime{}, storage_nodes)
-       when is_binary(subset) and is_list(storage_nodes) do
-    {:ok, slot} =
-      P2P.reply_first(storage_nodes, %GetBeaconSlot{subset: subset, slot_time: slot_time})
-
-    slot
   end
 
   @spec new_summary(binary(), DateTime.t()) :: :ok

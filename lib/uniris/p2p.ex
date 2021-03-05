@@ -142,7 +142,7 @@ defmodule Uniris.P2P do
   If the exchange fails, the node availability history will decrease
   and will be locally unavailable until the next exchange
   """
-  @spec send_message!(Crypto.key() | Node.t(), Message.t()) :: Message.t()
+  @spec send_message!(Crypto.key() | Node.t(), Message.request()) :: Message.response()
   def send_message!(public_key, message) when is_binary(public_key) do
     public_key
     |> get_node_info!
@@ -341,7 +341,7 @@ defmodule Uniris.P2P do
 
   The batched request will be delivered after a certain timeframe
   """
-  @spec broadcast_message(list(Node.t()), Message.t()) :: :ok | {:error, Client.error()}
+  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok | {:error, Client.error()}
   defdelegate broadcast_message(nodes, message), to: Batcher, as: :add_broadcast_request
 
   @doc """
@@ -350,21 +350,22 @@ defmodule Uniris.P2P do
 
   The batched request will be delivered after a certain timeframe
   """
-  @spec reply_first(list(Node.t()), Message.t()) :: {:ok, Message.t()} | {:error, Client.error()}
+  @spec reply_first(list(Node.t()), Message.request()) ::
+          {:ok, Message.response()} | {:error, Client.error()}
   defdelegate reply_first(nodes, message), to: Batcher, as: :request_first_reply
 
   @doc """
   Same as `reply_first/2` but we can specify the network patch to compare with the node positions
   """
-  @spec reply_first(list(Node.t()), Message.t(), binary()) ::
-          {:ok, Message.t()} | {:eerr, Client.error()}
+  @spec reply_first(list(Node.t()), Message.request(), binary()) ::
+          {:ok, Message.response()} | {:eerr, Client.error()}
   defdelegate reply_first(nodes, message, patch), to: Batcher, as: :request_first_reply
 
   @doc """
   Same as `reply_first/2` except if returns the node which reply the first
   """
-  @spec reply_first_with_ack(list(Node.t()), Message.t()) ::
-          {:ok, Message.t(), Node.t()} | {:error, Client.error()}
+  @spec reply_first_with_ack(list(Node.t()), Message.request()) ::
+          {:ok, Message.response(), Node.t()} | {:error, Client.error()}
   defdelegate reply_first_with_ack(nodes, message),
     to: Batcher,
     as: :request_first_reply_with_ack
