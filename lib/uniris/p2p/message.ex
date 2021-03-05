@@ -32,7 +32,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBeaconSlot
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
-  alias __MODULE__.GetCurrentBeaconSlot
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
@@ -105,7 +104,6 @@ defmodule Uniris.P2P.Message do
           | NotifyBeaconSlot.t()
           | GetBeaconSummary.t()
           | GetBeaconSlot.t()
-          | GetCurrentBeaconSlot.t()
           | GetLastTransactionAddress.t()
           | BatchRequests.t()
           | NotifyLastTransactionAddress.t()
@@ -622,7 +620,7 @@ defmodule Uniris.P2P.Message do
     {%NotifyBeaconSlot{slot: slot}, rest}
   end
 
-  def decode(<<25::8, subset::binary-size(1), rest::binary>>) do
+  def decode(<<25::8, subset::binary-size(1), rest::bitstring>>) do
     {digest, rest} = deserialize_hash(rest)
 
     {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
@@ -1118,12 +1116,8 @@ defmodule Uniris.P2P.Message do
     end
   end
 
-  def process(%GetCurrentBeaconSlot{subset: subset}) do
-    BeaconChain.get_current_slot(subset)
-  end
-
   def process(%NotifyBeaconSlot{slot: slot}) do
-    BeaconChain.register_slot(slot)
+    Task.start(fn -> BeaconChain.register_slot(slot) end)
     %Ok{}
   end
 
@@ -1133,7 +1127,8 @@ defmodule Uniris.P2P.Message do
         public_key: node_public_key,
         signature: signature
       }) do
-    BeaconChain.add_slot_proof(subset, digest, node_public_key, signature)
+    :ok = BeaconChain.add_slot_proof(subset, digest, node_public_key, signature)
+    %Ok{}
   end
 
   def process(%BatchRequests{requests: requests}) do

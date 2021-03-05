@@ -4,6 +4,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Summary
   alias Uniris.BeaconChain.SummaryTimer
 
@@ -23,6 +24,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
   setup do
     pid = start_supervised!({Subset, subset: <<0>>})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
+    start_supervised!({SlotTimer, interval: "0 * * * * *"})
     {:ok, subset: <<0>>, pid: pid}
   end
 
@@ -68,10 +70,21 @@ defmodule Uniris.BeaconChain.SubsetTest do
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.node_public_key(),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.node_public_key(0),
+      last_public_key: Crypto.node_public_key(0),
       geo_patch: "AAA",
-      available?: true
+      available?: true,
+      enrollment_date: DateTime.utc_now()
+    })
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.node_public_key(1),
+      last_public_key: Crypto.node_public_key(1),
+      geo_patch: "AAA",
+      available?: true,
+      enrollment_date: DateTime.utc_now()
     })
 
     Subset.add_transaction_summary(subset, %TransactionSummary{
@@ -122,7 +135,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       geo_patch: "AAA",
-      available?: true
+      available?: true,
+      enrollment_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -131,7 +145,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(1),
       last_public_key: Crypto.node_public_key(1),
       geo_patch: "AAA",
-      available?: true
+      available?: true,
+      enrollment_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -140,7 +155,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(2),
       last_public_key: Crypto.node_public_key(2),
       geo_patch: "AAA",
-      available?: true
+      available?: true,
+      enrollment_date: DateTime.utc_now()
     })
 
     tx_summary = %TransactionSummary{
@@ -188,7 +204,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
               }
             }} = :sys.get_state(consensus_pid)
 
-    assert 2 == length(signatures)
+    assert 2 == map_size(signatures)
     assert 2 == Utils.count_bitstring_bits(involved_nodes)
   end
 

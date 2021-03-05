@@ -36,6 +36,14 @@ defmodule Uniris.BeaconChain.SlotTimer do
   Returns the previous slot from the given date
   """
   @spec previous_slot(DateTime.t()) :: DateTime.t()
+  def previous_slot(date_from = %DateTime{microsecond: {0, 0}}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date_from))
+    |> Enum.at(1)
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
   def previous_slot(date_from = %DateTime{}) do
     get_interval()
     |> CronParser.parse!(true)

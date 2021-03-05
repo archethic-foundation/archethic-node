@@ -9,6 +9,8 @@ defmodule Uniris.BeaconChain.Slot.TransactionSummary do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
+  alias Uniris.Utils
+
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
           address: binary(),
@@ -30,7 +32,7 @@ defmodule Uniris.BeaconChain.Slot.TransactionSummary do
       }) do
     %__MODULE__{
       address: address,
-      timestamp: timestamp,
+      timestamp: Utils.truncate_datetime(timestamp),
       movements_addresses: LedgerOperations.movement_addresses(operations),
       type: type
     }

@@ -7,6 +7,7 @@ defmodule Uniris.BeaconChain.Subset do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.Subset.Seal
 
   alias Uniris.Crypto
 
@@ -48,12 +49,7 @@ defmodule Uniris.BeaconChain.Subset do
   def add_slot_proof(subset, digest, node_public_key, signature)
       when is_binary(subset) and is_binary(digest) and is_binary(node_public_key) and
              is_binary(signature) do
-    GenServer.call(via_tuple(subset), {:add_slot_proof, digest, node_public_key, signature})
-  end
-
-  @spec get_current_slot(binary()) :: Slot.t()
-  def get_current_slot(subset) when is_binary(subset) do
-    GenServer.call(via_tuple(subset), :get_current_slot)
+    GenServer.cast(via_tuple(subset), {:add_slot_proof, digest, node_public_key, signature})
   end
 
   defp via_tuple(subset) do
@@ -61,18 +57,11 @@ defmodule Uniris.BeaconChain.Subset do
   end
 
   def init([subset]) do
-    Process.flag(:trap_exit, true)
-
-    {:ok, consensus_worker_pid} =
-      SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
-
-    Process.monitor(consensus_worker_pid)
-
     {:ok,
      %{
        subset: subset,
        current_slot: %Slot{subset: subset},
-       consensus_worker: consensus_worker_pid
+       previous_slot: nil
      }}
   end
 
@@ -85,11 +74,12 @@ defmodule Uniris.BeaconChain.Subset do
     if Slot.has_transaction?(current_slot, address) do
       {:reply, :ok, state}
     else
+      current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
+
       Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
         beacon_subset: Base.encode16(subset)
       )
 
-      current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
       {:reply, :ok, %{state | current_slot: current_slot}}
     end
   end
@@ -108,59 +98,60 @@ defmodule Uniris.BeaconChain.Subset do
     {:reply, :ok, %{state | current_slot: current_slot}}
   end
 
-  def handle_call(
+  def handle_cast(
         {:add_slot_proof, digest, node_public_key, signature},
-        _,
-        state = %{consensus_worker: consensus_worker}
+        state
       ) do
-    SlotConsensus.add_slot_proof(consensus_worker, digest, node_public_key, signature)
-    {:reply, :ok, state}
-  end
+    case Map.fetch(state, :consensus_worker) do
+      {:ok, pid} ->
+        SlotConsensus.add_slot_proof(pid, digest, node_public_key, signature)
+        {:noreply, state}
 
-  def handle_call(:get_current_slot, _from, state = %{current_slot: slot}) do
-    {:reply, slot, state}
+      _ ->
+        {:noreply, state}
+    end
   end
 
   def handle_info(
         {:create_slot, slot_time},
         state = %{
           subset: subset,
-          current_slot: current_slot,
-          consensus_worker: consensus_worker
+          current_slot: current_slot
         }
       ) do
-    SlotConsensus.validate_and_notify_slot(consensus_worker, %{
-      current_slot
-      | slot_time: slot_time
-    })
+    new_state =
+      state
+      |> Map.put(:previous_slot, current_slot)
+      |> Map.put(:current_slot, %Slot{subset: subset})
+      |> Map.put(:last_slot_date, slot_time)
 
-    {:noreply, %{state | current_slot: %Slot{subset: subset}}}
+    if Slot.has_changes?(current_slot) do
+      previous_date = Map.get(state, :last_slot_date) || DateTime.utc_now()
+
+      current_slot =
+        %{
+          current_slot
+          | slot_time: slot_time
+        }
+        |> Seal.link_to_previous_slot(previous_date)
+
+      {:ok, consensus_worker} =
+        SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0), slot: current_slot)
+
+      {:noreply, Map.put(new_state, :consensus_worker, consensus_worker)}
+    else
+      {:noreply, new_state}
+    end
   end
 
   def handle_info(
         {:create_summary, summary_time},
         state = %{
-          subset: subset
+          subset: subset,
+          current_slot: current_slot
         }
       ) do
-    Task.start(fn -> Seal.new_summary(subset, summary_time) end)
-    {:noreply, state}
-  end
-
-  def handle_info(
-        {:DOWN, _ref, :process, pid, _reason},
-        state = %{consensus_worker: consensus_worker_pid}
-      )
-      when pid == consensus_worker_pid do
-    {:ok, consensus_worker_pid} =
-      SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0))
-
-    Process.monitor(consensus_worker_pid)
-    {:noreply, Map.put(state, :consensus_worker, consensus_worker_pid)}
-  end
-
-  def handle_info({:EXIT, _pid, reason}, state) do
-    Logger.error("#{inspect(reason)}")
-    {:noreply, state}
+    Task.start(fn -> Seal.new_summary(subset, summary_time, current_slot) end)
+    {:noreply, Map.delete(state, :last_slot_date)}
   end
 end

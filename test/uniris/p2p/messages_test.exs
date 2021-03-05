@@ -21,6 +21,7 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetBeaconSlot
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
+  alias Uniris.P2P.Message.GetPreviousBeaconSlot
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Message.GetLastTransaction
   alias Uniris.P2P.Message.GetLastTransactionAddress
@@ -821,6 +822,12 @@ defmodule Uniris.P2P.MessageTest do
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
+    end
+
+    test "GetPreviousBeaconSlot message" do
+      msg = %GetPreviousBeaconSlot{subset: <<0>>}
+
+      assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end
 
     test "BatchRequests" do

@@ -27,7 +27,8 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: DateTime.utc_now()
       })
 
       assert true ==
@@ -41,7 +42,8 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: DateTime.utc_now()
       })
 
       assert false ==
@@ -119,7 +121,8 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       P2P.add_node(%Node{
@@ -128,7 +131,8 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
         first_public_key: Crypto.node_public_key(1),
         last_public_key: Crypto.node_public_key(1),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
