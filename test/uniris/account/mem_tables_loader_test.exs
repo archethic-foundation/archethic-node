@@ -5,8 +5,6 @@ defmodule Uniris.Account.MemTablesLoaderTest do
   alias Uniris.Account.MemTables.UCOLedger
   alias Uniris.Account.MemTablesLoader
 
-  alias Uniris.Bootstrap
-
   alias Uniris.Crypto
 
   alias Uniris.TransactionChain.Transaction
@@ -57,13 +55,6 @@ defmodule Uniris.Account.MemTablesLoaderTest do
       :ok
     end
 
-    test "should initiate the genesis address allocation" do
-      assert {:ok, _} = MemTablesLoader.start_link()
-
-      assert [%UnspentOutput{amount: 1.0e10, type: :UCO}] =
-               UCOLedger.get_unspent_outputs(Bootstrap.genesis_unspent_output_address())
-    end
-
     test "should query DB to load all the transactions" do
       assert {:ok, _} = MemTablesLoader.start_link()
 
@@ -86,6 +77,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
   defp create_transaction do
     %Transaction{
       address: "@Charlie3",
+      timestamp: DateTime.utc_now(),
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
         ledger_operations: %LedgerOperations{

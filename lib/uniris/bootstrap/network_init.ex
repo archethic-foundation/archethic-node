@@ -1,7 +1,7 @@
 defmodule Uniris.Bootstrap.NetworkInit do
   @moduledoc """
   Set up the network by initialize genesis information (i.e storage nonce, coinbase transactions)
-    
+
   Those functions are only executed by the first node bootstrapping on the network
   """
 
@@ -102,7 +102,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     genesis_transfers_amount =
       tx
       |> Transaction.get_movements()
-      |> Enum.reduce(Transaction.fee(tx), &(&2 + &1.amount))
+      |> Enum.reduce(0.0, &(&2 + &1.amount))
 
     tx
     |> self_validation!([

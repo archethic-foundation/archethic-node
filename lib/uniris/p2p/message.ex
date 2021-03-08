@@ -33,6 +33,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
+  alias __MODULE__.GetPreviousBeaconSlot
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
   alias __MODULE__.GetP2PView
@@ -582,12 +583,12 @@ defmodule Uniris.P2P.Message do
     {%GetTransactionChainLength{address: address}, rest}
   end
 
-  def decode(<<19::8, nb_node_public_keys::16, rest::binary>>) do
+  def decode(<<19::8, nb_node_public_keys::16, rest::bitstring>>) do
     {public_keys, rest} = deserialize_public_key_list(rest, nb_node_public_keys, [])
     {%GetP2PView{node_public_keys: public_keys}, rest}
   end
 
-  def decode(<<20::8, rest::binary>>) do
+  def decode(<<20::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetFirstPublicKey{
@@ -595,7 +596,7 @@ defmodule Uniris.P2P.Message do
      }, rest}
   end
 
-  def decode(<<21::8, rest::binary>>) do
+  def decode(<<21::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetLastTransactionAddress{
@@ -603,14 +604,14 @@ defmodule Uniris.P2P.Message do
      }, rest}
   end
 
-  def decode(<<22::8, rest::binary>>) do
+  def decode(<<22::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
     {previous_address, rest} = deserialize_hash(rest)
 
     {%NotifyLastTransactionAddress{address: address, previous_address: previous_address}, rest}
   end
 
-  def decode(<<23::8, rest::binary>>) do
+  def decode(<<23::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
     {%GetTransactionSummary{address: address}, rest}
   end
@@ -666,12 +667,12 @@ defmodule Uniris.P2P.Message do
     Slot.deserialize(rest)
   end
 
-  def decode(<<242::8, rest::binary>>) do
+  def decode(<<242::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
     {%LastTransactionAddress{address: address}, rest}
   end
 
-  def decode(<<243::8, rest::binary>>) do
+  def decode(<<243::8, rest::bitstring>>) do
     {public_key, rest} = deserialize_public_key(rest)
     {%FirstPublicKey{public_key: public_key}, rest}
   end
@@ -834,7 +835,7 @@ defmodule Uniris.P2P.Message do
   end
 
   defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
-    {nft_address, <<amount::float, rest::binary>>} = deserialize_hash(rest)
+    {nft_address, <<amount::float, rest::bitstring>>} = deserialize_hash(rest)
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
@@ -1057,7 +1058,9 @@ defmodule Uniris.P2P.Message do
     contract_inputs =
       address
       |> Contracts.list_contract_transactions()
-      |> Enum.map(&%TransactionInput{from: &1, type: :call})
+      |> Enum.map(fn {address, timestamp} ->
+        %TransactionInput{from: address, type: :call, timestamp: timestamp}
+      end)
 
     %TransactionInputList{inputs: ledger_inputs ++ contract_inputs}
   end

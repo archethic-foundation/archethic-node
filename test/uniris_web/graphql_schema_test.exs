@@ -324,10 +324,14 @@ defmodule UnirisWeb.GraphQLSchemaTest do
     test "should return a list of ledger inputs", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      UCOLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 0.202
-      })
+      UCOLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 0.202
+        },
+        ~U[2021-03-05 13:41:34Z]
+      )
 
       conn =
         post(conn, "/api", %{

@@ -169,13 +169,14 @@ defmodule Uniris.P2P.Batcher do
   defp group_request_by_first_node(nodes_by_request) do
     acc = %{batch_by_nodes: %{}, request_metadata: %{}}
 
-    Enum.reduce(nodes_by_request, acc, fn {request, {[node | rest], from}}, acc ->
-      acc
-      |> put_in([:request_metadata, request], %{from: from, rest: rest})
-      |> update_in(
-        [:batch_by_nodes, Access.key(node, %BatchRequests{requests: []})],
-        &Map.update!(&1, :requests, fn requests -> [request | requests] end)
-      )
+    Enum.reduce(nodes_by_request, acc, fn
+      {request, {[node | rest], from}}, acc ->
+        acc
+        |> put_in([:request_metadata, request], %{from: from, rest: rest})
+        |> update_in(
+          [:batch_by_nodes, Access.key(node, %BatchRequests{requests: []})],
+          &Map.update!(&1, :requests, fn requests -> [request | requests] end)
+        )
     end)
   end
 

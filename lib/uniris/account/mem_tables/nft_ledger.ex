@@ -51,13 +51,13 @@ defmodule Uniris.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> { :ets.tab2list(:uniris_nft_ledger), :ets.tab2list(:uniris_nft_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Bob3", "@NFT1"}, 3.0, false},
-          {{"@Alice2", "@Charlie10", "@NFT1"}, 1.0, false}
+          {{"@Alice2", "@Bob3", "@NFT1"}, 3.0, false, ~U[2021-03-05 13:41:34Z]},
+          {{"@Alice2", "@Charlie10", "@NFT1"}, 1.0, false, ~U[2021-03-05 13:41:34Z]}
         ],
         [
           {"@Alice2", "@Bob3", "@NFT1"},
@@ -66,15 +66,24 @@ defmodule Uniris.Account.MemTables.NFTLedger do
       }
 
   """
-  @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to_address, %UnspentOutput{
-        from: from_address,
-        amount: amount,
-        type: {:NFT, nft_address}
-      })
+  @spec add_unspent_output(binary(), UnspentOutput.t(), DateTime.t()) :: :ok
+  def add_unspent_output(
+        to_address,
+        %UnspentOutput{
+          from: from_address,
+          amount: amount,
+          type: {:NFT, nft_address}
+        },
+        timestamp = %DateTime{}
+      )
       when is_binary(to_address) and is_binary(from_address) and is_float(amount) and
              is_binary(nft_address) do
-    true = :ets.insert(@ledger_table, {{to_address, from_address, nft_address}, amount, false})
+    true =
+      :ets.insert(
+        @ledger_table,
+        {{to_address, from_address, nft_address}, amount, false, timestamp}
+      )
+
     true = :ets.insert(@unspent_output_index_table, {to_address, from_address, nft_address})
     :ok
   end
@@ -85,8 +94,8 @@ defmodule Uniris.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       [
         %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}},
@@ -103,7 +112,7 @@ defmodule Uniris.Account.MemTables.NFTLedger do
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from, nft_address}, acc ->
       case :ets.lookup(@ledger_table, {address, from, nft_address}) do
-        [{_, amount, false}] ->
+        [{_, amount, false, _}] ->
           [
             %UnspentOutput{
               from: from,
@@ -125,8 +134,8 @@ defmodule Uniris.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       []
@@ -149,22 +158,22 @@ defmodule Uniris.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: false},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: false}
+        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}})
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}})
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: true},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: true}
+        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
@@ -172,13 +181,14 @@ defmodule Uniris.Account.MemTables.NFTLedger do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, from, nft_address} ->
-      [{_, amount, spent?}] = :ets.lookup(@ledger_table, {address, from, nft_address})
+      [{_, amount, spent?, timestamp}] = :ets.lookup(@ledger_table, {address, from, nft_address})
 
       %TransactionInput{
         from: from,
         amount: amount,
         type: {:NFT, nft_address},
-        spent?: spent?
+        spent?: spent?,
+        timestamp: timestamp
       }
     end)
   end

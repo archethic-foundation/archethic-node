@@ -1,6 +1,7 @@
 defmodule Uniris.Replication.TransactionValidator do
   @moduledoc false
 
+  alias Uniris.Bootstrap
   alias Uniris.Contracts
 
   alias Uniris.Election
@@ -201,7 +202,10 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   defp validate_with_unspent_outputs(
-         tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}},
+         tx = %Transaction{
+           address: address,
+           validation_stamp: %ValidationStamp{ledger_operations: ops}
+         },
          previous_inputs_unspent_outputs
        ) do
     previous_storage_nodes_public_keys =
@@ -214,7 +218,11 @@ defmodule Uniris.Replication.TransactionValidator do
       %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
         new_ledger_operations(tx, previous_inputs_unspent_outputs)
 
-      validate_unspent_outputs(previous_inputs_unspent_outputs, ops, expected_unspent_outputs)
+      if address == Bootstrap.genesis_address() do
+        true
+      else
+        validate_unspent_outputs(previous_inputs_unspent_outputs, ops, expected_unspent_outputs)
+      end
     else
       {:error, :invalid_previous_storage_nodes_movements}
     end

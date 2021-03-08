@@ -61,6 +61,7 @@ defmodule Uniris.Contracts.Loader do
   def load_transaction(
         tx = %Transaction{
           address: tx_address,
+          timestamp: tx_timestamp,
           validation_stamp: %ValidationStamp{recipients: recipients}
         },
         false
@@ -69,7 +70,7 @@ defmodule Uniris.Contracts.Loader do
     Enum.each(recipients, fn contract_address ->
       case Worker.execute(contract_address, tx) do
         :ok ->
-          TransactionLookup.add_contract_transaction(contract_address, tx_address)
+          TransactionLookup.add_contract_transaction(contract_address, tx_address, tx_timestamp)
 
         _ ->
           :ok
@@ -80,12 +81,13 @@ defmodule Uniris.Contracts.Loader do
   def load_transaction(
         %Transaction{
           address: address,
+          timestamp: timestamp,
           validation_stamp: %ValidationStamp{recipients: recipients}
         },
         true
       )
       when recipients != [] do
-    Enum.each(recipients, &TransactionLookup.add_contract_transaction(&1, address))
+    Enum.each(recipients, &TransactionLookup.add_contract_transaction(&1, address, timestamp))
   end
 
   def load_transaction(_tx, _), do: :ok

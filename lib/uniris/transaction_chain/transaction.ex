@@ -854,17 +854,19 @@ defmodule Uniris.TransactionChain.Transaction do
 
   """
   @spec fee(t()) :: float()
-  def fee(%__MODULE__{type: :node}), do: 0.0
-  def fee(%__MODULE__{type: :node_shared_secrets}), do: 0.0
   def fee(%__MODULE__{type: :identity}), do: 0.0
   def fee(%__MODULE__{type: :keychain}), do: 0.0
 
-  def fee(%__MODULE__{address: address}) do
-    if address == Bootstrap.genesis_address() do
+  def fee(%__MODULE__{type: type, address: address}) do
+    if network_type?(type) do
       0.0
     else
-      # TODO: implement the fee computation algorithm
-      0.01
+      if address == Bootstrap.genesis_address() do
+        0.0
+      else
+        # TODO: implement the fee computation algorithm
+        0.01
+      end
     end
   end
 end

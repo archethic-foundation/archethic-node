@@ -2,7 +2,7 @@ defmodule Uniris.TransactionChain.TransactionInput do
   @moduledoc """
   Represents an transaction sent to an account either spent or unspent
   """
-  defstruct [:from, :amount, :type, spent?: false]
+  defstruct [:from, :amount, :type, :timestamp, spent?: false]
 
   alias Uniris.Crypto
 
@@ -13,7 +13,8 @@ defmodule Uniris.TransactionChain.TransactionInput do
           from: Crypto.versioned_hash(),
           amount: float(),
           spent?: boolean(),
-          type: TransactionMovementType.t() | :call
+          type: TransactionMovementType.t() | :call,
+          timestamp: DateTime.t()
         }
 
   @doc """
@@ -26,7 +27,8 @@ defmodule Uniris.TransactionChain.TransactionInput do
       ...>       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
       ...>    amount: 10.5,
       ...>    type: :UCO,
-      ...>    spent?: true
+      ...>    spent?: true,
+      ...>    timestamp: ~U[2021-03-05 11:17:20Z]
       ...> }
       ...> |> TransactionInput.serialize()
       <<
@@ -40,24 +42,29 @@ defmodule Uniris.TransactionChain.TransactionInput do
       # Amount
       64, 37, 0, 0, 0, 0, 0, 0,
       # Input type (UCO)
-      0
+      0,
+      # timestamp
+      96, 66, 19, 64
       >>
   """
   @spec serialize(__MODULE__.t()) :: bitstring()
-  def serialize(%__MODULE__{from: from, amount: _, type: :call, spent?: true}) do
-    <<from::binary, 0::1, 1::1>>
-  end
+  def serialize(%__MODULE__{
+        from: from,
+        amount: amount,
+        type: type,
+        spent?: spent?,
+        timestamp: timestamp
+      }) do
+    case type do
+      :call ->
+        <<from::binary, 0::1, 0::1, DateTime.to_unix(timestamp)::32>>
 
-  def serialize(%__MODULE__{from: from, amount: _, type: :call, spent?: _}) do
-    <<from::binary, 0::1, 0::1>>
-  end
+      type ->
+        spend_bit = if spent?, do: 1, else: 0
 
-  def serialize(%__MODULE__{from: from, amount: amount, type: type, spent?: true}) do
-    <<from::binary, 1::1, 1::1, amount::float, TransactionMovementType.serialize(type)::binary>>
-  end
-
-  def serialize(%__MODULE__{from: from, amount: amount, type: type, spent?: _}) do
-    <<from::binary, 1::1, 0::1, amount::float, TransactionMovementType.serialize(type)::binary>>
+        <<from::binary, 1::1, spend_bit::1, amount::float,
+          TransactionMovementType.serialize(type)::binary, DateTime.to_unix(timestamp)::32>>
+    end
   end
 
   @doc """
@@ -65,10 +72,12 @@ defmodule Uniris.TransactionChain.TransactionInput do
 
   ## Examples
 
-      iex> <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
-      ...>   166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
-      ...>   1::1, 1::1,
-      ...>   64, 37, 0, 0, 0, 0, 0, 0, 0>>
+      iex>  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
+      ...>  166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
+      ...>  1::1, 1::1,
+      ...>  64, 37, 0, 0, 0, 0, 0, 0,
+      ...>  0,
+      ...>  96, 66, 19, 64>>
       ...> |> TransactionInput.deserialize()
       {
         %TransactionInput{
@@ -76,7 +85,8 @@ defmodule Uniris.TransactionChain.TransactionInput do
             166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
           amount: 10.5,
           type: :UCO,
-          spent?: true
+          spent?: true,
+          timestamp: ~U[2021-03-05 11:17:20Z]
         },
         ""
       }
@@ -89,25 +99,31 @@ defmodule Uniris.TransactionChain.TransactionInput do
 
     case type_bit do
       0 ->
+        <<timestamp::32, rest::bitstring>> = rest
+
         {
           %__MODULE__{
             from: <<hash_id::8, from::binary>>,
             spent?: spent?,
-            type: :call
+            type: :call,
+            timestamp: DateTime.from_unix!(timestamp)
           },
           rest
         }
 
       1 ->
         <<amount::float, rest::bitstring>> = rest
-        {movement_type, rest} = TransactionMovementType.deserialize(rest)
+
+        {movement_type, <<timestamp::32, rest::bitstring>>} =
+          TransactionMovementType.deserialize(rest)
 
         {
           %__MODULE__{
             from: <<hash_id::8, from::binary>>,
             spent?: spent?,
             amount: amount,
-            type: movement_type
+            type: movement_type,
+            timestamp: DateTime.from_unix!(timestamp)
           },
           rest
         }
@@ -119,7 +135,8 @@ defmodule Uniris.TransactionChain.TransactionInput do
     res = %__MODULE__{
       amount: Map.get(input, :amount),
       from: Map.get(input, :from),
-      spent?: Map.get(input, :spent?)
+      spent?: Map.get(input, :spent?),
+      timestamp: Map.get(input, :timestamp)
     }
 
     case Map.get(input, :type) do
@@ -144,30 +161,45 @@ defmodule Uniris.TransactionChain.TransactionInput do
   end
 
   @spec to_map(__MODULE__.t()) :: map()
-  def to_map(%__MODULE__{amount: amount, from: from, spent?: spent?, type: :UCO}) do
+  def to_map(%__MODULE__{
+        amount: amount,
+        from: from,
+        spent?: spent?,
+        type: :UCO,
+        timestamp: timestamp
+      }) do
     %{
       amount: amount,
       from: from,
       type: :UCO,
-      spent?: spent?
+      spent?: spent?,
+      timestamp: timestamp
     }
   end
 
-  def to_map(%__MODULE__{amount: amount, from: from, spent?: spent?, type: {:NFT, nft_address}}) do
+  def to_map(%__MODULE__{
+        amount: amount,
+        from: from,
+        spent?: spent?,
+        type: {:NFT, nft_address},
+        timestamp: timestamp
+      }) do
     %{
       amount: amount,
       from: from,
       type: :NFT,
       nft_address: nft_address,
-      spent?: spent?
+      spent?: spent?,
+      timestamp: timestamp
     }
   end
 
-  def to_map(%__MODULE__{amount: _, from: from, spent?: spent?, type: :call}) do
+  def to_map(%__MODULE__{amount: _, from: from, spent?: spent?, type: :call, timestamp: timestamp}) do
     %{
       from: from,
       type: :call,
-      spent?: spent?
+      spent?: spent?,
+      timestamp: timestamp
     }
   end
 end

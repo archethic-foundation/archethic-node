@@ -48,13 +48,20 @@ defmodule Uniris.Replication.TransactionContext do
     end)
   end
 
-  @spec fetch_transaction_inputs(binary()) :: Enumerable.t() | list(TransactionInput.t())
-  def fetch_transaction_inputs(address) when is_binary(address) do
+  @doc """
+  Fetch the transaction inputs for a transaction address at a given time
+  """
+  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
+          Enumerable.t() | list(TransactionInput.t())
+  def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
     message = %GetTransactionInputs{address: address}
 
     do_fetch(address, message, fn
-      {:ok, %TransactionInputList{inputs: inputs}} -> inputs
-      _ -> []
+      {:ok, %TransactionInputList{inputs: inputs}} ->
+        inputs |> Enum.filter(&(&1.timestamp == timestamp))
+
+      _ ->
+        []
     end)
   end
 

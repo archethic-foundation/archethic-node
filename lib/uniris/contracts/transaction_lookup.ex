@@ -28,18 +28,22 @@ defmodule Uniris.Contracts.TransactionLookup do
   @doc """
   Register a new transaction address towards a contract address
   """
-  @spec add_contract_transaction(binary(), binary()) :: :ok
-  def add_contract_transaction(contract_address, transaction_address)
+  @spec add_contract_transaction(binary(), binary(), DateTime.t()) :: :ok
+  def add_contract_transaction(contract_address, transaction_address, transaction_timestamp)
       when is_binary(contract_address) and is_binary(transaction_address) do
-    true = :ets.insert(@table_name, {contract_address, transaction_address})
+    true =
+      :ets.insert(@table_name, {contract_address, transaction_address, transaction_timestamp})
+
     :ok
   end
 
   @doc """
   Return the list transaction towards a contract address
   """
-  @spec list_contract_transactions(binary()) :: list(binary())
+  @spec list_contract_transactions(binary()) :: list({binary(), DateTime.t()})
   def list_contract_transactions(contract_address) when is_binary(contract_address) do
-    Enum.map(:ets.lookup(@table_name, contract_address), fn {_, tx_address} -> tx_address end)
+    Enum.map(:ets.lookup(@table_name, contract_address), fn {_, tx_address, tx_timestamp} ->
+      {tx_address, tx_timestamp}
+    end)
   end
 end

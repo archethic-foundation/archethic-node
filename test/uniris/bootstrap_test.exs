@@ -21,8 +21,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
-  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.LastTransactionAddress
