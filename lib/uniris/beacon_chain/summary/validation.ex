@@ -100,40 +100,40 @@ defmodule Uniris.BeaconChain.SummaryValidation do
   """
   @spec valid_transaction_summaries?(list(TransactionSummary.t())) :: boolean
   def valid_transaction_summaries?(transaction_summaries) when is_list(transaction_summaries) do
-    Task.async_stream(
-      transaction_summaries,
-      fn summary = %TransactionSummary{address: address, timestamp: timestamp} ->
-        replication_nodes =
-          address
-          |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-          |> Enum.filter(fn %Node{enrollment_date: enrollment_date} ->
-            previous_summary_time = SummaryTimer.previous_summary(timestamp)
+    Task.async_stream(transaction_summaries, &do_valid_transaction_summary/1, ordered: false)
+    |> Enum.into([], fn {:ok, res} -> res end)
+    |> Enum.all?(&match?(true, &1))
+  end
 
-            diff =
-              DateTime.compare(Utils.truncate_datetime(enrollment_date), previous_summary_time)
+  defp do_valid_transaction_summary(
+         summary = %TransactionSummary{address: address, timestamp: timestamp}
+       ) do
+    case transaction_summary_storage_nodes(address, timestamp) do
+      [] ->
+        true
 
-            diff == :lt or diff == :eq
-          end)
-          |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-
-        case replication_nodes do
-          [] ->
+      nodes ->
+        case P2P.reply_first(nodes, %GetTransactionSummary{address: address}) do
+          {:ok, ^summary} ->
             true
 
           _ ->
-            case P2P.reply_first(replication_nodes, %GetTransactionSummary{address: address}) do
-              {:ok, ^summary} ->
-                true
-
-              _ ->
-                false
-            end
+            false
         end
-      end,
-      ordered: false
-    )
-    |> Enum.into([], fn {:ok, res} -> res end)
-    |> Enum.all?(&match?(true, &1))
+    end
+  end
+
+  defp transaction_summary_storage_nodes(address, timestamp) do
+    address
+    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+    |> Enum.filter(fn %Node{enrollment_date: enrollment_date} ->
+      previous_summary_time = SummaryTimer.previous_summary(timestamp)
+
+      diff = DateTime.compare(Utils.truncate_datetime(enrollment_date), previous_summary_time)
+
+      diff == :lt or diff == :eq
+    end)
+    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
   end
 
   @doc """

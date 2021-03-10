@@ -22,7 +22,6 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetFirstPublicKey
-  alias Uniris.P2P.Message.GetPreviousBeaconSlot
   alias Uniris.P2P.Message.GetLastTransaction
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetP2PView

@@ -33,7 +33,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
-  alias __MODULE__.GetPreviousBeaconSlot
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
   alias __MODULE__.GetP2PView
