@@ -239,19 +239,30 @@ defmodule Uniris.Replication do
     TransactionChain.register_last_address(previous_address, address)
     Contracts.stop_contract(previous_address)
 
-    case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
-      {:ok, tx} ->
-        next_previous_address = Transaction.previous_address(tx)
+    if previous_address != address do
+      case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
+        {:ok, tx} ->
+          next_previous_address = Transaction.previous_address(tx)
 
-        next_previous_address
-        |> chain_storage_nodes(P2P.list_nodes(availability: :global))
-        |> P2P.broadcast_message(%NotifyLastTransactionAddress{
-          address: address,
-          previous_address: next_previous_address
-        })
+          if previous_address != next_previous_address do
+            previous_storage_nodes =
+              chain_storage_nodes(next_previous_address, P2P.list_nodes(availability: :global))
 
-      _ ->
-        :ok
+            if Utils.key_in_node_list?(previous_storage_nodes, Crypto.node_public_key(0)) do
+              acknowledge_previous_storage_nodes(address, next_previous_address)
+            else
+              P2P.broadcast_message(previous_storage_nodes, %NotifyLastTransactionAddress{
+                address: address,
+                previous_address: next_previous_address
+              })
+            end
+          end
+
+        _ ->
+          :ok
+      end
+    else
+      :ok
     end
   end
 
