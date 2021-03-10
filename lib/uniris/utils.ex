@@ -195,7 +195,7 @@ defmodule Uniris.Utils do
           if nest_dot? and String.contains?(k, ".") do
             put_in(acc, nested_path(String.split(k, ".")), atomize_keys(v, nest_dot?))
           else
-            Map.put(acc, String.to_atom(k), atomize_keys(v, nest_dot?))
+            Map.put(acc, String.to_existing_atom(k), atomize_keys(v, nest_dot?))
           end
         else
           Map.put(acc, k, atomize_keys(v, nest_dot?))
@@ -219,11 +219,11 @@ defmodule Uniris.Utils do
   defp nested_path(_keys, acc \\ [])
 
   defp nested_path([key | []], acc) do
-    Enum.reverse([Access.key(String.to_atom(key)) | acc])
+    Enum.reverse([Access.key(String.to_existing_atom(key)) | acc])
   end
 
   defp nested_path([key | rest], acc) do
-    nested_path(rest, [Access.key(String.to_atom(key), %{}) | acc])
+    nested_path(rest, [Access.key(String.to_existing_atom(key), %{}) | acc])
   end
 
   @doc """
