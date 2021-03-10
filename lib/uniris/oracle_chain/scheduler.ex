@@ -44,8 +44,7 @@ defmodule Uniris.OracleChain.Scheduler do
         :start_scheduling,
         state = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
-    cancel_scheduler(:polling_scheduler, state)
-    cancel_scheduler(:summary_scheduler, state)
+    Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
 
     polling_scheduler = schedule_new_polling(polling_interval)
     summary_scheduler = schedule_new_summary(summary_interval)
@@ -60,15 +59,8 @@ defmodule Uniris.OracleChain.Scheduler do
     {:noreply, new_state}
   end
 
-  defp cancel_scheduler(scheduler, state) do
-    case Map.get(state, scheduler) do
-      nil ->
-        :ok
-
-      timer ->
-        Process.cancel_timer(timer)
-    end
-  end
+  defp cancel_timer(nil), do: :ok
+  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 
   def handle_info(:poll, state = %{polling_interval: interval}) do
     schedule_new_polling(interval)
