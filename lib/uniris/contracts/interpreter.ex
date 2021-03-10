@@ -81,6 +81,7 @@ defmodule Uniris.Contracts.Interpreter do
       ...>
       ...>    actions triggered_by: datetime, at: 1603270603 do
       ...>      set_type transfer
+      ...>      set_content \"Sent #{10.04}\"
       ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 10.04
       ...>    end
       ...> ")
@@ -98,7 +99,8 @@ defmodule Uniris.Contracts.Interpreter do
              actions: {:__block__, [],
               [
                 {:set_type, [line: 9], [{:transfer, [line: 9], nil}]},
-                {:add_uco_transfer, [line: 10],
+                {:set_content, [line: 10], ["Sent 10.04"]},
+                {:add_uco_transfer, [line: 11],
                  [
                    [
                      to: "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10",
@@ -223,22 +225,24 @@ defmodule Uniris.Contracts.Interpreter do
   defp prewalk(node = {:==, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
     do: {node, acc}
 
-  # Allow variable assignation inside the actions
-  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
+  # TODO: figure out a way to accept without overloading atom table
+  # # Allow variable assignation inside the actions
+  # defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
 
   # Whitelist the use of doted statement
   defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc) do
     {node, acc}
   end
 
-  # Whitelist the definition of globals in the root
-  defp prewalk(node = {:@, _, [{key, _, [val]}]}, acc = {:ok, :root})
-       when is_atom(key) and not is_nil(val),
-       do: {node, acc}
+  # TODO: figure out a way to accept without overloading atom table
+  # # Whitelist the definition of globals in the root
+  # defp prewalk(node = {:@, _, [{key, _, [val]}]}, acc = {:ok, :root})
+  #      when is_atom(key) and not is_nil(val),
+  #      do: {node, acc}
 
-  # Whitelist the use of globals
-  defp prewalk(node = {:@, _, [{key, _, nil}]}, acc = {:ok, _}) when is_atom(key),
-    do: {node, acc}
+  # # Whitelist the use of globals
+  # defp prewalk(node = {:@, _, [{key, _, nil}]}, acc = {:ok, _}) when is_atom(key),
+  #   do: {node, acc}
 
   defp prewalk(node = {:if, _, [_, [do: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
     do: {node, acc}
@@ -604,6 +608,44 @@ defmodule Uniris.Contracts.Interpreter do
 
   # Whitelist keyword list or map key value definition
   defp prewalk(node = {key, _value}, acc = {:ok, _}) when is_atom(key), do: {node, acc}
+
+  # Whitelist interpolation of strings
+  defp prewalk(
+         node =
+           {:<<>>, _,
+            [{:"::", _, [{{:., [line: 1], [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}]},
+         acc
+       ) do
+    {node, acc}
+  end
+
+  defp prewalk(
+         node =
+           {:<<>>, _,
+            [
+              _,
+              {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}
+            ]},
+         acc
+       ) do
+    {node, acc}
+  end
+
+  defp prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, acc) do
+    {node, acc}
+  end
+
+  defp prewalk(node = {{:., _, [Kernel, :to_string]}, _, _}, acc) do
+    {node, acc}
+  end
+
+  defp prewalk(node = {:., _, [Kernel, :to_string]}, acc) do
+    {node, acc}
+  end
+
+  defp prewalk(node = Kernel, acc), do: {node, acc}
+  defp prewalk(node = :to_string, acc), do: {node, acc}
+  defp prewalk(node = {:binary, _, nil}, acc), do: {node, acc}
 
   # Blacklist anything else
   defp prewalk(node, {:ok, _acc}) do
