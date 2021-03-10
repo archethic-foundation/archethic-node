@@ -3,9 +3,6 @@ defmodule Uniris.OracleChain.Scheduler do
   Manage the scheduling of the oracle transactions
   """
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
-
   alias Uniris.Crypto
 
   alias Uniris.Election
@@ -82,7 +79,7 @@ defmodule Uniris.OracleChain.Scheduler do
       Logger.debug("Trigger oracle data fecthing")
       me = self()
 
-      previous_date = Map.get(state, :last_poll_date) || get_previous_date(interval, date)
+      previous_date = Map.get(state, :last_poll_date) || date
       Task.start(fn -> handle_new_polling(me, previous_date, date) end)
     end
 
@@ -95,9 +92,15 @@ defmodule Uniris.OracleChain.Scheduler do
     date = DateTime.utc_now() |> Utils.truncate_datetime()
 
     if trigger_node?(date) do
-      last_summary_date = get_previous_date(interval, date)
-      Task.start(fn -> handle_new_summary(last_summary_date, date, last_poll_date) end)
+      Task.start(fn -> handle_new_summary(last_poll_date, date) end)
     end
+
+    me = self()
+
+    Task.start(fn ->
+      Process.sleep(3_000)
+      send(me, :clean_polling_date)
+    end)
 
     {:noreply, state, :hibernate}
   end
@@ -108,12 +111,8 @@ defmodule Uniris.OracleChain.Scheduler do
     {:noreply, Map.put(state, :last_poll_date, date)}
   end
 
-  defp get_previous_date(interval, date = %DateTime{}) do
-    interval
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
+  def handle_info(:clean_polling_date, state) do
+    {:noreply, Map.delete(state, :last_poll_date), :hibernate}
   end
 
   defp schedule_new_polling(interval) do
@@ -146,7 +145,7 @@ defmodule Uniris.OracleChain.Scheduler do
     previous_content =
       case TransactionChain.get_transaction(Crypto.hash(prev_pub), data: [:content]) do
         {:ok, %Transaction{data: %TransactionData{content: previous_content}}} ->
-          Jason.decode!(previous_content) |> Map.get("data")
+          Jason.decode!(previous_content)
 
         _ ->
           %{}
@@ -155,17 +154,10 @@ defmodule Uniris.OracleChain.Scheduler do
     next_data = Services.fetch_new_data(previous_content)
 
     if map_size(next_data) > 0 do
-      previous_hash = Crypto.hash(Jason.encode!(previous_content))
-
       Transaction.new(
         :oracle,
         %TransactionData{
-          content:
-            %{}
-            |> Map.put("data", next_data)
-            |> Map.put("previous_hash", Base.encode16(previous_hash))
-            |> Map.put("last_updated_at", DateTime.to_unix(date))
-            |> Jason.encode!()
+          content: Jason.encode!(next_data)
         },
         prev_pv,
         prev_pub,
@@ -180,28 +172,15 @@ defmodule Uniris.OracleChain.Scheduler do
     end
   end
 
-  defp handle_new_summary(last_summary_date, date, last_poll_date) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(last_summary_date)
-
-    previous_hash =
-      case TransactionChain.get_transaction(Crypto.hash(prev_pub), data: [:content]) do
-        {:ok, %Transaction{data: %TransactionData{content: content}}} ->
-          Crypto.hash(content)
-
-        _ ->
-          ""
-      end
-
-    {last_poll_pub, _pv} = Crypto.derive_oracle_keypair(last_poll_date)
+  defp handle_new_summary(last_poll_date, date) do
+    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(last_poll_date)
 
     aggregated_content =
-      TransactionChain.get(Crypto.hash(last_poll_pub), data: [:content])
-      |> Enum.map(fn %Transaction{data: %TransactionData{content: content}} ->
-        map = Jason.decode!(content)
+      TransactionChain.get(Crypto.hash(prev_pub), data: [:content])
+      |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
+        data = Jason.decode!(content)
 
-        data = Map.get(map, "data")
-        last_updated_at = Map.get(map, "last_updated_at")
-        {last_updated_at, data}
+        {DateTime.to_unix(timestamp), data}
       end)
       |> Enum.into(%{})
 
@@ -210,11 +189,7 @@ defmodule Uniris.OracleChain.Scheduler do
     Transaction.new(
       :oracle_summary,
       %TransactionData{
-        content:
-          %{}
-          |> Map.put("data", aggregated_content)
-          |> Map.put("previous_hash", Base.encode16(previous_hash))
-          |> Jason.encode!()
+        content: Jason.encode!(aggregated_content)
       },
       prev_pv,
       prev_pub,

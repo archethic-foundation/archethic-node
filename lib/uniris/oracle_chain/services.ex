@@ -3,17 +3,31 @@ defmodule Uniris.OracleChain.Services do
 
   require Logger
 
+  alias Uniris.Crypto
+
   @doc """
   Fetch new data from the services by comparing with the previous content
   """
   @spec fetch_new_data(map()) :: map()
   def fetch_new_data(previous_content \\ %{}) do
     Enum.map(services(), fn {service, handler} ->
+      Logger.debug("Fetch #{service} oracle data")
       {service, apply(handler, :fetch, [])}
     end)
     |> Enum.filter(fn
       {service, {:ok, data}} ->
-        data != Map.get(previous_content, Atom.to_string(service))
+        previous_digest =
+          previous_content
+          |> Map.get(Atom.to_string(service))
+          |> Jason.encode!()
+          |> Crypto.hash()
+
+        new_digest =
+          data
+          |> Jason.encode!()
+          |> Crypto.hash()
+
+        new_digest != previous_digest
 
       {service, _} ->
         Logger.error("Cannot request the Oracle provider #{service}")

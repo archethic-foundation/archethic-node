@@ -686,7 +686,7 @@ defmodule Uniris.Mining.ValidationContext do
   end
 
   defp error_type_detection(tx = %Transaction{type: :oracle_summary}) do
-    {:oracle_validation, OracleChain.verify_summary?(tx)}
+    {:oracle_validation, OracleChain.verify?(tx)}
   end
 
   defp error_type_detection(%Transaction{type: type}), do: {type, true}

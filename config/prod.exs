@@ -39,8 +39,8 @@ config :uniris, Uniris.Governance.Pools,
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.NAT
 
 config :uniris, Uniris.OracleChain.Scheduler,
-  # Poll new changes every 10 seconds
-  polling_interval: "0 0 * * * *",
+  # Poll new changes every minute
+  polling_interval: "0 * * * * *",
   # Aggregate chain every day at midnight
   summary_interval: "0 0 0 * * *"
 

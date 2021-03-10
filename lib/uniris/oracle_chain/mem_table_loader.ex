@@ -23,8 +23,11 @@ defmodule Uniris.OracleChain.MemTableLoader do
 
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{type: :oracle, data: %TransactionData{content: content}}) do
-    data = Jason.decode!(content) |> Map.get("data")
-    Enum.each(data, &load_by_service/1)
+    content
+    |> Jason.decode!()
+    |> Enum.each(fn {service, data} ->
+      MemTable.add_oracle_data(service, data)
+    end)
   end
 
   def load_transaction(%Transaction{
@@ -33,13 +36,10 @@ defmodule Uniris.OracleChain.MemTableLoader do
       }) do
     content
     |> Jason.decode!()
-    |> Map.get("data")
-    |> Enum.each(fn {_timestamp, data} ->
-      Enum.each(data, &load_by_service/1)
+    |> Enum.each(fn {_timestamp, aggregated_data} ->
+      Enum.each(aggregated_data, fn {service, data} ->
+        MemTable.add_oracle_data(service, data)
+      end)
     end)
-  end
-
-  defp load_by_service({"uco", prices}) do
-    MemTable.add_oracle_data("uco", prices)
   end
 end

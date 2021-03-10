@@ -15,7 +15,7 @@ defmodule Uniris.OracleChain.MemTableLoaderTest do
                MemTableLoader.load_transaction(%Transaction{
                  type: :oracle,
                  data: %TransactionData{
-                   content: %{"data" => %{"uco" => %{"eur" => 0.02}}} |> Jason.encode!()
+                   content: %{"uco" => %{"eur" => 0.02}} |> Jason.encode!()
                  }
                })
 
@@ -31,13 +31,11 @@ defmodule Uniris.OracleChain.MemTableLoaderTest do
                  data: %TransactionData{
                    content:
                      %{
-                       "data" => %{
-                         "1614677930" => %{
-                           "uco" => %{"eur" => 0.02}
-                         },
-                         "1614677925" => %{
-                           "uco" => %{"eur" => 0.07}
-                         }
+                       "1614677930" => %{
+                         "uco" => %{"eur" => 0.02}
+                       },
+                       "1614677925" => %{
+                         "uco" => %{"eur" => 0.07}
                        }
                      }
                      |> Jason.encode!()

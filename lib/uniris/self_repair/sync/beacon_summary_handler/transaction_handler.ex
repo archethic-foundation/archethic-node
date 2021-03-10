@@ -24,6 +24,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   - Node shared secrets (Weight: 2)
   - Origin shared secrets (Weight: 3)
   - Code proposal (Weight: 4)
+  - Oracle (Weight: 5)
+  - Oracle Summary (Weight: 6)
   - Anything else (Weight: 10)
 
   ## Examples
@@ -35,7 +37,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       ...>   %TransactionSummary{address: "@NodeSharedSecrets11", type: :node_shared_secrets, timestamp: ~U[2020-10-15 14:40:28.657279Z]},
       ...>   %TransactionSummary{address: "@Bob4", type: :transfer, timestamp: ~U[2020-10-14 14:38:18.657279Z] },
       ...>   %TransactionSummary{address: "@Node5", type: :node, timestamp: ~U[2020-10-14 14:39:48.657279Z]},
-      ...>   %TransactionSummary{address: "@Node10", type: :node, timestamp: ~U[2020-10-14 14:43:08.657279Z]}
+      ...>   %TransactionSummary{address: "@Node10", type: :node, timestamp: ~U[2020-10-14 14:43:08.657279Z]},
+      ...>   %TransactionSummary{address: "@Oracle1", type: :oracle, timestamp: ~U[2020-10-14 08:43:08Z]},
+      ...>   %TransactionSummary{address: "@Oracle2", type: :oracle, timestamp: ~U[2020-10-14 14:43:08Z]},
+      ...>   %TransactionSummary{address: "@OracleSummary1", type: :oracle_summary, timestamp: ~U[2020-10-15 00:00:00Z]}
       ...> ]
       ...> |> TransactionHandler.sort_transactions_information()
       [
@@ -44,6 +49,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         %TransactionSummary{address: "@NodeSharedSecrets10", type: :node_shared_secrets, timestamp: ~U[2020-10-14 14:40:28.657279Z]},
         %TransactionSummary{address: "@NodeSharedSecrets11", type: :node_shared_secrets, timestamp: ~U[2020-10-15 14:40:28.657279Z]},
         %TransactionSummary{address: "@Code2", type: :code_proposal, timestamp: ~U[2020-10-14 14:37:58.657279Z]},
+        %TransactionSummary{address: "@Oracle1", type: :oracle, timestamp: ~U[2020-10-14 08:43:08Z]},
+        %TransactionSummary{address: "@Oracle2", type: :oracle, timestamp: ~U[2020-10-14 14:43:08Z]},
+        %TransactionSummary{address: "@OracleSummary1", type: :oracle_summary, timestamp: ~U[2020-10-15 00:00:00Z]},
         %TransactionSummary{address: "@Alice2", type: :transfer, timestamp: ~U[2020-10-14 14:38:08.657279Z] },
         %TransactionSummary{address: "@Bob4", type: :transfer, timestamp: ~U[2020-10-14 14:38:18.657279Z] }
       ]
@@ -58,6 +66,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   defp weight_transaction_type(:node_shared_secrets), do: 2
   defp weight_transaction_type(:origin_shared_secrets), do: 3
   defp weight_transaction_type(:code_proposal), do: 4
+  defp weight_transaction_type(:oracle), do: 5
+  defp weight_transaction_type(:oracle_summary), do: 6
   defp weight_transaction_type(_), do: 10
 
   @doc """

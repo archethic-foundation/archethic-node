@@ -27,38 +27,16 @@ defmodule Uniris.OracleChain do
   @doc """
   Determines if the oracle transaction is valid.
 
-  This operation will check the content on the oracle by verifying the previous hash
-  and the data from the service providers
+  This operation will check the data from the service providers
   """
   @spec verify?(Transaction.t()) :: boolean()
   def verify?(%Transaction{
-        data: %TransactionData{content: content},
-        previous_public_key: previous_public_key
+        type: :oracle,
+        data: %TransactionData{content: content}
       }) do
-    previous_address = Crypto.hash(previous_public_key)
-
     case Jason.decode(content) do
-      {:ok, map} ->
-        previous_hash = Map.get(map, "previous_hash")
-        data = Map.get(map, "data")
-
-        with {:ok, %Transaction{data: %TransactionData{content: previous_content}}} <-
-               TransactionChain.get_transaction(previous_address, data: [:content]),
-             {:integrity, true} <-
-               {:integrity, previous_hash == Base.encode16(Crypto.hash(previous_content))},
-             {:correctness, true} <- {:correctness, do_verify?(data)} do
-          true
-        else
-          {:error, _} ->
-            do_verify?(data)
-
-          {:integrity, false} ->
-            Logger.error("Invalid oracle chain integrity")
-            false
-
-          {:correctness, false} ->
-            false
-        end
+      {:ok, data} ->
+        do_verify?(data)
 
       _ ->
         Logger.error("Invalid oracle content")
@@ -66,35 +44,14 @@ defmodule Uniris.OracleChain do
     end
   end
 
-  @doc """
-  Determines if a oracle summary transaction is valid
-
-  This operation will check the content on the oracle by verifying the previous hash
-  and the truth about the aggregated data
-  """
-  @spec verify_summary?(Transaction.t()) :: boolean()
-  def verify_summary?(%Transaction{
+  def verify?(%Transaction{
         type: :oracle_summary,
         data: %{content: content},
         previous_public_key: previous_public_key
       }) do
-    previous_address = Crypto.hash(previous_public_key)
-
     case Jason.decode(content) do
-      {:ok, map} ->
-        previous_hash = Map.get(map, "previous_hash")
-        data = Map.get(map, "data")
-
-        case TransactionChain.get_transaction(previous_address, data: [:content]) do
-          {:ok, %Transaction{data: %TransactionData{content: previous_content}}} ->
-            with true <- previous_hash == Base.encode16(Crypto.hash(previous_content)),
-                 true <- do_verify_summary?(data) do
-              true
-            end
-
-          _ ->
-            do_verify_summary?(data)
-        end
+      {:ok, data} ->
+        do_verify_summary?(data, Crypto.hash(previous_public_key))
 
       _ ->
         Logger.error("Invalid oracle content")
@@ -112,22 +69,19 @@ defmodule Uniris.OracleChain do
     correctness?
   end
 
-  defp do_verify_summary?(data) when is_map(data) do
-    Enum.all?(data, fn {timestamp, data} ->
-      with {int, _} <- Integer.parse(timestamp),
-           {:ok, datetime} <- DateTime.from_unix(int),
-           {pub, _} <- Crypto.derive_oracle_keypair(datetime),
-           {:ok, %Transaction{data: %TransactionData{content: content}}} <-
-             TransactionChain.get_transaction(Crypto.hash(pub),
-               data: [:content]
-             ) do
-        stored_data = Jason.decode!(content) |> Map.get("data")
-        data == stored_data
-      else
-        _ ->
-          false
-      end
-    end)
+  defp do_verify_summary?(data, previous_address) when is_map(data) do
+    stored_digest =
+      TransactionChain.get(previous_address, [:timestamp, data: [:content]])
+      |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
+        data = Jason.decode!(content)
+        {DateTime.to_unix(timestamp), data}
+      end)
+      |> Enum.into(%{})
+      |> Jason.encode!()
+      |> Crypto.hash()
+
+    data_digest = data |> Jason.encode!() |> Crypto.hash()
+    stored_digest == data_digest
   end
 
   @doc """
