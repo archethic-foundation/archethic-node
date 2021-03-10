@@ -169,7 +169,7 @@ defmodule Uniris.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]} ->
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -299,7 +299,8 @@ defmodule Uniris.ReplicationTest do
       |> stub(:send_message, fn _,
                                 %BatchRequests{
                                   requests: [%NotifyLastTransactionAddress{address: _}]
-                                } ->
+                                },
+                                _ ->
         send(me, :notification_sent)
         {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)

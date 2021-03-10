@@ -13,7 +13,12 @@ defmodule Uniris.BeaconChain.SubsetTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
   alias Uniris.P2P.Message.AddBeaconSlotProof
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
+  alias Uniris.P2P.Message.GetBeaconSlot
+  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
@@ -25,6 +30,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
     pid = start_supervised!({Subset, subset: <<0>>})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
     start_supervised!({SlotTimer, interval: "0 * * * * *"})
+    start_supervised!(Batcher)
     {:ok, subset: <<0>>, pid: pid}
   end
 
@@ -73,6 +79,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(0),
       last_public_key: Crypto.node_public_key(0),
       geo_patch: "AAA",
+      network_patch: "AAA",
       available?: true,
       enrollment_date: DateTime.utc_now()
     })
@@ -83,6 +90,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(1),
       last_public_key: Crypto.node_public_key(1),
       geo_patch: "AAA",
+      network_patch: "AAA",
       available?: true,
       enrollment_date: DateTime.utc_now()
     })
@@ -107,11 +115,20 @@ defmodule Uniris.BeaconChain.SubsetTest do
       timestamp: ready_time
     })
 
-    %{consensus_worker: consensus_pid} = :sys.get_state(pid)
+    MockClient
+    |> stub(:send_message, fn
+      _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
+
+      _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+    end)
 
     send(pid, {:create_slot, DateTime.utc_now()})
 
     Process.sleep(200)
+
+    %{consensus_worker: consensus_pid} = :sys.get_state(pid)
 
     assert {:waiting_proofs,
             %{
@@ -135,6 +152,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       geo_patch: "AAA",
+      network_patch: "AAA",
       available?: true,
       enrollment_date: DateTime.utc_now()
     })
@@ -145,6 +163,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(1),
       last_public_key: Crypto.node_public_key(1),
       geo_patch: "AAA",
+      network_patch: "AAA",
       available?: true,
       enrollment_date: DateTime.utc_now()
     })
@@ -155,6 +174,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       first_public_key: Crypto.node_public_key(2),
       last_public_key: Crypto.node_public_key(2),
       geo_patch: "AAA",
+      network_patch: "AAA",
       available?: true,
       enrollment_date: DateTime.utc_now()
     })
@@ -178,8 +198,11 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %AddBeaconSlotProof{} ->
-        %Ok{}
+      _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
+
+      _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
     end)
 
     slot_digest =

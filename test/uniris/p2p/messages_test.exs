@@ -663,13 +663,15 @@ defmodule Uniris.P2P.MessageTest do
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
             amount: 10.5,
             spent?: true,
-            type: :UCO
+            type: :UCO,
+            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
           },
           %TransactionInput{
             from:
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
-            type: :call
+            type: :call,
+            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
           }
         ]
       }
@@ -822,12 +824,6 @@ defmodule Uniris.P2P.MessageTest do
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
-    end
-
-    test "GetPreviousBeaconSlot message" do
-      msg = %GetPreviousBeaconSlot{subset: <<0>>}
-
-      assert msg == msg |> Message.encode() |> Message.decode() |> elem(0)
     end
 
     test "BatchRequests" do

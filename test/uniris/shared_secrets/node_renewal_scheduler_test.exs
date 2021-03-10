@@ -42,7 +42,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%StartMining{}]} ->
+        _, %BatchRequests{requests: [%StartMining{}]}, _ ->
           send(me, :renewal_processed)
           {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)

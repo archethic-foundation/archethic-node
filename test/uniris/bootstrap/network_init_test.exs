@@ -47,7 +47,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
       %LastTransactionAddress{address: address}
     end)
 

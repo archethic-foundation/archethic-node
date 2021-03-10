@@ -5,18 +5,14 @@ defmodule Uniris.P2P.ClientConnection do
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P
   alias Uniris.P2P.ConnectionRegistry
   alias Uniris.P2P.Multiplexer
   alias Uniris.P2P.Transport
 
-  @behaviour :gen_statem
+  use GenStateMachine, callback_mode: :handle_event_function
 
   require Logger
-
-  @doc false
-  def child_spec(arg) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, [arg]}, restart: :transient}
-  end
 
   @doc """
   Create a new connection worker for the remote node with the given transport
@@ -28,7 +24,7 @@ defmodule Uniris.P2P.ClientConnection do
         ) :: {:ok, pid()}
   def start_link(args \\ []) do
     node_public_key = Keyword.fetch!(args, :node_public_key)
-    :gen_statem.start_link(via_tuple(node_public_key), __MODULE__, args, [])
+    GenStateMachine.start_link(__MODULE__, args, name: via_tuple(node_public_key))
   end
 
   @doc """
@@ -36,17 +32,20 @@ defmodule Uniris.P2P.ClientConnection do
   """
   @spec send_message(
           pid() | Crypto.key(),
-          binary()
+          binary(),
+          timeout()
         ) ::
           {:ok, binary()} | {:error, :disconnected} | {:error, :network_issue}
-  def send_message(pid, message)
+  def send_message(pid_or_public_key, message, timeout \\ 3_000)
+
+  def send_message(pid, message, timeout)
       when is_pid(pid) and is_binary(message) do
-    :gen_statem.call(pid, {:send_message, message})
+    GenStateMachine.call(pid, {:send_message, message, timeout})
   end
 
-  def send_message(node_public_key, message)
+  def send_message(node_public_key, message, timeout)
       when is_binary(node_public_key) and is_binary(message) do
-    :gen_statem.call(via_tuple(node_public_key), {:send_message, message})
+    GenStateMachine.call(via_tuple(node_public_key), {:send_message, message, timeout})
   end
 
   defp via_tuple(node_public_key) do
@@ -63,8 +62,6 @@ defmodule Uniris.P2P.ClientConnection do
      [{:next_event, :info, :connect}]}
   end
 
-  def callback_mode, do: [:handle_event_function]
-
   def handle_event(
         :info,
         :connect,
@@ -77,7 +74,7 @@ defmodule Uniris.P2P.ClientConnection do
       Multiplexer.start_link(
         socket: socket,
         transport: transport,
-        recv_handler: &handle_responses/2
+        recv_handler: &handle_responses/3
       )
 
     Logger.info("Connection established with #{:inet.ntoa(ip)}:#{port}",
@@ -94,22 +91,25 @@ defmodule Uniris.P2P.ClientConnection do
 
   def handle_event(
         {:call, from},
-        {:send_message, message},
+        {:send_message, message, timeout},
         :connected,
-        _data = %{multiplexer_pid: multiplexer_pid}
+        _data = %{multiplexer_pid: multiplexer_pid, node_public_key: node_public_key}
       ) do
     Task.start(fn ->
-      case Multiplexer.send_data(multiplexer_pid, message) do
+      case Multiplexer.send_data(multiplexer_pid, message, timeout) do
         {:ok, data} ->
-          :gen_statem.reply(from, {:ok, data})
+          GenStateMachine.reply(from, {:ok, data})
 
         {:error, :closed} ->
           send(self(), :reconnect)
-          :gen_statem.reply(from, {:error, :disconnected})
+
+          # TODO: remove when the beacon P2P availability notification will be implemented
+          P2P.set_node_globally_unavailable(node_public_key)
+
+          GenStateMachine.reply(from, {:error, :disconnected})
 
         {:error, :timeout} ->
-          send(self(), :reconnect)
-          :gen_statem.reply(from, {:error, :network_issue})
+          GenStateMachine.reply(from, {:error, :timeout})
       end
     end)
 
@@ -131,8 +131,8 @@ defmodule Uniris.P2P.ClientConnection do
     end
   end
 
-  defp handle_responses(responses, opts) do
+  defp handle_responses(id, data, opts) do
     multiplexer_pid = Keyword.get(opts, :multiplexer_pid)
-    Multiplexer.notify_clients(multiplexer_pid, responses)
+    Multiplexer.notify_clients(multiplexer_pid, id, data)
   end
 end

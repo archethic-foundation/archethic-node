@@ -18,10 +18,7 @@ defmodule Uniris.OracleChainTest do
 
     content =
       %{
-        "last_updated_at" => DateTime.utc_now() |> DateTime.to_unix(),
-        "data" => %{
-          "uco" => %{"eur" => 0.20, "usd" => 0.12}
-        }
+        "uco" => %{"eur" => 0.20, "usd" => 0.12}
       }
       |> Jason.encode!()
 
@@ -31,46 +28,39 @@ defmodule Uniris.OracleChainTest do
     assert true == OracleChain.verify?(tx)
   end
 
-  test "verify_summary/1 should decode the transaction content and verify with the given address" do
+  test "verify/1 should decode a summary transaction content and verify with the given address" do
     last_update_at = DateTime.utc_now() |> DateTime.to_unix()
 
     {pub, pv} = Crypto.derive_keypair("seed", 0)
     {next_pub, _} = Crypto.derive_keypair("seed", 1)
 
-    previous_address = Crypto.hash(pub)
-
     MockDB
-    |> stub(:get_transaction, fn
-      ^previous_address, _ ->
-        {:error, :transaction_not_exists}
-
+    |> stub(:get_transaction_chain, fn
       _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             content:
-               %{
-                 "last_updated_at" => last_update_at,
-                 "data" => %{
-                   "uco" => %{"eur" => 0.20, "usd" => 0.12}
-                 }
-               }
-               |> Jason.encode!()
-           }
-         }}
+        [
+          %Transaction{
+            type: :oracle,
+            timestamp: DateTime.from_unix!(last_update_at),
+            data: %TransactionData{
+              content:
+                %{
+                  "uco" => %{"eur" => 0.20, "usd" => 0.12}
+                }
+                |> Jason.encode!()
+            }
+          }
+        ]
     end)
 
     content =
       %{
-        "data" => %{
-          last_update_at => %{
-            "uco" => %{"eur" => 0.20, "usd" => 0.12}
-          }
+        last_update_at => %{
+          "uco" => %{"eur" => 0.20, "usd" => 0.12}
         }
       }
       |> Jason.encode!()
 
     tx = Transaction.new(:oracle_summary, %TransactionData{content: content}, pv, pub, next_pub)
-    assert true == OracleChain.verify_summary?(tx)
+    assert true == OracleChain.verify?(tx)
   end
 end

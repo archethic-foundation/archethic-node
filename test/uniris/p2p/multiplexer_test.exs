@@ -22,55 +22,25 @@ defmodule Uniris.P2P.MultiplexerTest do
   end
 
   describe "send_data/2" do
-    test "should request the muxer to prepare the sending of the data" do
+    test "should request the muxer to send and await demuxer to return data" do
       MockTransport
       |> expect(:read_from_socket, fn _, _fun, _, _ -> :ok end)
+      |> expect(:send_message, fn _, _ -> :ok end)
 
       {:ok, pid} =
         Multiplexer.start_link(
           socket: make_ref(),
           transport: MockTransport,
-          recv_handler: fn responses, opts ->
-            Multiplexer.notify_clients(Keyword.get(opts, :multiplexer_pid), responses)
-          end,
-          timeframe: 5_000
+          recv_handler: fn id, data, opts ->
+            Multiplexer.notify_clients(Keyword.get(opts, :multiplexer_pid), id, data)
+          end
         )
 
       spawn(fn -> Multiplexer.send_data(pid, "hello") end)
       Process.sleep(100)
-      assert %{next_id: 2, queue: %{1 => {_, _}}} = :sys.get_state(pid)
-    end
-
-    test "receive data in batch when the timeframe is reach and should notify clients" do
-      MockTransport
-      |> expect(:connect, fn _, _, _, _ -> {:ok, make_ref()} end)
-      |> expect(:read_from_socket, fn _, fun, _, _ ->
-        pid =
-          spawn(fn ->
-            receive do
-              {:send, data} ->
-                fun.(data)
-            end
-          end)
-
-        :persistent_term.put(:registry, pid)
-        :ok
-      end)
-      |> expect(:send_message, fn _, data ->
-        send(:persistent_term.get(:registry), {:send, data})
-        :ok
-      end)
-
-      {:ok, pid} =
-        Multiplexer.start_link(
-          socket: make_ref(),
-          transport: MockTransport,
-          recv_handler: fn responses, opts ->
-            Multiplexer.notify_clients(Keyword.get(opts, :multiplexer_pid), responses)
-          end
-        )
-
-      assert {:ok, "hello"} = Multiplexer.send_data(pid, "hello")
+      assert %{queue: %{1 => {_, _}}} = :sys.get_state(pid)
+      Process.sleep(100)
+      assert %{queue: %{}} = :sys.get_state(pid)
     end
 
     test "should return an error if timeout or closed is detected during the batch sending" do
@@ -84,8 +54,8 @@ defmodule Uniris.P2P.MultiplexerTest do
         Multiplexer.start_link(
           socket: make_ref(),
           transport: MockTransport,
-          recv_handler: fn responses, opts ->
-            Multiplexer.notify_clients(Keyword.get(opts, :multiplexer_pid), responses)
+          recv_handler: fn id, data, opts ->
+            Multiplexer.notify_clients(Keyword.get(opts, :multiplexer_pid), id, data)
           end
         )
 

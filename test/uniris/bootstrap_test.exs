@@ -72,7 +72,7 @@ defmodule Uniris.BootstrapTest do
   describe "run/5" do
     test "should initialize the network when nothing is set before" do
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
         {:ok, %LastTransactionAddress{address: address}}
       end)
 
@@ -137,7 +137,7 @@ defmodule Uniris.BootstrapTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetBootstrappingNodes{}]} ->
+        _, %BatchRequests{requests: [%GetBootstrappingNodes{}]}, _ ->
           {:ok,
            %BatchResponses{
              responses: [
@@ -153,7 +153,7 @@ defmodule Uniris.BootstrapTest do
              ]
            }}
 
-        _, %NewTransaction{transaction: tx} ->
+        _, %NewTransaction{transaction: tx}, _ ->
           stamp = %ValidationStamp{
             proof_of_work: "",
             proof_of_integrity: "",
@@ -180,23 +180,23 @@ defmodule Uniris.BootstrapTest do
 
           {:ok, %Ok{}}
 
-        _, %GetStorageNonce{} ->
+        _, %GetStorageNonce{}, _ ->
           {:ok,
            %EncryptedStorageNonce{
              digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
            }}
 
-        _, %ListNodes{} ->
+        _, %ListNodes{}, _ ->
           {:ok, %NodeList{nodes: nodes}}
 
-        _, %GetBeaconSummary{} ->
+        _, %GetBeaconSummary{}, _ ->
           {:ok, %NotFound{}}
 
-        _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]} ->
+        _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]}, _ ->
           send(me, :node_ready)
           {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %GetTransaction{address: address} ->
+        _, %GetTransaction{address: address}, _ ->
           {:ok,
            %Transaction{
              address: address,
@@ -204,7 +204,7 @@ defmodule Uniris.BootstrapTest do
              cross_validation_stamps: [%{}]
            }}
 
-        _, %AcknowledgeStorage{address: address} ->
+        _, %AcknowledgeStorage{address: address}, _ ->
           PubSub.notify_new_transaction(address)
           {:ok, %Ok{}}
       end)

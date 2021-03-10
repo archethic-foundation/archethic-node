@@ -42,7 +42,7 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   setup do
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
       %LastTransactionAddress{address: address}
     end)
 
@@ -244,7 +244,7 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %ListNodes{} ->
+      _, %ListNodes{}, _ ->
         {:ok,
          %NodeList{
            nodes: [
@@ -282,7 +282,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     :ok = P2P.add_node(node)
 
     MockClient
-    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
+    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key}, _ ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
       {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
     end)
@@ -306,7 +306,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]} ->
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]}, _ ->
       send(me, :end_of_sync)
       {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
     end)

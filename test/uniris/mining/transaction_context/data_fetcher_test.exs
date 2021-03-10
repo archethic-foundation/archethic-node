@@ -39,7 +39,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
   describe "fetch_previous_transaction/2" do
     test "should return the previous transaction and node involve if exists" do
-      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]} ->
+      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %Transaction{}}]}}
       end)
 
@@ -58,7 +58,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
     end
 
     test "should return nil and node node involved if not exists" do
-      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]} ->
+      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
 
@@ -77,7 +77,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
     test "should retrieve from the first node closest node" do
       stub(MockClient, :send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, %Transaction{}}]}}
       end)
 
@@ -120,7 +120,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+        _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
           {:ok,
            %BatchResponses{
              responses: [
@@ -131,7 +131,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
              ]
            }}
 
-        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, unspent_output}]}}
       end)
 
@@ -153,7 +153,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
     test "should return the unspent outputs and nodes involved if exists" do
       MockClient
-      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -183,7 +183,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
     test "should return an empty list of unspent outputs and nodes involved if not exists" do
       MockClient
-      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
       end)
 
@@ -213,7 +213,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetUnspentOutputs{address: "@Alice2"}]} ->
+        _, %BatchRequests{requests: [%GetUnspentOutputs{address: "@Alice2"}]}, _ ->
           {:ok,
            %BatchResponses{
              responses: [
@@ -224,7 +224,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
              ]
            }}
 
-        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]}, _ ->
           Process.sleep(200)
           {:ok, %BatchResponses{responses: [{0, unspent_output}]}}
       end)
@@ -260,7 +260,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
   describe "fetch_p2p_view/2" do
     test "should retrieve the P2P view for a list of node public keys" do
-      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetP2PView{}]} ->
+      stub(MockClient, :send_message, fn _, %BatchRequests{requests: [%GetP2PView{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %P2PView{nodes_view: <<1::1, 1::1>>}}]}}
       end)
 
@@ -280,7 +280,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
 
     test "should retrieve the P2P view for a list of node public keys from the closest node" do
       stub(MockClient, :send_message, fn
-        _, %BatchRequests{requests: [%GetP2PView{}]} ->
+        _, %BatchRequests{requests: [%GetP2PView{}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, %P2PView{nodes_view: <<1::1, 1::1>>}}]}}
       end)
 

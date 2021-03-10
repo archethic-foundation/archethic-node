@@ -87,7 +87,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   test "download_transaction/2 should download the transaction", context do
     me = self()
 
-    inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, type: :UCO}]
+    inputs = [
+      %TransactionInput{from: "@Alice2", amount: 10.0, type: :UCO, timestamp: DateTime.utc_now()}
+    ]
+
     tx = TransactionFactory.create_valid_transaction(context, inputs)
 
     MockDB
@@ -98,10 +101,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetTransaction{}]} ->
+      _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, tx}]}}
 
-      _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]} ->
+      _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]}, _ ->
         {:ok,
          %BatchResponses{
            responses: [

@@ -87,6 +87,14 @@ defmodule Uniris.P2P do
   defdelegate set_node_globally_available(first_public_key), to: MemTable, as: :set_node_available
 
   @doc """
+  Remove a node first public key to the list of nodes globally available.
+  """
+  @spec set_node_globally_unavailable(first_public_key :: Crypto.key()) :: :ok
+  defdelegate set_node_globally_unavailable(first_public_key),
+    to: MemTable,
+    as: :set_node_unavailable
+
+  @doc """
   Add a node first public key to the list of authorized nodes
   """
   @spec authorize_node(first_public_key :: Crypto.key(), authorization_date :: DateTime.t()) ::
@@ -143,14 +151,16 @@ defmodule Uniris.P2P do
   and will be locally unavailable until the next exchange
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request()) :: Message.response()
-  def send_message!(public_key, message) when is_binary(public_key) do
+  def send_message!(node, message, timeout \\ 3_000)
+
+  def send_message!(public_key, message, timeout) when is_binary(public_key) do
     public_key
     |> get_node_info!
-    |> send_message!(message)
+    |> send_message!(message, timeout)
   end
 
-  def send_message!(node = %Node{ip: ip, port: port}, message) do
-    case Client.send_message(node, message) do
+  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
+    case Client.send_message(node, message, timeout) do
       {:ok, data} ->
         data
 
@@ -163,14 +173,17 @@ defmodule Uniris.P2P do
           {:ok, Message.t()}
           | {:error, :not_found}
           | {:error, Client.error()}
-  def send_message(public_key, message) when is_binary(public_key) do
+  def send_message(node, message, timeout \\ 3_000)
+
+  def send_message(public_key, message, timeout) when is_binary(public_key) do
     with {:ok, node} <- get_node_info(public_key),
-         {:ok, data} <- send_message(node, message) do
+         {:ok, data} <- send_message(node, message, timeout) do
       {:ok, data}
     end
   end
 
-  def send_message(node = %Node{}, message), do: Client.send_message(node, message)
+  def send_message(node = %Node{}, message, timeout),
+    do: Client.send_message(node, message, timeout)
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with

@@ -29,7 +29,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.TransactionFactory
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Uniris.TransactionChain.TransactionInput
 
   import Mox
 
@@ -100,7 +100,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
           %GetBeaconSummary{subset: "B"},
           %GetBeaconSummary{subset: "A"}
         ]
-      } ->
+      },
+      _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -113,7 +114,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
          }}
 
       _,
-      %BatchRequests{requests: [%GetBeaconSummary{subset: "F"}, %GetBeaconSummary{subset: "E"}]} ->
+      %BatchRequests{requests: [%GetBeaconSummary{subset: "F"}, %GetBeaconSummary{subset: "E"}]},
+      _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -226,11 +228,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransaction{address: "@Alice2"} ->
+        _, %GetTransaction{address: "@Alice2"}, _ ->
           send(me, :transaction_downloaded)
           {:ok, %Transaction{}}
 
-        _, %GetTransaction{address: "@Node1"} ->
+        _, %GetTransaction{address: "@Node1"}, _ ->
           send(me, :transaction_downloaded)
           {:ok, %Transaction{}}
       end)
@@ -254,14 +256,28 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       P2P.add_node(node)
 
-      inputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 10.0,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
 
       transfer_tx =
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
           seed: "transfer_seed"
         )
 
-      inputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 10.0,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
 
       node_tx =
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
@@ -309,7 +325,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{address: address}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{address: address}]}, _ ->
           cond do
             address == transfer_tx.address ->
               {:ok, %BatchResponses{responses: [{0, transfer_tx}]}}
@@ -321,13 +337,14 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
               {:error, :network_issue}
           end
 
-        _, %BatchRequests{requests: [%GetTransactionInputs{address: _}]} ->
+        _, %BatchRequests{requests: [%GetTransactionInputs{address: _}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, %TransactionInputList{inputs: inputs}}]}}
 
         _,
         %BatchRequests{
           requests: [%GetTransactionInputs{address: _}, %GetTransactionChain{address: _}]
-        } ->
+        },
+        _ ->
           {:ok,
            %BatchResponses{
              responses: [

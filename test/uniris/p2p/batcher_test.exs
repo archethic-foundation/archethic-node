@@ -45,7 +45,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}, _
                                      when length(requests) == 256 ->
         {:ok, %Ok{}}
       end)
@@ -72,7 +72,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 5, fn _, %BatchRequests{requests: requests}
+      |> expect(:send_message, 5, fn _, %BatchRequests{requests: requests}, _
                                      when length(requests) == 256 ->
         {:ok, %Ok{}}
       end)
@@ -106,7 +106,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %Slot{}}]}}
       end)
 
@@ -127,7 +127,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}, _ ->
         responses =
           requests
           |> Enum.with_index()
@@ -162,7 +162,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}, _ ->
         responses =
           requests
           |> Enum.with_index()
@@ -204,7 +204,8 @@ defmodule Uniris.P2P.BatcherTest do
 
       MockClient
       |> expect(:send_message, 2, fn %Node{first_public_key: key},
-                                     %BatchRequests{requests: requests} ->
+                                     %BatchRequests{requests: requests},
+                                     _ ->
         case key do
           "key4" ->
             {:error, :network_issue}
@@ -251,7 +252,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}, _ ->
         responses =
           requests
           |> Enum.with_index()
@@ -291,7 +292,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %Slot{}}]}}
       end)
 
@@ -312,7 +313,7 @@ defmodule Uniris.P2P.BatcherTest do
       {:ok, pid} = Batcher.start_link([timeout: 100], [])
 
       MockClient
-      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests} ->
+      |> expect(:send_message, 1, fn _, %BatchRequests{requests: requests}, _ ->
         responses =
           requests
           |> Enum.with_index()

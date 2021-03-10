@@ -13,6 +13,8 @@ defmodule Uniris.P2P.Batcher do
   alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Node
 
+  @client_timeout 3_000
+
   @spec start_link(list()) :: GenServer.on_start()
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
     GenServer.start_link(__MODULE__, args, opts)
@@ -42,19 +44,36 @@ defmodule Uniris.P2P.Batcher do
           {:ok, Message.t()} | {:error, Client.error()}
   def request_first_reply(nodes, request) when is_list(nodes) do
     %Node{network_patch: patch} = P2P.get_node_info()
-    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
+
+    try do
+      GenServer.call(
+        __MODULE__,
+        {:add_first_reply_request, request, nodes, false, patch},
+        @client_timeout
+      )
+    catch
+      :exit, {:timeout, _} ->
+        {:error, :timeout}
+    end
   end
 
   @spec request_first_reply(list(Node.t()), Message.t(), binary()) ::
           {:ok, Message.t()} | {:error, Client.error()}
   def request_first_reply(nodes, request, patch) when is_list(nodes) and is_binary(patch) do
-    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
+    GenServer.call(
+      __MODULE__,
+      {:add_first_reply_request, request, nodes, false, patch},
+      @client_timeout
+    )
+  catch
+    :exit, {:timeout, _} ->
+      {:error, :timeout}
   end
 
   @doc false
   def request_first_reply(pid, nodes, request) when is_pid(pid) do
     %Node{network_patch: patch} = P2P.get_node_info()
-    GenServer.call(pid, {:add_first_reply_request, request, nodes, false, patch}, 10_000)
+    GenServer.call(pid, {:add_first_reply_request, request, nodes, false, patch}, @client_timeout)
   end
 
   @doc """
@@ -64,20 +83,30 @@ defmodule Uniris.P2P.Batcher do
           {:ok, Message.t(), Node.t()} | {:error, Client.error()}
   def request_first_reply_with_ack(nodes, request) do
     %Node{network_patch: patch} = P2P.get_node_info()
-    GenServer.call(__MODULE__, {:add_first_reply_request, request, nodes, true, patch}, 10_000)
+
+    try do
+      GenServer.call(
+        __MODULE__,
+        {:add_first_reply_request, request, nodes, true, patch},
+        @client_timeout
+      )
+    catch
+      {:exit, {:timeout, _}} ->
+        {:error, :timeout}
+    end
   end
 
   @doc false
   def request_first_reply_with_ack(pid, nodes, request) do
     %Node{network_patch: patch} = P2P.get_node_info()
-    GenServer.call(pid, {:add_first_reply_request, request, nodes, true, patch}, 10_000)
+    GenServer.call(pid, {:add_first_reply_request, request, nodes, true, patch}, @client_timeout)
   end
 
   @spec init(Keyword.t()) ::
           {:ok,
            %{broadcast_queue: %{}, timeout: timeout(), first_reply_queue: %{}, timer: reference()}}
   def init(args) do
-    timeout = Keyword.get(args, :timeout, 100)
+    timeout = Keyword.get(args, :timeout, 50)
     timer = schedule_dispatch(timeout)
 
     {:ok, %{timeout: timeout, broadcast_queue: %{}, first_reply_queue: %{}, timer: timer}}
@@ -136,11 +165,15 @@ defmodule Uniris.P2P.Batcher do
   end
 
   defp handle_broadcast_queue(queue) when map_size(queue) > 0 do
-    Enum.each(queue, fn {node, requests} ->
-      Task.start(fn ->
+    Task.async_stream(
+      queue,
+      fn {node, requests} ->
         P2P.send_message!(node, %BatchRequests{requests: requests})
-      end)
-    end)
+      end,
+      ordered?: false,
+      on_timeout: :kill_task
+    )
+    |> Stream.run()
   end
 
   defp handle_broadcast_queue(%{}), do: :ok
@@ -155,9 +188,16 @@ defmodule Uniris.P2P.Batcher do
     %{batch_by_nodes: batch_by_nodes, request_metadata: request_metadata} =
       group_request_by_first_node(sorted_nodes_by_request)
 
-    Enum.each(batch_by_nodes, fn {node, batch_request} ->
-      Task.start(fn -> first_reply_sending({node, batch_request}, request_metadata) end)
-    end)
+    Task.async_stream(
+      batch_by_nodes,
+      fn {node, batch_request} ->
+        first_reply_sending({node, batch_request}, request_metadata)
+      end,
+      ordered?: false,
+      on_timeout: :kill_task,
+      max_concurrency: map_size(batch_by_nodes)
+    )
+    |> Stream.run()
   end
 
   defp handle_first_reply_queue(%{}), do: :ok
@@ -184,7 +224,7 @@ defmodule Uniris.P2P.Batcher do
          {node = %Node{}, batch_request = %BatchRequests{requests: requests}},
          request_metadata
        ) do
-    case P2P.send_message(node, batch_request) do
+    case P2P.send_message(node, batch_request, 500) do
       {:ok, %BatchResponses{responses: responses}} ->
         Enum.each(responses, &reply_response(&1, requests, request_metadata, node))
 

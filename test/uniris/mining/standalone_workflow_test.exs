@@ -52,7 +52,7 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetP2PView{}, %GetUnspentOutputs{}, %GetTransaction{}]} ->
+      _, %BatchRequests{requests: [%GetP2PView{}, %GetUnspentOutputs{}, %GetTransaction{}]}, _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -62,7 +62,7 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
            ]
          }}
 
-      _, %BatchRequests{requests: [%GetTransaction{}]} ->
+      _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
         {:ok,
          %BatchResponses{
            responses: [
@@ -70,7 +70,7 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
            ]
          }}
 
-      _, %BatchRequests{requests: [%ReplicateTransaction{}]} ->
+      _, %BatchRequests{requests: [%ReplicateTransaction{}]}, _ ->
         send(me, :transaction_replicated)
         {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
     end)

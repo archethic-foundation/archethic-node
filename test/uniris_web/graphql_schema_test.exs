@@ -126,7 +126,7 @@ defmodule UnirisWeb.GraphQLSchemaTest do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]} ->
+      |> stub(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
 
@@ -261,20 +261,32 @@ defmodule UnirisWeb.GraphQLSchemaTest do
     test "should retrieve the uco balance of an address", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      UCOLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 0.202
-      })
+      UCOLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 0.202
+        },
+        DateTime.utc_now()
+      )
 
-      UCOLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 0.518
-      })
+      UCOLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 0.518
+        },
+        DateTime.utc_now()
+      )
 
-      UCOLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 1.46
-      })
+      UCOLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 1.46
+        },
+        DateTime.utc_now()
+      )
 
       conn =
         post(conn, "/api", %{
@@ -287,23 +299,35 @@ defmodule UnirisWeb.GraphQLSchemaTest do
     test "should retrieve the nft balance of an address", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      NFTLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 2.0,
-        type: {:NFT, :crypto.strong_rand_bytes(32)}
-      })
+      NFTLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 2.0,
+          type: {:NFT, :crypto.strong_rand_bytes(32)}
+        },
+        DateTime.utc_now()
+      )
 
-      NFTLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 5.0,
-        type: {:NFT, :crypto.strong_rand_bytes(32)}
-      })
+      NFTLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 5.0,
+          type: {:NFT, :crypto.strong_rand_bytes(32)}
+        },
+        DateTime.utc_now()
+      )
 
-      NFTLedger.add_unspent_output(addr, %UnspentOutput{
-        from: :crypto.strong_rand_bytes(32),
-        amount: 10.0,
-        type: {:NFT, :crypto.strong_rand_bytes(32)}
-      })
+      NFTLedger.add_unspent_output(
+        addr,
+        %UnspentOutput{
+          from: :crypto.strong_rand_bytes(32),
+          amount: 10.0,
+          type: {:NFT, :crypto.strong_rand_bytes(32)}
+        },
+        DateTime.utc_now()
+      )
 
       conn =
         post(conn, "/api", %{
@@ -336,7 +360,7 @@ defmodule UnirisWeb.GraphQLSchemaTest do
       conn =
         post(conn, "/api", %{
           "query" =>
-            "query { transaction_inputs(address: \"#{Base.encode16(addr)}\") { type, amount } }"
+            "query { transaction_inputs(address: \"#{Base.encode16(addr)}\") { type, amount, timestamp } }"
         })
 
       assert %{
@@ -344,7 +368,8 @@ defmodule UnirisWeb.GraphQLSchemaTest do
                  "transaction_inputs" => [
                    %{
                      "type" => "UCO",
-                     "amount" => 0.202
+                     "amount" => 0.202,
+                     "timestamp" => 1_614_951_694
                    }
                  ]
                }

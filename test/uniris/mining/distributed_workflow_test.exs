@@ -91,7 +91,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
@@ -112,7 +113,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -124,7 +126,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -189,7 +191,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetP2PView{node_public_keys: public_keys1},
             %GetP2PView{node_public_keys: public_keys2}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
@@ -201,7 +204,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]} ->
+        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]}, _ ->
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -218,7 +221,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -230,7 +234,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -300,12 +304,51 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         _,
         %BatchRequests{
           requests: [
+            %GetP2PView{node_public_keys: public_keys},
+            %GetTransaction{}
+          ]
+        },
+        _ ->
+          view1 = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
+
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0, %P2PView{nodes_view: view1}},
+               {1, %NotFound{}}
+             ]
+           }}
+
+        _,
+        %BatchRequests{
+          requests: [
+            %GetP2PView{node_public_keys: public_keys},
+            %GetUnspentOutputs{},
+            %GetTransaction{}
+          ]
+        },
+        _ ->
+          view1 = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
+
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0, %P2PView{nodes_view: view1}},
+               {1, %UnspentOutputList{}},
+               {2, %NotFound{}}
+             ]
+           }}
+
+        _,
+        %BatchRequests{
+          requests: [
             %GetP2PView{node_public_keys: public_keys1},
             %GetP2PView{node_public_keys: public_keys2},
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
@@ -319,11 +362,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{} ->
-          {:ok, %Ok{}}
+        _, %BatchRequests{requests: [%CrossValidate{}]}, _ ->
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)
 
       welcome_node = %Node{
@@ -416,7 +459,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -428,7 +472,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]} ->
+        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]}, _ ->
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -446,7 +490,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
             %GetUnspentOutputs{},
             %GetTransaction{}
           ]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
@@ -460,16 +505,20 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _,
+        %BatchRequests{
+          requests: [%CrossValidate{validation_stamp: stamp, replication_tree: tree}]
+        },
+        _ ->
           send(me, {stamp, tree})
-          {:ok, %Ok{}}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %BatchRequests{requests: [%CrossValidationDone{cross_validation_stamp: stamp}]}, _ ->
           send(me, {:cross_validation_done, stamp})
-          {:ok, %Ok{}}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)
 
       welcome_node = %Node{
@@ -565,7 +614,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
               node_public_key: pub
             }
 
-            :gen_statem.cast(coordinator_pid, {:add_cross_validation_stamp, stamp})
+            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
           else
             sig =
               validation_stamp
@@ -578,7 +627,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
               node_public_key: pub3
             }
 
-            :gen_statem.cast(coordinator_pid, {:add_cross_validation_stamp, stamp})
+            Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
           end
 
           {:wait_cross_validation_stamps,
@@ -602,7 +651,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         _,
         %BatchRequests{
           requests: [%GetP2PView{node_public_keys: public_keys1}, %GetUnspentOutputs{}]
-        } ->
+        },
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -614,7 +664,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
            }}
 
         _,
-        %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys1}, %GetTransaction{}]} ->
+        %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys1}, %GetTransaction{}]},
+        _ ->
           view1 = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -625,7 +676,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]} ->
+        _, %BatchRequests{requests: [%GetP2PView{node_public_keys: public_keys2}]}, _ ->
           view2 = Enum.reduce(public_keys2, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
 
           {:ok,
@@ -635,18 +686,22 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
              ]
            }}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _,
+        %BatchRequests{
+          requests: [%CrossValidate{validation_stamp: stamp, replication_tree: tree}]
+        },
+        _ ->
           send(me, {:cross_validate, stamp, tree})
-          {:ok, %Ok{}}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %BatchRequests{requests: [%CrossValidationDone{cross_validation_stamp: stamp}]}, _ ->
           send(me, {:cross_validation_done, stamp})
-          {:ok, %Ok{}}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %ReplicateTransaction{transaction: tx} ->
+        _, %ReplicateTransaction{transaction: tx}, _ ->
           send(me, {:replicate_transaction, tx})
           {:ok, %Ok{}}
       end)

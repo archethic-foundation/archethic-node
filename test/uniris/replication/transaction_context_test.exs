@@ -29,7 +29,7 @@ defmodule Uniris.Replication.TransactionContextTest do
 
   test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetTransactionChain{}]} ->
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
       {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: [%Transaction{}]}}]}}
     end)
 
@@ -58,7 +58,7 @@ defmodule Uniris.Replication.TransactionContextTest do
     )
 
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
       {:ok,
        %BatchResponses{
          responses: [
@@ -96,7 +96,7 @@ defmodule Uniris.Replication.TransactionContextTest do
     )
 
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]} ->
+    |> stub(:send_message, fn _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
       {:ok,
        %BatchResponses{
          responses: [

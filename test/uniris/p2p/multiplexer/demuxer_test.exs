@@ -10,11 +10,11 @@ defmodule Uniris.P2P.Multiplexer.DemuxerTest do
   test "start_link/1 should start a process to wait incoming message and demultiplex received data" do
     me = self()
 
-    recv_handler = fn responses, _ -> send(me, {:responses, responses}) end
+    recv_handler = fn id, data, _ -> send(me, {:responses, id, data}) end
 
     MockTransport
     |> expect(:read_from_socket, fn _, fun, _, _ ->
-      fun.(<<1::8, 1::32, 1::32, 5::32, "hello">>)
+      fun.(<<1::32, "hello">>)
     end)
 
     Demuxer.start_link(
@@ -25,6 +25,6 @@ defmodule Uniris.P2P.Multiplexer.DemuxerTest do
       recv_handler: recv_handler
     )
 
-    assert_receive {:responses, [<<1::32, "hello">>]}
+    assert_receive {:responses, 1, "hello"}
   end
 end

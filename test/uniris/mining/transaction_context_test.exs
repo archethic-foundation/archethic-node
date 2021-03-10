@@ -52,7 +52,7 @@ defmodule Uniris.Mining.TransactionContextTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, unspent_output}]}}
 
         _,
@@ -62,7 +62,8 @@ defmodule Uniris.Mining.TransactionContextTest do
             %GetUnspentOutputs{address: "@Alice1"},
             %GetTransaction{address: "@Alice1"}
           ]
-        } ->
+        },
+        _ ->
           {:ok,
            %BatchResponses{
              responses: [

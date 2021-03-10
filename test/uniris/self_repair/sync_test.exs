@@ -150,10 +150,10 @@ defmodule Uniris.SelfRepair.SyncTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{}]} ->
+        _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
           {:ok, %BatchResponses{responses: [{0, tx}]}}
 
-        _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]} ->
+        _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]}, _ ->
           {:ok,
            %BatchResponses{
              responses: [

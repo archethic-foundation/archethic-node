@@ -3,30 +3,27 @@ defmodule Uniris.P2P.Multiplexer.MuxerTest do
 
   alias Uniris.P2P.Multiplexer.Muxer
 
+  import Mox
+
+  setup :set_mox_global
+
   test "start_link/1 should spawn a muxer process" do
-    {:ok, pid} = Muxer.start_link(timeframe: 50, multiplexer_pid: self())
-    %{multiplexer_pid: _, messages: [], stream_id: 1} = :sys.get_state(pid)
+    {:ok, pid} = Muxer.start_link(socket: make_ref(), transport: MockTransport)
+    %{stream_id: 1} = :sys.get_state(pid)
   end
 
   describe "send_data/2" do
-    test "should queue the data before the timeframe window" do
-      {:ok, pid} = Muxer.start_link(timeframe: 1_000, multiplexer_pid: self())
-      Muxer.send_data(pid, "hello1")
-      Muxer.send_data(pid, "hello2")
-      Muxer.send_data(pid, "hello3")
+    test "should send the data and return stream id" do
+      {:ok, pid} = Muxer.start_link(socket: make_ref(), transport: MockTransport)
 
-      assert %{messages: ["hello3", "hello2", "hello1"]} = :sys.get_state(pid)
-    end
+      MockTransport
+      |> stub(:send_message, fn _, _ ->
+        :ok
+      end)
 
-    test "should trigger the batch sending after the timeframe window" do
-      {:ok, pid} = Muxer.start_link(timeframe: 50, multiplexer_pid: self())
-      Muxer.send_data(pid, <<1::32, "hello1">>)
-      Muxer.send_data(pid, <<2::32, "hello2">>)
-      Muxer.send_data(pid, <<3::32, "hello3">>)
-
-      assert_receive {:batch_sending,
-                      <<1::8, 3::32, 3::32, 6::32, "hello3", 2::32, 6::32, "hello2", 1::32, 6::32,
-                        "hello1">>}
+      assert {:ok, 1} = Muxer.send_data(pid, "hello1")
+      assert {:ok, 2} = Muxer.send_data(pid, "hello2")
+      assert {:ok, 3} = Muxer.send_data(pid, "hello3")
     end
   end
 end

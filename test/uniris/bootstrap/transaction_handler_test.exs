@@ -44,7 +44,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
     :ok = P2P.add_node(node)
 
     MockClient
-    |> expect(:send_message, fn _, %NewTransaction{} ->
+    |> expect(:send_message, fn _, %NewTransaction{}, _ ->
       {:ok, %Ok{}}
     end)
 
@@ -54,7 +54,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
   test "await_validation/1 should return :ok when the transaction is validated" do
     MockClient
-    |> stub(:send_message, fn _, %GetTransaction{address: address} ->
+    |> stub(:send_message, fn _, %GetTransaction{address: address}, _ ->
       {:ok,
        %Transaction{
          address: address,

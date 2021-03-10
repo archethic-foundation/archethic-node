@@ -67,7 +67,8 @@ defmodule Uniris.MixProject do
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.5.1"},
       {:poolboy, "~> 1.5.1"},
-      {:ecto, "~> 3.5"}
+      {:ecto, "~> 3.5"},
+      {:gen_state_machine, "~> 3.0"}
     ]
   end
 end

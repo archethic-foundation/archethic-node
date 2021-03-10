@@ -10,10 +10,10 @@ defmodule Uniris.P2P.Client do
   @doc """
   Send a message to a remote node
   """
-  @spec send_message(Node.t(), Message.request()) ::
+  @spec send_message(Node.t(), Message.request(), timeout()) ::
           {:ok, Message.response()} | {:error, error()}
-  def send_message(node = %Node{}, msg) do
-    impl().send_message(node, msg)
+  def send_message(node = %Node{}, msg, timeout) do
+    impl().send_message(node, msg, timeout)
   end
 
   defp impl do

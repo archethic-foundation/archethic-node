@@ -210,7 +210,7 @@ defmodule Uniris.MiningTest do
       end)
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetFirstPublicKey{}]} ->
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetFirstPublicKey{}]}, _ ->
         {:ok,
          %BatchResponses{responses: [{0, %FirstPublicKey{public_key: tx.previous_public_key}}]}}
       end)

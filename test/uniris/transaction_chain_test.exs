@@ -23,7 +23,7 @@ defmodule Uniris.TransactionChainTest do
     Batcher.start_link()
 
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{} ->
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
       {:ok, %LastTransactionAddress{address: "@Alice10"}}
     end)
 
