@@ -1,6 +1,7 @@
 import Config
 
 # config :logger, handle_sasl_reports: true
+config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "data1")
 
 config :telemetry_poller, :default, period: 5_000
 
