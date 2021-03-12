@@ -23,7 +23,8 @@ config :git_hooks,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$date $time $metadata[$level] $message\n",
-  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node]
+  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node],
+  colors: [enabled: true]
 
 config :logger,
   utc_log: true,
