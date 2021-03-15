@@ -95,6 +95,7 @@ defmodule Uniris.BeaconChain.Subset do
       Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
         beacon_subset: Base.encode16(subset)
       )
+
       current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
       {:reply, :ok, %{state | current_slot: current_slot, p2p_view_available: p2p_view_available}}
     end

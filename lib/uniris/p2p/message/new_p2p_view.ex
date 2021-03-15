@@ -5,6 +5,6 @@ defmodule Uniris.P2P.Message.P2PView do
   defstruct [:nodes_availability]
 
   @type t :: %__MODULE__{
-    nodes_availability: bitstring()
+          nodes_availability: bitstring()
         }
 end
