@@ -221,8 +221,8 @@ defmodule Uniris.DB.KeyValueImpl do
     init_table(root_dir, @beacon_slots_db_name, :bag)
     init_table(root_dir, @beacon_summary_db_name, :set)
 
-    Process.send_after(self(), :dump, dump_delay)
-    {:ok, %{root_dir: root_dir, dump_delay: dump_delay}}
+    dump_timer = Process.send_after(self(), :dump, dump_delay)
+    {:ok, %{root_dir: root_dir, dump_delay: dump_delay, dump_timer: dump_timer}}
   end
 
   @impl GenServer
@@ -242,9 +242,9 @@ defmodule Uniris.DB.KeyValueImpl do
       end
     )
 
-    Process.send_after(self(), :dump, dump_delay)
+    dump_timer = Process.send_after(self(), :dump, dump_delay)
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :dump_timer, dump_timer), :hibernate}
   end
 
   defp init_table(root_dir, table_name, type) do

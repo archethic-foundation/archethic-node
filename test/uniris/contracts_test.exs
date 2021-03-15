@@ -56,13 +56,11 @@ defmodule Uniris.ContractsTest do
     test "should return false when the inherit constraints literal values are not respected" do
       code = """
       condition inherit,
-        uco_transfers: %{
-          "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0
-        },
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0},
         content: "hello"
 
       actions triggered_by: transaction do
-        add_uco_transfer to: "\3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 10.0
+        add_uco_transfer to: "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9", amount: 10.0
       end
       """
 
@@ -119,11 +117,11 @@ defmodule Uniris.ContractsTest do
       assert false == Contracts.accept_new_contract?(previous_tx, next_tx)
     end
 
-    test "should return when the inherit constraints matches the next transaction" do
+    test "should return true when the inherit constraints matches the next transaction" do
       code = """
       condition inherit,
         uco_transfers: %{
-          "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0
+          "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0
         }
 
       actions triggered_by: transaction do
@@ -163,7 +161,7 @@ defmodule Uniris.ContractsTest do
 
       code = """
       condition inherit,
-        uco_transfers: %{"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0}
+        uco_transfers: %{"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0}
 
       actions triggered_by: datetime, at: #{time} do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 10.0
@@ -203,7 +201,7 @@ defmodule Uniris.ContractsTest do
 
       code = """
       condition inherit,
-        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0 }
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0 }
 
       actions triggered_by: datetime, at: #{DateTime.to_unix(ref_time)} do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 10.0
@@ -241,7 +239,7 @@ defmodule Uniris.ContractsTest do
     test "should return false when the transaction have been triggered by interval but timestamp doesn't match " do
       code = """
       condition inherit,
-        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0}
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0}
 
       actions triggered_by: interval, at: "0 * * * * *" do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 10.0
@@ -281,7 +279,7 @@ defmodule Uniris.ContractsTest do
     test "should return false when the transaction have been triggered by interval and the timestamp does match " do
       code = """
       condition inherit,
-        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9": 10.0}
+        uco_transfers: %{ "3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9" => 10.0}
 
       actions triggered_by: interval, at: "0 * * * * *" do
         add_uco_transfer to: \"3265CCD78CD74984FAB3CC6984D30C8C82044EBBAB1A4FFFB683BDB2D8C5BCF9\", amount: 10.0

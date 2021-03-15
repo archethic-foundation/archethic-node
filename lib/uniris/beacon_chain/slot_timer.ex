@@ -93,7 +93,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
           interval: interval
         }
       ) do
-    schedule_new_slot(interval)
+    timer = schedule_new_slot(interval)
 
     slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
@@ -104,7 +104,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
       send(pid, {:create_slot, slot_time})
     end)
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   defp schedule_new_slot(interval) do

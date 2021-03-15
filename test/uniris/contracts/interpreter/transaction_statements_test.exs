@@ -1,8 +1,8 @@
-defmodule Uniris.Contracts.Interpreter.ActionStatementsTest do
+defmodule Uniris.Contracts.Interpreter.TransactionStatementsTest do
   use ExUnit.Case
 
   alias Uniris.Contracts.Contract
-  alias Uniris.Contracts.Interpreter.ActionStatements
+  alias Uniris.Contracts.Interpreter.TransactionStatements
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -11,5 +11,5 @@ defmodule Uniris.Contracts.Interpreter.ActionStatementsTest do
   alias Uniris.TransactionChain.TransactionData.NFTLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
 
-  doctest ActionStatements
+  doctest TransactionStatements
 end

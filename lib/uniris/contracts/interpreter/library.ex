@@ -4,19 +4,6 @@ defmodule Uniris.Contracts.Interpreter.Library do
   alias Uniris.Crypto
 
   @doc """
-  Return the list of library functions
-  """
-  @spec allowed_atoms() :: list(atom())
-  def allowed_atoms do
-    [
-      :regex_match?,
-      :regex_extract,
-      :json_path_extract,
-      :hash
-    ]
-  end
-
-  @doc """
   Match a regex expression
 
   ## Examples
@@ -88,7 +75,7 @@ defmodule Uniris.Contracts.Interpreter.Library do
   @doc """
   Hash a content
 
-  ## Examples 
+  ## Examples
 
       iex> Library.hash("hello")
       <<0, 44, 242, 77, 186, 95, 176, 163, 14, 38, 232, 59, 42, 197, 185, 226, 158,

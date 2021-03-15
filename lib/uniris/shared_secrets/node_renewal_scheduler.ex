@@ -64,14 +64,28 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
       ) do
     Logger.info("Start node shared secrets scheduling")
 
-    timer = schedule_renewal_message(interval)
+    timer =
+      case Map.get(state, :timer) do
+        nil ->
+          schedule_renewal_message(interval)
+
+        timer ->
+          Process.cancel_timer(timer)
+          schedule_renewal_message(interval)
+      end
+
     remaining_seconds = remaining_seconds_from_timer(timer)
 
     Logger.info(
       "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
     )
 
-    {:noreply, Map.put(state, :scheduler_started?, true), :hibernate}
+    new_state =
+      state
+      |> Map.put(:scheduler_started?, true)
+      |> Map.put(:timer, timer)
+
+    {:noreply, new_state, :hibernate}
   end
 
   def handle_info(:make_renewal, state = %{interval: interval}) do
@@ -84,10 +98,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
 
     if NodeRenewal.initiator?() do
       Logger.info("Node shared secrets renewal creation...")
-      Task.start(&make_renewal/0)
+      make_renewal()
     end
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   defp make_renewal do

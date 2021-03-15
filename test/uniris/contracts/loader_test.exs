@@ -24,7 +24,7 @@ defmodule Uniris.Contracts.LoaderTest do
         address: "@SC1",
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end 
+          actions triggered_by: transaction do end
           """
         },
         previous_public_key: ""
@@ -41,7 +41,7 @@ defmodule Uniris.Contracts.LoaderTest do
       assert %{
                contract: %Contract{
                  triggers: [%Trigger{type: :transaction, actions: {:__block__, [], []}}],
-                 constants: %Constants{contract: [{:address, "@SC1"} | _]}
+                 constants: %Constants{contract: %{"address" => "@SC1"}}
                }
              } = :sys.get_state(pid)
     end
@@ -51,7 +51,7 @@ defmodule Uniris.Contracts.LoaderTest do
         address: Crypto.hash("Alice2"),
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end 
+          actions triggered_by: transaction do end
           """
         },
         previous_public_key: "Alice1"
@@ -61,7 +61,7 @@ defmodule Uniris.Contracts.LoaderTest do
         address: Crypto.hash("Alice3"),
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end 
+          actions triggered_by: transaction do end
           """
         },
         previous_public_key: "Alice2"
@@ -90,7 +90,7 @@ defmodule Uniris.Contracts.LoaderTest do
           address: "@SC2",
           data: %TransactionData{
             code: """
-            actions triggered_by: transaction do end 
+            actions triggered_by: transaction do end
             """
           },
           previous_public_key: ""
@@ -109,7 +109,7 @@ defmodule Uniris.Contracts.LoaderTest do
     assert %{
              contract: %Contract{
                triggers: [%Trigger{type: :transaction, actions: {:__block__, [], []}}],
-               constants: %Constants{contract: [{:address, "@SC2"} | _]}
+               constants: %Constants{contract: %{"address" => "@SC2"}}
              }
            } = :sys.get_state(pid)
   end

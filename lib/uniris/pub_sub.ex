@@ -60,6 +60,14 @@ defmodule Uniris.PubSub do
   end
 
   @doc """
+  Notify new oracle data to the subscribers
+  """
+  @spec notify_new_oracle_data(binary()) :: :ok
+  def notify_new_oracle_data(data) do
+    dispatch(:new_oracle_data, {:new_oracle_data, data})
+  end
+
+  @doc """
   Register a process to a new transaction publication by type
   """
   @spec register_to_new_transaction_by_type(Transaction.transaction_type()) :: {:ok, pid()}
@@ -121,6 +129,14 @@ defmodule Uniris.PubSub do
   @spec register_to_new_transaction_number :: {:ok, pid()}
   def register_to_new_transaction_number do
     Registry.register(PubSubRegistry, :new_transaction_number, [])
+  end
+
+  @doc """
+  Register to a new oracle data
+  """
+  @spec register_to_oracle_data :: {:ok, pid()}
+  def register_to_oracle_data do
+    Registry.register(PubSubRegistry, :new_oracle_data, [])
   end
 
   defp dispatch(topic, message) do

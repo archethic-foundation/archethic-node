@@ -14,6 +14,8 @@ defmodule Uniris.Contracts.Worker do
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Node
 
+  alias Uniris.PubSub
+
   alias Uniris.Replication
 
   alias Uniris.TransactionChain
@@ -28,7 +30,7 @@ defmodule Uniris.Contracts.Worker do
   use GenServer
 
   def start_link(contract = %Contract{constants: %Constants{contract: constants}}) do
-    GenServer.start_link(__MODULE__, contract, name: via_tuple(Keyword.get(constants, :address)))
+    GenServer.start_link(__MODULE__, contract, name: via_tuple(Map.get(constants, "address")))
   end
 
   @doc """
@@ -43,8 +45,18 @@ defmodule Uniris.Contracts.Worker do
   end
 
   def init(contract = %Contract{triggers: triggers}) do
-    Enum.each(triggers, &schedule_trigger(self(), &1))
-    {:ok, %{contract: contract}}
+    state =
+      Enum.reduce(triggers, %{contract: contract}, fn trigger = %Trigger{type: type}, acc ->
+        case schedule_trigger(trigger) do
+          timer when is_reference(timer) ->
+            Map.update(acc, :timers, %{type => timer}, &Map.put(&1, type, timer))
+
+          _ ->
+            acc
+        end
+      end)
+
+    {:ok, state}
   end
 
   def handle_call(
@@ -64,39 +76,37 @@ defmodule Uniris.Contracts.Worker do
       contract: Base.encode16(Keyword.get(contract_constants, :address))
     )
 
-    case Enum.find(triggers, &(&1.type == :transaction)) do
-      nil ->
-        Logger.info("No transaction trigger for this contract")
-        {:reply, {:error, :no_transaction_trigger}, state}
+    if Enum.any?(triggers, &(&1.type == :transaction)) do
+      constants = %{
+        "contract" => contract_constants,
+        "transaction" => Constants.from_transaction(incoming_tx)
+      }
 
-      %Trigger{} ->
-        incoming_transaction_constants = Constants.from_transaction(incoming_tx)
-
-        constants = Keyword.merge([contract: contract_constants], incoming_transaction_constants)
-
-        stringified_transaction_condition =
-          case transaction_condition do
-            nil ->
-              ""
-
-            _ ->
-              Macro.to_string(transaction_condition)
-          end
-
-        if Interpreter.can_execute?(stringified_transaction_condition, constants) do
-          constants = [transaction: incoming_transaction_constants, contract: contract_constants]
-
-          Task.start(fn ->
-            contract
-            |> Interpreter.execute_actions(:transaction, constants)
-            |> chain_transaction()
-            |> handle_new_transaction()
-          end)
+      case transaction_condition do
+        nil ->
+          contract
+          |> Interpreter.execute_actions(:transaction, constants)
+          |> chain_transaction()
+          |> handle_new_transaction()
 
           {:reply, :ok, state}
-        else
-          {:reply, {:error, :invalid_condition}, state}
-        end
+
+        _ ->
+          case Interpreter.execute(transaction_condition, Map.get(constants, "transaction")) do
+            true ->
+              contract
+              |> Interpreter.execute_actions(:transaction, constants)
+              |> chain_transaction()
+              |> handle_new_transaction()
+
+              {:reply, :ok, state}
+
+            _ ->
+              {:reply, {:error, :invalid_condition}, state}
+          end
+      end
+    else
+      {:reply, {:error, :no_transaction_trigger}, state}
     end
   end
 
@@ -106,21 +116,21 @@ defmodule Uniris.Contracts.Worker do
           contract:
             contract = %Contract{
               constants: %Constants{contract: contract_constants}
-            }
+            },
+          timers: %{datetime: timer}
         }
       ) do
     Logger.info("Execute contract datetime trigger actions",
       contract: Base.encode16(Keyword.get(contract_constants, :address))
     )
 
-    Task.start(fn ->
-      contract
-      |> Interpreter.execute_actions(:datetime, contract_constants)
-      |> chain_transaction()
-      |> handle_new_transaction()
-    end)
+    contract
+    |> Interpreter.execute_actions(:datetime, contract_constants)
+    |> chain_transaction()
+    |> handle_new_transaction()
 
-    {:noreply, state}
+    Process.cancel_timer(timer)
+    {:noreply, Map.update!(state, :timers, &Map.delete(&1, :datetime))}
   end
 
   def handle_info(
@@ -137,36 +147,78 @@ defmodule Uniris.Contracts.Worker do
     )
 
     # Schedule the next interval trigger
-    pid = self()
-    Task.start(fn -> schedule_trigger(pid, trigger) end)
+    interval_timer = schedule_trigger(trigger)
 
-    Task.start(fn ->
-      contract
-      |> Interpreter.execute_actions(:interval, contract_constants)
-      |> chain_transaction()
-      |> handle_new_transaction()
-    end)
+    contract
+    |> Interpreter.execute_actions(:interval, contract_constants)
+    |> chain_transaction()
+    |> handle_new_transaction()
 
-    {:noreply, state}
+    {:noreply, put_in(state, [:timers, :interval], interval_timer)}
+  end
+
+  def handle_info(
+        {:new_oracle_data, data},
+        state = %{
+          contract:
+            contract = %Contract{
+              triggers: triggers,
+              constants: %Constants{contract: contract_constants = %{"address" => address}},
+              conditions: %Conditions{oracle: oracle_condition}
+            }
+        }
+      ) do
+    Logger.info("Execute contract oracle trigger actions", contract: Base.encode16(address))
+
+    if Enum.any?(triggers, &(&1.type == :oracle)) do
+      constants = %{"contract" => contract_constants, "data" => data}
+
+      case oracle_condition do
+        nil ->
+          contract
+          |> Interpreter.execute_actions(:oracle, constants)
+          |> chain_transaction()
+          |> handle_new_transaction()
+
+          {:noreply, state}
+
+        _ ->
+          case Interpreter.execute(oracle_condition, %{"data" => data}) do
+            true ->
+              contract
+              |> Interpreter.execute_actions(:oracle, constants)
+              |> chain_transaction()
+              |> handle_new_transaction()
+
+              {:noreply, state}
+
+            _ ->
+              {:noreply, state}
+          end
+      end
+    else
+      {:noreply, state}
+    end
   end
 
   defp via_tuple(address) do
     {:via, Registry, {ContractRegistry, address}}
   end
 
-  defp schedule_trigger(pid, trigger = %Trigger{type: :interval, opts: [at: interval]}) do
-    Process.send_after(pid, trigger, Utils.time_offset(interval) * 1000)
+  defp schedule_trigger(trigger = %Trigger{type: :interval, opts: [at: interval]}) do
+    Process.send_after(self(), trigger, Utils.time_offset(interval) * 1000)
   end
 
-  defp schedule_trigger(
-         pid,
-         trigger = %Trigger{type: :datetime, opts: [at: datetime = %DateTime{}]}
-       ) do
+  defp schedule_trigger(trigger = %Trigger{type: :datetime, opts: [at: datetime = %DateTime{}]}) do
     seconds = DateTime.diff(datetime, DateTime.utc_now())
-    Process.send_after(pid, trigger, seconds * 1000)
+    Process.send_after(self(), trigger, seconds * 1000)
   end
 
-  defp schedule_trigger(_, _), do: :ok
+  defp schedule_trigger(%Trigger{type: :oracle}) do
+    PubSub.register_to_oracle_data()
+  end
+
+  defp schedule_trigger(_), do: :ok
 
   defp handle_new_transaction(e = {:error, _}) do
     Logger.error("#{inspect(e)}")
@@ -176,10 +228,8 @@ defmodule Uniris.Contracts.Worker do
 
   defp dispatch_transaction(%Contract{
          next_transaction: next_tx,
-         constants: %Constants{contract: contract_constants}
+         constants: %Constants{contract: %{"address" => contract_address}}
        }) do
-    contract_address = Keyword.get(contract_constants, :address)
-
     [%Node{first_public_key: key}] =
       Replication.chain_storage_nodes(contract_address, P2P.list_nodes(availability: :global))
 
@@ -200,15 +250,18 @@ defmodule Uniris.Contracts.Worker do
 
   defp chain_transaction(
          contract = %Contract{
-           constants: %Constants{contract: contract_constants}
+           constants: %Constants{
+             contract: %{
+               "address" => address,
+               "authorized_keys" => authorized_keys,
+               "secret" => secret
+             }
+           }
          }
        ) do
-    address = Keyword.get(contract_constants, :address)
-    authorized_keys = Keyword.get(contract_constants, :authorized_keys)
-    secret = Keyword.get(contract_constants, :secret)
-
     %Contract{next_transaction: %Transaction{type: new_type, data: new_data}} =
       contract
+      |> chain_type()
       |> chain_code()
       |> chain_content()
       |> chain_secret()
@@ -227,66 +280,60 @@ defmodule Uniris.Contracts.Worker do
     end
   end
 
-  defp chain_code(
+  defp chain_type(
          contract = %Contract{
-           next_transaction: new_tx = %Transaction{data: %TransactionData{code: new_code}},
-           constants: %Constants{contract: contract_constants}
+           next_transaction: new_tx = %Transaction{type: nil},
+           constants: %Constants{contract: %{"type" => previous_type}}
          }
        ) do
-    case new_code do
-      "" ->
-        previous_code = Keyword.get(contract_constants, :code, "")
-        new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:code)], previous_code)
-        %{contract | next_transaction: new_tx}
-
-      _ ->
-        contract
-    end
+    new_tx = %{new_tx | type: previous_type}
+    %{contract | next_transaction: new_tx}
   end
+
+  defp chain_type(contract), do: contract
+
+  defp chain_code(
+         contract = %Contract{
+           next_transaction: new_tx = %Transaction{data: %TransactionData{code: ""}},
+           constants: %Constants{contract: %{"code" => previous_code}}
+         }
+       ) do
+    new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:code)], previous_code)
+    %{contract | next_transaction: new_tx}
+  end
+
+  defp chain_code(contract), do: contract
 
   defp chain_content(
          contract = %Contract{
-           next_transaction: new_tx = %Transaction{data: %TransactionData{content: content}},
-           constants: %Constants{contract: contract_constants}
+           next_transaction: new_tx = %Transaction{data: %TransactionData{content: ""}},
+           constants: %Constants{contract: %{"previous_content" => previous_content}}
          }
-       )
-       when is_list(contract_constants) do
-    case content do
-      "" ->
-        previous_content = Keyword.get(contract_constants, :content, "")
-        new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:content)], previous_content)
-        %{contract | next_transaction: new_tx}
-
-      _ ->
-        contract
-    end
+       ) do
+    new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:content)], previous_content)
+    %{contract | next_transaction: new_tx}
   end
+
+  defp chain_content(contract), do: contract
 
   defp chain_secret(
          contract = %Contract{
            next_transaction:
-             new_tx = %Transaction{data: %TransactionData{keys: %Keys{secret: secret}}},
-           constants: %Constants{contract: contract_constants}
+             new_tx = %Transaction{data: %TransactionData{keys: %Keys{secret: ""}}},
+           constants: %Constants{contract: %{"secret" => previous_secret}}
          }
-       )
-       when is_list(contract_constants) do
-    case secret do
-      "" ->
-        previous_secret = Keyword.get(contract_constants, :secret, "")
+       ) do
+    new_tx =
+      put_in(
+        new_tx,
+        [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secret)],
+        previous_secret
+      )
 
-        new_tx =
-          put_in(
-            new_tx,
-            [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secret)],
-            previous_secret
-          )
-
-        %{contract | next_transaction: new_tx}
-
-      _ ->
-        contract
-    end
+    %{contract | next_transaction: new_tx}
   end
+
+  defp chain_secret(contract), do: contract
 
   defp chain_authorized_keys(
          contract = %Contract{
@@ -294,23 +341,19 @@ defmodule Uniris.Contracts.Worker do
              new_tx = %Transaction{
                data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys}}
              },
-           constants: %Constants{contract: contract_constants}
+           constants: %Constants{contract: %{"authorized_keys" => previous_authorized_keys}}
          }
        )
-       when is_list(contract_constants) do
-    if map_size(authorized_keys) == 0 do
-      previous_authorized_keys = Keyword.get(contract_constants, :authorized_keys, %{})
+       when map_size(authorized_keys) == 0 do
+    new_tx =
+      put_in(
+        new_tx,
+        [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:authorized_keys)],
+        previous_authorized_keys
+      )
 
-      new_tx =
-        put_in(
-          new_tx,
-          [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:authorized_keys)],
-          previous_authorized_keys
-        )
-
-      %{contract | next_transaction: new_tx}
-    else
-      contract
-    end
+    %{contract | next_transaction: new_tx}
   end
+
+  defp chain_authorized_keys(contract), do: contract
 end

@@ -1,45 +1,22 @@
-defmodule Uniris.Contracts.Interpreter.ActionStatements do
+defmodule Uniris.Contracts.Interpreter.TransactionStatements do
   @moduledoc false
 
   alias Uniris.Contracts.Contract
 
-  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData.NFTLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
-
-  @doc """
-  Return the atom used in the action statements
-  """
-  @spec allowed_atoms() :: list(atom())
-  def allowed_atoms do
-    [
-      :set_type,
-      :add_uco_transfer,
-      :add_nft_transfer,
-      :set_content,
-      :set_code,
-      :set_secret,
-      :add_authorized_key,
-      :add_recipient,
-      :to,
-      :amount,
-      :nft,
-      :public_key,
-      :encrypted_secret_key
-    ]
-  end
 
   @doc """
   Set the transaction type
 
   ## Examples
 
-       iex> ActionStatements.set_type(%Contract{}, :transfer)
+       iex> TransactionStatements.set_type(%Contract{}, "transfer")
        %Contract{ next_transaction: %Transaction{type: :transfer, data: %TransactionData{}} }
   """
-  @spec set_type(Contract.t(), Transaction.transaction_type()) :: Contract.t()
-  def set_type(contract = %Contract{}, type) do
-    put_in(contract, access_path([:next_transaction, :type]), type)
+  @spec set_type(Contract.t(), binary()) :: Contract.t()
+  def set_type(contract = %Contract{}, type) when is_binary(type) do
+    put_in(contract, access_path([:next_transaction, :type]), String.to_existing_atom(type))
   end
 
   @doc """
@@ -47,10 +24,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-      iex> ActionStatements.add_uco_transfer(%Contract{}, 
-      ...>  to: "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10", 
-      ...>  amount: 10.04
-      ...> )
+      iex> TransactionStatements.add_uco_transfer(%Contract{}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 10.04}])
       %Contract{
           next_transaction: %Transaction{
             data: %TransactionData{
@@ -69,11 +43,9 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
         }
       }
   """
-  @spec add_uco_transfer(Contract.t(), to: binary(), amount: float()) :: Contract.t()
-  def add_uco_transfer(contract = %Contract{}, opts \\ []) when is_list(opts) do
-    to = Keyword.fetch!(opts, :to)
-    amount = Keyword.fetch!(opts, :amount)
-
+  @spec add_uco_transfer(Contract.t(), list()) :: Contract.t()
+  def add_uco_transfer(contract = %Contract{}, [{"to", to}, {"amount", amount}])
+      when is_binary(to) and is_float(amount) do
     update_in(
       contract,
       access_path([:next_transaction, :data, :ledger, :uco, :transfers]),
@@ -86,11 +58,11 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-      iex> ActionStatements.add_nft_transfer(%Contract{},
-      ...>   to: "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10", 
-      ...>   amount: 10.0, 
-      ...>   nft: "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"
-      ...> )
+      iex> TransactionStatements.add_nft_transfer(%Contract{}, [
+      ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
+      ...>   {"amount", 10.0},
+      ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"}
+      ...> ])
       %Contract{
           next_transaction: %Transaction{
             data: %TransactionData{
@@ -101,7 +73,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
                               to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
                                 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
                               amount: 10.0,
-                              nft: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243, 
+                              nft: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
                                 189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>
                           }
                       ]
@@ -111,13 +83,10 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
         }
       }
   """
-  @spec add_nft_transfer(Contract.t(), to: binary(), amount: float(), nft: binary()) ::
+  @spec add_nft_transfer(Contract.t(), list()) ::
           Contract.t()
-  def add_nft_transfer(contract = %Contract{}, opts \\ []) when is_list(opts) do
-    to = Keyword.fetch!(opts, :to)
-    amount = Keyword.fetch!(opts, :amount)
-    nft_address = Keyword.fetch!(opts, :nft)
-
+  def add_nft_transfer(contract = %Contract{}, [{"to", to}, {"amount", amount}, {"nft", nft}])
+      when is_binary(to) and is_binary(nft) and is_float(amount) do
     update_in(
       contract,
       access_path([:next_transaction, :data, :ledger, :nft, :transfers]),
@@ -125,7 +94,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
         %NFTLedger.Transfer{
           to: decode_binary(to),
           amount: amount,
-          nft: decode_binary(nft_address)
+          nft: decode_binary(nft)
         }
         | &1
       ]
@@ -137,7 +106,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-        iex> ActionStatements.set_content(%Contract{}, "hello")
+        iex> TransactionStatements.set_content(%Contract{}, "hello")
         %Contract{
             next_transaction: %Transaction{
                 data: %TransactionData{
@@ -155,7 +124,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-        iex> ActionStatements.set_code(%Contract{}, "condition origin_family: biometric")
+        iex> TransactionStatements.set_code(%Contract{}, "condition origin_family: biometric")
         %Contract{
             next_transaction: %Transaction{
                 data: %TransactionData{
@@ -173,17 +142,17 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-      iex> ActionStatements.add_authorized_key(%Contract{},
-      ...>   public_key: "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10", 
-      ...>   encrypted_secret_key: "FB49F76933689ECC9D260D57C2BEF9489234FE72DD2ED1C77E2E8B4E94D9137F"
-      ...> )
+      iex> TransactionStatements.add_authorized_key(%Contract{}, [
+      ...>   {"public_key", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
+      ...>   {"encrypted_secret_key", "FB49F76933689ECC9D260D57C2BEF9489234FE72DD2ED1C77E2E8B4E94D9137F"}
+      ...> ])
       %Contract{
           next_transaction: %Transaction{
             data: %TransactionData{
                 keys: %Keys{
                     authorized_keys: %{
                         <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
-                            103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>> => 
+                            103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>> =>
                                 <<251, 73, 247, 105, 51, 104, 158, 204, 157, 38, 13, 87, 194, 190, 249, 72, 146,
                                 52, 254, 114, 221, 46, 209, 199, 126, 46, 139, 78, 148, 217, 19, 127>>
                     }
@@ -192,12 +161,13 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
         }
       }
   """
-  @spec add_authorized_key(Contract.t(), public_key: binary(), encrypted_secret_key: binary()) ::
+  @spec add_authorized_key(Contract.t(), list()) ::
           Contract.t()
-  def add_authorized_key(contract = %Contract{}, opts \\ []) when is_list(opts) do
-    public_key = Keyword.fetch!(opts, :public_key)
-    encrypted_secret_key = Keyword.fetch!(opts, :encrypted_secret_key)
-
+  def add_authorized_key(contract = %Contract{}, [
+        {"public_key", public_key},
+        {"encrypted_secret_key", encrypted_secret_key}
+      ])
+      when is_binary(public_key) and is_binary(encrypted_secret_key) do
     update_in(
       contract,
       access_path([:next_transaction, :data, :keys, :authorized_keys]),
@@ -210,7 +180,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-      iex> ActionStatements.set_secret(%Contract{}, "mysecret")
+      iex> TransactionStatements.set_secret(%Contract{}, "mysecret")
       %Contract{
           next_transaction: %Transaction{
             data: %TransactionData{
@@ -235,7 +205,7 @@ defmodule Uniris.Contracts.Interpreter.ActionStatements do
 
   ## Examples
 
-      iex> ActionStatements.add_recipient(%Contract{}, "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10")
+      iex> TransactionStatements.add_recipient(%Contract{}, "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10")
       %Contract{
         next_transaction: %Transaction{
           data: %TransactionData{

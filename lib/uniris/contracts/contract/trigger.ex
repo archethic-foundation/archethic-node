@@ -9,7 +9,7 @@ defmodule Uniris.Contracts.Contract.Trigger do
   @type interval :: binary()
   @type address :: binary()
 
-  @type type() :: :datetime | :interval | :transaction
+  @type type() :: :datetime | :interval | :transaction | :oracle
 
   @type t :: %__MODULE__{
           type: type(),

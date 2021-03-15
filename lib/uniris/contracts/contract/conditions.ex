@@ -6,7 +6,8 @@ defmodule Uniris.Contracts.Contract.Conditions do
   defstruct [
     :transaction,
     :origin_family,
-    inherit: []
+    :oracle,
+    :inherit
   ]
 
   alias Uniris.SharedSecrets
@@ -19,16 +20,8 @@ defmodule Uniris.Contracts.Contract.Conditions do
   """
   @type t :: %__MODULE__{
           transaction: Macro.t(),
-          inherit:
-            list(
-              {:code
-               | :secret
-               | :content
-               | :uco_transferred
-               | :nft_transferred
-               | :uco_transfers
-               | :nft_transfers, Macro.t()}
-            ),
-          origin_family: nil | SharedSecrets.origin_family()
+          inherit: Macro.t(),
+          origin_family: nil | SharedSecrets.origin_family(),
+          oracle: Macro.t()
         }
 end

@@ -41,9 +41,53 @@ defmodule Uniris.Contracts do
       {:ok,
         %Contract{
           conditions: %Conditions{
-            inherit: [
-              content: {:regex_match?, [line: 4], ["^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]}
-            ],
+            inherit: {
+                    :and,
+                    [line: 0],
+                    [
+                      {
+                        :and,
+                        [line: 0],
+                        [
+                          {
+                            :and,
+                            [line: 0],
+                            [
+                              {
+                                :and,
+                                [line: 0],
+                                [
+                                  {
+                                    :and,
+                                    [line: 0],
+                                    [
+                                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "code"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "code"]]}]},
+                                      {
+                                        :==,
+                                        [line: 4],
+                                        [
+                                          {
+                                            {:., [line: 4], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
+                                            [line: 4],
+                                            [{:get_in, [line: 4], [{:scope, [line: 4], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]
+                                          },
+                                          {:get_in, [line: 4], [{:scope, [line: 4], nil}, ["next", "content"]]}
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "nft_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "nft_transfers"]]}]}
+                                ]
+                              },
+                              {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "secret"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "secret"]]}]}
+                            ]
+                          },
+                          {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "type"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "type"]]}]}
+                        ]
+                      },
+                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "uco_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "uco_transfers"]]}]}
+                    ]
+                  },
             origin_family: :biometric,
             transaction: nil
           },
@@ -54,8 +98,22 @@ defmodule Uniris.Contracts do
           triggers: [
             %Trigger{
               actions: {:__block__, [], [
-                {:set_type, [line: 7], [{:hosting, [line: 7], nil}]},
-                {:set_content, [line: 8], ["Mr.X: 10, Mr.Y: 8"]}
+                {
+                  :=,
+                  [line: 7],
+                  [
+                    {:scope, [line: 7], nil},
+                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["contract"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
+                  ]
+                },
+                {
+                  :=,
+                  [line: 8],
+                  [
+                    {:scope, [line: 8], nil},
+                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["contract"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
+                  ]
+                }
               ]},
               opts: [at: ~U[2020-09-25 13:18:43Z]],
               type: :datetime
@@ -113,25 +171,19 @@ defmodule Uniris.Contracts do
        conditions: %Conditions{inherit: inherit_constraints}
      }} = Interpreter.parse(code)
 
-    constants = [
-      previous: Constants.from_transaction(prev_tx),
-      next: Constants.from_transaction(next_tx)
-    ]
+    constants = %{
+      "prev" => Constants.from_transaction(prev_tx),
+      "next" => Constants.from_transaction(next_tx)
+    }
 
-    default_inherit_conditions = [
-      code: nil,
-      content: nil,
-      uco_transfers: nil,
-      nft_transfer: nil
-    ]
-
-    inherit_conditions = Keyword.merge(default_inherit_conditions, inherit_constraints)
-
-    with {:inherit, true} <-
-           {:inherit, Enum.all?(inherit_conditions, &do_valid_condition?(&1, constants))},
+    with {:inherit, true} <- {:inherit, Interpreter.execute(inherit_constraints, constants)},
          {:origin, true} <- {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx))} do
       true
     else
+      {:inherit, nil} ->
+        Logger.error("Inherit constraints not respected")
+        false
+
       {:inherit, false} ->
         Logger.error("Inherit constraints not respected")
         false
@@ -139,23 +191,6 @@ defmodule Uniris.Contracts do
       {:origin, false} ->
         Logger.error("Transaction not processed by a valid smart contract trigger")
         false
-    end
-  end
-
-  defp do_valid_condition?({field, nil}, previous: prev, next: next) do
-    Keyword.get(prev, field) == Keyword.get(next, field)
-  end
-
-  defp do_valid_condition?({field, value}, constants) do
-    next = Keyword.get(constants, :next)
-    subject = Keyword.get(next, field)
-
-    result = Interpreter.execute_inherit_condition(Macro.to_string(value), subject)
-
-    if is_boolean(result) do
-      result == true
-    else
-      result == Keyword.get(next, field)
     end
   end
 

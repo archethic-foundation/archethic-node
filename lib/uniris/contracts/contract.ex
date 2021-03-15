@@ -20,7 +20,7 @@ defmodule Uniris.Contracts.Contract do
             next_transaction: %Transaction{data: %TransactionData{}}
 
   @type trigger_type() :: :datetime | :interval | :transaction
-  @type condition() :: :origin_family | :transaction | :inherit
+  @type condition() :: :origin_family | :transaction | :inherit | :oracle
   @type origin_family :: SharedSecrets.origin_family()
 
   @type t() :: %__MODULE__{
@@ -66,6 +66,10 @@ defmodule Uniris.Contracts.Contract do
     do_add_trigger(contract, %Trigger{type: :transaction, actions: actions})
   end
 
+  def add_trigger(contract = %__MODULE__{}, :oracle, _, actions) do
+    do_add_trigger(contract, %Trigger{type: :oracle, actions: actions})
+  end
+
   defp do_add_trigger(contract, trigger = %Trigger{}) do
     Map.update!(contract, :triggers, &(&1 ++ [trigger]))
   end
@@ -87,8 +91,15 @@ defmodule Uniris.Contracts.Contract do
         contract = %__MODULE__{conditions: conditions = %Conditions{}},
         :inherit,
         inherit_conditions
-      )
-      when is_list(inherit_conditions) do
+      ) do
     %{contract | conditions: %{conditions | inherit: inherit_conditions}}
+  end
+
+  def add_condition(
+        contract = %__MODULE__{conditions: conditions = %Conditions{}},
+        :oracle,
+        macro
+      ) do
+    %{contract | conditions: %{conditions | oracle: macro}}
   end
 end

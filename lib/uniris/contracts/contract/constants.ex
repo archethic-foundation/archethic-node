@@ -6,8 +6,8 @@ defmodule Uniris.Contracts.Contract.Constants do
   defstruct [:contract, :transaction]
 
   @type t :: %__MODULE__{
-          contract: Keyword.t(),
-          transaction: Keyword.t() | nil
+          contract: map(),
+          transaction: map() | nil
         }
 
   alias Uniris.TransactionChain.Transaction
@@ -18,9 +18,9 @@ defmodule Uniris.Contracts.Contract.Constants do
   alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   @doc """
-  Extract constants from a transaction into a list
+  Extract constants from a transaction into a map
   """
-  @spec from_transaction(Transaction.t()) :: Keyword.t()
+  @spec from_transaction(Transaction.t()) :: map()
   def from_transaction(%Transaction{
         address: address,
         timestamp: timestamp,
@@ -44,23 +44,21 @@ defmodule Uniris.Contracts.Contract.Constants do
           recipients: recipients
         }
       }) do
-    [
-      address: address,
-      type: type,
-      timestamp: timestamp,
-      content: content,
-      code: code,
-      authorized_keys: authorized_keys,
-      secret: secret,
-      previous_public_key: previous_public_key,
-      recipients: recipients,
-      uco_transferred: Enum.reduce(uco_transfers, 0.0, &(&1.amount + &2)),
-      nft_transferred: Enum.reduce(nft_transfers, 0.0, &(&1.amount + &2)),
-      uco_transfers:
+    %{
+      "address" => address,
+      "type" => type,
+      "timestamp" => timestamp,
+      "content" => content,
+      "code" => code,
+      "authorized_keys" => authorized_keys,
+      "secret" => secret,
+      "previous_public_key" => previous_public_key,
+      "recipients" => recipients,
+      "uco_transfers" =>
         uco_transfers
         |> Enum.map(fn %UCOLedger.Transfer{to: to, amount: amount} -> {to, amount} end)
         |> Enum.into(%{}),
-      nft_transfers:
+      "nft_transfers" =>
         nft_transfers
         |> Enum.map(fn %NFTLedger.Transfer{
                          to: to,
@@ -70,6 +68,6 @@ defmodule Uniris.Contracts.Contract.Constants do
           {to, %{amount: amount, nft: nft_address}}
         end)
         |> Enum.into(%{})
-    ]
+    }
   end
 end

@@ -92,7 +92,12 @@ defmodule Uniris.SelfRepair.Scheduler do
       "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
     )
 
-    {:noreply, Map.put(state, :last_sync_date, update_last_sync_date()), :hibernate}
+    new_state =
+      state
+      |> Map.put(:last_sync_date, update_last_sync_date())
+      |> Map.put(:timer, timer)
+
+    {:noreply, new_state, :hibernate}
   end
 
   defp get_node_patch do

@@ -46,13 +46,13 @@ defmodule Uniris.OracleChain.Scheduler do
       ) do
     Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
 
-    polling_scheduler = schedule_new_polling(polling_interval)
-    summary_scheduler = schedule_new_summary(summary_interval)
+    polling_timer = schedule_new_polling(polling_interval)
+    summary_timer = schedule_new_summary(summary_interval)
 
     new_state =
       state
-      |> Map.put(:polling_scheduler, polling_scheduler)
-      |> Map.put(:summary_scheduler, summary_scheduler)
+      |> Map.put(:polling_timer, polling_timer)
+      |> Map.put(:summary_timer, summary_timer)
 
     Logger.info("Start the Oracle scheduler")
 
@@ -63,7 +63,7 @@ defmodule Uniris.OracleChain.Scheduler do
   defp cancel_timer(timer), do: Process.cancel_timer(timer)
 
   def handle_info(:poll, state = %{polling_interval: interval}) do
-    schedule_new_polling(interval)
+    timer = schedule_new_polling(interval)
 
     date = DateTime.utc_now() |> Utils.truncate_datetime()
 
@@ -72,19 +72,19 @@ defmodule Uniris.OracleChain.Scheduler do
       me = self()
 
       previous_date = Map.get(state, :last_poll_date) || date
-      Task.start(fn -> handle_new_polling(me, previous_date, date) end)
+      handle_new_polling(me, previous_date, date)
     end
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :polling_timer, timer), :hibernate}
   end
 
   def handle_info(:summary, state = %{summary_interval: interval, last_poll_date: last_poll_date}) do
-    schedule_new_summary(interval)
+    timer = schedule_new_summary(interval)
 
     date = DateTime.utc_now() |> Utils.truncate_datetime()
 
     if trigger_node?(date) do
-      Task.start(fn -> handle_new_summary(last_poll_date, date) end)
+      handle_new_summary(last_poll_date, date)
     end
 
     me = self()
@@ -94,7 +94,7 @@ defmodule Uniris.OracleChain.Scheduler do
       send(me, :clean_polling_date)
     end)
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :summary_timer, timer), :hibernate}
   end
 
   def handle_info(:summary, state), do: {:noreply, state}

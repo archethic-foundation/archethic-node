@@ -26,6 +26,8 @@ defmodule Uniris.Contracts.WorkerTest do
   alias Uniris.TransactionChain.TransactionData.UCOLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
+  alias Uniris.PubSub
+
   import Mox
 
   setup do
@@ -60,17 +62,17 @@ defmodule Uniris.Contracts.WorkerTest do
 
     secret = Crypto.aes_encrypt(transaction_seed, aes_key)
 
-    constants = [
-      address: "@SC1",
-      authorized_keys: %{
+    constants = %{
+      "address" => "@SC1",
+      "authorized_keys" => %{
         Crypto.storage_nonce_public_key() =>
           Crypto.ec_encrypt(aes_key, Crypto.storage_nonce_public_key())
       },
-      secret: secret,
-      content: "",
-      uco_transferred: 0.0,
-      nft_transferred: 0.0
-    ]
+      "secret" => secret,
+      "content" => "",
+      "uco_transferred" => 0.0,
+      "nft_transferred" => 0.0
+    }
 
     expected_tx = %Transaction{
       address: next_address,
@@ -110,7 +112,7 @@ defmodule Uniris.Contracts.WorkerTest do
     } do
       code = """
       condition inherit,
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
 
       actions triggered_by: datetime, at: #{
         DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()
@@ -124,7 +126,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Keyword.put(constants, :code, code)}
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -145,7 +147,7 @@ defmodule Uniris.Contracts.WorkerTest do
     } do
       code = """
       condition inherit,
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
 
       actions triggered_by: interval, at: "* * * * * *" do
         set_type transfer
@@ -157,7 +159,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Keyword.put(constants, :code, code)}
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -184,7 +186,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
   describe "execute/2" do
     test "should return an error when not transaction trigger has been defined", %{
-      constants: constants = [{:address, contract_address} | _]
+      constants: constants = %{"address" => contract_address}
     } do
       contract = %Contract{
         constants: %Constants{contract: constants}
@@ -199,12 +201,12 @@ defmodule Uniris.Contracts.WorkerTest do
     end
 
     test "should execute a transaction trigger code using an incoming transaction", %{
-      constants: constants = [{:address, contract_address} | _],
+      constants: constants = %{"address" => contract_address},
       expected_tx: expected_tx
     } do
       code = """
       condition inherit,
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
 
       actions triggered_by: transaction do
         set_type transfer
@@ -216,7 +218,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Keyword.put(constants, :code, code)}
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -240,14 +242,14 @@ defmodule Uniris.Contracts.WorkerTest do
 
     test "should check transaction condition before to execute a transaction trigger code using an incoming transaction",
          %{
-           constants: constants = [{:address, contract_address} | _],
+           constants: constants = %{"address" => contract_address},
            expected_tx: expected_tx
          } do
       code = """
       condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
 
       condition inherit,
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
 
       actions triggered_by: transaction do
         set_type transfer
@@ -259,7 +261,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Keyword.put(constants, :code, code)}
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -290,14 +292,14 @@ defmodule Uniris.Contracts.WorkerTest do
     end
 
     test "should return a different code if set in the smart contract code", %{
-      constants: constants = [{:address, contract_address} | _],
+      constants: constants = %{"address" => contract_address},
       expected_tx: expected_tx
     } do
       code = ~s"""
       condition transaction: regex_match?(content, "^Mr.Y|Mr.X{1}$")
 
       condition inherit,
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
 
       actions triggered_by: transaction do
         set_type transfer
@@ -306,7 +308,7 @@ defmodule Uniris.Contracts.WorkerTest do
           condition transaction: regex_match?(content, \\"^Mr.Y|Mr.X{1}$\\")
 
           condition inherit,
-            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\": 9.20}
+            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9.20}
 
           actions triggered_by: transaction do
             set_type transfer
@@ -319,7 +321,7 @@ defmodule Uniris.Contracts.WorkerTest do
 
       contract = %{
         contract
-        | constants: %Constants{contract: Keyword.put(constants, :code, code)}
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
       }
 
       {:ok, _pid} = Worker.start_link(contract)
@@ -338,7 +340,7 @@ defmodule Uniris.Contracts.WorkerTest do
     condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
 
     condition inherit,
-      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\": 9.20}
+      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9.20}
 
     actions triggered_by: transaction do
       set_type transfer
@@ -347,6 +349,40 @@ defmodule Uniris.Contracts.WorkerTest do
       after
         3_000 ->
           raise "Timeout"
+      end
+    end
+
+    test "should execute actions based on an oracle trigger", %{
+      constants: constants = %{"address" => _contract_address}
+    } do
+      code = ~S"""
+      condition oracle: json_path_extract("$.uco.eur") > 0.20
+
+      condition inherit,
+        content: regex_match?("(price increased).([0-9]+.[0-9]+)")
+
+      actions triggered_by: oracle do
+        uco_price = json_path_extract(data, "$.uco.eur")
+        set_content "price increased #{uco_price}"
+        set_type hosting
+      end
+      """
+
+      {:ok, contract} = Interpreter.parse(code)
+
+      contract = %{
+        contract
+        | constants: %Constants{contract: Map.put(constants, "code", code)}
+      }
+
+      {:ok, _pid} = Worker.start_link(contract)
+
+      Process.sleep(100)
+      PubSub.notify_new_oracle_data(Jason.encode!(%{"uco" => %{"eur" => 0.21}}))
+
+      receive do
+        {:transaction_sent, tx} ->
+          assert %Transaction{data: %TransactionData{content: "price increased 0.21"}} = tx
       end
     end
   end

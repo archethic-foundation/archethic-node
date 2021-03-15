@@ -113,7 +113,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
 
   @doc false
   def handle_info(:new_summary, state = %{interval: interval}) do
-    schedule_new_summary(interval)
+    timer = schedule_new_summary(interval)
 
     summary_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
@@ -124,7 +124,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
       send(pid, {:create_summary, summary_time})
     end)
 
-    {:noreply, state, :hibernate}
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   defp schedule_new_summary(interval) do
