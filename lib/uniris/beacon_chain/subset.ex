@@ -8,6 +8,7 @@ defmodule Uniris.BeaconChain.Subset do
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.P2P
+  alias Uniris.P2P.Message.Ok
 
   alias Uniris.Crypto
 
@@ -83,11 +84,9 @@ defmodule Uniris.BeaconChain.Subset do
     nodes =
       Enum.filter(P2P.list_nodes(), fn x -> :binary.part(x.first_public_key, 0, 1) == subset end)
 
-    message = "test"
-
     p2p_view_available =
       nodes
-      |> Task.async_stream(fn node -> P2P.send_message(node, message) end)
+      |> Task.async_stream(fn node -> P2P.send_message(node, %Ok{}) end)
       |> Enum.map(fn {:ok, result} -> result end)
 
     if Slot.has_transaction?(current_slot, address) do
@@ -96,7 +95,6 @@ defmodule Uniris.BeaconChain.Subset do
       Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
         beacon_subset: Base.encode16(subset)
       )
-
       current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
       {:reply, :ok, %{state | current_slot: current_slot, p2p_view_available: p2p_view_available}}
     end
