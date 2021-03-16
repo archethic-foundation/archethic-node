@@ -77,6 +77,19 @@ To clean the environment simply remove mutable storage folder
 rm -rf data1 data2
 ```
 
+### Automation
+
+Requires working `docker-compose`
+
+To run few `uniris-node`s in testnet one could use mix task `uniris.testnet`:
+```bash
+mix uniris.testnet $(seq --format "seed%g" --separator " " 5)
+```
+
+The task will generate `docker-compose.json` (for 5 nodes with seeds: seed1, seed2, seed3, seed4, seed5), and run `docker-compose -f docker-compose.json up` which in turn will build `uniris-testnet` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.
+
+Run `mix help uniris.testnet` to see how to tweak the task.
+
 ## Contribution
 
 Thank you for considering to help out with the source code. 
