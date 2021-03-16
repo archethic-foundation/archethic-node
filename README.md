@@ -57,20 +57,24 @@ Requires Cassandra/ScyllaDB installation to use for the backend storage
 
 Requires Elixir 1.10
 
+At first, get dependencies:
+```
+mix deps.get
+```
+
 To start first node:
 ```bash
-mix deps.get
-UNIRIS_CRYPTO_SEED="node1" iex -S mix phx.server
+iex -S mix phx.server
 ```
 
 To start a second node
 ```bash
-UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 iex -S mix
+UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 UNIRIS_HTTP_PORT=4005 UNIRIS_MUT_DIR="data2" iex -S mix
 ```
 
 To clean the environment simply remove mutable storage folder
 ```bash
-rm -rf data data_test
+rm -rf data1 data2
 ```
 
 ## Contribution
