@@ -26,7 +26,9 @@ defmodule Uniris.P2P.Batcher do
   This request will be process at the end of the timeframe
   """
   @spec add_broadcast_request(list(Node.t()), Message.t()) :: :ok
-  def add_broadcast_request(nodes, request) do
+  def add_broadcast_request([], _), do: :ok
+
+  def add_broadcast_request(nodes, request) when is_list(nodes) do
     GenServer.cast(__MODULE__, {:add_broadcast_request, request, nodes})
   end
 
@@ -42,7 +44,7 @@ defmodule Uniris.P2P.Batcher do
   """
   @spec request_first_reply(list(Node.t()), Message.t()) ::
           {:ok, Message.t()} | {:error, Client.error()}
-  def request_first_reply(nodes, request) when is_list(nodes) do
+  def request_first_reply(nodes, request) when is_list(nodes) and length(nodes) > 0 do
     %Node{network_patch: patch} = P2P.get_node_info()
 
     try do
@@ -59,7 +61,8 @@ defmodule Uniris.P2P.Batcher do
 
   @spec request_first_reply(list(Node.t()), Message.t(), binary()) ::
           {:ok, Message.t()} | {:error, Client.error()}
-  def request_first_reply(nodes, request, patch) when is_list(nodes) and is_binary(patch) do
+  def request_first_reply(nodes, request, patch)
+      when is_list(nodes) and length(nodes) > 0 and is_binary(patch) do
     GenServer.call(
       __MODULE__,
       {:add_first_reply_request, request, nodes, false, patch},
@@ -81,7 +84,7 @@ defmodule Uniris.P2P.Batcher do
   """
   @spec request_first_reply_with_ack(list(Node.t()), Message.t()) ::
           {:ok, Message.t(), Node.t()} | {:error, Client.error()}
-  def request_first_reply_with_ack(nodes, request) do
+  def request_first_reply_with_ack(nodes, request) when is_list(nodes) and length(nodes) > 0 do
     %Node{network_patch: patch} = P2P.get_node_info()
 
     try do
@@ -168,7 +171,7 @@ defmodule Uniris.P2P.Batcher do
     Task.async_stream(
       queue,
       fn {node, requests} ->
-        P2P.send_message!(node, %BatchRequests{requests: requests})
+        P2P.send_message(node, %BatchRequests{requests: requests})
       end,
       ordered?: false,
       on_timeout: :kill_task
