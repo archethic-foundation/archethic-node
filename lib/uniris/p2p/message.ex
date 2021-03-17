@@ -677,7 +677,7 @@ defmodule Uniris.P2P.Message do
   end
 
   def decode(<<244::8, view_size::8, rest::bitstring>>) do
-    {nodes_view, rest} = Utils.unwrap_bitstring(rest, view_size)
+    <<nodes_view::bitstring-size(view_size), rest::bitstring>> = rest
     {%P2PView{nodes_view: nodes_view}, rest}
   end
 

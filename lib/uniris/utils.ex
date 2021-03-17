@@ -330,31 +330,35 @@ defmodule Uniris.Utils do
     <<original_bits::bitstring, 0::size(additional_bits)>>
   end
 
-  @doc """
-  Unwrap a bitstring padded
+  # @doc """
+  # Unwrap a bitstring padded
 
-  ## Examples
+  # ## Examples
 
-      # Bitstring wrapped and padded as <<128>> binary
-      iex> Utils.unwrap_bitstring(<<1::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, 2)
-      {<<1::1, 0::1>>, ""}
+  #     # Bitstring wrapped and padded as <<128>> binary
+  #     iex> Utils.unwrap_bitstring(<<1::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, 2)
+  #     {<<1::1, 0::1>>, ""}
 
-      # Bitstring wrapped and padded as <<208>> binary
-      iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
-      {<<1::1, 1::1, 0::1, 1::1>>, ""}
-  """
-  def unwrap_bitstring("", 0), do: {<<>>, <<>>}
+  #     # Bitstring wrapped and padded as <<208>> binary
+  #     iex> Utils.unwrap_bitstring(<<1::1, 1::1, 0::1, 1::1, 0::1, 0::1, 0::1, 0::1>>, 4)
+  #     {<<1::1, 1::1, 0::1, 1::1>>, ""}
 
-  def unwrap_bitstring(bitstring, data_size)
-      when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
-    wrapped_bitstring_size = bit_size(bitstring)
-    padding_bitstring_size = abs(data_size - wrapped_bitstring_size)
+  #     # Bitstring wrapped and padded as <<208, 1, 2, 3>> binary
+  #     iex> Utils.unwrap_bitstring(<<1::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 0::1, 1, 2, 3>>, 4)
+  #     {<<1::1, 0::1, 0::1, 0::1>>, <<1, 2, 3>>}
+  # """
+  # def unwrap_bitstring("", 0), do: {<<>>, <<>>}
 
-    <<data_bitstring::bitstring-size(data_size), _::bitstring-size(padding_bitstring_size),
-      rest::bitstring>> = bitstring
+  # def unwrap_bitstring(bitstring, data_size)
+  #     when is_bitstring(bitstring) and is_integer(data_size) and data_size > 0 do
+  #   wrapped_bitstring_size = Bitwise.band(data_size + 7, -8)
+  #   padding_bitstring_size = abs(data_size - wrapped_bitstring_size)
 
-    {data_bitstring, rest}
-  end
+  #   <<data_bitstring::bitstring-size(data_size), _::bitstring-size(padding_bitstring_size),
+  #     rest::bitstring>> = bitstring
+
+  #   {data_bitstring, rest}
+  # end
 
   @doc """
   Take a elements in map recursively from a list of fields to fetch
@@ -395,7 +399,10 @@ defmodule Uniris.Utils do
 
   ## Examples
 
-      iex> Utils.aggregate_bitstring(<<1::1, 0::1, 1::1, 1::1>>, <<0::1, 0::1, 1::1, 0::1>>)
+      iex> Utils.aggregate_bitstring(<<1::1, 0::1, 1::1, 1::1>>, <<0::1, 1::1, 1::1, 0::1>>)
+      <<1::1, 1::1, 1::1, 1::1>>
+
+      iex> Utils.aggregate_bitstring(<<1::1, 0::1, 1::1, 1::1>>, <<0::1, 0::1, 1::1>>)
       <<1::1, 0::1, 1::1, 1::1>>
   """
   @spec aggregate_bitstring(bitstring(), bitstring()) :: bitstring()
@@ -403,6 +410,10 @@ defmodule Uniris.Utils do
       when is_bitstring(seq1) and is_bitstring(seq2) and bit_size(seq1) == bit_size(seq2) do
     do_aggregate(seq1, seq2, 0)
   end
+
+  def aggregate_bitstring(seq1, seq2)
+      when is_bitstring(seq1) and is_bitstring(seq1) and bit_size(seq1) != bit_size(seq2),
+      do: seq1
 
   defp do_aggregate(seq1, _, index) when bit_size(seq1) == index do
     seq1
