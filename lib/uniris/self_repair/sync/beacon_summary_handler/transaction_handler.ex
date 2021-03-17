@@ -106,34 +106,19 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       when is_binary(node_patch) do
     Logger.info("Synchronize missed transaction", transaction: "#{type}@#{Base.encode16(address)}")
 
-    response =
+    {:ok, tx = %Transaction{}} =
       address
-      |> Replication.chain_storage_nodes(type, P2P.list_nodes())
+      |> Replication.chain_storage_nodes(type, P2P.list_nodes(availability: :global))
       |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
       |> P2P.reply_first(%GetTransaction{address: address})
 
-    case response do
-      {:ok, tx = %Transaction{}} ->
-        roles =
-          [
-            chain:
-              Replication.chain_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes()),
-            IO: Replication.io_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes())
-          ]
-          |> Utils.get_keys_from_value_match(true)
+    roles =
+      [
+        chain: Replication.chain_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes()),
+        IO: Replication.io_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes())
+      ]
+      |> Utils.get_keys_from_value_match(true)
 
-        case Replication.process_transaction(tx, roles, self_repair?: true) do
-          :ok ->
-            :ok
-
-          {:error, :invalid_transaction} = e ->
-            e
-        end
-
-      _ ->
-        Logger.error("Not enough nodes to satisfy the self repair transaction handling",
-          transaction: Base.encode16(address)
-        )
-    end
+    Replication.process_transaction(tx, roles, self_repair?: true)
   end
 end

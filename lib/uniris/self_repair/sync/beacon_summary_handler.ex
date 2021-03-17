@@ -52,18 +52,19 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
           {:ok, summary}
 
         _ ->
-          Logger.warn(
-            "Beacon summary at #{Utils.time_to_string(summary_time)} should be present!",
-            subset: Base.encode16(subset)
-          )
-
-          {:error, :not_found}
+          # If the node did not receive the beacon summary it can request another remote node
+          # to find it
+          download_summary(nodes, subset, summary_time, patch)
       end
     else
-      nodes
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-      |> P2P.reply_first(%GetBeaconSummary{subset: subset, date: summary_time}, patch)
+      download_summary(nodes, subset, summary_time, patch)
     end
+  end
+
+  defp download_summary(nodes, subset, summary_time, patch) do
+    nodes
+    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> P2P.reply_first(%GetBeaconSummary{subset: subset, date: summary_time}, patch)
   end
 
   @doc """
