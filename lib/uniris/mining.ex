@@ -78,13 +78,7 @@ defmodule Uniris.Mining do
   def valid_election?(tx = %Transaction{}, validation_node_public_keys)
       when is_list(validation_node_public_keys) do
     nodes = transaction_validation_nodes(tx)
-
-    elected_node_public_keys =
-      tx
-      |> Election.validation_nodes(nodes)
-      |> Enum.map(& &1.last_public_key)
-
-    elected_node_public_keys == validation_node_public_keys
+    Enum.all?(nodes, &(&1.last_public_key in validation_node_public_keys))
   end
 
   @doc """
@@ -101,7 +95,6 @@ defmodule Uniris.Mining do
 
       case validate_contract(code, Keys.list_authorized_keys(keys)) do
         :ok ->
-          :ok
           do_accept_transaction(tx)
 
         {:error, reason} ->

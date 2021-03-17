@@ -939,8 +939,8 @@ defmodule Uniris.P2P.Message do
       })
       when length(validation_nodes) > 0 do
     with :ok <- Mining.validate_pending_transaction(tx),
-         true <- Mining.valid_election?(tx, validation_nodes) do
-      {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
+         true <- Mining.valid_election?(tx, validation_nodes),
+         {:ok, _} <- Mining.start(tx, welcome_node_public_key, validation_nodes) do
       %Ok{}
     else
       _ ->
