@@ -11,6 +11,7 @@ services:
     environment:
       - UNIRIS_CRYPTO_SEED=node1
       - UNIRIS_MUT_DIR=/opt/data
+      - UNIRIS_STATIC_IP=172.16.16.101
     volumes:
       - ./data1:/opt/data
     networks:
@@ -29,6 +30,7 @@ services:
       - UNIRIS_CRYPTO_SEED=node2
       - UNIRIS_MUT_DIR=/opt/data
       - UNIRIS_P2P_SEEDS=172.16.16.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+      - UNIRIS_STATIC_IP=172.16.16.102
     volumes:
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
       - ./data2:/opt/data

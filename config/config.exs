@@ -111,6 +111,9 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     ]
   ]
 
+config :uniris, Uniris.Networking.IPLookup.Static,
+  hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
+
 config :uniris, Uniris.OracleChain,
   services: [
     uco: Uniris.OracleChain.Services.UCOPrice
