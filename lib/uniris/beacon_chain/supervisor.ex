@@ -28,7 +28,8 @@ defmodule Uniris.BeaconChain.Supervisor do
     ]
 
     static_children = [
-      {Registry, keys: :unique, name: BeaconChain.SubsetRegistry}
+      {Registry,
+       keys: :unique, name: BeaconChain.SubsetRegistry, partitions: System.schedulers_online()}
     ]
 
     children = static_children ++ Utils.configurable_children(optional_children)

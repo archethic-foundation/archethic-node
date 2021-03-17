@@ -9,7 +9,8 @@ defmodule Uniris.Mining.Supervisor do
 
   def init(_opts) do
     children = [
-      {Registry, name: Uniris.Mining.WorkflowRegistry, keys: :unique},
+      {Registry,
+       name: Uniris.Mining.WorkflowRegistry, keys: :unique, partitions: System.schedulers_online()},
       {DynamicSupervisor, strategy: :one_for_one, name: Uniris.Mining.WorkerSupervisor}
     ]
 

@@ -25,7 +25,8 @@ defmodule Uniris.P2P.Supervisor do
       Application.get_env(:uniris, BootstrappingSeeds, []) |> Keyword.fetch!(:file)
 
     optional_children = [
-      {Registry, keys: :unique, name: Uniris.P2P.ConnectionRegistry},
+      {Registry,
+       keys: :unique, name: Uniris.P2P.ConnectionRegistry, partitions: System.schedulers_online()},
       {DynamicSupervisor, name: Uniris.P2P.ConnectionSupervisor, strategy: :one_for_one},
       MemTable,
       MemTableLoader,
