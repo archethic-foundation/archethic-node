@@ -30,21 +30,25 @@ RUN mix local.rebar --force \
 
 WORKDIR /opt/code
 
+# install mix dependencies
+COPY mix.exs mix.lock ./
+RUN mix do deps.get, deps.compile
+
+# build assets
+COPY assets ./assets 
+RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error deploy
+
+COPY config ./
+RUN mix phx.digest 
+
 COPY . .
 
 RUN git config user.name uniris \
  && git config user.email uniris@uniris.io \
  && git remote add origin https://github.com/UNIRIS/uniris-node
 
-# Compile
-RUN mix deps.get \
- && cd assets \
- && npm ci \
- && npm run deploy
-
-# Release
-RUN mix phx.digest \
- && mix distillery.release
+# Compile and build release
+RUN mix distillery.release
 
 # gen PLT
 RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
