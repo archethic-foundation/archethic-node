@@ -311,7 +311,7 @@ defmodule Uniris.P2P.Message do
   end
 
   def encode(slot = %Slot{}) do
-    <<241::8, Slot.serialize(slot)::binary>>
+    <<241::8, Slot.serialize(slot)::bitstring>>
   end
 
   def encode(%LastTransactionAddress{address: address}) do
@@ -939,7 +939,8 @@ defmodule Uniris.P2P.Message do
       })
       when length(validation_nodes) > 0 do
     with :ok <- Mining.validate_pending_transaction(tx),
-         true <- Mining.valid_election?(tx, validation_nodes),
+         true <-
+           Mining.valid_election?(tx, validation_nodes),
          {:ok, _} <- Mining.start(tx, welcome_node_public_key, validation_nodes) do
       %Ok{}
     else
@@ -983,7 +984,9 @@ defmodule Uniris.P2P.Message do
         %Ok{}
 
       replication_roles ->
-        Logger.info("Replicate transaction", transaction: Base.encode16(tx.address))
+        Logger.info("Replicate transaction",
+          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+        )
 
         Task.Supervisor.start_child(
           TaskSupervisor,
