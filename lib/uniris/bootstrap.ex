@@ -174,7 +174,7 @@ defmodule Uniris.Bootstrap do
   defp update_node(ip, port, transport, patch, bootstrapping_seeds) do
     case Enum.reject(bootstrapping_seeds, &(&1.first_public_key == Crypto.node_public_key(0))) do
       [] ->
-        Logger.warn("Not enough nodes in the network. No node update")
+        Logger.warning("Not enough nodes in the network. No node update")
 
       _ ->
         closest_node =

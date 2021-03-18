@@ -36,8 +36,16 @@ RUN mix do deps.get, deps.compile
 
 # build assets
 COPY assets ./assets 
+<<<<<<< HEAD
 RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
  && npm --prefix ./assets run deploy
+=======
+RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error deploy
+
+COPY config config
+RUN mkdir -p priv/static 
+RUN mix phx.digest 
+>>>>>>> 4565ade... Fix config and priv/static for Dockerfile
 
 COPY . .
 

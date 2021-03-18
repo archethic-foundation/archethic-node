@@ -55,7 +55,7 @@ Requires Cassandra/ScyllaDB installation to use for the backend storage
 
 ## Development
 
-Requires Elixir 1.10
+Requires Elixir 1.11
 
 At first, get dependencies:
 ```

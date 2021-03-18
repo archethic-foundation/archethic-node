@@ -122,7 +122,7 @@ defmodule Uniris.P2P.ClientConnection do
         socket
 
       {:error, reason} ->
-        Logger.warn(
+        Logger.warning(
           "Error during node connection #{inspect(reason)} to #{:inet.ntoa(ip)}:#{port}"
         )
 
