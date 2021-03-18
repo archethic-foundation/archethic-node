@@ -35,6 +35,8 @@ defmodule Mix.Tasks.Uniris.Testnet do
 
   use Mix.Task
 
+  alias Uniris.Crypto
+
   @impl Mix.Task
   def run(args) do
     case OptionParser.parse!(args,
@@ -74,7 +76,7 @@ defmodule Mix.Tasks.Uniris.Testnet do
 
     File.write!(output, compose)
 
-    unless !Keyword.get(opts, :run, @run) do
+    if Keyword.get(opts, :run, @run) != nil do
       Mix.shell().cmd("docker-compose -f #{output} up")
     end
   end
@@ -222,7 +224,7 @@ defmodule Mix.Tasks.Uniris.Testnet do
      |> mount(persist?, n)}
   end
 
-  defp pubkey(seed), do: seed |> Uniris.Crypto.derive_keypair(0) |> elem(0) |> Base.encode16()
+  defp pubkey(seed), do: seed |> Crypto.derive_keypair(0) |> elem(0) |> Base.encode16()
 
   defp seeder(ip, seed), do: "#{ip}:#{@p2p_port}:#{pubkey(seed)}:tcp"
 

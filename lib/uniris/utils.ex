@@ -412,7 +412,7 @@ defmodule Uniris.Utils do
   end
 
   def aggregate_bitstring(seq1, seq2)
-      when is_bitstring(seq1) and is_bitstring(seq1) and bit_size(seq1) != bit_size(seq2),
+      when is_bitstring(seq1) and is_bitstring(seq2) and bit_size(seq1) != bit_size(seq2),
       do: seq1
 
   defp do_aggregate(seq1, _, index) when bit_size(seq1) == index do
