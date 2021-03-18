@@ -28,7 +28,7 @@ defmodule Mix.Tasks.Uniris.Testnet do
   ## Example
 
   ```sh
-  mix uniris.testnet $(seq --format "seed%g" --separator " " 5)
+  mix uniris.testnet $(seq -f "seed%g" -s " " 5)
   ```
 
   """
@@ -190,7 +190,8 @@ defmodule Mix.Tasks.Uniris.Testnet do
        image: image,
        environment: %{
          "UNIRIS_CRYPTO_SEED" => seed,
-         "UNIRIS_P2P_SEEDS" => seeder(ip.(1), seed)
+         "UNIRIS_P2P_SEEDS" => seeder(ip.(1), seed),
+         "UNIRIS_STATIC_IP" => ip.(1)
        },
        networks: %{network => %{ipv4_address: ip.(1)}}
      }
@@ -211,7 +212,8 @@ defmodule Mix.Tasks.Uniris.Testnet do
        depends_on: ["node1"],
        environment: %{
          "UNIRIS_CRYPTO_SEED" => seed,
-         "UNIRIS_P2P_SEEDS" => seeders
+         "UNIRIS_P2P_SEEDS" => seeders,
+         "UNIRIS_STATIC_IP" => ip.(n)
        },
        volumes: ["./scripts/wait-for-node.sh:/wait.sh:ro"],
        command: ["/wait.sh", "http://node1:#{@web_port}/up", "./bin/uniris_node", "foreground"],
