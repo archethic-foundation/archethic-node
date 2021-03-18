@@ -106,19 +106,25 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       when is_binary(node_patch) do
     Logger.info("Synchronize missed transaction", transaction: "#{type}@#{Base.encode16(address)}")
 
-    {:ok, tx = %Transaction{}} =
+    storage_nodes =
       address
       |> Replication.chain_storage_nodes(type, P2P.list_nodes(availability: :global))
       |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-      |> P2P.reply_first(%GetTransaction{address: address})
 
-    roles =
-      [
-        chain: Replication.chain_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes()),
-        IO: Replication.io_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes())
-      ]
-      |> Utils.get_keys_from_value_match(true)
+    case P2P.reply_first(storage_nodes, %GetTransaction{address: address}) do
+      {:ok, tx = %Transaction{}} ->
+        roles =
+          [
+            chain:
+              Replication.chain_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes()),
+            IO: Replication.io_storage_node?(tx, Crypto.node_public_key(), P2P.list_nodes())
+          ]
+          |> Utils.get_keys_from_value_match(true)
 
-    Replication.process_transaction(tx, roles, self_repair?: true)
+        Replication.process_transaction(tx, roles, self_repair?: true)
+
+      _ ->
+        raise "Transaction #{Base.encode16(address)} not found from remote nodes during self repair"
+    end
   end
 end

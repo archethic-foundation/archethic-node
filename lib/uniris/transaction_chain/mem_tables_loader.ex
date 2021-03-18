@@ -45,7 +45,7 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
     :ok = handle_pending_transaction(tx)
     :ok = handle_transaction_recipients(tx)
 
-    Logger.info("Loaded into in memory chain tables",
+    Logger.debug("Loaded into in memory chain tables",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
   end

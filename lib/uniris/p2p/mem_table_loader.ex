@@ -89,7 +89,7 @@ defmodule Uniris.P2P.MemTableLoader do
       )
     end
 
-    Logger.info("Loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+    Logger.debug("Loaded into in memory p2p tables", node: Base.encode16(first_public_key))
   end
 
   def load_transaction(%Transaction{

@@ -73,7 +73,7 @@ defmodule Uniris.Account.MemTablesLoader do
     :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
     :ok = set_node_rewards(address, node_movements, timestamp)
 
-    Logger.info("Loaded into in memory account tables",
+    Logger.debug("Loaded into in memory account tables",
       transaction: "#{type}@#{Base.encode16(address)}"
     )
   end

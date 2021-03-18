@@ -117,7 +117,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
 
     summary_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
-    Logger.info("Trigger beacon summary creation at #{Utils.time_to_string(summary_time)}")
+    Logger.debug("Trigger beacon summary creation at #{Utils.time_to_string(summary_time)}")
 
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       [{pid, _}] = Registry.lookup(SubsetRegistry, subset)

@@ -41,6 +41,7 @@ defmodule Uniris.Contracts.Loader do
   def load_transaction(
         tx = %Transaction{
           address: address,
+          type: type,
           data: %TransactionData{code: code},
           previous_public_key: previous_public_key
         },
@@ -55,12 +56,13 @@ defmodule Uniris.Contracts.Loader do
         {Worker, Contract.from_transaction!(tx)}
       )
 
-    Logger.info("Smart contract loaded", transaction: Base.encode16(address))
+    Logger.debug("Smart contract loaded", transaction: "#{type}@#{Base.encode16(address)}")
   end
 
   def load_transaction(
         tx = %Transaction{
           address: tx_address,
+          type: tx_type,
           timestamp: tx_timestamp,
           validation_stamp: %ValidationStamp{recipients: recipients}
         },
@@ -71,6 +73,10 @@ defmodule Uniris.Contracts.Loader do
       case Worker.execute(contract_address, tx) do
         :ok ->
           TransactionLookup.add_contract_transaction(contract_address, tx_address, tx_timestamp)
+
+          Logger.debug("Transaction towards contract #{Base.encode16(contract_address)} ingested",
+            transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+          )
 
         _ ->
           :ok

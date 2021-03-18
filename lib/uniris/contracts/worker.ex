@@ -72,7 +72,7 @@ defmodule Uniris.Contracts.Worker do
         }
       ) do
     Logger.info("Execute contract transaction actions",
-      transaction: Base.encode16(incoming_tx.address),
+      transaction: "#{incoming_tx.type}@#{Base.encode16(incoming_tx.address)}",
       contract: Base.encode16(Keyword.get(contract_constants, :address))
     )
 

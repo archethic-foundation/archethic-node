@@ -86,7 +86,11 @@ defmodule Uniris.Mining do
   """
   @spec validate_pending_transaction(Transaction.t()) :: :ok | {:error, any()}
   def validate_pending_transaction(
-        tx = %Transaction{address: address, data: %TransactionData{code: code, keys: keys}}
+        tx = %Transaction{
+          address: address,
+          type: type,
+          data: %TransactionData{code: code, keys: keys}
+        }
       ) do
     :ok
 
@@ -98,11 +102,14 @@ defmodule Uniris.Mining do
           do_accept_transaction(tx)
 
         {:error, reason} ->
-          Logger.error("Invalid smart contract - #{reason}", transaction: Base.encode16(address))
+          Logger.error("Invalid smart contract - #{reason}",
+            transaction: "#{type}@#{Base.encode16(address)}"
+          )
+
           {:error, "Smart contract invalid - #{reason}"}
       end
     else
-      Logger.error("Invalid previous signature", transaction: Base.encode16(address))
+      Logger.error("Invalid previous signature", transaction: "#{type}@#{Base.encode16(address)}")
       {:error, "Invalid previous signature"}
     end
   end
@@ -130,7 +137,10 @@ defmodule Uniris.Mining do
     if Regex.match?(~r/(?<=ip:|port:|transport:).*/m, content) do
       :ok
     else
-      Logger.error("Invalid node transaction content", transaction: Base.encode16(address))
+      Logger.error("Invalid node transaction content",
+        transaction: "node@#{Base.encode16(address)}"
+      )
+
       {:error, "Invalid node transaction"}
     end
   end
@@ -152,7 +162,7 @@ defmodule Uniris.Mining do
           :ok
         else
           Logger.error("Node shared secrets can only contains public node list",
-            transaction: Base.encode16(address)
+            transaction: "node_shared_secrets@#{Base.encode16(address)}"
           )
 
           {:error, "Invalid node shared secrets transaction"}
@@ -162,14 +172,26 @@ defmodule Uniris.Mining do
         cond do
           Crypto.hash(previous_public_key) != prev_address ->
             Logger.error("Node shared secrets chain does not match",
-              transaction: Base.encode16(address)
+              transaction: "node_shared_secrets@#{Base.encode16(address)}"
+            )
+
+            Logger.debug("Previous address: #{Base.encode16(prev_address)}",
+              transaction: "node_shared_secrets@#{Base.encode16(address)}"
+            )
+
+            Logger.debug("Hash of the previous public key: #{Base.encode16(previous_public_key)}",
+              transaction: "node_shared_secrets@#{Base.encode16(address)}"
             )
 
             {:error, "Invalid node shared secrets transaction"}
 
           !Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) ->
             Logger.error("Node shared secrets can only contains public node list",
-              transaction: Base.encode16(address)
+              transaction: "node_shared_secrets@#{Base.encode16(address)}"
+            )
+
+            Logger.debug("Unexpected node list: #{Enum.map(keys, &Base.encode16/1)}",
+              transaction: "node_shared_secrets@#{Base.encode16(address)}"
             )
 
             {:error, "Invalid node shared secrets transaction"}
@@ -182,7 +204,7 @@ defmodule Uniris.Mining do
 
   defp do_accept_transaction(%Transaction{address: address, type: :node_shared_secrets}) do
     Logger.error("Node shared secrets must contains a secret and some authorized nodes",
-      transaction: Base.encode16(address)
+      transaction: "node_shared_secrets@#{Base.encode16(address)}"
     )
 
     {:error, "Invalid node shared secrets transaction"}
@@ -194,7 +216,10 @@ defmodule Uniris.Mining do
       :ok
     else
       _ ->
-        Logger.error("Invalid code proposal", transaction: Base.encode16(address))
+        Logger.error("Invalid code proposal",
+          transaction: "code_proposal@#{Base.encode16(address)}"
+        )
+
         {:error, "Invalid code proposal"}
     end
   end
@@ -216,15 +241,24 @@ defmodule Uniris.Mining do
       :ok
     else
       {:member, false} ->
-        Logger.error("No technical council member", transaction: Base.encode16(address))
+        Logger.error("No technical council member",
+          transaction: "code_approval@#{Base.encode16(address)}"
+        )
+
         {:error, "No technical council member"}
 
       {:error, :not_found} ->
-        Logger.error("Code proposal does not exist", transaction: Base.encode16(address))
+        Logger.error("Code proposal does not exist",
+          transaction: "code_approval@#{Base.encode16(address)}"
+        )
+
         {:error, "Code proposal doest not exist"}
 
       {:signed, true} ->
-        Logger.error("Code proposal already signed", transaction: Base.encode16(address))
+        Logger.error("Code proposal already signed",
+          transaction: "code_approval@#{Base.encode16(address)}"
+        )
+
         {:error, "Code proposal already signed"}
     end
   end
@@ -237,7 +271,8 @@ defmodule Uniris.Mining do
     if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
       :ok
     else
-      Logger.error("Invalid NFT transaction content", transaction: Base.encode16(address))
+      Logger.error("Invalid NFT transaction content", transaction: "nft@#{Base.encode16(address)}")
+
       {:error, "Invalid NFT content"}
     end
   end

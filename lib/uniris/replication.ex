@@ -91,13 +91,13 @@ defmodule Uniris.Replication do
 
     Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
 
-    Logger.info("Retrieve chain and unspent outputs...",
+    Logger.debug("Retrieve chain and unspent outputs...",
       transaction: "#{type}@#{Base.encode16(address)}"
     )
 
     {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
 
-    Logger.info("Size of the chain retrieved: #{Enum.count(chain)}",
+    Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
       transaction: "#{type}@#{Base.encode16(address)}"
     )
 
@@ -120,6 +120,8 @@ defmodule Uniris.Replication do
         else
           :ok
         end
+
+        Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
       {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
@@ -147,6 +149,8 @@ defmodule Uniris.Replication do
         if :beacon in roles do
           BeaconChain.add_transaction_summary(tx)
         end
+
+        Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
         :ok
 

@@ -28,7 +28,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
         Crypto.increment_number_of_generate_node_keys()
       end)
 
-      Logger.info("#{nb_node_keys} node keys loaded into the keystore")
+      Logger.debug("#{nb_node_keys} node keys loaded into the keystore")
     end
 
     nb_node_shared_secrets = TransactionChain.count_transactions_by_type(:node_shared_secrets)
@@ -38,7 +38,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
         Crypto.increment_number_of_generate_node_shared_secrets_keys()
       end)
 
-      Logger.info("#{nb_node_shared_secrets} node shared keys loaded into the keystore")
+      Logger.debug("#{nb_node_shared_secrets} node shared keys loaded into the keystore")
     end
 
     last_node_shared_tx =

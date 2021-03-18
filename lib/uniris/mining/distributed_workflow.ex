@@ -99,7 +99,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
-    Logger.info("Start mining", transaction: Base.encode16(tx.address))
+    Logger.info("Start mining", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
 
     chain_storage_nodes =
       Replication.chain_storage_nodes(tx.address, tx.type, P2P.list_nodes(availability: :global))
@@ -138,7 +138,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
   end
 
   def handle_event(:enter, :idle, :idle, _data = %{context: %ValidationContext{transaction: tx}}) do
-    Logger.info("Validation started", transaction: Base.encode16(tx.address))
+    Logger.debug("Validation started", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
     :keep_state_and_data
   end
 
@@ -158,7 +158,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.info("Retrieve transaction context", transaction: Base.encode16(tx.address))
+    Logger.debug("Retrieve transaction context",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
@@ -181,7 +183,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
         validation_nodes_view
       )
 
-    Logger.info("Transaction context retrieved", transaction: Base.encode16(tx.address))
+    Logger.debug("Transaction context retrieved",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
 
     if node_public_key == coordinator_key do
       {:next_state, :coordinator, %{data | context: new_context}}
@@ -199,7 +203,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
           context: context = %ValidationContext{transaction: tx}
         }
       ) do
-    Logger.info("Act as cross validator", transaction: Base.encode16(tx.address))
+    Logger.debug("Act as cross validator", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
     notify_transaction_context(context, node_public_key)
     :keep_state_and_data
   end
@@ -210,7 +214,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
         :coordinator,
         _data = %{context: %ValidationContext{transaction: tx}}
       ) do
-    Logger.info("Act as coordinator", transaction: Base.encode16(tx.address))
+    Logger.debug("Act as coordinator", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
     :keep_state_and_data
   end
 
@@ -229,7 +233,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.info("Aggregate mining context", transaction: Base.encode16(tx.address))
+    Logger.debug("Aggregate mining context",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
 
     if ValidationContext.cross_validation_node?(context, from) do
       new_context =
@@ -243,7 +249,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
         )
 
       if ValidationContext.enough_confirmations?(new_context) do
-        Logger.info("Create validation stamp", transaction: Base.encode16(tx.address))
+        Logger.debug("Create validation stamp",
+          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+        )
 
         new_context =
           new_context
@@ -275,7 +283,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.info("Cross validation", transaction: Base.encode16(tx.address))
+    Logger.debug("Cross validation", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
 
     new_context =
       context
@@ -295,8 +303,16 @@ defmodule Uniris.Mining.DistributedWorkflow do
   def handle_event(:cast, {:add_cross_validation_stamp, _}, :cross_validator, _),
     do: {:keep_state_and_data, :postpone}
 
-  def handle_event(:enter, _, :wait_cross_validation_stamps, _data) do
-    Logger.info("Waiting cross validation stamps")
+  def handle_event(
+        :enter,
+        _,
+        :wait_cross_validation_stamps,
+        _data = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.debug("Waiting cross validation stamps",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
+
     :keep_state_and_data
   end
 
@@ -308,7 +324,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
           context: context = %ValidationContext{transaction: tx}
         }
       ) do
-    Logger.info("Add cross validation stamp", transaction: Base.encode16(tx.address))
+    Logger.debug("Add cross validation stamp",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
 
     new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
 
@@ -330,7 +348,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
         _data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Consensus not reached - Malicious Detection started",
-      transaction: Base.encode16(tx.address)
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 
     MaliciousDetection.start_link(context)
@@ -342,10 +360,13 @@ defmodule Uniris.Mining.DistributedWorkflow do
         :wait_cross_validation_stamps,
         :replication,
         _data = %{
-          context: context = %ValidationContext{transaction: %Transaction{address: tx_address}}
+          context:
+            context = %ValidationContext{
+              transaction: %Transaction{address: tx_address, type: type}
+            }
         }
       ) do
-    Logger.info("Start replication", transaction: Base.encode16(tx_address))
+    Logger.info("Start replication", transaction: "#{type}@#{Base.encode16(tx_address)}")
     request_replication(context)
     :keep_state_and_data
   end
@@ -357,12 +378,12 @@ defmodule Uniris.Mining.DistributedWorkflow do
         _data = %{
           context:
             context = %ValidationContext{
-              transaction: %Transaction{address: tx_address},
+              transaction: %Transaction{address: tx_address, type: tx_type},
               cross_validation_nodes: [_]
             }
         }
       ) do
-    Logger.info("Start replication", transaction: Base.encode16(tx_address))
+    Logger.info("Start replication", transaction: "#{tx_type}@#{Base.encode16(tx_address)}")
     request_replication(context)
     :keep_state_and_data
   end
@@ -371,24 +392,34 @@ defmodule Uniris.Mining.DistributedWorkflow do
         :info,
         {:acknowledge_storage, replication_node_public_key},
         :replication,
-        data = %{context: context}
+        data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
     new_context = ValidationContext.confirm_replication(context, replication_node_public_key)
 
     if ValidationContext.enough_replication_confirmations?(new_context) do
+      Logger.info("Replication finished", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
       :stop
     else
       {:keep_state, %{data | context: new_context}}
     end
   end
 
-  def handle_event({:timeout, :stop_timeout}, :any, _state, _data) do
+  def handle_event(
+        {:timeout, :stop_timeout},
+        :any,
+        _state,
+        _data = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.warning("Timeout reached during mining",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
+
     :stop
   end
 
   defp notify_transaction_context(
          %ValidationContext{
-           transaction: %Transaction{address: tx_address},
+           transaction: %Transaction{address: tx_address, type: tx_type},
            coordinator_node: coordinator_node,
            previous_storage_nodes: previous_storage_nodes,
            validation_nodes_view: validation_nodes_view,
@@ -397,6 +428,10 @@ defmodule Uniris.Mining.DistributedWorkflow do
          },
          node_public_key
        ) do
+    Logger.debug("Send mining context to #{:inet.ntoa(coordinator_node.ip)}",
+      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+    )
+
     Task.Supervisor.start_child(TaskSupervisor, fn ->
       P2P.send_message!(coordinator_node, %AddMiningContext{
         address: tx_address,
@@ -412,10 +447,17 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
   defp request_cross_validations(%ValidationContext{
          cross_validation_nodes: cross_validation_nodes,
-         transaction: %Transaction{address: tx_address},
+         transaction: %Transaction{address: tx_address, type: tx_type},
          validation_stamp: validation_stamp,
          full_replication_tree: replication_tree
        }) do
+    Logger.debug(
+      "Send validation stamp to #{
+        cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }",
+      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+    )
+
     P2P.broadcast_message(cross_validation_nodes, %CrossValidate{
       address: tx_address,
       validation_stamp: validation_stamp,
@@ -424,7 +466,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
   end
 
   defp notify_cross_validation_stamp(%ValidationContext{
-         transaction: %Transaction{address: tx_address},
+         transaction: %Transaction{address: tx_address, type: tx_type},
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          cross_validation_stamps: [cross_validation_stamp | []]
@@ -434,9 +476,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
       |> P2P.distinct_nodes()
       |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
 
-    Logger.info(
-      "Send cross validation stamps to #{Enum.map(nodes, &Base.encode16(&1.last_public_key))}",
-      transaction: Base.encode16(tx_address)
+    Logger.debug(
+      "Send cross validation stamps to #{nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
+      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
 
     P2P.broadcast_message(nodes, %CrossValidationDone{
@@ -445,10 +487,17 @@ defmodule Uniris.Mining.DistributedWorkflow do
     })
   end
 
-  defp request_replication(context = %ValidationContext{}) do
+  defp request_replication(context = %ValidationContext{transaction: tx}) do
     storage_nodes = ValidationContext.get_replication_nodes(context)
 
     worker_pid = self()
+
+    Logger.debug(
+      "Send validated transaction to #{
+        storage_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }",
+      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+    )
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,

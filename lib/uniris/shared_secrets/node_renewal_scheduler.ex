@@ -17,6 +17,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
 
   alias Uniris
 
+  alias Uniris.Crypto
   alias Uniris.SharedSecrets.NodeRenewal
 
   alias Uniris.Utils
@@ -112,7 +113,11 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     )
     |> Uniris.send_new_transaction()
 
-    Logger.info("Node shared secrets renewal transaction sent")
+    Logger.info(
+      "Node shared secrets renewal transaction sent (#{
+        Crypto.number_of_node_shared_secrets_keys()
+      })"
+    )
   end
 
   defp schedule_renewal_message(interval) do

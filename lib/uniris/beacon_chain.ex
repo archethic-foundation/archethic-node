@@ -167,7 +167,10 @@ defmodule Uniris.BeaconChain do
         do_slot_registration(slot)
 
       {:error, reason} = e ->
-        Logger.debug("Invalid Beacon Slot - #{inspect(reason)} -  Slot is rejected")
+        Logger.debug("Invalid Beacon Slot - #{inspect(reason)} -  Slot is rejected",
+          beacon_subset: Base.encode16(slot.subset)
+        )
+
         e
     end
   end

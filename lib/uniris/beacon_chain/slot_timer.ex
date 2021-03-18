@@ -97,7 +97,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
 
     slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
-    Logger.info("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
+    Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
 
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       [{pid, _}] = Registry.lookup(SubsetRegistry, subset)

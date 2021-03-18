@@ -77,9 +77,9 @@ defmodule Uniris.DB.KeyValueImpl do
   Store the transaction
   """
   @spec write_transaction(Transaction.t()) :: :ok
-  def write_transaction(tx = %Transaction{address: address}) do
+  def write_transaction(tx = %Transaction{address: address, type: type}) do
     true = :ets.insert(@transaction_db_name, {address, tx})
-    Logger.debug("Transaction #{Base.encode16(address)} stored")
+    Logger.debug("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
     :ok
   end
 
@@ -89,7 +89,7 @@ defmodule Uniris.DB.KeyValueImpl do
   """
   @spec write_transaction_chain(Enumerable.t()) :: :ok
   def write_transaction_chain(chain) do
-    %Transaction{address: chain_address} = Enum.at(chain, 0)
+    %Transaction{address: chain_address, type: chain_type} = Enum.at(chain, 0)
 
     Stream.each(chain, fn tx = %Transaction{address: address} ->
       true = :ets.insert(@chain_db_name, {chain_address, address})
@@ -98,7 +98,8 @@ defmodule Uniris.DB.KeyValueImpl do
     |> Stream.run()
 
     Logger.debug(
-      "TransactionChain #{Base.encode16(chain_address)} stored (size: #{Enum.count(chain)})"
+      "TransactionChain stored (size: #{Enum.count(chain)})",
+      transaction: "#{chain_type}@#{Base.encode16(chain_address)}"
     )
   end
 

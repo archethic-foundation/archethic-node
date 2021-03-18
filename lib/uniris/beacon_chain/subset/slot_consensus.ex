@@ -83,6 +83,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
       )
 
     digest = Slot.digest(slot)
+    Logger.debug("Notified slot: #{inspect(slot)}", beacon_subset: Base.encode16(subset))
     notify_digest(subset, digest, storage_nodes)
 
     case Enum.find_index(storage_nodes, &(&1.first_public_key == node_public_key)) do
@@ -153,12 +154,14 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
         {:add_slot_proof, _recv_digest, node_public_key, _remote_signature},
         :waiting_proofs,
         _data = %{
-          current_slot: %Slot{subset: subset}
+          current_slot: slot = %Slot{subset: subset}
         }
       ) do
     Logger.warning("Different beacon slot from #{Base.encode16(node_public_key)}",
       beacon_subset: Base.encode16(subset)
     )
+
+    Logger.debug("Current slot: #{inspect(slot)}", beacon_subset: Base.encode16(subset))
 
     :keep_state_and_data
   end
