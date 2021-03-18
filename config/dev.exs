@@ -56,6 +56,9 @@ config :uniris, Uniris.OracleChain.Scheduler,
 
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
 
+config :uniris, Uniris.Networking.IPLookup.Static,
+  hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
+
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every minute
   interval: "0 * * * * * *"
