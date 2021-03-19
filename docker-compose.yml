@@ -1,3 +1,33 @@
+#
+# The source code is mounted read only in all containers. Service `node1`
+# compiles all source code, hence it has write access to shared `_build`,
+# `priv/static`, `priv/c_dist`, `assets/node_modules` folders. Services `bench`
+# and `validate` compile elixir code, hence also have write access to `_build`
+# folder. `HOME` is set to `/opt/code/_build` to beguile `mix` and `npm`.
+# Avoid starting `validate` or `bench` while `node1` is compiling the sources.
+#
+#
+# # Usage
+#
+# ## prepare environment with
+#
+#   $ export UID=$(id -u) GID=$(id -u)
+#
+# or pass UID and GID in command line as below
+#
+# ## start testnet
+#
+#   $ UID=$(id -u) GID=$(id -g) docker-compose up
+#
+# ## benchmark testnet
+#
+#   $ UID=$(id -u) GID=$(id -g) docker-compose up bench
+#
+# ## validate testnet
+#
+#   $ UID=$(id -u) GID=$(id -g) docker-compose up validate
+#
+
 version: "3.9"
 
 services:
@@ -7,41 +37,193 @@ services:
       context: .
       args:
         skip_tests: 1
-    image: uniris-node:latest
+      target: uniris-ci
+    image: uniris-dev:latest
     environment:
+      - HOME=/opt/code/_build
       - UNIRIS_CRYPTO_SEED=node1
       - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_STATIC_IP=172.16.16.101
+      - UNIRIS_STATIC_IP=172.16.1.101
     volumes:
-      - ./data1:/opt/data
+      - ./scripts/build-assets.sh:/build-assets.sh:ro
+      - .:/opt/code:ro
+      - .devnet/data1:/opt/data
+      - .devnet/deps:/opt/code/deps
+      - .devnet/_build:/opt/code/_build
+      - .devnet/static:/opt/code/priv/static
+      - .devnet/c_dist:/opt/code/priv/c_dist
+      - .devnet/node_modules:/opt/code/assets/node_modules
+    user: '${UID}:${GID}'
+    command: ["/build-assets.sh", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt"]
+    stdin_open: true
+    tty: true
     networks:
-      testnet:
-        ipv4_address: 172.16.16.101
+      uniris-dev:
+        ipv4_address: 172.16.1.101
 
   node2:
-    build:
-      context: .
-      args:
-        skip_tests: 1
-    image: uniris-node:latest
+    image: uniris-dev:latest
     depends_on:
       - node1
     environment:
+      - HOME=/opt/code/_build
       - UNIRIS_CRYPTO_SEED=node2
       - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_P2P_SEEDS=172.16.16.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-      - UNIRIS_STATIC_IP=172.16.16.102
+      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+      - UNIRIS_STATIC_IP=172.16.1.102
     volumes:
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-      - ./data2:/opt/data
-    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+      - .:/opt/code:ro
+      - .devnet/data2:/opt/data
+      - .devnet/deps:/opt/code/deps:ro
+      - .devnet/_build:/opt/code/_build:ro
+      - .devnet/static:/opt/code/priv/static:ro
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+      - .devnet/node_modules:/opt/code/assets/node_modules:ro
+    user: '${UID}:${GID}'
+    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
+    stdin_open: true
+    tty: true
     networks:
-      testnet:
-        ipv4_address: 172.16.16.102
+      uniris-dev:
+        ipv4_address: 172.16.1.102
+
+  node3:
+    image: uniris-dev:latest
+    depends_on:
+      - node1
+    environment:
+      - HOME=/opt/code/_build
+      - UNIRIS_CRYPTO_SEED=node3
+      - UNIRIS_MUT_DIR=/opt/data
+      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+      - UNIRIS_STATIC_IP=172.16.1.103
+    volumes:
+      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+      - .:/opt/code:ro
+      - .devnet/data3:/opt/data
+      - .devnet/deps:/opt/code/deps:ro
+      - .devnet/_build:/opt/code/_build:ro
+      - .devnet/static:/opt/code/priv/static:ro
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+      - .devnet/node_modules:/opt/code/assets/node_modules:ro
+    user: '${UID}:${GID}'
+    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
+    stdin_open: true
+    tty: true
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.103
+
+  node4:
+    image: uniris-dev:latest
+    depends_on:
+      - node1
+    environment:
+      - HOME=/opt/code/_build
+      - UNIRIS_CRYPTO_SEED=node4
+      - UNIRIS_MUT_DIR=/opt/data
+      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+      - UNIRIS_STATIC_IP=172.16.1.104
+    volumes:
+      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+      - .:/opt/code:ro
+      - .devnet/data4:/opt/data
+      - .devnet/deps:/opt/code/deps:ro
+      - .devnet/_build:/opt/code/_build:ro
+      - .devnet/static:/opt/code/priv/static:ro
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+      - .devnet/node_modules:/opt/code/assets/node_modules:ro
+    user: '${UID}:${GID}'
+    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
+    stdin_open: true
+    tty: true
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.104
+
+  node5:
+    image: uniris-dev:latest
+    depends_on:
+      - node1
+    environment:
+      - HOME=/opt/code/_build
+      - UNIRIS_CRYPTO_SEED=node5
+      - UNIRIS_MUT_DIR=/opt/data
+      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+      - UNIRIS_STATIC_IP=172.16.1.105
+    volumes:
+      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+      - .:/opt/code:ro
+      - .devnet/data5:/opt/data
+      - .devnet/deps:/opt/code/deps:ro
+      - .devnet/_build:/opt/code/_build:ro
+      - .devnet/static:/opt/code/priv/static:ro
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+      - .devnet/node_modules:/opt/code/assets/node_modules:ro
+    user: '${UID}:${GID}'
+    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
+    stdin_open: true
+    tty: true
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.105
+
+  collector:
+    image: prom/prometheus
+    volumes:
+      - .devnet/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.200
+
+  bench:
+    image: uniris-dev:latest
+    environment:
+      - HOME=/opt/code/_build
+      - UNIRIS_MUT_DIR=/opt/data
+    volumes:
+      - .:/opt/code:ro
+      - .devnet/validator:/opt/data
+      - .devnet/deps:/opt/code/deps
+      - .devnet/_build:/opt/code/_build
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+    user: '${UID}:${GID}'
+    command: ["mix", "uniris.testnet.validate", "--after", "node1", "node2", "node3", "node4", "node5"]
+    stdin_open: true
+    tty: true
+    profiles: ["validate"]
+    sysctls:
+      net.ipv4.tcp_tw_reuse: 1
+      net.ipv4.ip_local_port_range: 16000 60999
+
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.201
+
+  validate:
+    image: uniris-dev:latest
+    environment:
+      - HOME=/opt/code/_build
+      - UNIRIS_MUT_DIR=/opt/data
+    volumes:
+      - .:/opt/code:ro
+      - .devnet/validator:/opt/data
+      - .devnet/deps:/opt/code/deps
+      - .devnet/_build:/opt/code/_build
+      - .devnet/c_dist:/opt/code/priv/c_dist:ro
+    user: '${UID}:${GID}'
+    command: ["mix", "uniris.testnet.validate", "--validate", "node1", "node2", "node3", "node4", "node5"]
+    stdin_open: true
+    tty: true
+    profiles: ["validate"]
+    networks:
+      uniris-dev:
+        ipv4_address: 172.16.1.202
 
 networks:
-  testnet:
+  uniris-dev:
     ipam:
       driver: default
       config:
-        - subnet: "172.16.16.0/24"
+        - subnet: "172.16.1.0/24"
