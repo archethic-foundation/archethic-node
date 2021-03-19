@@ -192,8 +192,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
     })
   end
 
-  defp notify_summary_pool(current_slot = %Slot{subset: subset}) do
-    next_summary_time = SummaryTimer.next_summary(DateTime.utc_now())
+  defp notify_summary_pool(current_slot = %Slot{subset: subset, slot_time: slot_time}) do
+    next_summary_time = SummaryTimer.next_summary(slot_time)
 
     subset
     |> Election.beacon_storage_nodes(
@@ -201,6 +201,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
       P2P.list_nodes(availability: :global),
       Election.get_storage_constraints()
     )
+    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, slot_time) == :lt))
     |> P2P.broadcast_message(%NotifyBeaconSlot{slot: current_slot})
   end
 end

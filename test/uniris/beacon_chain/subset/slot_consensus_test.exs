@@ -34,7 +34,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       last_public_key: Crypto.node_public_key(),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -44,7 +45,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       last_public_key: Crypto.node_public_key(1),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -54,7 +56,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       last_public_key: Crypto.node_public_key(2),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     :ok
