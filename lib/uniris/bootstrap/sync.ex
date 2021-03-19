@@ -136,7 +136,6 @@ defmodule Uniris.Bootstrap.Sync do
       P2P.reply_first(bootstrapping_seeds, %GetBootstrappingNodes{patch: patch}, patch)
 
     :ok = P2P.new_bootstrapping_seeds(new_seeds)
-    Logger.info("Bootstrapping seeds list refreshed")
 
     (new_seeds ++ closest_nodes)
     |> P2P.distinct_nodes()

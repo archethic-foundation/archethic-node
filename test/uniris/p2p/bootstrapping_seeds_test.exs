@@ -1,8 +1,9 @@
 defmodule Uniris.P2P.BootstrappingSeedsTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Node
 
@@ -19,12 +20,13 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     Application.delete_env(:uniris, BootstrappingSeeds)
 
     file_path = Utils.mut_dir("priv/p2p/seeds_test")
+    File.mkdir_p(Path.dirname(file_path))
 
     MockCrypto
     |> stub(:node_public_key, fn _ -> :crypto.strong_rand_bytes(32) end)
 
     on_exit(fn ->
-      File.rm(file_path)
+      File.rm_rf(Path.dirname(file_path))
     end)
 
     {:ok, %{file_path: file_path}}
@@ -51,12 +53,11 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     end
 
     test "should load from conf if present" do
-      Application.put_env(:uniris, BootstrappingSeeds,
-        seeds:
-          "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
-      )
-
-      {:ok, pid} = BootstrappingSeeds.start_link()
+      {:ok, pid} =
+        BootstrappingSeeds.start_link(
+          seeds:
+            "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+        )
 
       %{seeds: seeds, file: file} = :sys.get_state(pid)
       assert file == ""
@@ -121,5 +122,57 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     assert new_seeds == BootstrappingSeeds.list()
 
     assert BootstrappingSeeds.nodes_to_seeds(new_seeds) == File.read!(file_path)
+  end
+
+  test "when receive a node updat message should update the seeds list with the top nodes" do
+    {:ok, _pid} =
+      BootstrappingSeeds.start_link(
+        seeds:
+          "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+      )
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3003,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      transport: :tcp,
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3004,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      transport: :tcp,
+      available?: true,
+      authorized?: false
+    })
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3005,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      transport: :tcp,
+      available?: false,
+      authorized?: false
+    })
+
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3006,
+      first_public_key: :crypto.strong_rand_bytes(32),
+      last_public_key: :crypto.strong_rand_bytes(32),
+      transport: :tcp,
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    assert Enum.all?(BootstrappingSeeds.list(), &(&1.port in [3003, 3006]))
   end
 end

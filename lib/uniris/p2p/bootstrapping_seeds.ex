@@ -9,9 +9,14 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   alias Uniris.Crypto
 
+  alias Uniris.PubSub
+
+  alias Uniris.P2P
   alias Uniris.P2P.Node
 
   use GenServer
+
+  require Logger
 
   @doc """
   Start the bootstrapping seeds holder
@@ -37,34 +42,27 @@ defmodule Uniris.P2P.BootstrappingSeeds do
   def update(seeds), do: GenServer.call(__MODULE__, {:new_seeds, seeds})
 
   def init(opts) do
-    Application.get_env(:uniris, __MODULE__)[:seeds]
+    hardcoded_seeds = Keyword.get(opts, :seeds, "")
+    file = Keyword.get(opts, :file, "")
 
-    {seeds, file} =
-      case Application.get_env(:uniris, __MODULE__)[:seeds] do
-        nil ->
-          parse_opts(opts)
+    seeds =
+      case File.read(file) do
+        {:ok, data} when data != "" ->
+          extract_seeds(data)
 
-        seeds_str ->
-          seeds = extract_seeds(seeds_str)
-          {seeds, ""}
+        _ ->
+          extract_seeds(hardcoded_seeds)
       end
 
+    Logger.debug(
+      "Bootstrapping seeds initialize with #{
+        seeds |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }"
+    )
+
+    PubSub.register_to_node_update()
+
     {:ok, %{seeds: seeds, file: file}}
-  end
-
-  defp parse_opts(opts) do
-    case Keyword.get(opts, :file) do
-      nil ->
-        {[], ""}
-
-      file ->
-        seeds =
-          file
-          |> File.read!()
-          |> extract_seeds
-
-        {seeds, file}
-    end
   end
 
   def handle_call(:list_seeds, _from, state = %{seeds: seeds}) do
@@ -84,12 +82,37 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     |> nodes_to_seeds
     |> flush_seeds(file)
 
+    Logger.debug(
+      "Bootstrapping seeds list refreshed with #{
+        seeds |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }"
+    )
+
     {:reply, :ok, %{state | seeds: seeds}}
+  end
+
+  def handle_info({:node_update, _}, state = %{file: file}) do
+    top_nodes =
+      P2P.list_nodes(authorized?: true, availability: :local)
+      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+
+    top_nodes
+    |> nodes_to_seeds
+    |> flush_seeds(file)
+
+    Logger.debug(
+      "Bootstrapping seeds list refreshed with #{
+        top_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }"
+    )
+
+    {:noreply, Map.put(state, :seeds, top_nodes)}
   end
 
   defp flush_seeds(_, ""), do: :ok
 
   defp flush_seeds(seeds_str, file) do
+    File.mkdir_p(Path.dirname(file))
     File.write!(file, seeds_str, [:write])
   end
 

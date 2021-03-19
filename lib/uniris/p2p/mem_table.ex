@@ -133,9 +133,12 @@ defmodule Uniris.P2P.MemTable do
     if node_exists?(first_public_key) do
       update_p2p_discovery(node)
       Logger.info("Node update", node: Base.encode16(first_public_key))
+      Logger.debug("Update info: #{inspect(node)}", node: Base.encode16(first_public_key))
     else
       insert_p2p_discovery(node)
+
       Logger.info("Node joining", node: Base.encode16(first_public_key))
+      Logger.debug("Node info: #{inspect(node)}", node: Base.encode16(first_public_key))
     end
 
     index_node_public_keys(first_public_key, last_public_key)

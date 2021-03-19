@@ -57,6 +57,16 @@ config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight
   interval: "0 0 0 * * * *"
 
+config :uniris, Uniris.P2P.BootstrappingSeeds,
+  seeds:
+    System.get_env(
+      "UNIRIS_P2P_SEEDS",
+      """
+      51.83.252.250:3002:00BF2A9096049CC4B087A023ECF2B2F5A817C53A8E8A262E2745E9B99223D660C2:tcp
+      51.89.224.208:3002:00D585AFB9042E9560CB343E34355A0C066FDF4A1AC51919E6C1F9A915B1E79709:tcp
+      """
+    )
+
 config :uniris, Uniris.P2P.Endpoint,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
 
