@@ -18,17 +18,21 @@ defmodule Uniris.Networking.IPLookup do
   end
 
   defp do_get_node_ip(NAT) do
+    Logger.info("Discover the ip using NAT traversal")
+
     case NAT.get_node_ip() do
       {:ok, ip} ->
         {:ok, ip}
 
       {:error, reason} ->
-        Logger.error("Cannot use NAT IP lookup - #{inspect(reason)}")
+        Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")
         do_get_node_ip(IPIFY)
     end
   end
 
   defp do_get_node_ip(IPIFY) do
+    Logger.info("Discover the ip using IPFY endpoint")
+
     case IPIFY.get_node_ip() do
       {:ok, ip} ->
         {:ok, ip}
@@ -39,7 +43,10 @@ defmodule Uniris.Networking.IPLookup do
     end
   end
 
-  defp do_get_node_ip(Static), do: Static.get_node_ip()
+  defp do_get_node_ip(Static) do
+    Logger.info("Discovery the ip using the static IP")
+    Static.get_node_ip()
+  end
 
   defp provider do
     :uniris

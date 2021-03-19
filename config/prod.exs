@@ -23,6 +23,8 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
 
+config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.get_env("UNIRIS_CRYPTO_SEED")
+
 config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
 
 config :uniris, Uniris.DB.KeyValueImpl, root_dir: "priv/storage"
@@ -90,8 +92,8 @@ config :uniris, UnirisWeb.Endpoint,
   https: [
     port: 443,
     cipher_suite: :strong,
-    keyfile: System.get_env("UNIRIS_WEB_SSL_KEY_PATH"),
-    certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH"),
+    keyfile: System.get_env("UNIRIS_WEB_SSL_KEY_PATH", ""),
+    certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH", ""),
     transport_options: [socket_opts: [:inet6]]
   ]
 
