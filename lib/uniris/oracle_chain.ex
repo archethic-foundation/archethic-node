@@ -72,18 +72,28 @@ defmodule Uniris.OracleChain do
   end
 
   defp do_verify_summary?(data, previous_address) when is_map(data) do
-    stored_digest =
+    stored_data =
       TransactionChain.get(previous_address, [:timestamp, data: [:content]])
       |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
         data = Jason.decode!(content)
         {DateTime.to_unix(timestamp), data}
       end)
       |> Enum.into(%{})
-      |> Jason.encode!()
-      |> Crypto.hash()
 
+    stored_digest = stored_data |> Jason.encode!() |> Crypto.hash()
     data_digest = data |> Jason.encode!() |> Crypto.hash()
-    stored_digest == data_digest
+
+    if stored_digest == data_digest do
+      true
+    else
+      Logger.error("Oracle data incorrect")
+
+      Logger.debug(
+        "Invalid oracle summary - actual: #{inspect(data)} - expected: #{inspect(stored_data)}"
+      )
+
+      false
+    end
   end
 
   @doc """
