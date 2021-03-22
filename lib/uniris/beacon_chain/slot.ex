@@ -20,7 +20,7 @@ defmodule Uniris.BeaconChain.Slot do
     end_of_node_synchronizations: [],
     p2p_view: <<>>,
     involved_nodes: <<>>,
-    validation_signatures: []
+    validation_signatures: %{}
   ]
 
   @type t :: %__MODULE__{
@@ -31,7 +31,7 @@ defmodule Uniris.BeaconChain.Slot do
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
           p2p_view: bitstring(),
           involved_nodes: bitstring(),
-          validation_signatures: list({node_position :: non_neg_integer(), signature :: binary()})
+          validation_signatures: %{(node_position :: non_neg_integer()) => binary()}
         }
 
   @doc """
@@ -143,7 +143,7 @@ defmodule Uniris.BeaconChain.Slot do
     ...>   p2p_view: <<0::1, 1::1, 1::1, 1::1, 1::1>>
     ...> }
     ...> |> Slot.digest()
-    <<0, 50, 64, 179, 89, 145, 90, 41, 206, 29, 239, 141, 232, 172, 65, 
+    <<0, 50, 64, 179, 89, 145, 90, 41, 206, 29, 239, 141, 232, 172, 65,
     160, 17, 213, 9, 152, 63, 34, 4, 137, 124, 78, 17, 123, 149, 133, 246, 243, 136>>
   """
   @spec digest(t()) :: binary()
@@ -179,9 +179,9 @@ defmodule Uniris.BeaconChain.Slot do
 
   @doc """
   Serialize a BeaconSlot into a binary format
-      
+
     ## Examples
-      
+
         iex> %Slot{
         ...>    subset: <<0>>,
         ...>    slot_time: ~U[2021-01-20 10:10:00Z],
@@ -203,10 +203,10 @@ defmodule Uniris.BeaconChain.Slot do
         ...>    }],
         ...>    p2p_view: <<1::1, 0::1, 1::1, 1::1>>,
         ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
-        ...>    validation_signatures: [{1, <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
+        ...>    validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
         ...>      201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
         ...>      181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-        ...>      73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>>}]
+        ...>      73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>> }
         ...>  } |> Slot.serialize()
         <<
         # Subset
@@ -311,10 +311,10 @@ defmodule Uniris.BeaconChain.Slot do
           }],
           p2p_view: <<1::1, 0::1, 1::1, 1::1>>,
           involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
-          validation_signatures: [{1, <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
+          validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
             201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
             181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-            73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>>}]
+            73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>>}
         },
         ""
       }
@@ -334,7 +334,9 @@ defmodule Uniris.BeaconChain.Slot do
       rest::bitstring>> = rest
 
     nb_involved_nodes = Utils.count_bitstring_bits(involved_nodes)
-    {validation_signatures, rest} = deserialize_validation_signatures(rest, nb_involved_nodes, [])
+
+    {validation_signatures, rest} =
+      deserialize_validation_signatures(rest, nb_involved_nodes, %{})
 
     {
       %__MODULE__{
@@ -383,11 +385,11 @@ defmodule Uniris.BeaconChain.Slot do
     ])
   end
 
-  defp deserialize_validation_signatures(rest, 0, _acc), do: {[], rest}
+  defp deserialize_validation_signatures(rest, 0, _acc), do: {%{}, rest}
 
   defp deserialize_validation_signatures(rest, nb_involved_nodes, acc)
-       when length(acc) == nb_involved_nodes do
-    {Enum.reverse(acc), rest}
+       when map_size(acc) == nb_involved_nodes do
+    {acc, rest}
   end
 
   defp deserialize_validation_signatures(
@@ -395,7 +397,7 @@ defmodule Uniris.BeaconChain.Slot do
          nb_involved_nodes,
          acc
        ) do
-    deserialize_validation_signatures(rest, nb_involved_nodes, [{pos, signature} | acc])
+    deserialize_validation_signatures(rest, nb_involved_nodes, Map.put(acc, pos, signature))
   end
 
   @doc """
@@ -427,4 +429,15 @@ defmodule Uniris.BeaconChain.Slot do
   def has_transaction?(%__MODULE__{transaction_summaries: transaction_summaries}, address) do
     Enum.any?(transaction_summaries, &(&1.address == address))
   end
+
+  @spec has_changes?(t()) :: boolean
+  def has_changes?(%__MODULE__{
+        transaction_summaries: transaction_summaries,
+        end_of_node_synchronizations: end_of_node_sync
+      })
+      when length(transaction_summaries) > 0 or length(end_of_node_sync) > 0 do
+    true
+  end
+
+  def has_changes?(%__MODULE__{}), do: false
 end

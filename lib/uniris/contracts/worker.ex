@@ -195,7 +195,6 @@ defmodule Uniris.Contracts.Worker do
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
         welcome_node_public_key: Crypto.node_public_key()
       })
-      |> Stream.run()
     end
   end
 

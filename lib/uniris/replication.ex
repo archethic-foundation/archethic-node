@@ -25,6 +25,8 @@ defmodule Uniris.Replication do
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
 
+  alias Uniris.OracleChain
+
   alias Uniris.SharedSecrets
 
   alias __MODULE__.TransactionContext
@@ -159,37 +161,42 @@ defmodule Uniris.Replication do
     end
   end
 
-  defp fetch_context(tx, self_repair?) do
+  defp fetch_context(tx = %Transaction{type: type, timestamp: timestamp}, self_repair?) do
     prev_address = Transaction.previous_address(tx)
 
-    if Transaction.network_type?(tx.type) do
-      do_fetch_context_for_network_transaction(prev_address, self_repair?)
+    if Transaction.network_type?(type) do
+      do_fetch_context_for_network_transaction(prev_address, timestamp, self_repair?)
     else
-      fetch_context_for_regular_transaction(prev_address, self_repair?)
+      fetch_context_for_regular_transaction(prev_address, timestamp, self_repair?)
     end
   end
 
-  defp do_fetch_context_for_network_transaction(previous_address, self_repair?) do
+  defp do_fetch_context_for_network_transaction(previous_address, timestamp, self_repair?) do
     previous_chain = TransactionChain.get(previous_address)
-    inputs_unspent_outputs = fetch_inputs_unspent_outputs(previous_address, self_repair?)
+
+    inputs_unspent_outputs =
+      fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
+
     {previous_chain, inputs_unspent_outputs}
   end
 
-  defp fetch_context_for_regular_transaction(previous_address, self_repair?) do
+  defp fetch_context_for_regular_transaction(previous_address, timestamp, self_repair?) do
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
       Task.yield_many([
         Task.async(fn -> TransactionContext.fetch_transaction_chain(previous_address) end),
-        Task.async(fn -> fetch_inputs_unspent_outputs(previous_address, self_repair?) end)
+        Task.async(fn ->
+          fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
+        end)
       ])
 
     {previous_chain, inputs_unspent_outputs}
   end
 
-  defp fetch_inputs_unspent_outputs(previous_address, _self_repair = true) do
-    TransactionContext.fetch_transaction_inputs(previous_address)
+  defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = true) do
+    TransactionContext.fetch_transaction_inputs(previous_address, timestamp)
   end
 
-  defp fetch_inputs_unspent_outputs(previous_address, _self_repair = false) do
+  defp fetch_inputs_unspent_outputs(previous_address, _timestamp, _self_repair = false) do
     TransactionContext.fetch_unspent_outputs(previous_address)
   end
 
@@ -218,7 +225,7 @@ defmodule Uniris.Replication do
       |> Enum.find(&(:welcome_node in &1.roles))
       |> Map.get(:to)
       |> P2P.get_node_info!()
-      |> P2P.send_message(%AcknowledgeStorage{address: address})
+      |> P2P.send_message!(%AcknowledgeStorage{address: address})
 
     :ok
   end
@@ -232,20 +239,30 @@ defmodule Uniris.Replication do
     TransactionChain.register_last_address(previous_address, address)
     Contracts.stop_contract(previous_address)
 
-    case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
-      {:ok, tx} ->
-        next_previous_address = Transaction.previous_address(tx)
+    if previous_address != address do
+      case TransactionChain.get_transaction(previous_address, [:previous_public_key]) do
+        {:ok, tx} ->
+          next_previous_address = Transaction.previous_address(tx)
 
-        next_previous_address
-        |> chain_storage_nodes(P2P.list_nodes(availability: :global))
-        |> P2P.broadcast_message(%NotifyLastTransactionAddress{
-          address: address,
-          previous_address: next_previous_address
-        })
-        |> Stream.run()
+          if previous_address != next_previous_address do
+            previous_storage_nodes =
+              chain_storage_nodes(next_previous_address, P2P.list_nodes(availability: :global))
 
-      _ ->
-        :ok
+            if Utils.key_in_node_list?(previous_storage_nodes, Crypto.node_public_key(0)) do
+              acknowledge_previous_storage_nodes(address, next_previous_address)
+            else
+              P2P.broadcast_message(previous_storage_nodes, %NotifyLastTransactionAddress{
+                address: address,
+                previous_address: next_previous_address
+              })
+            end
+          end
+
+        _ ->
+          :ok
+      end
+    else
+      :ok
     end
   end
 
@@ -419,6 +436,7 @@ defmodule Uniris.Replication do
     Account.load_transaction(tx)
     Contracts.load_transaction(tx)
     BeaconChain.load_transaction(tx)
+    OracleChain.load_transaction(tx)
     :ok
   end
 

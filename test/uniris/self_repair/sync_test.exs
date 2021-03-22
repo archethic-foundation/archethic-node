@@ -10,7 +10,9 @@ defmodule Uniris.SelfRepair.SyncTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.GetBeaconSummary
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
@@ -75,6 +77,7 @@ defmodule Uniris.SelfRepair.SyncTest do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+      start_supervised!(Batcher)
 
       welcome_node = %Node{
         first_public_key: "key1",
@@ -147,34 +150,17 @@ defmodule Uniris.SelfRepair.SyncTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummary{subset: <<0>>} ->
-          %BeaconSummary{
-            subset: <<0>>,
-            summary_time: DateTime.utc_now(),
-            transaction_summaries: [
-              %TransactionSummary{
-                address: tx.address,
-                type: :transfer,
-                timestamp: DateTime.utc_now()
-              }
-            ]
-          }
+        _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
+          {:ok, %BatchResponses{responses: [{0, tx}]}}
 
-        _, %GetBeaconSummary{subset: subset} ->
-          %BeaconSummary{
-            subset: subset,
-            summary_time: DateTime.utc_now(),
-            transaction_summaries: []
-          }
-
-        _, %GetTransaction{} ->
-          tx
-
-        _, %GetTransactionInputs{} ->
-          %TransactionInputList{inputs: inputs}
-
-        _, %GetTransactionChain{} ->
-          %TransactionList{transactions: []}
+        _, %BatchRequests{requests: [%GetTransactionInputs{}, %GetTransactionChain{}]}, _ ->
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0, %TransactionInputList{inputs: inputs}},
+               {1, %TransactionList{transactions: []}}
+             ]
+           }}
       end)
 
       assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1), "AAA")

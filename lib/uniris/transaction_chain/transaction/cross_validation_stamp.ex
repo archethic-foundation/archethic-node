@@ -16,7 +16,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
           | :transaction_movements
           | :unspent_outputs
           | :node_movements
-          | :contract_validation
+          | :errors
 
   @typedoc """
   A cross validation stamp is composed from:
@@ -124,7 +124,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:transaction_movements), do: 4
   defp serialize_inconsistency(:unspent_outputs), do: 5
   defp serialize_inconsistency(:node_movements), do: 6
-  defp serialize_inconsistency(:contract_validation), do: 7
+  defp serialize_inconsistency(:errors), do: 7
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -188,7 +188,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<4::8, rest::bitstring>>), do: {:transaction_movement, rest}
   defp do_reduce_inconsistencies(<<5::8, rest::bitstring>>), do: {:unspent_outputs, rest}
   defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:node_movements, rest}
-  defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:contract_validation, rest}
+  defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:errors, rest}
 
   @spec from_map(map()) :: t()
   def from_map(stamp = %{}) do

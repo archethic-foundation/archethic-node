@@ -13,6 +13,9 @@ defmodule Uniris.Contracts.WorkerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Node
@@ -26,6 +29,8 @@ defmodule Uniris.Contracts.WorkerTest do
   import Mox
 
   setup do
+    start_supervised!(Batcher)
+
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -42,9 +47,9 @@ defmodule Uniris.Contracts.WorkerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %StartMining{transaction: tx} ->
+      _, %BatchRequests{requests: [%StartMining{transaction: tx}]}, _ ->
         send(me, {:transaction_sent, tx})
-        %Ok{}
+        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
     end)
 
     aes_key = :crypto.strong_rand_bytes(32)
@@ -200,7 +205,7 @@ defmodule Uniris.Contracts.WorkerTest do
       code = """
       condition inherit,
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
-        
+
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
@@ -245,7 +250,7 @@ defmodule Uniris.Contracts.WorkerTest do
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3": 10.04}
 
       actions triggered_by: transaction do
-        set_type transfer 
+        set_type transfer
         add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
       end
       """
@@ -303,7 +308,7 @@ defmodule Uniris.Contracts.WorkerTest do
           condition inherit,
             uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\": 9.20}
 
-          actions triggered_by: transaction do 
+          actions triggered_by: transaction do
             set_type transfer
             add_uco_transfer to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9.20
           end"
@@ -335,7 +340,7 @@ defmodule Uniris.Contracts.WorkerTest do
     condition inherit,
       uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\": 9.20}
 
-    actions triggered_by: transaction do 
+    actions triggered_by: transaction do
       set_type transfer
       add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9.20
     end"

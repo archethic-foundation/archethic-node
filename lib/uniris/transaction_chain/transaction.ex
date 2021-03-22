@@ -69,6 +69,8 @@ defmodule Uniris.TransactionChain.Transaction do
           | :code_proposal
           | :code_approval
           | :nft
+          | :oracle
+          | :oracle_summary
 
   @transaction_types [
     :identity,
@@ -80,7 +82,9 @@ defmodule Uniris.TransactionChain.Transaction do
     :hosting,
     :code_proposal,
     :code_approval,
-    :nft
+    :nft,
+    :oracle,
+    :oracle_summary
   ]
 
   @doc """
@@ -258,6 +262,8 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:code_proposal), do: 7
   def serialize_type(:code_approval), do: 8
   def serialize_type(:nft), do: 9
+  def serialize_type(:oracle), do: 10
+  def serialize_type(:oracle_summary), do: 11
 
   @doc """
   Parse a serialize transaction type
@@ -273,6 +279,8 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(7), do: :code_proposal
   def parse_type(8), do: :code_approval
   def parse_type(9), do: :nft
+  def parse_type(10), do: :oracle
+  def parse_type(11), do: :oracle_summary
 
   @doc """
   Determines if a transaction type is a network one
@@ -283,6 +291,8 @@ defmodule Uniris.TransactionChain.Transaction do
   def network_type?(:origin_shared_secrets), do: true
   def network_type?(:code_proposal), do: true
   def network_type?(:code_approval), do: true
+  def network_type?(:oracle), do: true
+  def network_type?(:oracle_summary), do: true
   def network_type?(_), do: false
 
   @doc """
@@ -445,7 +455,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>         unspent_outputs: []
       ...>      },
       ...>      recipients: [],
-      ...>      contract_validation: true,
+      ...>      errors: [],
       ...>      signature: <<47, 48, 215, 147, 153, 120, 199, 102, 130, 0, 51, 138, 164, 146, 99, 2, 74,
       ...>       116, 89, 117, 185, 72, 109, 10, 198, 124, 44, 66, 126, 43, 85, 186, 105, 169,
       ...>       159, 56, 129, 179, 207, 176, 97, 190, 162, 240, 186, 164, 58, 41, 221, 27,
@@ -523,8 +533,8 @@ defmodule Uniris.TransactionChain.Transaction do
       0,
       # Nb resolved recipients,
       0,
-      # Contract validation
-      1::1,
+      # No errors
+      0::1, 0::1,
       # Signature size
       64,
       # Signature
@@ -642,7 +652,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...> 186, 184, 109, 13, 200, 136, 34, 241, 99, 99, 210, 172, 143, 104, 160, 99,
       ...> 0, 199, 216, 73, 158, 82, 76, 158, 8, 215, 22, 186, 166, 45, 153, 17, 22, 251,
       ...> 133, 212, 35, 220, 155, 242, 198, 93, 133, 134, 244, 226, 122, 87, 17,
-      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 1::1, 64, 47, 48, 215, 147, 153, 120, 199,
+      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0::1, 0::1, 64, 47, 48, 215, 147, 153, 120, 199,
       ...> 102, 130, 0, 51, 138, 164, 146, 99, 2, 74, 116, 89, 117, 185, 72, 109, 10, 198, 124,
       ...> 44, 66, 126, 43, 85, 186, 105, 169, 159, 56, 129, 179, 207, 176, 97, 190, 162, 240,
       ...> 186, 164, 58, 41, 221, 27, 234, 185, 105, 75, 81, 238, 158, 13, 150, 184, 31, 247, 79, 251,
@@ -681,6 +691,7 @@ defmodule Uniris.TransactionChain.Transaction do
                 node_movements: [],
                 unspent_outputs: []
              },
+             errors: [],
              recipients: [],
              signature: <<47, 48, 215, 147, 153, 120, 199, 102, 130, 0, 51, 138, 164, 146, 99, 2, 74,
               116, 89, 117, 185, 72, 109, 10, 198, 124, 44, 66, 126, 43, 85, 186, 105, 169,
@@ -839,21 +850,23 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>    216, 73, 148, 253, 155, 46, 9, 247, 55, 141, 186, 37, 155, 251>>
       ...> }
       ...> |> Transaction.fee()
-      0.0 
-      
+      0.0
+
   """
   @spec fee(t()) :: float()
-  def fee(%__MODULE__{type: :node}), do: 0.0
-  def fee(%__MODULE__{type: :node_shared_secrets}), do: 0.0
   def fee(%__MODULE__{type: :identity}), do: 0.0
   def fee(%__MODULE__{type: :keychain}), do: 0.0
 
-  def fee(%__MODULE__{address: address}) do
-    if address == Bootstrap.genesis_address() do
+  def fee(%__MODULE__{type: type, address: address}) do
+    if network_type?(type) do
       0.0
     else
-      # TODO: implement the fee computation algorithm
-      0.01
+      if address == Bootstrap.genesis_address() do
+        0.0
+      else
+        # TODO: implement the fee computation algorithm
+        0.01
+      end
     end
   end
 end

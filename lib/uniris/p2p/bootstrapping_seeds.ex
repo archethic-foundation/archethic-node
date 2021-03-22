@@ -105,6 +105,7 @@ defmodule Uniris.P2P.BootstrappingSeeds do
         port: String.to_integer(port),
         last_public_key: Base.decode16!(public_key, case: :mixed),
         first_public_key: Base.decode16!(public_key, case: :mixed),
+        network_patch: "AAA",
         transport:
           case transport do
             "tcp" ->

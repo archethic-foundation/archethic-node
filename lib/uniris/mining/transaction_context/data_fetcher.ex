@@ -26,17 +26,8 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   @spec fetch_previous_transaction(binary(), list(Node.t())) ::
           {:error, :not_found} | {:ok, Transaction.t(), Node.t()}
   def fetch_previous_transaction(previous_address, nodes) do
-    response =
-      nodes
-      |> P2P.broadcast_message(%GetTransaction{address: previous_address},
-        timeout: 500,
-        ack_node?: true
-      )
-      |> Stream.filter(&match?({%Transaction{}, %Node{}}, &1))
-      |> Enum.at(0)
-
-    case response do
-      {tx = %Transaction{}, node} ->
+    case P2P.reply_first_with_ack(nodes, %GetTransaction{address: previous_address}) do
+      {:ok, tx = %Transaction{}, node} ->
         {:ok, tx, node}
 
       _ ->
@@ -59,15 +50,19 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
           address :: binary(),
           storage_nodes :: list(Node.t()),
           confirmation? :: boolean()
-        ) :: {list(UnspentOutput.t()), Node.t()}
+        ) :: {list(UnspentOutput.t()), list(Node.t())}
   def fetch_unspent_outputs(previous_address, nodes, confirmation? \\ true) do
-    nodes
-    |> P2P.broadcast_message(%GetUnspentOutputs{address: previous_address},
-      ack_node?: true,
-      timeout: 500
-    )
-    |> Stream.map(&handle_unspent_outputs(&1, confirmation?, previous_address))
-    |> Enum.at(0)
+    case P2P.reply_first_with_ack(nodes, %GetUnspentOutputs{address: previous_address}) do
+      {:ok, unspent_outputs, node} ->
+        handle_unspent_outputs(
+          {unspent_outputs, node},
+          confirmation?,
+          previous_address
+        )
+
+      _ ->
+        {[], []}
+    end
   end
 
   defp handle_unspent_outputs(
@@ -103,16 +98,16 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   end
 
   defp confirm_unspent_output(unspent_output = %UnspentOutput{from: from}, tx_address) do
-    {res, node} =
-      from
-      |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-      |> P2P.broadcast_message(%GetTransaction{address: from}, ack_node?: true, timeout: 500)
-      |> Enum.at(0)
+    storage_nodes = Replication.chain_storage_nodes(from, P2P.list_nodes(availability: :global))
 
-    if valid_unspent_output?(tx_address, unspent_output, res) do
-      {:ok, unspent_output, node}
-    else
-      {:error, :invalid_unspent_output}
+    case P2P.reply_first_with_ack(storage_nodes, %GetTransaction{address: from}) do
+      {:ok, tx = %Transaction{}, node} ->
+        if valid_unspent_output?(tx_address, unspent_output, tx) do
+          {:ok, unspent_output, node}
+        end
+
+      _ ->
+        {:error, :invalid_unspent_output}
     end
   end
 
@@ -156,24 +151,10 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   @spec fetch_p2p_view(node_public_keys :: list(Crypto.key()), storage_nodes :: list(Node.t())) ::
           {p2p_view :: bitstring(), node_involved :: Node.t()}
   def fetch_p2p_view(node_public_keys, storage_nodes) do
-    {%P2PView{nodes_view: nodes_view}, node} =
-      storage_nodes
-      |> P2P.broadcast_message(
-        %GetP2PView{
-          node_public_keys: node_public_keys
-        },
-        ack_node?: true,
-        timeout: 500
-      )
-      |> Stream.filter(fn
-        {%P2PView{nodes_view: nodes_view}, _node}
-        when bit_size(nodes_view) == length(node_public_keys) ->
-          true
-
-        _ ->
-          false
-      end)
-      |> Enum.at(0)
+    {:ok, %P2PView{nodes_view: nodes_view}, node} =
+      P2P.reply_first_with_ack(storage_nodes, %GetP2PView{
+        node_public_keys: node_public_keys
+      })
 
     {nodes_view, node}
   end

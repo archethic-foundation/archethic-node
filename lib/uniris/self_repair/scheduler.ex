@@ -47,6 +47,14 @@ defmodule Uniris.SelfRepair.Scheduler do
   def handle_call({:start, last_sync_date}, _from, state = %{interval: interval}) do
     Logger.info("Self-Repair scheduler is started")
 
+    case Map.get(state, :timer) do
+      nil ->
+        :ok
+
+      timer ->
+        Process.cancel_timer(timer)
+    end
+
     timer = schedule_sync(interval)
     remaining_seconds = remaining_seconds_from_timer(timer)
 
@@ -54,7 +62,12 @@ defmodule Uniris.SelfRepair.Scheduler do
       "Next Self-Repair Sync will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
     )
 
-    {:reply, :ok, Map.put(state, :last_sync_date, last_sync_date)}
+    new_state =
+      state
+      |> Map.put(:last_sync_date, last_sync_date)
+      |> Map.put(:timer, timer)
+
+    {:reply, :ok, new_state}
   end
 
   def handle_info(

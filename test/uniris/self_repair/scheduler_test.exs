@@ -35,8 +35,8 @@ defmodule Uniris.SelfRepair.SchedulerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetBeaconSummary{} ->
-        %NotFound{}
+      _, %GetBeaconSummary{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
@@ -52,8 +52,8 @@ defmodule Uniris.SelfRepair.SchedulerTest do
   test "handle_info/3 should initiate the loading of missing transactions, schedule the next repair and update the last sync date" do
     MockClient
     |> stub(:send_message, fn
-      _, %GetBeaconSummary{} ->
-        %NotFound{}
+      _, %GetBeaconSummary{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     P2P.add_node(%Node{

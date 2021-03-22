@@ -1,6 +1,7 @@
 import Config
 
 # config :logger, handle_sasl_reports: true
+config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "data1")
 
 config :telemetry_poller, :default, period: 5_000
 
@@ -16,7 +17,7 @@ config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "*/10 * * * * *"
 
 config :uniris, Uniris.BeaconChain.SummaryTimer,
-  # At the 58th second  
+  # At the 58th second
   interval: "58 * * * * *"
 
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
@@ -47,6 +48,12 @@ config :uniris, Uniris.Governance.Pools,
     uniris: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"]
   ]
 
+config :uniris, Uniris.OracleChain.Scheduler,
+  # Poll new changes every 10 seconds
+  polling_interval: "*/10 * * * * *",
+  # Aggregate chain every minute
+  summary_interval: "0 * * * * *"
+
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
 
 config :uniris, Uniris.SelfRepair.Scheduler,
@@ -73,7 +80,7 @@ config :uniris, Uniris.P2P.Endpoint,
 # watchers to your application. For example, we use it
 # with webpack to recompile .js and .css sources.
 config :uniris, UnirisWeb.Endpoint,
-  http: [port: 4000],
+  http: [port: System.get_env("UNIRIS_HTTP_PORT", "4000") |> String.to_integer()],
   server: true,
   debug_errors: true,
   check_origin: false,

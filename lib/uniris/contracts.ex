@@ -35,7 +35,7 @@ defmodule Uniris.Contracts do
       ...>    actions triggered_by: datetime, at: 1601039923 do
       ...>      set_type hosting
       ...>      set_content \"Mr.X: 10, Mr.Y: 8\"
-      ...>    end  
+      ...>    end
       ...> "
       ...> |> Contracts.parse()
       {:ok,
@@ -176,15 +176,15 @@ defmodule Uniris.Contracts do
   defp valid_from_trigger?(%Trigger{type: :transaction}, _), do: true
 
   @doc """
-  List the address of the transaction which has contacted a smart contract 
+  List the address of the transaction which has contacted a smart contract
   """
-  @spec list_contract_transactions(binary()) :: list(binary())
+  @spec list_contract_transactions(binary()) :: list({binary(), DateTime.t()})
   defdelegate list_contract_transactions(address),
     to: TransactionLookup,
     as: :list_contract_transactions
 
   @doc """
-  Termine a smart contract execution when a new transaction on the chain happened 
+  Termine a smart contract execution when a new transaction on the chain happened
   """
   @spec stop_contract(binary()) :: :ok
   defdelegate stop_contract(address), to: Loader

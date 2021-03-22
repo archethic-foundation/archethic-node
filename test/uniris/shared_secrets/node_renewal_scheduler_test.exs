@@ -8,6 +8,9 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Node
@@ -19,6 +22,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
   setup do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
+    start_supervised!(Batcher)
     :ok
   end
 
@@ -38,9 +42,9 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %StartMining{} ->
+        _, %BatchRequests{requests: [%StartMining{}]}, _ ->
           send(me, :renewal_processed)
-          %Ok{}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)
 
       assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])

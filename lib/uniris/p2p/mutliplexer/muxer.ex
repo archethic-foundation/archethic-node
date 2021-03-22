@@ -5,6 +5,8 @@ defmodule Uniris.P2P.Multiplexer.Muxer do
 
   use GenServer
 
+  alias Uniris.P2P.Transport
+
   require Logger
 
   def start_link(opts \\ []) do
@@ -12,59 +14,52 @@ defmodule Uniris.P2P.Multiplexer.Muxer do
   end
 
   def init(args) do
-    timeframe = Keyword.get(args, :timeframe) || 50
-    multiplexer_pid = Keyword.get(args, :multiplexer_pid)
+    socket = Keyword.get(args, :socket)
+    transport = Keyword.get(args, :transport)
 
-    schedule_message_sending(timeframe)
-
-    {:ok, %{timeframe: timeframe, messages: [], stream_id: 1, multiplexer_pid: multiplexer_pid}}
+    {:ok, %{stream_id: 1, transport: transport, socket: socket}}
   end
 
   @doc """
   Send data to the muxer and cache them awaiting the window timeframe to trigger the sending
   """
-  @spec send_data(pid(), binary()) :: :ok
-  def send_data(pid, data) do
-    GenServer.cast(pid, {:send_data, data})
+  @spec send_data(pid(), binary()) ::
+          {:ok, stream_id :: non_neg_integer()} | {:error, :inet.posix()}
+  def send_data(pid, data) when is_pid(pid) and is_binary(data) do
+    GenServer.call(pid, {:send_data, data})
   end
 
-  def handle_cast({:send_data, data}, state) do
-    {:noreply, Map.update!(state, :messages, &[data | &1])}
+  @doc """
+  Send data to the muxer and cache them awaiting the window timeframe to trigger the sending
+  """
+  @spec send_data(pid(), non_neg_integer(), binary()) ::
+          {:ok, stream_id :: non_neg_integer()} | {:error, :inet.posix()}
+  def send_data(pid, id, data)
+      when is_pid(pid) and is_integer(id) and id > 0 and is_binary(data) do
+    GenServer.call(pid, {:send_data, id, data})
   end
 
-  def handle_info(
-        :wrap_and_send,
-        state = %{
-          messages: messages,
-          stream_id: stream_id,
-          timeframe: timeframe,
-          multiplexer_pid: multiplexer_pid
-        }
+  def handle_call(
+        {:send_data, data},
+        _,
+        state = %{stream_id: stream_id, socket: socket, transport: transport}
       ) do
-    case messages do
-      [] ->
-        schedule_message_sending(timeframe)
-        {:noreply, state}
+    case Transport.send_message(transport, socket, <<stream_id::32, data::binary>>) do
+      :ok ->
+        {:reply, {:ok, stream_id}, Map.update!(state, :stream_id, &(&1 + 1))}
 
-      _ ->
-        bin_messages =
-          messages
-          |> Enum.map(fn <<id::32, message::binary>> ->
-            <<id::32, byte_size(message)::32, message::binary>>
-          end)
-          |> :erlang.list_to_binary()
-
-        send(
-          multiplexer_pid,
-          {:batch_sending, <<stream_id::8, length(messages)::32, bin_messages::binary>>}
-        )
-
-        schedule_message_sending(timeframe)
-        {:noreply, Map.put(state, :messages, [])}
+      {:error, _} = e ->
+        {:reply, e, state}
     end
   end
 
-  defp schedule_message_sending(timeframe) do
-    Process.send_after(self(), :wrap_and_send, timeframe)
+  def handle_call({:send_data, id, data}, _, state = %{socket: socket, transport: transport}) do
+    case Transport.send_message(transport, socket, <<id::32, data::binary>>) do
+      :ok ->
+        {:reply, {:ok, id}, state}
+
+      {:error, _} = e ->
+        {:reply, e, state}
+    end
   end
 end

@@ -11,14 +11,20 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.Bootstrap
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Message.AcknowledgeStorage
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
@@ -26,7 +32,6 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
-  alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
 
   alias Uniris.Replication
@@ -36,6 +41,7 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
@@ -53,6 +59,7 @@ defmodule Uniris.BootstrapTest do
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
+    start_supervised!(Batcher)
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -65,8 +72,8 @@ defmodule Uniris.BootstrapTest do
   describe "run/5" do
     test "should initialize the network when nothing is set before" do
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
-        %LastTransactionAddress{address: address}
+      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
       end)
 
       seeds = [
@@ -130,17 +137,23 @@ defmodule Uniris.BootstrapTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBootstrappingNodes{} ->
-          %BootstrappingNodes{
-            new_seeds: [
-              Enum.at(nodes, 0)
-            ],
-            closest_nodes: [
-              Enum.at(nodes, 1)
-            ]
-          }
+        _, %BatchRequests{requests: [%GetBootstrappingNodes{}]}, _ ->
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0,
+                %BootstrappingNodes{
+                  new_seeds: [
+                    Enum.at(nodes, 0)
+                  ],
+                  closest_nodes: [
+                    Enum.at(nodes, 1)
+                  ]
+                }}
+             ]
+           }}
 
-        _, %NewTransaction{transaction: tx} ->
+        _, %NewTransaction{transaction: tx}, _ ->
           stamp = %ValidationStamp{
             proof_of_work: "",
             proof_of_integrity: "",
@@ -165,34 +178,35 @@ defmodule Uniris.BootstrapTest do
           :ok = Replication.ingest_transaction(validated_tx)
           :ok = Replication.acknowledge_storage(validated_tx)
 
-          %Ok{}
+          {:ok, %Ok{}}
 
-        _, %GetStorageNonce{} ->
-          %EncryptedStorageNonce{
-            digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
-          }
+        _, %GetStorageNonce{}, _ ->
+          {:ok,
+           %EncryptedStorageNonce{
+             digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+           }}
 
-        _, %ListNodes{} ->
-          %NodeList{nodes: nodes}
+        _, %ListNodes{}, _ ->
+          {:ok, %NodeList{nodes: nodes}}
 
-        _, %GetBeaconSummary{} ->
-          %NotFound{}
+        _, %GetBeaconSummary{}, _ ->
+          {:ok, %NotFound{}}
 
-        _, %NotifyEndOfNodeSync{} ->
+        _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]}, _ ->
           send(me, :node_ready)
-          %Ok{}
+          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
 
-        _, %SubscribeTransactionValidation{address: address} ->
-          PubSub.register_to_new_transaction_by_address(address)
+        _, %GetTransaction{address: address}, _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             validation_stamp: %ValidationStamp{},
+             cross_validation_stamps: [%{}]
+           }}
 
-          receive do
-            {:new_transaction, ^address} ->
-              %Ok{}
-          end
-
-        _, %AcknowledgeStorage{address: address} ->
+        _, %AcknowledgeStorage{address: address}, _ ->
           PubSub.notify_new_transaction(address)
-          %Ok{}
+          {:ok, %Ok{}}
       end)
 
       :ok
@@ -204,7 +218,8 @@ defmodule Uniris.BootstrapTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32)
+          last_public_key: :crypto.strong_rand_bytes(32),
+          network_patch: "AAA"
         }
       ]
 
@@ -220,7 +235,8 @@ defmodule Uniris.BootstrapTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32)
+          last_public_key: :crypto.strong_rand_bytes(32),
+          network_patch: "AAA"
         }
       ]
 
@@ -257,7 +273,8 @@ defmodule Uniris.BootstrapTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32)
+          last_public_key: :crypto.strong_rand_bytes(32),
+          network_patch: "AAA"
         }
       ]
 

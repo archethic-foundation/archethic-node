@@ -47,9 +47,20 @@ config :uniris, Uniris.Governance.Pools,
 config :uniris, Uniris.Governance.Pools.MemTable, enabled: false
 config :uniris, Uniris.Governance.Pools.MemTableLoader, enabled: false
 
+config :uniris, Uniris.OracleChain.MemTable, enabled: false
+config :uniris, Uniris.OracleChain.MemTableLoader, enabled: false
+
+config :uniris, Uniris.OracleChain.Scheduler,
+  enabled: false,
+  polling_interval: "0 0 * * * *",
+  summary_interval: "0 0 0 * * *"
+
+config :uniris, Uniris.OracleChain.Services.UCOPrice, provider: MockUCOPriceProvider
+
 config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
 config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
 
+config :uniris, Uniris.P2P.Batcher, enabled: false
 config :uniris, Uniris.P2P.Endpoint.Listener, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false

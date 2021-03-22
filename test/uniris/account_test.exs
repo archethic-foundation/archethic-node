@@ -15,23 +15,35 @@ defmodule Uniris.AccountTest do
     end
 
     test "should return the sum of unspent outputs amounts" do
-      UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{
-        from: "@Bob3",
-        amount: 3.0,
-        type: :UCO
-      })
+      UCOLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{
+          from: "@Bob3",
+          amount: 3.0,
+          type: :UCO
+        },
+        ~U[2021-03-05 13:41:34Z]
+      )
 
-      UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{
-        from: "@Tom10",
-        amount: 1.0,
-        type: :UCO
-      })
+      UCOLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{
+          from: "@Tom10",
+          amount: 1.0,
+          type: :UCO
+        },
+        ~U[2021-03-05 13:41:34Z]
+      )
 
-      NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{
-        from: "@Charlie2",
-        amount: 100.0,
-        type: {:NFT, "@CharlieNFT"}
-      })
+      NFTLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{
+          from: "@Charlie2",
+          amount: 100.0,
+          type: {:NFT, "@CharlieNFT"}
+        },
+        ~U[2021-03-05 13:41:34Z]
+      )
 
       assert %{uco: 4.0, nft: %{"@CharlieNFT" => 100}} == Account.get_balance("@Alice2")
     end
@@ -41,14 +53,27 @@ defmodule Uniris.AccountTest do
     end
 
     test "should return 0 when all the unspent outputs have been spent" do
-      UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0})
-      UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Tom10", amount: 1.0})
+      UCOLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{from: "@Bob3", amount: 3.0},
+        ~U[2021-03-05 13:41:34Z]
+      )
 
-      NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{
-        from: "@Charlie2",
-        amount: 100.0,
-        type: {:NFT, "@CharlieNFT"}
-      })
+      UCOLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{from: "@Tom10", amount: 1.0},
+        ~U[2021-03-05 13:41:34Z]
+      )
+
+      NFTLedger.add_unspent_output(
+        "@Alice2",
+        %UnspentOutput{
+          from: "@Charlie2",
+          amount: 100.0,
+          type: {:NFT, "@CharlieNFT"}
+        },
+        ~U[2021-03-05 13:41:34Z]
+      )
 
       UCOLedger.spend_all_unspent_outputs("@Alice2")
       NFTLedger.spend_all_unspent_outputs("@Alice2")

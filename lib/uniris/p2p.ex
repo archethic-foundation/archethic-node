@@ -4,6 +4,7 @@ defmodule Uniris.P2P do
   """
   alias Uniris.Crypto
 
+  alias __MODULE__.Batcher
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
   alias __MODULE__.Client.TransportImpl
@@ -86,6 +87,14 @@ defmodule Uniris.P2P do
   defdelegate set_node_globally_available(first_public_key), to: MemTable, as: :set_node_available
 
   @doc """
+  Remove a node first public key to the list of nodes globally available.
+  """
+  @spec set_node_globally_unavailable(first_public_key :: Crypto.key()) :: :ok
+  defdelegate set_node_globally_unavailable(first_public_key),
+    to: MemTable,
+    as: :set_node_unavailable
+
+  @doc """
   Add a node first public key to the list of authorized nodes
   """
   @spec authorize_node(first_public_key :: Crypto.key(), authorization_date :: DateTime.t()) ::
@@ -141,13 +150,40 @@ defmodule Uniris.P2P do
   If the exchange fails, the node availability history will decrease
   and will be locally unavailable until the next exchange
   """
-  @spec send_message(Crypto.key() | Node.t(), Message.t()) :: Message.t()
-  def send_message(public_key, message) when is_binary(public_key) do
-    {:ok, node} = get_node_info(public_key)
-    send_message(node, message)
+  @spec send_message!(Crypto.key() | Node.t(), Message.request()) :: Message.response()
+  def send_message!(node, message, timeout \\ 3_000)
+
+  def send_message!(public_key, message, timeout) when is_binary(public_key) do
+    public_key
+    |> get_node_info!
+    |> send_message!(message, timeout)
   end
 
-  def send_message(node = %Node{}, message), do: Client.send_message(node, message)
+  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
+    case Client.send_message(node, message, timeout) do
+      {:ok, data} ->
+        data
+
+      {:error, reason} ->
+        raise "Messaging error with #{:inet.ntoa(ip)}:#{port} - reason: #{reason}"
+    end
+  end
+
+  @spec send_message(Crypto.key() | Node.t(), Message.t()) ::
+          {:ok, Message.t()}
+          | {:error, :not_found}
+          | {:error, Client.error()}
+  def send_message(node, message, timeout \\ 3_000)
+
+  def send_message(public_key, message, timeout) when is_binary(public_key) do
+    with {:ok, node} <- get_node_info(public_key),
+         {:ok, data} <- send_message(node, message, timeout) do
+      {:ok, data}
+    end
+  end
+
+  def send_message(node = %Node{}, message, timeout),
+    do: Client.send_message(node, message, timeout)
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
@@ -226,37 +262,6 @@ defmodule Uniris.P2P do
   """
   @spec get_first_node_key(Crypto.key()) :: Crypto.key()
   defdelegate get_first_node_key(key), to: MemTable
-
-  @doc """
-  Send a message to a list of nodes and return a stream of response
-
-  Available options:
-  - ack_node?: can require node acknowledgement to return the node which respond
-  - timeout: timeout before the concurrent request is cancelled
-  """
-  @spec broadcast_message(list(Node.t()), Message.t(), opts :: Keyword.t()) :: Enumerable.t()
-  def broadcast_message(nodes, message, opts \\ [ack_node?: false, timeout: 5_000]) do
-    ack_node? = Keyword.get(opts, :ack_node?, false)
-    timeout = Keyword.get(opts, :timeout, 5_000)
-
-    nodes
-    |> Task.async_stream(
-      fn node ->
-        {send_message(node, message), node}
-      end,
-      ordered: false,
-      on_timeout: :kill_task,
-      timeout: timeout
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.map(fn {:ok, {res, node}} ->
-      if ack_node? do
-        {res, node}
-      else
-        res
-      end
-    end)
-  end
 
   @doc """
   List the current bootstrapping network seeds
@@ -343,4 +348,38 @@ defmodule Uniris.P2P do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTableLoader
+
+  @doc """
+  Send a message using a batcher to send multiple message at once for the given nodes.
+
+  The batched request will be delivered after a certain timeframe
+  """
+  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok | {:error, Client.error()}
+  defdelegate broadcast_message(nodes, message), to: Batcher, as: :add_broadcast_request
+
+  @doc """
+  Send a message to a list of nodes by batching the messages and getting the first node which responses depending
+  on the closest nodes.
+
+  The batched request will be delivered after a certain timeframe
+  """
+  @spec reply_first(list(Node.t()), Message.request()) ::
+          {:ok, Message.response()} | {:error, Client.error()}
+  defdelegate reply_first(nodes, message), to: Batcher, as: :request_first_reply
+
+  @doc """
+  Same as `reply_first/2` but we can specify the network patch to compare with the node positions
+  """
+  @spec reply_first(list(Node.t()), Message.request(), binary()) ::
+          {:ok, Message.response()} | {:eerr, Client.error()}
+  defdelegate reply_first(nodes, message, patch), to: Batcher, as: :request_first_reply
+
+  @doc """
+  Same as `reply_first/2` except if returns the node which reply the first
+  """
+  @spec reply_first_with_ack(list(Node.t()), Message.request()) ::
+          {:ok, Message.response(), Node.t()} | {:error, Client.error()}
+  defdelegate reply_first_with_ack(nodes, message),
+    to: Batcher,
+    as: :request_first_reply_with_ack
 end

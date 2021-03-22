@@ -155,6 +155,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   - Type: UCO/NFT/Call
   - NFT address: address of the NFT if the type is NFT
   - Spent: determines if the input has been spent
+  - Timestamp: Date time when the inputs was generated
   """
   object :transaction_input do
     field(:from, :hex)
@@ -162,6 +163,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
     field(:type, :string)
     field(:nft_address, :hex)
     field(:spent, :boolean)
+    field(:timestamp, :timestamp)
   end
 
   @desc """

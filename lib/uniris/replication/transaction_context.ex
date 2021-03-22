@@ -25,7 +25,10 @@ defmodule Uniris.Replication.TransactionContext do
   def fetch_transaction_chain(address) when is_binary(address) do
     message = %GetTransactionChain{address: address}
 
-    do_fetch(address, message, fn %TransactionList{transactions: transactions} -> transactions end)
+    do_fetch(address, message, fn
+      {:ok, %TransactionList{transactions: transactions}} -> transactions
+      _ -> []
+    end)
   end
 
   @doc """
@@ -36,23 +39,36 @@ defmodule Uniris.Replication.TransactionContext do
   def fetch_unspent_outputs(address) when is_binary(address) do
     message = %GetUnspentOutputs{address: address}
 
-    do_fetch(address, message, fn %UnspentOutputList{unspent_outputs: unspent_outputs} ->
-      unspent_outputs
+    do_fetch(address, message, fn
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
+        unspent_outputs
+
+      _ ->
+        []
     end)
   end
 
-  @spec fetch_transaction_inputs(binary()) :: Enumerable.t() | list(TransactionInput.t())
-  def fetch_transaction_inputs(address) when is_binary(address) do
+  @doc """
+  Fetch the transaction inputs for a transaction address at a given time
+  """
+  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
+          Enumerable.t() | list(TransactionInput.t())
+  def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
     message = %GetTransactionInputs{address: address}
-    do_fetch(address, message, fn %TransactionInputList{inputs: inputs} -> inputs end)
+
+    do_fetch(address, message, fn
+      {:ok, %TransactionInputList{inputs: inputs}} ->
+        inputs |> Enum.filter(&(&1.timestamp == timestamp))
+
+      _ ->
+        []
+    end)
   end
 
   defp do_fetch(address, message, result_handler) do
     address
     |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-    |> P2P.nearest_nodes()
-    |> P2P.broadcast_message(message)
-    |> Enum.at(0)
+    |> P2P.reply_first(message)
     |> result_handler.()
   end
 end

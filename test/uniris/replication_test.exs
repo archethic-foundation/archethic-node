@@ -11,15 +11,18 @@ defmodule Uniris.ReplicationTest do
 
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
 
+  alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
-
-  alias Uniris.P2P
   alias Uniris.P2P.Node
+
   alias Uniris.Replication
 
   alias Uniris.SharedSecrets
@@ -38,6 +41,7 @@ defmodule Uniris.ReplicationTest do
 
   setup do
     start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
+    start_supervised!(Batcher)
     :ok
   end
 
@@ -165,11 +169,14 @@ defmodule Uniris.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionChain{} ->
-        %TransactionList{transactions: []}
-
-      _, %GetUnspentOutputs{} ->
-        %UnspentOutputList{unspent_outputs: unspent_outputs}
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %UnspentOutputList{unspent_outputs: unspent_outputs}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
     end)
 
     assert :ok = Replication.process_transaction(tx, [:chain, :beacon])
@@ -289,9 +296,13 @@ defmodule Uniris.ReplicationTest do
       me = self()
 
       MockClient
-      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _} ->
+      |> stub(:send_message, fn _,
+                                %BatchRequests{
+                                  requests: [%NotifyLastTransactionAddress{address: _}]
+                                },
+                                _ ->
         send(me, :notification_sent)
-        %Ok{}
+        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
       end)
 
       P2P.add_node(%Node{
@@ -306,7 +317,7 @@ defmodule Uniris.ReplicationTest do
       assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2", "@Alice1")
       assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
 
-      assert_receive :notification_sent
+      assert_receive :notification_sent, 500
     end
   end
 end

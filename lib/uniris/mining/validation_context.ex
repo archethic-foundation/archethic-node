@@ -34,6 +34,8 @@ defmodule Uniris.Mining.ValidationContext do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.OracleChain
+
   alias Uniris.Replication
 
   alias Uniris.TransactionChain
@@ -79,8 +81,8 @@ defmodule Uniris.Mining.ValidationContext do
   ## Examples
 
       iex> ValidationContext.new(
-      ...>   transaction: %Transaction{}, 
-      ...>   welcome_node: %Node{last_public_key: "key1", availability_history: <<1::1>>}, 
+      ...>   transaction: %Transaction{},
+      ...>   welcome_node: %Node{last_public_key: "key1", availability_history: <<1::1>>},
       ...>   validation_nodes: [%Node{last_public_key: "key2", availability_history: <<1::1>>}, %Node{last_public_key: "key3", availability_history: <<1::1>>}],
       ...>   chain_storage_nodes: [%Node{last_public_key: "key4", availability_history: <<1::1>>}, %Node{last_public_key: "key5", availability_history: <<1::1>>}],
       ...>   beacon_storage_nodes: [%Node{last_public_key: "key6", availability_history: <<1::1>>}, %Node{last_public_key: "key7", availability_history: <<1::1>>}])
@@ -131,8 +133,8 @@ defmodule Uniris.Mining.ValidationContext do
       iex> %ValidationContext{
       ...>  cross_validation_nodes_confirmation: <<1::1, 0::1, 1::1>>,
       ...>  cross_validation_nodes: [
-      ...>    %Node{first_public_key: "key1"}, 
-      ...>    %Node{first_public_key: "key2"}, 
+      ...>    %Node{first_public_key: "key1"},
+      ...>    %Node{first_public_key: "key2"},
       ...>    %Node{first_public_key: "key3"}
       ...>  ]
       ...> }
@@ -142,8 +144,8 @@ defmodule Uniris.Mining.ValidationContext do
       iex> %ValidationContext{
       ...>  cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1>>,
       ...>  cross_validation_nodes: [
-      ...>    %Node{first_public_key: "key1"}, 
-      ...>    %Node{first_public_key: "key2"}, 
+      ...>    %Node{first_public_key: "key1"},
+      ...>    %Node{first_public_key: "key2"},
       ...>    %Node{first_public_key: "key3"}
       ...>  ]
       ...> }
@@ -272,7 +274,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   ## Examples
 
-      iex> %ValidationContext{ 
+      iex> %ValidationContext{
       ...>   coordinator_node: %Node{last_public_key: "key1"},
       ...>   cross_validation_nodes: [
       ...>     %Node{last_public_key: "key2"},
@@ -283,7 +285,7 @@ defmodule Uniris.Mining.ValidationContext do
       ...> |> ValidationContext.cross_validation_node?("key3")
       true
 
-      iex> %ValidationContext{ 
+      iex> %ValidationContext{
       ...>   coordinator_node: %Node{last_public_key: "key1"},
       ...>   cross_validation_nodes: [
       ...>     %Node{last_public_key: "key2"},
@@ -384,11 +386,11 @@ defmodule Uniris.Mining.ValidationContext do
       ...>    %Node{last_public_key: "key11"}
       ...>  ] = %ValidationContext{
       ...>   chain_storage_nodes: [
-      ...>     %Node{first_public_key: "key5", last_public_key: "key5"}, 
+      ...>     %Node{first_public_key: "key5", last_public_key: "key5"},
       ...>     %Node{first_public_key: "key7", last_public_key: "key7"}
       ...>   ],
       ...>   beacon_storage_nodes: [
-      ...>     %Node{first_public_key: "key10", last_public_key: "key10"}, 
+      ...>     %Node{first_public_key: "key10", last_public_key: "key10"},
       ...>     %Node{first_public_key: "key11", last_public_key: "key11"}
       ...>  ],
       ...>   sub_replication_tree: <<1::1, 0::1, 0::1, 1::1>>
@@ -442,7 +444,7 @@ defmodule Uniris.Mining.ValidationContext do
       ...>   cross_validation_nodes: [%Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}],
       ...>   chain_storage_nodes: [
       ...>     %Node{first_public_key: "key10", last_public_key: "key10"},
-      ...>     %Node{first_public_key: "key11", last_public_key: "key11"}, 
+      ...>     %Node{first_public_key: "key11", last_public_key: "key11"},
       ...>     %Node{first_public_key: "key12", last_public_key: "key12"}
       ...>   ]
       ...> }
@@ -657,14 +659,37 @@ defmodule Uniris.Mining.ValidationContext do
           )
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
         recipients: resolve_transaction_recipients(tx),
-        contract_validation: valid_smart_contract?(prev_tx, tx)
+        errors: errors_detection(prev_tx, tx)
       }
       |> ValidationStamp.sign()
 
     add_io_storage_nodes(%{context | validation_stamp: validation_stamp})
   end
 
-  defp valid_smart_contract?(prev_tx, new_tx), do: Contracts.accept_new_contract?(prev_tx, new_tx)
+  defp errors_detection(nil, tx = %Transaction{}) do
+    [error_type_detection(tx)]
+    |> Enum.reject(&match?({_, true}, &1))
+    |> Enum.map(fn {domain, _} -> domain end)
+  end
+
+  defp errors_detection(prev_tx = %Transaction{}, tx = %Transaction{}) do
+    [
+      {:contract_validation, Contracts.accept_new_contract?(prev_tx, tx)},
+      error_type_detection(tx)
+    ]
+    |> Enum.reject(&match?({_, true}, &1))
+    |> Enum.map(fn {domain, _} -> domain end)
+  end
+
+  defp error_type_detection(tx = %Transaction{type: :oracle}) do
+    {:oracle_validation, OracleChain.verify?(tx)}
+  end
+
+  defp error_type_detection(tx = %Transaction{type: :oracle_summary}) do
+    {:oracle_validation, OracleChain.verify?(tx)}
+  end
+
+  defp error_type_detection(%Transaction{type: type}), do: {type, true}
 
   defp resolve_transaction_movements(tx) do
     tx
@@ -748,10 +773,10 @@ defmodule Uniris.Mining.ValidationContext do
   end
 
   @doc """
-  Cross validate the validation stamp using the validation context as reference and 
+  Cross validate the validation stamp using the validation context as reference and
   listing the potential inconsistencies.
 
-  The cross validation stamp is therefore signed and stored in the context 
+  The cross validation stamp is therefore signed and stored in the context
   """
   @spec cross_validate(t()) :: t()
   def cross_validate(context = %__MODULE__{validation_stamp: validation_stamp}) do
@@ -781,7 +806,7 @@ defmodule Uniris.Mining.ValidationContext do
                    unspent_outputs: next_unspent_outputs
                  },
                recipients: tx_recipients,
-               contract_validation: valid_contract?
+               errors: errors
              }
          }
        ) do
@@ -803,7 +828,9 @@ defmodule Uniris.Mining.ValidationContext do
           resolved_transaction_movements
         )
       end,
-      contract_validation: fn -> valid_smart_contract?(prev_tx, tx) == valid_contract? end
+      errors: fn ->
+        errors_detection(prev_tx, tx) == errors
+      end
     ]
 
     subsets_verifications

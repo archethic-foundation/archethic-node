@@ -23,7 +23,8 @@ config :git_hooks,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$date $time $metadata[$level] $message\n",
-  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node]
+  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node],
+  colors: [enabled: true]
 
 config :logger,
   utc_log: true,
@@ -109,6 +110,14 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
       amount: 2.2e8
     ]
   ]
+
+config :uniris, Uniris.OracleChain,
+  services: [
+    uco: Uniris.OracleChain.Services.UCOPrice
+  ]
+
+config :uniris, Uniris.OracleChain.Services.UCOPrice,
+  provider: Uniris.OracleChain.Services.UCOPrice.Providers.Coingecko
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

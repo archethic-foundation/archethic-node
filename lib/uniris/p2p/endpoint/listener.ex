@@ -34,23 +34,21 @@ defmodule Uniris.P2P.Endpoint.Listener do
         Multiplexer.start_link(
           socket: socket,
           transport: :tcp,
-          recv_handler: &handle_requests/2
+          recv_handler: &handle_requests/3
         )
     end)
   end
 
-  defp handle_requests(requests, opts) do
+  defp handle_requests(id, data, opts) do
     muxer_pid = Keyword.get(opts, :muxer_pid)
+    {data, _} = Message.decode(data)
 
-    Enum.each(requests, fn <<id::32, data::binary>> ->
-      response =
-        data
-        |> Message.decode()
-        |> Message.process()
-        |> Message.encode()
-        |> Utils.wrap_binary()
+    response =
+      data
+      |> Message.process()
+      |> Message.encode()
+      |> Utils.wrap_binary()
 
-      Muxer.send_data(muxer_pid, <<id::32, response::binary>>)
-    end)
+    Muxer.send_data(muxer_pid, id, response)
   end
 end

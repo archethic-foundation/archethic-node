@@ -51,13 +51,13 @@ defmodule Uniris.Account.MemTables.UCOLedger do
   ## Examples
 
       iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
       iex> { :ets.tab2list(:uniris_uco_ledger), :ets.tab2list(:uniris_uco_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Charlie10"}, 1.0, false},
-          {{"@Alice2", "@Bob3"}, 3.0, false}
+          {{"@Alice2", "@Charlie10"}, 1.0, false, ~U[2021-03-05 13:41:34Z]},
+          {{"@Alice2", "@Bob3"}, 3.0, false, ~U[2021-03-05 13:41:34Z]}
         ],
         [
           {"@Alice2", "@Bob3"},
@@ -66,10 +66,10 @@ defmodule Uniris.Account.MemTables.UCOLedger do
       }
 
   """
-  @spec add_unspent_output(binary(), UnspentOutput.t()) :: :ok
-  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount})
+  @spec add_unspent_output(binary(), UnspentOutput.t(), DateTime.t()) :: :ok
+  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount}, timestamp = %DateTime{})
       when is_binary(to) and is_float(amount) do
-    true = :ets.insert(@ledger_table, {{to, from}, amount, false})
+    true = :ets.insert(@ledger_table, {{to, from}, amount, false, timestamp})
     true = :ets.insert(@unspent_output_index_table, {to, from})
     :ok
   end
@@ -80,8 +80,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
   ## Examples
 
       iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
       iex> UCOLedger.get_unspent_outputs("@Alice2")
       [
         %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO},
@@ -98,7 +98,7 @@ defmodule Uniris.Account.MemTables.UCOLedger do
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from}, acc ->
       case :ets.lookup(@ledger_table, {address, from}) do
-        [{_, amount, false}] ->
+        [{_, amount, false, _}] ->
           [
             %UnspentOutput{
               from: from,
@@ -120,8 +120,8 @@ defmodule Uniris.Account.MemTables.UCOLedger do
   ## Examples
 
       iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
       iex> UCOLedger.get_unspent_outputs("@Alice2")
       []
@@ -142,22 +142,22 @@ defmodule Uniris.Account.MemTables.UCOLedger do
   ## Examples
 
       iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
       iex> UCOLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: false, type: :UCO},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: false, type: :UCO}
+        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: false, type: :UCO, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: false, type: :UCO, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
 
       iex> {:ok, _pid} = UCOLedger.start_link()
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO})
-      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO})
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = UCOLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = UCOLedger.spend_all_unspent_outputs("@Alice2")
       iex> UCOLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: true, type: :UCO},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: true, type: :UCO}
+        %TransactionInput{from: "@Bob3", amount: 3.0, spent?: true, type: :UCO, timestamp: ~U[2021-03-05 13:41:34Z] },
+        %TransactionInput{from: "@Charlie10", amount: 1.0, spent?: true, type: :UCO, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
@@ -165,13 +165,14 @@ defmodule Uniris.Account.MemTables.UCOLedger do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, from} ->
-      [{_, amount, spent?}] = :ets.lookup(@ledger_table, {address, from})
+      [{_, amount, spent?, timestamp}] = :ets.lookup(@ledger_table, {address, from})
 
       %TransactionInput{
         from: from,
         amount: amount,
         spent?: spent?,
-        type: :UCO
+        type: :UCO,
+        timestamp: timestamp
       }
     end)
   end

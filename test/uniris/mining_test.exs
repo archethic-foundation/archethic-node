@@ -8,6 +8,9 @@ defmodule Uniris.MiningTest do
   alias Uniris.Mining
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Node
@@ -18,6 +21,12 @@ defmodule Uniris.MiningTest do
   alias Uniris.TransactionChain.TransactionData.Keys
 
   import Mox
+
+  setup do
+    start_supervised!(Batcher)
+    P2P.add_node(%Node{first_public_key: Crypto.node_public_key(), network_patch: "AAA"})
+    :ok
+  end
 
   describe "validate_pending_transaction/1" do
     test "should :ok when a node transaction data content contains node endpoint information" do
@@ -159,6 +168,7 @@ defmodule Uniris.MiningTest do
         first_public_key: "node1",
         last_public_key: "node1",
         geo_patch: "AAA",
+        network_patch: "AAA",
         available?: true
       })
 
@@ -200,8 +210,9 @@ defmodule Uniris.MiningTest do
       end)
 
       MockClient
-      |> expect(:send_message, fn _, %GetFirstPublicKey{} ->
-        %FirstPublicKey{public_key: tx.previous_public_key}
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetFirstPublicKey{}]}, _ ->
+        {:ok,
+         %BatchResponses{responses: [{0, %FirstPublicKey{public_key: tx.previous_public_key}}]}}
       end)
 
       assert :ok = Mining.validate_pending_transaction(tx)

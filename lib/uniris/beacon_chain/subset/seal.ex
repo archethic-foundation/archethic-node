@@ -2,7 +2,6 @@ defmodule Uniris.BeaconChain.Subset.Seal do
   @moduledoc false
 
   alias Uniris.BeaconChain.Slot
-  alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Summary
 
   alias Uniris.Crypto
@@ -13,28 +12,50 @@ defmodule Uniris.BeaconChain.Subset.Seal do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetBeaconSlot
+  alias Uniris.P2P.Message.NotFound
 
   require Logger
 
   @doc """
   Link the current slot to the previous one by computing the previous hash from the previous slot
-  """
-  @spec link_to_previous_slot(Slot.t()) :: Slot.t()
-  def link_to_previous_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
-    previous_slot_time = SlotTimer.previous_slot(slot_time)
-    previous_storage_nodes = previous_storage_nodes(subset, previous_slot_time)
 
-    case fetch_previous_slot(subset, previous_slot_time, previous_storage_nodes) do
-      nil ->
+  If the previous slot doesn't exists it will used the default previous hash (list of zeros)
+  """
+  @spec link_to_previous_slot(Slot.t(), DateTime.t()) :: Slot.t()
+  def link_to_previous_slot(slot = %Slot{subset: subset}, previous_slot_time = %DateTime{}) do
+    case previous_storage_nodes(subset, previous_slot_time) do
+      [] ->
         slot
 
-      prev_slot = %Slot{} ->
-        previous_hash =
-          prev_slot
-          |> Slot.serialize()
-          |> Crypto.hash()
+      nodes ->
+        case fetch_slot(nodes, subset, previous_slot_time) do
+          {:ok, prev_slot} ->
+            previous_hash =
+              prev_slot
+              |> Slot.serialize()
+              |> Crypto.hash()
 
-        %{slot | previous_hash: previous_hash}
+            %{slot | previous_hash: previous_hash}
+
+          _ ->
+            slot
+        end
+    end
+  end
+
+  defp fetch_slot(nodes, subset, previous_slot_time) do
+    case P2P.reply_first(nodes, %GetBeaconSlot{
+           subset: subset,
+           slot_time: previous_slot_time
+         }) do
+      {:ok, prev_slot = %Slot{}} ->
+        {:ok, prev_slot}
+
+      {:ok, %NotFound{}} ->
+        {:error, :not_found}
+
+      {:error, _} = e ->
+        e
     end
   end
 
@@ -45,19 +66,17 @@ defmodule Uniris.BeaconChain.Subset.Seal do
       P2P.list_nodes(availability: :global),
       Election.get_storage_constraints()
     )
+    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, slot_time) == :lt))
   end
 
-  defp fetch_previous_slot(subset, slot_time = %DateTime{}, storage_nodes)
-       when is_binary(subset) and is_list(storage_nodes) do
-    storage_nodes
-    |> P2P.broadcast_message(%GetBeaconSlot{subset: subset, slot_time: slot_time})
-    |> Stream.filter(&match?(%Slot{}, &1))
-    |> Enum.at(0)
-  end
-
-  @spec new_summary(binary(), DateTime.t()) :: :ok
-  def new_summary(subset, summary_time = %DateTime{}) when is_binary(subset) do
-    beacon_slots = DB.get_beacon_slots(subset, summary_time)
+  @doc """
+  Create a new beacon chain summary by aggregating the previous stored slots (from differents slot times)
+  and the current beacon slot to be stored in the database
+  """
+  @spec new_summary(binary(), DateTime.t(), Slot.t()) :: :ok
+  def new_summary(subset, summary_time = %DateTime{}, current_slot = %Slot{})
+      when is_binary(subset) do
+    beacon_slots = DB.get_beacon_slots(subset, summary_time) |> Stream.concat([current_slot])
 
     if Enum.count(beacon_slots) > 0 do
       %Summary{subset: subset, summary_time: summary_time}

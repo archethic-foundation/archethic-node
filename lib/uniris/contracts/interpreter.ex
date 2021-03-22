@@ -11,17 +11,23 @@ defmodule Uniris.Contracts.Interpreter do
 
   @transaction_fields [
     :address,
+    :type,
+    :timestamp,
     :previous_signature,
     :previous_public_key,
     :origin_signature,
     :content,
     :keys,
+    :code,
     :uco_ledger,
     :nft_ledger,
     :uco_transferred,
     :nft_transferred,
     :uco_transfers,
-    :nft_transfers
+    :nft_transfers,
+    :authorized_keys,
+    :secret,
+    :recipients
   ]
 
   @inherit_fields [
@@ -41,13 +47,16 @@ defmodule Uniris.Contracts.Interpreter do
                    :origin_family,
                    :inherit,
                    :transaction,
+                   :contract,
                    :actions,
                    :triggered_by,
                    :interval,
                    :datetime,
                    :at,
                    :next_transaction,
-                   :previous_transaction
+                   :previous_transaction,
+                   :if,
+                   :else
                  ] ++
                    ActionStatements.allowed_atoms() ++
                    Library.allowed_atoms() ++
@@ -184,21 +193,70 @@ defmodule Uniris.Contracts.Interpreter do
   end
 
   # Whitelist operators
-  defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:-, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:/, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:*, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:>, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:>, _, _}, acc = {:ok, %{scope: :condition}}), do: {node, acc}
-  defp prewalk(node = {:<, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:<, _, _}, acc = {:ok, %{scope: :condition}}), do: {node, acc}
-  defp prewalk(node = {:>=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:>=, _, _}, acc = {:ok, %{scope: :condition}}), do: {node, acc}
-  defp prewalk(node = {:<=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:<=, _, _}, acc = {:ok, %{scope: :condition}}), do: {node, acc}
-  defp prewalk(node = {:|>, _, _}, acc = {:ok, %{scope: :condition}}), do: {node, acc}
-  defp prewalk(node = {:|>, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = {:==, _, _}, acc = {:ok, %{scope: {:condition, _}}}), do: {node, acc}
+  defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:-, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:/, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:*, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:>, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:<, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:>=, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:<=, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:|>, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
+    do: {node, acc}
+
+  defp prewalk(node = {:==, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+    do: {node, acc}
+
+  # Allow variable assignation inside the actions
+  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
+
+  # Whitelist the use of doted statement
+  defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc) do
+    {node, acc}
+  end
+
+  # Whitelist the definition of globals in the root
+  defp prewalk(node = {:@, _, [{key, _, [val]}]}, acc = {:ok, :root})
+       when is_atom(key) and not is_nil(val),
+       do: {node, acc}
+
+  # Whitelist the use of globals
+  defp prewalk(node = {:@, _, [{key, _, nil}]}, acc = {:ok, _}) when is_atom(key),
+    do: {node, acc}
+
+  defp prewalk(node = {:if, _, [_, [do: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
+    do: {node, acc}
+
+  defp prewalk(node = {:if, _, [_, [do: _, else: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
+    do: {node, acc}
+
+  defp prewalk(node = [do: _, else: _], acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
+
+  # Whitelist the used of variables in the actions
+  defp prewalk(node = {var, _, nil}, acc = {:ok, %{scope: {:actions, _}}}) when is_atom(var),
+    do: {node, acc}
+
+  # Whitelist the in operation
+  defp prewalk(node = {:in, _, [_, _]}, acc = {:ok, _}), do: {node, acc}
+
+  # Whitelist maps
+  defp prewalk(node = {:%{}, _, fields}, acc = {:ok, _}) when is_list(fields), do: {node, acc}
 
   # Whitelist the actions section
   defp prewalk(node = {:actions, [line: _], [_, [do: _actions]]}, {:ok, acc = %{scope: :root}}) do
@@ -345,7 +403,7 @@ defmodule Uniris.Contracts.Interpreter do
 
   # Whitelist the use of transaction and contract fields in the actions
   defp prewalk(
-         node = {{:., _, [{key, _, _}, field]}, _, []},
+         node = {:., _, [{key, _, _}, field]},
          acc = {:ok, %{scope: {:actions, _}}}
        )
        when key in [:contract, :transaction] and field in @transaction_fields do
@@ -424,30 +482,6 @@ defmodule Uniris.Contracts.Interpreter do
         {node, {:error, :unexpected_token}}
     end
   end
-
-  # # Whitelist for functions calls for string conditions
-  # defp prewalk(node, acc = {:ok, %{scope: {:function, fun, {:condition, :inherit, _}}}})
-  #      when fun in [:regex_match?, :regex_extract, :json_path_extract, :hash] do
-  #       IO.puts "string call #{fun} with #{node}"
-  #   case node do
-  #     bin when is_binary(bin) ->
-  #       {node, acc}
-
-  #   #   # {{:., _, [{key, _, nil}, field]}, _, _}
-  #   #   # when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
-  #   #   #   {node, acc}
-
-  #   #   {:., _, [{key, _, nil}, field]}
-  #   #   when key in [:previous_transaction, :next_transaction] and field in @transaction_fields ->
-  #   #     {node, acc}
-
-  #   #   {key, _, _} when key in [:previous_transaction, :next_transaction] ->
-  #   #     {node, acc}
-
-  #     _ ->
-  #       {node, {:error, :unexpected_token}}
-  #   end
-  # end
 
   # Whitelist for functions calls for transaction condition
   defp prewalk(node, acc = {:ok, %{scope: {:function, fun, {:condition, :transaction}}}})
@@ -567,41 +601,6 @@ defmodule Uniris.Contracts.Interpreter do
   defp prewalk(node = {:do, _}, acc = {:ok, _}), do: {node, acc}
 
   defp prewalk({key, _} = node, acc = {:ok, _}) when is_atom(key), do: {node, acc}
-
-  # Allow variable assignation inside the actions
-  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-
-  # Whitelist the use of doted statement
-  defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc) do
-    {node, acc}
-  end
-
-  # Whitelist the definition of globals in the root
-  defp prewalk(node = {:@, _, [{key, _, [val]}]}, acc = {:ok, :root})
-       when is_atom(key) and not is_nil(val),
-       do: {node, acc}
-
-  # Whitelist the use of globals
-  defp prewalk(node = {:@, _, [{key, _, nil}]}, acc = {:ok, _}) when is_atom(key),
-    do: {node, acc}
-
-  defp prewalk(node = {:if, _, [_, [do: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
-    do: {node, acc}
-
-  defp prewalk(node = {:if, _, [_, [do: _, else: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
-    do: {node, acc}
-
-  defp prewalk(node = [do: _, else: _], acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-
-  # Whitelist the used of variables in the actions
-  defp prewalk(node = {var, _, nil}, acc = {:ok, %{scope: {:actions, _}}}) when is_atom(var),
-    do: {node, acc}
-
-  # Whitelist the in operation
-  defp prewalk(node = {:in, _, [_, _]}, acc = {:ok, _}), do: {node, acc}
-
-  # Whitelist maps
-  defp prewalk(node = {:%{}, _, fields}, acc = {:ok, _}) when is_list(fields), do: {node, acc}
 
   # Whitelist keyword list or map key value definition
   defp prewalk(node = {key, _value}, acc = {:ok, _}) when is_atom(key), do: {node, acc}
@@ -801,10 +800,10 @@ defmodule Uniris.Contracts.Interpreter do
   ## Examples
 
       iex> Interpreter.execute_actions(%Contract{ triggers: [ %Contract.Trigger{type: :transaction, actions: {:set_type, [line: 4], [{:transfer, [line: 4], nil}]}}]}, :transaction)
-      %Contract{ 
+      %Contract{
         triggers: [
          %Trigger{actions: {:set_type, [line: 4], [{:transfer, [line: 4], nil}]}, opts: [], type: :transaction}
-        ], 
+        ],
         next_transaction: %Transaction{type: :transfer, data: %TransactionData{}}
       }
 
@@ -830,7 +829,7 @@ defmodule Uniris.Contracts.Interpreter do
               ledger: %Ledger{
                 uco: %UCOLedger{
                   transfers: [
-                    %UCOLedger.Transfer{ to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89, 
+                    %UCOLedger.Transfer{ to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
                       49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>, amount: 10.04}
                   ]
                 }
@@ -849,10 +848,47 @@ defmodule Uniris.Contracts.Interpreter do
           apply(ActionStatements, function, [acc | arguments])
         end)
 
+      {:if, _, [condition, clauses]} ->
+        evaluate_if_statement(condition, clauses, contract, constants)
+
       {function, _, args} ->
-        arguments = Enum.map(args, &eval_argument(&1, constants))
-        apply(ActionStatements, function, [contract | arguments])
+        evaluate_function(function, args, contract, constants)
     end
+  end
+
+  defp evaluate_if_statement(condition, clauses, contract, constants) do
+    do_operations = Keyword.get(clauses, :do)
+    else_operations = Keyword.get(clauses, :else, [])
+
+    if execute(condition, constants) do
+      case do_operations do
+        {:block, _, actions} ->
+          Enum.reduce(actions, contract, fn {function, _, args}, acc ->
+            evaluate_function(function, args, acc, constants)
+          end)
+
+        {function, _, args} ->
+          evaluate_function(function, args, contract, constants)
+      end
+    else
+      case else_operations do
+        {:block, _, actions} ->
+          Enum.reduce(actions, contract, fn {function, _, args}, acc ->
+            evaluate_function(function, args, acc, constants)
+          end)
+
+        {function, _, args} ->
+          evaluate_function(function, args, contract, constants)
+
+        [] ->
+          nil
+      end
+    end
+  end
+
+  defp evaluate_function(function, args, contract, constants) do
+    arguments = Enum.map(args, &eval_argument(&1, constants))
+    apply(ActionStatements, function, [contract | arguments])
   end
 
   defp eval_argument({arg, _, _}, constants), do: execute(Macro.to_string(arg), constants)

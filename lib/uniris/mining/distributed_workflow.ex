@@ -13,8 +13,6 @@ defmodule Uniris.Mining.DistributedWorkflow do
   If the atomic commitment is not reached, it starts the malicious detection to ban the dishonest nodes
   """
 
-  @behaviour :gen_statem
-
   alias Uniris.Crypto
 
   alias Uniris.Mining.MaliciousDetection
@@ -40,12 +38,10 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
   require Logger
 
-  def child_spec(arg) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, [arg]}, restart: :transient}
-  end
+  use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :transient
 
   def start_link(args \\ []) do
-    :gen_statem.start_link(__MODULE__, args, [])
+    GenStateMachine.start_link(__MODULE__, args, [])
   end
 
   @doc """
@@ -68,7 +64,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       ) do
-    :gen_statem.cast(
+    GenStateMachine.cast(
       pid,
       {:add_mining_context, validation_node_public_key, previous_storage_nodes,
        cross_validation_nodes_view, chain_storage_nodes_view, beacon_storage_nodes_view}
@@ -87,7 +83,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
           replication_tree :: list(bitstring())
         ) :: :ok
   def cross_validate(pid, stamp = %ValidationStamp{}, replication_tree) do
-    :gen_statem.cast(pid, {:cross_validate, stamp, replication_tree})
+    GenStateMachine.cast(pid, {:cross_validate, stamp, replication_tree})
   end
 
   @doc """
@@ -95,7 +91,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
   """
   @spec add_cross_validation_stamp(worker_pid :: pid(), stamp :: CrossValidationStamp.t()) :: :ok
   def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}) do
-    :gen_statem.cast(pid, {:add_cross_validation_stamp, stamp})
+    GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
   end
 
   def init(opts) do
@@ -139,10 +135,6 @@ defmodule Uniris.Mining.DistributedWorkflow do
     timeout = Keyword.get(opts, :timeout, 3_000)
 
     {tx, welcome_node, validation_nodes, node_public_key, timeout}
-  end
-
-  def callback_mode do
-    [:handle_event_function, :state_enter]
   end
 
   def handle_event(:enter, :idle, :idle, _data = %{context: %ValidationContext{transaction: tx}}) do
@@ -406,7 +398,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
          node_public_key
        ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      P2P.send_message(coordinator_node, %AddMiningContext{
+      P2P.send_message!(coordinator_node, %AddMiningContext{
         address: tx_address,
         validation_node_public_key: node_public_key,
         previous_storage_nodes_public_keys:
@@ -424,16 +416,11 @@ defmodule Uniris.Mining.DistributedWorkflow do
          validation_stamp: validation_stamp,
          full_replication_tree: replication_tree
        }) do
-    TaskSupervisor
-    |> Task.Supervisor.async_stream_nolink(
-      cross_validation_nodes,
-      &P2P.send_message(&1, %CrossValidate{
-        address: tx_address,
-        validation_stamp: validation_stamp,
-        replication_tree: replication_tree
-      })
-    )
-    |> Stream.run()
+    P2P.broadcast_message(cross_validation_nodes, %CrossValidate{
+      address: tx_address,
+      validation_stamp: validation_stamp,
+      replication_tree: replication_tree
+    })
   end
 
   defp notify_cross_validation_stamp(%ValidationContext{
@@ -452,15 +439,10 @@ defmodule Uniris.Mining.DistributedWorkflow do
       transaction: Base.encode16(tx_address)
     )
 
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      nodes,
-      &P2P.send_message(&1, %CrossValidationDone{
-        address: tx_address,
-        cross_validation_stamp: cross_validation_stamp
-      })
-    )
-    |> Stream.run()
+    P2P.broadcast_message(nodes, %CrossValidationDone{
+      address: tx_address,
+      cross_validation_stamp: cross_validation_stamp
+    })
   end
 
   defp request_replication(context = %ValidationContext{}) do
@@ -473,7 +455,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
       storage_nodes,
       fn node = %Node{last_public_key: node_key} ->
         %Ok{} =
-          P2P.send_message(node, %ReplicateTransaction{
+          P2P.send_message!(node, %ReplicateTransaction{
             transaction: ValidationContext.get_validated_transaction(context)
           })
 

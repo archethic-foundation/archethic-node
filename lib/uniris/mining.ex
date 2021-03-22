@@ -19,7 +19,6 @@ defmodule Uniris.Mining do
   alias Uniris.P2P
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetFirstPublicKey
-  alias Uniris.P2P.Message.NotFound
 
   alias Uniris.Replication
 
@@ -95,9 +94,14 @@ defmodule Uniris.Mining do
   def validate_pending_transaction(
         tx = %Transaction{address: address, data: %TransactionData{code: code, keys: keys}}
       ) do
+    :ok
+
     if Transaction.verify_previous_signature?(tx) do
+      :ok
+
       case validate_contract(code, Keys.list_authorized_keys(keys)) do
         :ok ->
+          :ok
           do_accept_transaction(tx)
 
         {:error, reason} ->
@@ -254,16 +258,14 @@ defmodule Uniris.Mining do
       Replication.chain_storage_nodes(previous_address, P2P.list_nodes(availability: :global))
 
     response_message =
-      storage_nodes
-      |> P2P.broadcast_message(%GetFirstPublicKey{address: previous_address})
-      |> Enum.at(0)
+      P2P.reply_first(storage_nodes, %GetFirstPublicKey{address: previous_address})
 
     case response_message do
-      %NotFound{} ->
-        previous_public_key
-
-      %FirstPublicKey{public_key: public_key} ->
+      {:ok, %FirstPublicKey{public_key: public_key}} ->
         public_key
+
+      _ ->
+        previous_public_key
     end
   end
 

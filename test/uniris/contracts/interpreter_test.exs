@@ -85,4 +85,25 @@ defmodule Uniris.Contracts.InterpreterTest do
     code = "regex_match?(\"hello\") and hash() == \"abc\" "
     assert false == Interpreter.execute_inherit_condition(code, "hello")
   end
+
+  describe "execute_actions/2" do
+    test "should evaluate actions based on if statement" do
+      {:ok, contract} =
+        ~S"""
+        actions triggered_by: transaction do
+          if transaction.previous_public_key == "abc" do
+            set_content "yes"
+          else
+            set_content "no"
+          end
+        end
+        """
+        |> Interpreter.parse()
+
+      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "yes"}}} =
+               Interpreter.execute_actions(contract, :transaction,
+                 transaction: %{previous_public_key: "abc"}
+               )
+    end
+  end
 end

@@ -44,17 +44,17 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
   end
 
   test "next_slot/1 should get the slot time from a given date" do
-    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
+    {:ok, _pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
     now = DateTime.utc_now()
-    next_slot_time = SlotTimer.next_slot(pid, now)
+    next_slot_time = SlotTimer.next_slot(now)
     assert 1 == abs(now.minute - next_slot_time.minute)
   end
 
   test "previous_slot/2 should retrieve the previous slot time from a date" do
-    {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
+    {:ok, _pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
 
     now = DateTime.utc_now()
-    previous_slot_time = SlotTimer.previous_slot(pid, now)
+    previous_slot_time = SlotTimer.previous_slot(now)
     assert :gt == DateTime.compare(now, previous_slot_time)
   end
 end

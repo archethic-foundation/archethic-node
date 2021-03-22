@@ -25,39 +25,55 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   Give the next beacon chain slot using the `SlotTimer` interval
   """
   @spec next_summary(DateTime.t()) :: DateTime.t()
-  def next_summary(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:next_summary, date_from})
+  def next_summary(date_from = %DateTime{microsecond: {0, 0}}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_dates(DateTime.to_naive(date_from))
+    |> Enum.at(1)
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
-  @doc false
-  def next_summary(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:next_summary, date_from})
+  def next_summary(date_from = %DateTime{}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
   @doc """
   Returns the list of previous summaries times from the given date
   """
-  @spec previous_summaries(DateTime.t()) :: list(DateTime.t())
-  def previous_summaries(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:previous_summaries, date_from})
+  @spec previous_summary(DateTime.t()) :: DateTime.t()
+  def previous_summary(date_from = %DateTime{microsecond: {0, 0}}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date_from))
+    |> Enum.at(1)
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
-  @doc false
-  def previous_summaries(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:previous_summaries, date_from})
+  def previous_summary(date_from = %DateTime{}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
   @doc """
   Return the previous summary time
   """
-  @spec previous_summary(DateTime.t()) :: DateTime.t()
-  def previous_summary(date_from = %DateTime{}) do
-    GenServer.call(__MODULE__, {:previous_summary, date_from})
-  end
-
-  @doc false
-  def previous_summary(pid, date_from = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:previous_summary, date_from})
+  @spec previous_summaries(DateTime.t()) :: list(DateTime.t())
+  def previous_summaries(date_from = %DateTime{}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
+    |> Stream.take_while(fn datetime ->
+      datetime
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.compare(date_from) == :gt
+    end)
+    |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
+    |> Enum.to_list()
   end
 
   @doc """
@@ -72,82 +88,27 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    {:ok, %{interval: interval}}
+    :ets.new(:uniris_summary_timer, [:named_table, :public, read_concurrency: true])
+    :ets.insert(:uniris_summary_timer, {:interval, interval})
+    {:ok, %{interval: interval}, :hibernate}
+  end
+
+  defp get_interval do
+    [{_, interval}] = :ets.lookup(:uniris_summary_timer, :interval)
+    interval
   end
 
   def handle_cast(:start_scheduler, state = %{interval: interval}) do
-    schedule_new_summary(interval)
-    {:noreply, state}
-  end
+    case Map.get(state, :timer) do
+      nil ->
+        :ok
 
-  def handle_call(
-        {:next_summary, from_date = %DateTime{microsecond: {0, 0}}},
-        _from,
-        state = %{interval: interval}
-      ) do
-    next_date =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_next_run_dates(DateTime.to_naive(from_date))
-      |> Enum.at(1)
-      |> DateTime.from_naive!("Etc/UTC")
+      timer ->
+        Process.cancel_timer(timer)
+    end
 
-    {:reply, next_date, state}
-  end
-
-  def handle_call({:next_summary, from_date = %DateTime{}}, _from, state = %{interval: interval}) do
-    next_date =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_next_run_date!(DateTime.to_naive(from_date))
-      |> DateTime.from_naive!("Etc/UTC")
-
-    {:reply, next_date, state}
-  end
-
-  def handle_call(
-        {:previous_summary, from_date = %DateTime{microsecond: {0, 0}}},
-        _from,
-        state = %{interval: interval}
-      ) do
-    previous_date =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_previous_run_dates(DateTime.to_naive(from_date))
-      |> Enum.at(1)
-      |> DateTime.from_naive!("Etc/UTC")
-
-    {:reply, previous_date, state}
-  end
-
-  def handle_call(
-        {:previous_summary, from_date = %DateTime{}},
-        _from,
-        state = %{interval: interval}
-      ) do
-    previous_date =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_previous_run_date!(DateTime.to_naive(from_date))
-      |> DateTime.from_naive!("Etc/UTC")
-
-    {:reply, previous_date, state}
-  end
-
-  def handle_call({:previous_summaries, from_date}, _from, state = %{interval: interval}) do
-    previous_summaries =
-      interval
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
-      |> Stream.take_while(fn datetime ->
-        datetime
-        |> DateTime.from_naive!("Etc/UTC")
-        |> DateTime.compare(from_date) == :gt
-      end)
-      |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
-      |> Enum.to_list()
-
-    {:reply, previous_summaries, state}
+    timer = schedule_new_summary(interval)
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   @doc false
@@ -163,7 +124,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
       send(pid, {:create_summary, summary_time})
     end)
 
-    {:noreply, state}
+    {:noreply, state, :hibernate}
   end
 
   defp schedule_new_summary(interval) do

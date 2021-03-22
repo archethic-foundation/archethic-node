@@ -1,9 +1,11 @@
 defmodule Uniris.P2P.ClientConnectionTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.P2P.ClientConnection
 
   import Mox
+
+  @moduletag capture_log: true
 
   setup :verify_on_exit!
   setup :set_mox_global
@@ -92,7 +94,7 @@ defmodule Uniris.P2P.ClientConnectionTest do
           node_public_key: :crypto.strong_rand_bytes(32)
         )
 
-      assert {:error, :network_issue} = ClientConnection.send_message(pid, "hello")
+      assert {:error, :timeout} = ClientConnection.send_message(pid, "hello")
       Process.sleep(100)
       assert {:connected, _} = :sys.get_state(pid)
     end

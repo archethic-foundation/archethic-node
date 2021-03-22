@@ -152,12 +152,6 @@ defmodule Uniris.BeaconChain do
   defdelegate get_slot(subset, date), to: DB, as: :get_beacon_slot
 
   @doc """
-  Get the current slot inside the subset worker
-  """
-  @spec get_current_slot(binary()) :: Slot.t()
-  defdelegate get_current_slot(subset), to: Subset
-
-  @doc """
   Process a new incoming beacon slot to register into the DB if the checks pass.
 
   If a slot was already persisted it will not rewrite it unless the new bring more new validations
@@ -172,12 +166,18 @@ defmodule Uniris.BeaconChain do
       :ok ->
         do_slot_registration(slot)
 
-      e ->
+      {:error, reason} = e ->
+        Logger.error("Invalid Beacon Slot - #{inspect(reason)}")
         e
     end
   end
 
-  defp validate_new_slot(slot) do
+  defp validate_new_slot(
+         slot = %Slot{
+           transaction_summaries: transaction_summaries,
+           end_of_node_synchronizations: end_of_node_sync
+         }
+       ) do
     cond do
       !SummaryValidation.storage_node?(slot) ->
         {:error, :not_storage_node}
@@ -187,6 +187,12 @@ defmodule Uniris.BeaconChain do
 
       !SummaryValidation.valid_signatures?(slot) ->
         {:error, :invalid_signatures}
+
+      !SummaryValidation.valid_transaction_summaries?(transaction_summaries) ->
+        {:error, :invalid_transaction_summaries}
+
+      !SummaryValidation.valid_end_of_node_sync?(end_of_node_sync) ->
+        {:error, :invalid_end_of_node_sync}
 
       true ->
         :ok
@@ -198,7 +204,7 @@ defmodule Uniris.BeaconChain do
        ) do
     case DB.get_beacon_slot(subset, slot_time) do
       {:ok, %Slot{validation_signatures: signatures}} ->
-        if length(signatures) < length(Enum.uniq_by(new_signatures, &elem(&1, 0))) do
+        if map_size(signatures) < map_size(new_signatures) do
           DB.register_beacon_slot(slot)
         else
           :ok
@@ -237,7 +243,11 @@ defmodule Uniris.BeaconChain do
 
   def load_transaction(_), do: :ok
 
-  defp start_schedulers do
+  @doc """
+  Start the beacon chain timers
+  """
+  @spec start_schedulers() :: :ok
+  def start_schedulers do
     SlotTimer.start_scheduler()
     SummaryTimer.start_scheduler()
   end

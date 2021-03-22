@@ -11,6 +11,9 @@ defmodule Uniris.BeaconChain.SealingTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetBeaconSlot
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Node
@@ -19,14 +22,22 @@ defmodule Uniris.BeaconChain.SealingTest do
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
+    start_supervised!(Batcher)
+
+    P2P.add_node(%Node{
+      first_public_key: Crypto.node_public_key(0),
+      network_patch: "AAA"
+    })
+
     :ok
   end
 
-  describe "link_to_previous_slot/1" do
+  describe "link_to_previous_slot/2" do
     test "should fetch the previous slot and link it by hash" do
       MockClient
-      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
-        %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
+        {:ok,
+         %BatchResponses{responses: [{0, %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}}]}}
       end)
 
       P2P.add_node(%Node{
@@ -35,11 +46,13 @@ defmodule Uniris.BeaconChain.SealingTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: "AAA",
-        available?: true
+        network_patch: "AAA",
+        available?: true,
+        enrollment_date: DateTime.utc_now()
       })
 
       assert %Slot{previous_hash: previous_hash} =
-               Seal.link_to_previous_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+               Seal.link_to_previous_slot(%Slot{subset: <<0>>}, DateTime.utc_now())
 
       expected_hash =
         %Slot{subset: <<0>>, slot_time: DateTime.utc_now()} |> Slot.serialize() |> Crypto.hash()
@@ -49,8 +62,8 @@ defmodule Uniris.BeaconChain.SealingTest do
 
     test "should keep the genesis hash when not previous slot is found" do
       MockClient
-      |> expect(:send_message, fn _, %GetBeaconSlot{} ->
-        %NotFound{}
+      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetBeaconSlot{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
 
       P2P.add_node(%Node{
@@ -59,17 +72,19 @@ defmodule Uniris.BeaconChain.SealingTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: "AAA",
-        available?: true
+        network_patch: "AAA",
+        available?: true,
+        enrollment_date: DateTime.utc_now()
       })
 
       assert %Slot{previous_hash: previous_hash} =
-               Seal.link_to_previous_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+               Seal.link_to_previous_slot(%Slot{subset: <<0>>}, DateTime.utc_now())
 
       assert previous_hash == Enum.map(1..33, fn _ -> <<0>> end) |> :erlang.list_to_binary()
     end
   end
 
-  test "new_summary/2 should create summary from the beacon slots registered" do
+  test "new_summary/3 should create summary from the beacon slots registered" do
     me = self()
 
     MockDB
@@ -107,7 +122,7 @@ defmodule Uniris.BeaconChain.SealingTest do
     end)
 
     summary_time = DateTime.utc_now()
-    assert :ok = Seal.new_summary(<<0>>, summary_time)
+    assert :ok = Seal.new_summary(<<0>>, summary_time, %Slot{})
 
     assert_receive {:summary,
                     %Summary{

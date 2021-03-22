@@ -1,6 +1,7 @@
 FROM elixir:alpine AS uniris-ci
 
 ARG skip_tests=0
+ARG MIX_ENV=dev
 
 # CI
 #  - compile
@@ -51,7 +52,7 @@ RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
 # Install
 RUN mkdir /opt/app \
  && cd /opt/app \
- && tar zxf /opt/code/_build/dev/rel/uniris_node/releases/*/uniris_node.tar.gz
+ && tar zxf /opt/code/_build/${MIX_ENV}/rel/uniris_node/releases/*/uniris_node.tar.gz
 CMD /opt/app/bin/uniris_node foreground
 
 ################################################################################

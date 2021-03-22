@@ -24,6 +24,7 @@ defmodule Uniris.BeaconChainTest do
 
   setup do
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
+    Enum.each(BeaconChain.list_subsets(), &Subset.start_link(subset: &1))
     :ok
   end
 
@@ -156,7 +157,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       assert {:error, :invalid_previous_hash} =
@@ -174,7 +176,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       assert {:error, :invalid_signatures} =
@@ -192,7 +195,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
@@ -221,7 +225,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
@@ -237,7 +242,7 @@ defmodule Uniris.BeaconChainTest do
         _, _ -> {:error, :not_found}
       end)
 
-      assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: [{0, sig1}]})
+      assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig1}})
     end
 
     test "should not insert the slot if the receiving node has more signature than the previous one" do
@@ -247,7 +252,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(0),
         last_public_key: Crypto.node_public_key(0),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       P2P.add_node(%Node{
@@ -256,7 +262,8 @@ defmodule Uniris.BeaconChainTest do
         first_public_key: Crypto.node_public_key(1),
         last_public_key: Crypto.node_public_key(1),
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        enrollment_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
@@ -284,93 +291,9 @@ defmodule Uniris.BeaconChainTest do
         |> Crypto.sign_with_node_key(1)
 
       assert :ok =
-               BeaconChain.register_slot(%{slot | validation_signatures: [{0, sig2}, {1, sig1}]})
+               BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig2, 1 => sig1}})
 
-      assert_receive {:slot, %Slot{validation_signatures: [_, _]}}
+      assert_receive {:slot, %Slot{validation_signatures: %{}}}
     end
   end
-
-  # describe "get_pools/1" do
-  #   test "should get one node where his authorization is older than 1 minute" do
-  #     date_ref = DateTime.utc_now()
-
-  #     P2P.add_node(%Node{
-  #       ip: {127, 0, 0, 1},
-  #       port: 3000,
-  #       first_public_key: "key1",
-  #       last_public_key: "key1",
-  #       authorized?: true,
-  #       authorization_date: DateTime.add(date_ref, -60),
-  #       available?: true,
-  #       average_availability: 1,
-  #       geo_patch: "AAA",
-  #       network_patch: "AAA"
-  #     })
-
-  #     next_slot_beacon_pool = BeaconChain.get_pools(DateTime.add(date_ref, -60))
-
-  #     assert Enum.all?(next_slot_beacon_pool, fn {_, nodes} ->
-  #              assert [%Node{first_public_key: "key1"}] = nodes
-  #            end)
-
-  #     assert length(next_slot_beacon_pool) == 256
-  #   end
-
-  #   test "should get two node where their authorization are older than 2 minutes" do
-  #     date_ref = DateTime.utc_now()
-
-  #     P2P.add_node(%Node{
-  #       ip: {127, 0, 0, 1},
-  #       port: 3000,
-  #       first_public_key: "key1",
-  #       last_public_key: "key1",
-  #       authorized?: true,
-  #       authorization_date: DateTime.add(date_ref, -120),
-  #       available?: true,
-  #       average_availability: 1,
-  #       geo_patch: "AAA",
-  #       network_patch: "AAA"
-  #     })
-
-  #     P2P.add_node(%Node{
-  #       ip: {127, 0, 0, 1},
-  #       port: 3000,
-  #       first_public_key: "key2",
-  #       last_public_key: "key2",
-  #       authorized?: true,
-  #       authorization_date: DateTime.add(date_ref, -60),
-  #       available?: true,
-  #       average_availability: 1,
-  #       geo_patch: "AAA",
-  #       network_patch: "AAA"
-  #     })
-
-  #     P2P.add_node(%Node{
-  #       ip: {127, 0, 0, 1},
-  #       port: 3000,
-  #       first_public_key: "key3",
-  #       last_public_key: "key3",
-  #       authorized?: true,
-  #       authorization_date: date_ref,
-  #       available?: true,
-  #       average_availability: 1,
-  #       geo_patch: "AAA",
-  #       network_patch: "AAA"
-  #     })
-
-  #     next_slot_beacon_pool = BeaconChain.get_pools(DateTime.add(date_ref, -120))
-
-  #     assert Enum.all?(next_slot_beacon_pool, fn {_, nodes} ->
-  #              assert length(nodes) == 2
-  #              node_keys = Enum.map(nodes, & &1.first_public_key)
-  #              assert Enum.all?(["key1", "key2"], &(&1 in node_keys))
-  #            end)
-
-  #     assert length(next_slot_beacon_pool) == 256
-  #   end
-  # end
-
-  # test "all_subsets/0 should return 256 subsets" do
-  #   assert Enum.map(0..255, &:binary.encode_unsigned(&1)) == BeaconChain.list_subsets()
-  # end
 end

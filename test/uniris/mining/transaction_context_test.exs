@@ -1,7 +1,12 @@
 defmodule Uniris.Mining.TransactionContextTest do
   use UnirisCase
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetUnspentOutputs
@@ -21,6 +26,18 @@ defmodule Uniris.Mining.TransactionContextTest do
 
   import Mox
 
+  setup do
+    start_supervised!(Batcher)
+
+    P2P.add_node(%Node{
+      first_public_key: Crypto.node_public_key(),
+      network_patch: "AAA",
+      available?: false
+    })
+
+    :ok
+  end
+
   describe "get/5" do
     test "should get the context of the transaction and involved nodes" do
       unspent_output = %Transaction{
@@ -35,57 +52,29 @@ defmodule Uniris.Mining.TransactionContextTest do
 
       MockClient
       |> stub(:send_message, fn
-        %Node{port: 3003}, %GetUnspentOutputs{address: "@Alice1"} ->
-          %UnspentOutputList{
-            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-          }
+        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]}, _ ->
+          {:ok, %BatchResponses{responses: [{0, unspent_output}]}}
 
-        %Node{port: 3002}, %GetUnspentOutputs{address: "@Alice1"} ->
-          Process.sleep(200)
-
-          %UnspentOutputList{
-            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-          }
-
-        %Node{port: 3005}, %GetUnspentOutputs{address: "@Alice1"} ->
-          Process.sleep(400)
-
-          %UnspentOutputList{
-            unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-          }
-
-        %Node{port: 3003}, %GetP2PView{} ->
-          %P2PView{nodes_view: <<1::1, 1::1>>}
-
-        %Node{port: 3002}, %GetP2PView{} ->
-          Process.sleep(200)
-          %P2PView{nodes_view: <<1::1, 1::1>>}
-
-        %Node{port: 3005}, %GetP2PView{} ->
-          Process.sleep(400)
-          %P2PView{nodes_view: <<1::1, 1::1>>}
-
-        %Node{port: 3002}, %GetTransaction{address: "@Bob3"} ->
-          unspent_output
-
-        %Node{port: 3003}, %GetTransaction{address: "@Bob3"} ->
-          Process.sleep(200)
-          unspent_output
-
-        %Node{port: 3005}, %GetTransaction{address: "@Bob3"} ->
-          Process.sleep(500)
-          unspent_output
-
-        %Node{port: 3003}, %GetTransaction{address: "@Alice1"} ->
-          Process.sleep(300)
-          %Transaction{}
-
-        %Node{port: 3005}, %GetTransaction{address: "@Alice1"} ->
-          %Transaction{}
-
-        %Node{port: 3002}, %GetTransaction{address: "@Alice1"} ->
-          Process.sleep(200)
-          %Transaction{}
+        _,
+        %BatchRequests{
+          requests: [
+            %GetP2PView{},
+            %GetUnspentOutputs{address: "@Alice1"},
+            %GetTransaction{address: "@Alice1"}
+          ]
+        },
+        _ ->
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0, %P2PView{nodes_view: <<1::1, 1::1>>}},
+               {1,
+                %UnspentOutputList{
+                  unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+                }},
+               {2, unspent_output}
+             ]
+           }}
       end)
 
       node1 = %Node{
@@ -94,7 +83,8 @@ defmodule Uniris.Mining.TransactionContextTest do
         ip: {127, 0, 0, 1},
         port: 3002,
         available?: true,
-        geo_patch: "BCE"
+        geo_patch: "BCE",
+        network_patch: "BCE"
       }
 
       node2 = %Node{
@@ -103,7 +93,8 @@ defmodule Uniris.Mining.TransactionContextTest do
         ip: {127, 0, 0, 1},
         port: 3003,
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       node3 = %Node{
@@ -112,7 +103,8 @@ defmodule Uniris.Mining.TransactionContextTest do
         ip: {127, 0, 0, 1},
         port: 3005,
         available?: true,
-        geo_patch: "AAA"
+        geo_patch: "CDE",
+        network_patch: "CDE"
       }
 
       P2P.add_node(node1)

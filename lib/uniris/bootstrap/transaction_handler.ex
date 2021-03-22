@@ -2,13 +2,15 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @moduledoc false
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NewTransaction
+  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.Ok
-  alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   require Logger
@@ -19,7 +21,7 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @spec send_transaction(Transaction.t(), Node.t()) :: :ok | {:error, :network_issue}
   def send_transaction(tx = %Transaction{}, node = %Node{}) do
     message = %NewTransaction{transaction: tx}
-    %Ok{} = P2P.send_message(node, message)
+    %Ok{} = P2P.send_message!(node, message)
     :ok
   catch
     e ->
@@ -47,9 +49,18 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   Await the validation a given transaction address
   """
   @spec await_validation(binary(), Node.t()) :: :ok | {:error, :network_issue}
-  def await_validation(address, node = %Node{}) when is_binary(address) do
-    message = %SubscribeTransactionValidation{address: address}
-    %Ok{} = P2P.send_message(node, message)
-    :ok
+  def await_validation(address, node = %Node{}, retries \\ 0) when is_binary(address) do
+    case P2P.send_message!(node, %GetTransaction{address: address}) do
+      %Transaction{
+        address: ^address,
+        validation_stamp: %ValidationStamp{},
+        cross_validation_stamps: [_ | _]
+      } ->
+        :ok
+
+      %NotFound{} ->
+        Process.sleep(500 * (retries + 1))
+        await_validation(address, node)
+    end
   end
 end

@@ -10,6 +10,8 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.AddBeaconSlotProof
   alias Uniris.P2P.Message.AddMiningContext
   alias Uniris.P2P.Message.Balance
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.CrossValidate
   alias Uniris.P2P.Message.CrossValidationDone
@@ -42,7 +44,6 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.P2PView
   alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Message.StartMining
-  alias Uniris.P2P.Message.SubscribeTransactionValidation
   alias Uniris.P2P.Message.TransactionChainLength
   alias Uniris.P2P.Message.TransactionInputList
   alias Uniris.P2P.Message.TransactionList
@@ -68,6 +69,7 @@ defmodule Uniris.P2P.MessageTest do
                %GetBootstrappingNodes{patch: "AAA"}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetStorageNonce message" do
@@ -77,6 +79,7 @@ defmodule Uniris.P2P.MessageTest do
                %GetStorageNonce{public_key: public_key}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "ListNodes message" do
@@ -84,6 +87,7 @@ defmodule Uniris.P2P.MessageTest do
                %ListNodes{}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetTransaction message" do
@@ -93,6 +97,7 @@ defmodule Uniris.P2P.MessageTest do
                %GetTransaction{address: address}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetTransactionChain message" do
@@ -102,6 +107,7 @@ defmodule Uniris.P2P.MessageTest do
                %GetTransactionChain{address: address}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetUnspentOutputs message" do
@@ -111,6 +117,7 @@ defmodule Uniris.P2P.MessageTest do
                %GetUnspentOutputs{address: address}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "NewTransaction message" do
@@ -120,6 +127,7 @@ defmodule Uniris.P2P.MessageTest do
                %NewTransaction{transaction: tx}
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "StartMining message" do
@@ -144,6 +152,7 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "AddMiningContext message" do
@@ -167,6 +176,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "CrossValidate message" do
@@ -208,6 +218,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "CrossValidationDone message" do
@@ -232,6 +243,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "ReplicateTransaction message" do
@@ -303,6 +315,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "AcknowledgeStorage message" do
@@ -316,6 +329,7 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetBeaconSummary message" do
@@ -328,6 +342,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "NotifyEndOfNodeSync message" do
@@ -342,6 +357,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetLastTransaction message" do
@@ -355,6 +371,7 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetBalance message" do
@@ -368,6 +385,7 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetTransactionInputs message" do
@@ -381,14 +399,15 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "Ok message" do
-      assert %Ok{} == %Ok{} |> Message.encode() |> Message.decode()
+      assert %Ok{} == %Ok{} |> Message.encode() |> Message.decode() |> elem(0)
     end
 
     test "NotFound message" do
-      assert %NotFound{} == %NotFound{} |> Message.encode() |> Message.decode()
+      assert %NotFound{} == %NotFound{} |> Message.encode() |> Message.decode() |> elem(0)
     end
 
     test "Transaction message" do
@@ -398,6 +417,7 @@ defmodule Uniris.P2P.MessageTest do
                tx
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "TransactionList message" do
@@ -472,6 +492,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "UnspentOutputList message " do
@@ -490,6 +511,7 @@ defmodule Uniris.P2P.MessageTest do
       assert msg
              |> Message.encode()
              |> Message.decode()
+             |> elem(0)
     end
 
     test "NodeList message" do
@@ -519,6 +541,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "Balance message" do
@@ -538,6 +561,7 @@ defmodule Uniris.P2P.MessageTest do
                }
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "EncryptedStorageNonce message" do
@@ -551,6 +575,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "BootstrappingNodes message" do
@@ -599,6 +624,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetTransactionChainLength message" do
@@ -612,6 +638,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "TransactionChainLength message" do
@@ -623,6 +650,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "TransactionInputList message" do
@@ -634,13 +662,15 @@ defmodule Uniris.P2P.MessageTest do
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
             amount: 10.5,
             spent?: true,
-            type: :UCO
+            type: :UCO,
+            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
           },
           %TransactionInput{
             from:
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
-            type: :call
+            type: :call,
+            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
           }
         ]
       }
@@ -649,6 +679,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetP2PView message" do
@@ -663,6 +694,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "P2PView message" do
@@ -674,17 +706,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
-    end
-
-    test "SubscribeTransactionValidation message" do
-      msg = %SubscribeTransactionValidation{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
+               |> elem(0)
     end
 
     test "GetFirstPublicKey message" do
@@ -696,6 +718,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "FirstPublicKey message" do
@@ -707,6 +730,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetLastTransactionAddress message" do
@@ -718,6 +742,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "LastTransactionAddress message" do
@@ -729,6 +754,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "NotifyLastTransactionAddress message" do
@@ -741,6 +767,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "AddBeaconSlotProof message" do
@@ -755,6 +782,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetBeaconSlot message" do
@@ -767,6 +795,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "GetTransactionSummary message" do
@@ -778,6 +807,7 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
     end
 
     test "NotifyBeaconSlot message" do
@@ -792,6 +822,38 @@ defmodule Uniris.P2P.MessageTest do
                msg
                |> Message.encode()
                |> Message.decode()
+               |> elem(0)
+    end
+
+    test "BatchRequests" do
+      msg = %BatchRequests{
+        requests: [
+          %Ok{},
+          %GetTransaction{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
+          %GetTransactionChain{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
+        ]
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "BatchResponses" do
+      msg = %BatchResponses{
+        responses: [
+          {0, %Ok{}},
+          {1, %NotFound{}}
+        ]
+      }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
     end
   end
 end

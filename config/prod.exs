@@ -38,6 +38,12 @@ config :uniris, Uniris.Governance.Pools,
 
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.NAT
 
+config :uniris, Uniris.OracleChain.Scheduler,
+  # Poll new changes every minute
+  polling_interval: "0 * * * * *",
+  # Aggregate chain every day at midnight
+  summary_interval: "0 0 0 * * *"
+
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day at midnight at the 50th second
   interval: "50 0 0 * * * *"
@@ -64,7 +70,7 @@ config :uniris, Uniris.P2P.Endpoint,
 # which you should run after static files are built and
 # before starting your production server.
 config :uniris, UnirisWeb.Endpoint,
-  http: [:inet6, port: 80],
+  http: [:inet6, port: System.get_env("UNIRIS_HTTP_PORT", "80") |> String.to_integer()],
   url: [host: "*", port: 443],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
