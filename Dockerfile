@@ -36,10 +36,8 @@ RUN mix do deps.get, deps.compile
 
 # build assets
 COPY assets ./assets 
-RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error deploy
-
-COPY config ./
-RUN mix phx.digest 
+RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
+ && npm --prefix ./assets run deploy
 
 COPY . .
 
@@ -47,8 +45,8 @@ RUN git config user.name uniris \
  && git config user.email uniris@uniris.io \
  && git remote add origin https://github.com/UNIRIS/uniris-node
 
-# Compile and build release
-RUN mix distillery.release
+# build release
+RUN mix do phx.digest, distillery.release
 
 # gen PLT
 RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
