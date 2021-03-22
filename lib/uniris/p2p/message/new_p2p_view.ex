@@ -1,4 +1,4 @@
-defmodule Uniris.P2P.Message.P2PView do
+defmodule Uniris.P2P.Message.NewP2PView do
   @moduledoc """
   Represents a P2P availability from a list of nodes as bit sequence
   """
