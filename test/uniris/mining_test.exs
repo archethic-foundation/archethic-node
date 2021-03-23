@@ -37,6 +37,8 @@ defmodule Uniris.MiningTest do
             content: """
             ip: 127.0.0.1
             port: 3000
+            transport: tcp
+            reward address: 00A3EDE95D0EF1F10890DA69108AF3DF11B65709073592AE7D05F42A23D18E18A4
             """
           },
           "seed",

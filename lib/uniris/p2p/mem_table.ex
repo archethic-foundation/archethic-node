@@ -67,7 +67,11 @@ defmodule Uniris.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
-      ...>   transport: :tcp
+      ...>   transport: :tcp,
+      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
       ...> }
       iex> :ok = MemTable.add_node(node)
       iex> {
@@ -79,7 +83,11 @@ defmodule Uniris.P2P.MemTable do
       {
         # Discovery table
         [{
-          "key1", "key2", {127, 0, 0, 1}, 3000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :tcp
+          "key1", "key2", {127, 0, 0, 1}, 3000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :tcp,
+          <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+            87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+          <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+            88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
         }],
         # Globally available nodes
         [{ "key1" }],
@@ -105,7 +113,11 @@ defmodule Uniris.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
-      ...>   transport: :tcp
+      ...>   transport: :tcp,
+      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
       ...> }
       iex> :ok = MemTable.add_node(node)
       iex> :ok = MemTable.add_node(%Node{
@@ -115,10 +127,27 @@ defmodule Uniris.P2P.MemTable do
       ...>   last_public_key: "key5",
       ...>   average_availability: 0.9,
       ...>   availability_history: <<1::1, 1::1>>,
-      ...>   transport: :sctp
+      ...>   transport: :sctp,
+      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
       ...>  })
       iex> :ets.lookup(:uniris_node_discovery, "key1")
-      [{"key1", "key5", {80, 20, 10, 122}, 5000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :sctp}]
+      [{
+        "key1",
+        "key5",
+        {80, 20, 10, 122},
+        5000,
+        "AFZ",
+        "AAA",
+        0.9,
+        <<1::1, 1::1>>,
+        ~U[2020-10-22 23:19:45.797109Z],
+        :sctp,
+        <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+        <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+      }]
   """
   @spec add_node(Node.t()) :: :ok
   def add_node(
@@ -170,12 +199,15 @@ defmodule Uniris.P2P.MemTable do
          enrollment_date: enrollment_date,
          average_availability: average_availability,
          availability_history: availability_history,
-         transport: transport
+         transport: transport,
+         reward_address: reward_address,
+         last_address: last_address
        }) do
     :ets.insert(
       @discovery_table,
       {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
-       average_availability, availability_history, enrollment_date, transport}
+       average_availability, availability_history, enrollment_date, transport, reward_address,
+       last_address}
     )
   end
 
@@ -189,13 +221,17 @@ defmodule Uniris.P2P.MemTable do
          average_availability: average_availability,
          availability_history: availability_history,
          enrollment_date: enrollment_date,
-         transport: transport
+         transport: transport,
+         reward_address: reward_address,
+         last_address: last_address
        }) do
     :ets.update_element(@discovery_table, first_public_key, [
       {2, last_public_key},
       {3, ip},
       {4, port},
-      {10, transport}
+      {10, transport},
+      {11, reward_address},
+      {12, last_address}
     ])
 
     if geo_patch != nil do

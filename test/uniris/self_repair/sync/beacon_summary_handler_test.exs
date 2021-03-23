@@ -251,7 +251,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         last_public_key: Crypto.node_public_key(),
         available?: true,
         geo_patch: "AAA",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        last_address: :crypto.strong_rand_bytes(32)
       }
 
       P2P.add_node(node)
@@ -287,6 +288,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
           ip: 127.0.0.1
           port: 3000
           transport: tcp
+          reward address: 00E3F3E1F8E91CD72CF0AC899E89703E5745A5C2681628BE28C5D607B1EA25E82C
           """
         )
 
@@ -368,7 +370,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       last_public_key: "key1",
       available?: true,
       geo_patch: "BBB",
-      network_patch: "BBB"
+      network_patch: "BBB",
+      last_address: :crypto.strong_rand_bytes(32)
     }
 
     coordinator_node = %Node{
@@ -378,7 +381,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      last_address: :crypto.strong_rand_bytes(32)
     }
 
     storage_nodes = [
@@ -389,7 +393,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         last_public_key: "key3",
         available?: true,
         geo_patch: "BBB",
-        network_patch: "BBB"
+        network_patch: "BBB",
+        last_address: :crypto.strong_rand_bytes(32)
       }
     ]
 

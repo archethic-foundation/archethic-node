@@ -17,6 +17,8 @@ defmodule Uniris.P2P.Node do
   defstruct [
     :first_public_key,
     :last_public_key,
+    :last_address,
+    :reward_address,
     :ip,
     :port,
     :geo_patch,
@@ -30,9 +32,21 @@ defmodule Uniris.P2P.Node do
     transport: Application.get_env(:uniris, Transport, impl: :tcp) |> Keyword.fetch!(:impl)
   ]
 
+  @doc """
+  Return the transaction content regex to validate
+  """
+  @spec transaction_content_regex() :: Regex.t()
+  def transaction_content_regex do
+    ~r/ip: ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\nport: ([0-9].*)\ntransport: (#{
+      Enum.join(Transport.supported(), "|")
+    })\nreward address: ([0-9a-fA-F]{66,130})/m
+  end
+
   @type t() :: %__MODULE__{
           first_public_key: nil | Crypto.key(),
           last_public_key: Crypto.key(),
+          last_address: nil | Crypto.key(),
+          reward_address: nil | Crypto.key(),
           ip: nil | :inet.ip_address(),
           port: nil | :inet.port_number(),
           geo_patch: nil | binary(),
@@ -52,7 +66,8 @@ defmodule Uniris.P2P.Node do
   @spec cast(tuple()) :: __MODULE__.t()
   def cast(
         {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
-         average_availability, availability_history, enrollment_date, transport}
+         average_availability, availability_history, enrollment_date, transport, reward_address,
+         last_address}
       ) do
     %__MODULE__{
       ip: ip,
@@ -64,7 +79,9 @@ defmodule Uniris.P2P.Node do
       average_availability: average_availability,
       availability_history: availability_history,
       enrollment_date: enrollment_date,
-      transport: transport
+      transport: transport,
+      reward_address: reward_address,
+      last_address: last_address
     }
   end
 
@@ -202,7 +219,11 @@ defmodule Uniris.P2P.Node do
       ...>   average_availability: 0.8,
       ...>   enrollment_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorization_date: ~U[2020-06-26 08:36:11Z],
-      ...>   authorized?: true
+      ...>   authorized?: true,
+      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>    87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>    88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
       ...> })
       <<
       # IP address
@@ -228,7 +249,13 @@ defmodule Uniris.P2P.Node do
       92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       # Last public key
       0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
-      92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226
+      92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
+      # Reward address
+      0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
+      # Last address
+      0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
       >>
   """
   @spec serialize(__MODULE__.t()) :: bitstring()
@@ -243,7 +270,9 @@ defmodule Uniris.P2P.Node do
         enrollment_date: enrollment_date,
         available?: available?,
         authorized?: authorized?,
-        authorization_date: authorization_date
+        authorization_date: authorization_date,
+        reward_address: reward_address,
+        last_address: last_address
       }) do
     ip_bin = <<o1, o2, o3, o4>>
     available_bin = if available?, do: 1, else: 0
@@ -256,7 +285,8 @@ defmodule Uniris.P2P.Node do
 
     <<ip_bin::binary-size(4), port::16, geo_patch::binary-size(3), network_patch::binary-size(3),
       avg_bin::8, DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
-      authorization_date::32, first_public_key::binary, last_public_key::binary>>
+      authorization_date::32, first_public_key::binary, last_public_key::binary,
+      reward_address::binary, last_address::binary>>
   end
 
   @doc """
@@ -271,7 +301,11 @@ defmodule Uniris.P2P.Node do
       ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
-      ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226
+      ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
+      ...> 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...> 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
+      ...> 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...> 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
       ...> >>)
       {
         %Node{
@@ -287,7 +321,11 @@ defmodule Uniris.P2P.Node do
             average_availability: 0.8,
             enrollment_date: ~U[2020-06-26 08:36:11Z],
             authorization_date: ~U[2020-06-26 08:36:11Z],
-            authorized?: true
+            authorized?: true,
+            reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+              87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
+            last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+              88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
         },
         ""
       }
@@ -311,6 +349,14 @@ defmodule Uniris.P2P.Node do
     key_size = Crypto.key_size(first_curve_id)
     <<last_key::binary-size(key_size), rest::bitstring>> = rest
 
+    <<renewal_address_hash_id::8, rest::bitstring>> = rest
+    address_size = Crypto.key_size(renewal_address_hash_id)
+    <<reward_address::binary-size(address_size), rest::bitstring>> = rest
+
+    <<last_address_hash_id::8, rest::bitstring>> = rest
+    address_size = Crypto.key_size(last_address_hash_id)
+    <<last_address::binary-size(address_size), rest::bitstring>> = rest
+
     {
       %__MODULE__{
         ip: {o1, o2, o3, o4},
@@ -322,8 +368,10 @@ defmodule Uniris.P2P.Node do
         available?: available?,
         authorized?: authorized?,
         authorization_date: authorization_date,
-        first_public_key: <<first_curve_id::8>> <> first_key,
-        last_public_key: <<last_curve_id::8>> <> last_key
+        first_public_key: <<first_curve_id::8, first_key::binary>>,
+        last_public_key: <<last_curve_id::8, last_key::binary>>,
+        reward_address: <<renewal_address_hash_id::8, reward_address::binary>>,
+        last_address: <<last_address_hash_id::8, last_address::binary>>
       },
       rest
     }

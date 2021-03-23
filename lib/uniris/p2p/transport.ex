@@ -3,6 +3,12 @@ defmodule Uniris.P2P.Transport do
 
   @type supported :: :tcp
 
+  @doc """
+  Return the list of supported transport implementation
+  """
+  @spec supported() :: list(supported())
+  def supported, do: [:tcp]
+
   require Logger
 
   alias Uniris.P2P.Transport.TCPImpl

@@ -8,10 +8,14 @@ defmodule Uniris.Account.MemTablesLoader do
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P
+  alias Uniris.P2P.Node
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -101,7 +105,9 @@ defmodule Uniris.Account.MemTablesLoader do
   end
 
   defp set_unspent_outputs(address, unspent_outputs, timestamp) do
-    Enum.each(unspent_outputs, fn
+    unspent_outputs
+    |> Enum.filter(&(&1.amount > 0.0))
+    |> Enum.each(fn
       unspent_output = %UnspentOutput{type: :UCO} ->
         UCOLedger.add_unspent_output(address, unspent_output, timestamp)
 
@@ -111,17 +117,16 @@ defmodule Uniris.Account.MemTablesLoader do
   end
 
   defp set_node_rewards(address, node_movements, timestamp) do
-    Enum.each(
-      node_movements,
-      &UCOLedger.add_unspent_output(
-        Crypto.hash(&1.to),
-        %UnspentOutput{
-          amount: &1.amount,
-          from: address,
-          type: :UCO
-        },
+    node_movements
+    |> Enum.filter(&(&1.amount > 0.0))
+    |> Enum.each(fn %NodeMovement{to: to, amount: amount} ->
+      %Node{last_address: last_address} = P2P.get_node_info!(to)
+
+      UCOLedger.add_unspent_output(
+        last_address,
+        %UnspentOutput{amount: amount, from: address, type: :UCO},
         timestamp
       )
-    )
+    end)
   end
 end

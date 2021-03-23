@@ -20,6 +20,13 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
   # At the 58th second
   interval: "58 * * * * *"
 
+config :uniris, Uniris.Bootstrap,
+  reward_address:
+    System.get_env(
+      "UNIRIS_REWARD_ADDRESS",
+      Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>)
+    )
+
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
 
 config :uniris, Uniris.P2P.BootstrappingSeeds,

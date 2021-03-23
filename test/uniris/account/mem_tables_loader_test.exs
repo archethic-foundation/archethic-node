@@ -1,11 +1,12 @@
 defmodule Uniris.Account.MemTablesLoaderTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.Account.MemTables.NFTLedger
   alias Uniris.Account.MemTables.UCOLedger
   alias Uniris.Account.MemTablesLoader
 
-  alias Uniris.Crypto
+  alias Uniris.P2P
+  alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
@@ -19,13 +20,20 @@ defmodule Uniris.Account.MemTablesLoaderTest do
   setup :verify_on_exit!
   setup :set_mox_global
 
-  describe "load_transaction/1" do
-    setup do
-      start_supervised!(UCOLedger)
-      start_supervised!(NFTLedger)
-      :ok
-    end
+  setup do
+    P2P.add_node(%Node{
+      first_public_key: "NodeKey",
+      last_public_key: "NodeKey",
+      last_address: "@NodeKey",
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      geo_patch: "AAA"
+    })
 
+    :ok
+  end
+
+  describe "load_transaction/1" do
     test "should distribute unspent outputs" do
       assert :ok = MemTablesLoader.load_transaction(create_transaction())
 
@@ -35,7 +43,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
       [%UnspentOutput{from: "@Charlie3", amount: 1.303, type: :UCO}] =
-        UCOLedger.get_unspent_outputs(Crypto.hash("@Node2"))
+        UCOLedger.get_unspent_outputs("@NodeKey")
 
       [%UnspentOutput{from: "@Charlie3", amount: 34.0}] = UCOLedger.get_unspent_outputs("@Tom4")
 
@@ -46,9 +54,6 @@ defmodule Uniris.Account.MemTablesLoaderTest do
 
   describe "start_link/1" do
     setup do
-      start_supervised!(UCOLedger)
-      start_supervised!(NFTLedger)
-
       MockDB
       |> stub(:list_transactions, fn _fields -> [create_transaction()] end)
 
@@ -64,7 +69,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
       [%UnspentOutput{from: "@Charlie3", amount: 1.303, type: :UCO}] =
-        UCOLedger.get_unspent_outputs(Crypto.hash("@Node2"))
+        UCOLedger.get_unspent_outputs("@NodeKey")
 
       [%UnspentOutput{from: "@Charlie3", amount: 34.0, type: :UCO}] =
         UCOLedger.get_unspent_outputs("@Tom4")
@@ -85,7 +90,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
             %TransactionMovement{to: "@Tom4", amount: 34.0, type: :UCO},
             %TransactionMovement{to: "@Bob3", amount: 10.0, type: {:NFT, "@CharlieNFT"}}
           ],
-          node_movements: [%NodeMovement{to: "@Node2", amount: 1.303, roles: []}],
+          node_movements: [%NodeMovement{to: "NodeKey", amount: 1.303, roles: []}],
           unspent_outputs: [
             %UnspentOutput{
               from: "@Alice2",

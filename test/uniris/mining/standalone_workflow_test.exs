@@ -43,7 +43,8 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
       network_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
+      last_address: :crypto.strong_rand_bytes(32)
     })
 
     unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]

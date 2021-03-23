@@ -19,6 +19,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
@@ -48,8 +49,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> LedgerOperations.from_transaction(%LedgerOperations{},
       ...>   %Transaction{
-      ...>     address: "@NFT2", 
-      ...>     type: :nft, 
+      ...>     address: "@NFT2",
+      ...>     type: :nft,
       ...>     data: %TransactionData{content: "initial supply: 1000"}
       ...>   }
       ...> )
@@ -229,7 +230,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   @doc """
   Return the reward for each cross validation node based on the fee, the rate and the number of cross validation nodes
 
-  The allocation for the entire cross validation nodes represents 40% of the fee 
+  The allocation for the entire cross validation nodes represents 40% of the fee
 
   ## Examples
 
@@ -247,7 +248,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   @doc """
   Return the reward for each previous storage node based on the fee, its rate and the number of storage nodes
 
-  The allocation for the entire previous storages nodes represents 50% of the fee 
+  The allocation for the entire previous storages nodes represents 50% of the fee
 
   ## Examples
 
@@ -330,7 +331,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
       ...> ])
       true
-      
+
       iex> %LedgerOperations{
       ...>    transaction_movements: [],
       ...>    fee: 0.40
@@ -373,7 +374,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
   ## Examples
 
-    # When a single unspent output is sufficient to satisfy the transaction movements 
+    # When a single unspent output is sufficient to satisfy the transaction movements
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
@@ -397,7 +398,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
           ]
       }
 
-    # When multiple little unspent output are sufficient to satisfy the transaction movements 
+    # When multiple little unspent output are sufficient to satisfy the transaction movements
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
@@ -424,7 +425,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
           ]
       }
 
-    # When using NFT unspent outputs are sufficient to satisfy the transaction movements 
+    # When using NFT unspent outputs are sufficient to satisfy the transaction movements
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
@@ -448,7 +449,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
           ]
       }
 
-    #  When multiple NFT unspent outputs are sufficient to satisfy the transaction movements 
+    #  When multiple NFT unspent outputs are sufficient to satisfy the transaction movements
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
@@ -519,34 +520,18 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
   @doc """
   List all the addresses from transaction movements and node movements.
 
-  Node movements public keys are hashed to produce addresses
-
-  ## Examples
-
-      iex> %LedgerOperations{
-      ...>   transaction_movements: [
-      ...>      %TransactionMovement{to: <<0, 167, 158, 251, 11, 241, 12, 240, 78, 125, 145, 72, 181, 180, 207, 109, 100,
-      ...>        239, 164, 17, 54, 91, 246, 111, 162, 112, 35, 174, 44, 92, 45, 57, 213>>, amount: 5.3, type: :UCO}
-      ...>   ],
-      ...>   node_movements: [
-      ...>      %NodeMovement{to: <<82, 181, 95, 101, 84, 42, 93, 217, 66, 3, 234, 7, 7, 100, 88, 24, 65, 146, 60,
-      ...>        116, 180, 238, 175, 16, 78, 6, 156, 147, 242, 75, 73, 160>>, amount: 0.02, roles: [] }
-      ...>   ]
-      ...> }
-      ...> |> LedgerOperations.movement_addresses()
-      [
-        <<0, 167, 158, 251, 11, 241, 12, 240, 78, 125, 145, 72, 181, 180, 207, 109, 100,
-          239, 164, 17, 54, 91, 246, 111, 162, 112, 35, 174, 44, 92, 45, 57, 213>>,
-        <<0, 140, 71, 133, 190, 90, 57, 6, 85, 245, 172, 69, 85, 136, 244, 75, 188, 89,
-          8, 246, 249, 234, 22, 211, 151, 200, 71, 141, 133, 163, 161, 142, 8>>
-      ]
+  Node movements public keys are used to determine the node addresses
   """
   @spec movement_addresses(t()) :: list(binary())
   def movement_addresses(%__MODULE__{
         transaction_movements: transaction_movements,
         node_movements: node_movements
       }) do
-    Enum.map(transaction_movements, & &1.to) ++ Enum.map(node_movements, &Crypto.hash(&1.to))
+    Enum.map(transaction_movements, & &1.to) ++
+      Enum.map(node_movements, fn %NodeMovement{to: public_key} ->
+        %Node{last_address: address} = P2P.get_node_info!(public_key)
+        address
+      end)
   end
 
   @doc """

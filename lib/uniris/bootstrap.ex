@@ -36,11 +36,19 @@ defmodule Uniris.Bootstrap do
     ip = Networking.get_node_ip()
     port = Keyword.get(args, :port)
     transport = Keyword.get(args, :transport)
+    reward_address = Keyword.get(args, :reward_address)
 
     last_sync_date = SelfRepair.last_sync_date()
     bootstrapping_seeds = P2P.list_bootstrapping_seeds()
 
-    Task.start_link(__MODULE__, :run, [ip, port, transport, bootstrapping_seeds, last_sync_date])
+    Task.start_link(__MODULE__, :run, [
+      ip,
+      port,
+      transport,
+      bootstrapping_seeds,
+      last_sync_date,
+      reward_address
+    ])
   end
 
   @doc """
@@ -61,10 +69,11 @@ defmodule Uniris.Bootstrap do
           :inet.port_number(),
           Transport.supported(),
           list(Node.t()),
-          DateTime.t() | nil
+          DateTime.t() | nil,
+          Crypto.versioned_hash()
         ) :: :ok
-  def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date)
-      when is_number(port) and is_list(bootstrapping_seeds) do
+  def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date, reward_address)
+      when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
     network_patch =
       case P2P.get_node_info(Crypto.node_public_key()) do
         {:ok, %Node{network_patch: patch}} ->
@@ -75,7 +84,15 @@ defmodule Uniris.Bootstrap do
       end
 
     if should_bootstrap?(ip, port, transport, last_sync_date) do
-      start_bootstrap(ip, port, transport, bootstrapping_seeds, last_sync_date, network_patch)
+      start_bootstrap(
+        ip,
+        port,
+        transport,
+        bootstrapping_seeds,
+        last_sync_date,
+        network_patch,
+        reward_address
+      )
     else
       P2P.set_node_globally_available(Crypto.node_public_key(0))
       BeaconChain.start_schedulers()
@@ -105,13 +122,21 @@ defmodule Uniris.Bootstrap do
     end
   end
 
-  defp start_bootstrap(ip, port, transport, bootstrapping_seeds, last_sync_date, network_patch) do
+  defp start_bootstrap(
+         ip,
+         port,
+         transport,
+         bootstrapping_seeds,
+         last_sync_date,
+         network_patch,
+         reward_address
+       ) do
     Logger.info("Bootstrapping starting")
 
     if Sync.should_initialize_network?(bootstrapping_seeds) do
       Logger.info("This node should initialize the network!!")
       Logger.debug("Create first node transaction")
-      tx = TransactionHandler.create_node_transaction(ip, port, transport)
+      tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
       Sync.initialize_network(tx)
 
       :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
@@ -119,11 +144,19 @@ defmodule Uniris.Bootstrap do
     else
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
-        first_initialization(ip, port, transport, network_patch, bootstrapping_seeds)
+
+        first_initialization(
+          ip,
+          port,
+          transport,
+          network_patch,
+          bootstrapping_seeds,
+          reward_address
+        )
       else
         if Sync.require_update?(ip, port, transport, last_sync_date) do
           Logger.info("Update node chain...")
-          update_node(ip, port, transport, network_patch, bootstrapping_seeds)
+          update_node(ip, port, transport, network_patch, bootstrapping_seeds, reward_address)
         else
           :ok
         end
@@ -133,7 +166,7 @@ defmodule Uniris.Bootstrap do
     Logger.info("Bootstrapping finished!")
   end
 
-  defp first_initialization(ip, port, transport, patch, bootstrapping_seeds) do
+  defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
     Enum.each(bootstrapping_seeds, &P2P.add_node/1)
 
     closest_node =
@@ -141,7 +174,7 @@ defmodule Uniris.Bootstrap do
       |> Sync.get_closest_nodes_and_renew_seeds(patch)
       |> List.first()
 
-    tx = TransactionHandler.create_node_transaction(ip, port, transport)
+    tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
 
     ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
 
@@ -171,7 +204,7 @@ defmodule Uniris.Bootstrap do
     Sync.publish_end_of_sync()
   end
 
-  defp update_node(ip, port, transport, patch, bootstrapping_seeds) do
+  defp update_node(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
     case Enum.reject(bootstrapping_seeds, &(&1.first_public_key == Crypto.node_public_key(0))) do
       [] ->
         Logger.warning("Not enough nodes in the network. No node update")
@@ -182,7 +215,7 @@ defmodule Uniris.Bootstrap do
           |> Sync.get_closest_nodes_and_renew_seeds(patch)
           |> List.first()
 
-        tx = TransactionHandler.create_node_transaction(ip, port, transport)
+        tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
 
         ack_task =
           Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)

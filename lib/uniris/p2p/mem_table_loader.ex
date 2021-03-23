@@ -56,13 +56,14 @@ defmodule Uniris.P2P.MemTableLoader do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{
+        address: address,
         type: :node,
         timestamp: timestamp,
         previous_public_key: previous_public_key,
         data: %TransactionData{content: content}
       }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-    {ip, port, transport} = extract_node_endpoint(content)
+    {ip, port, transport, reward_address} = extract_node_endpoint(content)
 
     node = %Node{
       ip: ip,
@@ -70,7 +71,9 @@ defmodule Uniris.P2P.MemTableLoader do
       first_public_key: first_public_key,
       last_public_key: previous_public_key,
       geo_patch: GeoPatch.from_ip(ip),
-      transport: transport
+      transport: transport,
+      last_address: address,
+      reward_address: reward_address
     }
 
     if first_node_change?(first_public_key, previous_public_key) do
@@ -111,8 +114,8 @@ defmodule Uniris.P2P.MemTableLoader do
   defp first_node_change?(_, _), do: false
 
   defp extract_node_endpoint(content) do
-    [[ip_match], [port_match], [transport_match]] =
-      Regex.scan(~r/(?<=ip:|port:|transport:).*/m, content)
+    [[ip_match, port_match, transport_match, reward_address_match]] =
+      Regex.scan(Node.transaction_content_regex(), content, capture: :all_but_first)
 
     {:ok, ip} =
       ip_match
@@ -130,6 +133,11 @@ defmodule Uniris.P2P.MemTableLoader do
       |> String.trim()
       |> String.to_existing_atom()
 
-    {ip, port, transport}
+    reward_address =
+      reward_address_match
+      |> String.trim()
+      |> Base.decode16!()
+
+    {ip, port, transport, reward_address}
   end
 end

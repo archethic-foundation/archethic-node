@@ -53,7 +53,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       available?: true,
       network_patch: "AAA",
       geo_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      enrollment_date: DateTime.utc_now(),
+      last_address: :crypto.strong_rand_bytes(32)
     })
 
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
@@ -68,7 +69,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       available?: true,
       network_patch: "BBB",
       geo_patch: "BBB",
-      enrollment_date: DateTime.utc_now()
+      enrollment_date: DateTime.utc_now(),
+      last_address: :crypto.strong_rand_bytes(32)
     })
 
     :ok
@@ -162,7 +164,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         available?: true,
         network_patch: "AAA",
         geo_patch: "AAA",
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        last_address: :crypto.strong_rand_bytes(32)
       })
 
       P2P.add_node(%Node{
@@ -175,7 +178,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         available?: true,
         network_patch: "DEF",
         geo_patch: "DEF",
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        last_address: :crypto.strong_rand_bytes(32)
       })
 
       tx = Transaction.new(:node, %TransactionData{})
@@ -242,7 +246,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         ip: {127, 0, 0, 1},
         port: 3005,
         first_public_key: "key1",
-        last_public_key: "key1"
+        last_public_key: "key1",
+        last_address: :crypto.strong_rand_bytes(32)
       }
 
       {:ok, coordinator_pid} =
@@ -373,8 +378,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         ip: {127, 0, 0, 1},
         port: 3005,
         first_public_key: "key1",
-        last_public_key: "key1"
+        last_public_key: "key1",
+        last_address: :crypto.strong_rand_bytes(32)
       }
+
+      P2P.add_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -389,15 +397,19 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: "key10",
-          last_public_key: "key10"
+          last_public_key: "key10",
+          last_address: :crypto.strong_rand_bytes(32)
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
-          last_public_key: "key23"
+          last_public_key: "key23",
+          last_address: :crypto.strong_rand_bytes(32)
         }
       ]
+
+      Enum.each(previous_storage_nodes, &P2P.add_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,
@@ -442,7 +454,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        last_address: :crypto.strong_rand_bytes(32)
       })
 
       validation_nodes =
@@ -525,8 +538,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         ip: {127, 0, 0, 1},
         port: 3005,
         first_public_key: "key1",
-        last_public_key: "key1"
+        last_public_key: "key1",
+        last_address: :crypto.strong_rand_bytes(32)
       }
+
+      P2P.add_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -549,15 +565,19 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: "key10",
-          last_public_key: "key10"
+          last_public_key: "key10",
+          last_address: :crypto.strong_rand_bytes(32)
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
-          last_public_key: "key23"
+          last_public_key: "key23",
+          last_address: :crypto.strong_rand_bytes(32)
         }
       ]
+
+      Enum.each(previous_storage_nodes, &P2P.add_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,
@@ -714,7 +734,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        last_address: :crypto.strong_rand_bytes(32)
       })
 
       P2P.add_node(%Node{
@@ -725,15 +746,19 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        last_address: :crypto.strong_rand_bytes(32)
       })
 
       welcome_node = %Node{
         ip: {127, 0, 0, 1},
         port: 3005,
         first_public_key: "key1",
-        last_public_key: "key1"
+        last_public_key: "key1",
+        last_address: :crypto.strong_rand_bytes(32)
       }
+
+      P2P.add_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -756,15 +781,19 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: "key10",
-          last_public_key: "key10"
+          last_public_key: "key10",
+          last_address: :crypto.strong_rand_bytes(32)
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
-          last_public_key: "key23"
+          last_public_key: "key23",
+          last_address: :crypto.strong_rand_bytes(32)
         }
       ]
+
+      Enum.each(previous_storage_nodes, &P2P.add_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,

@@ -19,6 +19,7 @@ defmodule Uniris.Mining do
   alias Uniris.P2P
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetFirstPublicKey
+  alias Uniris.P2P.Node
 
   alias Uniris.Replication
 
@@ -134,14 +135,16 @@ defmodule Uniris.Mining do
          type: :node,
          data: %TransactionData{content: content}
        }) do
-    if Regex.match?(~r/(?<=ip:|port:|transport:).*/m, content) do
-      :ok
-    else
-      Logger.error("Invalid node transaction content",
-        transaction: "node@#{Base.encode16(address)}"
-      )
+    case Regex.scan(Node.transaction_content_regex(), content, capture: :all_but_first) do
+      [] ->
+        Logger.error("Invalid node transaction content",
+          transaction: "node@#{Base.encode16(address)}"
+        )
 
-      {:error, "Invalid node transaction"}
+        {:error, "Invalid node transaction"}
+
+      _ ->
+        :ok
     end
   end
 

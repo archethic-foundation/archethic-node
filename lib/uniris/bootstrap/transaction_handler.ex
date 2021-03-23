@@ -1,6 +1,8 @@
 defmodule Uniris.Bootstrap.TransactionHandler do
   @moduledoc false
 
+  alias Uniris.Crypto
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NewTransaction
@@ -32,15 +34,21 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @doc """
   Create a new node transaction
   """
-  @spec create_node_transaction(:inet.ip_address(), :inet.port_number(), Transport.supported()) ::
+  @spec create_node_transaction(
+          :inet.ip_address(),
+          :inet.port_number(),
+          Transport.supported(),
+          Crypto.versioned_hash()
+        ) ::
           Transaction.t()
-  def create_node_transaction(ip = {_, _, _, _}, port, transport)
-      when is_number(port) and port >= 0 do
+  def create_node_transaction(ip = {_, _, _, _}, port, transport, reward_address)
+      when is_number(port) and port >= 0 and is_binary(reward_address) do
     Transaction.new(:node, %TransactionData{
       content: """
       ip: #{:inet_parse.ntoa(ip)}
       port: #{port}
       transport: #{Atom.to_string(transport)}
+      reward address: #{reward_address}
       """
     })
   end

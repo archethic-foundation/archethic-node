@@ -121,7 +121,8 @@ defmodule Uniris.Mining.ValidationContextTest do
       first_public_key: "key1",
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
-      port: 3000
+      port: 3000,
+      last_address: :crypto.strong_rand_bytes(32)
     }
 
     coordinator_node = %Node{
@@ -129,7 +130,8 @@ defmodule Uniris.Mining.ValidationContextTest do
       last_public_key: Crypto.node_public_key(),
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
-      port: 3000
+      port: 3000,
+      last_address: :crypto.strong_rand_bytes(32)
     }
 
     cross_validation_nodes = [
@@ -138,14 +140,16 @@ defmodule Uniris.Mining.ValidationContextTest do
         last_public_key: "key2",
         geo_patch: "AAA",
         ip: {127, 0, 0, 1},
-        port: 3000
+        port: 3000,
+        last_address: :crypto.strong_rand_bytes(32)
       },
       %Node{
         first_public_key: "key3",
         last_public_key: "key3",
         geo_patch: "AAA",
         ip: {127, 0, 0, 1},
-        port: 3000
+        port: 3000,
+        last_address: :crypto.strong_rand_bytes(32)
       }
     ]
 
@@ -154,9 +158,16 @@ defmodule Uniris.Mining.ValidationContextTest do
         last_public_key: "key2",
         first_public_key: "key2",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        last_address: :crypto.strong_rand_bytes(32)
       },
-      %Node{last_public_key: "key3", first_public_key: "key3", geo_patch: "DEA", available?: true}
+      %Node{
+        last_public_key: "key3",
+        first_public_key: "key3",
+        geo_patch: "DEA",
+        available?: true,
+        last_address: :crypto.strong_rand_bytes(32)
+      }
     ]
 
     P2P.add_node(welcome_node)
