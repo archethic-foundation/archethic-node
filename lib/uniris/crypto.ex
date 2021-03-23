@@ -234,6 +234,12 @@ defmodule Uniris.Crypto do
   @spec encrypt_node_shared_secrets_transaction_seed(aes_key :: binary()) :: binary()
   defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: Keystore
 
+  @doc """
+  Encrypt the network pool transaction seed located in the keystore using the given secret key
+  """
+  @spec encrypt_network_pool_seed(aes_key :: binary()) :: binary()
+  defdelegate encrypt_network_pool_seed(aes_key), to: Keystore
+
   defp get_extended_seed(seed, additional_data) do
     <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
 
@@ -268,6 +274,12 @@ defmodule Uniris.Crypto do
   """
   @spec node_shared_secrets_public_key(index :: number()) :: key()
   defdelegate node_shared_secrets_public_key(index), to: Keystore
+
+  @doc """
+  Return the the network pool public key using the network pool transaction seed
+  """
+  @spec network_pool_public_key(index :: number()) :: key()
+  defdelegate network_pool_public_key(index), to: Keystore
 
   @doc """
   Return the storage nonce public key
@@ -312,6 +324,17 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
+  Increment the counter for the number of generated network pool private keys.
+  This number is used for the key derivation to detect the latest index.
+  """
+  @spec increment_number_of_generate_network_pool_keys() :: :ok
+  def increment_number_of_generate_network_pool_keys do
+    Keystore.increment_number_of_generate_network_pool_keys()
+    nb = Keystore.number_of_network_pool_keys()
+    Logger.info("Network pool key index incremented (#{nb})")
+  end
+
+  @doc """
   Return the number of node keys after incrementation
   """
   @spec number_of_node_keys() :: non_neg_integer()
@@ -322,6 +345,12 @@ defmodule Uniris.Crypto do
   """
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
   defdelegate number_of_node_shared_secrets_keys, to: Keystore
+
+  @doc """
+  Return the number of network pool keys after incrementation
+  """
+  @spec number_of_network_pool_keys() :: non_neg_integer()
+  defdelegate number_of_network_pool_keys, to: Keystore
 
   @doc """
   Generate a keypair in a deterministic way using a seed
@@ -431,6 +460,28 @@ defmodule Uniris.Crypto do
     data
     |> Utils.wrap_binary()
     |> Keystore.sign_with_node_shared_secrets_key(index)
+  end
+
+  @doc """
+  Sign the data with the network pool transaction seed
+  """
+  @spec sign_with_network_pool_key(data :: iodata()) :: binary()
+  def sign_with_network_pool_key(data) when is_bitstring(data) or is_list(data) do
+    data
+    |> Utils.wrap_binary()
+    |> Keystore.sign_with_network_pool_key()
+  end
+
+  @doc """
+  Sign the data with the network pool transaction seed
+  """
+  @spec sign_with_network_pool_key(data :: iodata(), index :: non_neg_integer()) ::
+          binary()
+  def sign_with_network_pool_key(data, index)
+      when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
+    data
+    |> Utils.wrap_binary()
+    |> Keystore.sign_with_network_pool_key(index)
   end
 
   @doc """

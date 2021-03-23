@@ -208,7 +208,8 @@ defmodule Uniris.Bootstrap.SyncTest do
           content: """
           ip: 127.0.0.1
           port: 3000
-          transport: MockTransport
+          transport: tcp
+          reward address: 00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45
           """
         })
 

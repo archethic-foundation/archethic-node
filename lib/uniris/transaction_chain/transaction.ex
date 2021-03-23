@@ -71,6 +71,7 @@ defmodule Uniris.TransactionChain.Transaction do
           | :nft
           | :oracle
           | :oracle_summary
+          | :node_rewards
 
   @transaction_types [
     :identity,
@@ -84,7 +85,8 @@ defmodule Uniris.TransactionChain.Transaction do
     :code_approval,
     :nft,
     :oracle,
-    :oracle_summary
+    :oracle_summary,
+    :node_rewards
   ]
 
   @doc """
@@ -101,8 +103,7 @@ defmodule Uniris.TransactionChain.Transaction do
   """
   @spec new(type :: transaction_type(), data :: TransactionData.t()) ::
           t()
-  def new(type, data = %TransactionData{})
-      when type in [:node, :node_shared_secrets] do
+  def new(type, data = %TransactionData{}) do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
     %__MODULE__{
@@ -161,13 +162,6 @@ defmodule Uniris.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
-  defp get_transaction_public_keys(:node) do
-    key_index = Crypto.number_of_node_keys()
-    previous_public_key = Crypto.node_public_key(key_index)
-    next_public_key = Crypto.node_public_key(key_index + 1)
-    {previous_public_key, next_public_key}
-  end
-
   defp get_transaction_public_keys(:node_shared_secrets) do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     previous_public_key = Crypto.node_shared_secrets_public_key(key_index)
@@ -175,16 +169,18 @@ defmodule Uniris.TransactionChain.Transaction do
     {previous_public_key, next_public_key}
   end
 
-  defp previous_sign_transaction(tx = %__MODULE__{type: :node}) do
+  defp get_transaction_public_keys(:node_rewards) do
+    key_index = Crypto.number_of_network_pool_keys()
+    previous_public_key = Crypto.network_pool_public_key(key_index)
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
+  end
+
+  defp get_transaction_public_keys(_) do
     key_index = Crypto.number_of_node_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_node_key(key_index)
-
-    %{tx | previous_signature: previous_signature}
+    previous_public_key = Crypto.node_public_key(key_index)
+    next_public_key = Crypto.node_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{type: :node_shared_secrets}) do
@@ -195,6 +191,30 @@ defmodule Uniris.TransactionChain.Transaction do
       |> extract_for_previous_signature()
       |> serialize()
       |> Crypto.sign_with_node_shared_secrets_key(key_index)
+
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp previous_sign_transaction(tx = %__MODULE__{type: :node_rewards}) do
+    key_index = Crypto.number_of_network_pool_keys()
+
+    previous_signature =
+      tx
+      |> extract_for_previous_signature()
+      |> serialize()
+      |> Crypto.sign_with_network_pool_key(key_index)
+
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp previous_sign_transaction(tx = %__MODULE__{}) do
+    key_index = Crypto.number_of_node_keys()
+
+    previous_signature =
+      tx
+      |> extract_for_previous_signature()
+      |> serialize()
+      |> Crypto.sign_with_node_key(key_index)
 
     %{tx | previous_signature: previous_signature}
   end
@@ -264,6 +284,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def serialize_type(:nft), do: 9
   def serialize_type(:oracle), do: 10
   def serialize_type(:oracle_summary), do: 11
+  def serialize_type(:node_rewards), do: 12
 
   @doc """
   Parse a serialize transaction type
@@ -281,6 +302,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def parse_type(9), do: :nft
   def parse_type(10), do: :oracle
   def parse_type(11), do: :oracle_summary
+  def parse_type(12), do: :node_rewards
 
   @doc """
   Determines if a transaction type is a network one
@@ -293,6 +315,7 @@ defmodule Uniris.TransactionChain.Transaction do
   def network_type?(:code_approval), do: true
   def network_type?(:oracle), do: true
   def network_type?(:oracle_summary), do: true
+  def network_type?(:node_rewards), do: true
   def network_type?(_), do: false
 
   @doc """

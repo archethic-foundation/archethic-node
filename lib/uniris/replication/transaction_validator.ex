@@ -255,7 +255,7 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp compare_unspent_outputs(next, expected) do
     Enum.all?(next, fn %{amount: amount, from: from} ->
-      Enum.any?(expected, &(&1.from == from and &1.amount == amount))
+      Enum.any?(expected, &(&1.from == from and &1.amount >= amount))
     end)
   end
 

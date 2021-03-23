@@ -69,6 +69,9 @@ config :uniris, Uniris.P2P.Transport, impl: MockTransport
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false
 
+config :uniris, Uniris.Reward.NetworkPoolScheduler, enabled: false
+config :uniris, Uniris.Reward.WithdrawScheduler, enabled: false
+
 config :uniris, Uniris.SelfRepair.Scheduler,
   enabled: false,
   interval: 0

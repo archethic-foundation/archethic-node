@@ -19,6 +19,8 @@ defmodule Uniris.Application do
 
   alias Uniris.OracleChain.Supervisor, as: OracleChainSupervisor
 
+  alias Uniris.Reward.Supervisor, as: RewardSupervisor
+
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
   alias Uniris.TransactionChain.Supervisor, as: TransactionChainSupervisor
@@ -55,8 +57,13 @@ defmodule Uniris.Application do
       GovernanceSupervisor,
       SelfRepairSupervisor,
       OracleChainSupervisor,
+      RewardSupervisor,
       WebSupervisor,
-      {Bootstrap, port: port, transport: transport},
+      {Bootstrap,
+       Keyword.merge(Application.get_env(:uniris, Uniris.Bootstrap),
+         port: port,
+         transport: transport
+       )},
       {Task.Supervisor, name: Uniris.TaskSupervisor}
     ]
 

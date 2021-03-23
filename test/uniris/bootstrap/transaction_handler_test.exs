@@ -20,16 +20,23 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
   import Mox
 
-  test "create_node_transaction/2 should create transaction with ip and port encoded in the content" do
+  test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
     assert %Transaction{
              data: %TransactionData{
                content: """
                ip: 127.0.0.1
                port: 3000
                transport: tcp
+               reward address: 00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45
                """
              }
-           } = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000, :tcp)
+           } =
+             TransactionHandler.create_node_transaction(
+               {127, 0, 0, 1},
+               3000,
+               :tcp,
+               "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+             )
   end
 
   test "send_transaction/2 should send the transaction to a welcome node" do
@@ -48,7 +55,14 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
       {:ok, %Ok{}}
     end)
 
-    tx = TransactionHandler.create_node_transaction({127, 0, 0, 1}, 3000, :tcp)
+    tx =
+      TransactionHandler.create_node_transaction(
+        {127, 0, 0, 1},
+        3000,
+        :tcp,
+        "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+      )
+
     assert :ok = TransactionHandler.send_transaction(tx, node)
   end
 

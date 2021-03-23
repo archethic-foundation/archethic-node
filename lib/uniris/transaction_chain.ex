@@ -471,4 +471,14 @@ defmodule Uniris.TransactionChain do
     do: last_address
 
   defp handle_resolve_result(_, address), do: address
+
+  @doc """
+  Get the last address by type
+  """
+  @spec get_last_address_by_type(Transaction.transaction_type()) :: binary()
+  def get_last_address_by_type(type) do
+    type
+    |> ChainLookup.list_addresses_by_type()
+    |> List.first()
+  end
 end

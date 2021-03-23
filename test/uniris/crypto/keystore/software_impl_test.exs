@@ -65,9 +65,19 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     assert 0 == SoftwareKeystore.number_of_node_shared_secrets_keys()
   end
 
+  test "number_of_network_pool_keys/0 should return the last index of generated network pool keys" do
+    SoftwareKeystore.start_link(seed: "seed")
+    assert 0 == SoftwareKeystore.number_of_network_pool_keys()
+  end
+
   test "increment_number_of_generate_node_shared_keys/0 should increment the number of generated node shared keys" do
     assert :ok = SoftwareKeystore.increment_number_of_generate_node_shared_secrets_keys()
     assert 1 == SoftwareKeystore.number_of_node_shared_secrets_keys()
+  end
+
+  test "increment_number_of_generate_network_pool_keys/0 should increment the number of generated network pool keys" do
+    assert :ok = SoftwareKeystore.increment_number_of_generate_network_pool_keys()
+    assert 1 == SoftwareKeystore.number_of_network_pool_keys()
   end
 
   test "decrypt_and_set_daily_nonce_seed/2 should load daily nonce keys by decrypting the seed" do
@@ -113,6 +123,23 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
              )
 
     assert %{node_secrets_transaction_seed: ^transaction_seed} = :sys.get_state(SoftwareKeystore)
+  end
+
+  test "decrypt_and_set_node_shared_secrets_network_pool_seed/2 should load network pool seed by decrypting it" do
+    public_key = SoftwareKeystore.node_public_key()
+    aes_key = :crypto.strong_rand_bytes(32)
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+
+    encrypted_nonce = Crypto.aes_encrypt(network_pool_seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+
+    assert :ok =
+             SoftwareKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+               encrypted_nonce,
+               encrypted_key
+             )
+
+    assert %{network_pool_seed: ^network_pool_seed} = :sys.get_state(SoftwareKeystore)
   end
 
   test "sign_with_node_shared_secrets_key/1 should sign the data with the latest node shared secrets private key" do
@@ -170,6 +197,61 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
 
     {pub, _} = Crypto.derive_keypair(transaction_seed, 2)
     assert pub == SoftwareKeystore.node_shared_secrets_public_key(2)
+  end
+
+  test "sign_with_network_pool_key/1 should sign the data with the latest network pool private key" do
+    public_key = SoftwareKeystore.node_public_key()
+    aes_key = :crypto.strong_rand_bytes(32)
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+
+    encrypted_nonce = Crypto.aes_encrypt(network_pool_seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+
+    :ok =
+      SoftwareKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+        encrypted_nonce,
+        encrypted_key
+      )
+
+    {_, pv} = Crypto.derive_keypair(network_pool_seed, 0)
+
+    assert Crypto.sign("hello", pv) == SoftwareKeystore.sign_with_network_pool_key("hello")
+  end
+
+  test "sign_with_network_pool_key/2 should sign the data with a given network pool private key" do
+    public_key = SoftwareKeystore.node_public_key()
+    aes_key = :crypto.strong_rand_bytes(32)
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+
+    encrypted_nonce = Crypto.aes_encrypt(network_pool_seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+
+    :ok =
+      SoftwareKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+        encrypted_nonce,
+        encrypted_key
+      )
+
+    {_, pv} = Crypto.derive_keypair(network_pool_seed, 2)
+    assert Crypto.sign("hello", pv) == SoftwareKeystore.sign_with_network_pool_key("hello", 2)
+  end
+
+  test "network_pool_public_key/1 should return a given network pool public key" do
+    public_key = SoftwareKeystore.node_public_key()
+    aes_key = :crypto.strong_rand_bytes(32)
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+
+    encrypted_nonce = Crypto.aes_encrypt(network_pool_seed, aes_key)
+    encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+
+    :ok =
+      SoftwareKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+        encrypted_nonce,
+        encrypted_key
+      )
+
+    {pub, _} = Crypto.derive_keypair(network_pool_seed, 2)
+    assert pub == SoftwareKeystore.network_pool_public_key(2)
   end
 
   test "load update of node derived keys" do

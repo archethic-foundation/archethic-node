@@ -66,6 +66,14 @@ config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Sta
 config :uniris, Uniris.Networking.IPLookup.Static,
   hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
 
+config :uniris, Uniris.Reward.NetworkPoolScheduler,
+  # Every 10s
+  interval: "*/10 * * * * *"
+
+config :uniris, Uniris.Reward.WithdrawScheduler,
+  # Every 10s
+  interval: "*/10 * * * * *"
+
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every minute
   interval: "0 * * * * * *"

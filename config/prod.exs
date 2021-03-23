@@ -5,6 +5,8 @@ config :logger, level: :info
 
 config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "/opt/data")
 
+config :uniris, Uniris.Bootstrap, reward_address: System.get_env("UNIRIS_REWARD_ADDRESS")
+
 config :uniris, Uniris.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold: 54_000
@@ -45,6 +47,14 @@ config :uniris, Uniris.OracleChain.Scheduler,
   polling_interval: "0 * * * * *",
   # Aggregate chain every day at midnight at 40th second
   summary_interval: "40 0 0 * * * *"
+
+config :uniris, Uniris.Reward.NetworkPoolScheduler,
+  # Every day
+  interval: "0 0 * * * * *"
+
+config :uniris, Uniris.Reward.WithdrawScheduler,
+  # Every day
+  interval: "0 0 * * * * *"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day at midnight at the 50th second

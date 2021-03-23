@@ -51,6 +51,7 @@ defmodule UnirisCase do
 
     {:ok, counter_node_keys_pid} = Agent.start_link(fn -> 0 end)
     {:ok, counter_node_shared_keys_pid} = Agent.start_link(fn -> 0 end)
+    {:ok, counter_network_pool_keys_pid} = Agent.start_link(fn -> 0 end)
 
     MockCrypto
     |> stub(:child_spec, fn _ -> {:ok, self()} end)
@@ -70,6 +71,14 @@ defmodule UnirisCase do
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
+    |> stub(:sign_with_network_pool_key, fn data ->
+      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", 0, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:sign_with_network_pool_key, fn data, index ->
+      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
     |> stub(:hash_with_daily_nonce, fn _ -> "hash" end)
     |> stub(:node_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
@@ -83,11 +92,18 @@ defmodule UnirisCase do
       {pub, _} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
       pub
     end)
+    |> stub(:network_pool_public_key, fn index ->
+      {pub, _} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+      pub
+    end)
     |> stub(:increment_number_of_generate_node_keys, fn ->
       Agent.update(counter_node_keys_pid, &(&1 + 1))
     end)
     |> stub(:increment_number_of_generate_node_shared_secrets_keys, fn ->
       Agent.update(counter_node_shared_keys_pid, &(&1 + 1))
+    end)
+    |> stub(:increment_number_of_generate_network_pool_keys, fn ->
+      Agent.update(counter_network_pool_keys_pid, &(&1 + 1))
     end)
     |> stub(:decrypt_with_node_key!, fn cipher ->
       {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
@@ -97,10 +113,17 @@ defmodule UnirisCase do
     |> stub(:number_of_node_shared_secrets_keys, fn ->
       Agent.get(counter_node_shared_keys_pid, & &1)
     end)
+    |> stub(:number_of_network_pool_keys, fn ->
+      Agent.get(counter_network_pool_keys_pid, & &1)
+    end)
     |> stub(:encrypt_node_shared_secrets_transaction_seed, fn secret_key ->
       Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
     end)
+    |> stub(:encrypt_network_pool_seed, fn secret_key ->
+      Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+    end)
     |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ -> :ok end)
+    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 

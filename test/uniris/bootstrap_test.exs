@@ -85,9 +85,17 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, MockTransport, seeds, DateTime.utc_now())
+      assert :ok =
+               Bootstrap.run(
+                 {127, 0, 0, 1},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
 
-      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: MockTransport} | _] =
+      assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: :tcp} | _] =
                P2P.list_nodes()
 
       assert 1 == TransactionChain.count_transactions_by_type(:node_shared_secrets)
@@ -113,7 +121,10 @@ defmodule Uniris.BootstrapTest do
           authorized?: true,
           authorization_date: DateTime.utc_now(),
           available?: true,
-          enrollment_date: DateTime.utc_now()
+          enrollment_date: DateTime.utc_now(),
+          last_address:
+            <<245, 206, 118, 231, 188, 183, 250, 138, 217, 84, 176, 169, 37, 230, 8, 17, 147, 90,
+              187, 118, 27, 143, 165, 86, 151, 130, 250, 231, 32, 155, 183, 79>>
         },
         %Node{
           ip: {127, 0, 0, 1},
@@ -129,7 +140,10 @@ defmodule Uniris.BootstrapTest do
           authorized?: true,
           authorization_date: DateTime.utc_now(),
           available?: true,
-          enrollment_date: DateTime.utc_now()
+          enrollment_date: DateTime.utc_now(),
+          last_address:
+            <<0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164, 74,
+              201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
         }
       ]
 
@@ -225,7 +239,16 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
+      assert :ok =
+               Bootstrap.run(
+                 {127, 0, 0, 1},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
+
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
     end
 
@@ -242,7 +265,15 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
+      assert :ok =
+               Bootstrap.run(
+                 {127, 0, 0, 1},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
 
       %Node{
         ip: {127, 0, 0, 1},
@@ -254,13 +285,21 @@ defmodule Uniris.BootstrapTest do
       assert first_public_key == Crypto.node_public_key(0)
       assert last_public_key == Crypto.node_public_key(0)
 
-      assert :ok = Bootstrap.run({200, 50, 20, 10}, 3000, :sctp, seeds, DateTime.utc_now())
+      assert :ok =
+               Bootstrap.run(
+                 {200, 50, 20, 10},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
 
       %Node{
         ip: {200, 50, 20, 10},
         first_public_key: first_public_key,
         last_public_key: last_public_key,
-        transport: :sctp
+        transport: :tcp
       } = P2P.get_node_info()
 
       assert first_public_key == Crypto.node_public_key(0)
@@ -280,12 +319,29 @@ defmodule Uniris.BootstrapTest do
 
       Enum.each(seeds, &P2P.add_node/1)
 
-      assert :ok = Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
+      assert :ok =
+               Bootstrap.run(
+                 {127, 0, 0, 1},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
 
       assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.node_public_key(0))
 
       Process.sleep(200)
-      assert :ok == Bootstrap.run({127, 0, 0, 1}, 3000, :tcp, seeds, DateTime.utc_now())
+
+      assert :ok ==
+               Bootstrap.run(
+                 {127, 0, 0, 1},
+                 3000,
+                 :tcp,
+                 seeds,
+                 DateTime.utc_now(),
+                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+               )
 
       Process.sleep(100)
     end

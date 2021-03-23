@@ -159,15 +159,25 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     end)
 
     MockCrypto
-    |> expect(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ ->
+    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ ->
+      send(me, :set_network_pool)
+      :ok
+    end)
+    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ ->
       send(me, :set_daily_nonce)
+      :ok
+    end)
+    |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ ->
+      send(me, :set_transaction_seed)
       :ok
     end)
 
     NetworkInit.init_node_shared_secrets_chain("network_seed")
 
     assert_receive {:transaction, %Transaction{type: :node_shared_secrets}}
+    assert_receive :set_network_pool
     assert_receive :set_daily_nonce
+    assert_receive :set_transaction_seed
 
     assert %Node{authorized?: true} = P2P.get_node_info()
   end

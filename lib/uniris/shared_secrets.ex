@@ -3,6 +3,8 @@ defmodule Uniris.SharedSecrets do
 
   alias Uniris.Crypto
 
+  alias Uniris.Reward
+
   alias __MODULE__.MemTables.OriginKeyLookup
   alias __MODULE__.MemTablesLoader
   alias __MODULE__.NodeRenewal
@@ -69,6 +71,7 @@ defmodule Uniris.SharedSecrets do
        }) do
     if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
       NodeRenewalScheduler.start_scheduling()
+      Reward.start_network_pool_scheduling()
     end
   end
 

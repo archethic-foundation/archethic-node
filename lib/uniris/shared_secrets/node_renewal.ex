@@ -68,10 +68,10 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
 
   The secret keys is encrypted with the list of authorized nodes public keys
 
-  The secret is segmented by 120 bytes ( multiple encryption of 32 bytes )
-  |------------------------|------------------------------|
-  | Daily Nonce (60 bytes) | Transaction Seed (60 bytes)  |
-  |------------------------|------------------------------|
+  The secret is segmented by 180 bytes ( multiple encryption of 32 bytes )
+  |------------------------|------------------------------|------------------------------|
+  | Daily Nonce (60 bytes) | Transaction Seed (60 bytes)  |   Network seed (60 bytes)    |
+  |------------------------|------------------------------|------------------------------|
   """
   @spec new_node_shared_secrets_transaction(
           authorized_nodes_public_keys :: list(Crypto.key()),
@@ -89,7 +89,8 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
 
     secret =
       Crypto.aes_encrypt(daily_nonce_seed, secret_key) <>
-        Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key)
+        Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key) <>
+        Crypto.encrypt_network_pool_seed(secret_key)
 
     Transaction.new(
       :node_shared_secrets,
