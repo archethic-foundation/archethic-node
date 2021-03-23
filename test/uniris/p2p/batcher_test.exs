@@ -207,7 +207,7 @@ defmodule Uniris.P2P.BatcherTest do
                                      %BatchRequests{requests: requests},
                                      _ ->
         case key do
-          "key4" ->
+          "key5" ->
             {:error, :network_issue}
 
           _ ->
@@ -326,7 +326,7 @@ defmodule Uniris.P2P.BatcherTest do
 
       P2P.add_node(%Node{first_public_key: Crypto.node_public_key(0), network_patch: "EDF"})
 
-      assert {:ok, %Slot{}, %Node{first_public_key: "key4"}} =
+      assert {:ok, %Slot{}, %Node{first_public_key: "key5"}} =
                Batcher.request_first_reply_with_ack(
                  pid,
                  [

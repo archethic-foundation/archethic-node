@@ -201,14 +201,34 @@ defmodule Uniris.P2P do
      iex> list_nodes = [%Node{network_patch: "AA0"}, %Node{network_patch: "F50"}, %Node{network_patch: "3A2"}]
      iex> P2P.nearest_nodes(list_nodes, "C3A")
      [
-       %Node{network_patch: "AA0"},
        %Node{network_patch: "F50"},
+       %Node{network_patch: "AA0"},
        %Node{network_patch: "3A2"}
      ]
   """
   @spec nearest_nodes(node_list :: Enumerable.t(), network_patch :: binary()) :: Enumerable.t()
   def nearest_nodes(storage_nodes, network_patch) when is_binary(network_patch) do
-    Enum.sort_by(storage_nodes, &GeoPatch.diff(&1.network_patch, network_patch))
+    Enum.sort_by(storage_nodes, &distance(&1.network_patch, network_patch))
+  end
+
+  defp distance(patch_a, patch_b) when is_binary(patch_a) and is_binary(patch_b) do
+    [first_digit_a, second_digit_a, _] =
+      patch_a |> String.split("", trim: true) |> Enum.map(&hex_val/1)
+
+    [first_digit_b, second_digit_b, _] =
+      patch_b |> String.split("", trim: true) |> Enum.map(&hex_val/1)
+
+    :math.sqrt(
+      abs(
+        (first_digit_a - first_digit_b) * (first_digit_a - first_digit_b) +
+          (second_digit_a - second_digit_b) * (second_digit_a - second_digit_b)
+      )
+    )
+  end
+
+  defp hex_val(val) do
+    {int, _} = Integer.parse(val, 16)
+    int
   end
 
   @doc """

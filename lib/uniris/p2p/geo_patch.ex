@@ -1,7 +1,7 @@
 defmodule Uniris.P2P.GeoPatch do
   @moduledoc """
   Provide functions for Geographical Patching from IP address
-   
+
   Each patch is represented by 3 digits in hexadecimal form (ie. AAA, F3C)
   """
 
@@ -19,12 +19,6 @@ defmodule Uniris.P2P.GeoPatch do
   def from_ip(ip) when is_tuple(ip) do
     {lat, lon} = GeoIP.get_coordinates(ip)
     compute_patch(lat, lon)
-  end
-
-  def diff(patch_a, patch_b) when is_binary(patch_a) and is_binary(patch_b) do
-    patch_a = patch_a |> String.to_charlist() |> List.to_integer(16)
-    patch_b = patch_b |> String.to_charlist() |> List.to_integer(16)
-    abs(patch_a - patch_b)
   end
 
   defp compute_patch(lat, lon) do
