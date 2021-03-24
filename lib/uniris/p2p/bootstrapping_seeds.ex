@@ -12,6 +12,7 @@ defmodule Uniris.P2P.BootstrappingSeeds do
   alias Uniris.PubSub
 
   alias Uniris.P2P
+  alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.Node
 
   use GenServer
@@ -123,12 +124,15 @@ defmodule Uniris.P2P.BootstrappingSeeds do
       [ip, port, public_key, transport] = String.split(seed, ":")
       {:ok, ip} = ip |> String.to_charlist() |> :inet.parse_address()
 
+      patch = GeoPatch.from_ip(ip)
+
       %Node{
         ip: ip,
         port: String.to_integer(port),
         last_public_key: Base.decode16!(public_key, case: :mixed),
         first_public_key: Base.decode16!(public_key, case: :mixed),
-        network_patch: "AAA",
+        geo_patch: patch,
+        network_patch: patch,
         transport:
           case transport do
             "tcp" ->
