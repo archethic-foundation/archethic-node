@@ -17,6 +17,8 @@ defmodule Uniris.Bootstrap do
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
 
+  alias Uniris.Reward
+
   alias Uniris.OracleChain
 
   alias Uniris.SelfRepair
@@ -95,12 +97,8 @@ defmodule Uniris.Bootstrap do
       )
     else
       P2P.set_node_globally_available(Crypto.node_public_key(0))
-      BeaconChain.start_schedulers()
-      OracleChain.start_scheduling()
-      SelfRepair.start_scheduler(last_sync_date)
+      post_bootstrap(last_sync_date: last_sync_date, sync?: false)
     end
-
-    :persistent_term.put(:uniris_up, :up)
   end
 
   defp should_bootstrap?(_ip, _port, _, nil), do: true
@@ -139,8 +137,7 @@ defmodule Uniris.Bootstrap do
       tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
       Sync.initialize_network(tx)
 
-      :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
-      :ok = SelfRepair.start_scheduler(DateTime.utc_now())
+      post_bootstrap(sync?: false)
     else
       if Crypto.number_of_node_keys() == 0 do
         Logger.info("Node initialization...")
@@ -153,17 +150,41 @@ defmodule Uniris.Bootstrap do
           bootstrapping_seeds,
           reward_address
         )
+
+        post_bootstrap(patch: network_patch, sync?: true)
       else
         if Sync.require_update?(ip, port, transport, last_sync_date) do
           Logger.info("Update node chain...")
           update_node(ip, port, transport, network_patch, bootstrapping_seeds, reward_address)
+          post_bootstrap(patch: network_patch, sync?: true, new_sync_date: DateTime.utc_now())
         else
-          :ok
+          post_bootstrap(patch: network_patch, sync?: false, last_sync_date: last_sync_date)
         end
       end
     end
 
     Logger.info("Bootstrapping finished!")
+  end
+
+  defp post_bootstrap(opts) do
+    last_sync_date = Keyword.get(opts, :last_sync_date, DateTime.utc_now())
+
+    if Keyword.get(opts, :sync?, true) do
+      patch = Keyword.fetch!(opts, :patch)
+
+      Logger.info("Synchronization started")
+      :ok = SelfRepair.sync(patch)
+      Logger.info("Synchronization finished")
+
+      Sync.publish_end_of_sync()
+    end
+
+    SelfRepair.start_scheduler(last_sync_date)
+    BeaconChain.start_schedulers()
+    OracleChain.start_scheduling()
+    Reward.start_node_withdraw_scheduling()
+
+    :persistent_term.put(:uniris_up, :up)
   end
 
   defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
@@ -178,10 +199,6 @@ defmodule Uniris.Bootstrap do
 
     ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
 
-    Logger.info("Subscribe to the transaction validation",
-      transaction: "node@#{Base.encode16(tx.address)}"
-    )
-
     Logger.info("Send node transaction...", transaction: "node@#{Base.encode16(tx.address)}")
     :ok = TransactionHandler.send_transaction(tx, closest_node)
 
@@ -193,15 +210,6 @@ defmodule Uniris.Bootstrap do
 
     :ok = Sync.load_storage_nonce(closest_node)
     :ok = Sync.load_node_list(closest_node)
-
-    Logger.info("Synchronization started")
-    :ok = SelfRepair.sync(patch)
-    Logger.info("Synchronization finished")
-
-    :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
-    :ok = SelfRepair.start_scheduler(DateTime.utc_now())
-
-    Sync.publish_end_of_sync()
   end
 
   defp update_node(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
@@ -228,15 +236,6 @@ defmodule Uniris.Bootstrap do
         )
 
         :ok = Task.await(ack_task, :infinity)
-
-        Logger.info("Synchronization started")
-        :ok = SelfRepair.sync(patch)
-        Logger.info("Synchronization finished")
-
-        :ok = SelfRepair.put_last_sync_date(DateTime.utc_now())
-        :ok = SelfRepair.start_scheduler(DateTime.utc_now())
-
-        Sync.publish_end_of_sync()
     end
   end
 
