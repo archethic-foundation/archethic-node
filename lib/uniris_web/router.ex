@@ -24,7 +24,8 @@ defmodule UnirisWeb.Router do
 
     get("/", RootController, :index)
     get("/up", UpController, :up)
-    live_dashboard("/dashboard")
+    get("/metrics", MetricsController, :index)
+    live_dashboard("/dashboard", metrics: Uniris.Telemetry)
   end
 
   scope "/explorer", UnirisWeb do
