@@ -9,7 +9,7 @@ defmodule Uniris.Telemetry do
   end
 
   def init(_arg) do
-    [{TelemetryMetricsPrometheus.Core, [metrics: metrics()]}]
+    [{TelemetryMetricsPrometheus.Core, [metrics: metrics() ++ more_metrics()]}]
     |> Supervisor.init(strategy: :one_for_one)
   end
 
@@ -34,7 +34,12 @@ defmodule Uniris.Telemetry do
       #
       last_value("vm.total_run_queue_lengths.total"),
       last_value("vm.total_run_queue_lengths.cpu"),
-      last_value("vm.total_run_queue_lengths.io"),
+      last_value("vm.total_run_queue_lengths.io")
+    ]
+  end
+
+  def more_metrics do
+    [
       # Phoenix
       distribution("phoenix.router_dispatch.stop.duration", @distr),
       distribution("phoenix.router_dispatch.exception.duration", @distr),
