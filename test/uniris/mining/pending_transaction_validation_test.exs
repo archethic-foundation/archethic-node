@@ -1,11 +1,11 @@
-defmodule Uniris.MiningTest do
+defmodule Uniris.Mining.PendingTransactionValidationTest do
   use UnirisCase, async: false
 
   alias Uniris.Crypto
 
   alias Uniris.Governance.Pools.MemTable, as: PoolsMemTable
 
-  alias Uniris.Mining
+  alias Uniris.Mining.PendingTransactionValidation
 
   alias Uniris.P2P
   alias Uniris.P2P.Batcher
@@ -45,7 +45,7 @@ defmodule Uniris.MiningTest do
           0
         )
 
-      assert :ok = Mining.validate_pending_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
@@ -79,7 +79,7 @@ defmodule Uniris.MiningTest do
           }
         )
 
-      assert :ok = Mining.validate_pending_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with next tx" do
@@ -150,7 +150,7 @@ defmodule Uniris.MiningTest do
           }
         )
 
-      assert :ok = Mining.validate_pending_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
 
     test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
@@ -217,7 +217,7 @@ defmodule Uniris.MiningTest do
          %BatchResponses{responses: [{0, %FirstPublicKey{public_key: tx.previous_public_key}}]}}
       end)
 
-      assert :ok = Mining.validate_pending_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
 
     test "should return :ok when a transaction contains a valid smart contract code" do
@@ -246,7 +246,7 @@ defmodule Uniris.MiningTest do
           0
         )
 
-      assert :ok = Mining.validate_pending_transaction(tx)
+      assert :ok = PendingTransactionValidation.validate(tx)
     end
   end
 end

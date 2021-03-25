@@ -53,7 +53,7 @@ defmodule Uniris do
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
+  @spec send_new_transaction(Transaction.t()) :: :ok
   def send_new_transaction(tx = %Transaction{}) do
     validation_nodes = Mining.transaction_validation_nodes(tx)
     do_send_transaction(tx, validation_nodes)

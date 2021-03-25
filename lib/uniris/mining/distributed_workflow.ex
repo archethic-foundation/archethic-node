@@ -16,6 +16,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
   alias Uniris.Crypto
 
   alias Uniris.Mining.MaliciousDetection
+  alias Uniris.Mining.PendingTransactionValidation
   alias Uniris.Mining.TransactionContext
   alias Uniris.Mining.ValidationContext
   alias Uniris.Mining.WorkflowRegistry
@@ -117,14 +118,10 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     next_events = [
       {{:timeout, :stop_timeout}, timeout, :any},
-      {:next_event, :internal, :build_transaction_context}
+      {:next_event, :internal, :prior_validation}
     ]
 
-    {:ok, :idle,
-     %{
-       node_public_key: node_public_key,
-       context: context
-     }, next_events}
+    {:ok, :idle, %{node_public_key: node_public_key, context: context}, next_events}
   end
 
   defp parse_opts(opts) do
@@ -144,10 +141,66 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
   def handle_event(
         :internal,
-        :build_transaction_context,
+        :prior_validation,
         :idle,
         data = %{
           node_public_key: node_public_key,
+          context:
+            context = %ValidationContext{
+              transaction: tx,
+              coordinator_node: %Node{last_public_key: coordinator_key}
+            }
+        }
+      ) do
+    role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
+
+    case PendingTransactionValidation.validate(tx) do
+      :ok ->
+        new_data =
+          Map.put(
+            data,
+            :context,
+            ValidationContext.set_pending_transaction_validation(context, true)
+          )
+
+        next_events =
+          case role do
+            :cross_validator ->
+              [
+                {:next_event, :internal, :build_transaction_context},
+                {:next_event, :internal, :notify_context}
+              ]
+
+            :coordinator ->
+              [{:next_event, :internal, :build_transaction_context}]
+          end
+
+        {:next_state, role, new_data, next_events}
+
+      _ ->
+        new_data =
+          Map.put(
+            data,
+            :context,
+            ValidationContext.set_pending_transaction_validation(context, false)
+          )
+
+        case role do
+          :coordinator ->
+            {:next_state, :coordinator, new_data,
+             {:next_event, :internal, :create_and_notify_validation_stamp}}
+
+          :cross_validator ->
+            {:next_state, :cross_validator, new_data}
+        end
+    end
+  end
+
+  def handle_event(
+        :internal,
+        :build_transaction_context,
+        _,
+        data = %{
           context:
             context = %ValidationContext{
               transaction: tx,
@@ -187,11 +240,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 
-    if node_public_key == coordinator_key do
-      {:next_state, :coordinator, %{data | context: new_context}}
-    else
-      {:next_state, :cross_validator, %{data | context: new_context}}
-    end
+    {:keep_state, %{data | context: new_context}}
   end
 
   def handle_event(
@@ -199,11 +248,17 @@ defmodule Uniris.Mining.DistributedWorkflow do
         :idle,
         :cross_validator,
         _data = %{
-          node_public_key: node_public_key,
-          context: context = %ValidationContext{transaction: tx}
+          context: %ValidationContext{transaction: tx}
         }
       ) do
     Logger.debug("Act as cross validator", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    :keep_state_and_data
+  end
+
+  def handle_event(:internal, :notify_context, :cross_validator, %{
+        node_public_key: node_public_key,
+        context: context
+      }) do
     notify_transaction_context(context, node_public_key)
     :keep_state_and_data
   end
@@ -253,19 +308,24 @@ defmodule Uniris.Mining.DistributedWorkflow do
           transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
         )
 
-        new_context =
-          new_context
-          |> ValidationContext.create_validation_stamp()
-          |> ValidationContext.create_replication_tree()
-
-        request_cross_validations(new_context)
-        {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
+        {:keep_state, Map.put(data, :context, new_context),
+         {:next_event, :internal, :create_and_notify_validation_stamp}}
       else
         {:keep_state, %{data | context: new_context}}
       end
     else
       :keep_state_and_data
     end
+  end
+
+  def handle_event(:internal, :create_and_notify_validation_stamp, _, data = %{context: context}) do
+    new_context =
+      context
+      |> ValidationContext.create_validation_stamp()
+      |> ValidationContext.create_replication_tree()
+
+    request_cross_validations(new_context)
+    {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
   end
 
   def handle_event(:cast, {:cross_validate, _}, :idle, _), do: {:keep_state_and_data, :postpone}

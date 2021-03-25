@@ -22,7 +22,8 @@ defmodule Uniris.Mining.ValidationContext do
     full_replication_tree: [],
     io_storage_nodes: [],
     previous_storage_nodes: [],
-    replication_nodes_confirmation: <<>>
+    replication_nodes_confirmation: <<>>,
+    valid_pending_transaction?: false
   ]
 
   alias Uniris.Contracts
@@ -33,8 +34,6 @@ defmodule Uniris.Mining.ValidationContext do
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
-
-  alias Uniris.OracleChain
 
   alias Uniris.Replication
 
@@ -68,7 +67,8 @@ defmodule Uniris.Mining.ValidationContext do
           replication_nodes_confirmation: bitstring(),
           validation_nodes_view: bitstring(),
           chain_storage_nodes_view: bitstring(),
-          beacon_storage_nodes_view: bitstring()
+          beacon_storage_nodes_view: bitstring(),
+          valid_pending_transaction?: boolean()
         }
 
   @doc """
@@ -123,6 +123,15 @@ defmodule Uniris.Mining.ValidationContext do
       chain_storage_nodes: chain_storage_nodes,
       beacon_storage_nodes: beacon_storage_nodes
     }
+  end
+
+  @doc """
+  Set the pending transaction validation flag
+  """
+  @spec set_pending_transaction_validation(t(), boolean()) :: t()
+  def set_pending_transaction_validation(context = %__MODULE__{}, valid?)
+      when is_boolean(valid?) do
+    %{context | valid_pending_transaction?: valid?}
   end
 
   @doc """
@@ -638,9 +647,12 @@ defmodule Uniris.Mining.ValidationContext do
           welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           cross_validation_nodes: cross_validation_nodes,
-          previous_storage_nodes: previous_storage_nodes
+          previous_storage_nodes: previous_storage_nodes,
+          valid_pending_transaction?: valid_pending_transaction?
         }
       ) do
+    initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
+
     validation_stamp =
       %ValidationStamp{
         proof_of_work: do_proof_of_work(tx),
@@ -659,37 +671,24 @@ defmodule Uniris.Mining.ValidationContext do
           )
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
         recipients: resolve_transaction_recipients(tx),
-        errors: errors_detection(prev_tx, tx)
+        errors: [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1)
       }
       |> ValidationStamp.sign()
 
     add_io_storage_nodes(%{context | validation_stamp: validation_stamp})
   end
 
-  defp errors_detection(nil, tx = %Transaction{}) do
-    [error_type_detection(tx)]
-    |> Enum.reject(&match?({_, true}, &1))
-    |> Enum.map(fn {domain, _} -> domain end)
-  end
+  defp chain_error(nil, _tx = %Transaction{}), do: nil
 
-  defp errors_detection(prev_tx = %Transaction{}, tx = %Transaction{}) do
-    [
-      {:contract_validation, Contracts.accept_new_contract?(prev_tx, tx)},
-      error_type_detection(tx)
-    ]
-    |> Enum.reject(&match?({_, true}, &1))
-    |> Enum.map(fn {domain, _} -> domain end)
+  defp chain_error(
+         prev_tx = %Transaction{data: %TransactionData{code: prev_code}},
+         tx = %Transaction{}
+       )
+       when prev_code != "" do
+    unless Contracts.accept_new_contract?(prev_tx, tx) do
+      :contract_validation
+    end
   end
-
-  defp error_type_detection(tx = %Transaction{type: :oracle}) do
-    {:oracle_validation, OracleChain.verify?(tx)}
-  end
-
-  defp error_type_detection(tx = %Transaction{type: :oracle_summary}) do
-    {:oracle_validation, OracleChain.verify?(tx)}
-  end
-
-  defp error_type_detection(%Transaction{type: type}), do: {type, true}
 
   defp resolve_transaction_movements(tx) do
     tx
@@ -795,6 +794,7 @@ defmodule Uniris.Mining.ValidationContext do
            previous_transaction: prev_tx,
            unspent_outputs: previous_unspent_outputs,
            coordinator_node: %Node{last_public_key: coordinator_node_public_key},
+           valid_pending_transaction?: valid_pending_transaction?,
            validation_stamp:
              stamp = %ValidationStamp{
                proof_of_work: pow,
@@ -811,6 +811,7 @@ defmodule Uniris.Mining.ValidationContext do
          }
        ) do
     resolved_transaction_movements = resolve_transaction_movements(tx)
+    initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
 
     subsets_verifications = [
       signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
@@ -829,7 +830,7 @@ defmodule Uniris.Mining.ValidationContext do
         )
       end,
       errors: fn ->
-        errors_detection(prev_tx, tx) == errors
+        [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1) == errors
       end
     ]
 

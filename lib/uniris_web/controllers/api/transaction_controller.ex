@@ -4,7 +4,6 @@ defmodule UnirisWeb.API.TransactionController do
   use UnirisWeb, :controller
 
   alias Uniris
-  alias Uniris.Mining
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -15,22 +14,14 @@ defmodule UnirisWeb.API.TransactionController do
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
-        tx =
-          changeset
-          |> TransactionPayload.to_map()
-          |> Transaction.from_map()
+        changeset
+        |> TransactionPayload.to_map()
+        |> Transaction.from_map()
+        |> Uniris.send_new_transaction()
 
-        with :ok <- Mining.validate_pending_transaction(tx),
-             :ok <- Uniris.send_new_transaction(tx) do
-          conn
-          |> put_status(201)
-          |> json(%{status: "ok"})
-        else
-          {:error, reason} ->
-            conn
-            |> put_status(400)
-            |> json(%{error: reason})
-        end
+        conn
+        |> put_status(201)
+        |> json(%{status: "ok"})
 
       changeset ->
         conn

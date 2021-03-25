@@ -9,6 +9,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
 
   alias Uniris.Crypto
 
+  alias Uniris.Mining.PendingTransactionValidation
   alias Uniris.Mining.TransactionContext
   alias Uniris.Mining.ValidationContext
 
@@ -44,6 +45,15 @@ defmodule Uniris.Mining.StandaloneWorkflow do
         [Crypto.node_public_key()]
       )
 
+    valid_pending_transaction? =
+      case PendingTransactionValidation.validate(tx) do
+        :ok ->
+          true
+
+        _ ->
+          false
+      end
+
     ValidationContext.new(
       transaction: tx,
       welcome_node: P2P.get_node_info(),
@@ -51,6 +61,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
       chain_storage_nodes: chain_storage_nodes,
       beacon_storage_nodes: beacon_storage_nodes
     )
+    |> ValidationContext.set_pending_transaction_validation(valid_pending_transaction?)
     |> ValidationContext.put_transaction_context(
       prev_tx,
       unspent_outputs,

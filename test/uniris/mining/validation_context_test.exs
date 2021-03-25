@@ -181,7 +181,8 @@ defmodule Uniris.Mining.ValidationContextTest do
       unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 2.04, type: :UCO}],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
-      cross_validation_nodes: cross_validation_nodes
+      cross_validation_nodes: cross_validation_nodes,
+      valid_pending_transaction?: true
     }
   end
 

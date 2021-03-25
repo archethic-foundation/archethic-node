@@ -7,8 +7,6 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   alias __MODULE__.LedgerOperations
 
-  alias Uniris.Utils
-
   defstruct [
     :signature,
     :proof_of_work,
@@ -28,6 +26,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   - Recipients: List of the last smart contract chain resolved addresses
   - Contract validation: Determine if the transaction coming from a contract is valid according to the constraints
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
+  - Errors: list of errors returned by the pending transaction validation or after mining context
   """
   @type t :: %__MODULE__{
           signature: nil | binary(),
@@ -108,11 +107,11 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       0,
       # Nb of unspent outputs
       0,
-      # Nb of resolved recipients addresses,
+      # Nb of resolved recipients addresses
       0,
-      # No errors reported,
-      0::1, 0::1,
-      # Signature size,
+      # Nb errors reported
+      0,
+      # Signature size
       64,
       # Signature
       67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
@@ -134,7 +133,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
     <<pow_bitstring::1, pow::binary, poi::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
-      :erlang.list_to_binary(recipients)::binary, serialize_errors(errors)::bitstring>>
+      :erlang.list_to_binary(recipients)::binary, length(errors)::8,
+      serialize_errors(errors)::bitstring>>
   end
 
   def serialize(%__MODULE__{
@@ -149,8 +149,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
     <<pow_bitstring::1, pow::binary, poi::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
-      :erlang.list_to_binary(recipients)::binary, serialize_errors(errors)::bitstring,
-      byte_size(signature)::8, signature::binary>>
+      :erlang.list_to_binary(recipients)::binary, length(errors)::8,
+      serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
   end
 
   @doc """
@@ -162,7 +162,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
-      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0::1, 0::1, 64,
+      ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0, 64,
       ...> 67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...> 126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...> 238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -210,9 +210,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
     {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
 
-    {recipients, rest} = deserialize_list_of_recipients_addresses(rest, recipients_length, [])
+    {recipients, <<nb_errors::8, rest::bitstring>>} =
+      deserialize_list_of_recipients_addresses(rest, recipients_length, [])
 
-    {errors, rest} = deserialize_errors(rest)
+    {errors, rest} = deserialize_errors(rest, nb_errors)
 
     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>> = rest
 
@@ -301,31 +302,28 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     ])
   end
 
-  defp serialize_errors(errors, acc \\ <<0::1, 0::1>>)
+  defp serialize_errors(errors, acc \\ [])
+  defp serialize_errors([], acc), do: :erlang.list_to_bitstring(acc)
 
   defp serialize_errors([error | rest], acc) do
-    serialize_errors(rest, Utils.set_bitstring_bit(acc, error_to_pos(error)))
+    serialize_errors(rest, [serialize_error(error) | acc])
   end
 
-  defp serialize_errors([], acc), do: acc
+  defp deserialize_errors(bitstring, nb_errors, acc \\ [])
 
-  defp deserialize_errors(bitstring, nb_errors \\ 2, pos \\ 0, acc \\ [])
-
-  defp deserialize_errors(<<rest::bitstring>>, nb_errors, pos, acc) when pos == nb_errors do
+  defp deserialize_errors(rest, nb_errors, acc) when length(acc) == nb_errors do
     {Enum.reverse(acc), rest}
   end
 
-  defp deserialize_errors(<<1::1, rest::bitstring>>, nb_errors, pos, acc) do
-    deserialize_errors(rest, nb_errors, pos + 1, [pos_to_error(pos) | acc])
+  defp deserialize_errors(<<error::8, rest::bitstring>>, nb_errors, acc) do
+    deserialize_errors(rest, nb_errors, [deserialize_error(error) | acc])
   end
 
-  defp deserialize_errors(<<0::1, rest::bitstring>>, nb_errors, pos, acc) do
-    deserialize_errors(rest, nb_errors, pos + 1, acc)
-  end
+  defp serialize_error(:pending_transaction), do: 0
+  defp serialize_error(:contract_validation), do: 1
+  defp serialize_error(:oracle_validation), do: 2
 
-  defp error_to_pos(:contract_validation), do: 0
-  defp error_to_pos(:oracle_validation), do: 1
-
-  defp pos_to_error(0), do: :contract_validation
-  defp pos_to_error(1), do: :oracle_validation
+  defp deserialize_error(0), do: :pending_transaction
+  defp deserialize_error(1), do: :contract_validation
+  defp deserialize_error(2), do: :oracle_validation
 end

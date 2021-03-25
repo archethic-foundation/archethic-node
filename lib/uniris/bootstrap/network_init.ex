@@ -11,8 +11,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
   alias Uniris.Crypto
 
-  alias Uniris.Mining
-
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
@@ -145,42 +143,35 @@ defmodule Uniris.Bootstrap.NetworkInit do
   end
 
   def self_validation!(tx = %Transaction{}, unspent_outputs \\ []) do
-    case Mining.validate_pending_transaction(tx) do
-      {:error, _} ->
-        raise "Invalid transaction"
+    operations =
+      %LedgerOperations{
+        fee: Transaction.fee(tx),
+        transaction_movements: resolve_transaction_movements(tx)
+      }
+      |> LedgerOperations.from_transaction(tx)
+      |> LedgerOperations.distribute_rewards(
+        %Node{last_public_key: Crypto.node_public_key()},
+        %Node{last_public_key: Crypto.node_public_key()},
+        [%Node{last_public_key: Crypto.node_public_key()}],
+        []
+      )
+      |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
-      :ok ->
-        operations =
-          %LedgerOperations{
-            fee: Transaction.fee(tx),
-            transaction_movements: resolve_transaction_movements(tx)
-          }
-          |> LedgerOperations.from_transaction(tx)
-          |> LedgerOperations.distribute_rewards(
-            %Node{last_public_key: Crypto.node_public_key()},
-            %Node{last_public_key: Crypto.node_public_key()},
-            [%Node{last_public_key: Crypto.node_public_key()}],
-            []
-          )
-          |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+    validation_stamp =
+      %ValidationStamp{
+        proof_of_work: Crypto.node_public_key(),
+        proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
+        ledger_operations: operations
+      }
+      |> ValidationStamp.sign()
 
-        validation_stamp =
-          %ValidationStamp{
-            proof_of_work: Crypto.node_public_key(),
-            proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
-            ledger_operations: operations
-          }
-          |> ValidationStamp.sign()
+    cross_validation_stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
 
-        cross_validation_stamp =
-          CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
-
-        %{
-          tx
-          | validation_stamp: validation_stamp,
-            cross_validation_stamps: [cross_validation_stamp]
-        }
-    end
+    %{
+      tx
+      | validation_stamp: validation_stamp,
+        cross_validation_stamps: [cross_validation_stamp]
+    }
   end
 
   defp resolve_transaction_movements(tx) do

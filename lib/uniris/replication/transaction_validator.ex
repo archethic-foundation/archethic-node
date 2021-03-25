@@ -28,8 +28,7 @@ defmodule Uniris.Replication.TransactionValidator do
   Represents the different errors during the validation for the transaction replication
   """
   @type error ::
-          :invalid_pending_transaction
-          | :invalid_atomic_commitment
+          :invalid_atomic_commitment
           | :invalid_cross_validation_stamp_signatures
           | :invalid_transaction_with_inconsistencies
           | :invalid_node_election
@@ -100,8 +99,7 @@ defmodule Uniris.Replication.TransactionValidator do
          },
          self_repair?
        ) do
-    with {:transaction, :ok} <- {:transaction, Mining.validate_pending_transaction(tx)},
-         {:atomic_commitment, true} <-
+    with {:atomic_commitment, true} <-
            {:atomic_commitment, Transaction.atomic_commitment?(tx)},
          {:cross_stamps_signatures, true} <-
            {:cross_stamps_signatures,
@@ -112,9 +110,6 @@ defmodule Uniris.Replication.TransactionValidator do
          {:errors, true} <- {:errors, errors == []} do
       :ok
     else
-      {:transaction, {:error, _reason}} ->
-        {:error, :invalid_pending_transaction}
-
       {:atomic_commitment, false} ->
         # TODO: start malicious detection
         {:error, :invalid_atomic_commitment}

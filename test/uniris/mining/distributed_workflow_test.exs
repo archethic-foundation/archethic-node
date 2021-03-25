@@ -2,6 +2,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
   use UnirisCase, async: false
 
   @moduletag capture_log: false
+  import ExUnit.CaptureLog
 
   alias Uniris.Crypto
 
@@ -73,13 +74,23 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       last_address: :crypto.strong_rand_bytes(32)
     })
 
-    :ok
+    tx =
+      Transaction.new(:node, %TransactionData{
+        content: """
+        ip: 127.0.0.1
+        port: 3000
+        transport: tcp
+        reward address: 0010E99CAC8FE4EC0CE34C01500CEC450AD106EAAC61BCF0CF467340752C5284BA
+        """
+      })
+
+    {:ok, %{tx: tx}}
   end
 
   describe "start_link/1" do
-    test "should start mining by fetching the transaction context and elect storage nodes" do
-      tx = Transaction.new(:node, %TransactionData{})
-
+    test "should start mining by fetching the transaction context and elect storage nodes", %{
+      tx: tx
+    } do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
@@ -150,10 +161,47 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
                 }
               }} = :sys.get_state(pid)
     end
+
+    test "should shortcut the transaction context retrieval if the transaction is invalid", _ do
+      tx = Transaction.new(:node, %TransactionData{})
+
+      validation_nodes =
+        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+
+      welcome_node = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3005,
+        first_public_key: "key1",
+        last_public_key: "key1",
+        last_address: :crypto.strong_rand_bytes(32)
+      }
+
+      P2P.add_node(welcome_node)
+
+      fun = fn ->
+        {:ok, pid} =
+          Workflow.start_link(
+            transaction: tx,
+            welcome_node: welcome_node,
+            validation_nodes: validation_nodes,
+            node_public_key: List.first(validation_nodes).last_public_key
+          )
+
+        assert {:wait_cross_validation_stamps,
+                %{
+                  context: %ValidationContext{
+                    validation_stamp: %ValidationStamp{errors: [:pending_transaction]}
+                  }
+                }} = :sys.get_state(pid)
+      end
+
+      assert capture_log(fun) =~ "Invalid node transaction content"
+    end
   end
 
   describe "add_mining_context/6" do
-    test "should aggregate context and wait enough confirmed validation nodes context building" do
+    test "should aggregate context and wait enough confirmed validation nodes context building",
+         %{tx: tx} do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -181,8 +229,6 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         enrollment_date: DateTime.utc_now(),
         last_address: :crypto.strong_rand_bytes(32)
       })
-
-      tx = Transaction.new(:node, %TransactionData{})
 
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
@@ -298,9 +344,9 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       assert <<0::1, 1::1>> == confirmed_validation_nodes
     end
 
-    test "aggregate context and create validation stamp when enough context are retrieved" do
-      tx = Transaction.new(:node, %TransactionData{})
-
+    test "aggregate context and create validation stamp when enough context are retrieved", %{
+      tx: tx
+    } do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
@@ -439,9 +485,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
   end
 
   describe "cross_validate/2" do
-    test "should cross validate the validation stamp and the replication tree and then notify other node about it" do
-      tx = Transaction.new(:node, %TransactionData{})
-
+    test "should cross validate the validation stamp and the replication tree and then notify other node about it",
+         %{tx: tx} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
       P2P.add_node(%Node{
@@ -658,9 +703,9 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       end
     end
 
-    test "should cross validate and start replication when all cross validations are received" do
-      tx = Transaction.new(:node, %TransactionData{})
-
+    test "should cross validate and start replication when all cross validations are received", %{
+      tx: tx
+    } do
       validation_nodes =
         Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
 
