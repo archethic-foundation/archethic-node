@@ -3,6 +3,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
   alias Uniris.Crypto
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.MemTablesLoader
 
@@ -17,6 +18,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   setup :set_mox_global
 
   setup do
+    start_supervised!(NetworkLookup)
     start_supervised!(OriginKeyLookup)
     start_supervised!(ChainLookup)
     start_supervised!(KOLedger)
@@ -32,7 +34,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
     end
 
     test "should load transaction but node add node public key as origin key (already existing)" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0")
+      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0", DateTime.utc_now())
       tx = %Transaction{previous_public_key: "Node0", type: :node}
       :ok = MemTablesLoader.load_transaction(tx)
 
@@ -66,6 +68,24 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
                <<39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213, 140,
                  129, 186, 156, 189, 39, 168, 129, 94, 161, 133, 2, 177, 176, 158, 246>>
              ] == OriginKeyLookup.list_public_keys(:biometric)
+    end
+
+    test "should load node shared secrets transaction and load public keys and address from content" do
+      tx = %Transaction{
+        type: :node_shared_secrets,
+        data: %TransactionData{
+          content:
+            "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+        }
+      }
+
+      assert :ok = MemTablesLoader.load_transaction(tx)
+
+      assert NetworkLookup.get_daily_nonce_public_key() |> Base.encode16() ==
+               "009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3"
+
+      assert NetworkLookup.get_network_pool_address() |> Base.encode16() ==
+               "008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12"
     end
   end
 

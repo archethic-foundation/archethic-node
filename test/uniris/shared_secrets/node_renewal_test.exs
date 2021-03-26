@@ -26,7 +26,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         keys: %Keys{
           authorized_keys: authorized_keys,
           secret: _
-        }
+        },
+        content: content
       }
     } =
       SharedSecrets.new_node_shared_secrets_transaction(
@@ -36,6 +37,11 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
       )
 
     assert Map.has_key?(authorized_keys, Crypto.node_public_key())
+
+    assert Regex.match?(
+             ~r/daily nonce public_key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
+             content
+           )
   end
 
   describe "initiator?/0" do

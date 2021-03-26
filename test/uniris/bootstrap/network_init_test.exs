@@ -18,6 +18,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Node
 
+  alias Uniris.SharedSecrets
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
@@ -76,7 +77,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       )
 
     unspent_outputs = [%UnspentOutput{amount: 10_000, from: tx.address, type: :UCO}]
-    tx = NetworkInit.self_validation!(tx, unspent_outputs)
+    tx = NetworkInit.self_validation(tx, unspent_outputs)
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
@@ -172,7 +173,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       :ok
     end)
 
-    NetworkInit.init_node_shared_secrets_chain("network_seed")
+    NetworkInit.init_node_shared_secrets_chain()
 
     assert_receive {:transaction, %Transaction{type: :node_shared_secrets}}
     assert_receive :set_network_pool
@@ -191,7 +192,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       available?: true
     })
 
-    NetworkInit.init_genesis_wallets("@network_pool")
+    NetworkInit.init_genesis_wallets()
 
     funding_address =
       "002E354A95241E867C836E8BBBBF6F9BF2450860BA28B1CF24B734EF67FF49169E"
@@ -199,6 +200,6 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       |> Crypto.hash()
 
     assert %{uco: 3.82e9} = Account.get_balance(funding_address)
-    assert %{uco: 1.46e9} = Account.get_balance("@network_pool")
+    assert %{uco: 1.46e9} = Account.get_balance(SharedSecrets.get_network_pool_address())
   end
 end

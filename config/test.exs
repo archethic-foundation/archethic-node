@@ -85,6 +85,7 @@ config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
   enabled: false
 
 config :uniris, Uniris.SharedSecrets.MemTablesLoader, enabled: false
+config :uniris, Uniris.SharedSecrets.MemTables.NetworkLookup, enabled: false
 config :uniris, Uniris.SharedSecrets.MemTables.OriginKeyLookup, enabled: false
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,

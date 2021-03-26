@@ -19,6 +19,8 @@ defmodule Uniris.Mining.PendingTransactionValidation do
 
   alias Uniris.Reward
 
+  alias Uniris.SharedSecrets
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -92,7 +94,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
       |> Enum.any?(&(&1 == Crypto.hash(previous_public_key)))
 
     if from_node? do
-      network_pool_address = TransactionChain.get_last_address_by_type(:node_rewards)
+      network_pool_address = SharedSecrets.get_network_pool_address()
 
       if Enum.any?(transfers, &(&1.to == network_pool_address and &1.amount >= 0.0)) do
         :ok
@@ -114,7 +116,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}},
          previous_public_key: previous_public_key
        }) do
-    network_pool_address = TransactionChain.get_last_address_by_type(:node_rewards)
+    network_pool_address = SharedSecrets.get_network_pool_address()
 
     if Crypto.hash(previous_public_key) == network_pool_address do
       if Reward.get_transfers_for_in_need_validation_nodes() == transfers do

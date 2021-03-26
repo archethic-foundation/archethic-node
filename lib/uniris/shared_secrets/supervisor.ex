@@ -3,6 +3,7 @@ defmodule Uniris.SharedSecrets.Supervisor do
 
   use Supervisor
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.MemTablesLoader
 
@@ -16,6 +17,7 @@ defmodule Uniris.SharedSecrets.Supervisor do
 
   def init(_args) do
     optional_children = [
+      NetworkLookup,
       OriginKeyLookup,
       MemTablesLoader,
       {NodeRenewalScheduler, Application.get_env(:uniris, NodeRenewalScheduler)}

@@ -16,6 +16,7 @@ defmodule UnirisCase do
 
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
 
   alias Uniris.TransactionChain.MemTables.ChainLookup
@@ -137,6 +138,7 @@ defmodule UnirisCase do
     start_supervised!(Constraints)
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkStatistics)
+    start_supervised!(NetworkLookup)
 
     :ok
   end

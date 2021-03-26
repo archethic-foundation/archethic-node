@@ -8,7 +8,8 @@ defmodule Uniris.Reward.WithdrawScheduler do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
-  alias Uniris.TransactionChain
+  alias Uniris.SharedSecrets
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
@@ -57,7 +58,7 @@ defmodule Uniris.Reward.WithdrawScheduler do
   end
 
   defp send_withdraw_transaction do
-    network_pool_address = TransactionChain.get_last_address_by_type(:node_rewards)
+    network_pool_address = SharedSecrets.get_network_pool_address()
 
     %Node{reward_address: reward_address, last_address: last_address} = P2P.get_node_info()
 

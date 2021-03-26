@@ -5,6 +5,7 @@ defmodule Uniris.SharedSecrets do
 
   alias Uniris.Reward
 
+  alias __MODULE__.MemTables.NetworkLookup
   alias __MODULE__.MemTables.OriginKeyLookup
   alias __MODULE__.MemTablesLoader
   alias __MODULE__.NodeRenewal
@@ -36,6 +37,12 @@ defmodule Uniris.SharedSecrets do
   """
   @spec add_origin_public_key(origin_family(), Crypto.key()) :: :ok
   defdelegate add_origin_public_key(family, key), to: OriginKeyLookup, as: :add_public_key
+
+  @doc """
+  Get the last network pool address
+  """
+  @spec get_network_pool_address() :: Crypto.key()
+  defdelegate get_network_pool_address, to: NetworkLookup
 
   @doc """
   Create a new transaction for node shared secrets renewal generating secret encrypted using the aes key and daily nonce seed

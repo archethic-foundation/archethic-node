@@ -56,6 +56,8 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       transaction_seed = :crypto.strong_rand_bytes(32)
       daily_nonce_seed = :crypto.strong_rand_bytes(32)
+      network_seed = :crypto.strong_rand_bytes(32)
+
       secret_key = :crypto.strong_rand_bytes(32)
       encrypted_key = Crypto.ec_encrypt(secret_key, pub)
 
@@ -66,12 +68,19 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
       |> expect(:encrypt_node_shared_secrets_transaction_seed, fn key ->
         Crypto.aes_encrypt(transaction_seed, key)
       end)
+      |> expect(:encrypt_network_pool_seed, fn key ->
+        Crypto.aes_encrypt(network_seed, key)
+      end)
       |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ ->
         send(me, {:transaction_seed, transaction_seed})
         :ok
       end)
       |> expect(:decrypt_and_set_daily_nonce_seed, fn _, _ ->
         send(me, {:daily_nonce_seed, daily_nonce_seed})
+      end)
+      |> expect(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ ->
+        send(me, {:network_seed, network_seed})
+        :ok
       end)
 
       transaction_seed
@@ -80,7 +89,8 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       secret =
         Crypto.aes_encrypt(daily_nonce_seed, secret_key) <>
-          Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key)
+          Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key) <>
+          Crypto.encrypt_network_pool_seed(secret_key)
 
       tx_keys = Keys.new([pub], secret_key, secret)
 
@@ -93,6 +103,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       assert_receive {:transaction_seed, ^transaction_seed}
       assert_receive {:daily_nonce_seed, ^daily_nonce_seed}
+      assert_receive {:network_seed, ^network_seed}
     end
 
     test "should increment the number of node keys" do

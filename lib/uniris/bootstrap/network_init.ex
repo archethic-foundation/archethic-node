@@ -50,8 +50,8 @@ defmodule Uniris.Bootstrap.NetworkInit do
   @doc """
   Create the first node shared secret transaction
   """
-  @spec init_node_shared_secrets_chain(network_pool_seed :: binary()) :: :ok
-  def init_node_shared_secrets_chain(network_pool_seed) do
+  @spec init_node_shared_secrets_chain() :: :ok
+  def init_node_shared_secrets_chain do
     Logger.info("Create first node shared secret transaction")
     secret_key = :crypto.strong_rand_bytes(32)
     encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
@@ -60,7 +60,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     |> Crypto.aes_encrypt(secret_key)
     |> Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_secret_key)
 
-    network_pool_seed
+    :crypto.strong_rand_bytes(32)
     |> Crypto.aes_encrypt(secret_key)
     |> Crypto.decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_secret_key)
 
@@ -74,7 +74,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
       )
 
     tx
-    |> self_validation!()
+    |> self_validation()
     |> self_replication()
 
     P2P.authorize_node(Crypto.node_public_key(0), tx.timestamp)
@@ -88,8 +88,9 @@ defmodule Uniris.Bootstrap.NetworkInit do
   @doc """
   Initializes the genesis wallets for the UCO distribution
   """
-  @spec init_genesis_wallets(network_pool_address :: binary()) :: :ok
-  def init_genesis_wallets(network_pool_address) do
+  @spec init_genesis_wallets() :: :ok
+  def init_genesis_wallets do
+    network_pool_address = SharedSecrets.get_network_pool_address()
     Logger.info("Create UCO distribution genesis transaction")
 
     tx =
@@ -103,7 +104,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
       |> Enum.reduce(0.0, &(&2 + &1.amount))
 
     tx
-    |> self_validation!([
+    |> self_validation([
       %UnspentOutput{
         from: Bootstrap.genesis_unspent_output_address(),
         amount: genesis_transfers_amount,
@@ -142,7 +143,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
       [%Transfer{to: network_pool_address, amount: 1.46e9}]
   end
 
-  def self_validation!(tx = %Transaction{}, unspent_outputs \\ []) do
+  def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
     operations =
       %LedgerOperations{
         fee: Transaction.fee(tx),

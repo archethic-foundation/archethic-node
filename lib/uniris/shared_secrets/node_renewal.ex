@@ -92,11 +92,17 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
         Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key) <>
         Crypto.encrypt_network_pool_seed(secret_key)
 
+    network_pool_address =
+      Crypto.number_of_network_pool_keys()
+      |> Crypto.network_pool_public_key()
+      |> Crypto.hash()
+
     Transaction.new(
       :node_shared_secrets,
       %TransactionData{
         content: """
-        daily_nonce_public_key: #{Base.encode16(daily_nonce_public_key)}
+        daily nonce public_key: #{Base.encode16(daily_nonce_public_key)}
+        network pool address: #{Base.encode16(network_pool_address)}
         """,
         keys: Keys.new(authorized_node_public_keys, secret_key, secret)
       }

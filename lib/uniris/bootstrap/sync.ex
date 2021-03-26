@@ -85,17 +85,13 @@ defmodule Uniris.Bootstrap.Sync do
     NetworkInit.create_storage_nonce()
 
     node_tx
-    |> NetworkInit.self_validation!()
+    |> NetworkInit.self_validation()
     |> NetworkInit.self_replication()
 
     P2P.set_node_globally_available(Crypto.node_public_key(0))
 
-    network_pool_seed = :crypto.strong_rand_bytes(32)
-    NetworkInit.init_node_shared_secrets_chain(network_pool_seed)
-
-    {pub, _} = Crypto.derive_keypair(network_pool_seed, 0)
-    network_pool_address = Crypto.hash(pub)
-    NetworkInit.init_genesis_wallets(network_pool_address)
+    NetworkInit.init_node_shared_secrets_chain()
+    NetworkInit.init_genesis_wallets()
   end
 
   @doc """
