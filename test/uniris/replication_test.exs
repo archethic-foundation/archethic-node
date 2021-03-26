@@ -276,17 +276,23 @@ defmodule Uniris.ReplicationTest do
   describe "acknowledge_previous_storage_nodes/2" do
     test "should register new address on chain" do
       MockDB
-      |> stub(:add_last_transaction_address, fn _address, _last_address ->
+      |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
 
-      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2", "@Alice1")
+      assert :ok =
+               Replication.acknowledge_previous_storage_nodes(
+                 "@Alice2",
+                 "@Alice1",
+                 DateTime.utc_now()
+               )
+
       assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
     end
 
     test "should notify previous storage pool if transaction exists" do
       MockDB
-      |> stub(:add_last_transaction_address, fn _address, _last_address ->
+      |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
       |> stub(:get_transaction, fn _, _ ->
@@ -314,7 +320,13 @@ defmodule Uniris.ReplicationTest do
         available?: true
       })
 
-      assert :ok = Replication.acknowledge_previous_storage_nodes("@Alice2", "@Alice1")
+      assert :ok =
+               Replication.acknowledge_previous_storage_nodes(
+                 "@Alice2",
+                 "@Alice1",
+                 DateTime.utc_now()
+               )
+
       assert "@Alice2" == TransactionChain.get_last_address("@Alice1")
 
       assert_receive :notification_sent, 500

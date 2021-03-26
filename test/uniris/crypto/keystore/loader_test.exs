@@ -96,7 +96,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
     end
 
     test "should increment the number of node keys" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node")
+      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node", DateTime.utc_now())
 
       MockCrypto
       |> expect(:node_public_key, fn 0 -> "Node0" end)
@@ -108,7 +108,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
     end
 
     test "should not increment the number of node keys" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node")
+      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node", DateTime.utc_now())
 
       MockCrypto
       |> expect(:node_public_key, fn 0 -> "Node0" end)
@@ -155,8 +155,13 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
         end
       end)
 
-      ChainLookup.reverse_link(Crypto.hash("Node2"), "Node1")
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0")
+      ChainLookup.reverse_link(
+        Crypto.hash("Node2"),
+        "Node1",
+        DateTime.utc_now() |> DateTime.add(1)
+      )
+
+      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0", DateTime.utc_now())
 
       ChainLookup.add_transaction_by_type(
         "@NodeSharedSecrets1",

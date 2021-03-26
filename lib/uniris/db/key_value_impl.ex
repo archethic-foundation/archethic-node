@@ -107,9 +107,14 @@ defmodule Uniris.DB.KeyValueImpl do
   Reference a last address from a previous address
   """
   @impl DBImpl
-  @spec add_last_transaction_address(binary(), binary()) :: :ok
-  def add_last_transaction_address(tx_address, last_address) do
-    true = :ets.insert(@chain_lookup_db_name, {{:last_transaction, tx_address}, last_address})
+  @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
+  def add_last_transaction_address(tx_address, last_address, timestamp = %DateTime{}) do
+    true =
+      :ets.insert(
+        @chain_lookup_db_name,
+        {{:last_transaction, tx_address}, last_address, timestamp}
+      )
+
     :ok
   end
 
@@ -120,7 +125,7 @@ defmodule Uniris.DB.KeyValueImpl do
   @spec list_last_transaction_addresses() :: Enumerable.t()
   def list_last_transaction_addresses do
     :ets.select(@chain_lookup_db_name, [
-      {{{:last_transaction, :"$1"}, :"$2"}, [], [{{:"$1", :"$2"}}]}
+      {{{:last_transaction, :"$1"}, :"$2", :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}
     ])
   end
 

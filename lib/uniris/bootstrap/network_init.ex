@@ -178,7 +178,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     tx
     |> Transaction.get_movements()
     |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
-      %{mvt | to: TransactionChain.resolve_last_address(to)}
+      %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
     end)
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)

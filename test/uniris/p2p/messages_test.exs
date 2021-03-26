@@ -753,7 +753,8 @@ defmodule Uniris.P2P.MessageTest do
 
     test "GetLastTransactionAddress message" do
       msg = %GetLastTransactionAddress{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        timestamp: Utils.truncate_datetime(DateTime.utc_now())
       }
 
       assert msg ==
@@ -778,7 +779,8 @@ defmodule Uniris.P2P.MessageTest do
     test "NotifyLastTransactionAddress message" do
       msg = %NotifyLastTransactionAddress{
         address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        timestamp: Utils.truncate_datetime(DateTime.utc_now())
       }
 
       assert msg ==

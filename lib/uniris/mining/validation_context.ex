@@ -690,19 +690,24 @@ defmodule Uniris.Mining.ValidationContext do
     end
   end
 
+  defp chain_error(_, _), do: nil
+
   defp resolve_transaction_movements(tx) do
     tx
     |> Transaction.get_movements()
     |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
-      %{mvt | to: TransactionChain.resolve_last_address(to)}
+      %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
     end)
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
-  defp resolve_transaction_recipients(%Transaction{data: %TransactionData{recipients: recipients}}) do
+  defp resolve_transaction_recipients(%Transaction{
+         timestamp: timestamp,
+         data: %TransactionData{recipients: recipients}
+       }) do
     recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address/1)
+    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, timestamp))
     |> Enum.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end

@@ -69,13 +69,21 @@ defmodule Uniris.TransactionChain do
     as: :get_last_chain_address
 
   @doc """
-  Register a last address from a previous address
+  Get the last transaction address from a transaction chain before a given date
   """
-  @spec register_last_address(binary(), binary()) :: :ok
-  def register_last_address(previous_address, next_address)
+  @spec get_last_address(binary(), DateTime.t()) :: binary()
+  defdelegate get_last_address(address, timestamp),
+    to: ChainLookup,
+    as: :get_last_chain_address
+
+  @doc """
+  Register a last address from a previous address at a given date
+  """
+  @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
+  def register_last_address(previous_address, next_address, timestamp)
       when is_binary(previous_address) and is_binary(next_address) do
-    :ok = ChainLookup.register_last_address(previous_address, next_address)
-    :ok = DB.add_last_transaction_address(previous_address, next_address)
+    :ok = ChainLookup.register_last_address(previous_address, next_address, timestamp)
+    :ok = DB.add_last_transaction_address(previous_address, next_address, timestamp)
     :ok
   end
 
@@ -413,7 +421,15 @@ defmodule Uniris.TransactionChain do
         tx = %Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: poi}},
         nil
       ]) do
-    poi == proof_of_integrity([tx])
+    if poi == proof_of_integrity([tx]) do
+      true
+    else
+      Logger.debug("Invalid proof of integrity",
+        transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      )
+
+      false
+    end
   end
 
   def valid?([
@@ -430,12 +446,24 @@ defmodule Uniris.TransactionChain do
       ]) do
     cond do
       proof_of_integrity([Transaction.to_pending(last_tx), prev_tx]) != poi ->
+        Logger.debug("Invalid proof of integrity",
+          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+        )
+
         false
 
       Crypto.hash(previous_public_key) != previous_address ->
+        Logger.debug("Invalid previous public key",
+          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+        )
+
         false
 
       DateTime.diff(timestamp, previous_timestamp, :microsecond) <= 0 ->
+        Logger.debug("Invalid timestamp",
+          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+        )
+
         false
 
       true ->
@@ -452,9 +480,9 @@ defmodule Uniris.TransactionChain do
   @doc """
   Retrieve the last address of a chain
   """
-  @spec resolve_last_address(binary()) :: binary()
-  def resolve_last_address(address) when is_binary(address) do
-    message = %GetLastTransactionAddress{address: address}
+  @spec resolve_last_address(binary(), DateTime.t()) :: binary()
+  def resolve_last_address(address, timestamp = %DateTime{}) when is_binary(address) do
+    message = %GetLastTransactionAddress{address: address, timestamp: timestamp}
 
     storage_nodes = Replication.chain_storage_nodes(address, P2P.list_nodes())
 
@@ -471,14 +499,4 @@ defmodule Uniris.TransactionChain do
     do: last_address
 
   defp handle_resolve_result(_, address), do: address
-
-  @doc """
-  Get the last address by type
-  """
-  @spec get_last_address_by_type(Transaction.transaction_type()) :: binary()
-  def get_last_address_by_type(type) do
-    type
-    |> ChainLookup.list_addresses_by_type()
-    |> List.first()
-  end
 end

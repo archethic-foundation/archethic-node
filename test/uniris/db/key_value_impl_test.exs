@@ -103,17 +103,22 @@ defmodule Uniris.DB.KeyValueImplTest do
     root_dir: root_dir
   } do
     {:ok, _pid} = KV.start_link(root_dir: root_dir)
-    assert :ok = KV.add_last_transaction_address("@Alice1", "@Alice2")
+    assert :ok = KV.add_last_transaction_address("@Alice1", "@Alice2", DateTime.utc_now())
   end
 
   test "list_last_transaction_addresses/0 should retrieve the last transaction addresses", %{
     root_dir: root_dir
   } do
     {:ok, _pid} = KV.start_link(root_dir: root_dir)
-    KV.add_last_transaction_address("@Alice1", "@Alice2")
-    KV.add_last_transaction_address("@Alice1", "@Alice3")
-    KV.add_last_transaction_address("@Alice1", "@Alice4")
-    assert [{"@Alice1", "@Alice4"}] = KV.list_last_transaction_addresses() |> Enum.to_list()
+
+    d = DateTime.utc_now()
+    d1 = DateTime.utc_now() |> DateTime.add(1)
+    d2 = DateTime.utc_now() |> DateTime.add(2)
+
+    KV.add_last_transaction_address("@Alice1", "@Alice2", d)
+    KV.add_last_transaction_address("@Alice1", "@Alice3", d1)
+    KV.add_last_transaction_address("@Alice1", "@Alice4", d2)
+    assert [{"@Alice1", "@Alice4", ^d2}] = KV.list_last_transaction_addresses() |> Enum.to_list()
   end
 
   test "register_beacon_slot/1 should register a beacon slot", %{root_dir: root_dir} do

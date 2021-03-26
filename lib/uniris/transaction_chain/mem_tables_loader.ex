@@ -23,8 +23,8 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   def init(_args) do
     DB.list_last_transaction_addresses()
-    |> Stream.each(fn {address, last_address} ->
-      ChainLookup.register_last_address(address, last_address)
+    |> Stream.each(fn {address, last_address, timestamp} ->
+      ChainLookup.register_last_address(address, last_address, timestamp)
     end)
     |> Stream.run()
 
@@ -52,9 +52,10 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   defp handle_chain_history(%Transaction{
          address: address,
+         timestamp: timestamp,
          previous_public_key: previous_public_key
        }) do
-    ChainLookup.reverse_link(address, previous_public_key)
+    ChainLookup.reverse_link(address, previous_public_key, timestamp)
   end
 
   defp handle_type_tracking(%Transaction{address: address, type: type, timestamp: timestamp}) do

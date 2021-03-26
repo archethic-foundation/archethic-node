@@ -13,7 +13,7 @@ defmodule Uniris.DBImpl do
   @callback write_transaction(Transaction.t()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
-  @callback add_last_transaction_address(binary(), binary()) :: :ok
+  @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
 
   @callback register_beacon_summary(Summary.t()) :: :ok

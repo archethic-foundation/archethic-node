@@ -208,11 +208,11 @@ defmodule Uniris.Replication do
   Send an acknowledgment of the replication of the transaction to the welcome node and the previous storage pool
   """
   @spec acknowledge_storage(Transaction.t()) :: :ok
-  def acknowledge_storage(tx = %Transaction{address: tx_address}) do
+  def acknowledge_storage(tx = %Transaction{address: address, timestamp: timestamp}) do
     Task.start(fn -> notify_welcome_node(tx) end)
 
     Task.start(fn ->
-      acknowledge_previous_storage_nodes(tx_address, Transaction.previous_address(tx))
+      acknowledge_previous_storage_nodes(address, Transaction.previous_address(tx), timestamp)
     end)
 
     :ok
@@ -237,10 +237,10 @@ defmodule Uniris.Replication do
   @doc """
   Notify the previous storage pool than a new transaction on the chain is present
   """
-  @spec acknowledge_previous_storage_nodes(binary(), binary()) :: :ok
-  def acknowledge_previous_storage_nodes(address, previous_address)
+  @spec acknowledge_previous_storage_nodes(binary(), binary(), DateTime.t()) :: :ok
+  def acknowledge_previous_storage_nodes(address, previous_address, timestamp)
       when is_binary(address) and is_binary(previous_address) do
-    TransactionChain.register_last_address(previous_address, address)
+    TransactionChain.register_last_address(previous_address, address, timestamp)
     Contracts.stop_contract(previous_address)
 
     if previous_address != address do
@@ -253,11 +253,12 @@ defmodule Uniris.Replication do
               chain_storage_nodes(next_previous_address, P2P.list_nodes(availability: :global))
 
             if Utils.key_in_node_list?(previous_storage_nodes, Crypto.node_public_key(0)) do
-              acknowledge_previous_storage_nodes(address, next_previous_address)
+              acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)
             else
               P2P.broadcast_message(previous_storage_nodes, %NotifyLastTransactionAddress{
                 address: address,
-                previous_address: next_previous_address
+                previous_address: next_previous_address,
+                timestamp: timestamp
               })
             end
           end

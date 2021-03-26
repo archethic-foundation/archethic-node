@@ -223,16 +223,16 @@ defmodule Uniris.DB.CassandraImpl do
   Reference a last address from a previous address
   """
   @impl DBImpl
-  @spec add_last_transaction_address(binary(), binary()) :: :ok
-  def add_last_transaction_address(tx_address, last_address) do
+  @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
+  def add_last_transaction_address(tx_address, last_address, timestamp = %DateTime{}) do
     prepared_query = Xandra.prepare!(:xandra_conn, insert_chain_lookup_query())
-    {:ok, _} = Xandra.execute(:xandra_conn, prepared_query, [tx_address, last_address])
+    {:ok, _} = Xandra.execute(:xandra_conn, prepared_query, [tx_address, last_address, timestamp])
     :ok
   end
 
   defp insert_chain_lookup_query do
     """
-    INSERT INTO uniris.chain_lookup(transaction_address, last_transaction_address) VALUES(?, ?)
+    INSERT INTO uniris.chain_lookup(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)
     """
   end
 
@@ -249,9 +249,10 @@ defmodule Uniris.DB.CassandraImpl do
     |> Stream.flat_map(& &1)
     |> Stream.map(fn %{
                        "transaction_address" => address,
-                       "last_transaction_address" => last_address
+                       "last_transaction_address" => last_address,
+                       "timestamp" => timestamp
                      } ->
-      {address, last_address}
+      {address, last_address, timestamp}
     end)
   end
 
@@ -270,7 +271,7 @@ defmodule Uniris.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(:xandra_conn, """
       INSERT INTO uniris.beacon_chain_slot(
-        subset, 
+        subset,
         slot_time,
         previous_hash,
         transaction_summaries,
@@ -279,62 +280,38 @@ defmodule Uniris.DB.CassandraImpl do
         involved_nodes,
         validation_signatures)
 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       """)
 
     tx_summaries =
-      case transaction_summaries do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(transaction_summaries, fn tx_summary ->
-            tx_summary
-            |> TransactionSummary.to_map()
-            |> Utils.stringify_keys()
-          end)
-      end
+      Enum.map(transaction_summaries || [], fn tx_summary ->
+        tx_summary
+        |> TransactionSummary.to_map()
+        |> Utils.stringify_keys()
+      end)
 
     end_of_node_syncs =
-      case end_of_node_synchronizations do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(end_of_node_synchronizations, fn end_of_sync ->
-            end_of_sync
-            |> EndOfNodeSync.to_map()
-            |> Utils.stringify_keys()
-          end)
-      end
+      Enum.map(end_of_node_synchronizations || [], fn end_of_sync ->
+        end_of_sync
+        |> EndOfNodeSync.to_map()
+        |> Utils.stringify_keys()
+      end)
 
     p2p_view =
-      case p2p_view do
-        nil ->
-          []
-
-        _ ->
-          p2p_view
-          |> Utils.bitstring_to_integer_list()
-          |> Enum.map(fn
-            1 -> true
-            0 -> false
-          end)
-      end
+      (p2p_view || [])
+      |> Utils.bitstring_to_integer_list()
+      |> Enum.map(fn
+        1 -> true
+        0 -> false
+      end)
 
     involved_nodes =
-      case involved_nodes do
-        nil ->
-          []
-
-        _ ->
-          involved_nodes
-          |> Utils.bitstring_to_integer_list()
-          |> Enum.map(fn
-            1 -> true
-            0 -> false
-          end)
-      end
+      (involved_nodes || [])
+      |> Utils.bitstring_to_integer_list()
+      |> Enum.map(fn
+        1 -> true
+        0 -> false
+      end)
 
     Xandra.execute!(:xandra_conn, prepared, [
       subset,
@@ -403,55 +380,29 @@ defmodule Uniris.DB.CassandraImpl do
       slot_time: slot_time,
       previous_hash: previous_hash,
       transaction_summaries:
-        case transaction_summaries do
-          nil ->
-            []
-
-          _ ->
-            Enum.map(transaction_summaries, fn summary ->
-              summary
-              |> Utils.atomize_keys()
-              |> TransactionSummary.from_map()
-            end)
-        end,
+        Enum.map(transaction_summaries || [], fn summary ->
+          summary
+          |> Utils.atomize_keys()
+          |> TransactionSummary.from_map()
+        end),
       end_of_node_synchronizations:
-        case end_of_node_synchronizations do
-          nil ->
-            []
-
-          _ ->
-            Enum.map(end_of_node_synchronizations, fn end_of_sync ->
-              end_of_sync
-              |> Utils.atomize_keys()
-              |> EndOfNodeSync.from_map()
-            end)
-        end,
+        Enum.map(end_of_node_synchronizations || [], fn end_of_sync ->
+          end_of_sync
+          |> Utils.atomize_keys()
+          |> EndOfNodeSync.from_map()
+        end),
       p2p_view:
-        case p2p_view do
-          nil ->
-            <<>>
-
-          _ ->
-            p2p_view
-            |> Enum.map(fn
-              true -> <<1::1>>
-              false -> <<0::1>>
-            end)
-            |> :erlang.list_to_bitstring()
-        end,
+        Enum.map(p2p_view || [], fn
+          true -> <<1::1>>
+          false -> <<0::1>>
+        end)
+        |> :erlang.list_to_bitstring(),
       involved_nodes:
-        case involved_nodes do
-          nil ->
-            <<>>
-
-          _ ->
-            involved_nodes
-            |> Enum.map(fn
-              true -> <<1::1>>
-              false -> <<0::1>>
-            end)
-            |> :erlang.list_to_bitstring()
-        end,
+        Enum.map(involved_nodes || [], fn
+          true -> <<1::1>>
+          false -> <<0::1>>
+        end)
+        |> :erlang.list_to_bitstring(),
       validation_signatures: validation_signatures
     }
   end
@@ -467,39 +418,27 @@ defmodule Uniris.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(:xandra_conn, """
       INSERT INTO uniris.beacon_chain_summary(
-        subset, 
+        subset,
         summary_time,
         transaction_summaries,
         end_of_node_synchronizations)
 
-      VALUES (?, ?, ?, ?) 
+      VALUES (?, ?, ?, ?)
       """)
 
     tx_summaries =
-      case transaction_summaries do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(transaction_summaries, fn tx_summary ->
-            tx_summary
-            |> TransactionSummary.to_map()
-            |> Utils.stringify_keys()
-          end)
-      end
+      Enum.map(transaction_summaries || [], fn tx_summary ->
+        tx_summary
+        |> TransactionSummary.to_map()
+        |> Utils.stringify_keys()
+      end)
 
     end_of_node_sync =
-      case end_of_node_synchronizations do
-        nil ->
-          []
-
-        _ ->
-          Enum.map(end_of_node_synchronizations, fn tx_summary ->
-            tx_summary
-            |> EndOfNodeSync.to_map()
-            |> Utils.stringify_keys()
-          end)
-      end
+      Enum.map(end_of_node_synchronizations || [], fn tx_summary ->
+        tx_summary
+        |> EndOfNodeSync.to_map()
+        |> Utils.stringify_keys()
+      end)
 
     Xandra.execute!(:xandra_conn, prepared, [
       subset,
@@ -541,16 +480,14 @@ defmodule Uniris.DB.CassandraImpl do
          "end_of_node_synchronizations" => end_of_node_synchronizations
        }) do
     tx_summaries =
-      (transaction_summaries || [])
-      |> Enum.map(fn tx_summary ->
+      Enum.map(transaction_summaries || [], fn tx_summary ->
         tx_summary
         |> Utils.atomize_keys()
         |> TransactionSummary.from_map()
       end)
 
     end_of_node_sync =
-      (end_of_node_synchronizations || [])
-      |> Enum.map(fn tx_summary ->
+      Enum.map(end_of_node_synchronizations || [], fn tx_summary ->
         tx_summary
         |> Utils.atomize_keys()
         |> EndOfNodeSync.from_map()

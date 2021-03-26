@@ -126,18 +126,35 @@ defmodule Uniris.DB.CassandraImplTest do
   @tag infrastructure: true
   test "add_last_transaction_address/2 should reference a last address for a chain" do
     {:ok, _pid} = Cassandra.start_link()
-    assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
+    assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2", DateTime.utc_now())
   end
 
   @tag infrastructure: true
   test "list_last_transaction_addresses/0 should retrieve the last transaction addresses" do
     {:ok, _pid} = Cassandra.start_link()
-    Cassandra.add_last_transaction_address("@Alice1", "@Alice2")
-    Cassandra.add_last_transaction_address("@Alice1", "@Alice3")
-    Cassandra.add_last_transaction_address("@Alice1", "@Alice4")
 
-    assert [{"@Alice1", "@Alice4"}] =
+    d = DateTime.utc_now() |> Utils.truncate_datetime()
+    d1 = DateTime.utc_now() |> DateTime.add(1) |> Utils.truncate_datetime()
+    d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
+
+    Cassandra.add_last_transaction_address("@Alice1", "@Alice2", d)
+
+    Cassandra.add_last_transaction_address(
+      "@Alice1",
+      "@Alice3",
+      d1
+    )
+
+    Cassandra.add_last_transaction_address(
+      "@Alice1",
+      "@Alice4",
+      d2
+    )
+
+    assert [{"@Alice1", "@Alice4", timestamp}] =
              Cassandra.list_last_transaction_addresses() |> Enum.to_list()
+
+    assert Utils.truncate_datetime(timestamp) == d2
   end
 
   @tag infrastructure: true

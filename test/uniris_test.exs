@@ -176,8 +176,13 @@ defmodule UnirisTest do
         available?: true
       })
 
-      ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      ChainLookup.reverse_link(
+        Crypto.hash("Alice2"),
+        "Alice1",
+        DateTime.utc_now() |> DateTime.add(1)
+      )
+
+      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", DateTime.utc_now())
       ChainLookup.get_last_chain_address(Crypto.hash("Alice1"))
 
       MockDB
@@ -445,9 +450,19 @@ defmodule UnirisTest do
         available?: true
       })
 
-      ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
-      ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      ChainLookup.reverse_link(
+        Crypto.hash("Alice3"),
+        "Alice2",
+        DateTime.utc_now() |> DateTime.add(2)
+      )
+
+      ChainLookup.reverse_link(
+        Crypto.hash("Alice2"),
+        "Alice1",
+        DateTime.utc_now() |> DateTime.add(1)
+      )
+
+      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", DateTime.utc_now())
 
       assert 1 == Uniris.get_transaction_chain_length(Crypto.hash("Alice1"))
       assert 2 == Uniris.get_transaction_chain_length(Crypto.hash("Alice2"))

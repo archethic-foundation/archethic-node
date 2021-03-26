@@ -133,7 +133,9 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
           }
         ]
       end)
-      |> stub(:list_last_transaction_addresses, fn -> [{"@Alice1", "@Alice2"}] end)
+      |> stub(:list_last_transaction_addresses, fn ->
+        [{"@Alice1", "@Alice2", DateTime.utc_now()}]
+      end)
 
       assert {:ok, _} = MemTablesLoader.start_link()
 

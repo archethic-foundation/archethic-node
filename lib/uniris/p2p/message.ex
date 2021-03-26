@@ -257,12 +257,16 @@ defmodule Uniris.P2P.Message do
     <<20::8, address::binary>>
   end
 
-  def encode(%GetLastTransactionAddress{address: address}) do
-    <<21::8, address::binary>>
+  def encode(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
+    <<21::8, address::binary, DateTime.to_unix(timestamp)::32>>
   end
 
-  def encode(%NotifyLastTransactionAddress{address: address, previous_address: previous_address}) do
-    <<22::8, address::binary, previous_address::binary>>
+  def encode(%NotifyLastTransactionAddress{
+        address: address,
+        previous_address: previous_address,
+        timestamp: timestamp
+      }) do
+    <<22::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   def encode(%GetTransactionSummary{address: address}) do
@@ -596,18 +600,23 @@ defmodule Uniris.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
     {%GetLastTransactionAddress{
-       address: address
+       address: address,
+       timestamp: DateTime.from_unix!(timestamp)
      }, rest}
   end
 
   def decode(<<22::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
-    {previous_address, rest} = deserialize_hash(rest)
+    {previous_address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
-    {%NotifyLastTransactionAddress{address: address, previous_address: previous_address}, rest}
+    {%NotifyLastTransactionAddress{
+       address: address,
+       previous_address: previous_address,
+       timestamp: DateTime.from_unix!(timestamp)
+     }, rest}
   end
 
   def decode(<<23::8, rest::bitstring>>) do
@@ -1081,16 +1090,17 @@ defmodule Uniris.P2P.Message do
     end
   end
 
-  def process(%GetLastTransactionAddress{address: address}) do
-    address = TransactionChain.get_last_address(address)
+  def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
+    address = TransactionChain.get_last_address(address, timestamp)
     %LastTransactionAddress{address: address}
   end
 
   def process(%NotifyLastTransactionAddress{
         address: address,
-        previous_address: previous_address
+        previous_address: previous_address,
+        timestamp: timestamp
       }) do
-    :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address)
+    :ok = Replication.acknowledge_previous_storage_nodes(address, previous_address, timestamp)
     %Ok{}
   end
 

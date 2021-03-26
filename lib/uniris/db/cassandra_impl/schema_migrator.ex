@@ -215,6 +215,7 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     CREATE TABLE IF NOT EXISTS uniris.chain_lookup(
       transaction_address blob,
       last_transaction_address blob,
+      timestamp timestamp,
       PRIMARY KEY (transaction_address)
     )
     """)
@@ -250,7 +251,7 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
       end_of_node_synchronizations LIST<frozen<beacon_chain_end_of_node_sync>>,
       p2p_view LIST<boolean>,
       involved_nodes LIST<boolean>,
-      validation_signatures LIST<frozen<tuple<int, blob>>>,
+      validation_signatures map<int, blob>,
       PRIMARY KEY (subset, slot_time)
     )
     WITH CLUSTERING ORDER BY (slot_time DESC) AND default_time_to_live = 1200;

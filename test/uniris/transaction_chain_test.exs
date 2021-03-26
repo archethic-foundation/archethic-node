@@ -23,12 +23,16 @@ defmodule Uniris.TransactionChainTest do
     Batcher.start_link()
 
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{}, _ ->
-      {:ok, %LastTransactionAddress{address: "@Alice10"}}
+    |> stub(:send_message, fn _,
+                              %GetLastTransactionAddress{address: address, timestamp: timestamp},
+                              _ ->
+      address = ChainLookup.get_last_chain_address(address, timestamp)
+      {:ok, %LastTransactionAddress{address: address}}
     end)
 
-    ChainLookup.register_last_address("@Alice1", "@Alice1")
-    ChainLookup.register_last_address("@Alice1", "@Alice10")
+    ChainLookup.register_last_address("@Alice0", "@Alice1", ~U[2021-03-25 15:11:29Z])
+    ChainLookup.register_last_address("@Alice1", "@Alice2", ~U[2021-03-25 15:12:29Z])
+    ChainLookup.register_last_address("@Alice2", "@Alice3", ~U[2021-03-25 15:13:29Z])
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -39,6 +43,7 @@ defmodule Uniris.TransactionChainTest do
       geo_patch: "AAA"
     })
 
-    assert "@Alice10" = TransactionChain.resolve_last_address("@Alice1")
+    assert "@Alice1" = TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+    assert "@Alice2" = TransactionChain.resolve_last_address("@Alice1", ~U[2021-03-25 15:12:29Z])
   end
 end

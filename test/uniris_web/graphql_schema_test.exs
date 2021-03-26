@@ -95,9 +95,19 @@ defmodule UnirisWeb.GraphQLSchemaTest do
       second_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       third_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      ChainLookup.register_last_address(first_addr, first_addr)
-      ChainLookup.register_last_address(first_addr, second_addr)
-      ChainLookup.register_last_address(first_addr, third_addr)
+      ChainLookup.register_last_address(first_addr, first_addr, DateTime.utc_now())
+
+      ChainLookup.register_last_address(
+        first_addr,
+        second_addr,
+        DateTime.utc_now() |> DateTime.add(1)
+      )
+
+      ChainLookup.register_last_address(
+        first_addr,
+        third_addr,
+        DateTime.utc_now() |> DateTime.add(2)
+      )
 
       MockDB
       |> stub(:get_transaction, fn ^third_addr, _ ->

@@ -83,10 +83,10 @@ defmodule Uniris.DB do
   @doc """
   Reference a last address from a previous address
   """
-  @spec add_last_transaction_address(binary(), binary()) :: :ok
-  def add_last_transaction_address(address, last_address)
+  @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
+  def add_last_transaction_address(address, last_address, timestamp)
       when is_binary(address) and is_binary(last_address) do
-    impl().add_last_transaction_address(address, last_address)
+    impl().add_last_transaction_address(address, last_address, timestamp)
   end
 
   @doc """

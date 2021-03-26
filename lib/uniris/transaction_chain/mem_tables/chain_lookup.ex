@@ -12,6 +12,8 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   alias Uniris.Crypto
   alias Uniris.TransactionChain.Transaction
 
+  alias Uniris.Utils
+
   use GenServer
 
   require Logger
@@ -53,9 +55,9 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> {:ok, _} = ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1", ~U[2021-03-25 15:11:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:10:29Z])
       iex> ChainLookup.get_chain_length(Crypto.hash("Alice3"))
       3
   """
@@ -80,14 +82,14 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1", ~U[2021-03-25 15:11:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:10:29Z])
       iex> ChainLookup.get_last_chain_address(Crypto.hash("Alice1"))
       Crypto.hash("Alice3")
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", DateTime.utc_now())
       iex> ChainLookup.get_last_chain_address(Crypto.hash("Alice1"))
       Crypto.hash("Alice1")
   """
@@ -97,8 +99,40 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
       [] ->
         address
 
-      [{_, next}] ->
+      [{_, next, _}] ->
         get_last_chain_address(next)
+    end
+  end
+
+  @doc """
+  Retrieve the last transaction address for a chain
+
+  ## Examples
+
+      iex> ChainLookup.start_link()
+      iex> :ok = ChainLookup.register_last_address("@Alice2", "@Alice3", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.register_last_address("@Alice1", "@Alice2", ~U[2021-03-25 15:11:29Z])
+      iex> :ok = ChainLookup.register_last_address("@Alice0", "@Alice1", ~U[2021-03-25 15:10:29Z])
+      iex> ChainLookup.get_last_chain_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+      "@Alice2"
+  """
+  @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
+  def get_last_chain_address(address, timestamp = %DateTime{}) when is_binary(address) do
+    timestamp = Utils.truncate_datetime(timestamp)
+
+    case :ets.lookup(@chain_genesis_lookup, address) do
+      [] ->
+        address
+
+      [{_, next_address, next_timestamp}] when next_timestamp == timestamp ->
+        next_address
+
+      [{_, next_address, next_timestamp}] ->
+        if DateTime.compare(next_timestamp, timestamp) == :gt do
+          address
+        else
+          get_last_chain_address(next_address, timestamp)
+        end
     end
   end
 
@@ -108,9 +142,9 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1", ~U[2021-03-25 15:11:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:10:29Z])
       iex> ChainLookup.get_first_chain_address(Crypto.hash("Alice3"))
       Crypto.hash("Alice0")
   """
@@ -136,8 +170,8 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:11:29Z])
       iex> {:ets.tab2list(:uniris_chain_public_key_lookup), :ets.tab2list(:uniris_chain_genesis_lookup)}
       {
         # Public key lookup
@@ -147,18 +181,22 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
         ],
         # Genesis lookup
         [
-          {Crypto.hash("Alice1"), Crypto.hash("Alice2")},
-          {Crypto.hash("Alice0"), Crypto.hash("Alice1")}
+          {Crypto.hash("Alice1"), Crypto.hash("Alice2"), ~U[2021-03-25 15:12:29Z]},
+          {Crypto.hash("Alice0"), Crypto.hash("Alice1"), ~U[2021-03-25 15:11:29Z]}
         ]
       }
 
   """
-  @spec reverse_link(address :: binary(), previous_public_key :: binary()) :: :ok
-  def reverse_link(address, previous_public_key)
+  @spec reverse_link(
+          address :: binary(),
+          previous_public_key :: binary(),
+          timestamp :: %DateTime{}
+        ) :: :ok
+  def reverse_link(address, previous_public_key, timestamp = %DateTime{})
       when is_binary(address) and is_binary(previous_public_key) do
     previous_address = Crypto.hash(previous_public_key)
 
-    :ok = register_last_address(previous_address, address)
+    :ok = register_last_address(previous_address, address, timestamp)
     true = :ets.insert(@chain_public_key_lookup, {address, previous_public_key})
 
     :ok
@@ -170,13 +208,18 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> ChainLookup.register_last_address("@Alice1", "@Alice10")
+      iex> ChainLookup.register_last_address("@Alice1", "@Alice2", ~U[2021-03-25 15:12:29Z])
       iex> ChainLookup.get_last_chain_address("@Alice1")
-      "@Alice10"
+      "@Alice2"
   """
-  @spec register_last_address(binary(), binary()) :: :ok
-  def register_last_address(address, last_address) do
-    true = :ets.insert(@chain_genesis_lookup, {address, last_address})
+  @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
+  def register_last_address(previous_address, last_address, timestamp = %DateTime{}) do
+    true =
+      :ets.insert(
+        @chain_genesis_lookup,
+        {previous_address, last_address, Utils.truncate_datetime(timestamp)}
+      )
+
     :ok
   end
 
@@ -186,16 +229,16 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1")
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2", ~U[2021-03-25 15:12:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice2"), "Alice1", ~U[2021-03-25 15:11:29Z])
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:10:29Z])
       iex> ChainLookup.get_first_public_key("Alice2")
       "Alice0"
 
     Returns the previous public key if there is not previous transaction related to the public key
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", ~U[2021-03-25 15:12:29Z])
       iex> ChainLookup.get_first_public_key("Alice0")
       "Alice0"
 
@@ -293,7 +336,7 @@ defmodule Uniris.TransactionChain.MemTables.ChainLookup do
   ## Examples
 
       iex> ChainLookup.start_link()
-      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2")
+      iex> :ok = ChainLookup.reverse_link(Crypto.hash("Alice3"), "Alice2", ~U[2021-03-25 15:12:29Z])
       iex> ChainLookup.transaction_exists?(Crypto.hash("Alice3"))
       true
 
