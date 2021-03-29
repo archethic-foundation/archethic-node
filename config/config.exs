@@ -19,7 +19,7 @@ config :git_hooks,
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$date $time $metadata[$level] $message\n",
-  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node],
+  metadata: [:request_id, :proposal_address, :transaction, :beacon_subset, :node, :address],
   colors: [enabled: true]
 
 config :logger,
@@ -33,6 +33,8 @@ config :phoenix, :json_library, Jason
 config :uniris, :src_dir, File.cwd!()
 
 config :uniris, :mut_dir, "data"
+
+config :uniris, :marker, "-=%=-=%=-=%=-"
 
 config :uniris, Uniris.Crypto,
   supported_curves: [

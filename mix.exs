@@ -15,7 +15,16 @@ defmodule Uniris.MixProject do
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
+      escript: escript(),
       dialyzer: [plt_add_apps: [:mix]]
+    ]
+  end
+
+  def escript do
+    [
+      main_module: Uniris.Governance.Code.Proposal.Validator,
+      name: "uniris-proposal-validator",
+      app: nil
     ]
   end
 
@@ -35,6 +44,7 @@ defmodule Uniris.MixProject do
     [
       {:flow, "~> 1.0"},
       {:mint, "~> 1.0"},
+      {:benchee, "~> 1.0"},
       {:xandra, "~> 0.11"},
       {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},

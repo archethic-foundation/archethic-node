@@ -1,7 +1,7 @@
 File.rm_rf!(Uniris.Utils.mut_dir())
 
 ExUnit.start(
-  exclude: [:infrastructure, :CI, :oracle_provider],
+  exclude: [:infrastructure, :CI, :CD, :oracle_provider],
   timeout: :infinity,
   max_failures: 1
 )
