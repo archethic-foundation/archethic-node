@@ -57,7 +57,8 @@ defmodule Uniris.ReplicationTest do
             geo_patch: random_patch(),
             available?: true,
             authorized?: rem(i, 7) == 0,
-            authorization_date: DateTime.utc_now()
+            authorization_date: DateTime.utc_now(),
+            enrollment_date: DateTime.utc_now()
           }
         end)
 
@@ -81,7 +82,8 @@ defmodule Uniris.ReplicationTest do
             geo_patch: random_patch(),
             available?: true,
             authorized?: rem(i, 7) == 0,
-            authorization_date: DateTime.utc_now()
+            authorization_date: DateTime.utc_now(),
+            enrollment_date: DateTime.utc_now()
           }
         end)
 
@@ -105,7 +107,8 @@ defmodule Uniris.ReplicationTest do
         geo_patch: random_patch(),
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        enrollment_date: DateTime.utc_now()
       },
       %Node{
         ip: {88, 130, 19, 1},
@@ -114,7 +117,8 @@ defmodule Uniris.ReplicationTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: random_patch(),
         available?: true,
-        authorized?: false
+        authorized?: false,
+        enrollment_date: DateTime.utc_now()
       },
       %Node{
         ip: {88, 130, 19, 2},
@@ -124,7 +128,8 @@ defmodule Uniris.ReplicationTest do
         geo_patch: random_patch(),
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10)
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now()
       }
     ]
 
@@ -151,6 +156,7 @@ defmodule Uniris.ReplicationTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
+      enrollment_date: DateTime.utc_now(),
       authorization_date: DateTime.utc_now() |> DateTime.add(-10)
     })
 
@@ -200,7 +206,8 @@ defmodule Uniris.ReplicationTest do
       last_public_key: "key1",
       available?: true,
       geo_patch: "BBB",
-      network_patch: "BBB"
+      network_patch: "BBB",
+      enrollment_date: DateTime.utc_now()
     }
 
     coordinator_node = %Node{
@@ -210,7 +217,8 @@ defmodule Uniris.ReplicationTest do
       available?: true,
       authorization_date: DateTime.utc_now(),
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     }
 
     storage_nodes = [
@@ -221,7 +229,8 @@ defmodule Uniris.ReplicationTest do
         last_public_key: "key3",
         available?: true,
         geo_patch: "BBB",
-        network_patch: "BBB"
+        network_patch: "BBB",
+        enrollment_date: DateTime.utc_now()
       }
     ]
 

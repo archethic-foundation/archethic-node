@@ -40,10 +40,13 @@ defmodule Uniris.Replication.TransactionContextTest do
       last_public_key: Crypto.node_public_key(),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
-    assert 1 = TransactionContext.fetch_transaction_chain("@Alice1") |> Enum.count()
+    assert 1 =
+             TransactionContext.fetch_transaction_chain("@Alice1", DateTime.utc_now())
+             |> Enum.count()
   end
 
   test "fetch_unspent_outputs/1 should retrieve the previous unspent outputs" do
@@ -77,11 +80,13 @@ defmodule Uniris.Replication.TransactionContextTest do
       last_public_key: Crypto.node_public_key(),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
-             TransactionContext.fetch_unspent_outputs("@Alice1") |> Enum.to_list()
+             TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
+             |> Enum.to_list()
   end
 
   test "fetch_transaction_inputs/2 should retrieve the inputs of a transaction at a given date" do
@@ -115,10 +120,12 @@ defmodule Uniris.Replication.TransactionContextTest do
       last_public_key: Crypto.node_public_key(),
       available?: true,
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
-             TransactionContext.fetch_unspent_outputs("@Alice1") |> Enum.to_list()
+             TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
+             |> Enum.to_list()
   end
 end

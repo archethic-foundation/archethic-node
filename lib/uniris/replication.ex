@@ -176,7 +176,25 @@ defmodule Uniris.Replication do
   end
 
   defp do_fetch_context_for_network_transaction(previous_address, timestamp, self_repair?) do
+    Logger.debug("Try to fetch network previous transaction locally",
+      transaction: Base.encode16(previous_address)
+    )
+
     previous_chain = TransactionChain.get(previous_address)
+
+    # If the transaction is missing (orphan) and the previous chain has not been synchronized
+    # We request other nodes to give us the information
+    previous_chain =
+      if Enum.empty?(previous_chain) do
+        Logger.debug(
+          "Try to fetch network previous transaction from remote nodes (possibility of an orphan state)",
+          transaction: Base.encode16(previous_address)
+        )
+
+        TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
+      else
+        previous_chain
+      end
 
     inputs_unspent_outputs =
       fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
@@ -185,9 +203,15 @@ defmodule Uniris.Replication do
   end
 
   defp fetch_context_for_regular_transaction(previous_address, timestamp, self_repair?) do
+    Logger.debug("Fetch regular previous transaction",
+      transaction: Base.encode16(previous_address)
+    )
+
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
       Task.yield_many([
-        Task.async(fn -> TransactionContext.fetch_transaction_chain(previous_address) end),
+        Task.async(fn ->
+          TransactionContext.fetch_transaction_chain(previous_address, timestamp)
+        end),
         Task.async(fn ->
           fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
         end)
@@ -197,11 +221,14 @@ defmodule Uniris.Replication do
   end
 
   defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = true) do
+    Logger.debug("Fetch transaction inputs", transaction: Base.encode16(previous_address))
     TransactionContext.fetch_transaction_inputs(previous_address, timestamp)
   end
 
-  defp fetch_inputs_unspent_outputs(previous_address, _timestamp, _self_repair = false) do
-    TransactionContext.fetch_unspent_outputs(previous_address)
+  defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = false) do
+    Logger.debug("Fetch transaction unspent outputs", transaction: Base.encode16(previous_address))
+
+    TransactionContext.fetch_unspent_outputs(previous_address, timestamp)
   end
 
   @doc """

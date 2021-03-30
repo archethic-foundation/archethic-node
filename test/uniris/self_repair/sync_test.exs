@@ -85,7 +85,8 @@ defmodule Uniris.SelfRepair.SyncTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        last_address: :crypto.strong_rand_bytes(32)
+        last_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
       }
 
       coordinator_node = %Node{
@@ -96,7 +97,8 @@ defmodule Uniris.SelfRepair.SyncTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-10),
         geo_patch: "AAA",
         network_patch: "AAA",
-        last_address: :crypto.strong_rand_bytes(32)
+        last_address: :crypto.strong_rand_bytes(32),
+        enrollment_date: DateTime.utc_now()
       }
 
       storage_nodes = [
@@ -108,7 +110,8 @@ defmodule Uniris.SelfRepair.SyncTest do
           available?: true,
           geo_patch: "BBB",
           network_patch: "BBB",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now()
         }
       ]
 
