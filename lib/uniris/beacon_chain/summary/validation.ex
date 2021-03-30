@@ -10,7 +10,6 @@ defmodule Uniris.BeaconChain.SummaryValidation do
   alias Uniris.DB
 
   alias Uniris.Crypto
-  alias Uniris.Election
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransactionSummary
@@ -24,9 +23,8 @@ defmodule Uniris.BeaconChain.SummaryValidation do
   Determines if the node is a storage node for the beacon summary
   """
   @spec storage_node?(Slot.t()) :: boolean()
-  def storage_node?(%Slot{subset: subset, slot_time: slot_time}) do
-    summary_time = SummaryTimer.next_summary(slot_time)
-    Utils.key_in_node_list?(slot_storage_nodes(subset, summary_time), Crypto.node_public_key(0))
+  def storage_node?(slot = %Slot{}) do
+    Utils.key_in_node_list?(Slot.summary_storage_nodes(slot), Crypto.node_public_key(0))
   end
 
   @doc """
@@ -64,18 +62,16 @@ defmodule Uniris.BeaconChain.SummaryValidation do
   @spec valid_signatures?(Slot.t()) :: boolean()
   def valid_signatures?(
         slot = %Slot{
-          slot_time: slot_time,
-          subset: subset,
           validation_signatures: validation_signatures
         }
       ) do
-    storage_nodes =
-      subset
-      |> slot_storage_nodes(slot_time)
+    storage_nodes_keys =
+      slot
+      |> Slot.involved_nodes()
       |> Enum.map(& &1.last_public_key)
 
     Enum.all?(validation_signatures, fn {pos, signature} ->
-      case Enum.at(storage_nodes, pos) do
+      case Enum.at(storage_nodes_keys, pos) do
         nil ->
           false
 
@@ -83,16 +79,6 @@ defmodule Uniris.BeaconChain.SummaryValidation do
           Crypto.verify(signature, Slot.digest(slot), node_key)
       end
     end)
-  end
-
-  defp slot_storage_nodes(subset, slot_time) do
-    subset
-    |> Election.beacon_storage_nodes(
-      slot_time,
-      P2P.list_nodes(availability: :global),
-      Election.get_storage_constraints()
-    )
-    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, slot_time) == :lt))
   end
 
   @doc """

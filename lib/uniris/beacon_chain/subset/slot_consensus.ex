@@ -5,11 +5,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   """
 
   alias Uniris.BeaconChain.Slot
-  alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.Crypto
-
-  alias Uniris.Election
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.AddBeaconSlotProof
@@ -70,17 +67,11 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
         :started,
         data = %{
           node_public_key: node_public_key,
-          slot: slot = %Slot{subset: subset, slot_time: slot_time},
+          slot: slot = %Slot{subset: subset},
           timeout: timeout
         }
       ) do
-    storage_nodes =
-      Election.beacon_storage_nodes(
-        subset,
-        slot_time,
-        P2P.list_nodes(availability: :global),
-        Election.get_storage_constraints()
-      )
+    storage_nodes = Slot.involved_nodes(slot)
 
     digest = Slot.digest(slot)
     Logger.debug("Notified slot: #{inspect(slot)}", beacon_subset: Base.encode16(subset))
@@ -192,16 +183,13 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
     })
   end
 
-  defp notify_summary_pool(current_slot = %Slot{subset: subset, slot_time: slot_time}) do
-    next_summary_time = SummaryTimer.next_summary(slot_time)
-
-    subset
-    |> Election.beacon_storage_nodes(
-      next_summary_time,
-      P2P.list_nodes(availability: :global),
-      Election.get_storage_constraints()
-    )
-    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, slot_time) == :lt))
+  defp notify_summary_pool(current_slot = %Slot{subset: subset}) do
+    current_slot
+    |> Slot.summary_storage_nodes()
     |> P2P.broadcast_message(%NotifyBeaconSlot{slot: current_slot})
+
+    Logger.debug("Notified summary: #{inspect(current_slot)}",
+      beacon_subset: Base.encode16(subset)
+    )
   end
 end

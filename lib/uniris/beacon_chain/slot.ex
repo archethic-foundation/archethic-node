@@ -5,8 +5,14 @@ defmodule Uniris.BeaconChain.Slot do
   """
   alias __MODULE__.EndOfNodeSync
   alias __MODULE__.TransactionSummary
+  alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.Crypto
+
+  alias Uniris.Election
+
+  alias Uniris.P2P
+  alias Uniris.P2P.Node
 
   alias Uniris.Utils
 
@@ -440,4 +446,42 @@ defmodule Uniris.BeaconChain.Slot do
   end
 
   def has_changes?(%__MODULE__{}), do: false
+
+  @doc """
+  Retrieve the nodes responsible to manage the slot processing
+  """
+  @spec involved_nodes(t()) :: list(Node.t())
+  def involved_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
+    node_list =
+      Enum.filter(
+        P2P.list_nodes(availability: :global),
+        &(DateTime.compare(&1.enrollment_date, slot_time) == :lt)
+      )
+
+    Election.beacon_storage_nodes(
+      subset,
+      slot_time,
+      node_list,
+      Election.get_storage_constraints()
+    )
+  end
+
+  @doc """
+  Retrieve the nodes responsible to manage the summary holding of the given slot
+  """
+  @spec summary_storage_nodes(t()) :: list(Node.t())
+  def summary_storage_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
+    node_list =
+      Enum.filter(
+        P2P.list_nodes(availability: :global),
+        &(DateTime.compare(&1.enrollment_date, slot_time) == :lt)
+      )
+
+    Election.beacon_storage_nodes(
+      subset,
+      SummaryTimer.next_summary(slot_time),
+      node_list,
+      Election.get_storage_constraints()
+    )
+  end
 end

@@ -8,8 +8,6 @@ defmodule Uniris.BeaconChain.Subset.Seal do
 
   alias Uniris.DB
 
-  alias Uniris.Election
-
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetBeaconSlot
   alias Uniris.P2P.Message.NotFound
@@ -23,7 +21,7 @@ defmodule Uniris.BeaconChain.Subset.Seal do
   """
   @spec link_to_previous_slot(Slot.t(), DateTime.t()) :: Slot.t()
   def link_to_previous_slot(slot = %Slot{subset: subset}, previous_slot_time = %DateTime{}) do
-    case previous_storage_nodes(subset, previous_slot_time) do
+    case Slot.involved_nodes(%Slot{subset: subset, slot_time: previous_slot_time}) do
       [] ->
         slot
 
@@ -57,16 +55,6 @@ defmodule Uniris.BeaconChain.Subset.Seal do
       {:error, _} = e ->
         e
     end
-  end
-
-  defp previous_storage_nodes(subset, slot_time = %DateTime{}) when is_binary(subset) do
-    Election.beacon_storage_nodes(
-      subset,
-      slot_time,
-      P2P.list_nodes(availability: :global),
-      Election.get_storage_constraints()
-    )
-    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, slot_time) == :lt))
   end
 
   @doc """
