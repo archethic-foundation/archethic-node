@@ -52,9 +52,13 @@ defmodule Uniris.Mining do
   Return the list of validation nodes for a given transaction and the current validation constraints
   """
   @spec transaction_validation_nodes(Transaction.t()) :: list(Node.t())
-  def transaction_validation_nodes(tx = %Transaction{}) do
+  def transaction_validation_nodes(tx = %Transaction{timestamp: timestamp}) do
     constraints = Election.get_validation_constraints()
-    node_list = P2P.list_nodes(authorized?: true, availability: :global)
+
+    node_list =
+      P2P.list_nodes(authorized?: true, availability: :global)
+      |> Enum.filter(&(DateTime.diff(timestamp, &1.authorization_date) > 0))
+
     Election.validation_nodes(tx, node_list, constraints)
   end
 

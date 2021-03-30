@@ -21,11 +21,11 @@ defmodule Uniris.Election.ValidationConstraints do
 
   @typedoc """
   Each validation constraints represent a function which will be executed during the election algorithms:
-  - min_geo_patch: Require number of distinct geographic patch for the elected validation nodes. 
+  - min_geo_patch: Require number of distinct geographic patch for the elected validation nodes.
   This property ensure the geographical security of the transaction validation by spliting
   the computation in many place on the world.
   - min_validation_nodes: Require number of minimum validation nodes.
-  - validation_number: Require number of validation nodes for a given transaction. 
+  - validation_number: Require number of validation nodes for a given transaction.
   """
   @type t :: %__MODULE__{
           min_geo_patch: non_neg_integer | (() -> non_neg_integer()),
@@ -53,13 +53,17 @@ defmodule Uniris.Election.ValidationConstraints do
   Get the number of validations for a given transaction.
   """
   def validation_number(%Transaction{
+        timestamp: timestamp,
         data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
       })
       when length(transfers) > 0 do
     total_transfers = Enum.reduce(transfers, 0, &(&2 + &1.amount))
 
     if total_transfers > 10 do
-      nb_authorized_nodes = length(P2P.list_nodes(authorized?: true))
+      nb_authorized_nodes =
+        P2P.list_nodes(authorized?: true)
+        |> Enum.filter(&(DateTime.diff(timestamp, &1.authorization_date) > 0))
+        |> length()
 
       validation_number =
         trunc(:math.floor(min_validation_number() * :math.log10(total_transfers)))

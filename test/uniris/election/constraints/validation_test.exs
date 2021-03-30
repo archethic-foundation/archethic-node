@@ -31,6 +31,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
   property "validation_number return more than 3 validation nodes and less than 200 validation nodes" do
     check all(transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0))) do
       tx = %Transaction{
+        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -51,6 +52,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
   describe "validation_number/1" do
     test "should return the minimum before 10 UCO" do
       tx = %Transaction{
+        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -65,6 +67,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
 
     test "should return a number based on the UCO value" do
       tx = %Transaction{
+        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -77,6 +80,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
       assert 6 == ValidationConstraints.validation_number(tx)
 
       tx = %Transaction{
+        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
