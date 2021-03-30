@@ -3,6 +3,9 @@ defmodule Uniris.OracleChain.Scheduler do
   Manage the scheduling of the oracle transactions
   """
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   alias Uniris.Crypto
 
   alias Uniris.Election
@@ -72,7 +75,7 @@ defmodule Uniris.OracleChain.Scheduler do
       me = self()
 
       previous_date = Map.get(state, :last_poll_date) || date
-      handle_new_polling(me, previous_date, date)
+      handle_new_polling(me, previous_date, next_date(interval))
     end
 
     {:noreply, Map.put(state, :polling_timer, timer), :hibernate}
@@ -188,5 +191,12 @@ defmodule Uniris.OracleChain.Scheduler do
       next_pub
     )
     |> Uniris.send_new_transaction()
+  end
+
+  defp next_date(interval) do
+    interval
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 end
