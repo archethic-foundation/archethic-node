@@ -4,27 +4,20 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
   require Logger
 
   @doc """
-  Run the migrations
+  Run the Cassandra schema migrations
   """
-  @spec run() :: :ok
+  @spec run :: :ok
   def run do
-    create_keyspace()
-    create_transaction_data_user_type()
-    create_validation_stamp_user_type()
-    create_cross_validation_stamp_user_type()
-    create_transaction_table()
-    create_transaction_chain_table()
-    create_chain_lookup_table()
-    create_beacon_chain_types()
-    create_beacon_chain_slot_table()
-    create_beacon_chain_summary_table()
+    init()
+    load_migrations()
+  end
 
-    Logger.info("Schema database initialized")
+  defp init do
+    create_keyspace()
+    create_migration_table()
   end
 
   defp create_keyspace do
-    Logger.info("keyspace creation...")
-
     Xandra.execute!(:xandra_conn, """
     CREATE KEYSPACE IF NOT EXISTS uniris WITH replication = {
       'class': 'SimpleStrategy',
@@ -33,243 +26,85 @@ defmodule Uniris.DB.CassandraImpl.SchemaMigrator do
     """)
   end
 
-  defp create_transaction_table do
-    Logger.info("transaction table creation...")
-
+  defp create_migration_table do
     Xandra.execute!(:xandra_conn, """
-    CREATE TABLE IF NOT EXISTS uniris.transactions (
-      address blob,
-      type varchar,
-      timestamp timestamp,
-      data frozen<pending_transaction_data>,
-      previous_public_key blob,
-      previous_signature blob,
-      origin_signature blob,
-      validation_stamp frozen<validation_stamp>,
-      cross_validation_stamps LIST<frozen<cross_validation_stamp>>,
-      PRIMARY KEY (address)
+    CREATE TABLE IF NOT EXISTS uniris.schema_migrations(
+      version INT,
+      updated_at TIMESTAMP,
+      PRIMARY KEY (version)
     );
     """)
   end
 
-  defp create_transaction_data_user_type do
-    Logger.info("transaction_data user type creation...")
+  defp load_migrations do
+    migrated_versions = get_migrated_versions() |> Enum.map(&Map.get(&1, "version"))
 
-    create_transaction_data_ledger_type()
-    create_transaction_data_keys_type()
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.pending_transaction_data(
-      code text,
-      content text,
-      recipients LIST<blob>,
-      ledger frozen<pending_transaction_ledger>,
-      keys frozen<pending_transaction_data_keys>
-    );
-    """)
+    get_migrations()
+    |> Enum.map(&load_migration/1)
+    |> Enum.reject(fn {version, _} -> version in migrated_versions end)
+    |> run_migrations()
+    |> register_migrated_versions()
   end
 
-  defp create_transaction_data_ledger_type do
-    create_transaction_data_uco_ledger_type()
-    create_transaction_data_nft_ledger_type()
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.pending_transaction_ledger(
-      uco frozen<uco_ledger>,
-      nft frozen<nft_ledger>
-    );
-    """)
+  defp get_migrated_versions do
+    Xandra.execute!(:xandra_conn, "SELECT version FROM uniris.schema_migrations")
   end
 
-  defp create_transaction_data_uco_ledger_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.uco_transfer(
-      "to" blob,
-      amount double
-    );
-    """)
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.uco_ledger(
-      transfers LIST<frozen<uco_transfer>>
-    );
-    """)
+  defp get_migrations do
+    migration_path()
+    |> Path.join(["**", "*.exs"])
+    |> Path.wildcard()
+    |> Enum.map(&extract_migration_info/1)
+    |> Enum.filter(& &1)
+    |> Enum.sort()
   end
 
-  defp create_transaction_data_nft_ledger_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.nft_transfer(
-      "to" blob,
-      amount double,
-      nft blob
-    );
-    """)
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.nft_ledger(
-      transfers LIST<frozen<nft_transfer>>
-    );
-    """)
+  defp migration_path do
+    Application.app_dir(:uniris, "priv/migrations/cassandra")
   end
 
-  defp create_transaction_data_keys_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.pending_transaction_data_keys(
-      authorized_keys map<blob, blob>,
-      secret blob
-    );
-    """)
+  defp extract_migration_info(file) do
+    base = Path.basename(file)
+
+    case Integer.parse(Path.rootname(base)) do
+      {integer, "_" <> name} -> {integer, name, file}
+      _ -> nil
+    end
   end
 
-  defp create_validation_stamp_user_type do
-    Logger.info("validation_stamp user type creation...")
+  defp load_migration({version, _, file}) do
+    loaded_modules = file |> Code.compile_file() |> Enum.map(&elem(&1, 0))
 
-    create_ledger_operations_transaction_movement_type()
-    create_ledger_operations_node_movement_type()
-    create_ledger_operations_unspent_output_type()
-    create_ledger_operations_type()
+    if mod = Enum.find(loaded_modules, &migration?/1) do
+      {version, mod}
+    else
+      raise "file #{Path.relative_to_cwd(file)} does not define execute/0"
+    end
 
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.validation_stamp(
-      proof_of_work blob,
-      proof_of_integrity blob,
-      ledger_operations frozen<ledger_operations>,
-      signature blob
-    );
-    """)
+    {version, mod}
   end
 
-  defp create_ledger_operations_node_movement_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.ledger_operations_node_movement(
-      "to" blob,
-      amount double,
-      roles list<text>
-    );
-    """)
+  defp migration?(mod), do: function_exported?(mod, :execute, 0)
+
+  defp run_migrations(migrations) do
+    for {version, mod} <- migrations do
+      Logger.debug("Execute migration #{version}.#{mod}")
+      apply(mod, :execute, [])
+      version
+    end
   end
 
-  defp create_ledger_operations_transaction_movement_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.ledger_operations_transaction_movement(
-      "to" blob,
-      amount double,
-      type varchar,
-      nft_address blob
-    );
-    """)
+  defp register_migrated_versions([]) do
+    Logger.debug("No new migrations to execute or register")
   end
 
-  defp create_ledger_operations_unspent_output_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.ledger_operations_unspent_output(
-      "from" blob,
-      amount double,
-      type varchar,
-      nft_address blob
-    );
-    """)
-  end
+  defp register_migrated_versions(versions) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO uniris.schema_migrations(version, updated_at) VALUES(?, ?)"
+      )
 
-  defp create_ledger_operations_type do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.ledger_operations(
-      fee float,
-      transaction_movements LIST<frozen<ledger_operations_transaction_movement>>,
-      node_movements LIST<frozen<ledger_operations_node_movement>>,
-      unspent_outputs LIST<frozen<ledger_operations_unspent_output>>
-    );
-    """)
-  end
-
-  defp create_cross_validation_stamp_user_type do
-    Logger.info("cross_validation_stamp user type creation...")
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.cross_validation_stamp(
-      node_public_key blob,
-      signature blob
-    );
-    """)
-  end
-
-  defp create_transaction_chain_table do
-    Logger.info("transaction_chains table creation...")
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TABLE IF NOT EXISTS uniris.transaction_chains(
-      chain_address blob,
-      size int,
-      transaction_address blob,
-      timestamp timestamp,
-      PRIMARY KEY (chain_address, timestamp)
-    )
-    WITH CLUSTERING ORDER BY (timestamp DESC);
-    """)
-  end
-
-  defp create_chain_lookup_table do
-    Logger.info("chain_lookup table creation...")
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TABLE IF NOT EXISTS uniris.chain_lookup(
-      transaction_address blob,
-      last_transaction_address blob,
-      timestamp timestamp,
-      PRIMARY KEY (transaction_address)
-    )
-    """)
-  end
-
-  defp create_beacon_chain_types do
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.beacon_chain_transaction_summary(
-      address blob,
-      type varchar,
-      timestamp timestamp,
-      movements_addresses LIST<blob>
-    );
-    """)
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TYPE IF NOT EXISTS uniris.beacon_chain_end_of_node_sync(
-      node_public_key blob,
-      timestamp timestamp
-    );
-    """)
-  end
-
-  defp create_beacon_chain_slot_table do
-    Logger.info("beacon_chain_slot table creation...")
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TABLE IF NOT EXISTS uniris.beacon_chain_slot(
-      subset blob,
-      slot_time timestamp,
-      previous_hash blob,
-      transaction_summaries LIST<frozen<beacon_chain_transaction_summary>>,
-      end_of_node_synchronizations LIST<frozen<beacon_chain_end_of_node_sync>>,
-      p2p_view LIST<boolean>,
-      involved_nodes LIST<boolean>,
-      validation_signatures map<int, blob>,
-      PRIMARY KEY (subset, slot_time)
-    )
-    WITH CLUSTERING ORDER BY (slot_time DESC) AND default_time_to_live = 1200;
-    """)
-  end
-
-  defp create_beacon_chain_summary_table do
-    Logger.info("beacon_chain_summary table creation...")
-
-    Xandra.execute!(:xandra_conn, """
-    CREATE TABLE IF NOT EXISTS uniris.beacon_chain_summary(
-      subset blob,
-      summary_time timestamp,
-      transaction_summaries LIST<frozen<beacon_chain_transaction_summary>>,
-      end_of_node_synchronizations LIST<frozen<beacon_chain_end_of_node_sync>>,
-      PRIMARY KEY (subset, summary_time)
-    )
-    WITH CLUSTERING ORDER BY (summary_time DESC);
-    """)
+    Enum.each(versions, &Xandra.execute!(:xandra_conn, prepared, [&1, DateTime.utc_now()]))
   end
 end

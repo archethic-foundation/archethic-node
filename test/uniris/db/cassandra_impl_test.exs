@@ -19,22 +19,38 @@ defmodule Uniris.DB.CassandraImplTest do
 
   alias Uniris.Utils
 
-  setup do
+  setup_all do
+    Code.compiler_options(ignore_module_conflict: true)
+
+    {:ok, conn} = Xandra.start_link()
+    Xandra.execute!(conn, "DROP KEYSPACE IF EXISTS uniris")
+    {:ok, _pid} = Cassandra.start_link()
+
     on_exit(fn ->
-      {:ok, conn} = Xandra.start_link()
-      Xandra.execute!(conn, "DROP KEYSPACE uniris")
+      Code.compiler_options(ignore_module_conflict: false)
     end)
+  end
+
+  setup do
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transactions")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transaction_chains")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transaction_type_lookup")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_first_address")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_first_key")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_last_address")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.beacon_chain_slot")
+    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.beacon_chain_summary")
+
+    :ok
   end
 
   @tag infrastructure: true
   test "start_link/1 should initiate create the connection pool and run the migrations" do
-    {:ok, _pid} = Cassandra.start_link()
     assert {:ok, _} = Xandra.execute(:xandra_conn, "select * from uniris.transaction_chains")
   end
 
   @tag infrastructure: true
   test "write_transaction/1 should persist the transaction " do
-    {:ok, _pid} = Cassandra.start_link()
     tx = create_transaction()
     assert :ok = Cassandra.write_transaction(tx)
 
@@ -78,8 +94,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "list_transactions/1 should stream the entire list of transactions with the requested fields" do
-    {:ok, _pid} = Cassandra.start_link()
-
     Enum.each(1..500, fn i ->
       tx = create_transaction([], seed: "seed_#{i}")
       Cassandra.write_transaction(tx)
@@ -125,14 +139,11 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "add_last_transaction_address/2 should reference a last address for a chain" do
-    {:ok, _pid} = Cassandra.start_link()
     assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2", DateTime.utc_now())
   end
 
   @tag infrastructure: true
   test "list_last_transaction_addresses/0 should retrieve the last transaction addresses" do
-    {:ok, _pid} = Cassandra.start_link()
-
     d = DateTime.utc_now() |> Utils.truncate_datetime()
     d1 = DateTime.utc_now() |> DateTime.add(1) |> Utils.truncate_datetime()
     d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
@@ -159,7 +170,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "register_beacon_slot/1 should register a beacon slot" do
-    {:ok, _pid} = Cassandra.start_link()
     slot_time = DateTime.utc_now()
     assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: slot_time})
 
@@ -176,14 +186,11 @@ defmodule Uniris.DB.CassandraImplTest do
   describe "get_beacon_slots/1" do
     @tag infrastructure: true
     test "should return an empty list when not previous slots were registered" do
-      {:ok, _pid} = Cassandra.start_link()
       assert 0 == Cassandra.get_beacon_slots(<<0>>, DateTime.utc_now()) |> Enum.count()
     end
 
     @tag infrastructure: true
     test "should return a list of beacon slots registered" do
-      {:ok, _pid} = Cassandra.start_link()
-
       assert :ok =
                Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
 
@@ -202,8 +209,6 @@ defmodule Uniris.DB.CassandraImplTest do
   describe "get_beacon_slot/2" do
     @tag infrastructure: true
     test "should retrieve a given slot by subset and slot time" do
-      {:ok, _pid} = Cassandra.start_link()
-
       d1 = DateTime.utc_now()
       d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
 
@@ -216,8 +221,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
     @tag infrastructure: true
     test "should return an error when not slot is found for the given subset and date" do
-      {:ok, _pid} = Cassandra.start_link()
-
       d1 = DateTime.utc_now()
       d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
 
@@ -228,8 +231,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "register_beacon_summary/1 should register the summary into the database" do
-    {:ok, _pid} = Cassandra.start_link()
-
     assert :ok =
              Cassandra.register_beacon_summary(%Summary{
                subset: <<0>>,
@@ -240,8 +241,6 @@ defmodule Uniris.DB.CassandraImplTest do
   describe "get_beacon_summary/2" do
     @tag infrastructure: true
     test "should retrieve a given summary by subset and summary time" do
-      {:ok, _pid} = Cassandra.start_link()
-
       d1 = DateTime.utc_now()
       d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
 
@@ -254,8 +253,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
     @tag infrastructure: true
     test "should return an error when not summary is found for the given subset and date" do
-      {:ok, _pid} = Cassandra.start_link()
-
       d1 = DateTime.utc_now()
       d2 = DateTime.utc_now() |> DateTime.add(2)
 
