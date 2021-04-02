@@ -4,6 +4,8 @@ defmodule Uniris.DB do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Summary
 
+  alias Uniris.Crypto
+
   alias Uniris.TransactionChain.Transaction
 
   @spec migrate() :: :ok
@@ -135,6 +137,63 @@ defmodule Uniris.DB do
   @spec get_beacon_slots(binary(), DateTime.t()) :: Enumerable.t()
   def get_beacon_slots(subset, from_date = %DateTime{}) when is_binary(subset) do
     impl().get_beacon_slots(subset, from_date)
+  end
+
+  @doc """
+  Return the size of a transaction chain
+  """
+  @spec chain_size(binary()) :: non_neg_integer()
+  def chain_size(address) when is_binary(address) do
+    impl().chain_size(address)
+  end
+
+  @doc """
+  List all the transaction for a given transaction type sorted by timestamp in descent order
+  """
+  @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
+          Enumerable.t()
+  def list_transactions_by_type(type, fields \\ []) do
+    impl().list_transactions_by_type(type, fields)
+  end
+
+  @doc """
+  Get the number of transactions for a given type
+  """
+  @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
+  def count_transactions_by_type(type) do
+    impl().count_transactions_by_type(type)
+  end
+
+  @doc """
+  Get the last transaction address from a transaction chain
+  """
+  @spec get_last_chain_address(binary()) :: binary()
+  def get_last_chain_address(address) when is_binary(address) do
+    impl().get_last_chain_address(address)
+  end
+
+  @doc """
+  Get the last transaction address from a transaction chain before a given date
+  """
+  @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
+  def get_last_chain_address(address, timestamp) when is_binary(address) do
+    impl().get_last_chain_address(address, timestamp)
+  end
+
+  @doc """
+  Get the first transaction address from a transaction chain
+  """
+  @spec get_first_chain_address(binary()) :: binary()
+  def get_first_chain_address(address) when is_binary(address) do
+    impl().get_first_chain_address(address)
+  end
+
+  @doc """
+  Get the first public key from one the public key of the chainn
+  """
+  @spec get_first_public_key(Crypto.key()) :: Crypto.key()
+  def get_first_public_key(public_key) when is_binary(public_key) do
+    impl().get_first_public_key(public_key)
   end
 
   defp impl do

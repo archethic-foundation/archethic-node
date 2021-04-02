@@ -18,7 +18,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
 
   alias Uniris.PubSub
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
@@ -92,28 +91,14 @@ defmodule UnirisWeb.GraphQLSchemaTest do
   describe "query: last_transaction" do
     test "should retrieve the last transaction of a chain", %{conn: conn} do
       first_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      second_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      third_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-      ChainLookup.register_last_address(first_addr, first_addr, DateTime.utc_now())
-
-      ChainLookup.register_last_address(
-        first_addr,
-        second_addr,
-        DateTime.utc_now() |> DateTime.add(1)
-      )
-
-      ChainLookup.register_last_address(
-        first_addr,
-        third_addr,
-        DateTime.utc_now() |> DateTime.add(2)
-      )
+      last_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockDB
-      |> stub(:get_transaction, fn ^third_addr, _ ->
+      |> expect(:get_last_chain_address, fn _addr -> last_address end)
+      |> stub(:get_transaction, fn ^last_address, _ ->
         {:ok,
          %Transaction{
-           address: third_addr,
+           address: last_address,
            timestamp: DateTime.utc_now(),
            type: :transfer,
            data: %TransactionData{}
@@ -129,11 +114,15 @@ defmodule UnirisWeb.GraphQLSchemaTest do
       assert %{"data" => %{"last_transaction" => %{"address" => address}}} =
                json_response(conn, 200)
 
-      assert third_addr == Base.decode16!(address, case: :mixed)
+      assert last_address == Base.decode16!(address, case: :mixed)
     end
 
     test "should return an error when no last transaction on this chain", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      MockDB
+      |> expect(:get_last_chain_address, fn addr -> addr end)
+      |> expect(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
 
       MockClient
       |> stub(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]}, _ ->

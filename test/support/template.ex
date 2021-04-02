@@ -6,6 +6,7 @@ defmodule UnirisCase do
   alias Uniris.Account.MemTables.UCOLedger
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.ECDSA
 
   alias Uniris.Election.Constraints
@@ -19,7 +20,6 @@ defmodule UnirisCase do
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.MemTables.PendingLedger
 
@@ -49,10 +49,13 @@ defmodule UnirisCase do
     |> stub(:get_beacon_slot, fn _, _ -> {:error, :not_found} end)
     |> stub(:get_beacon_slots, fn _, _ -> [] end)
     |> stub(:get_beacon_summary, fn _, _ -> {:error, :not_found} end)
-
-    {:ok, counter_node_keys_pid} = Agent.start_link(fn -> 0 end)
-    {:ok, counter_node_shared_keys_pid} = Agent.start_link(fn -> 0 end)
-    {:ok, counter_network_pool_keys_pid} = Agent.start_link(fn -> 0 end)
+    |> stub(:get_last_chain_address, fn addr -> addr end)
+    |> stub(:get_last_chain_address, fn addr, _ -> addr end)
+    |> stub(:get_first_public_key, fn pub -> pub end)
+    |> stub(:get_first_chain_address, fn addr -> addr end)
+    |> stub(:chain_size, fn _ -> 0 end)
+    |> stub(:list_transactions_by_type, fn _, _ -> [] end)
+    |> stub(:count_transactions_by_type, fn _ -> 0 end)
 
     MockCrypto
     |> stub(:child_spec, fn _ -> {:ok, self()} end)
@@ -97,25 +100,9 @@ defmodule UnirisCase do
       {pub, _} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
       pub
     end)
-    |> stub(:increment_number_of_generate_node_keys, fn ->
-      Agent.update(counter_node_keys_pid, &(&1 + 1))
-    end)
-    |> stub(:increment_number_of_generate_node_shared_secrets_keys, fn ->
-      Agent.update(counter_node_shared_keys_pid, &(&1 + 1))
-    end)
-    |> stub(:increment_number_of_generate_network_pool_keys, fn ->
-      Agent.update(counter_network_pool_keys_pid, &(&1 + 1))
-    end)
     |> stub(:decrypt_with_node_key!, fn cipher ->
       {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
       Crypto.ec_decrypt!(cipher, pv)
-    end)
-    |> stub(:number_of_node_keys, fn -> Agent.get(counter_node_keys_pid, & &1) end)
-    |> stub(:number_of_node_shared_secrets_keys, fn ->
-      Agent.get(counter_node_shared_keys_pid, & &1)
-    end)
-    |> stub(:number_of_network_pool_keys, fn ->
-      Agent.get(counter_network_pool_keys_pid, & &1)
     end)
     |> stub(:encrypt_node_shared_secrets_transaction_seed, fn secret_key ->
       Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
@@ -128,7 +115,6 @@ defmodule UnirisCase do
     |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 
-    start_supervised!(ChainLookup)
     start_supervised!(NFTLedger)
     start_supervised!(UCOLedger)
     start_supervised!(KOLedger)
@@ -139,6 +125,7 @@ defmodule UnirisCase do
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkStatistics)
     start_supervised!(NetworkLookup)
+    start_supervised!(KeystoreCounter)
 
     :ok
   end

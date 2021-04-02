@@ -3,7 +3,6 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
 
   alias Uniris.Crypto
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.PendingLedger
   alias Uniris.TransactionChain.MemTablesLoader
   alias Uniris.TransactionChain.Transaction
@@ -15,27 +14,11 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
   setup :verify_on_exit!
 
   setup do
-    start_supervised!(ChainLookup)
     start_supervised!(PendingLedger)
     :ok
   end
 
   describe "load_transaction/1" do
-    test "should track chain history and type of the transaction " do
-      assert :ok =
-               %Transaction{
-                 address: "@Alice2",
-                 timestamp: DateTime.utc_now(),
-                 previous_public_key: "Alice1",
-                 data: %TransactionData{},
-                 type: :transfer
-               }
-               |> MemTablesLoader.load_transaction()
-
-      assert ["@Alice2"] == ChainLookup.list_addresses_by_type(:transfer)
-      assert 1 == ChainLookup.get_chain_length("@Alice2")
-    end
-
     test "should track pending transaction when a code proposal transaction is loaded" do
       assert :ok =
                %Transaction{
@@ -133,19 +116,10 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
           }
         ]
       end)
-      |> stub(:list_last_transaction_addresses, fn ->
-        [{"@Alice1", "@Alice2", DateTime.utc_now()}]
-      end)
 
       assert {:ok, _} = MemTablesLoader.start_link()
 
-      assert 2 == ChainLookup.get_chain_length(Crypto.hash("Alice2"))
-
-      assert [Crypto.hash("Alice2"), Crypto.hash("Alice1")] ==
-               ChainLookup.list_addresses_by_type(:transfer)
-
       assert ["@CodeProp1", "@CodeApproval1"] == PendingLedger.list_signatures("@CodeProp1")
-      assert assert "@Alice2" == ChainLookup.get_last_chain_address("@Alice1")
     end
   end
 end

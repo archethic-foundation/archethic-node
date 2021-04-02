@@ -4,6 +4,8 @@ defmodule Uniris.DBImpl do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Summary
 
+  alias Uniris.Crypto
+
   alias Uniris.TransactionChain.Transaction
 
   @callback migrate() :: :ok
@@ -23,4 +25,14 @@ defmodule Uniris.DBImpl do
   @callback get_beacon_slot(subset :: binary(), date :: DateTime.t()) ::
               {:ok, Slot.t()} | {:error, :not_found}
   @callback get_beacon_slots(subset :: binary(), from_date :: DateTime.t()) :: Enumerable.t()
+
+  @callback chain_size(address :: binary()) :: non_neg_integer()
+  @callback list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
+              Enumerable.t()
+  @callback count_transactions_by_type(type :: Transaction.transaction_type()) ::
+              non_neg_integer()
+  @callback get_last_chain_address(binary()) :: binary()
+  @callback get_last_chain_address(binary(), DateTime.t()) :: binary()
+  @callback get_first_chain_address(binary()) :: binary()
+  @callback get_first_public_key(Crypto.key()) :: binary()
 end

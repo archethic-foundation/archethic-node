@@ -3,7 +3,6 @@ defmodule Uniris.TransactionChain.Supervisor do
 
   use Supervisor
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.MemTables.PendingLedger
   alias Uniris.TransactionChain.MemTablesLoader
@@ -15,7 +14,7 @@ defmodule Uniris.TransactionChain.Supervisor do
   end
 
   def init(_args) do
-    optional_children = [ChainLookup, PendingLedger, KOLedger, MemTablesLoader]
+    optional_children = [PendingLedger, KOLedger, MemTablesLoader]
 
     children = Utils.configurable_children(optional_children)
 

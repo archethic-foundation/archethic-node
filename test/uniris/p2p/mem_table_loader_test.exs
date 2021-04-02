@@ -5,7 +5,6 @@ defmodule Uniris.P2P.MemTableLoaderTest do
   alias Uniris.P2P.MemTableLoader
   alias Uniris.P2P.Node
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -18,6 +17,10 @@ defmodule Uniris.P2P.MemTableLoaderTest do
   describe "load_transaction/1" do
     test "should extract from transaction the node endpoint and the node to the table" do
       tx = create_node_transaction()
+
+      MockDB
+      |> expect(:get_first_public_key, fn pub -> pub end)
+
       assert :ok = MemTableLoader.load_transaction(tx)
 
       assert {:ok,
@@ -47,16 +50,16 @@ defmodule Uniris.P2P.MemTableLoaderTest do
   describe "start_link/1" do
     test "should fetch the all the node transactions add integrate them" do
       node_tx = create_node_transaction()
-      :ok = ChainLookup.add_transaction_by_type(node_tx.address, :node, node_tx.timestamp)
 
       MockDB
-      |> stub(:get_transaction, fn address, _ ->
-        if node_tx.address == address do
-          {:ok, node_tx}
-        else
-          raise "Transaction not exists #{address}}"
-        end
+      |> stub(:list_transactions_by_type, fn
+        :node, _ ->
+          [node_tx]
+
+        :node_shared_secrets, _ ->
+          []
       end)
+      |> expect(:get_first_public_key, fn pub -> pub end)
 
       assert {:ok, _} = MemTableLoader.start_link()
       assert ["Node1"] == MemTable.list_node_first_public_keys()
@@ -104,29 +107,16 @@ defmodule Uniris.P2P.MemTableLoaderTest do
         timestamp: DateTime.utc_now() |> DateTime.add(10)
       }
 
-      :ok =
-        ChainLookup.add_transaction_by_type(
-          shared_secret_tx1.address,
-          :node_shared_secrets,
-          shared_secret_tx1.timestamp
-        )
-
-      :ok =
-        ChainLookup.add_transaction_by_type(
-          shared_secret_tx2.address,
-          :node_shared_secrets,
-          shared_secret_tx2.timestamp
-        )
-
       MockDB
-      |> stub(:get_transaction, fn address, _ ->
-        case address do
-          "@NodeSharedSecrets1" ->
-            {:ok, shared_secret_tx1}
+      |> stub(:list_transactions_by_type, fn
+        :node_shared_secrets, _ ->
+          [
+            shared_secret_tx2,
+            shared_secret_tx1
+          ]
 
-          "@NodeSharedSecrets2" ->
-            {:ok, shared_secret_tx2}
-        end
+        :node, _ ->
+          []
       end)
 
       assert {:ok, _} = MemTableLoader.start_link()

@@ -15,7 +15,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Node
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -49,6 +48,12 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
+      MockDB
+      |> expect(:list_transactions_by_type, fn
+        :node_shared_secrets, _ ->
+          []
+      end)
+
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -88,34 +93,24 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
           Crypto.node_shared_secrets_public_key(Crypto.number_of_node_shared_secrets_keys())
         )
 
-      ChainLookup.add_transaction_by_type(prev_address1, :node_shared_secrets, DateTime.utc_now())
-
       prev_address2 =
         Crypto.hash(
           Crypto.node_shared_secrets_public_key(Crypto.number_of_node_shared_secrets_keys() + 1)
         )
 
-      ChainLookup.add_transaction_by_type(
-        prev_address2,
-        :node_shared_secrets,
-        DateTime.utc_now() |> DateTime.add(2)
-      )
-
       MockDB
-      |> stub(:get_transaction, fn address, _fields ->
-        if address == prev_address1 do
-          {:ok,
-           %Transaction{
-             type: :node_shared_secrets,
-             address: prev_address1
-           }}
-        else
-          {:ok,
-           %Transaction{
-             type: :node_shared_secrets,
-             address: prev_address2
-           }}
-        end
+      |> expect(:list_transactions_by_type, fn
+        :node_shared_secrets, _ ->
+          [
+            %Transaction{
+              address: prev_address2,
+              type: :node_shared_secrets
+            },
+            %Transaction{
+              address: prev_address1,
+              type: :node_shared_secrets
+            }
+          ]
       end)
 
       P2P.add_node(%Node{
@@ -134,7 +129,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
-      Crypto.increment_number_of_generate_node_shared_secrets_keys()
+      Crypto.KeystoreCounter.set_node_shared_secrets_key_counter(1)
 
       tx =
         Transaction.new(

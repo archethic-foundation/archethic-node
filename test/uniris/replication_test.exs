@@ -288,6 +288,7 @@ defmodule Uniris.ReplicationTest do
       |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
+      |> expect(:get_last_chain_address, fn _ -> "@Alice2" end)
 
       assert :ok =
                Replication.acknowledge_previous_storage_nodes(
@@ -304,6 +305,7 @@ defmodule Uniris.ReplicationTest do
       |> stub(:add_last_transaction_address, fn _address, _last_address, _ ->
         :ok
       end)
+      |> expect(:get_last_chain_address, fn _ -> "@Alice2" end)
       |> stub(:get_transaction, fn _, _ ->
         {:ok, %Transaction{previous_public_key: "Alice1"}}
       end)

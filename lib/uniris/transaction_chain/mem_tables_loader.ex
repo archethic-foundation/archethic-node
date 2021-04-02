@@ -8,7 +8,6 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   alias Uniris.DB
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.PendingLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -22,12 +21,6 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
   end
 
   def init(_args) do
-    DB.list_last_transaction_addresses()
-    |> Stream.each(fn {address, last_address, timestamp} ->
-      ChainLookup.register_last_address(address, last_address, timestamp)
-    end)
-    |> Stream.run()
-
     DB.list_transactions(@query_fields)
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
@@ -40,26 +33,12 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(tx = %Transaction{address: tx_address, type: tx_type}) do
-    :ok = handle_chain_history(tx)
-    :ok = handle_type_tracking(tx)
     :ok = handle_pending_transaction(tx)
     :ok = handle_transaction_recipients(tx)
 
     Logger.debug("Loaded into in memory chain tables",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
-  end
-
-  defp handle_chain_history(%Transaction{
-         address: address,
-         timestamp: timestamp,
-         previous_public_key: previous_public_key
-       }) do
-    ChainLookup.reverse_link(address, previous_public_key, timestamp)
-  end
-
-  defp handle_type_tracking(%Transaction{address: address, type: type, timestamp: timestamp}) do
-    ChainLookup.add_transaction_by_type(address, type, timestamp)
   end
 
   defp handle_pending_transaction(%Transaction{address: address, type: :code_proposal}) do

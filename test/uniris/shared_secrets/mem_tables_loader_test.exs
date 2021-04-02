@@ -1,13 +1,10 @@
 defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   use ExUnit.Case
 
-  alias Uniris.Crypto
-
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.MemTablesLoader
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -20,13 +17,15 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   setup do
     start_supervised!(NetworkLookup)
     start_supervised!(OriginKeyLookup)
-    start_supervised!(ChainLookup)
     start_supervised!(KOLedger)
     :ok
   end
 
   describe "load_transaction/1" do
     test "should load node transaction and first node public key as origin key" do
+      MockDB
+      |> expect(:get_first_public_key, fn _ -> "Node0" end)
+
       tx = %Transaction{previous_public_key: "Node0", type: :node}
       assert :ok = MemTablesLoader.load_transaction(tx)
 
@@ -34,7 +33,9 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
     end
 
     test "should load transaction but node add node public key as origin key (already existing)" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0", DateTime.utc_now())
+      MockDB
+      |> stub(:get_first_public_key, fn _ -> "Node0" end)
+
       tx = %Transaction{previous_public_key: "Node0", type: :node}
       :ok = MemTablesLoader.load_transaction(tx)
 
@@ -91,14 +92,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
   describe "start_link/1" do
     test "should load transactions from database and fill the origin key lookup table" do
-      ChainLookup.add_transaction_by_type(
-        "@OriginSharedSecrets1",
-        :origin_shared_secrets,
-        DateTime.utc_now()
-      )
-
-      ChainLookup.add_transaction_by_type("@Node1", :node, DateTime.utc_now())
-
       origin_shared_secrets_tx = %Transaction{
         type: :origin_shared_secrets,
         data: %TransactionData{
@@ -112,13 +105,14 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
       node_tx = %Transaction{previous_public_key: "Node0", type: :node}
 
       MockDB
-      |> stub(:get_transaction, fn
-        "@Node1", _ ->
-          {:ok, node_tx}
+      |> stub(:list_transactions_by_type, fn
+        :node, _ ->
+          [node_tx]
 
-        "@OriginSharedSecrets1", _ ->
-          {:ok, origin_shared_secrets_tx}
+        :origin_shared_secrets, _ ->
+          [origin_shared_secrets_tx]
       end)
+      |> expect(:get_first_public_key, fn _ -> "Node0" end)
 
       assert {:ok, _} = MemTablesLoader.start_link()
 

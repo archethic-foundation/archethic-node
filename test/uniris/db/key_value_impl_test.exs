@@ -37,6 +37,7 @@ defmodule Uniris.DB.KeyValueImplTest do
     assert :undefined != :ets.info(:uniris_kv_db_beacon_slots)
     assert :undefined != :ets.info(:uniris_kv_db_beacon_slot)
     assert :undefined != :ets.info(:uniris_kv_db_beacon_summary)
+    assert :undefined != :ets.info(:uniris_kv_transactions_type_lookup)
   end
 
   test "write_transaction/1 should persist the transaction in the KV", %{root_dir: root_dir} do
@@ -56,7 +57,8 @@ defmodule Uniris.DB.KeyValueImplTest do
     chain = [create_transaction(1), create_transaction(0)]
     assert :ok = KV.write_transaction_chain(chain)
 
-    [{_, _}, {_, _}] = :ets.lookup(:uniris_kv_db_chain, List.first(chain).address)
+    [{_, _}, {_, _}] = :ets.lookup(:uniris_kv_db_chain, {:addresses, List.first(chain).address})
+    assert [{_, 2}] = :ets.lookup(:uniris_kv_db_chain, {:size, List.first(chain).address})
 
     Enum.all?(chain, fn tx ->
       assert [{_, _}] = :ets.lookup(:uniris_kv_db_transactions, tx.address)
@@ -221,6 +223,98 @@ defmodule Uniris.DB.KeyValueImplTest do
     end
   end
 
+  test "chain_size/1 should return the size of a transaction chain", %{root_dir: root_dir} do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    chain = [create_transaction(1), create_transaction(0)]
+    assert :ok = KV.write_transaction_chain(chain)
+
+    assert 2 == KV.chain_size(List.first(chain).address)
+
+    assert 0 == KV.chain_size(:crypto.strong_rand_bytes(32))
+  end
+
+  test "list_transactions_by_type/1 should return the list of transaction by the given type", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    chain = [create_transaction(1, :transfer), create_transaction(0, :hosting)]
+    assert :ok = KV.write_transaction_chain(chain)
+
+    assert [List.first(chain).address] ==
+             KV.list_transactions_by_type(:transfer) |> Enum.map(& &1.address)
+
+    assert [List.last(chain).address] ==
+             KV.list_transactions_by_type(:hosting) |> Enum.map(& &1.address)
+
+    assert [] == KV.list_transactions_by_type(:node) |> Enum.map(& &1.address)
+  end
+
+  test "count_transactions_by_type/1 should return the number of transactions for a given type",
+       %{root_dir: root_dir} do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    chain = [create_transaction(1, :transfer), create_transaction(0, :hosting)]
+    assert :ok = KV.write_transaction_chain(chain)
+
+    assert 1 == KV.count_transactions_by_type(:transfer)
+    assert 1 == KV.count_transactions_by_type(:hosting)
+    assert 0 == KV.count_transactions_by_type(:node)
+  end
+
+  test "get_last_chain_address/1 should return the last transaction address of a chain", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    KV.add_last_transaction_address("@Alice2", "@Alice3", ~U[2021-03-25 15:12:29Z])
+    KV.add_last_transaction_address("@Alice1", "@Alice2", ~U[2021-03-25 15:11:29Z])
+    KV.add_last_transaction_address("@Alice0", "@Alice1", ~U[2021-03-25 15:10:29Z])
+
+    assert "@Alice3" == KV.get_last_chain_address("@Alice0")
+    assert "@Alice3" == KV.get_last_chain_address("@Alice1")
+    assert "@Alice3" == KV.get_last_chain_address("@Alice2")
+    assert "@Alice3" == KV.get_last_chain_address("@Alice3")
+  end
+
+  test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime",
+       %{root_dir: root_dir} do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    KV.add_last_transaction_address("@Alice2", "@Alice3", ~U[2021-03-25 15:12:29Z])
+    KV.add_last_transaction_address("@Alice1", "@Alice2", ~U[2021-03-25 15:11:29Z])
+    KV.add_last_transaction_address("@Alice0", "@Alice1", ~U[2021-03-25 15:10:29Z])
+
+    assert "@Alice2" == KV.get_last_chain_address("@Alice1", ~U[2021-03-25 15:11:29Z])
+  end
+
+  test "get_first_chain_address/1 should return the first transaction address of a chain", %{
+    root_dir: root_dir
+  } do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    chain = [create_transaction(1, :transfer), create_transaction(0, :hosting)]
+    assert :ok = KV.write_transaction_chain(chain)
+
+    assert List.last(chain).address == KV.get_first_chain_address(List.first(chain).address)
+    assert List.last(chain).address == KV.get_first_chain_address(List.last(chain).address)
+  end
+
+  test "get_first_public_key/1 should return the first public key from a transaction address of a chain",
+       %{root_dir: root_dir} do
+    {:ok, _pid} = KV.start_link(root_dir: root_dir)
+
+    chain = [create_transaction(1, :transfer), create_transaction(0, :hosting)]
+    assert :ok = KV.write_transaction_chain(chain)
+
+    assert List.last(chain).previous_public_key ==
+             KV.get_first_public_key(List.first(chain).previous_public_key)
+
+    assert List.last(chain).previous_public_key ==
+             KV.get_first_public_key(List.last(chain).previous_public_key)
+  end
+
   test "should dump the tables after a delay", %{root_dir: root_dir} do
     Process.flag(:trap_exit, true)
 
@@ -236,7 +330,7 @@ defmodule Uniris.DB.KeyValueImplTest do
     assert 1 == KV.list_transactions() |> Enum.count()
   end
 
-  defp create_transaction(index \\ 0) do
+  defp create_transaction(index \\ 0, type \\ :transfer) do
     welcome_node = %Node{
       first_public_key: "key1",
       last_public_key: "key1",
@@ -278,7 +372,7 @@ defmodule Uniris.DB.KeyValueImplTest do
       storage_nodes: storage_nodes
     }
 
-    TransactionFactory.create_valid_transaction(context, [], index: index)
+    TransactionFactory.create_valid_transaction(context, [], index: index, type: type)
   end
 
   defp empty_keys(tx) do

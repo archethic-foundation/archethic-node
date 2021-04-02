@@ -63,11 +63,9 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "write_transaction_chain/1 should persist the transaction chain" do
-    {:ok, _pid} = Cassandra.start_link()
-
-    tx1 = create_transaction([], index: 0)
+    tx1 = create_transaction(index: 0)
     Process.sleep(100)
-    tx2 = create_transaction([], index: 1)
+    tx2 = create_transaction(index: 1)
 
     chain = [tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -95,7 +93,7 @@ defmodule Uniris.DB.CassandraImplTest do
   @tag infrastructure: true
   test "list_transactions/1 should stream the entire list of transactions with the requested fields" do
     Enum.each(1..500, fn i ->
-      tx = create_transaction([], seed: "seed_#{i}")
+      tx = create_transaction(seed: "seed_#{i}")
       Cassandra.write_transaction(tx)
     end)
 
@@ -107,9 +105,7 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_transaction/2 should retrieve the transaction with the requested fields " do
-    {:ok, _pid} = Cassandra.start_link()
-
-    tx = create_transaction([%UnspentOutput{from: "@Alice2", amount: 10, type: :UCO}])
+    tx = create_transaction(inputs: [%UnspentOutput{from: "@Alice2", amount: 10, type: :UCO}])
 
     assert :ok = Cassandra.write_transaction(tx)
 
@@ -130,8 +126,7 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_transaction_chain/2 should retrieve the transaction chain with the requested fields" do
-    {:ok, _pid} = Cassandra.start_link()
-    chain = [create_transaction([], index: 1), create_transaction([], index: 0)]
+    chain = [create_transaction(index: 1), create_transaction(index: 0)]
     assert :ok = Cassandra.write_transaction_chain(chain)
     chain = Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
     assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
@@ -261,7 +256,107 @@ defmodule Uniris.DB.CassandraImplTest do
     end
   end
 
-  defp create_transaction(inputs \\ [], opts \\ []) do
+  @tag infrastructure: true
+  test "chain_size/1 should return the size of a transaction chain" do
+    chain = [create_transaction(index: 1), create_transaction(index: 0)]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert 2 == Cassandra.chain_size(List.first(chain).address)
+
+    assert 0 == Cassandra.chain_size(:crypto.strong_rand_bytes(32))
+  end
+
+  @tag infrastructure: true
+  test "list_transactions_by_type/1 should return the list of transaction by the given type" do
+    chain = [
+      create_transaction(index: 1, type: :transfer),
+      create_transaction(index: 0, type: :hosting)
+    ]
+
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert [List.first(chain).address] ==
+             Cassandra.list_transactions_by_type(:transfer) |> Enum.map(& &1.address)
+
+    assert [List.last(chain).address] ==
+             Cassandra.list_transactions_by_type(:hosting) |> Enum.map(& &1.address)
+
+    assert [] == Cassandra.list_transactions_by_type(:node) |> Enum.map(& &1.address)
+  end
+
+  @tag infrastructure: true
+  test "count_transactions_by_type/1 should return the number of transactions for a given type" do
+    chain = [
+      create_transaction(index: 1, type: :transfer),
+      create_transaction(index: 0, type: :hosting)
+    ]
+
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert 1 == Cassandra.count_transactions_by_type(:transfer)
+    assert 1 == Cassandra.count_transactions_by_type(:hosting)
+    assert 0 == Cassandra.count_transactions_by_type(:node)
+  end
+
+  @tag infrastructure: true
+  test "get_last_chain_address/1 should return the last transaction address of a chain" do
+    tx1 = create_transaction(index: 0)
+    tx2 = create_transaction(index: 1)
+    tx3 = create_transaction(index: 2)
+
+    chain = [tx3, tx2, tx1]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert tx3.address == Cassandra.get_last_chain_address(tx3.address)
+    assert tx3.address == Cassandra.get_last_chain_address(tx2.address)
+    assert tx3.address == Cassandra.get_last_chain_address(tx1.address)
+    assert tx3.address == Cassandra.get_last_chain_address(Crypto.hash(tx1.previous_public_key))
+  end
+
+  @tag infrastructure: true
+  test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime" do
+    tx1 = create_transaction(index: 0)
+    tx2 = create_transaction(index: 1)
+    tx3 = create_transaction(index: 2)
+
+    chain = [tx3, tx2, tx1]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert tx3.address == Cassandra.get_last_chain_address(tx3.address, tx3.timestamp)
+    assert tx3.address == Cassandra.get_last_chain_address(tx2.address, tx3.timestamp)
+    assert tx2.address == Cassandra.get_last_chain_address(tx2.address, tx1.timestamp)
+    assert tx1.address == Cassandra.get_last_chain_address(tx1.address, tx1.timestamp)
+  end
+
+  @tag infrastructure: true
+  test "get_first_chain_address/1 should return the first transaction address of a chain" do
+    tx1 = create_transaction(index: 0)
+    tx2 = create_transaction(index: 1)
+    tx3 = create_transaction(index: 2)
+
+    chain = [tx3, tx2, tx1]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert tx1.address == Cassandra.get_first_chain_address(tx3.address)
+    assert tx1.address == Cassandra.get_first_chain_address(tx2.address)
+    assert tx1.address == Cassandra.get_first_chain_address(tx1.address)
+  end
+
+  @tag infrastructure: true
+  test "get_first_public_key/1 should return the first public key from a transaction address of a chain" do
+    tx1 = create_transaction(index: 0)
+    tx2 = create_transaction(index: 1)
+    tx3 = create_transaction(index: 2)
+
+    chain = [tx3, tx2, tx1]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx3.previous_public_key)
+    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx2.previous_public_key)
+    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx1.previous_public_key)
+  end
+
+  defp create_transaction(opts \\ []) do
     welcome_node = %Node{
       first_public_key: "key1",
       last_public_key: "key1",
@@ -303,6 +398,7 @@ defmodule Uniris.DB.CassandraImplTest do
       storage_nodes: storage_nodes
     }
 
+    inputs = Keyword.get(opts, :inputs, [])
     TransactionFactory.create_valid_transaction(context, inputs, opts)
   end
 

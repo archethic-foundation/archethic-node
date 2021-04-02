@@ -26,7 +26,6 @@ defmodule UnirisTest do
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionData
@@ -176,16 +175,8 @@ defmodule UnirisTest do
         available?: true
       })
 
-      ChainLookup.reverse_link(
-        Crypto.hash("Alice2"),
-        "Alice1",
-        DateTime.utc_now() |> DateTime.add(1)
-      )
-
-      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", DateTime.utc_now())
-      ChainLookup.get_last_chain_address(Crypto.hash("Alice1"))
-
       MockDB
+      |> expect(:get_last_chain_address, fn _ -> Crypto.hash("Alice2") end)
       |> expect(:get_transaction, fn address, _ ->
         if address == Crypto.hash("Alice2") do
           {:ok, %Transaction{previous_public_key: "Alice1"}}
@@ -221,6 +212,9 @@ defmodule UnirisTest do
         {:ok, %BatchResponses{responses: [{0, %Transaction{previous_public_key: "Alice1"}}]}}
       end)
 
+      MockDB
+      |> expect(:get_last_chain_address, fn addr -> addr end)
+
       assert {:ok, %Transaction{previous_public_key: "Alice1"}} =
                Uniris.get_last_transaction(Crypto.hash("Alice1"))
     end
@@ -249,6 +243,9 @@ defmodule UnirisTest do
       |> expect(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]}, _ ->
         {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
       end)
+
+      MockDB
+      |> expect(:get_last_chain_address, fn addr -> addr end)
 
       assert {:error, :transaction_not_exists} =
                Uniris.get_last_transaction(Crypto.hash("Alice1"))
@@ -450,19 +447,19 @@ defmodule UnirisTest do
         available?: true
       })
 
-      ChainLookup.reverse_link(
-        Crypto.hash("Alice3"),
-        "Alice2",
-        DateTime.utc_now() |> DateTime.add(2)
-      )
+      MockDB
+      |> stub(:chain_size, fn address ->
+        cond do
+          address == Crypto.hash("Alice1") ->
+            1
 
-      ChainLookup.reverse_link(
-        Crypto.hash("Alice2"),
-        "Alice1",
-        DateTime.utc_now() |> DateTime.add(1)
-      )
+          address == Crypto.hash("Alice2") ->
+            2
 
-      ChainLookup.reverse_link(Crypto.hash("Alice1"), "Alice0", DateTime.utc_now())
+          true ->
+            0
+        end
+      end)
 
       assert 1 == Uniris.get_transaction_chain_length(Crypto.hash("Alice1"))
       assert 2 == Uniris.get_transaction_chain_length(Crypto.hash("Alice2"))

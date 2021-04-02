@@ -4,13 +4,9 @@ defmodule Uniris.TransactionChainTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.GetLastTransactionAddress
-  alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
@@ -20,19 +16,14 @@ defmodule Uniris.TransactionChainTest do
   import Mox
 
   test "resolve_last_address/1 should retrieve the last address for a chain" do
-    Batcher.start_link()
+    MockDB
+    |> stub(:get_last_chain_address, fn
+      _, ~U[2021-03-25 15:11:29Z] ->
+        "@Alice1"
 
-    MockClient
-    |> stub(:send_message, fn _,
-                              %GetLastTransactionAddress{address: address, timestamp: timestamp},
-                              _ ->
-      address = ChainLookup.get_last_chain_address(address, timestamp)
-      {:ok, %LastTransactionAddress{address: address}}
+      _, ~U[2021-03-25 15:12:29Z] ->
+        "@Alice2"
     end)
-
-    ChainLookup.register_last_address("@Alice0", "@Alice1", ~U[2021-03-25 15:11:29Z])
-    ChainLookup.register_last_address("@Alice1", "@Alice2", ~U[2021-03-25 15:12:29Z])
-    ChainLookup.register_last_address("@Alice2", "@Alice3", ~U[2021-03-25 15:13:29Z])
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},

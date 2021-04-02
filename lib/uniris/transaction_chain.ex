@@ -16,7 +16,6 @@ defmodule Uniris.TransactionChain do
 
   alias Uniris.Replication
 
-  alias __MODULE__.MemTables.ChainLookup
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
   alias __MODULE__.MemTablesLoader
@@ -39,33 +38,20 @@ defmodule Uniris.TransactionChain do
   """
   @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
           Enumerable.t()
-  def list_transactions_by_type(type, fields) do
-    Stream.resource(
-      fn -> ChainLookup.list_addresses_by_type(type) end,
-      fn
-        [] ->
-          {:halt, []}
-
-        [address | rest] ->
-          {:ok, tx} = get_transaction(address, fields)
-          {[tx], rest}
-      end,
-      fn _ -> :ok end
-    )
-  end
+  defdelegate list_transactions_by_type(type, fields), to: DB
 
   @doc """
   Get the number of transactions for a given type
   """
-  @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
-  defdelegate count_transactions_by_type(type), to: ChainLookup, as: :count_addresses_by_type
+  @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
+  defdelegate count_transactions_by_type(type), to: DB
 
   @doc """
   Get the last transaction address from a transaction chain
   """
   @spec get_last_address(binary()) :: binary()
   defdelegate get_last_address(address),
-    to: ChainLookup,
+    to: DB,
     as: :get_last_chain_address
 
   @doc """
@@ -73,25 +59,22 @@ defmodule Uniris.TransactionChain do
   """
   @spec get_last_address(binary(), DateTime.t()) :: binary()
   defdelegate get_last_address(address, timestamp),
-    to: ChainLookup,
+    to: DB,
     as: :get_last_chain_address
 
   @doc """
   Register a last address from a previous address at a given date
   """
   @spec register_last_address(binary(), binary(), DateTime.t()) :: :ok
-  def register_last_address(previous_address, next_address, timestamp)
-      when is_binary(previous_address) and is_binary(next_address) do
-    :ok = ChainLookup.register_last_address(previous_address, next_address, timestamp)
-    :ok = DB.add_last_transaction_address(previous_address, next_address, timestamp)
-    :ok
-  end
+  defdelegate register_last_address(previous_address, next_address, timestamp),
+    to: DB,
+    as: :add_last_transaction_address
 
   @doc """
   Get the first public key from one the public key of the chain
   """
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
-  defdelegate get_first_public_key(previous_public_key), to: ChainLookup
+  defdelegate get_first_public_key(previous_public_key), to: DB, as: :get_first_public_key
 
   @doc """
   Get a transaction
@@ -122,7 +105,7 @@ defmodule Uniris.TransactionChain do
   """
   @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{address: address, type: type, timestamp: timestamp}) do
-    with false <- ChainLookup.transaction_exists?(address),
+    with false <- DB.transaction_exists?(address),
          :ok <- DB.write_transaction(tx) do
       KOLedger.remove_transaction(address)
       Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
@@ -150,7 +133,7 @@ defmodule Uniris.TransactionChain do
     %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} =
       Enum.at(sorted_chain, 0)
 
-    with false <- ChainLookup.transaction_exists?(tx_address),
+    with false <- DB.transaction_exists?(tx_address),
          :ok <- DB.write_transaction_chain(sorted_chain) do
       chain
       |> Stream.each(&KOLedger.remove_transaction(&1.address))
@@ -219,7 +202,7 @@ defmodule Uniris.TransactionChain do
   Return the size of transaction chain
   """
   @spec size(binary()) :: non_neg_integer()
-  defdelegate size(address), to: ChainLookup, as: :get_chain_length
+  defdelegate size(address), to: DB, as: :chain_size
 
   @doc """
   Get the last transaction from a given chain address
@@ -241,7 +224,7 @@ defmodule Uniris.TransactionChain do
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_first_transaction(address, fields \\ []) when is_binary(address) do
     address
-    |> ChainLookup.get_first_chain_address()
+    |> DB.get_first_chain_address()
     |> get_transaction(fields)
   end
 
