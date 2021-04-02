@@ -978,30 +978,38 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%ReplicateTransaction{transaction: tx}) do
-    roles =
-      [
-        chain: Replication.chain_storage_node?(tx, Crypto.node_public_key()),
-        beacon: Replication.beacon_storage_node?(tx, Crypto.node_public_key()),
-        IO: Replication.io_storage_node?(tx, Crypto.node_public_key())
-      ]
-      |> Utils.get_keys_from_value_match(true)
+    if TransactionChain.transaction_exists?(tx.address) do
+      Logger.debug("Transaction already existing",
+        transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      )
 
-    case roles do
-      [] ->
-        %Ok{}
+      %Ok{}
+    else
+      roles =
+        [
+          chain: Replication.chain_storage_node?(tx, Crypto.node_public_key()),
+          beacon: Replication.beacon_storage_node?(tx, Crypto.node_public_key()),
+          IO: Replication.io_storage_node?(tx, Crypto.node_public_key())
+        ]
+        |> Utils.get_keys_from_value_match(true)
 
-      replication_roles ->
-        Logger.info("Replicate transaction",
-          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
-        )
+      case roles do
+        [] ->
+          %Ok{}
 
-        Task.Supervisor.start_child(
-          TaskSupervisor,
-          fn -> Replication.process_transaction(tx, replication_roles, ack_storage?: true) end,
-          restart: :transient
-        )
+        replication_roles ->
+          Logger.info("Replicate transaction",
+            transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+          )
 
-        %Ok{}
+          Task.Supervisor.start_child(
+            TaskSupervisor,
+            fn -> Replication.process_transaction(tx, replication_roles, ack_storage?: true) end,
+            restart: :transient
+          )
+
+          %Ok{}
+      end
     end
   end
 

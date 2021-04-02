@@ -23,6 +23,7 @@ defmodule Uniris.Replication do
   alias Uniris.P2P.Message.AcknowledgeStorage
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Node
 
   alias Uniris.OracleChain
@@ -119,6 +120,10 @@ defmodule Uniris.Replication do
           :ok = acknowledge_storage(tx)
         else
           :ok
+        end
+
+        unless self_repair? do
+          forward_replication(tx)
         end
 
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
@@ -559,5 +564,12 @@ defmodule Uniris.Replication do
       node_list,
       Election.get_storage_constraints()
     )
+  end
+
+  defp forward_replication(tx = %Transaction{address: address, type: type}) do
+    address
+    |> chain_storage_nodes(type, P2P.list_nodes(availability: :global))
+    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: tx})
   end
 end
