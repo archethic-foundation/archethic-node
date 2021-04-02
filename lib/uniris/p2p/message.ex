@@ -977,8 +977,16 @@ defmodule Uniris.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransaction{transaction: tx}) do
-    if TransactionChain.transaction_exists?(tx.address) do
+  def process(%ReplicateTransaction{
+        transaction:
+          tx = %Transaction{
+            type: type,
+            address: address,
+            timestamp: timestamp,
+            validation_stamp: %ValidationStamp{ledger_operations: ledger_operations}
+          }
+      }) do
+    if TransactionChain.transaction_exists?(address) do
       Logger.debug("Transaction already existing",
         transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
       )
@@ -987,9 +995,9 @@ defmodule Uniris.P2P.Message do
     else
       roles =
         [
-          chain: Replication.chain_storage_node?(tx, Crypto.node_public_key()),
-          beacon: Replication.beacon_storage_node?(tx, Crypto.node_public_key()),
-          IO: Replication.io_storage_node?(tx, Crypto.node_public_key())
+          chain: Replication.chain_storage_node?(address, type, Crypto.node_public_key()),
+          beacon: Replication.beacon_storage_node?(address, timestamp, Crypto.node_public_key()),
+          IO: Replication.io_storage_node?(ledger_operations, Crypto.node_public_key())
         ]
         |> Utils.get_keys_from_value_match(true)
 

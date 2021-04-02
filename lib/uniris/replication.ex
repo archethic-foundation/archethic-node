@@ -477,34 +477,44 @@ defmodule Uniris.Replication do
     :ok
   end
 
-  @spec chain_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  @spec chain_storage_node?(
+          binary(),
+          Transaction.transaction_type(),
+          Crypto.key(),
+          list(Node.t())
+        ) :: boolean()
   def chain_storage_node?(
-        %Transaction{address: address, type: type},
+        address,
+        type,
         public_key,
         node_list \\ P2P.list_nodes(availability: :global)
-      ) do
+      )
+      when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
     address
     |> chain_storage_nodes(type, node_list)
     |> Utils.key_in_node_list?(public_key)
   end
 
-  @spec beacon_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
   def beacon_storage_node?(
-        %Transaction{address: address, timestamp: timestamp},
+        address,
+        timestamp = %DateTime{},
         public_key,
         node_list \\ P2P.list_nodes(availability: :global)
-      ) do
+      )
+      when is_binary(address) and is_binary(public_key) and is_list(node_list) do
     address
     |> beacon_storage_nodes(timestamp, node_list)
     |> Utils.key_in_node_list?(public_key)
   end
 
-  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  @spec io_storage_node?(LedgerOperations.t(), Crypto.key(), list(Node.t())) :: boolean()
   def io_storage_node?(
-        %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}},
+        ops = %LedgerOperations{},
         public_key,
         node_list \\ P2P.list_nodes(availability: :global)
-      ) do
+      )
+      when is_binary(public_key) and is_list(node_list) do
     ops
     |> io_storage_nodes(node_list)
     |> Utils.key_in_node_list?(public_key)
