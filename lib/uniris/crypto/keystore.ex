@@ -1,6 +1,8 @@
 defmodule Uniris.Crypto.Keystore do
   @moduledoc false
 
+  alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreImpl
 
   @behaviour KeystoreImpl
@@ -53,45 +55,37 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec node_public_key() :: Uniris.Crypto.key()
+  @spec node_public_key() :: Crypto.key()
   def node_public_key do
     impl().node_public_key()
   end
 
   @impl KeystoreImpl
-  @spec node_public_key(index :: number()) :: Uniris.Crypto.key()
+  @spec node_public_key(index :: number()) :: Crypto.key()
   def node_public_key(index) do
     impl().node_public_key(index)
   end
 
   @impl KeystoreImpl
-  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: Uniris.Crypto.key()
+  @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: Crypto.key()
   def node_shared_secrets_public_key(index) do
     impl().node_shared_secrets_public_key(index)
   end
 
   @impl KeystoreImpl
-  @callback network_pool_public_key(index :: non_neg_integer()) :: Uniris.Crypto.key()
+  @callback network_pool_public_key(index :: non_neg_integer()) :: Crypto.key()
   def network_pool_public_key(index) do
     impl().network_pool_public_key(index)
   end
 
-  @impl KeystoreImpl
-  @spec increment_number_of_generate_node_keys() :: :ok
-  def increment_number_of_generate_node_keys do
-    impl().increment_number_of_generate_node_keys()
+  @spec set_number_of_generate_node_shared_secrets_keys(non_neg_integer()) :: :ok
+  def set_number_of_generate_node_shared_secrets_keys(nb) do
+    KeystoreCounter.set_node_shared_secrets_key_counter(nb)
   end
 
-  @impl KeystoreImpl
-  @spec increment_number_of_generate_node_shared_secrets_keys() :: :ok
-  def increment_number_of_generate_node_shared_secrets_keys do
-    impl().increment_number_of_generate_node_shared_secrets_keys()
-  end
-
-  @impl KeystoreImpl
-  @spec increment_number_of_generate_network_pool_keys() :: :ok
-  def increment_number_of_generate_network_pool_keys do
-    impl().increment_number_of_generate_network_pool_keys()
+  @spec set_number_of_generate_network_pool_keys(non_neg_integer()) :: :ok
+  def set_number_of_generate_network_pool_keys(nb) do
+    KeystoreCounter.set_network_pool_key_counter(nb)
   end
 
   @impl KeystoreImpl
@@ -106,22 +100,19 @@ defmodule Uniris.Crypto.Keystore do
     impl().decrypt_with_node_key!(cipher, index)
   end
 
-  @impl KeystoreImpl
   @spec number_of_node_keys() :: non_neg_integer()
   def number_of_node_keys do
-    impl().number_of_node_keys()
+    KeystoreCounter.get_node_key_counter()
   end
 
-  @impl KeystoreImpl
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
   def number_of_node_shared_secrets_keys do
-    impl().number_of_node_shared_secrets_keys()
+    KeystoreCounter.get_node_shared_key_counter()
   end
 
-  @impl KeystoreImpl
   @spec number_of_network_pool_keys() :: non_neg_integer()
   def number_of_network_pool_keys do
-    impl().number_of_network_pool_keys()
+    KeystoreCounter.get_network_pool_key_counter()
   end
 
   @impl KeystoreImpl

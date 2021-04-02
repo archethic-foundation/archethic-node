@@ -6,8 +6,8 @@ defmodule UnirisCase do
   alias Uniris.Account.MemTables.UCOLedger
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.ECDSA
+  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.Election.Constraints
 

@@ -1,7 +1,9 @@
 defmodule Uniris.Crypto.SoftwareKeystoreTest do
   use UnirisCase
+  use ExUnitProperties
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.SoftwareKeystore
 
   import Mox
@@ -49,35 +51,6 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     cipher = Crypto.ec_encrypt("hello", public_key)
 
     assert "hello" == SoftwareKeystore.decrypt_with_node_key!(cipher, 2)
-  end
-
-  test "number_of_node_keys/0 should return the last index of generated node keys" do
-    assert 0 == SoftwareKeystore.number_of_node_keys()
-  end
-
-  test "increment_number_of_generate_node_keys/0 should increment the number of generated node keys" do
-    assert :ok = SoftwareKeystore.increment_number_of_generate_node_keys()
-    assert 1 == SoftwareKeystore.number_of_node_keys()
-  end
-
-  test "number_of_node_shared_secrets_keys/0 should return the last index of generated node shared keys" do
-    SoftwareKeystore.start_link(seed: "seed")
-    assert 0 == SoftwareKeystore.number_of_node_shared_secrets_keys()
-  end
-
-  test "number_of_network_pool_keys/0 should return the last index of generated network pool keys" do
-    SoftwareKeystore.start_link(seed: "seed")
-    assert 0 == SoftwareKeystore.number_of_network_pool_keys()
-  end
-
-  test "increment_number_of_generate_node_shared_keys/0 should increment the number of generated node shared keys" do
-    assert :ok = SoftwareKeystore.increment_number_of_generate_node_shared_secrets_keys()
-    assert 1 == SoftwareKeystore.number_of_node_shared_secrets_keys()
-  end
-
-  test "increment_number_of_generate_network_pool_keys/0 should increment the number of generated network pool keys" do
-    assert :ok = SoftwareKeystore.increment_number_of_generate_network_pool_keys()
-    assert 1 == SoftwareKeystore.number_of_network_pool_keys()
   end
 
   test "decrypt_and_set_daily_nonce_seed/2 should load daily nonce keys by decrypting the seed" do
@@ -254,32 +227,63 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     assert pub == SoftwareKeystore.network_pool_public_key(2)
   end
 
-  test "load update of node derived keys" do
-    Enum.each(0..100, fn i ->
-      :ok = SoftwareKeystore.increment_number_of_generate_node_keys()
-      assert SoftwareKeystore.node_public_key(i - 1) != SoftwareKeystore.node_public_key()
-    end)
+  property "node public key/0 should is equal to the previous one" do
+    check all(nb_keys <- StreamData.positive_integer()) do
+      KeystoreCounter.set_node_key_counter(nb_keys)
+      assert SoftwareKeystore.node_public_key(nb_keys - 1) == SoftwareKeystore.node_public_key()
+    end
   end
 
-  test "load update of node shared secrets derived keys" do
-    public_key = SoftwareKeystore.node_public_key()
-    aes_key = :crypto.strong_rand_bytes(32)
-    transaction_seed = :crypto.strong_rand_bytes(32)
+  property "node public key/1 should is not be equal to the previous one" do
+    check all(nb_keys <- StreamData.positive_integer()) do
+      KeystoreCounter.set_node_key_counter(nb_keys)
 
-    encrypted_nonce = Crypto.aes_encrypt(transaction_seed, aes_key)
-    encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+      assert SoftwareKeystore.node_public_key(nb_keys - 1) !=
+               SoftwareKeystore.node_public_key(nb_keys)
+    end
+  end
 
-    :ok =
-      SoftwareKeystore.decrypt_and_set_node_shared_secrets_transaction_seed(
-        encrypted_nonce,
-        encrypted_key
-      )
+  property "node_shared_secrets_public_key/1 should not be equal to the previous one" do
+    check all(nb_keys <- StreamData.positive_integer()) do
+      public_key = SoftwareKeystore.node_public_key()
+      aes_key = :crypto.strong_rand_bytes(32)
+      transaction_seed = :crypto.strong_rand_bytes(32)
 
-    Enum.each(0..100, fn i ->
-      SoftwareKeystore.increment_number_of_generate_node_shared_secrets_keys()
+      encrypted_nonce = Crypto.aes_encrypt(transaction_seed, aes_key)
+      encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
 
-      assert SoftwareKeystore.node_shared_secrets_public_key(i - 1) !=
-               SoftwareKeystore.node_shared_secrets_public_key(i)
-    end)
+      :ok =
+        SoftwareKeystore.decrypt_and_set_node_shared_secrets_transaction_seed(
+          encrypted_nonce,
+          encrypted_key
+        )
+
+      KeystoreCounter.set_node_shared_secrets_key_counter(nb_keys)
+
+      assert SoftwareKeystore.node_shared_secrets_public_key(nb_keys - 1) !=
+               SoftwareKeystore.node_shared_secrets_public_key(nb_keys)
+    end
+  end
+
+  property "network_pool_public_key/1 should hould not be equal to the previous one" do
+    check all(nb_keys <- StreamData.positive_integer()) do
+      public_key = SoftwareKeystore.node_public_key()
+      aes_key = :crypto.strong_rand_bytes(32)
+      network_pool_seed = :crypto.strong_rand_bytes(32)
+
+      encrypted_nonce = Crypto.aes_encrypt(network_pool_seed, aes_key)
+      encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
+
+      :ok =
+        SoftwareKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+          encrypted_nonce,
+          encrypted_key
+        )
+
+      KeystoreCounter.set_node_shared_secrets_key_counter(nb_keys)
+
+      assert SoftwareKeystore.network_pool_public_key(nb_keys - 1) !=
+               SoftwareKeystore.network_pool_public_key(nb_keys)
+    end
   end
 end

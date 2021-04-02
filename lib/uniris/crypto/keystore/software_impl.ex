@@ -4,6 +4,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   use GenServer
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreImpl
 
   require Logger
@@ -17,22 +18,16 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   @impl GenServer
   def init(opts) do
     seed = Keyword.get(opts, :seed)
-
-    {:ok,
-     %{
-       node_seed: seed,
-       node_key_counter: 0,
-       node_shared_key_counter: 0,
-       network_pool_key_counter: 0
-     }}
+    {:ok, %{node_seed: seed}}
   end
 
   @impl GenServer
   def handle_call(
         {:sign_with_node_key, data},
         _,
-        state = %{node_key_counter: index, node_seed: seed}
+        state = %{node_seed: seed}
       ) do
+    index = KeystoreCounter.get_node_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
@@ -45,8 +40,9 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   def handle_call(
         {:sign_with_node_shared_key, data},
         _,
-        state = %{node_secrets_transaction_seed: seed, node_shared_key_counter: index}
+        state = %{node_secrets_transaction_seed: seed}
       ) do
+    index = KeystoreCounter.get_node_shared_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
@@ -63,8 +59,9 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   def handle_call(
         {:sign_with_network_pool_key, data},
         _,
-        state = %{network_pool_seed: seed, network_pool_key_counter: index}
+        state = %{network_pool_seed: seed}
       ) do
+    index = KeystoreCounter.get_network_pool_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
@@ -82,7 +79,8 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     {:reply, Crypto.hash([pv, data]), state}
   end
 
-  def handle_call(:node_public_key, _, state = %{node_seed: seed, node_key_counter: index}) do
+  def handle_call(:node_public_key, _, state = %{node_seed: seed}) do
+    index = KeystoreCounter.get_node_key_counter()
     {pub, _} = previous_keypair(seed, index)
     {:reply, pub, state}
   end
@@ -109,8 +107,9 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   def handle_call(
         {:decrypt_with_node_key, cipher},
         _,
-        state = %{node_seed: seed, node_key_counter: index}
+        state = %{node_seed: seed}
       ) do
+    index = KeystoreCounter.get_network_pool_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:reply, Crypto.ec_decrypt!(cipher, pv), state}
   rescue
@@ -130,18 +129,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
       {:reply, {:error, :decryption_failed}, state}
   end
 
-  def handle_call(:number_node_keys, _from, state = %{node_key_counter: nb}) do
-    {:reply, nb, state}
-  end
-
-  def handle_call(:number_node_shared_keys, _from, state = %{node_shared_key_counter: nb}) do
-    {:reply, nb, state}
-  end
-
-  def handle_call(:number_network_pool_keys, _, state = %{network_pool_key_counter: nb}) do
-    {:reply, nb, state}
-  end
-
   def handle_call(
         {:encrypt_node_shared_secrets_transaction_seed, key},
         _from,
@@ -158,29 +145,14 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     {:reply, Crypto.aes_encrypt(seed, key), state}
   end
 
-  def handle_call(:inc_node_key_counter, _from, state) do
-    new_state = Map.update!(state, :node_key_counter, &(&1 + 1))
-    {:reply, :ok, new_state}
-  end
-
-  def handle_call(:inc_node_shared_key_counter, _from, state) do
-    new_state = Map.update!(state, :node_shared_key_counter, &(&1 + 1))
-    {:reply, :ok, new_state}
-  end
-
-  def handle_call(:inc_network_pool_key_counter, _, state) do
-    new_state = Map.update!(state, :network_pool_key_counter, &(&1 + 1))
-    {:reply, :ok, new_state}
-  end
-
   def handle_call(
         {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key},
         _from,
         state = %{
-          node_seed: node_seed,
-          node_key_counter: index
+          node_seed: node_seed
         }
       ) do
+    index = KeystoreCounter.get_node_key_counter()
     {_, pv} = previous_keypair(node_seed, index)
     aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
     daily_nonce_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
@@ -192,8 +164,9 @@ defmodule Uniris.Crypto.SoftwareKeystore do
         {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed,
          encrypted_aes_key},
         _from,
-        state = %{node_seed: node_seed, node_key_counter: index}
+        state = %{node_seed: node_seed}
       ) do
+    index = KeystoreCounter.get_node_key_counter()
     {_, pv} = previous_keypair(node_seed, index)
     aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
     network_pool_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
@@ -205,10 +178,10 @@ defmodule Uniris.Crypto.SoftwareKeystore do
          encrypted_secret_key},
         _from,
         state = %{
-          node_seed: node_seed,
-          node_key_counter: index
+          node_seed: node_seed
         }
       ) do
+    index = KeystoreCounter.get_node_key_counter()
     {_, pv} = previous_keypair(node_seed, index)
     aes_key = Crypto.ec_decrypt!(encrypted_secret_key, pv)
     transaction_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
@@ -305,21 +278,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   @impl KeystoreImpl
-  def increment_number_of_generate_node_keys do
-    GenServer.call(__MODULE__, :inc_node_key_counter)
-  end
-
-  @impl KeystoreImpl
-  def increment_number_of_generate_node_shared_secrets_keys do
-    GenServer.call(__MODULE__, :inc_node_shared_key_counter)
-  end
-
-  @impl KeystoreImpl
-  def increment_number_of_generate_network_pool_keys do
-    GenServer.call(__MODULE__, :inc_network_pool_key_counter)
-  end
-
-  @impl KeystoreImpl
   def decrypt_with_node_key!(cipher) do
     case GenServer.call(__MODULE__, {:decrypt_with_node_key, cipher}) do
       {:error, :decryption_failed} ->
@@ -339,21 +297,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
       result ->
         result
     end
-  end
-
-  @impl KeystoreImpl
-  def number_of_node_keys do
-    GenServer.call(__MODULE__, :number_node_keys)
-  end
-
-  @impl KeystoreImpl
-  def number_of_node_shared_secrets_keys do
-    GenServer.call(__MODULE__, :number_node_shared_keys)
-  end
-
-  @impl KeystoreImpl
-  def number_of_network_pool_keys do
-    GenServer.call(__MODULE__, :number_network_pool_keys)
   end
 
   @impl KeystoreImpl

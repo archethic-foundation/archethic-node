@@ -6,6 +6,7 @@ defmodule Uniris.Crypto.Supervisor do
   alias Uniris.Crypto.Ed25519.LibSodiumPort
 
   alias Uniris.Crypto.Keystore
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreLoader
 
   alias Uniris.Utils
@@ -17,7 +18,7 @@ defmodule Uniris.Crypto.Supervisor do
   def init(_args) do
     load_storage_nonce()
 
-    optional_children = [keystore_child_spec(), KeystoreLoader]
+    optional_children = [keystore_child_spec(), KeystoreCounter, KeystoreLoader]
     children = [LibSodiumPort | Utils.configurable_children(optional_children)]
     Supervisor.init(children, strategy: :rest_for_one)
   end

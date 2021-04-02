@@ -2,6 +2,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
   @moduledoc false
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -24,21 +25,23 @@ defmodule Uniris.Crypto.KeystoreLoader do
       |> TransactionChain.size()
 
     if nb_node_keys > 0 do
-      Enum.each(1..nb_node_keys, fn _ ->
-        Crypto.increment_number_of_generate_node_keys()
-      end)
-
+      KeystoreCounter.set_node_key_counter(nb_node_keys)
       Logger.debug("#{nb_node_keys} node keys loaded into the keystore")
     end
 
-    nb_node_shared_secrets = TransactionChain.count_transactions_by_type(:node_shared_secrets)
+    nb_node_shared_secrets_keys =
+      TransactionChain.count_transactions_by_type(:node_shared_secrets)
 
-    if nb_node_shared_secrets > 0 do
-      Enum.each(1..nb_node_shared_secrets, fn _ ->
-        Crypto.increment_number_of_generate_node_shared_secrets_keys()
-      end)
+    if nb_node_shared_secrets_keys > 0 do
+      KeystoreCounter.set_node_shared_secrets_key_counter(nb_node_shared_secrets_keys)
+      Logger.debug("#{nb_node_shared_secrets_keys} node shared keys loaded into the keystore")
+    end
 
-      Logger.debug("#{nb_node_shared_secrets} node shared keys loaded into the keystore")
+    nb_network_pool_keys = TransactionChain.count_transactions_by_type(:node_rewards)
+
+    if nb_network_pool_keys > 0 do
+      KeystoreCounter.set_network_pool_key_counter(nb_network_pool_keys)
+      Logger.debug("#{nb_network_pool_keys} network pool keys loaded into the keystore")
     end
 
     last_node_shared_tx =
@@ -63,12 +66,17 @@ defmodule Uniris.Crypto.KeystoreLoader do
   Load the transaction for the Keystore indexing
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
+  def load_transaction(%Transaction{
+        type: :node,
+        address: address,
+        previous_public_key: previous_public_key
+      }) do
     node_first_public_key = Crypto.node_public_key(0)
 
     case TransactionChain.get_first_public_key(previous_public_key) do
       ^node_first_public_key ->
-        Crypto.increment_number_of_generate_node_keys()
+        nb_transactions = TransactionChain.size(address)
+        KeystoreCounter.set_node_key_counter(nb_transactions)
 
       _ ->
         :ok
@@ -76,10 +84,12 @@ defmodule Uniris.Crypto.KeystoreLoader do
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :node_shared_secrets,
         data: %TransactionData{keys: keys = %Keys{secret: secret}}
       }) do
-    :ok = Crypto.increment_number_of_generate_node_shared_secrets_keys()
+    nb_transactions = TransactionChain.size(address)
+    KeystoreCounter.set_node_shared_secrets_key_counter(nb_transactions)
 
     if Keys.authorized_key?(keys, Crypto.node_public_key()) do
       encrypted_secret_key = Keys.get_encrypted_key(keys, Crypto.node_public_key())
@@ -105,8 +115,9 @@ defmodule Uniris.Crypto.KeystoreLoader do
     end
   end
 
-  def load_transaction(%Transaction{type: :node_rewards}) do
-    Crypto.increment_number_of_generate_network_pool_keys()
+  def load_transaction(%Transaction{type: :node_rewards, address: address}) do
+    nb_transactions = TransactionChain.size(address)
+    KeystoreCounter.set_network_pool_key_counter(nb_transactions)
   end
 
   def load_transaction(_), do: :ok

@@ -302,39 +302,6 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Increment the counter for the number of generated node private keys.
-  This number is used for the key derivation to detect the latest index.
-  """
-  @spec increment_number_of_generate_node_keys() :: :ok
-  def increment_number_of_generate_node_keys do
-    Keystore.increment_number_of_generate_node_keys()
-    nb = Keystore.number_of_node_keys()
-    Logger.info("Node key index incremented (#{nb})")
-  end
-
-  @doc """
-  Increment the counter for the number of generated node shared secrets private keys.
-  This number is used for the key derivation to detect the latest index.
-  """
-  @spec increment_number_of_generate_node_shared_secrets_keys() :: :ok
-  def increment_number_of_generate_node_shared_secrets_keys do
-    Keystore.increment_number_of_generate_node_shared_secrets_keys()
-    nb = Keystore.number_of_node_shared_secrets_keys()
-    Logger.info("Node shared key index incremented (#{nb})")
-  end
-
-  @doc """
-  Increment the counter for the number of generated network pool private keys.
-  This number is used for the key derivation to detect the latest index.
-  """
-  @spec increment_number_of_generate_network_pool_keys() :: :ok
-  def increment_number_of_generate_network_pool_keys do
-    Keystore.increment_number_of_generate_network_pool_keys()
-    nb = Keystore.number_of_network_pool_keys()
-    Logger.info("Network pool key index incremented (#{nb})")
-  end
-
-  @doc """
   Return the number of node keys after incrementation
   """
   @spec number_of_node_keys() :: non_neg_integer()

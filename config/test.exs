@@ -26,6 +26,7 @@ config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 3
 config :uniris, Uniris.Contracts.Loader, enabled: false
 
 config :uniris, Uniris.Crypto.Keystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.KeystoreCounter, enabled: false
 config :uniris, Uniris.Crypto.KeystoreLoader, enabled: false
 config :uniris, Uniris.Crypto.SoftwareKeystore, seed: "fake seed"
 
@@ -93,7 +94,6 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   trigger_interval: 0,
   interval: 0
 
-config :uniris, Uniris.TransactionChain.MemTables.ChainLookup, enabled: false
 config :uniris, Uniris.TransactionChain.MemTables.PendingLedger, enabled: false
 config :uniris, Uniris.TransactionChain.MemTables.KOLedger, enabled: false
 config :uniris, Uniris.TransactionChain.MemTablesLoader, enabled: false

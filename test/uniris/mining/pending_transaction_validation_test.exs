@@ -2,6 +2,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   use UnirisCase, async: false
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.Governance.Pools.MemTable, as: PoolsMemTable
 
@@ -129,7 +130,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
-      Crypto.KeystoreCounter.set_node_shared_secrets_key_counter(1)
+      KeystoreCounter.set_node_shared_secrets_key_counter(1)
 
       tx =
         Transaction.new(

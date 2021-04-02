@@ -2,9 +2,9 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
   use ExUnit.Case
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreLoader
 
-  alias Uniris.TransactionChain.MemTables.ChainLookup
   alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -16,39 +16,31 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
   setup :set_mox_global
 
   setup do
-    start_supervised!(ChainLookup)
+    start_supervised!(KeystoreCounter)
     start_supervised!(KOLedger)
-
-    me = self()
 
     MockCrypto
     |> stub(:child_spec, fn _ -> {:ok, self()} end)
-    |> stub(:number_of_node_shared_secrets_keys, fn -> 0 end)
-    |> stub(:number_of_node_keys, fn -> 0 end)
-    |> stub(:increment_number_of_generate_node_keys, fn ->
-      send(me, :inc_node_keys)
-      :ok
-    end)
-    |> stub(:increment_number_of_generate_node_shared_secrets_keys, fn ->
-      send(me, :inc_shared_secrets_keys)
-      :ok
-    end)
 
     :ok
   end
 
   describe "load_transaction/1" do
-    test "should increment the number of node shared secrets keys" do
+    test "should set the number of node shared secrets keys" do
       MockCrypto
       |> expect(:node_public_key, fn -> "Node0" end)
 
       tx = %Transaction{
+        address: :crypto.strong_rand_bytes(32),
         type: :node_shared_secrets,
         data: %TransactionData{keys: %Keys{secret: ""}}
       }
 
+      MockDB
+      |> expect(:chain_size, fn _ -> 1 end)
+
       assert :ok = KeystoreLoader.load_transaction(tx)
-      assert_receive :inc_shared_secrets_keys
+      assert 1 == KeystoreCounter.get_node_shared_key_counter()
     end
 
     test "should decrypt and load node shared secrets seeds" do
@@ -94,7 +86,11 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       tx_keys = Keys.new([pub], secret_key, secret)
 
+      MockDB
+      |> expect(:chain_size, fn _ -> 0 end)
+
       tx = %Transaction{
+        address: :crypto.strong_rand_bytes(32),
         type: :node_shared_secrets,
         data: %TransactionData{keys: tx_keys}
       }
@@ -107,27 +103,34 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
     end
 
     test "should increment the number of node keys" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node", DateTime.utc_now())
-
       MockCrypto
       |> expect(:node_public_key, fn 0 -> "Node0" end)
 
-      tx = %Transaction{type: :node, previous_public_key: "Node0"}
+      MockDB
+      |> expect(:chain_size, fn _ -> 1 end)
+      |> expect(:get_first_chain_address, fn address -> address end)
+
+      tx = %Transaction{address: Crypto.hash("Node1"), type: :node, previous_public_key: "Node0"}
 
       assert :ok = KeystoreLoader.load_transaction(tx)
-      assert_receive :inc_node_keys
+      assert 1 == KeystoreCounter.get_node_key_counter()
     end
 
-    test "should not increment the number of node keys" do
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node", DateTime.utc_now())
-
+    test "should not set the number of node keys" do
       MockCrypto
       |> expect(:node_public_key, fn 0 -> "Node0" end)
 
-      tx = %Transaction{type: :node, previous_public_key: "Node29"}
+      MockDB
+      |> expect(:get_first_chain_address, fn address -> address end)
+
+      tx = %Transaction{
+        type: :node,
+        address: Crypto.hash("Node30"),
+        previous_public_key: "Node29"
+      }
 
       assert :ok = KeystoreLoader.load_transaction(tx)
-      refute_receive :inc_node_keys
+      assert 0 == KeystoreCounter.get_node_key_counter()
     end
   end
 
@@ -138,54 +141,55 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
       |> expect(:node_public_key, fn -> "Node1" end)
 
       MockDB
-      |> stub(:get_transaction, fn address, _ ->
-        cond do
-          address == Crypto.hash("Node2") ->
-            {:ok,
-             %Transaction{
-               address: Crypto.hash("Node2"),
-               type: :node,
-               previous_public_key: "Node1"
-             }}
-
-          address == Crypto.hash("Node1") ->
-            {:ok,
-             %Transaction{
-               address: Crypto.hash("Node1"),
-               type: :node,
-               previous_public_key: "Node0"
-             }}
-
-          address == "@NodeSharedSecrets1" ->
-            {:ok,
-             %Transaction{
-               address: "@NodeSharedSecrets1",
-               type: :node_shared_secrets,
-               data: %TransactionData{keys: %Keys{secret: :crypto.strong_rand_bytes(120)}}
-             }}
+      |> expect(:get_last_chain_address, fn addr ->
+        if Crypto.hash("Node0") == addr do
+          Crypto.hash("Node2")
+        else
+          addr
         end
       end)
+      |> stub(:chain_size, fn address ->
+        cond do
+          address == Crypto.hash("Node2") ->
+            2
 
-      ChainLookup.reverse_link(
-        Crypto.hash("Node2"),
-        "Node1",
-        DateTime.utc_now() |> DateTime.add(1)
-      )
+          address == "@NodeSharedSecrets1" ->
+            1
 
-      ChainLookup.reverse_link(Crypto.hash("Node1"), "Node0", DateTime.utc_now())
+          true ->
+            0
+        end
+      end)
+      |> stub(:count_transactions_by_type, fn _ -> 0 end)
+      |> stub(:list_transactions_by_type, fn
+        :node_shared_secrets, _ ->
+          [
+            %Transaction{
+              address: "@NodeSharedSecrets1",
+              type: :node_shared_secrets,
+              data: %TransactionData{keys: %Keys{secret: :crypto.strong_rand_bytes(120)}}
+            }
+          ]
 
-      ChainLookup.add_transaction_by_type(
-        "@NodeSharedSecrets1",
-        :node_shared_secrets,
-        DateTime.utc_now()
-      )
+        :node, _ ->
+          [
+            %Transaction{
+              address: Crypto.hash("Node2"),
+              type: :node,
+              previous_public_key: "Node1"
+            },
+            %Transaction{
+              address: Crypto.hash("Node1"),
+              type: :node,
+              previous_public_key: "Node0"
+            }
+          ]
+      end)
 
       assert {:ok, _} = KeystoreLoader.start_link()
 
-      assert_received :inc_node_keys
-      assert_received :inc_node_keys
-
-      assert_received :inc_shared_secrets_keys
+      assert 2 == KeystoreCounter.get_node_key_counter()
+      assert 1 == KeystoreCounter.get_node_shared_key_counter()
     end
   end
 end
