@@ -32,6 +32,7 @@ WORKDIR /opt/code
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
+COPY config ./config
 RUN mix do deps.get, deps.compile
 
 # build assets
