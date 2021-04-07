@@ -6,6 +6,8 @@ defmodule Uniris do
   alias __MODULE__.Account
   alias __MODULE__.Crypto
 
+  alias __MODULE__.Election
+
   alias __MODULE__.Mining
 
   alias __MODULE__.P2P
@@ -55,7 +57,8 @@ defmodule Uniris do
   """
   @spec send_new_transaction(Transaction.t()) :: :ok
   def send_new_transaction(tx = %Transaction{}) do
-    validation_nodes = Mining.transaction_validation_nodes(tx)
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
+    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed)
     do_send_transaction(tx, validation_nodes)
   end
 

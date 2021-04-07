@@ -3,6 +3,8 @@ defmodule Uniris.TransactionFactory do
 
   alias Uniris.Crypto
 
+  alias Uniris.Election
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
@@ -44,6 +46,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }
@@ -93,6 +96,7 @@ defmodule Uniris.TransactionFactory do
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()
@@ -132,6 +136,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp = %ValidationStamp{
       proof_of_work: <<0, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32)
     }
@@ -171,6 +176,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp = %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations: ledger_operations,
       signature: :crypto.strong_rand_bytes(32)
     }
@@ -209,6 +215,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }
@@ -250,6 +257,7 @@ defmodule Uniris.TransactionFactory do
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()
@@ -282,6 +290,7 @@ defmodule Uniris.TransactionFactory do
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()

@@ -30,12 +30,16 @@ defmodule Uniris.Mining.ValidationContext do
 
   alias Uniris.Crypto
 
+  alias Uniris.Election
+
   alias Uniris.Mining.ProofOfWork
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
   alias Uniris.Replication
+
+  alias Uniris.SharedSecrets
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -657,6 +661,7 @@ defmodule Uniris.Mining.ValidationContext do
       %ValidationStamp{
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         ledger_operations:
           %LedgerOperations{
             transaction_movements: resolve_transaction_movements(tx),
@@ -803,6 +808,7 @@ defmodule Uniris.Mining.ValidationContext do
            validation_stamp:
              stamp = %ValidationStamp{
                proof_of_work: pow,
+               proof_of_election: poe,
                proof_of_integrity: poi,
                ledger_operations:
                  operations = %LedgerOperations{
@@ -822,6 +828,13 @@ defmodule Uniris.Mining.ValidationContext do
       signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
       proof_of_work: fn -> valid_proof_of_work?(pow, tx) end,
       proof_of_integrity: fn -> TransactionChain.proof_of_integrity([tx, prev_tx]) == poi end,
+      proof_of_election: fn ->
+        Election.valid_proof_of_election?(
+          tx,
+          poe,
+          SharedSecrets.get_daily_nonce_public_key_at(tx.timestamp)
+        )
+      end,
       transaction_fee: fn -> Transaction.fee(tx) == fee end,
       transaction_movements: fn -> resolved_transaction_movements == tx_movements end,
       recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,

@@ -5,14 +5,14 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.Contracts
 
   alias Uniris.Election
-  alias Uniris.Election.ValidationConstraints
 
   alias Uniris.P2P
-  alias Uniris.P2P.Node
 
   alias Uniris.Mining
 
   alias Uniris.Replication
+
+  alias Uniris.SharedSecrets
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -24,6 +24,8 @@ defmodule Uniris.Replication.TransactionValidator do
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Uniris.TransactionChain.TransactionInput
 
+  require Logger
+
   @typedoc """
   Represents the different errors during the validation for the transaction replication
   """
@@ -33,6 +35,7 @@ defmodule Uniris.Replication.TransactionValidator do
           | :invalid_transaction_with_inconsistencies
           | :invalid_node_election
           | :invalid_proof_of_work
+          | :invalid_proof_of_election
           | :invalid_validation_stamp_signature
           | :invalid_transaction_fee
           | :invalid_transaction_movements
@@ -118,6 +121,7 @@ defmodule Uniris.Replication.TransactionValidator do
         {:error, :invalid_cross_validation_stamp_signatures}
 
       {:no_inconsistencies, false} ->
+        Logger.debug("Inconsistencies: #{inspect(Enum.map(cross_stamps, & &1.inconsistencies))}")
         {:error, :invalid_transaction_with_inconsistencies}
 
       {:election, false} ->
@@ -130,9 +134,11 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp validate_without_unspent_outputs(
          tx = %Transaction{
+           timestamp: timestamp,
            validation_stamp:
              validation_stamp = %ValidationStamp{
                proof_of_work: pow,
+               proof_of_election: poe,
                ledger_operations:
                  ops = %LedgerOperations{
                    fee: fee,
@@ -152,6 +158,13 @@ defmodule Uniris.Replication.TransactionValidator do
     resolved_tx_movements = resolve_transaction_movements(tx)
 
     with {:pow, true} <- {:pow, Transaction.verify_origin_signature?(tx, pow)},
+         {:poe, true} <-
+           {:poe,
+            Election.valid_proof_of_election?(
+              tx,
+              poe,
+              SharedSecrets.get_daily_nonce_public_key_at(timestamp)
+            )},
          {:signature, true} <-
            {:signature,
             ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key)},
@@ -172,6 +185,9 @@ defmodule Uniris.Replication.TransactionValidator do
     else
       {:pow, false} ->
         {:error, :invalid_proof_of_work}
+
+      {:poe, false} ->
+        {:error, :invalid_proof_of_election}
 
       {:signature, false} ->
         {:error, :invalid_validation_stamp_signature}
@@ -292,7 +308,7 @@ defmodule Uniris.Replication.TransactionValidator do
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
-  defp valid_node_election?(_tx, true), do: true
+  # defp valid_node_election?(_tx, true), do: true
 
   defp valid_node_election?(
          tx = %Transaction{
@@ -308,33 +324,12 @@ defmodule Uniris.Replication.TransactionValidator do
     coordinator_node_public_key =
       get_coordinator_node_public_key_from_node_movements(node_movements)
 
-    nb_of_validations_nodes =
-      case cross_validation_stamps do
-        [%CrossValidationStamp{node_public_key: key}] ->
-          if coordinator_node_public_key == key, do: 1, else: 2
+    validation_nodes =
+      Enum.uniq([
+        coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
+      ])
 
-        [_ | _] ->
-          length(cross_validation_stamps) + 1
-      end
-
-    %ValidationConstraints{validation_number: validation_number_fun} =
-      Election.get_validation_constraints()
-
-    with true <- validation_number_fun.(tx) == nb_of_validations_nodes,
-         %Node{authorized?: true} <- P2P.get_node_info() do
-      validation_nodes =
-        Enum.uniq([
-          coordinator_node_public_key | Enum.map(cross_validation_stamps, & &1.node_public_key)
-        ])
-
-      Mining.valid_election?(Transaction.to_pending(tx), validation_nodes)
-    else
-      false ->
-        false
-
-      %Node{} ->
-        true
-    end
+    Mining.valid_election?(tx, validation_nodes)
   end
 
   defp get_coordinator_node_public_key_from_node_movements(node_movements) do

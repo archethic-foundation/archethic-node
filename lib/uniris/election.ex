@@ -17,9 +17,38 @@ defmodule Uniris.Election do
   alias Uniris.TransactionChain.Transaction
 
   @doc """
+  Create a seed to sort the validation nodes. This will produce a proof for the election
+  """
+  @spec validation_nodes_election_seed_sorting(Transaction.t()) :: binary()
+  def validation_nodes_election_seed_sorting(tx = %Transaction{timestamp: timestamp}) do
+    tx_hash =
+      tx
+      |> Transaction.to_pending()
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
+    Crypto.sign_with_daily_nonce_key(tx_hash, timestamp)
+  end
+
+  @doc """
+  Verify if a proof of election is valid according to transaction and the given public key
+  """
+  @spec valid_proof_of_election?(Transaction.t(), binary, Crypto.key()) :: boolean
+  def valid_proof_of_election?(tx = %Transaction{}, proof_of_election, daily_nonce_public_key)
+      when is_binary(proof_of_election) and is_binary(daily_nonce_public_key) do
+    data =
+      tx
+      |> Transaction.to_pending()
+      |> Transaction.serialize()
+      |> Crypto.hash()
+
+    Crypto.verify(proof_of_election, data, daily_nonce_public_key)
+  end
+
+  @doc """
   Get the elected validation nodes for a given transaction and a list of nodes.
 
-  Each nodes public key is rotated with the daily nonce
+  Each nodes public key is rotated with the sorting seed
   to provide an unpredictable order yet reproducible.
 
   To achieve an unpredictable, global but locally executed, verifiable and reproducible
@@ -30,10 +59,53 @@ defmodule Uniris.Election do
   - the computation of the rotating keys
 
   Then each nodes selection is reduce via heuristic constraints via `ValidationConstraints`
+
+  ## Examples
+
+      iex> %Transaction{
+      ...>   address:
+      ...>     <<0, 120, 195, 32, 77, 84, 215, 196, 116, 215, 56, 141, 40, 54, 226, 48, 66, 254, 119,
+      ...>       11, 73, 77, 243, 125, 62, 94, 133, 67, 9, 253, 45, 134, 89>>,
+      ...>   type: :transfer,
+      ...>   timestamp: ~U[2020-06-25 08:57:04.288413Z],
+      ...>   data: %TransactionData{},
+      ...>   previous_public_key:
+      ...>     <<0, 239, 240, 90, 182, 66, 190, 68, 20, 250, 131, 83, 190, 29, 184, 177, 52, 166, 207,
+      ...>       80, 193, 110, 57, 6, 199, 152, 184, 24, 178, 179, 11, 164, 150>>,
+      ...>   previous_signature:
+      ...>     <<200, 70, 0, 25, 105, 111, 15, 161, 146, 188, 100, 234, 147, 62, 127, 8, 152, 60, 66,
+      ...>       169, 113, 255, 51, 112, 59, 200, 61, 63, 128, 228, 111, 104, 47, 15, 81, 185, 179, 36,
+      ...>       59, 86, 171, 7, 138, 199, 203, 252, 50, 87, 160, 107, 119, 131, 121, 11, 239, 169, 99,
+      ...>       203, 76, 159, 158, 243, 133, 133>>,
+      ...>   origin_signature:
+      ...>     <<162, 223, 100, 72, 17, 56, 99, 212, 78, 132, 166, 81, 127, 91, 214, 143, 221, 32, 106,
+      ...>       189, 247, 64, 183, 27, 55, 142, 254, 72, 47, 215, 34, 108, 233, 55, 35, 94, 49, 165,
+      ...>       180, 248, 229, 160, 229, 220, 191, 35, 80, 127, 213, 240, 195, 185, 165, 89, 172, 97,
+      ...>       170, 217, 57, 254, 125, 127, 62, 169>>
+      ...> }
+      ...> |> Election.validation_nodes(
+      ...>     "daily_nonce_proof",
+      ...>     [
+      ...>       %Node{last_public_key: "node1", geo_patch: "AAA"},
+      ...>       %Node{last_public_key: "node2", geo_patch: "DEF"},
+      ...>       %Node{last_public_key: "node3", geo_patch: "AA0"},
+      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
+      ...>       %Node{last_public_key: "node5", geo_patch: "F10"},
+      ...>       %Node{last_public_key: "node6", geo_patch: "ECA"}
+      ...>     ],
+      ...>     %ValidationConstraints{ validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end }
+      ...> )
+      [
+        %Node{last_public_key: "node3", geo_patch: "AA0"},
+        %Node{last_public_key: "node2", geo_patch: "DEF"},
+        %Node{last_public_key: "node6", geo_patch: "ECA"},
+        %Node{last_public_key: "node4", geo_patch: "3AC"},
+      ]
   """
-  @spec validation_nodes(Transaction.t(), list(Node.t())) :: [Node.t()]
+  @spec validation_nodes(Transaction.t(), binary(), list(Node.t())) :: [Node.t()]
   def validation_nodes(
         tx = %Transaction{},
+        sorting_seed,
         nodes,
         %ValidationConstraints{
           validation_number: validation_number_fun,
@@ -47,11 +119,11 @@ defmodule Uniris.Election do
     if length(nodes) < nb_validations do
       nodes
     else
-      do_validation_node_election(nodes, tx, nb_validations, min_geo_patch)
+      do_validation_node_election(nodes, tx, sorting_seed, nb_validations, min_geo_patch)
     end
   end
 
-  defp do_validation_node_election(nodes, tx, nb_validations, min_geo_patch) do
+  defp do_validation_node_election(nodes, tx, sorting_seed, nb_validations, min_geo_patch) do
     tx_hash =
       tx
       |> Transaction.to_pending()
@@ -59,7 +131,7 @@ defmodule Uniris.Election do
       |> Crypto.hash()
 
     nodes
-    |> sort_nodes_by_key_rotation(:daily_nonce, tx_hash)
+    |> sort_validation_nodes_by_key_rotation(sorting_seed, tx_hash)
     |> Enum.reduce_while(
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
       fn node = %Node{geo_patch: geo_patch}, acc ->
@@ -145,7 +217,7 @@ defmodule Uniris.Election do
     min_geo_patch = min_geo_patch_fun.()
 
     nodes
-    |> sort_nodes_by_key_rotation(:storage_nonce, address)
+    |> sort_storage_nodes_by_key_rotation(address)
     |> Enum.reduce_while(
       %{nb_nodes: 0, zones: %{}, nodes: []},
       fn node = %Node{
@@ -205,17 +277,17 @@ defmodule Uniris.Election do
   # This rotated key acts as sort mechanism to produce a fair node election
 
   # It requires the daily nonce or the storage nonce to be loaded in the Crypto keystore
-  defp sort_nodes_by_key_rotation(nodes, :daily_nonce, hash) do
+  defp sort_validation_nodes_by_key_rotation(nodes, sorting_seed, hash) do
     nodes
     |> Stream.map(fn node = %Node{last_public_key: last_public_key} ->
-      rotated_key = Crypto.hash_with_storage_nonce([last_public_key, hash])
+      rotated_key = Crypto.hash([last_public_key, hash, sorting_seed])
       {rotated_key, node}
     end)
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)
     |> Enum.map(fn {_, n} -> n end)
   end
 
-  defp sort_nodes_by_key_rotation(nodes, :storage_nonce, hash) do
+  defp sort_storage_nodes_by_key_rotation(nodes, hash) do
     nodes
     |> Stream.map(fn node = %Node{first_public_key: last_public_key} ->
       rotated_key = Crypto.hash_with_storage_nonce([last_public_key, hash])
@@ -250,7 +322,7 @@ defmodule Uniris.Election do
   defdelegate set_storage_constraints(constraints), to: Constraints
 
   @doc """
-  Find out the next authorized nodes using the TPS from the previous to determine based 
+  Find out the next authorized nodes using the TPS from the previous to determine based
   on the active geo patches if we need to more node related to the network load.
 
   ## Examples

@@ -11,6 +11,8 @@ defmodule Uniris.ReplicationTest do
 
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
 
+  alias Uniris.Election
+
   alias Uniris.P2P
   alias Uniris.P2P.Batcher
   alias Uniris.P2P.Message.BatchRequests
@@ -19,6 +21,7 @@ defmodule Uniris.ReplicationTest do
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
@@ -42,6 +45,11 @@ defmodule Uniris.ReplicationTest do
   setup do
     start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
     start_supervised!(Batcher)
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> SharedSecrets.MemTables.NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
     :ok
   end
 
@@ -183,6 +191,9 @@ defmodule Uniris.ReplicationTest do
              {1, %TransactionList{transactions: []}}
            ]
          }}
+
+      _, %BatchRequests{requests: [%ReplicateTransaction{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
     end)
 
     assert :ok = Replication.process_transaction(tx, [:chain, :beacon])
@@ -272,6 +283,7 @@ defmodule Uniris.ReplicationTest do
     validation_stamp =
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(0),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }

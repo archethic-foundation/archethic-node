@@ -16,6 +16,8 @@ defmodule Uniris.Mining do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.SharedSecrets
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
@@ -51,25 +53,51 @@ defmodule Uniris.Mining do
   @doc """
   Return the list of validation nodes for a given transaction and the current validation constraints
   """
-  @spec transaction_validation_nodes(Transaction.t()) :: list(Node.t())
-  def transaction_validation_nodes(tx = %Transaction{timestamp: timestamp}) do
+  @spec transaction_validation_nodes(Transaction.t(), binary()) :: list(Node.t())
+  def transaction_validation_nodes(tx = %Transaction{timestamp: timestamp}, sorting_seed)
+      when is_binary(sorting_seed) do
     constraints = Election.get_validation_constraints()
 
     node_list =
       P2P.list_nodes(authorized?: true, availability: :global)
       |> Enum.filter(&(DateTime.diff(timestamp, &1.authorization_date) > 0))
 
-    Election.validation_nodes(tx, node_list, constraints)
+    Election.validation_nodes(tx, sorting_seed, node_list, constraints)
   end
 
   @doc """
   Determines if the election of validation nodes performed by the welcome node is valid
   """
   @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
-  def valid_election?(tx = %Transaction{}, validation_node_public_keys)
+  def valid_election?(tx = %Transaction{validation_stamp: nil}, validation_node_public_keys)
       when is_list(validation_node_public_keys) do
-    nodes = transaction_validation_nodes(tx)
-    Enum.all?(nodes, &(&1.last_public_key in validation_node_public_keys))
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
+
+    validation_node_public_keys ==
+      tx
+      |> transaction_validation_nodes(sorting_seed)
+      |> Enum.map(& &1.last_public_key)
+  end
+
+  def valid_election?(
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{proof_of_election: poe}
+        },
+        validation_node_public_keys
+      )
+      when is_list(validation_node_public_keys) do
+    if Election.valid_proof_of_election?(
+         tx,
+         poe,
+         SharedSecrets.get_daily_nonce_public_key_at(tx.timestamp)
+       ) do
+      validation_node_public_keys ==
+        tx
+        |> transaction_validation_nodes(poe)
+        |> Enum.map(& &1.last_public_key)
+    else
+      false
+    end
   end
 
   @doc """

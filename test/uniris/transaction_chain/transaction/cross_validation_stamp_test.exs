@@ -17,6 +17,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
             inconsistencies <- gen_inconsistencies(),
             pow <- StreamData.binary(length: 33),
             poi <- StreamData.binary(length: 33),
+            poe <- StreamData.binary(length: 64),
             signature <- StreamData.binary(length: 64)
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
@@ -28,6 +29,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
       validation_stamp = %ValidationStamp{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_election: poe,
         ledger_operations: %LedgerOperations{},
         signature: signature
       }

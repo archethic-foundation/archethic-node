@@ -11,6 +11,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     :signature,
     :proof_of_work,
     :proof_of_integrity,
+    :proof_of_election,
     ledger_operations: %LedgerOperations{},
     recipients: [],
     errors: []
@@ -22,6 +23,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   Validation performed by a coordinator:
   - Proof of work: Origin public key matching the origin signature
   - Proof of integrity: Integrity proof from the entire transaction chain
+  - Proof of election: Digest which define the election's order of validation nodes
   - Ledger Operations: Set of ledger operations taken by the network such as fee, node movements, transaction movements and unspent outputs
   - Recipients: List of the last smart contract chain resolved addresses
   - Contract validation: Determine if the transaction coming from a contract is valid according to the constraints
@@ -32,6 +34,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
           signature: nil | binary(),
           proof_of_work: Crypto.key(),
           proof_of_integrity: Crypto.versioned_hash(),
+          proof_of_election: binary(),
           ledger_operations: LedgerOperations.t(),
           recipients: list(Crypto.versioned_hash()),
           errors: list(atom())
@@ -55,6 +58,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def extract_for_signature(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_election: poe,
         ledger_operations: ops,
         recipients: recipients,
         errors: errors
@@ -62,6 +66,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %__MODULE__{
       proof_of_work: pow,
       proof_of_integrity: poi,
+      proof_of_election: poe,
       ledger_operations: ops,
       recipients: recipients,
       errors: errors
@@ -78,6 +83,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...>     155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206>>,
       ...>   proof_of_integrity: <<0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...>     28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
+      ...>   proof_of_election: <<195, 51, 61, 55, 140, 12, 138, 246, 249, 106, 198, 175, 145, 9, 255, 133, 67,
+      ...>     240, 175, 53, 236, 65, 151, 191, 128, 11, 58, 103, 82, 6, 218, 31, 220, 114,
+      ...>     65, 3, 151, 209, 9, 84, 209, 105, 191, 180, 156, 157, 95, 25, 202, 2, 169,
+      ...>     112, 109, 54, 99, 40, 47, 96, 93, 33, 82, 40, 100, 13>>,
       ...>   ledger_operations: %LedgerOperations{
       ...>      fee: 0.1,
       ...>      transaction_movements: [],
@@ -99,6 +108,11 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       # Proof of integrity
       0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
+      # Proof of election
+      195, 51, 61, 55, 140, 12, 138, 246, 249, 106, 198, 175, 145, 9, 255, 133, 67,
+      240, 175, 53, 236, 65, 151, 191, 128, 11, 58, 103, 82, 6, 218, 31, 220, 114,
+      65, 3, 151, 209, 9, 84, 209, 105, 191, 180, 156, 157, 95, 25, 202, 2, 169,
+      112, 109, 54, 99, 40, 47, 96, 93, 33, 82, 40, 100, 13,
       # Fee
       63, 185, 153, 153, 153, 153, 153, 154,
       # Nb of transaction movements
@@ -124,6 +138,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def serialize(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_election: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         errors: errors,
@@ -131,7 +146,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       }) do
     pow_bitstring = if pow, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary,
+    <<pow_bitstring::1, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring>>
@@ -140,6 +155,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def serialize(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_election: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         errors: errors,
@@ -147,7 +163,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       }) do
     pow_bitstring = if pow, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary,
+    <<pow_bitstring::1, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
@@ -162,6 +178,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
+      ...> 195, 51, 61, 55, 140, 12, 138, 246, 249, 106, 198, 175, 145, 9, 255, 133, 67,
+      ...> 240, 175, 53, 236, 65, 151, 191, 128, 11, 58, 103, 82, 6, 218, 31, 220, 114,
+      ...> 65, 3, 151, 209, 9, 84, 209, 105, 191, 180, 156, 157, 95, 25, 202, 2, 169,
+      ...> 112, 109, 54, 99, 40, 47, 96, 93, 33, 82, 40, 100, 13,
       ...> 63, 185, 153, 153, 153, 153, 153, 154, 0, 0, 0, 0, 0, 64,
       ...> 67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...> 126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
@@ -174,6 +194,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
             155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,>>,
           proof_of_integrity: << 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
             28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
+          proof_of_election: <<195, 51, 61, 55, 140, 12, 138, 246, 249, 106, 198, 175, 145, 9, 255, 133, 67,
+            240, 175, 53, 236, 65, 151, 191, 128, 11, 58, 103, 82, 6, 218, 31, 220, 114,
+            65, 3, 151, 209, 9, 84, 209, 105, 191, 180, 156, 157, 95, 25, 202, 2, 169,
+            112, 109, 54, 99, 40, 47, 96, 93, 33, 82, 40, 100, 13>>,
           ledger_operations: %ValidationStamp.LedgerOperations{
             fee: 0.1,
             transaction_movements: [],
@@ -204,9 +228,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
           {<<curve_id::8>> <> key, rest}
       end
 
-    <<hash_id::8, rest::bitstring>> = rest
-    hash_size = Crypto.hash_size(hash_id)
-    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    <<poi_hash_id::8, rest::bitstring>> = rest
+    poi_hash_size = Crypto.hash_size(poi_hash_id)
+    <<poi_hash::binary-size(poi_hash_size), poe::binary-size(64), rest::bitstring>> = rest
 
     {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
 
@@ -220,7 +244,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     {
       %__MODULE__{
         proof_of_work: pow,
-        proof_of_integrity: <<hash_id::8>> <> hash,
+        proof_of_integrity: <<poi_hash_id::8, poi_hash::binary>>,
+        proof_of_election: poe,
         ledger_operations: ledger_ops,
         recipients: recipients,
         errors: errors,
@@ -235,6 +260,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %__MODULE__{
       proof_of_work: Map.get(stamp, :proof_of_work),
       proof_of_integrity: Map.get(stamp, :proof_of_integrity),
+      proof_of_election: Map.get(stamp, :proof_of_election),
       ledger_operations:
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
       recipients: Map.get(stamp, :recipients, []),
@@ -249,6 +275,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   def to_map(%__MODULE__{
         proof_of_work: pow,
         proof_of_integrity: poi,
+        proof_of_election: poe,
         ledger_operations: ledger_operations,
         recipients: recipients,
         signature: signature,
@@ -257,6 +284,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     %{
       proof_of_work: pow,
       proof_of_integrity: poi,
+      proof_of_election: poe,
       ledger_operations: LedgerOperations.to_map(ledger_operations),
       recipients: recipients,
       signature: signature,

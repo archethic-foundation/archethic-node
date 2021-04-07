@@ -19,6 +19,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStampTest do
             keypair_seed <- StreamData.binary(length: 32),
             proof_of_work <- StreamData.binary(length: 33),
             proof_of_integrity <- StreamData.binary(length: 33),
+            proof_of_election <- StreamData.binary(length: 32),
             ledger_operations <- gen_ledger_operations()
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
@@ -27,6 +28,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStampTest do
       assert %ValidationStamp{
                proof_of_work: proof_of_work,
                proof_of_integrity: proof_of_integrity,
+               proof_of_election: proof_of_election,
                ledger_operations: ledger_operations
              }
              |> ValidationStamp.sign()

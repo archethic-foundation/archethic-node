@@ -3,6 +3,8 @@ defmodule Uniris.Mining.ValidationContextTest do
 
   alias Uniris.Crypto
 
+  alias Uniris.Election
+
   alias Uniris.Mining.ValidationContext
 
   alias Uniris.P2P
@@ -197,6 +199,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: Transaction.fee(tx),
@@ -225,6 +228,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: Transaction.fee(tx),
@@ -253,6 +257,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: 20.20,
@@ -286,6 +291,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: Transaction.fee(tx),
@@ -321,6 +327,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: Transaction.fee(tx),
@@ -354,6 +361,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations: %LedgerOperations{
         fee: Transaction.fee(tx),
         transaction_movements: Transaction.get_movements(tx),
@@ -408,6 +416,7 @@ defmodule Uniris.Mining.ValidationContextTest do
     %ValidationStamp{
       proof_of_work: Crypto.node_public_key(0),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
       ledger_operations:
         %LedgerOperations{
           fee: Transaction.fee(tx),

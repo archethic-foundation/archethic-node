@@ -84,15 +84,20 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         """
       })
 
-    {:ok, %{tx: tx}}
+    {:ok, %{tx: tx, sorting_seed: Election.validation_nodes_election_seed_sorting(tx)}}
   end
 
   describe "start_link/1" do
     test "should start mining by fetching the transaction context and elect storage nodes", %{
-      tx: tx
+      tx: tx,
+      sorting_seed: sorting_seed
     } do
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       MockClient
       |> stub(:send_message, fn
@@ -162,11 +167,17 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
               }} = :sys.get_state(pid)
     end
 
-    test "should shortcut the transaction context retrieval if the transaction is invalid", _ do
+    test "should shortcut the transaction context retrieval if the transaction is invalid", %{
+      sorting_seed: sorting_seed
+    } do
       tx = Transaction.new(:node, %TransactionData{})
 
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       welcome_node = %Node{
         ip: {127, 0, 0, 1},
@@ -201,7 +212,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
   describe "add_mining_context/6" do
     test "should aggregate context and wait enough confirmed validation nodes context building",
-         %{tx: tx} do
+         %{tx: tx, sorting_seed: sorting_seed} do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -231,7 +242,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       })
 
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       MockClient
       |> stub(:send_message, fn
@@ -345,10 +360,15 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
     end
 
     test "aggregate context and create validation stamp when enough context are retrieved", %{
-      tx: tx
+      tx: tx,
+      sorting_seed: sorting_seed
     } do
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       MockClient
       |> stub(:send_message, fn
@@ -486,7 +506,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
   describe "cross_validate/2" do
     test "should cross validate the validation stamp and the replication tree and then notify other node about it",
-         %{tx: tx} do
+         %{tx: tx, sorting_seed: sorting_seed} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
       P2P.add_node(%Node{
@@ -504,7 +524,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       })
 
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       me = self()
 
@@ -704,10 +728,15 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
     end
 
     test "should cross validate and start replication when all cross validations are received", %{
-      tx: tx
+      tx: tx,
+      sorting_seed: sorting_seed
     } do
       validation_nodes =
-        Election.validation_nodes(tx, P2P.list_nodes(authorized?: true, availability: :global))
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.list_nodes(authorized?: true, availability: :global)
+        )
 
       me = self()
 

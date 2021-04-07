@@ -12,6 +12,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
           :signature
           | :proof_of_work
           | :proof_of_integrity
+          | :proof_of_election
           | :transaction_fee
           | :transaction_movements
           | :unspent_outputs
@@ -120,11 +121,12 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   defp serialize_inconsistency(:signature), do: 0
   defp serialize_inconsistency(:proof_of_work), do: 1
   defp serialize_inconsistency(:proof_of_integrity), do: 2
-  defp serialize_inconsistency(:transaction_fee), do: 3
-  defp serialize_inconsistency(:transaction_movements), do: 4
-  defp serialize_inconsistency(:unspent_outputs), do: 5
-  defp serialize_inconsistency(:node_movements), do: 6
-  defp serialize_inconsistency(:errors), do: 7
+  defp serialize_inconsistency(:proof_of_election), do: 3
+  defp serialize_inconsistency(:transaction_fee), do: 4
+  defp serialize_inconsistency(:transaction_movements), do: 5
+  defp serialize_inconsistency(:unspent_outputs), do: 6
+  defp serialize_inconsistency(:node_movements), do: 7
+  defp serialize_inconsistency(:errors), do: 8
 
   @doc """
   Deserialize an encoded cross validation stamp
@@ -184,11 +186,12 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<0::8, rest::bitstring>>), do: {:signature, rest}
   defp do_reduce_inconsistencies(<<1::8, rest::bitstring>>), do: {:proof_of_work, rest}
   defp do_reduce_inconsistencies(<<2::8, rest::bitstring>>), do: {:proof_of_integrity, rest}
-  defp do_reduce_inconsistencies(<<3::8, rest::bitstring>>), do: {:transaction_fee, rest}
-  defp do_reduce_inconsistencies(<<4::8, rest::bitstring>>), do: {:transaction_movement, rest}
-  defp do_reduce_inconsistencies(<<5::8, rest::bitstring>>), do: {:unspent_outputs, rest}
-  defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:node_movements, rest}
-  defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:errors, rest}
+  defp do_reduce_inconsistencies(<<3::8, rest::bitstring>>), do: {:proof_of_election, rest}
+  defp do_reduce_inconsistencies(<<4::8, rest::bitstring>>), do: {:transaction_fee, rest}
+  defp do_reduce_inconsistencies(<<5::8, rest::bitstring>>), do: {:transaction_movement, rest}
+  defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:unspent_outputs, rest}
+  defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:node_movements, rest}
+  defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:errors, rest}
 
   @spec from_map(map()) :: t()
   def from_map(stamp = %{}) do
