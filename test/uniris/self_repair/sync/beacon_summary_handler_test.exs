@@ -259,7 +259,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         geo_patch: "AAA",
         network_patch: "AAA",
         last_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       }
 
       P2P.add_node(node)

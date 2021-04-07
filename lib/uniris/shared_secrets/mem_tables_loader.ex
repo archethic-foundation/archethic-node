@@ -28,7 +28,14 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
           data: [:content]
         ])
       end,
-      fn -> TransactionChain.list_transactions_by_type(:node, [:type, :previous_public_key]) end
+      fn -> TransactionChain.list_transactions_by_type(:node, [:type, :previous_public_key]) end,
+      fn ->
+        TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+          :type,
+          :timestamp,
+          data: [:content]
+        ])
+      end
     ]
     |> Task.async_stream(&load_transactions(&1.()))
     |> Stream.run()
@@ -75,10 +82,11 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   def load_transaction(%Transaction{
         type: :node_shared_secrets,
+        timestamp: timestamp,
         data: %TransactionData{content: content}
       }) do
     {daily_nonce_public_key, network_pool_address} = decode_node_shared_secrets_content(content)
-    NetworkLookup.set_daily_nonce_public_key(daily_nonce_public_key)
+    NetworkLookup.set_daily_nonce_public_key(daily_nonce_public_key, timestamp)
     NetworkLookup.set_network_pool_address(network_pool_address)
   end
 

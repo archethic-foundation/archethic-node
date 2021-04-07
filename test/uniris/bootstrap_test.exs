@@ -76,6 +76,9 @@ defmodule Uniris.BootstrapTest do
         {:ok, %LastTransactionAddress{address: address}}
       end)
 
+      MockDB
+      |> stub(:chain_size, fn _ -> 1 end)
+
       seeds = [
         %Node{
           ip: {127, 0, 0, 1},
@@ -98,7 +101,7 @@ defmodule Uniris.BootstrapTest do
       assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: :tcp} | _] =
                P2P.list_nodes()
 
-      assert 1 == TransactionChain.count_transactions_by_type(:node_shared_secrets)
+      assert 1 == Crypto.number_of_node_shared_secrets_keys()
     end
   end
 
@@ -284,6 +287,11 @@ defmodule Uniris.BootstrapTest do
 
       assert first_public_key == Crypto.node_public_key(0)
       assert last_public_key == Crypto.node_public_key(0)
+
+      Crypto.KeystoreCounter.set_node_key_counter(1)
+
+      MockDB
+      |> stub(:get_first_public_key, fn _ -> first_public_key end)
 
       assert :ok =
                Bootstrap.run(

@@ -17,6 +17,10 @@ defmodule Uniris.Replication.TransactionValidatorTest do
   setup do
     SharedSecrets.add_origin_public_key(:software, Crypto.node_public_key(0))
 
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> SharedSecrets.MemTables.NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
     welcome_node = %Node{
       first_public_key: "key1",
       last_public_key: "key1",
@@ -29,7 +33,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
       last_public_key: Crypto.node_public_key(),
       authorized?: true,
       available?: true,
-      authorization_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-1),
       geo_patch: "AAA"
     }
 

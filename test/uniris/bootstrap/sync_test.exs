@@ -203,6 +203,9 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
+      MockDB
+      |> stub(:chain_size, fn _ -> 1 end)
+
       node_tx =
         Transaction.new(:node, %TransactionData{
           content: """
@@ -217,8 +220,9 @@ defmodule Uniris.Bootstrap.SyncTest do
 
       assert :persistent_term.get(:storage_nonce) != nil
 
-      assert 1 = TransactionChain.count_transactions_by_type(:node_shared_secrets)
-      assert 1 = Crypto.number_of_node_keys()
+      assert %Node{authorized?: true} = P2P.get_node_info()
+      assert 1 == Crypto.number_of_node_shared_secrets_keys()
+      assert 1 == Crypto.number_of_node_keys()
 
       Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.map(fn {_, public_key: key, amount: amount} -> {key, amount} end)

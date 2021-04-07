@@ -165,11 +165,16 @@ defmodule Uniris.Crypto do
   """
   @spec decrypt_and_set_daily_nonce_seed(
           encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
+          encrypted_secret_key :: binary(),
+          timestamp :: DateTime.t()
         ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key)
+  def decrypt_and_set_daily_nonce_seed(
+        encrypted_seed,
+        encrypted_secret_key,
+        timestamp = %DateTime{}
+      )
       when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    Keystore.decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key)
+    Keystore.decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key, timestamp)
     Logger.info("Daily nonce stored")
   end
 
@@ -452,6 +457,12 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
+  Sign data with the daily nonce stored in the keystore
+  """
+  @spec sign_with_daily_nonce_key(data :: iodata(), DateTime.t()) :: binary()
+  defdelegate sign_with_daily_nonce_key(data, timestamp), to: Keystore
+
+  @doc """
   Verify a signature.
 
   The first byte of the public key identifies the curve and the verification algorithm to use.
@@ -710,12 +721,6 @@ defmodule Uniris.Crypto do
   defp do_hash(data, :sha3_256), do: :crypto.hash(:sha3_256, data)
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
-
-  @doc """
-  Hash data with the daily nonce stored in the keystore
-  """
-  @spec hash_with_daily_nonce(data :: iodata()) :: binary()
-  defdelegate hash_with_daily_nonce(data), to: Keystore
 
   @doc """
   Hash the data using the storage nonce stored in memory

@@ -45,6 +45,18 @@ defmodule Uniris.SharedSecrets do
   defdelegate get_network_pool_address, to: NetworkLookup
 
   @doc """
+  Get the last daily nonce public key
+  """
+  @spec get_daily_nonce_public_key() :: Crypto.key()
+  defdelegate get_daily_nonce_public_key, to: NetworkLookup
+
+  @doc """
+  Get the daily nonce public key before this date
+  """
+  @spec get_daily_nonce_public_key_at(DateTime.t()) :: Crypto.key()
+  defdelegate get_daily_nonce_public_key_at(date), to: NetworkLookup
+
+  @doc """
   Create a new transaction for node shared secrets renewal generating secret encrypted using the aes key and daily nonce seed
   for the authorized nodes public keys
   """

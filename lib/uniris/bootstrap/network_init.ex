@@ -36,6 +36,13 @@ defmodule Uniris.Bootstrap.NetworkInit do
   @genesis_pools Application.compile_env(:uniris, __MODULE__)[:genesis_pools]
   @genesis_seed Application.compile_env(:uniris, __MODULE__)[:genesis_seed]
 
+  @genesis_daily_nonce_private_key Application.compile_env!(:uniris, [
+                                     __MODULE__,
+                                     :genesis_daily_nonce_seed
+                                   ])
+                                   |> Crypto.generate_deterministic_keypair()
+                                   |> elem(1)
+
   @doc """
   Initialize the storage nonce and load it into the keystore
   """
@@ -81,7 +88,8 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
     Crypto.decrypt_and_set_daily_nonce_seed(
       Crypto.aes_encrypt(daily_nonce_seed, secret_key),
-      Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
+      Crypto.ec_encrypt(secret_key, Crypto.node_public_key()),
+      tx.timestamp
     )
   end
 
@@ -158,9 +166,16 @@ defmodule Uniris.Bootstrap.NetworkInit do
       )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
+    sorting_seed =
+      tx
+      |> Transaction.serialize()
+      |> Crypto.hash()
+      |> Crypto.sign(@genesis_daily_nonce_private_key)
+
     validation_stamp =
       %ValidationStamp{
         proof_of_work: Crypto.node_public_key(),
+        proof_of_election: sorting_seed,
         proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
         ledger_operations: operations
       }

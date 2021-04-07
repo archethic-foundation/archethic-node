@@ -23,7 +23,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
     end)
   end

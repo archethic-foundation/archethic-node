@@ -56,7 +56,10 @@ config :uniris, Uniris.Crypto,
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_seed:
     <<226, 4, 212, 129, 254, 162, 178, 168, 206, 139, 176, 91, 179, 29, 83, 20, 50, 98, 0, 25,
-      133, 242, 197, 73, 199, 53, 46, 127, 7, 223, 45, 246>>
+      133, 242, 197, 73, 199, 53, 46, 127, 7, 223, 45, 246>>,
+  genesis_daily_nonce_seed:
+    <<190, 107, 211, 23, 6, 230, 228, 144, 253, 154, 200, 213, 66, 172, 229, 96, 5, 171, 134, 249,
+      80, 160, 149, 4, 106, 249, 155, 116, 186, 125, 77, 192>>
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, file: "priv/p2p/seeds"
 

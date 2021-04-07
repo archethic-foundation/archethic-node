@@ -12,8 +12,7 @@ defmodule Uniris.Crypto.KeystoreImpl do
               binary()
   @callback sign_with_network_pool_key(data :: binary()) :: binary()
   @callback sign_with_network_pool_key(data :: binary(), index :: non_neg_integer()) :: binary()
-
-  @callback hash_with_daily_nonce(data :: iodata()) :: binary()
+  @callback sign_with_daily_nonce_key(data :: binary(), DateTime.t()) :: binary()
 
   @callback node_public_key() :: Crypto.key()
   @callback node_public_key(index :: number()) :: Crypto.key()
@@ -31,7 +30,8 @@ defmodule Uniris.Crypto.KeystoreImpl do
 
   @callback decrypt_and_set_daily_nonce_seed(
               encrypted_seed :: binary(),
-              encrypted_secret_key :: binary()
+              encrypted_secret_key :: binary(),
+              timestamp :: DateTime.t()
             ) :: :ok
 
   @callback encrypt_network_pool_seed(key :: binary()) :: binary()

@@ -86,6 +86,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node_shared_secrets,
+        timestamp: timestamp,
         data: %TransactionData{keys: keys = %Keys{secret: secret}}
       }) do
     nb_transactions = TransactionChain.size(address)
@@ -109,7 +110,8 @@ defmodule Uniris.Crypto.KeystoreLoader do
           encrypted_secret_key
         )
 
-      :ok = Crypto.decrypt_and_set_daily_nonce_seed(daily_nonce_seed, encrypted_secret_key)
+      :ok =
+        Crypto.decrypt_and_set_daily_nonce_seed(daily_nonce_seed, encrypted_secret_key, timestamp)
     else
       :ok
     end

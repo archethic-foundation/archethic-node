@@ -7,6 +7,8 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreImpl
 
+  alias Uniris.Utils
+
   require Logger
 
   @behaviour KeystoreImpl
@@ -18,7 +20,7 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   @impl GenServer
   def init(opts) do
     seed = Keyword.get(opts, :seed)
-    {:ok, %{node_seed: seed}}
+    {:ok, %{node_seed: seed, daily_nonce_keys: %{}}}
   end
 
   @impl GenServer
@@ -75,8 +77,25 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     {:reply, Crypto.sign(data, pv), state}
   end
 
-  def handle_call({:hash_with_daily_nonce, data}, _, state = %{daily_nonce_keys: {_, pv}}) do
-    {:reply, Crypto.hash([pv, data]), state}
+  def handle_call(
+        {:sign_with_daily_nonce_key, data, timestamp},
+        _,
+        state = %{daily_nonce_keys: keys}
+      ) do
+    last_date_from_timestamp =
+      keys
+      |> IO.inspect()
+      |> Map.keys()
+      |> Enum.sort(:desc)
+      |> Enum.find(&(DateTime.compare(&1, timestamp) == :lt))
+
+    pv =
+      keys
+      |> Map.get(last_date_from_timestamp)
+      |> elem(1)
+      |> IO.inspect()
+
+    {:reply, Crypto.sign(data, pv), state}
   end
 
   def handle_call(:node_public_key, _, state = %{node_seed: seed}) do
@@ -146,10 +165,11 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   def handle_call(
-        {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key},
+        {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key, timestamp},
         _from,
         state = %{
-          node_seed: node_seed
+          node_seed: node_seed,
+          daily_nonce_keys: daily_nonce_keys
         }
       ) do
     index = KeystoreCounter.get_node_key_counter()
@@ -157,7 +177,23 @@ defmodule Uniris.Crypto.SoftwareKeystore do
     aes_key = Crypto.ec_decrypt!(encrypted_aes_key, pv)
     daily_nonce_seed = Crypto.aes_decrypt!(encrypted_seed, aes_key)
     daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
-    {:reply, :ok, Map.put(state, :daily_nonce_keys, daily_nonce_keypair)}
+
+    new_keys =
+      case map_size(daily_nonce_keys) do
+        0 ->
+          %{timestamp => daily_nonce_keypair}
+
+        _ ->
+          last_date =
+            daily_nonce_keys
+            |> Map.keys()
+            |> Enum.sort({:desc, DateTime})
+            |> List.first()
+
+          %{timestamp => daily_nonce_keypair, last_date => Map.get(daily_nonce_keys, last_date)}
+      end
+
+    {:reply, :ok, Map.put(state, :daily_nonce_keys, new_keys)}
   end
 
   def handle_call(
@@ -228,15 +264,19 @@ defmodule Uniris.Crypto.SoftwareKeystore do
   end
 
   @impl KeystoreImpl
-  def hash_with_daily_nonce(data) do
-    GenServer.call(__MODULE__, {:hash_with_daily_nonce, data})
+  def sign_with_daily_nonce_key(data, timestamp) do
+    GenServer.call(
+      __MODULE__,
+      {:sign_with_daily_nonce_key, data, Utils.truncate_datetime(timestamp)}
+    )
   end
 
   @impl KeystoreImpl
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key) do
+  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_aes_key, timestamp) do
     GenServer.call(
       __MODULE__,
-      {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key}
+      {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key,
+       Utils.truncate_datetime(timestamp)}
     )
   end
 

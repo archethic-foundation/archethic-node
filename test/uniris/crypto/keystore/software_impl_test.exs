@@ -53,7 +53,7 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     assert "hello" == SoftwareKeystore.decrypt_with_node_key!(cipher, 2)
   end
 
-  test "decrypt_and_set_daily_nonce_seed/2 should load daily nonce keys by decrypting the seed" do
+  test "decrypt_and_set_daily_nonce_seed/3 should load daily nonce keys by decrypting the seed" do
     public_key = SoftwareKeystore.node_public_key()
     aes_key = :crypto.strong_rand_bytes(32)
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
@@ -61,13 +61,21 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     encrypted_nonce = Crypto.aes_encrypt(daily_nonce_seed, aes_key)
     encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
 
-    assert :ok = SoftwareKeystore.decrypt_and_set_daily_nonce_seed(encrypted_nonce, encrypted_key)
-    %{daily_nonce_keys: {pub, _}} = :sys.get_state(SoftwareKeystore)
+    timestamp = ~U[2021-04-08 06:35:17Z]
+
+    assert :ok =
+             SoftwareKeystore.decrypt_and_set_daily_nonce_seed(
+               encrypted_nonce,
+               encrypted_key,
+               timestamp
+             )
+
+    %{daily_nonce_keys: %{^timestamp => {pub, _}}} = :sys.get_state(SoftwareKeystore)
     {expected_pub, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
     assert pub == expected_pub
   end
 
-  test "hash_with_daily_nonce/1 should hash with daily nonce private key" do
+  test "sign_with_daily_nonce_key/2 should sign the data with the closest daily nonce private key at the given timestamp" do
     public_key = SoftwareKeystore.node_public_key()
     aes_key = :crypto.strong_rand_bytes(32)
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
@@ -75,10 +83,44 @@ defmodule Uniris.Crypto.SoftwareKeystoreTest do
     encrypted_nonce = Crypto.aes_encrypt(daily_nonce_seed, aes_key)
     encrypted_key = Crypto.ec_encrypt(aes_key, public_key)
 
-    assert :ok = SoftwareKeystore.decrypt_and_set_daily_nonce_seed(encrypted_nonce, encrypted_key)
+    assert :ok =
+             SoftwareKeystore.decrypt_and_set_daily_nonce_seed(
+               encrypted_nonce,
+               encrypted_key,
+               ~U[2021-04-08 06:29:28Z]
+             )
+
     {_, pv} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
-    assert Crypto.hash([pv, "hello"]) == SoftwareKeystore.hash_with_daily_nonce("hello")
+    assert Crypto.sign("hello", pv) ==
+             SoftwareKeystore.sign_with_daily_nonce_key(
+               "hello",
+               ~U[2021-04-08 06:29:29Z]
+             )
+
+    daily_nonce_seed2 = :crypto.strong_rand_bytes(32)
+    encrypted_nonce2 = Crypto.aes_encrypt(daily_nonce_seed2, aes_key)
+
+    assert :ok =
+             SoftwareKeystore.decrypt_and_set_daily_nonce_seed(
+               encrypted_nonce2,
+               encrypted_key,
+               ~U[2021-04-08 06:29:30Z]
+             )
+
+    {_, pv2} = Crypto.generate_deterministic_keypair(daily_nonce_seed2)
+
+    assert Crypto.sign("hello", pv) ==
+             SoftwareKeystore.sign_with_daily_nonce_key(
+               "hello",
+               ~U[2021-04-08 06:29:30Z]
+             )
+
+    assert Crypto.sign("hello", pv2) ==
+             SoftwareKeystore.sign_with_daily_nonce_key(
+               "hello",
+               ~U[2021-04-08 06:29:31Z]
+             )
   end
 
   test "decrypt_and_set_node_shared_secrets_transaction_seed/2 should load node shared secrets seed by decrypting it" do

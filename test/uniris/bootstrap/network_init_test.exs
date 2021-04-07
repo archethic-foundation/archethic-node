@@ -164,7 +164,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       send(me, :set_network_pool)
       :ok
     end)
-    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ ->
+    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ ->
       send(me, :set_daily_nonce)
       :ok
     end)

@@ -56,6 +56,7 @@ defmodule UnirisCase do
     |> stub(:chain_size, fn _ -> 0 end)
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
+    |> stub(:list_transactions, fn _ -> [] end)
 
     MockCrypto
     |> stub(:child_spec, fn _ -> {:ok, self()} end)
@@ -83,7 +84,15 @@ defmodule UnirisCase do
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
-    |> stub(:hash_with_daily_nonce, fn _ -> "hash" end)
+    |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+      pv =
+        Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
+        |> Keyword.fetch!(:genesis_daily_nonce_seed)
+        |> Crypto.generate_deterministic_keypair()
+        |> elem(1)
+
+      Crypto.sign(data, pv)
+    end)
     |> stub(:node_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
@@ -112,7 +121,7 @@ defmodule UnirisCase do
     end)
     |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
-    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _ -> :ok end)
+    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 
     start_supervised!(NFTLedger)

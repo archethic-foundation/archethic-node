@@ -145,7 +145,7 @@ defmodule UnirisTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       me = self()

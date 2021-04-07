@@ -77,6 +77,8 @@ config :uniris, Uniris.SelfRepair.Scheduler,
   enabled: false,
   interval: 0
 
+config :uniris, Uniris.SelfRepair.Notifier, enabled: false
+
 config :uniris, Uniris.SelfRepair.Sync,
   network_startup_date: DateTime.utc_now(),
   last_sync_file: "priv/p2p/last_sync_test"

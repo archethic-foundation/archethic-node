@@ -1,11 +1,13 @@
 defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
-  use ExUnit.Case
+  use UnirisCase, async: false
+
+  alias Uniris.Bootstrap.NetworkInit
+  alias Uniris.Crypto
 
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.MemTablesLoader
 
-  alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
 
@@ -13,13 +15,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
   setup :verify_on_exit!
   setup :set_mox_global
-
-  setup do
-    start_supervised!(NetworkLookup)
-    start_supervised!(OriginKeyLookup)
-    start_supervised!(KOLedger)
-    :ok
-  end
 
   describe "load_transaction/1" do
     test "should load node transaction and first node public key as origin key" do
@@ -74,6 +69,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
     test "should load node shared secrets transaction and load public keys and address from content" do
       tx = %Transaction{
         type: :node_shared_secrets,
+        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           content:
             "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
@@ -82,7 +78,21 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      assert NetworkLookup.get_daily_nonce_public_key() |> Base.encode16() ==
+      genesis_daily_nonce_public_key =
+        :uniris
+        |> Application.get_env(NetworkInit)
+        |> Keyword.fetch!(:genesis_daily_nonce_seed)
+        |> Crypto.generate_deterministic_keypair()
+        |> elem(0)
+
+      assert NetworkLookup.get_daily_nonce_public_key() ==
+               genesis_daily_nonce_public_key
+
+      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now()) ==
+               genesis_daily_nonce_public_key
+
+      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(1))
+             |> Base.encode16() ==
                "009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3"
 
       assert NetworkLookup.get_network_pool_address() |> Base.encode16() ==
@@ -91,7 +101,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   end
 
   describe "start_link/1" do
-    test "should load transactions from database and fill the origin key lookup table" do
+    test "should load transactions from database and fill the lookup table" do
       origin_shared_secrets_tx = %Transaction{
         type: :origin_shared_secrets,
         data: %TransactionData{
@@ -104,6 +114,15 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
       node_tx = %Transaction{previous_public_key: "Node0", type: :node}
 
+      node_shared_secrets_tx = %Transaction{
+        type: :node_shared_secrets,
+        timestamp: DateTime.utc_now() |> DateTime.add(10),
+        data: %TransactionData{
+          content:
+            "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+        }
+      }
+
       MockDB
       |> stub(:list_transactions_by_type, fn
         :node, _ ->
@@ -111,6 +130,9 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
         :origin_shared_secrets, _ ->
           [origin_shared_secrets_tx]
+
+        :node_shared_secrets, _ ->
+          [node_shared_secrets_tx]
       end)
       |> expect(:get_first_public_key, fn _ -> "Node0" end)
 
@@ -123,6 +145,23 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
                <<44, 109, 55, 248, 40, 227, 68, 248, 1, 34, 31, 172, 75, 3, 244, 11, 58, 245, 170,
                  246, 70, 204, 242, 12, 14, 36, 248, 240, 71, 218, 245, 78>>
              ] == OriginKeyLookup.list_public_keys()
+
+      genesis_daily_nonce_public_key =
+        :uniris
+        |> Application.get_env(NetworkInit)
+        |> Keyword.fetch!(:genesis_daily_nonce_seed)
+        |> Crypto.generate_deterministic_keypair()
+        |> elem(0)
+
+      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now()) ==
+               genesis_daily_nonce_public_key
+
+      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(10)) ==
+               genesis_daily_nonce_public_key
+
+      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(12))
+             |> Base.encode16() ==
+               "009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3"
     end
   end
 end

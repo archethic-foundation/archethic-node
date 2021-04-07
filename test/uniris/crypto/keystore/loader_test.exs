@@ -67,7 +67,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
         send(me, {:transaction_seed, transaction_seed})
         :ok
       end)
-      |> expect(:decrypt_and_set_daily_nonce_seed, fn _, _ ->
+      |> expect(:decrypt_and_set_daily_nonce_seed, fn _, _, _ ->
         send(me, {:daily_nonce_seed, daily_nonce_seed})
       end)
       |> expect(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ ->

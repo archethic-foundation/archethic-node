@@ -49,9 +49,9 @@ defmodule Uniris.Crypto.Keystore do
   end
 
   @impl KeystoreImpl
-  @spec hash_with_daily_nonce(data :: iodata()) :: binary()
-  def hash_with_daily_nonce(data) do
-    impl().hash_with_daily_nonce(data)
+  @spec sign_with_daily_nonce_key(data :: iodata(), DateTime.t()) :: binary()
+  def sign_with_daily_nonce_key(data, timestamp = %DateTime{}) do
+    impl().sign_with_daily_nonce_key(data, timestamp)
   end
 
   @impl KeystoreImpl
@@ -130,10 +130,11 @@ defmodule Uniris.Crypto.Keystore do
   @impl KeystoreImpl
   @spec decrypt_and_set_daily_nonce_seed(
           encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
+          encrypted_secret_key :: binary(),
+          timestamp :: DateTime.t()
         ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key) do
-    impl().decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key)
+  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key, timestamp) do
+    impl().decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key, timestamp)
   end
 
   @impl KeystoreImpl
