@@ -29,6 +29,7 @@ defmodule Uniris.ReplicationTest do
   alias Uniris.Replication
 
   alias Uniris.SharedSecrets
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -48,7 +49,7 @@ defmodule Uniris.ReplicationTest do
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
-    |> SharedSecrets.MemTables.NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
 
     :ok
   end

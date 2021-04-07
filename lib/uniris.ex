@@ -11,6 +11,7 @@ defmodule Uniris do
   alias __MODULE__.Mining
 
   alias __MODULE__.P2P
+  alias __MODULE__.P2P.Node
 
   alias __MODULE__.P2P.Message
   alias __MODULE__.P2P.Message.Balance
@@ -20,6 +21,7 @@ defmodule Uniris do
   alias __MODULE__.P2P.Message.GetTransactionChain
   alias __MODULE__.P2P.Message.GetTransactionChainLength
   alias __MODULE__.P2P.Message.GetTransactionInputs
+  alias __MODULE__.P2P.Message.NewTransaction
   alias __MODULE__.P2P.Message.StartMining
   alias __MODULE__.P2P.Message.TransactionChainLength
   alias __MODULE__.P2P.Message.TransactionInputList
@@ -57,12 +59,19 @@ defmodule Uniris do
   """
   @spec send_new_transaction(Transaction.t()) :: :ok
   def send_new_transaction(tx = %Transaction{}) do
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
-    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed)
-    do_send_transaction(tx, validation_nodes)
+    case P2P.get_node_info() do
+      %Node{authorized?: true} ->
+        do_send_transaction(tx)
+
+      _ ->
+        forward_transaction_to_an_authorized_node(tx)
+    end
   end
 
-  defp do_send_transaction(tx, validation_nodes) do
+  defp do_send_transaction(tx) do
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
+    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed)
+
     message = %StartMining{
       transaction: tx,
       welcome_node_public_key: Crypto.node_public_key(),
@@ -70,6 +79,13 @@ defmodule Uniris do
     }
 
     P2P.broadcast_message(validation_nodes, message)
+  end
+
+  defp forward_transaction_to_an_authorized_node(tx) do
+    P2P.list_nodes(availability: :local, authorized?: true)
+    |> P2P.nearest_nodes()
+    |> List.first()
+    |> P2P.send_message!(%NewTransaction{transaction: tx})
   end
 
   @spec get_last_transaction(address :: binary()) ::

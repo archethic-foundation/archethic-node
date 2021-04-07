@@ -2,6 +2,7 @@ defmodule Uniris.BootstrapTest do
   use UnirisCase
 
   alias Uniris.Crypto
+  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -288,7 +289,7 @@ defmodule Uniris.BootstrapTest do
       assert first_public_key == Crypto.node_public_key(0)
       assert last_public_key == Crypto.node_public_key(0)
 
-      Crypto.KeystoreCounter.set_node_key_counter(1)
+      KeystoreCounter.set_node_key_counter(1)
 
       MockDB
       |> stub(:get_first_public_key, fn _ -> first_public_key end)

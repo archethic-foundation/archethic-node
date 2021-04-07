@@ -84,7 +84,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
       ) do
     last_date_from_timestamp =
       keys
-      |> IO.inspect()
       |> Map.keys()
       |> Enum.sort(:desc)
       |> Enum.find(&(DateTime.compare(&1, timestamp) == :lt))
@@ -93,7 +92,6 @@ defmodule Uniris.Crypto.SoftwareKeystore do
       keys
       |> Map.get(last_date_from_timestamp)
       |> elem(1)
-      |> IO.inspect()
 
     {:reply, Crypto.sign(data, pv), state}
   end

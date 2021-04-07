@@ -139,8 +139,8 @@ defmodule UnirisTest do
       P2P.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(1),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.node_public_key(0),
+        last_public_key: Crypto.node_public_key(0),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,

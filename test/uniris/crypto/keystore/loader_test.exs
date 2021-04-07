@@ -1,29 +1,15 @@
 defmodule Uniris.Crypto.KeystoreLoaderTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.Crypto
   alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.KeystoreLoader
 
-  alias Uniris.TransactionChain.MemTables.KOLedger
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
   import Mox
-
-  setup :verify_on_exit!
-  setup :set_mox_global
-
-  setup do
-    start_supervised!(KeystoreCounter)
-    start_supervised!(KOLedger)
-
-    MockCrypto
-    |> stub(:child_spec, fn _ -> {:ok, self()} end)
-
-    :ok
-  end
 
   describe "load_transaction/1" do
     test "should set the number of node shared secrets keys" do
@@ -91,6 +77,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       tx = %Transaction{
         address: :crypto.strong_rand_bytes(32),
+        timestamp: DateTime.utc_now(),
         type: :node_shared_secrets,
         data: %TransactionData{keys: tx_keys}
       }
@@ -108,7 +95,6 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       MockDB
       |> expect(:chain_size, fn _ -> 1 end)
-      |> expect(:get_first_chain_address, fn address -> address end)
 
       tx = %Transaction{address: Crypto.hash("Node1"), type: :node, previous_public_key: "Node0"}
 
@@ -119,9 +105,6 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
     test "should not set the number of node keys" do
       MockCrypto
       |> expect(:node_public_key, fn 0 -> "Node0" end)
-
-      MockDB
-      |> expect(:get_first_chain_address, fn address -> address end)
 
       tx = %Transaction{
         type: :node,
