@@ -100,7 +100,12 @@ defmodule Uniris.P2P.MemTableLoader do
         timestamp: timestamp,
         data: %TransactionData{keys: keys}
       }) do
-    :ok = MemTable.reset_authorized_nodes()
+    new_authorized_keys = Keys.list_authorized_keys(keys)
+    previous_authorized_keys = MemTable.list_authorized_public_keys()
+
+    unauthorized_keys = previous_authorized_keys -- new_authorized_keys
+
+    Enum.each(unauthorized_keys, &MemTable.unauthorize_node/1)
 
     keys
     |> Keys.list_authorized_keys()

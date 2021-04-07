@@ -606,16 +606,15 @@ defmodule Uniris.P2P.MemTable do
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:45:41.181903Z]
       ...> })
-      iex> :ok  = MemTable.reset_authorized_nodes()
+      iex> :ok  = MemTable.unauthorize_node("key1")
       iex> MemTable.list_authorized_public_keys()
       []
   """
-  @spec reset_authorized_nodes() :: :ok
-  def reset_authorized_nodes do
-    true = :ets.delete_all_objects(@authorized_nodes_table)
-    Logger.info("Renew authorized nodes")
-
-    Enum.each(list_node_first_public_keys(), &notify_node_update/1)
+  @spec unauthorize_node(Crypto.key()) :: :ok
+  def unauthorize_node(first_public_key) when is_binary(first_public_key) do
+    true = :ets.delete(@authorized_nodes_table, first_public_key)
+    Logger.info("Unauthorized node", node: Base.encode16(first_public_key))
+    notify_node_update(first_public_key)
     :ok
   end
 

@@ -75,12 +75,6 @@ defmodule Uniris.P2P do
   defdelegate list_nodes(opts \\ []), to: MemTable
 
   @doc """
-  Reset the authorized nodes list
-  """
-  @spec reset_authorized_nodes() :: :ok
-  defdelegate reset_authorized_nodes, to: MemTable
-
-  @doc """
   Add a node first public key to the list of nodes globally available.
   """
   @spec set_node_globally_available(first_public_key :: Crypto.key()) :: :ok
