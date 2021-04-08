@@ -143,7 +143,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     Logger.info("Need to synchronize #{Enum.count(transactions_to_sync)} transactions")
 
     transactions_to_sync
-    |> TransactionHandler.sort_transactions_information()
+    |> Enum.sort_by(& &1.timestamp)
     |> Enum.each(&TransactionHandler.download_transaction(&1, node_patch))
   end
 
