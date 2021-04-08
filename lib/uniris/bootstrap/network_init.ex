@@ -5,8 +5,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
   Those functions are only executed by the first node bootstrapping on the network
   """
 
-  alias Uniris.BeaconChain
-
   alias Uniris.Bootstrap
 
   alias Uniris.Crypto
@@ -201,8 +199,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
   end
 
   def self_replication(tx = %Transaction{}) do
-    :ok = TransactionChain.write([tx])
-    :ok = Replication.ingest_transaction(tx)
-    :ok = BeaconChain.add_transaction_summary(tx)
+    Replication.process_transaction(tx, [:chain, :IO, :beacon])
   end
 end

@@ -18,11 +18,15 @@ defmodule Uniris.Bootstrap.SyncTest do
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
+  alias Uniris.P2P.Message.GetTransactionChain
+  alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.TransactionList
+  alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets.NodeRenewalScheduler
@@ -42,8 +46,24 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   setup do
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
-      %LastTransactionAddress{address: address}
+    |> stub(:send_message, fn
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        %LastTransactionAddress{address: address}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+
+      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %UnspentOutputList{unspent_outputs: []}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
     end)
 
     start_supervised!(Batcher)

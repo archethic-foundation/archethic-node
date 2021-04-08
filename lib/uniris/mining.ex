@@ -22,6 +22,8 @@ defmodule Uniris.Mining do
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
 
+  require Logger
+
   @doc """
   Start mining process for a given transaction.
   """
@@ -91,10 +93,20 @@ defmodule Uniris.Mining do
          poe,
          SharedSecrets.get_daily_nonce_public_key_at(tx.timestamp)
        ) do
-      validation_node_public_keys ==
-        tx
-        |> transaction_validation_nodes(poe)
-        |> Enum.map(& &1.last_public_key)
+      case transaction_validation_nodes(tx, poe) do
+        # Should happens only during the network bootstrapping
+        [] ->
+          true
+
+        nodes ->
+          same? = Enum.map(nodes, & &1.last_public_key) == validation_node_public_keys
+
+          unless same? do
+            Logger.debug("Expected #{inspect(nodes)} got #{inspect(validation_node_public_keys)}")
+          end
+
+          same?
+      end
     else
       false
     end

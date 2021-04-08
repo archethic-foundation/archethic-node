@@ -14,8 +14,15 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.Bootstrap.NetworkInit
 
   alias Uniris.P2P
+  alias Uniris.P2P.Batcher
+  alias Uniris.P2P.Message.BatchRequests
+  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetLastTransactionAddress
+  alias Uniris.P2P.Message.GetTransactionChain
+  alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.LastTransactionAddress
+  alias Uniris.P2P.Message.TransactionList
+  alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets
@@ -30,10 +37,12 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.TransactionChain.TransactionData.Ledger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Uniris.TransactionFactory
 
   import Mox
 
   setup do
+    start_supervised!(Batcher)
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
@@ -44,7 +53,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       first_public_key: Crypto.node_public_key(0),
       last_public_key: Crypto.node_public_key(0),
       available?: true,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now()
     })
 
     MockClient
@@ -95,23 +106,34 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   end
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
-    P2P.add_node(%Node{
-      ip: {127, 0, 0, 1},
-      first_public_key: "key1",
-      last_public_key: "key1"
-    })
+    MockClient
+    |> stub(:send_message, fn
+      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
 
-    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
 
-    validated_tx = %{
-      tx
-      | validation_stamp: %ValidationStamp{
-          proof_of_integrity: "",
-          proof_of_work: "",
-          ledger_operations: %LedgerOperations{},
-          signature: ""
-        }
-    }
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %UnspentOutputList{unspent_outputs: []}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
+    end)
+
+    tx =
+      TransactionFactory.create_valid_transaction(
+        %{
+          welcome_node: P2P.get_node_info(),
+          coordinator_node: P2P.get_node_info(),
+          storage_nodes: [P2P.get_node_info()]
+        },
+        [],
+        type: :transfer
+      )
 
     me = self()
 
@@ -121,7 +143,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       :ok
     end)
 
-    NetworkInit.self_replication(validated_tx)
+    NetworkInit.self_replication(tx)
 
     assert_received :write_transaction
 
@@ -140,6 +162,24 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   end
 
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
+    MockClient
+    |> stub(:send_message, fn
+      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %UnspentOutputList{unspent_outputs: []}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
+    end)
+
     me = self()
 
     P2P.add_node(%Node{
@@ -150,7 +190,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       available?: true,
       authorized?: true,
       authorization_date: DateTime.utc_now(),
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      network_patch: "AAA"
     })
 
     MockDB
@@ -184,12 +225,32 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   end
 
   test "init_genesis_wallets/1 should initialize genesis wallets" do
+    MockClient
+    |> stub(:send_message, fn
+      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
+        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+
+      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+        {:ok,
+         %BatchResponses{
+           responses: [
+             {0, %UnspentOutputList{unspent_outputs: []}},
+             {1, %TransactionList{transactions: []}}
+           ]
+         }}
+    end)
+
     P2P.add_node(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
       port: 3000,
-      available?: true
+      available?: true,
+      enrollment_date: DateTime.utc_now(),
+      network_patch: "AAA"
     })
 
     NetworkInit.init_genesis_wallets()

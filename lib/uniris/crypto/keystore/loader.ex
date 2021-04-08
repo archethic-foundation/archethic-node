@@ -46,6 +46,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
 
     last_node_shared_tx =
       TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+        :address,
         :type,
         :timestamp,
         data: [:keys]

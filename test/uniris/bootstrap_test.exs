@@ -25,7 +25,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.GetStorageNonce
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransaction
-  alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Message.GetTransactionChain
+  alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
@@ -33,6 +34,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.TransactionList
+  alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
   alias Uniris.Replication
@@ -73,8 +76,24 @@ defmodule Uniris.BootstrapTest do
   describe "run/5" do
     test "should initialize the network when nothing is set before" do
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
-        {:ok, %LastTransactionAddress{address: address}}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
+          {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+
+        _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+          {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+
+        _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
+          {:ok,
+           %BatchResponses{
+             responses: [
+               {0, %UnspentOutputList{unspent_outputs: []}},
+               {1, %TransactionList{transactions: []}}
+             ]
+           }}
       end)
 
       MockDB

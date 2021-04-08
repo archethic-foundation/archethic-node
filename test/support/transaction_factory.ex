@@ -39,7 +39,7 @@ defmodule Uniris.TransactionFactory do
         welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
