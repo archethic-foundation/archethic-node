@@ -34,6 +34,7 @@ defmodule Uniris.MixProject do
   defp deps do
     [
       {:flow, "~> 1.0"},
+      {:mint, "~> 1.0"},
       {:xandra, "~> 0.11"},
       {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},
