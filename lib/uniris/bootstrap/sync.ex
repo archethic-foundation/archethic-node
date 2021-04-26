@@ -97,9 +97,9 @@ defmodule Uniris.Bootstrap.Sync do
   @doc """
   Fetch and load the nodes list
   """
-  @spec load_node_list(Node.t()) :: :ok
-  def load_node_list(node = %Node{}) do
-    %NodeList{nodes: nodes} = P2P.send_message!(node, %ListNodes{})
+  @spec load_node_list(list(Node.t())) :: :ok
+  def load_node_list(nodes) do
+    {:ok, %NodeList{nodes: nodes}} = P2P.reply_first(nodes, %ListNodes{})
     Enum.each(nodes, &P2P.add_node/1)
     Logger.info("Node list refreshed")
   end
@@ -107,12 +107,11 @@ defmodule Uniris.Bootstrap.Sync do
   @doc """
   Fetch and load the storage nonce
   """
-  @spec load_storage_nonce(Node.t()) :: :ok
-  def load_storage_nonce(node = %Node{}) do
+  @spec load_storage_nonce(list(Node.t())) :: :ok
+  def load_storage_nonce(nodes) do
     message = %GetStorageNonce{public_key: Crypto.node_public_key()}
 
-    %EncryptedStorageNonce{digest: encrypted_nonce} = P2P.send_message!(node, message)
-
+    {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}} = P2P.reply_first(nodes, message)
     :ok = Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
     Logger.info("Storage nonce set")
   end
@@ -129,7 +128,7 @@ defmodule Uniris.Bootstrap.Sync do
   @spec get_closest_nodes_and_renew_seeds(list(Node.t()), binary()) :: list(Node.t())
   def get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch) do
     {:ok, %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds}} =
-      P2P.reply_first(bootstrapping_seeds, %GetBootstrappingNodes{patch: patch}, patch)
+      P2P.reply_first(bootstrapping_seeds, %GetBootstrappingNodes{patch: patch}, patch: patch)
 
     :ok = P2P.new_bootstrapping_seeds(new_seeds)
 

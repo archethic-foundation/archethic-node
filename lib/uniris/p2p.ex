@@ -4,19 +4,18 @@ defmodule Uniris.P2P do
   """
   alias Uniris.Crypto
 
-  alias __MODULE__.Batcher
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
-  alias __MODULE__.Client.TransportImpl
-  alias __MODULE__.ClientConnection
-  alias __MODULE__.ConnectionSupervisor
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Message
   alias __MODULE__.Node
 
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
+
   alias Uniris.Utils
 
   require Logger
@@ -36,28 +35,17 @@ defmodule Uniris.P2P do
     do_connect_node(node)
   end
 
-  defp do_connect_node(%Node{first_public_key: key, ip: ip, port: port, transport: transport}) do
-    if key == Crypto.node_public_key(0) do
+  defp do_connect_node(%Node{
+         ip: ip,
+         port: port,
+         transport: transport,
+         first_public_key: first_public_key
+       }) do
+    if first_public_key == Crypto.node_public_key(0) do
       :ok
     else
-      # Avoid to open connection during testing
-      transport_impl =
-        :uniris
-        |> Application.get_env(Client, impl: TransportImpl)
-        |> Keyword.fetch!(:impl)
-
-      case transport_impl do
-        TransportImpl ->
-          DynamicSupervisor.start_child(
-            ConnectionSupervisor,
-            {ClientConnection, ip: ip, port: port, transport: transport, node_public_key: key}
-          )
-
-          :ok
-
-        _ ->
-          :ok
-      end
+      Client.new_connection(ip, port, transport, first_public_key)
+      :ok
     end
   end
 
@@ -145,39 +133,48 @@ defmodule Uniris.P2P do
   and will be locally unavailable until the next exchange
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request()) :: Message.response()
-  def send_message!(node, message, timeout \\ 3_000)
+  def send_message!(node, message)
 
-  def send_message!(public_key, message, timeout) when is_binary(public_key) do
+  def send_message!(public_key, message) when is_binary(public_key) do
     public_key
     |> get_node_info!
-    |> send_message!(message, timeout)
+    |> send_message!(message)
   end
 
-  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
-    case Client.send_message(node, message, timeout) do
+  def send_message!(node = %Node{ip: ip, port: port}, message) do
+    case Client.send_message(node, message) do
       {:ok, data} ->
         data
 
-      {:error, reason} ->
-        raise "Messaging error with #{:inet.ntoa(ip)}:#{port} - reason: #{reason}"
+      {:error, :network_issue} ->
+        raise "Messaging error with #{:inet.ntoa(ip)}:#{port}"
     end
   end
 
   @spec send_message(Crypto.key() | Node.t(), Message.t()) ::
           {:ok, Message.t()}
           | {:error, :not_found}
-          | {:error, Client.error()}
-  def send_message(node, message, timeout \\ 3_000)
+          | {:error, :network_issue}
+  def send_message(node, message)
 
-  def send_message(public_key, message, timeout) when is_binary(public_key) do
+  def send_message(public_key, message) when is_binary(public_key) do
     with {:ok, node} <- get_node_info(public_key),
-         {:ok, data} <- send_message(node, message, timeout) do
+         {:ok, data} <- send_message(node, message) do
       {:ok, data}
     end
   end
 
-  def send_message(node = %Node{}, message, timeout),
-    do: Client.send_message(node, message, timeout)
+  def send_message(node = %Node{first_public_key: first_public_key}, message) do
+    case Client.send_message(node, message) do
+      {:ok, data} ->
+        MemTable.increase_node_availability(first_public_key)
+        {:ok, data}
+
+      {:error, :network_issue} ->
+        MemTable.decrease_node_availability(first_public_key)
+        {:error, :network_issue}
+    end
+  end
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
@@ -361,39 +358,127 @@ defmodule Uniris.P2P do
   Load the transaction into the P2P context updating the P2P view
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  defdelegate load_transaction(tx), to: MemTableLoader
+  def load_transaction(
+        tx = %Transaction{
+          type: :node,
+          data: %TransactionData{content: content},
+          previous_public_key: previous_public_key
+        }
+      ) do
+    {ip, port, transport, _reward_address} = Node.extract_node_info(content)
+    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
+
+    unless first_public_key == Crypto.node_public_key(0) do
+      Client.new_connection(ip, port, transport, first_public_key)
+    end
+
+    MemTableLoader.load_transaction(tx)
+  end
+
+  def load_transaction(tx), do: MemTableLoader.load_transaction(tx)
 
   @doc """
-  Send a message using a batcher to send multiple message at once for the given nodes.
-
-  The batched request will be delivered after a certain timeframe
+  Send multiple message at once for the given nodes.
   """
-  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok | {:error, Client.error()}
-  defdelegate broadcast_message(nodes, message), to: Batcher, as: :add_broadcast_request
+  @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
+  def broadcast_message(nodes, message) do
+    nodes
+    |> Task.async_stream(&send_message(&1, message), ordered: false)
+    |> Stream.run()
+  end
 
   @doc """
-  Send a message to a list of nodes by batching the messages and getting the first node which responses depending
-  on the closest nodes.
+  Send a message to a list of nodes trying to get response from the closest node.
 
-  The batched request will be delivered after a certain timeframe
+  If the node does not respond, a new node will be picked
   """
-  @spec reply_first(list(Node.t()), Message.request()) ::
-          {:ok, Message.response()} | {:error, Client.error()}
-  defdelegate reply_first(nodes, message), to: Batcher, as: :request_first_reply
+  @spec reply_first(
+          node_list :: list(Node.t()),
+          message :: Message.request(),
+          opts :: [node_ack?: boolean(), patch: binary()]
+        ) ::
+          {:ok, Message.response()}
+          | {:ok, Message.response(), Node.t()}
+          | {:error, :network_issue}
+  def reply_first(nodes, message, opts \\ [])
+      when is_list(nodes) and is_struct(message) and is_list(opts) do
+    node_ack? = Keyword.get(opts, :node_ack?, false)
+    patch = Keyword.get(opts, :patch)
+
+    with nil <- patch,
+         {:error, :not_found} <- get_node_info(Crypto.node_public_key(0)) do
+      get_first_reply(nodes, message, node_ack?)
+    else
+      {:ok, %Node{network_patch: patch}} ->
+        nodes
+        |> nearest_nodes(patch)
+        |> get_first_reply(message, node_ack?)
+
+      patch ->
+        nodes
+        |> nearest_nodes(patch)
+        |> get_first_reply(message, node_ack?)
+    end
+  end
+
+  defp get_first_reply(nodes, message, node_ack?)
+  defp get_first_reply([], _, _), do: {:error, :network_issue}
+
+  defp get_first_reply(
+         [node = %Node{first_public_key: first_public_key} | rest],
+         message,
+         node_ack?
+       ) do
+    case send_message(node, message) do
+      {:error, :network_issue} ->
+        MemTable.decrease_node_availability(first_public_key)
+        get_first_reply(rest, message, node_ack?)
+
+      {:ok, data} ->
+        MemTable.increase_node_availability(first_public_key)
+        (node_ack? && {:ok, data, node}) || {:ok, data}
+    end
+  end
 
   @doc """
-  Same as `reply_first/2` but we can specify the network patch to compare with the node positions
-  """
-  @spec reply_first(list(Node.t()), Message.request(), binary()) ::
-          {:ok, Message.response()} | {:eerr, Client.error()}
-  defdelegate reply_first(nodes, message, patch), to: Batcher, as: :request_first_reply
+  Request data atomically from a list nodes chunked by batch.
 
-  @doc """
-  Same as `reply_first/2` except if returns the node which reply the first
+  If the first batch responses are not atomic, the next one will be used until the end of the list.
   """
-  @spec reply_first_with_ack(list(Node.t()), Message.request()) ::
-          {:ok, Message.response(), Node.t()} | {:error, Client.error()}
-  defdelegate reply_first_with_ack(nodes, message),
-    to: Batcher,
-    as: :request_first_reply_with_ack
+  @spec reply_atomic(list(Node.t()), non_neg_integer(), Message.request()) ::
+          {:ok, Message.response()} | {:error, :network_issue}
+  def reply_atomic(nodes, batch_size, message)
+      when is_list(nodes) and is_integer(batch_size) and batch_size > 0 do
+    nodes
+    |> Enum.chunk_every(batch_size)
+    |> do_reply_atomic(message)
+  end
+
+  defp do_reply_atomic([], _), do: {:error, :network_issue}
+
+  defp do_reply_atomic([nodes | rest], message) do
+    responses =
+      nodes
+      |> Enum.map(fn node = %Node{first_public_key: first_public_key} ->
+        case send_message(node, message) do
+          {:error, :network_issue} ->
+            MemTable.decrease_node_availability(first_public_key)
+            {:error, :network_issue}
+
+          {:ok, res} ->
+            MemTable.increase_node_availability(first_public_key)
+            res
+        end
+      end)
+      |> Enum.reject(&match?({:error, :network_issue}, &1))
+      |> Enum.dedup()
+
+    case responses do
+      [res] ->
+        {:ok, res}
+
+      _ ->
+        do_reply_atomic(rest, message)
+    end
+  end
 end

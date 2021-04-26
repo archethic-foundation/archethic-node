@@ -55,6 +55,7 @@
   "rand_compat": {:hex, :rand_compat, "0.0.3", "011646bc1f0b0c432fe101b816f25b9bbb74a085713cee1dafd2d62e9415ead3", [:rebar3], [], "hexpm", "cdf7be2b17308ec245b912c45fe55741f93b6e4f1a24ba6074f7137b0cc09bf4"},
   "recase": {:hex, :recase, "0.6.0", "1dd2dd2f4e06603b74977630e739f08b7fedbb9420cc14de353666c2fc8b99f4", [:mix], [], "hexpm", "8712e318420a228eb2e6366ada230148ed3a4316a798319edd5512f64d78c990"},
   "recon": {:hex, :recon, "2.5.1", "430ffa60685ac1efdfb1fe4c97b8767c92d0d92e6e7c3e8621559ba77598678a", [:mix, :rebar3], [], "hexpm", "5721c6b6d50122d8f68cccac712caa1231f97894bab779eff5ff0f886cb44648"},
+  "retry": {:hex, :retry, "0.14.1", "722d1b0cf87096b71213f5801d99fface7ca76adc83fc9dbf3e1daee952aef10", [:mix], [], "hexpm", "b3a609f286f6fe4f6b2c15f32cd4a8a60427d78d05d7b68c2dd9110981111ae0"},
   "sizeable": {:hex, :sizeable, "1.0.2", "625fe06a5dad188b52121a140286f1a6ae1adf350a942cf419499ecd8a11ee29", [:mix], [], "hexpm", "4bab548e6dfba777b400ca50830a9e3a4128e73df77ab1582540cf5860601762"},
   "stream_data": {:hex, :stream_data, "0.5.0", "b27641e58941685c75b353577dc602c9d2c12292dd84babf506c2033cd97893e", [:mix], [], "hexpm", "012bd2eec069ada4db3411f9115ccafa38540a3c78c4c0349f151fc761b9e271"},
   "telemetry": {:hex, :telemetry, "0.4.2", "2808c992455e08d6177322f14d3bdb6b625fbcfd233a73505870d8738a2f4599", [:rebar3], [], "hexpm", "2d1419bd9dda6a206d7b5852179511722e2b18812310d304620c7bd92a13fcef"},

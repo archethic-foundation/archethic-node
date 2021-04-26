@@ -4,9 +4,6 @@ defmodule Uniris.Mining.TransactionContextTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetUnspentOutputs
@@ -27,8 +24,6 @@ defmodule Uniris.Mining.TransactionContextTest do
   import Mox
 
   setup do
-    start_supervised!(Batcher)
-
     P2P.add_node(%Node{
       first_public_key: Crypto.node_public_key(),
       network_patch: "AAA",
@@ -52,28 +47,19 @@ defmodule Uniris.Mining.TransactionContextTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{address: "@Bob3"}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, unspent_output}]}}
+        _, %GetTransaction{address: "@Bob3"} ->
+          {:ok, unspent_output}
 
-        _,
-        %BatchRequests{
-          requests: [
-            %GetP2PView{},
-            %GetUnspentOutputs{address: "@Alice1"},
-            %GetTransaction{address: "@Alice1"}
-          ]
-        },
-        _ ->
+        _, %GetTransaction{address: "@Alice1"} ->
+          {:ok, unspent_output}
+
+        _, %GetP2PView{} ->
+          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+
+        _, %GetUnspentOutputs{address: "@Alice1"} ->
           {:ok,
-           %BatchResponses{
-             responses: [
-               {0, %P2PView{nodes_view: <<1::1, 1::1>>}},
-               {1,
-                %UnspentOutputList{
-                  unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
-                }},
-               {2, unspent_output}
-             ]
+           %UnspentOutputList{
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
            }}
       end)
 

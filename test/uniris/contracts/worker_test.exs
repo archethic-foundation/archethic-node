@@ -13,9 +13,6 @@ defmodule Uniris.Contracts.WorkerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Node
@@ -31,8 +28,6 @@ defmodule Uniris.Contracts.WorkerTest do
   import Mox
 
   setup do
-    start_supervised!(Batcher)
-
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -48,10 +43,9 @@ defmodule Uniris.Contracts.WorkerTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%StartMining{transaction: tx}]}, _ ->
-        send(me, {:transaction_sent, tx})
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+    |> stub(:send_message, fn _, %StartMining{transaction: tx} ->
+      send(me, {:transaction_sent, tx})
+      {:ok, %Ok{}}
     end)
 
     aes_key = :crypto.strong_rand_bytes(32)

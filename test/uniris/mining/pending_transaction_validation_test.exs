@@ -9,9 +9,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   alias Uniris.Mining.PendingTransactionValidation
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Node
@@ -23,7 +20,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   import Mox
 
   setup do
-    start_supervised!(Batcher)
     P2P.add_node(%Node{first_public_key: Crypto.node_public_key(), network_patch: "AAA"})
     :ok
   end
@@ -208,9 +204,8 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
       end)
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetFirstPublicKey{}]}, _ ->
-        {:ok,
-         %BatchResponses{responses: [{0, %FirstPublicKey{public_key: tx.previous_public_key}}]}}
+      |> expect(:send_message, fn _, %GetFirstPublicKey{} ->
+        {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
       end)
 
       assert :ok = PendingTransactionValidation.validate(tx)

@@ -8,10 +8,7 @@ defmodule UnirisTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
   alias Uniris.P2P.Message.Balance
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetBalance
   alias Uniris.P2P.Message.GetLastTransaction
   alias Uniris.P2P.Message.GetTransaction
@@ -32,11 +29,6 @@ defmodule UnirisTest do
   alias Uniris.TransactionChain.TransactionInput
 
   import Mox
-
-  setup do
-    start_supervised!(Batcher)
-    :ok
-  end
 
   describe "search_transaction/1" do
     test "should fetch the transaction locally when the current node is a storage node" do
@@ -98,8 +90,8 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %Transaction{address: "@Alice2"}}]}}
+      |> expect(:send_message, fn _, %GetTransaction{} ->
+        {:ok, %Transaction{address: "@Alice2"}}
       end)
 
       assert {:ok, %Transaction{address: "@Alice2"}} = Uniris.search_transaction("@Alice2")
@@ -126,8 +118,8 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
+      |> expect(:send_message, fn _, %GetTransaction{} ->
+        {:ok, %NotFound{}}
       end)
 
       assert {:error, :transaction_not_exists} = Uniris.search_transaction("@Alice2")
@@ -151,9 +143,9 @@ defmodule UnirisTest do
       me = self()
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%StartMining{}]}, _ ->
+      |> expect(:send_message, fn _, %StartMining{} ->
         send(me, :ack_mining)
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+        {:ok, %Ok{}}
       end)
 
       tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
@@ -208,8 +200,8 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %Transaction{previous_public_key: "Alice1"}}]}}
+      |> expect(:send_message, fn _, %GetLastTransaction{} ->
+        {:ok, %Transaction{previous_public_key: "Alice1"}}
       end)
 
       MockDB
@@ -240,8 +232,8 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetLastTransaction{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %NotFound{}}]}}
+      |> expect(:send_message, fn _, %GetLastTransaction{} ->
+        {:ok, %NotFound{}}
       end)
 
       MockDB
@@ -295,8 +287,8 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetBalance{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %Balance{uco: 10.0}}]}}
+      |> expect(:send_message, fn _, %GetBalance{} ->
+        {:ok, %Balance{uco: 10.0}}
       end)
 
       assert %{uco: 10.0} = Uniris.get_balance("@Alice2")
@@ -351,22 +343,17 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetTransactionInputs{}]}, _ ->
+      |> expect(:send_message, fn _, %GetTransactionInputs{} ->
         {:ok,
-         %BatchResponses{
-           responses: [
-             {0,
-              %TransactionInputList{
-                inputs: [
-                  %TransactionInput{
-                    from: "@Bob3",
-                    amount: 10.0,
-                    spent?: false,
-                    type: :UCO,
-                    timestamp: DateTime.utc_now()
-                  }
-                ]
-              }}
+         %TransactionInputList{
+           inputs: [
+             %TransactionInput{
+               from: "@Bob3",
+               amount: 10.0,
+               spent?: false,
+               type: :UCO,
+               timestamp: DateTime.utc_now()
+             }
            ]
          }}
       end)
@@ -418,15 +405,10 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
+      |> expect(:send_message, fn _, %GetTransactionChain{} ->
         {:ok,
-         %BatchResponses{
-           responses: [
-             {0,
-              %TransactionList{
-                transactions: [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]
-              }}
-           ]
+         %TransactionList{
+           transactions: [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]
          }}
       end)
 
@@ -486,17 +468,10 @@ defmodule UnirisTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _,
-                                  %BatchRequests{requests: [%GetTransactionChainLength{}]},
-                                  _ ->
+      |> expect(:send_message, fn _, %GetTransactionChainLength{} ->
         {:ok,
-         %BatchResponses{
-           responses: [
-             {0,
-              %TransactionChainLength{
-                length: 3
-              }}
-           ]
+         %TransactionChainLength{
+           length: 3
          }}
       end)
 

@@ -3,6 +3,8 @@ defmodule Uniris.Mining do
   Handle the ARCH consensus behavior and transaction mining
   """
 
+  alias Retry.DelayStreams
+
   alias Uniris.Crypto
 
   alias Uniris.Election
@@ -23,6 +25,8 @@ defmodule Uniris.Mining do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
 
   require Logger
+
+  use Retry
 
   @doc """
   Start mining process for a given transaction.
@@ -171,21 +175,23 @@ defmodule Uniris.Mining do
     |> DistributedWorkflow.add_cross_validation_stamp(stamp)
   end
 
-  defp get_mining_process!(tx_address, sleep_time \\ 200, retries \\ 0, max_retries \\ 5)
+  defp get_mining_process!(tx_address) do
+    pid =
+      retry_while with: DelayStreams.linear_backoff(100, 2) |> DelayStreams.expiry(3_000) do
+        case Registry.lookup(WorkflowRegistry, tx_address) do
+          [{pid, _}] ->
+            {:halt, pid}
 
-  defp get_mining_process!(_, _, retries, max_retries) when retries == max_retries do
-    raise "No mining process for the transaction"
-  end
+          _ ->
+            {:cont, nil}
+        end
+      end
 
-  defp get_mining_process!(tx_address, sleep_time, retries, max_retries) do
-    case Registry.lookup(WorkflowRegistry, tx_address) do
-      [{pid, _}] ->
-        pid
-
-      _ ->
-        Process.sleep(sleep_time)
-        get_mining_process!(tx_address, sleep_time, retries + 1, max_retries)
+    if pid == nil do
+      raise "No mining process for the transaction"
     end
+
+    pid
   end
 
   @doc """

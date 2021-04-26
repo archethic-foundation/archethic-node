@@ -12,13 +12,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
+  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.TransactionInputList
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
@@ -32,11 +30,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.TransactionChain.TransactionInput
 
   import Mox
-
-  setup do
-    start_supervised!(Batcher)
-    :ok
-  end
 
   test "get_beacon_summaries/2" do
     node1 = %Node{
@@ -97,36 +90,20 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
     MockClient
     |> stub(:send_message, fn
-      _,
-      %BatchRequests{
-        requests: [
-          %GetBeaconSummary{subset: "D"},
-          %GetBeaconSummary{subset: "B"},
-          %GetBeaconSummary{subset: "A"}
-        ]
-      },
-      _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0,
-              %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice3"}]}},
-             {1,
-              %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Charlie5"}]}},
-             {2, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice2"}]}}
-           ]
-         }}
+      _, %GetBeaconSummary{subset: "D"} ->
+        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice3"}]}}
 
-      _,
-      %BatchRequests{requests: [%GetBeaconSummary{subset: "F"}, %GetBeaconSummary{subset: "E"}]},
-      _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom2"}]}},
-             {1, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom1"}]}}
-           ]
-         }}
+      _, %GetBeaconSummary{subset: "B"} ->
+        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Charlie5"}]}}
+
+      _, %GetBeaconSummary{subset: "A"} ->
+        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice2"}]}}
+
+      _, %GetBeaconSummary{subset: "F"} ->
+        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom2"}]}}
+
+      _, %GetBeaconSummary{subset: "E"} ->
+        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom1"}]}}
     end)
 
     expected_addresses = [
@@ -234,11 +211,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransaction{address: "@Alice2"}, _ ->
+        _, %GetTransaction{address: "@Alice2"} ->
           send(me, :transaction_downloaded)
           {:ok, %Transaction{}}
 
-        _, %GetTransaction{address: "@Node1"}, _ ->
+        _, %GetTransaction{address: "@Node1"} ->
           send(me, :transaction_downloaded)
           {:ok, %Transaction{}}
       end)
@@ -336,36 +313,23 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetTransaction{address: address}]}, _ ->
+        _, %GetTransaction{address: address} ->
           cond do
             address == transfer_tx.address ->
-              {:ok, %BatchResponses{responses: [{0, transfer_tx}]}}
+              {:ok, transfer_tx}
 
             address == node_tx.address ->
-              {:ok, %BatchResponses{responses: [{0, node_tx}]}}
+              {:ok, node_tx}
 
             true ->
-              {:error, :network_issue}
+              {:ok, %NotFound{}}
           end
 
-        _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+        _, %GetTransactionChain{} ->
+          {:ok, %TransactionList{transactions: []}}
 
-        _, %BatchRequests{requests: [%GetTransactionInputs{address: _}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %TransactionInputList{inputs: inputs}}]}}
-
-        _,
-        %BatchRequests{
-          requests: [%GetTransactionInputs{address: _}, %GetTransactionChain{address: _}]
-        },
-        _ ->
-          {:ok,
-           %BatchResponses{
-             responses: [
-               {0, %TransactionInputList{inputs: inputs}},
-               {1, %TransactionList{transactions: []}}
-             ]
-           }}
+        _, %GetTransactionInputs{address: _} ->
+          {:ok, %TransactionInputList{inputs: inputs}}
       end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")

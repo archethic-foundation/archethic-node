@@ -14,9 +14,6 @@ defmodule Uniris.ReplicationTest do
   alias Uniris.Election
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
@@ -45,7 +42,6 @@ defmodule Uniris.ReplicationTest do
 
   setup do
     start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
-    start_supervised!(Batcher)
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
@@ -184,17 +180,14 @@ defmodule Uniris.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %UnspentOutputList{unspent_outputs: unspent_outputs}},
-             {1, %TransactionList{transactions: []}}
-           ]
-         }}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
 
-      _, %BatchRequests{requests: [%ReplicateTransaction{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+      _, %GetTransactionChain{} ->
+        {:ok, %TransactionList{transactions: []}}
+
+      _, %ReplicateTransaction{} ->
+        {:ok, %Ok{}}
     end)
 
     assert :ok = Replication.process_transaction(tx, [:chain, :beacon])
@@ -326,13 +319,9 @@ defmodule Uniris.ReplicationTest do
       me = self()
 
       MockClient
-      |> stub(:send_message, fn _,
-                                %BatchRequests{
-                                  requests: [%NotifyLastTransactionAddress{address: _}]
-                                },
-                                _ ->
+      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _} ->
         send(me, :notification_sent)
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+        {:ok, %Ok{}}
       end)
 
       P2P.add_node(%Node{

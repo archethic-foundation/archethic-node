@@ -1,7 +1,6 @@
 defmodule Uniris.P2P.Transport.TCPImpl do
   @moduledoc false
 
-  alias Uniris.P2P.Endpoint.Listener
   alias Uniris.P2P.TransportImpl
 
   @behaviour TransportImpl
@@ -21,21 +20,21 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   require Logger
 
   @impl TransportImpl
-  def listen(port, _) do
+  def listen(port, handle_new_socket_fun) do
     {:ok, listen_socket} = :gen_tcp.listen(port, @server_options)
 
     Enum.each(1..@nb_acceptors, fn _ ->
-      Task.start_link(fn -> accept_loop(listen_socket) end)
+      Task.start_link(fn -> accept_loop(listen_socket, handle_new_socket_fun) end)
     end)
 
     {:ok, listen_socket}
   end
 
-  defp accept_loop(listen_socket) do
+  defp accept_loop(listen_socket, handle_new_socket_fun) do
     case :gen_tcp.accept(listen_socket) do
       {:ok, socket} ->
-        Listener.handle_new_connection(socket)
-        accept_loop(listen_socket)
+        handle_new_socket_fun.(socket)
+        accept_loop(listen_socket, handle_new_socket_fun)
 
       {:error, reason} ->
         Logger.info("Connection failed: #{reason}")
@@ -43,26 +42,14 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   end
 
   @impl TransportImpl
-  def connect(ip, port, _options, timeout),
+  def connect(ip, port, timeout),
     do: :gen_tcp.connect(ip, port, @client_options, timeout)
 
   @impl TransportImpl
   def send_message(socket, message), do: :gen_tcp.send(socket, message)
 
   @impl TransportImpl
-  def read_from_socket(socket, fun, size \\ 0, timeout \\ :infinity) do
-    case :gen_tcp.recv(socket, size, timeout) do
-      {:ok, data} ->
-        Task.start(fn -> fun.(data) end)
-        read_from_socket(socket, fun, size, timeout)
-
-      {:error, :closed} = e ->
-        Logger.debug("Connection closed")
-        e
-
-      {:error, reason} = e ->
-        Logger.error("Read data error: #{reason}")
-        e
-    end
+  def read_from_socket(socket, size \\ 0, timeout \\ :infinity) do
+    :gen_tcp.recv(socket, size, timeout)
   end
 end

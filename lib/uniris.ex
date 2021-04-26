@@ -57,7 +57,7 @@ defmodule Uniris do
   @doc """
   Send a new transaction in the network to be mined. The current node will act as welcome node
   """
-  @spec send_new_transaction(Transaction.t()) :: :ok
+  @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :network_issue}
   def send_new_transaction(tx = %Transaction{}) do
     case P2P.get_node_info() do
       %Node{authorized?: true} ->
@@ -83,9 +83,7 @@ defmodule Uniris do
 
   defp forward_transaction_to_an_authorized_node(tx) do
     P2P.list_nodes(availability: :local, authorized?: true)
-    |> P2P.nearest_nodes()
-    |> List.first()
-    |> P2P.send_message!(%NewTransaction{transaction: tx})
+    |> P2P.reply_first(%NewTransaction{transaction: tx})
   end
 
   @spec get_last_transaction(address :: binary()) ::

@@ -7,6 +7,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.P2PView
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
@@ -24,14 +25,17 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   The request is performed concurrently and the first node to reply is returned
   """
   @spec fetch_previous_transaction(binary(), list(Node.t())) ::
-          {:error, :not_found} | {:ok, Transaction.t(), Node.t()}
+          {:ok, Transaction.t(), Node.t()} | {:error, :not_found} | {:error, :network_issue}
   def fetch_previous_transaction(previous_address, nodes) do
-    case P2P.reply_first_with_ack(nodes, %GetTransaction{address: previous_address}) do
+    case P2P.reply_first(nodes, %GetTransaction{address: previous_address}, node_ack?: true) do
       {:ok, tx = %Transaction{}, node} ->
         {:ok, tx, node}
 
-      _ ->
+      {:ok, %NotFound{}, _} ->
         {:error, :not_found}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
   end
 
@@ -50,18 +54,21 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
           address :: binary(),
           storage_nodes :: list(Node.t()),
           confirmation? :: boolean()
-        ) :: {list(UnspentOutput.t()), list(Node.t())}
+        ) :: {:ok, list(UnspentOutput.t()), list(Node.t())} | {:error, :network_issue}
   def fetch_unspent_outputs(previous_address, nodes, confirmation? \\ true) do
-    case P2P.reply_first_with_ack(nodes, %GetUnspentOutputs{address: previous_address}) do
+    case P2P.reply_first(nodes, %GetUnspentOutputs{address: previous_address}, node_ack?: true) do
       {:ok, unspent_outputs, node} ->
-        handle_unspent_outputs(
-          {unspent_outputs, node},
-          confirmation?,
-          previous_address
-        )
+        {confirmed_utxos, nodes} =
+          handle_unspent_outputs(
+            {unspent_outputs, node},
+            confirmation?,
+            previous_address
+          )
 
-      _ ->
-        {[], []}
+        {:ok, confirmed_utxos, nodes}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
   end
 
@@ -100,7 +107,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   defp confirm_unspent_output(unspent_output = %UnspentOutput{from: from}, tx_address) do
     storage_nodes = Replication.chain_storage_nodes(from, P2P.list_nodes(availability: :global))
 
-    case P2P.reply_first_with_ack(storage_nodes, %GetTransaction{address: from}) do
+    case P2P.reply_first(storage_nodes, %GetTransaction{address: from}, node_ack?: true) do
       {:ok, tx = %Transaction{}, node} ->
         if valid_unspent_output?(tx_address, unspent_output, tx) do
           {:ok, unspent_output, node}
@@ -149,13 +156,16 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   All those requests are performed concurrently and the first nodes to reply are returned
   """
   @spec fetch_p2p_view(node_public_keys :: list(Crypto.key()), storage_nodes :: list(Node.t())) ::
-          {p2p_view :: bitstring(), node_involved :: Node.t()}
+          {:ok, p2p_view :: bitstring(), node_involved :: Node.t()} | {:error, :network_issue}
   def fetch_p2p_view(node_public_keys, storage_nodes) do
-    {:ok, %P2PView{nodes_view: nodes_view}, node} =
-      P2P.reply_first_with_ack(storage_nodes, %GetP2PView{
-        node_public_keys: node_public_keys
-      })
+    case P2P.reply_first(storage_nodes, %GetP2PView{node_public_keys: node_public_keys},
+           node_ack?: true
+         ) do
+      {:ok, %P2PView{nodes_view: nodes_view}, node} ->
+        {:ok, nodes_view, node}
 
-    {nodes_view, node}
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
   end
 end

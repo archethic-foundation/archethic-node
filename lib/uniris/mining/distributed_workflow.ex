@@ -559,18 +559,27 @@ defmodule Uniris.Mining.DistributedWorkflow do
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 
+    message = %ReplicateTransaction{
+      transaction: ValidationContext.get_validated_transaction(context)
+    }
+
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       storage_nodes,
-      fn node = %Node{last_public_key: node_key} ->
-        %Ok{} =
-          P2P.send_message!(node, %ReplicateTransaction{
-            transaction: ValidationContext.get_validated_transaction(context)
-          })
+      fn node ->
+        case P2P.send_message(node, message) do
+          {:ok, %Ok{}} ->
+            {:ok, node}
 
-        send(worker_pid, {:acknowledge_storage, node_key})
+          {:error, :network_issue} ->
+            {:error, :network_issue}
+        end
       end
     )
+    |> Stream.filter(&match?({:ok, {:ok, %Node{}}}, &1))
+    |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}}} ->
+      send(worker_pid, {:acknowledge_storage, node_key})
+    end)
     |> Stream.run()
   end
 end

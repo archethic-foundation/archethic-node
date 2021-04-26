@@ -10,10 +10,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
   alias Uniris.P2P.Message.AddBeaconSlotProof
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.NotifyBeaconSlot
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
@@ -25,7 +22,6 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
   setup do
     start_supervised!({SlotTimer, interval: "0 * * * * *"})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
-    start_supervised!(Batcher)
 
     P2P.add_node(%Node{
       ip: {127, 0, 0, 1},
@@ -81,8 +77,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       )
 
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
-      {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+    |> stub(:send_message, fn _, %AddBeaconSlotProof{} ->
+      {:ok, %Ok{}}
     end)
 
     assert {:waiting_proofs, _} = :sys.get_state(pid)
@@ -103,8 +99,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       }
 
       MockClient
-      |> stub(:send_message, fn _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+      |> stub(:send_message, fn _, %AddBeaconSlotProof{} ->
+        {:ok, %Ok{}}
       end)
 
       {:ok, pid} =
@@ -141,11 +137,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
-
-        _, %BatchRequests{requests: [%NotifyBeaconSlot{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+        _, %AddBeaconSlotProof{} ->
+          {:ok, %Ok{}}
       end)
 
       assert :ok =
@@ -185,22 +178,12 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%AddBeaconSlotProof{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+        _, %AddBeaconSlotProof{} ->
+          {:ok, %Ok{}}
 
-        _, %BatchRequests{requests: [%NotifyBeaconSlot{}]}, _ ->
+        _, %NotifyBeaconSlot{} ->
           send(me, :slot_sent)
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
-
-        _, %BatchRequests{requests: [%NotifyBeaconSlot{}, %AddBeaconSlotProof{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}, {1, %Ok{}}]}}
-
-        _,
-        %BatchRequests{
-          requests: [%NotifyBeaconSlot{}, %AddBeaconSlotProof{}, %AddBeaconSlotProof{}]
-        },
-        _ ->
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}, {1, %Ok{}}, {2, %Ok{}}]}}
+          {:ok, %Ok{}}
       end)
 
       {:ok, pid} =
@@ -226,6 +209,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
                  Crypto.sign_with_node_key(Slot.digest(slot), 2)
                )
 
+      assert_receive :slot_sent, 3_000
+      assert_receive :slot_sent, 3_000
       assert_receive :slot_sent, 3_000
     end
   end

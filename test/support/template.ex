@@ -124,6 +124,9 @@ defmodule UnirisCase do
     |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
 
+    MockClient
+    |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
+
     start_supervised!(NFTLedger)
     start_supervised!(UCOLedger)
     start_supervised!(KOLedger)

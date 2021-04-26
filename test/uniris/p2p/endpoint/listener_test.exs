@@ -9,10 +9,8 @@ defmodule Uniris.P2P.Endpoint.ListenerTest do
   alias Uniris.P2P.Endpoint.Listener
 
   setup do
-    me = self()
-
     MockTransport
-    |> expect(:listen, fn _, _port -> {:ok, me} end)
+    |> expect(:listen, fn _, _port -> {:ok, make_ref()} end)
 
     :ok
   end

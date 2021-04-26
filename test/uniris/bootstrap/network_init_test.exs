@@ -14,9 +14,6 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.Bootstrap.NetworkInit
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
@@ -42,7 +39,6 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   import Mox
 
   setup do
-    start_supervised!(Batcher)
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
@@ -59,8 +55,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
-      %LastTransactionAddress{address: address}
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+      {:ok, %LastTransactionAddress{address: address}}
     end)
 
     :ok
@@ -108,20 +104,11 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+      _, %GetTransactionChain{} ->
+        {:ok, %TransactionList{transactions: []}}
 
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
-
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %UnspentOutputList{unspent_outputs: []}},
-             {1, %TransactionList{transactions: []}}
-           ]
-         }}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
     end)
 
     tx =
@@ -164,20 +151,11 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+      _, %GetTransactionChain{} ->
+        {:ok, %TransactionList{transactions: []}}
 
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
-
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %UnspentOutputList{unspent_outputs: []}},
-             {1, %TransactionList{transactions: []}}
-           ]
-         }}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
     end)
 
     me = self()
@@ -227,20 +205,11 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   test "init_genesis_wallets/1 should initialize genesis wallets" do
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
+      _, %GetTransactionChain{} ->
+        {:ok, %TransactionList{transactions: []}}
 
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
-
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %UnspentOutputList{unspent_outputs: []}},
-             {1, %TransactionList{transactions: []}}
-           ]
-         }}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
     end)
 
     P2P.add_node(%Node{

@@ -12,11 +12,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.Bootstrap
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
   alias Uniris.P2P.BootstrappingSeeds
   alias Uniris.P2P.Message.AcknowledgeStorage
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetBeaconSummary
@@ -63,7 +60,6 @@ defmodule Uniris.BootstrapTest do
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
-    start_supervised!(Batcher)
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -77,23 +73,14 @@ defmodule Uniris.BootstrapTest do
     test "should initialize the network when nothing is set before" do
       MockClient
       |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: address}, _ ->
+        _, %GetLastTransactionAddress{address: address} ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+        _, %GetUnspentOutputs{} ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-          {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
-
-        _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-          {:ok,
-           %BatchResponses{
-             responses: [
-               {0, %UnspentOutputList{unspent_outputs: []}},
-               {1, %TransactionList{transactions: []}}
-             ]
-           }}
+        _, %GetTransactionChain{} ->
+          {:ok, %TransactionList{transactions: []}}
       end)
 
       MockDB
@@ -174,23 +161,18 @@ defmodule Uniris.BootstrapTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %BatchRequests{requests: [%GetBootstrappingNodes{}]}, _ ->
+        _, %GetBootstrappingNodes{} ->
           {:ok,
-           %BatchResponses{
-             responses: [
-               {0,
-                %BootstrappingNodes{
-                  new_seeds: [
-                    Enum.at(nodes, 0)
-                  ],
-                  closest_nodes: [
-                    Enum.at(nodes, 1)
-                  ]
-                }}
+           %BootstrappingNodes{
+             new_seeds: [
+               Enum.at(nodes, 0)
+             ],
+             closest_nodes: [
+               Enum.at(nodes, 1)
              ]
            }}
 
-        _, %NewTransaction{transaction: tx}, _ ->
+        _, %NewTransaction{transaction: tx} ->
           stamp = %ValidationStamp{
             proof_of_work: "",
             proof_of_integrity: "",
@@ -217,23 +199,23 @@ defmodule Uniris.BootstrapTest do
 
           {:ok, %Ok{}}
 
-        _, %GetStorageNonce{}, _ ->
+        _, %GetStorageNonce{} ->
           {:ok,
            %EncryptedStorageNonce{
              digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
            }}
 
-        _, %ListNodes{}, _ ->
+        _, %ListNodes{} ->
           {:ok, %NodeList{nodes: nodes}}
 
-        _, %GetBeaconSummary{}, _ ->
+        _, %GetBeaconSummary{} ->
           {:ok, %NotFound{}}
 
-        _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]}, _ ->
+        _, %NotifyEndOfNodeSync{} ->
           send(me, :node_ready)
-          {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+          {:ok, %Ok{}}
 
-        _, %GetTransaction{address: address}, _ ->
+        _, %GetTransaction{address: address} ->
           {:ok,
            %Transaction{
              address: address,
@@ -241,7 +223,7 @@ defmodule Uniris.BootstrapTest do
              cross_validation_stamps: [%{}]
            }}
 
-        _, %AcknowledgeStorage{address: address}, _ ->
+        _, %AcknowledgeStorage{address: address} ->
           PubSub.notify_new_transaction(address)
           {:ok, %Ok{}}
       end)

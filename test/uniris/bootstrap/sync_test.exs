@@ -12,9 +12,6 @@ defmodule Uniris.Bootstrap.SyncTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.EncryptedStorageNonce
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
@@ -47,26 +44,15 @@ defmodule Uniris.Bootstrap.SyncTest do
   setup do
     MockClient
     |> stub(:send_message, fn
-      _, %GetLastTransactionAddress{address: address}, _ ->
+      _, %GetLastTransactionAddress{address: address} ->
         %LastTransactionAddress{address: address}
 
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %UnspentOutputList{unspent_outputs: []}}]}}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-      _, %BatchRequests{requests: [%GetTransactionChain{}]}, _ ->
-        {:ok, %BatchResponses{responses: [{0, %TransactionList{transactions: []}}]}}
-
-      _, %BatchRequests{requests: [%GetUnspentOutputs{}, %GetTransactionChain{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %UnspentOutputList{unspent_outputs: []}},
-             {1, %TransactionList{transactions: []}}
-           ]
-         }}
+      _, %GetTransactionChain{} ->
+        {:ok, %TransactionList{transactions: []}}
     end)
-
-    start_supervised!(Batcher)
 
     :ok
   end
@@ -269,7 +255,7 @@ defmodule Uniris.Bootstrap.SyncTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %ListNodes{}, _ ->
+      _, %ListNodes{} ->
         {:ok,
          %NodeList{
            nodes: [
@@ -283,7 +269,7 @@ defmodule Uniris.Bootstrap.SyncTest do
          }}
     end)
 
-    assert :ok = Sync.load_node_list(node)
+    assert :ok = Sync.load_node_list([node])
 
     assert [
              node,
@@ -307,12 +293,12 @@ defmodule Uniris.Bootstrap.SyncTest do
     :ok = P2P.add_node(node)
 
     MockClient
-    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key}, _ ->
+    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
       {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
     end)
 
-    assert :ok = Sync.load_storage_nonce(node)
+    assert :ok = Sync.load_storage_nonce([node])
     assert "fake_storage_nonce" = :persistent_term.get(:storage_nonce)
   end
 
@@ -331,9 +317,9 @@ defmodule Uniris.Bootstrap.SyncTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn _, %BatchRequests{requests: [%NotifyEndOfNodeSync{}]}, _ ->
+    |> stub(:send_message, fn _, %NotifyEndOfNodeSync{} ->
       send(me, :end_of_sync)
-      {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+      {:ok, %Ok{}}
     end)
 
     assert :ok = Sync.publish_end_of_sync()

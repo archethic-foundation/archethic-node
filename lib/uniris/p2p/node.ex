@@ -42,6 +42,51 @@ defmodule Uniris.P2P.Node do
     })\nreward address: ([0-9a-fA-F]{66,130})/m
   end
 
+  @doc ~S"""
+  Extract node information
+
+  ## Examples
+
+      iex> Node.extract_node_info("ip: 127.0.0.1\nport: 3000\ntransport: tcp\nreward address: 00ADB3F67EF7DF1456C937BE1D3BD4C42459B2B9D317441E164B27C508BAA77BB6")
+      {
+        {127, 0, 0, 1},
+        3000,
+        :tcp,
+        <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+          89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>
+      }
+  """
+  @spec extract_node_info(binary()) ::
+          {:inet.ip_address(), :inet.port_number(), Transport.supported(),
+           reward_address :: binary()}
+  def extract_node_info(content) when is_binary(content) do
+    [[ip_match, port_match, transport_match, reward_address_match]] =
+      Regex.scan(transaction_content_regex(), content, capture: :all_but_first)
+
+    {:ok, ip} =
+      ip_match
+      |> String.trim()
+      |> String.to_charlist()
+      |> :inet.parse_address()
+
+    port =
+      port_match
+      |> String.trim()
+      |> String.to_integer()
+
+    transport =
+      transport_match
+      |> String.trim()
+      |> String.to_existing_atom()
+
+    reward_address =
+      reward_address_match
+      |> String.trim()
+      |> Base.decode16!()
+
+    {ip, port, transport, reward_address}
+  end
+
   @type t() :: %__MODULE__{
           first_public_key: nil | Crypto.key(),
           last_public_key: Crypto.key(),
@@ -213,6 +258,7 @@ defmodule Uniris.P2P.Node do
       ...>     92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   transport: :tcp,
       ...>   geo_patch: "FA9",
       ...>   network_patch: "AVC",
       ...>   available?: true,
@@ -230,6 +276,8 @@ defmodule Uniris.P2P.Node do
       127, 0, 0, 1,
       # Port
       11, 184,
+      # Transport (1: TCP)
+      1,
       # Geo patch
       "FA9",
       # Network patch
@@ -262,6 +310,7 @@ defmodule Uniris.P2P.Node do
   def serialize(%__MODULE__{
         ip: {o1, o2, o3, o4},
         port: port,
+        transport: transport,
         first_public_key: first_public_key,
         last_public_key: last_public_key,
         geo_patch: geo_patch,
@@ -283,11 +332,15 @@ defmodule Uniris.P2P.Node do
 
     avg_bin = trunc(average_availability * 100)
 
-    <<ip_bin::binary-size(4), port::16, geo_patch::binary-size(3), network_patch::binary-size(3),
-      avg_bin::8, DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
+    <<ip_bin::binary-size(4), port::16, serialize_transport(transport)::8,
+      geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
+      DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
       reward_address::binary, last_address::binary>>
   end
+
+  defp serialize_transport(MockTransport), do: 0
+  defp serialize_transport(:tcp), do: 1
 
   @doc """
   Deserialize an encoded node
@@ -295,7 +348,7 @@ defmodule Uniris.P2P.Node do
   ## Examples
 
       iex> Node.deserialize(<<
-      ...> 127, 0, 0, 1, 11, 184, "FA9", "AVC", 80,
+      ...> 127, 0, 0, 1, 11, 184, 1, "FA9", "AVC", 80,
       ...> 94, 245, 179, 123, 1::1,
       ...> 1::1, 94, 245, 179, 123,
       ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
@@ -315,6 +368,7 @@ defmodule Uniris.P2P.Node do
               92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
             ip: {127, 0, 0, 1},
             port: 3000,
+            transport: :tcp,
             geo_patch: "FA9",
             network_patch: "AVC",
             available?: true,
@@ -332,7 +386,7 @@ defmodule Uniris.P2P.Node do
   """
   @spec deserialize(bitstring()) :: {Uniris.P2P.Node.t(), bitstring}
   def deserialize(
-        <<ip_bin::binary-size(4), port::16, geo_patch::binary-size(3),
+        <<ip_bin::binary-size(4), port::16, transport::8, geo_patch::binary-size(3),
           network_patch::binary-size(3), average_availability::8, enrollment_date::32,
           available::1, authorized::1, authorization_date::32, rest::bitstring>>
       ) do
@@ -361,6 +415,7 @@ defmodule Uniris.P2P.Node do
       %__MODULE__{
         ip: {o1, o2, o3, o4},
         port: port,
+        transport: deserialize_transport(transport),
         geo_patch: geo_patch,
         network_patch: network_patch,
         average_availability: average_availability / 100,
@@ -376,4 +431,7 @@ defmodule Uniris.P2P.Node do
       rest
     }
   end
+
+  defp deserialize_transport(0), do: MockTransport
+  defp deserialize_transport(1), do: :tcp
 end

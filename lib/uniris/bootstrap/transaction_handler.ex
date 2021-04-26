@@ -1,12 +1,14 @@
 defmodule Uniris.Bootstrap.TransactionHandler do
   @moduledoc false
 
+  use Retry
+  alias Retry.DelayStreams
+
   alias Uniris.Crypto
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NewTransaction
-  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
@@ -20,15 +22,36 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @doc """
   Send a transaction to the network towards a welcome node
   """
-  @spec send_transaction(Transaction.t(), Node.t()) :: :ok | {:error, :network_issue}
-  def send_transaction(tx = %Transaction{}, node = %Node{}) do
-    message = %NewTransaction{transaction: tx}
-    %Ok{} = P2P.send_message!(node, message)
+  @spec send_transaction(Transaction.t(), list(Node.t())) :: :ok | {:error, :network_issue}
+  def send_transaction(tx = %Transaction{address: address}, nodes) do
+    Logger.info("Send node transaction...", transaction: "node@#{Base.encode16(address)}")
+
+    case P2P.reply_first(nodes, %NewTransaction{transaction: tx}) do
+      {:ok, %Ok{}} ->
+        Logger.info("Waiting transaction replication",
+          transaction: "node@#{Base.encode16(address)}"
+        )
+
+        retry_while with:
+                      DelayStreams.linear_backoff(10, 2)
+                      |> DelayStreams.cap(1_000)
+                      |> Stream.take(10) do
+          case P2P.reply_first(nodes, %GetTransaction{address: address}) do
+            {:ok,
+             %Transaction{
+               address: ^address,
+               validation_stamp: %ValidationStamp{},
+               cross_validation_stamps: [_ | _]
+             }} ->
+              {:halt, :ok}
+
+            _ ->
+              {:cont, {:error, :not_found}}
+          end
+        end
+    end
+
     :ok
-  catch
-    e ->
-      Logger.error(Exception.format(:error, e, __STACKTRACE__))
-      {:error, :network_issue}
   end
 
   @doc """
@@ -51,24 +74,5 @@ defmodule Uniris.Bootstrap.TransactionHandler do
       reward address: #{reward_address}
       """
     })
-  end
-
-  @doc """
-  Await the validation a given transaction address
-  """
-  @spec await_validation(binary(), Node.t()) :: :ok | {:error, :network_issue}
-  def await_validation(address, node = %Node{}, retries \\ 0) when is_binary(address) do
-    case P2P.send_message!(node, %GetTransaction{address: address}) do
-      %Transaction{
-        address: ^address,
-        validation_stamp: %ValidationStamp{},
-        cross_validation_stamps: [_ | _]
-      } ->
-        :ok
-
-      %NotFound{} ->
-        Process.sleep(500 * (retries + 1))
-        await_validation(address, node)
-    end
   end
 end

@@ -7,9 +7,6 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
   alias Uniris.Mining.StandaloneWorkflow
 
   alias Uniris.P2P
-  alias Uniris.P2P.Batcher
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.GetP2PView
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetUnspentOutputs
@@ -25,11 +22,6 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
   alias Uniris.TransactionChain.TransactionData
 
   import Mox
-
-  setup do
-    start_supervised!(Batcher)
-    :ok
-  end
 
   test "run/1 should auto validate the transaction and request storage" do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
@@ -53,27 +45,18 @@ defmodule Uniris.Mining.StandaloneWorkflowTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %BatchRequests{requests: [%GetP2PView{}, %GetUnspentOutputs{}, %GetTransaction{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %P2PView{nodes_view: <<1::1>>}},
-             {1, %UnspentOutputList{unspent_outputs: unspent_outputs}},
-             {2, %NotFound{}}
-           ]
-         }}
+      _, %GetP2PView{} ->
+        {:ok, %P2PView{nodes_view: <<1::1>>}}
 
-      _, %BatchRequests{requests: [%GetTransaction{}]}, _ ->
-        {:ok,
-         %BatchResponses{
-           responses: [
-             {0, %NotFound{}}
-           ]
-         }}
+      _, %GetUnspentOutputs{} ->
+        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
 
-      _, %BatchRequests{requests: [%ReplicateTransaction{}]}, _ ->
+      _, %GetTransaction{} ->
+        {:ok, %NotFound{}}
+
+      _, %ReplicateTransaction{} ->
         send(me, :transaction_replicated)
-        {:ok, %BatchResponses{responses: [{0, %Ok{}}]}}
+        {:ok, %Ok{}}
     end)
 
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)

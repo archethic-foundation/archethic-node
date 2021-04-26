@@ -190,26 +190,13 @@ defmodule Uniris.Bootstrap do
   defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
     Enum.each(bootstrapping_seeds, &P2P.add_node/1)
 
-    closest_node =
-      bootstrapping_seeds
-      |> Sync.get_closest_nodes_and_renew_seeds(patch)
-      |> List.first()
+    closest_nodes = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
     tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+    :ok = TransactionHandler.send_transaction(tx, closest_nodes)
 
-    ack_task = Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
-
-    Logger.info("Send node transaction...", transaction: "node@#{Base.encode16(tx.address)}")
-    :ok = TransactionHandler.send_transaction(tx, closest_node)
-
-    Logger.info("Waiting transaction replication",
-      transaction: "node@#{Base.encode16(tx.address)}"
-    )
-
-    :ok = Task.await(ack_task, :infinity)
-
-    :ok = Sync.load_storage_nonce(closest_node)
-    :ok = Sync.load_node_list(closest_node)
+    :ok = Sync.load_storage_nonce(closest_nodes)
+    :ok = Sync.load_node_list(closest_nodes)
   end
 
   defp update_node(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
@@ -218,24 +205,10 @@ defmodule Uniris.Bootstrap do
         Logger.warning("Not enough nodes in the network. No node update")
 
       _ ->
-        closest_node =
-          bootstrapping_seeds
-          |> Sync.get_closest_nodes_and_renew_seeds(patch)
-          |> List.first()
+        closest_nodes = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
         tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
-
-        ack_task =
-          Task.async(fn -> TransactionHandler.await_validation(tx.address, closest_node) end)
-
-        :ok = TransactionHandler.send_transaction(tx, closest_node)
-        Logger.info("Node transaction sent", transaction: "node@#{Base.encode16(tx.address)}")
-
-        Logger.info("Waiting transaction replication",
-          transaction: "node@#{Base.encode16(tx.address)}"
-        )
-
-        :ok = Task.await(ack_task, :infinity)
+        :ok = TransactionHandler.send_transaction(tx, closest_nodes)
     end
   end
 

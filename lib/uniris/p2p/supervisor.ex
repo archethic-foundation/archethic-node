@@ -1,8 +1,8 @@
 defmodule Uniris.P2P.Supervisor do
   @moduledoc false
 
-  alias Uniris.P2P.Batcher
   alias Uniris.P2P.BootstrappingSeeds
+  alias Uniris.P2P.Connection
   alias Uniris.P2P.Endpoint
   alias Uniris.P2P.Endpoint.Supervisor, as: EndpointSupervisor
   alias Uniris.P2P.MemTable
@@ -23,6 +23,9 @@ defmodule Uniris.P2P.Supervisor do
 
     bootstraping_seeds_conf = Application.get_env(:uniris, BootstrappingSeeds)
 
+    # Setup the connection handler for the local node
+    Connection.start_link(name: LocalConnection, initiator?: true)
+
     optional_children = [
       {Registry,
        keys: :unique, name: Uniris.P2P.ConnectionRegistry, partitions: System.schedulers_online()},
@@ -34,8 +37,7 @@ defmodule Uniris.P2P.Supervisor do
        [
          file: Utils.mut_dir(Keyword.fetch!(bootstraping_seeds_conf, :file)),
          seeds: Keyword.get(bootstraping_seeds_conf, :seeds)
-       ]},
-      {Batcher, []}
+       ]}
     ]
 
     children = Utils.configurable_children(optional_children)

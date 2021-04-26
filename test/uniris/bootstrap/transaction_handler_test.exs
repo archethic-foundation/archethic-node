@@ -16,8 +16,6 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
-  alias Uniris.PubSub
-
   import Mox
 
   test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
@@ -50,11 +48,6 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
 
     :ok = P2P.add_node(node)
 
-    MockClient
-    |> expect(:send_message, fn _, %NewTransaction{}, _ ->
-      {:ok, %Ok{}}
-    end)
-
     tx =
       TransactionHandler.create_node_transaction(
         {127, 0, 0, 1},
@@ -63,34 +56,20 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
         "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
       )
 
-    assert :ok = TransactionHandler.send_transaction(tx, node)
-  end
-
-  test "await_validation/1 should return :ok when the transaction is validated" do
     MockClient
-    |> stub(:send_message, fn _, %GetTransaction{address: address}, _ ->
-      {:ok,
-       %Transaction{
-         address: address,
-         validation_stamp: %ValidationStamp{},
-         cross_validation_stamps: [%{}]
-       }}
+    |> stub(:send_message, fn
+      _, %NewTransaction{} ->
+        {:ok, %Ok{}}
+
+      _, %GetTransaction{} ->
+        {:ok,
+         %Transaction{
+           address: tx.address,
+           validation_stamp: %ValidationStamp{},
+           cross_validation_stamps: [%{}]
+         }}
     end)
 
-    node = %Node{
-      ip: {80, 10, 101, 202},
-      port: 4390,
-      first_public_key: "key1",
-      last_public_key: "key1",
-      available?: true
-    }
-
-    :ok = P2P.add_node(node)
-
-    t = Task.async(fn -> TransactionHandler.await_validation("@Alice1", node) end)
-    Process.sleep(500)
-    PubSub.notify_new_transaction("@Alice1")
-
-    assert :ok = Task.await(t)
+    assert :ok = TransactionHandler.send_transaction(tx, [node])
   end
 end

@@ -64,7 +64,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   defp download_summary(nodes, subset, summary_time, patch) do
     nodes
     |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> P2P.reply_first(%GetBeaconSummary{subset: subset, date: summary_time}, patch)
+    |> P2P.reply_first(%GetBeaconSummary{subset: subset, date: summary_time}, patch: patch)
   end
 
   @doc """
