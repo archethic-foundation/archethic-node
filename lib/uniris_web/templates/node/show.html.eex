@@ -55,13 +55,13 @@
             </div>
         </div>
         <div class="columns">
-            <div class="column">
+            <div class="column is-2-desktop">
                 <div>
                     <p class="heading">Authorization date</p>
                     <span><%= format_date(@node.authorization_date) %></span>
                 </div>
             </div>
-            <div class="column">
+            <div class="column is-2-desktop">
                 <div>
                     <p class="heading">Enrollment date</p>
                     <span><%= format_date(@node.enrollment_date) %></span>
@@ -69,10 +69,28 @@
             </div>
             <div class="column">
                 <div>
-                    <p class="heading">UCO Balance</p>
-                    <span><strong><%= format_float(@uco_balance) %> UCO</strong></span>
+                    <p class="heading">Reward address</p>
+                    <span>
+                        <%= link to: Routes.live_path(@conn, UnirisWeb.TransactionDetailsLive, Base.encode16(@reward_address)) do %>
+                            <%= Base.encode16(@reward_address) %>
+                        <% end %>
+                    </span>
                 </div>
             </div>
         </div>
+        <div class="columns">
+            <div class="column">
+                <div>
+                    <p class="heading">Mining rewards</p>
+                    <span><strong><%= format_float(@mining_rewards) %> UCO</strong></span>
+                </div>
+            </div>
+            <div class="column">
+                <div>
+                    <p class="heading">Reward withdraw address's UCO Balance</p>
+                    <span><strong><%= format_float(@reward_balance) %> UCO</strong></span>
+                 </div>
+             </div>
+         </div>
     <% end %>
 </div>
