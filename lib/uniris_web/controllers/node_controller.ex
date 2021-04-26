@@ -33,7 +33,7 @@ defmodule UnirisWeb.NodeController do
       {:error, :not_found} ->
         render(conn, "show.html", node: nil, mining_rewards: 0.0, reward_balance: 0.0)
 
-      false ->
+      _ ->
         render(conn, "show.html",
           node: nil,
           mining_rewards: 0.0,

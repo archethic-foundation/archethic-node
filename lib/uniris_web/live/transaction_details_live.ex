@@ -4,6 +4,8 @@ defmodule UnirisWeb.TransactionDetailsLive do
 
   alias Phoenix.View
 
+  alias Uniris.Crypto
+
   alias Uniris.PubSub
 
   alias Uniris.TransactionChain.Transaction
@@ -25,16 +27,14 @@ defmodule UnirisWeb.TransactionDetailsLive do
   end
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
-    case Base.decode16(address, case: :mixed) do
-      {:ok, addr} ->
-        case get_transaction(addr, opts) do
-          {:ok, tx} ->
-            {:noreply, handle_transaction(socket, tx)}
-
-          _ ->
-            PubSub.register_to_new_transaction_by_address(addr)
-            {:noreply, handle_not_existing_transaction(socket, addr)}
-        end
+    with {:ok, addr} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_hash?(addr),
+         {:ok, tx} <- get_transaction(addr, opts) do
+      {:noreply, handle_transaction(socket, tx)}
+    else
+      {:error, :transaction_not_exists} ->
+        PubSub.register_to_new_transaction_by_address(Base.decode16!(address, case: :mixed))
+        {:noreply, handle_not_existing_transaction(socket, Base.decode16!(address, case: :mixed))}
 
       _ ->
         {:noreply, handle_invalid_address(socket, address)}

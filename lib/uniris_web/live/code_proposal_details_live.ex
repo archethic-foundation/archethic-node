@@ -5,6 +5,8 @@ defmodule UnirisWeb.CodeProposalDetailsLive do
   alias Phoenix.View
   alias UnirisWeb.CodeView
 
+  alias Uniris.Crypto
+
   alias Uniris.Governance
   alias Uniris.Governance.Code.Proposal
 
@@ -16,28 +18,26 @@ defmodule UnirisWeb.CodeProposalDetailsLive do
       PubSub.register_to_code_proposal_deployment(address)
     end
 
-    case Base.decode16(address, case: :mixed) do
-      {:ok, addr} ->
-        case Governance.get_code_proposal(addr) do
-          {:ok, prop} ->
-            new_socket =
-              socket
-              |> assign(:proposal, prop)
-              |> assign(:exists?, true)
-              |> assign(:address, addr)
-              |> assign(:deployed?, false)
+    with {:ok, addr} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_hash?(addr),
+         {:ok, prop} <- Governance.get_code_proposal(addr) do
+      new_socket =
+        socket
+        |> assign(:proposal, prop)
+        |> assign(:exists?, true)
+        |> assign(:address, addr)
+        |> assign(:deployed?, false)
 
-            {:ok, new_socket}
+      {:ok, new_socket}
+    else
+      {:error, :not_found} ->
+        new_socket =
+          socket
+          |> assign(:address, Base.decode16!(address, case: :mixed))
+          |> assign(:deployed?, false)
+          |> assign(:exists?, false)
 
-          _ ->
-            new_socket =
-              socket
-              |> assign(:address, addr)
-              |> assign(:deployed?, false)
-              |> assign(:exists?, false)
-
-            {:ok, new_socket}
-        end
+        {:ok, new_socket}
 
       _ ->
         {:ok, assign(socket, :error, :invalid_address)}
