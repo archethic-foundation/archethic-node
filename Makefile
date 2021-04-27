@@ -10,3 +10,7 @@ priv/c_dist/hypergeometric_distribution:
 
 priv/c_dist:
 	mkdir -p priv/c_dist
+
+clean:
+	rm -f priv/c_dist/libsodium
+	rm -f priv/c_dist/hypergeometric_distribution
