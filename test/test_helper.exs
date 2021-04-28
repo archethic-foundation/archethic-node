@@ -8,7 +8,11 @@ ExUnit.start(
 
 Mox.defmock(MockClient, for: Uniris.P2P.ClientImpl)
 Mox.defmock(MockTransport, for: Uniris.P2P.TransportImpl)
-Mox.defmock(MockCrypto, for: Uniris.Crypto.KeystoreImpl)
+
+Mox.defmock(MockCrypto,
+  for: [Uniris.Crypto.NodeKeystoreImpl, Uniris.Crypto.SharedSecretsKeystoreImpl]
+)
+
 Mox.defmock(MockDB, for: Uniris.DBImpl)
 Mox.defmock(MockGeoIP, for: Uniris.P2P.GeoPatch.GeoIPImpl)
 Mox.defmock(MockUCOPriceProvider, for: Uniris.OracleChain.Services.UCOPrice.Providers.Impl)

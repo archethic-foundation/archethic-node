@@ -3,11 +3,11 @@
 
 #include "stdio_helpers.h"
 
-enum { GENERATE_ED25519 = 1, GENERATE_ED25519_SEED = 2, ENCRYPT = 3, DECRYPT = 4, SIGN = 5, VERIFY = 6 };
+enum { CONVERT_PUBLIC_KEY_ED25519_TO_CURVE25519 = 1, CONVERT_SECRET_KEY_ED25519_TO_CURVE25519 = 2 };
 
+void convert_public_key(unsigned char* buf, int pos, int len);
+void convert_secret_key(unsigned char* buf,  int pos, int len);
 void write_error(unsigned char* buf, char* error_message, int error_message_len);
-void encrypt(unsigned char* buf, int pos, int len);
-void decrypt(unsigned char* buf, int pos, int len);
 
 int main() {
 
@@ -42,12 +42,14 @@ int main() {
         pos++;
 
         switch (fun_id) {
-            case ENCRYPT:
-                encrypt(buf, pos, len);
+            case CONVERT_SECRET_KEY_ED25519_TO_CURVE25519:
+                convert_secret_key(buf, pos, len);
                 break;
-            case DECRYPT:
-                decrypt(buf, pos, len);
+            case CONVERT_PUBLIC_KEY_ED25519_TO_CURVE25519:
+                convert_public_key(buf, pos, len);
                 break;
+            default:
+                err(EXIT_FAILURE, "invalid fun id");
         }
 
         free(buf);
@@ -55,173 +57,82 @@ int main() {
     }
 }
 
-void encrypt(unsigned char* buf, int pos, int len) {
+void convert_public_key(unsigned char* buf, int pos, int len) {
     if (len < pos + crypto_sign_PUBLICKEYBYTES) {
         write_error(buf, "missing public key", 18);
     } else {
-        unsigned char pk[crypto_sign_PUBLICKEYBYTES];
+        
+        unsigned char ed25519_pk[crypto_sign_PUBLICKEYBYTES];
         for (int i = 0; i < crypto_sign_PUBLICKEYBYTES; i++) {
-            pk[i] = buf[pos+i];
+            ed25519_pk[i] = buf[pos+i];
         }
 
         pos += crypto_sign_PUBLICKEYBYTES;
 
         unsigned char x25519_pk[crypto_scalarmult_curve25519_BYTES];
-        if (crypto_sign_ed25519_pk_to_curve25519(x25519_pk, pk) != 0) {
-            sodium_memzero(pk, sizeof pk);
+        if (crypto_sign_ed25519_pk_to_curve25519(x25519_pk, ed25519_pk) != 0) {
+            sodium_memzero(ed25519_pk, sizeof ed25519_pk);
             write_error(buf, "ed25519 public key to curve25519 failed", 39);
         } else {
-            if (len < pos + 4) {
-                sodium_memzero(pk, sizeof pk);
-                sodium_memzero(x25519_pk, sizeof x25519_pk);
-                write_error(buf, "missing message size", 20);
-            } else {
-                int message_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
-                pos+=4;
 
-                if (len < pos + message_len) {
-                    write_error(buf, "missing message", 15);
-                    sodium_memzero(pk, sizeof pk);
-                    sodium_memzero(x25519_pk, sizeof x25519_pk);
-                } else {
-                        unsigned char *message = (unsigned char *) malloc(message_len);
-                        for (int i = 0; i < message_len; i++) {
-                            message[i] = buf[pos+i];
-                        }
-                        pos += message_len;
+            int response_len = 5 + crypto_scalarmult_curve25519_BYTES;
+            unsigned char response[response_len];
 
-                        int cipher_len = crypto_box_SEALBYTES + message_len;
-                        unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
-                        if (crypto_box_seal(ciphertext, message, message_len, x25519_pk) != 0) {
-                            sodium_memzero(pk, sizeof pk);
-                            sodium_memzero(x25519_pk, sizeof x25519_pk);
-                            sodium_memzero(message, message_len);
-                            sodium_memzero(ciphertext, cipher_len);
-                            write_error(buf, "encryption failed", 17);
-                        } else {
-                            int response_len = 5+4+cipher_len;
-                            unsigned char *response = (unsigned char *) malloc(response_len);
-                            for (int i = 0; i < 4; i++) {
-                                response[i] = buf[i];
-                            }
-
-                            //Encode response success type
-                            response[4] = 1;
-
-                            //encode ciphertext length
-                            response[5] = (cipher_len >> 24) & 0xFF;
-                            response[6] = (cipher_len >> 16) & 0xFF;
-                            response[7] = (cipher_len >> 8) & 0xFF;
-                            response[8] = cipher_len & 0xFF;
-
-                            for (int i = 0; i < cipher_len; i++){
-                                response[9+i] = ciphertext[i];
-                            }
-
-                            write_response(response, response_len);
-                            sodium_memzero(ciphertext, sizeof ciphertext);
-                            sodium_memzero(message, sizeof message);
-                            sodium_memzero(pk, sizeof pk);
-                            sodium_memzero(x25519_pk, sizeof x25519_pk);
-                            sodium_memzero(response, response_len);
-                        }
-                    }
+            //Encode request id
+            for (int i = 0; i < 4; i++) {
+                response[i] = buf[i];
             }
+
+            //Encode response success type
+            response[4] = 1;
+
+            for (int i = 0; i < crypto_scalarmult_curve25519_BYTES; i++){
+                response[5+i] = x25519_pk[i];
+            }
+
+            write_response(response, response_len);
+            sodium_memzero(ed25519_pk, sizeof ed25519_pk);
+            sodium_memzero(x25519_pk, sizeof x25519_pk);
+            sodium_memzero(response, response_len);
         }
-        
     }
 }
 
-void decrypt(unsigned char* buf, int pos, int len) {
+void convert_secret_key(unsigned char* buf, int pos, int len) {
     if (len < pos + crypto_sign_SECRETKEYBYTES) {
         write_error(buf, "missing secret key", 18);
     } else {
-        unsigned char sk[crypto_sign_SECRETKEYBYTES];
+        unsigned char ed25519_sk[crypto_sign_SECRETKEYBYTES];
         for (int i = 0; i < crypto_sign_SECRETKEYBYTES; i++) {
-            sk[i] = buf[pos+i];
+            ed25519_sk[i] = buf[pos+i];
         }
+
         pos += crypto_sign_SECRETKEYBYTES;
 
         unsigned char x25519_sk[crypto_scalarmult_curve25519_BYTES];
-        if (crypto_sign_ed25519_sk_to_curve25519(x25519_sk, sk) != 0) {
-            sodium_memzero(sk, sizeof(sk));
-            write_error(buf, "ed25519 private key to curve25519 failed", 40);
+        if (crypto_sign_ed25519_sk_to_curve25519(x25519_sk, ed25519_sk) != 0) {
+            sodium_memzero(ed25519_sk, sizeof ed25519_sk);
+            write_error(buf, "ed25519 secret key to curve25519 failed", 39);
         } else {
-            unsigned char pk[crypto_sign_PUBLICKEYBYTES];
-            for (int i = 0; i < crypto_sign_PUBLICKEYBYTES; i++) {
-                pk[i] = sk[32+i];
+            int response_len = 5 + crypto_scalarmult_curve25519_BYTES;
+            unsigned char response[response_len];
+
+            //Encode request id
+            for (int i = 0; i < 4; i++) {
+                response[i] = buf[i];
             }
 
-            unsigned char x25519_pk[crypto_scalarmult_curve25519_BYTES];
-            if (crypto_sign_ed25519_pk_to_curve25519(x25519_pk, pk) != 0) {
-                sodium_memzero(sk, sizeof(sk));
-                sodium_memzero(pk, sizeof(pk));
-                write_error(buf, "ed25519 public key to curve25519 failed", 39);
-            } else {
-                if (len < pos + 4) {
-                    sodium_memzero(sk, sizeof(sk));
-                    sodium_memzero(pk, sizeof(pk));
-                    write_error(buf, "missing cipher size", 19);
-                } else {
-                    int cipher_len = buf[pos+3] | buf[pos+2] << 8 | buf[pos+1] << 16 | buf[pos] << 24;
-                    pos+=4;
+            //Encode response success type
+            response[4] = 1;
 
-                    if (cipher_len < crypto_box_SEALBYTES) {
-                      sodium_memzero(sk, sizeof(sk));
-                      sodium_memzero(pk, sizeof(pk));
-                      write_error(buf, "invalid cipher size", 19);
-                    } else {
-                        if (len < pos + cipher_len) {
-                            sodium_memzero(sk, sizeof(sk));
-                            sodium_memzero(pk, sizeof(pk));
-                            write_error(buf, "missing cipher", 14);
-                        } else {
-                            unsigned char *ciphertext = (unsigned char *) malloc(cipher_len);
-                            
-                           for (int i = 0; i < cipher_len; i++) {
-                                ciphertext[i] = buf[pos+i];
-                            }
-                            pos += cipher_len;
-
-                            int message_size = cipher_len - crypto_box_SEALBYTES;
-
-                            unsigned char *decrypted = (unsigned char *) malloc(message_size);
-                            if(crypto_box_seal_open(decrypted, ciphertext, cipher_len, x25519_pk, x25519_sk) != 0) {
-                                sodium_memzero(sk, sizeof(sk));
-                                sodium_memzero(pk, sizeof(pk));
-                                sodium_memzero(ciphertext, cipher_len);
-                                sodium_memzero(decrypted, message_size);
-                                write_error(buf, "decryption failed", 17);
-                            } else {
-                                int response_len = 5+message_size;
-                                unsigned char *response = (unsigned char *) malloc(response_len);
-
-                                //Encode request id
-                                for (int i = 0; i < 4; i++) {
-                                    response[i] = buf[i];
-                                }
-
-                                //Encode response success type
-                                response[4] = 1;
-
-                                //Encode decrypted message
-                                for (int i = 0; i < message_size; i++){
-                                    response[5+i] = decrypted[i];
-                                }
-                                write_response(response, response_len);
-
-                                sodium_memzero(sk, sizeof(sk));
-                                sodium_memzero(pk, sizeof(pk));
-                                sodium_memzero(ciphertext, cipher_len);
-                                sodium_memzero(decrypted, message_size);
-                                sodium_memzero(response, response_len);
-                            }
-                        }
-                        
-                    }
-
-                }
+            for (int i = 0; i < crypto_scalarmult_curve25519_BYTES; i++){
+                response[5+i] = x25519_sk[i];
             }
+
+            write_response(response, response_len);
+            sodium_memzero(ed25519_sk, sizeof ed25519_sk);
+            sodium_memzero(x25519_sk, sizeof x25519_sk);
+            sodium_memzero(response, response_len);
         }
     }
 }

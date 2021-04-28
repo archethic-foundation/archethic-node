@@ -37,10 +37,13 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
       "127.0.0.1:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp"
     )
 
-config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
+config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
 
-config :uniris, Uniris.Crypto.SoftwareKeystore,
+config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
+
+config :uniris, Uniris.Crypto.SharedSecretsKeystore,
+  impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
 
 config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
 

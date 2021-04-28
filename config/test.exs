@@ -25,10 +25,11 @@ config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 3
 
 config :uniris, Uniris.Contracts.Loader, enabled: false
 
-config :uniris, Uniris.Crypto.Keystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.NodeKeystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl, seed: "fake seed"
+config :uniris, Uniris.Crypto.SharedSecretsKeystore, impl: MockCrypto, enabled: false
 config :uniris, Uniris.Crypto.KeystoreCounter, enabled: false
 config :uniris, Uniris.Crypto.KeystoreLoader, enabled: false
-config :uniris, Uniris.Crypto.SoftwareKeystore, seed: "fake seed"
 
 config :uniris, Uniris.DB, impl: MockDB
 config :uniris, MockDB, enabled: false

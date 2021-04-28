@@ -28,8 +28,10 @@ defmodule Uniris.Crypto do
   alias __MODULE__.ECDSA
   alias __MODULE__.Ed25519
   alias __MODULE__.ID
-  alias __MODULE__.Keystore
+  alias __MODULE__.KeystoreCounter
   alias __MODULE__.KeystoreLoader
+  alias __MODULE__.NodeKeystore
+  alias __MODULE__.SharedSecretsKeystore
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.Utils
@@ -174,8 +176,11 @@ defmodule Uniris.Crypto do
         timestamp = %DateTime{}
       )
       when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    Keystore.decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key, timestamp)
-    Logger.info("Daily nonce stored")
+    SharedSecretsKeystore.decrypt_and_set_daily_nonce_seed(
+      encrypted_seed,
+      encrypted_secret_key,
+      timestamp
+    )
   end
 
   @doc """
@@ -200,7 +205,7 @@ defmodule Uniris.Crypto do
         ) :: :ok
   def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_secret_key)
       when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    Keystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
+    SharedSecretsKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
       encrypted_seed,
       encrypted_secret_key
     )
@@ -225,7 +230,7 @@ defmodule Uniris.Crypto do
         ) :: :ok
   def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_secret_key)
       when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    Keystore.decrypt_and_set_node_shared_secrets_transaction_seed(
+    SharedSecretsKeystore.decrypt_and_set_node_shared_secrets_transaction_seed(
       encrypted_seed,
       encrypted_secret_key
     )
@@ -237,13 +242,13 @@ defmodule Uniris.Crypto do
   Encrypt the node shared secrets transaction seed located in the keystore using the given secret key
   """
   @spec encrypt_node_shared_secrets_transaction_seed(aes_key :: binary()) :: binary()
-  defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: Keystore
+  defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: SharedSecretsKeystore
 
   @doc """
   Encrypt the network pool transaction seed located in the keystore using the given secret key
   """
   @spec encrypt_network_pool_seed(aes_key :: binary()) :: binary()
-  defdelegate encrypt_network_pool_seed(aes_key), to: Keystore
+  defdelegate encrypt_network_pool_seed(aes_key), to: SharedSecretsKeystore
 
   defp get_extended_seed(seed, additional_data) do
     <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
@@ -258,7 +263,7 @@ defmodule Uniris.Crypto do
   Return the last node public key
   """
   @spec node_public_key() :: key()
-  defdelegate node_public_key, to: Keystore
+  defdelegate node_public_key, to: NodeKeystore
 
   @doc """
   Return a node public key by using key derivation from an index
@@ -272,19 +277,19 @@ defmodule Uniris.Crypto do
     true
   """
   @spec node_public_key(index :: number()) :: key()
-  defdelegate node_public_key(index), to: Keystore
+  defdelegate node_public_key(index), to: NodeKeystore
 
   @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
   """
   @spec node_shared_secrets_public_key(index :: number()) :: key()
-  defdelegate node_shared_secrets_public_key(index), to: Keystore
+  defdelegate node_shared_secrets_public_key(index), to: SharedSecretsKeystore
 
   @doc """
   Return the the network pool public key using the network pool transaction seed
   """
   @spec network_pool_public_key(index :: number()) :: key()
-  defdelegate network_pool_public_key(index), to: Keystore
+  defdelegate network_pool_public_key(index), to: SharedSecretsKeystore
 
   @doc """
   Return the storage nonce public key
@@ -310,19 +315,21 @@ defmodule Uniris.Crypto do
   Return the number of node keys after incrementation
   """
   @spec number_of_node_keys() :: non_neg_integer()
-  defdelegate number_of_node_keys, to: Keystore
+  defdelegate number_of_node_keys, to: KeystoreCounter, as: :get_node_key_counter
 
   @doc """
   Return the number of node shared secrets keys after incrementation
   """
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
-  defdelegate number_of_node_shared_secrets_keys, to: Keystore
+  defdelegate number_of_node_shared_secrets_keys,
+    to: KeystoreCounter,
+    as: :get_node_shared_key_counter
 
   @doc """
   Return the number of network pool keys after incrementation
   """
   @spec number_of_network_pool_keys() :: non_neg_integer()
-  defdelegate number_of_network_pool_keys, to: Keystore
+  defdelegate number_of_network_pool_keys, to: KeystoreCounter, as: :get_network_pool_key_counter
 
   @doc """
   Generate a keypair in a deterministic way using a seed
@@ -398,7 +405,7 @@ defmodule Uniris.Crypto do
   def sign_with_node_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_node_key()
+    |> NodeKeystore.sign_with_node_key()
   end
 
   @doc """
@@ -409,7 +416,7 @@ defmodule Uniris.Crypto do
       when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_node_key(index)
+    |> NodeKeystore.sign_with_node_key(index)
   end
 
   @doc """
@@ -419,7 +426,7 @@ defmodule Uniris.Crypto do
   def sign_with_node_shared_secrets_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_node_shared_secrets_key()
+    |> SharedSecretsKeystore.sign_with_node_shared_secrets_key()
   end
 
   @doc """
@@ -431,7 +438,7 @@ defmodule Uniris.Crypto do
       when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_node_shared_secrets_key(index)
+    |> SharedSecretsKeystore.sign_with_node_shared_secrets_key(index)
   end
 
   @doc """
@@ -441,7 +448,7 @@ defmodule Uniris.Crypto do
   def sign_with_network_pool_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_network_pool_key()
+    |> SharedSecretsKeystore.sign_with_network_pool_key()
   end
 
   @doc """
@@ -453,14 +460,14 @@ defmodule Uniris.Crypto do
       when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
     data
     |> Utils.wrap_binary()
-    |> Keystore.sign_with_network_pool_key(index)
+    |> SharedSecretsKeystore.sign_with_network_pool_key(index)
   end
 
   @doc """
   Sign data with the daily nonce stored in the keystore
   """
   @spec sign_with_daily_nonce_key(data :: iodata(), DateTime.t()) :: binary()
-  defdelegate sign_with_daily_nonce_key(data, timestamp), to: Keystore
+  defdelegate sign_with_daily_nonce_key(data, timestamp), to: SharedSecretsKeystore
 
   @doc """
   Verify a signature.
@@ -513,21 +520,54 @@ defmodule Uniris.Crypto do
       ```
       pub = {pub, _} = Crypto.generate_deterministic_keypair("myseed")
       Crypto.ec_encrypt("myfakedata", pub)
-      <<0, 0, 0, 58, 211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
-      111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
-      116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
-      172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
+      <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
+      108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
+      112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
+      153, 229, 221, 66, 26>>
       ```
   """
   @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
-  def ec_encrypt(message, <<curve_id::8, key::binary>> = _public_key) when is_binary(message) do
-    curve_id
-    |> ID.to_curve()
-    |> do_ec_encrypt(message, key)
+  def ec_encrypt(message, <<curve_id::8, public_key::binary>> = _public_key)
+      when is_binary(message) do
+    curve = ID.to_curve(curve_id)
+
+    {ephemeral_public_key, ephemeral_private_key} = generate_ephemeral_encryption_keys(curve)
+
+    # Derivate secret using ECDH with the given public key and the ephemeral private key
+    shared_key =
+      case curve do
+        :ed25519 ->
+          x25519_pk = Ed25519.convert_to_x25519_public_key(public_key)
+          :crypto.compute_key(:ecdh, x25519_pk, ephemeral_private_key, :x25519)
+
+        _ ->
+          :crypto.compute_key(:ecdh, public_key, ephemeral_private_key, curve)
+      end
+
+    # Generate keys for the AES authenticated encryption
+    {iv, aes_key} = derivate_secrets(shared_key)
+
+    {cipher, tag} = aes_auth_encrypt(iv, aes_key, message)
+
+    # Encode the cipher within the ephemeral public key, the authentication tag
+    <<ephemeral_public_key::binary, tag::binary, cipher::binary>>
   end
 
-  defp do_ec_encrypt(:ed25519, message, public_key), do: Ed25519.encrypt(public_key, message)
-  defp do_ec_encrypt(curve, message, public_key), do: ECDSA.encrypt(curve, public_key, message)
+  defp generate_ephemeral_encryption_keys(:ed25519), do: :crypto.generate_key(:ecdh, :x25519)
+  defp generate_ephemeral_encryption_keys(curve), do: :crypto.generate_key(:ecdh, curve)
+
+  defp derivate_secrets(dh_key) do
+    pseudorandom_key = :crypto.hmac(:sha256, "", dh_key)
+    iv = binary_part(:crypto.hmac(:sha256, pseudorandom_key, "0"), 0, 32)
+    aes_key = binary_part(:crypto.hmac(:sha256, iv, "1"), 0, 32)
+    {iv, aes_key}
+  end
+
+  defp aes_auth_encrypt(iv, key, data),
+    do: :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", true)
+
+  defp aes_auth_decrypt(iv, key, cipher, tag),
+    do: :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, cipher, "", tag, false)
 
   @doc """
   Decrypt a cipher using public key authenticated encryption (ECIES).
@@ -543,10 +583,10 @@ defmodule Uniris.Crypto do
 
   ## Examples
 
-      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
-      ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
-      ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
-      ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
+      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
+      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
+      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
+      ...> 153, 229, 221, 66, 26>>
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> Uniris.Crypto.ec_decrypt!(cipher, pv)
       "myfakedata"
@@ -554,62 +594,123 @@ defmodule Uniris.Crypto do
   Invalid message to decrypt or key return an error:
 
       ```
-      Crypto.generate_deterministic_keypair("myseed")
-      Crypto.ec_decrypt!(<<0, 0, 0>>, :node)
+      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
+      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
+      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
+      ...> 153, 229, 221, 66, 26>>
+      iex> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
+      iex> Crypto.ec_decrypt!(cipher, pv)
       ** (RuntimeError) Decryption failed
       ```
   """
-  @spec ec_decrypt!(cipher :: binary(), private_key :: key()) :: binary()
-  def ec_decrypt!(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
-    curve_id
-    |> ID.to_curve()
-    |> do_ec_decrypt!(cipher, key)
+  @spec ec_decrypt!(encoded_cipher :: binary(), private_key :: key()) :: binary()
+  def ec_decrypt!(encoded_cipher, private_key)
+      when is_binary(encoded_cipher) and is_binary(private_key) do
+    case ec_decrypt(encoded_cipher, private_key) do
+      {:error, :decryption_failed} ->
+        raise "Decryption failed"
+
+      {:ok, data} ->
+        data
+    end
   end
 
   @doc """
 
   ## Examples
 
-      iex> cipher = <<211, 32, 254, 247, 110, 135, 236, 224, 119, 89, 142, 210, 120,
-      ...> 111, 59, 77, 4, 17, 199, 94, 66, 116, 251, 92, 77, 231, 78, 11, 123, 112, 201,
-      ...> 116, 41, 23, 6, 157, 49, 93, 11, 235, 175, 242, 225, 250, 241, 196, 207, 83,
-      ...> 172, 79, 3, 206, 21, 227, 227, 156, 55, 112>>
+      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
+      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
+      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
+      ...> 153, 229, 221, 66, 26>>
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> {:ok, "myfakedata"} = Crypto.ec_decrypt(cipher, pv)
 
   Invalid message to decrypt return an error:
 
-      iex> {_, pv} = Crypto.generate_deterministic_keypair("myseed")
-      iex> Crypto.ec_decrypt(<<0, 0, 0>>, pv)
+      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
+      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
+      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
+      ...> 153, 229, 221, 66, 26>>
+      iex> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
+      iex> Crypto.ec_decrypt(cipher, pv)
       {:error, :decryption_failed}
   """
-  @spec ec_decrypt(binary(), binary()) :: {:ok, binary()} | {:error, :decryption_failed}
-  def ec_decrypt(cipher, _private_key = <<curve_id::8, key::binary>>) when is_binary(cipher) do
-    data =
-      curve_id
-      |> ID.to_curve()
-      |> do_ec_decrypt!(cipher, key)
+  @spec ec_decrypt(cipher :: binary(), private_key :: key()) ::
+          {:ok, binary()} | {:error, :decryption_failed}
+  def ec_decrypt(
+        encoded_cipher,
+        _private_key = <<curve_id::8, private_key::binary>>
+      )
+      when is_binary(encoded_cipher) do
+    key_size = key_size(curve_id)
 
-    {:ok, data}
-  rescue
-    _ ->
-      {:error, :decryption_failed}
+    <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
+      encoded_cipher
+
+    # Derivate shared key using ECDH with the given ephermal public key and the private key
+    shared_key =
+      case ID.to_curve(curve_id) do
+        :ed25519 ->
+          x25519_sk = Ed25519.convert_to_x25519_private_key(private_key)
+          :crypto.compute_key(:ecdh, ephemeral_public_key, x25519_sk, :x25519)
+
+        curve ->
+          :crypto.compute_key(:ecdh, ephemeral_public_key, private_key, curve)
+      end
+
+    # Generate keys for the AES authenticated decryption
+    {iv, aes_key} = derivate_secrets(shared_key)
+
+    case aes_auth_decrypt(iv, aes_key, cipher, tag) do
+      :error ->
+        {:error, :decryption_failed}
+
+      data ->
+        {:ok, data}
+    end
   end
 
   @doc """
   Decrypt the cipher using last node private key
   """
   @spec ec_decrypt_with_node_key!(cipher :: binary()) :: term()
-  defdelegate ec_decrypt_with_node_key!(cipher), to: Keystore, as: :decrypt_with_node_key!
+  def ec_decrypt_with_node_key!(cipher) do
+    case ec_decrypt_with_node_key(cipher) do
+      {:ok, data} ->
+        data
+
+      _ ->
+        raise "Decrypted failed"
+    end
+  end
 
   @doc """
-  Decrypt the cipher using a given node private key
+  Decrypt the cipher using last node private key
   """
-  @spec ec_decrypt_with_node_key!(cipher :: binary(), index :: non_neg_integer()) :: binary()
-  defdelegate ec_decrypt_with_node_key!(cipher, index), to: Keystore, as: :decrypt_with_node_key!
+  @spec ec_decrypt_with_node_key(cipher :: binary()) ::
+          {:ok, term()} | {:error, :decryption_failed}
+  def ec_decrypt_with_node_key(encoded_cipher) when is_binary(encoded_cipher) do
+    <<curve_id::8, _::binary>> = NodeKeystore.node_public_key()
+    key_size = key_size(curve_id)
 
-  defp do_ec_decrypt!(:ed25519, cipher, key), do: Ed25519.decrypt(key, cipher)
-  defp do_ec_decrypt!(curve, cipher, key), do: ECDSA.decrypt(curve, key, cipher)
+    <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
+      encoded_cipher
+
+    # Derivate shared key using ECDH with the given ephermal public key and the node's private key
+    shared_key = NodeKeystore.diffie_hellman(ephemeral_public_key)
+
+    # Generate keys for the AES authenticated decryption
+    {iv, aes_key} = derivate_secrets(shared_key)
+
+    case aes_auth_decrypt(iv, aes_key, cipher, tag) do
+      :error ->
+        {:error, :decryption_failed}
+
+      data ->
+        {:ok, data}
+    end
+  end
 
   @doc """
   Encrypt a data using AES authenticated encryption.
@@ -618,7 +719,48 @@ defmodule Uniris.Crypto do
   def aes_encrypt(data, _key = <<key::binary-32>>) when is_binary(data) do
     iv = :crypto.strong_rand_bytes(12)
     {cipher, tag} = :crypto.crypto_one_time_aead(:aes_256_gcm, key, iv, data, "", true)
-    iv <> tag <> cipher
+    <<iv::binary-size(12), tag::binary-size(16), cipher::binary>>
+  end
+
+  @doc """
+  Decrypt a ciphertext using the AES authenticated decryption.
+
+  ## Examples
+
+      iex> key = <<234, 210, 202, 129, 91, 76, 68, 14, 17, 212, 197, 49, 66, 168, 52, 111, 176,
+      ...> 182, 227, 156, 5, 32, 24, 105, 41, 152, 67, 191, 187, 209, 101, 36>>
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", key)
+      iex> Crypto.aes_decrypt(ciphertext, key)
+      {:ok, "sensitive data"}
+
+  Return an error when the key is invalid
+
+      iex> ciphertext = Crypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
+      iex> Crypto.aes_decrypt(ciphertext, :crypto.strong_rand_bytes(32))
+      {:error, :decryption_failed}
+
+  """
+  @spec aes_decrypt(_encoded_cipher :: aes_cipher, key :: binary) ::
+          {:ok, term()} | {:error, :decryption_failed}
+  def aes_decrypt(
+        _encoded_cipher = <<iv::binary-12, tag::binary-16, cipher::binary>>,
+        <<key::binary-32>>
+      ) do
+    case :crypto.crypto_one_time_aead(
+           :aes_256_gcm,
+           key,
+           iv,
+           cipher,
+           "",
+           tag,
+           false
+         ) do
+      :error ->
+        {:error, :decryption_failed}
+
+      data ->
+        {:ok, data}
+    end
   end
 
   @doc """
@@ -641,48 +783,15 @@ defmodule Uniris.Crypto do
       ```
 
   """
-  @spec aes_decrypt!(cipher :: aes_cipher, key :: binary) :: binary()
-  def aes_decrypt!(<<iv::binary-12, tag::binary-16, cipher::binary>>, <<key::binary-32>>) do
-    case :crypto.crypto_one_time_aead(
-           :aes_256_gcm,
-           key,
-           iv,
-           cipher,
-           "",
-           tag,
-           false
-         ) do
-      :error ->
-        raise "Decryption failed"
-
-      data ->
+  @spec aes_decrypt!(encoded_cipher :: aes_cipher, key :: binary) :: term()
+  def aes_decrypt!(encoded_cipher, key) when is_binary(encoded_cipher) and is_binary(key) do
+    case aes_decrypt(encoded_cipher, key) do
+      {:ok, data} ->
         data
+
+      {:error, :decryption_failed} ->
+        raise "Decryption failed"
     end
-  end
-
-  @doc """
-  Decrypt a ciphertext using the AES authenticated decryption.
-
-  ## Examples
-
-      iex> key = <<234, 210, 202, 129, 91, 76, 68, 14, 17, 212, 197, 49, 66, 168, 52, 111, 176,
-      ...> 182, 227, 156, 5, 32, 24, 105, 41, 152, 67, 191, 187, 209, 101, 36>>
-      iex> ciphertext = Crypto.aes_encrypt("sensitive data", key)
-      iex> Crypto.aes_decrypt(ciphertext, key)
-      {:ok, "sensitive data"}
-
-  Return an error when the key is invalid
-
-      iex> ciphertext = Crypto.aes_encrypt("sensitive data", :crypto.strong_rand_bytes(32))
-      iex> Crypto.aes_decrypt(ciphertext, :crypto.strong_rand_bytes(32))
-      {:error, :decryption_failed}
-
-  """
-  def aes_decrypt(data = <<_::binary-12, _::binary-16, _::binary>>, <<key::binary-32>>) do
-    {:ok, aes_decrypt!(data, key)}
-  rescue
-    _ ->
-      {:error, :decryption_failed}
   end
 
   @doc """

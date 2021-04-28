@@ -8,6 +8,22 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @doc """
+  Convert a ed25519 public key into a x25519
+  """
+  @spec convert_public_key_to_x25519(binary()) :: {:ok, binary()} | {:error, String.t()}
+  def convert_public_key_to_x25519(<<public_key::binary-32>>) do
+    GenServer.call(__MODULE__, {:convert_public_key, public_key})
+  end
+
+  @doc """
+  Convert a ed25519 secret key into a x25519
+  """
+  @spec convert_secret_key_to_x25519(binary()) :: {:ok, binary()} | {:error, String.t()}
+  def convert_secret_key_to_x25519(<<secret_key::binary-64>>) do
+    GenServer.call(__MODULE__, {:convert_secret_key, secret_key})
+  end
+
   def init(_opts) do
     libsodium = Application.app_dir(:uniris, "/priv/c_dist/libsodium")
 
@@ -21,36 +37,13 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
     {:ok, %{port: port, next_id: 1, awaiting: %{}}}
   end
 
-  def handle_call(:generate_key, from, state) do
-    {id, state} = send_request(state, 1)
+  def handle_call({:convert_public_key, public_key}, from, state) do
+    {id, state} = send_request(state, 1, public_key)
     {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
   end
 
-  def handle_call({:generate_key, seed}, from, state) when is_binary(seed) do
-    {id, state} = send_request(state, 2, seed)
-    {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
-  end
-
-  def handle_call({:encrypt, <<public_key::binary-32>>, data}, from, state)
-      when is_binary(data) do
-    {id, state} = send_request(state, 3, public_key <> <<byte_size(data)::32>> <> data)
-    {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
-  end
-
-  def handle_call({:decrypt, <<secret_key::binary-64>>, cipher}, from, state)
-      when is_binary(cipher) do
-    {id, state} = send_request(state, 4, secret_key <> <<byte_size(cipher)::32>> <> cipher)
-    {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
-  end
-
-  def handle_call({:sign, <<secret_key::binary-64>>, data}, from, state) when is_binary(data) do
-    {id, state} = send_request(state, 5, secret_key <> <<byte_size(data)::32>> <> data)
-    {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
-  end
-
-  def handle_call({:verify, <<public_key::binary-32>>, data, <<sig::binary-64>>}, from, state)
-      when is_binary(data) do
-    {id, state} = send_request(state, 6, public_key <> <<byte_size(data)::32>> <> data <> sig)
+  def handle_call({:convert_secret_key, secret_key}, from, state) do
+    {id, state} = send_request(state, 2, secret_key)
     {:noreply, %{state | awaiting: Map.put(state.awaiting, id, from)}}
   end
 
@@ -62,11 +55,7 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
       caller ->
         case response do
           <<0::8, error_message::binary>> ->
-            reason = String.to_atom(String.replace(error_message, " ", "_"))
-            GenServer.reply(caller, {:error, reason})
-
-          <<1::8>> ->
-            GenServer.reply(caller, :ok)
+            GenServer.reply(caller, {:error, error_message})
 
           <<1::8, data::binary>> ->
             GenServer.reply(caller, {:ok, data})
@@ -80,15 +69,9 @@ defmodule Uniris.Crypto.Ed25519.LibSodiumPort do
     :erlang.error({:port_exit, status})
   end
 
-  defp send_request(state, request_type) do
-    id = state.next_id
-    Port.command(state.port, <<id::32>> <> <<request_type>>)
-    {id, %{state | next_id: id + 1}}
-  end
-
   defp send_request(state, request_type, data) do
     id = state.next_id
-    Port.command(state.port, <<id::32>> <> <<request_type>> <> data)
+    Port.command(state.port, <<id::32, request_type::8, data::binary>>)
     {id, %{state | next_id: id + 1}}
   end
 end

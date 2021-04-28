@@ -23,9 +23,10 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
   interval: "50 0 0 * * * *"
 
 # TODO: specify the crypto implementation using hardware when developed
-config :uniris, Uniris.Crypto.Keystore, impl: Uniris.Crypto.SoftwareKeystore
+config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
 
-config :uniris, Uniris.Crypto.SoftwareKeystore, seed: System.get_env("UNIRIS_CRYPTO_SEED")
+config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
+  seed: System.get_env("UNIRIS_CRYPTO_SEED")
 
 config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
 

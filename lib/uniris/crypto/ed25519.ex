@@ -29,32 +29,23 @@ defmodule Uniris.Crypto.Ed25519 do
   end
 
   @doc """
-  Encrypt a message using the given Ed25519 public key
+  Convert a ed25519 public key into a x25519
   """
-  @spec encrypt(binary(), binary()) :: binary()
-  def encrypt(_key = <<public_key::binary-32>>, data) do
-    {:ok, <<_cipher_length::32, cipher::binary>>} =
-      GenServer.call(LibSodiumPort, {:encrypt, public_key, data})
-
-    cipher
+  @spec convert_to_x25519_public_key(binary()) :: binary()
+  def convert_to_x25519_public_key(ed25519_public_key) do
+    {:ok, x25519_pub} = LibSodiumPort.convert_public_key_to_x25519(ed25519_public_key)
+    x25519_pub
   end
 
   @doc """
-  Decrypt a message with the given Ed25519 private key
-
-  Raise if the decryption failed
+  Convert a ed25519 secret key into a x25519
   """
-  @spec decrypt(binary(), binary()) :: binary()
-  def decrypt(_key = <<private_key::binary-32>>, data) when is_binary(data) do
-    {pub, pv} = :crypto.generate_key(:eddsa, :ed25519, private_key)
-
-    case GenServer.call(LibSodiumPort, {:decrypt, <<pv::binary, pub::binary>>, data}) do
-      {:ok, data} ->
-        data
-
-      _ ->
-        raise "Decryption failed"
-    end
+  @spec convert_to_x25519_private_key(binary()) :: binary()
+  def convert_to_x25519_private_key(ed25519_private_key) do
+    {pub, pv} = generate_keypair(ed25519_private_key)
+    extended_secret_key = <<pv::binary, pub::binary>>
+    {:ok, x25519_pv} = LibSodiumPort.convert_secret_key_to_x25519(extended_secret_key)
+    x25519_pv
   end
 
   @doc """

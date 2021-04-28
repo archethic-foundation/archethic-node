@@ -59,7 +59,6 @@ defmodule UnirisCase do
     |> stub(:list_transactions, fn _ -> [] end)
 
     MockCrypto
-    |> stub(:child_spec, fn _ -> {:ok, self()} end)
     |> stub(:sign_with_node_key, fn data ->
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
@@ -109,10 +108,6 @@ defmodule UnirisCase do
       {pub, _} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
       pub
     end)
-    |> stub(:decrypt_with_node_key!, fn cipher ->
-      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      Crypto.ec_decrypt!(cipher, pv)
-    end)
     |> stub(:encrypt_node_shared_secrets_transaction_seed, fn secret_key ->
       Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
     end)
@@ -123,6 +118,10 @@ defmodule UnirisCase do
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
     |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ -> :ok end)
     |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
+    |> stub(:diffie_hellman, fn pub ->
+      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
+    end)
 
     MockClient
     |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
