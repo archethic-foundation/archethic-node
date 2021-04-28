@@ -23,11 +23,40 @@ defmodule Uniris.Benchmark.Balance do
     :ok = :socket.connect(sock, %{family: :inet, port: port, addr: addr})
 
     {%{
-       "P2P socket" => fn -> get_balance_p2p_socket(addr, port) end,
-       "P2P gentcp" => fn -> get_balance_p2p_gentcp(addr, port) end,
-       "P2P attach" => fn -> get_balance_p2p(sock) end,
-       "WEB" => fn -> get_balance_web(host, http) end
-     }, []}
+       "P2P socket" => fn _ -> get_balance_p2p_socket(addr, port) end,
+       "P2P gentcp" => fn _ -> get_balance_p2p_gentcp(addr, port) end,
+       "P2P attach" => fn _ -> get_balance_p2p(sock) end,
+       "WEB" => fn _ -> get_balance_web(host, http) end
+     },
+     [
+       before_scenario: fn _ -> get_vm_status(host, http) end,
+       after_scenario: fn before ->
+         now = get_vm_status(host, http)
+
+         [{"vm_system_counts_process_count", 20}]
+         |> Enum.each(fn {metric, delta} ->
+           Logger.info("Checking #{metric} #{before[metric]} vs #{now[metric]}")
+
+           if before[metric] + delta - now[metric] < 0 do
+             raise RuntimeError, message: "leak of #{metric} is detected"
+           end
+         end)
+       end
+     ]}
+  end
+
+  defp get_vm_status(host, port) do
+    {:ok, data} = WebClient.with_connection(host, port, &WebClient.request(&1, "GET", "/metrics"))
+
+    data
+    |> :erlang.iolist_to_binary()
+    |> String.split("\n")
+    |> Enum.filter(&String.starts_with?(&1, "vm_"))
+    |> Enum.map(fn kv ->
+      [k, v] = String.split(kv)
+      {k, v |> Integer.parse() |> elem(0)}
+    end)
+    |> Enum.into(%{})
   end
 
   @genesis Application.compile_env!(:uniris, Uniris.Bootstrap.NetworkInit)[:genesis_pools]
