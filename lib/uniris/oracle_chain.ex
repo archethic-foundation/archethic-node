@@ -11,6 +11,7 @@ defmodule Uniris.OracleChain do
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Scheduler
   alias __MODULE__.Services
+  alias __MODULE__.Summary
 
   alias Uniris.PubSub
 
@@ -31,69 +32,54 @@ defmodule Uniris.OracleChain do
 
   This operation will check the data from the service providers
   """
-  @spec verify?(Transaction.t()) :: boolean()
-  def verify?(%Transaction{
-        type: :oracle,
-        data: %TransactionData{content: content}
-      }) do
-    case Jason.decode(content) do
-      {:ok, data} ->
-        do_verify?(data)
-
-      _ ->
-        Logger.error("Invalid oracle content")
-        false
-    end
-  end
-
-  def verify?(%Transaction{
-        type: :oracle_summary,
-        data: %{content: content},
-        previous_public_key: previous_public_key
-      }) do
-    case Jason.decode(content) do
-      {:ok, data} ->
-        do_verify_summary?(data, Crypto.hash(previous_public_key))
-
-      _ ->
-        Logger.error("Invalid oracle content")
-        false
-    end
-  end
-
-  defp do_verify?(data) when is_map(data) do
-    correctness? = Services.verify_correctness?(data)
-
-    unless correctness? do
-      Logger.error("Oracle data incorrect")
-    end
-
-    correctness?
-  end
-
-  defp do_verify_summary?(data, previous_address) when is_map(data) do
-    stored_data =
-      TransactionChain.get(previous_address, [:timestamp, data: [:content]])
-      |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
-        data = Jason.decode!(content)
-        {DateTime.to_unix(timestamp), data}
-      end)
-      |> Enum.into(%{})
-
-    stored_digest = stored_data |> Jason.encode!() |> Crypto.hash()
-    data_digest = data |> Jason.encode!() |> Crypto.hash()
-
-    if stored_digest == data_digest do
+  @spec valid_services_content?(binary()) :: boolean()
+  def valid_services_content?(content) when is_binary(content) do
+    with {:ok, data} <- Jason.decode(content),
+         true <- Services.verify_correctness?(data) do
       true
     else
-      Logger.error("Oracle data incorrect")
+      {:error, _} ->
+        true
 
-      Logger.debug(
-        "Invalid oracle summary - actual: #{inspect(data)} - expected: #{inspect(stored_data)}"
-      )
-
-      false
+      false ->
+        false
     end
+  end
+
+  @doc """
+  Determines if the oracle summary is valid.
+
+  This operation will check the data from the previous oracle transactions
+  """
+  @spec valid_summary?(binary(), list(Transaction.t())) :: boolean()
+  def valid_summary?(content, oracle_chain) when is_binary(content) do
+    with {:ok, data} <- Jason.decode(content),
+         true <-
+           %Summary{transactions: oracle_chain, aggregated: parse_summary_data(data)}
+           |> Summary.verify?() do
+      true
+    else
+      {:error, _} ->
+        true
+
+      false ->
+        false
+    end
+  end
+
+  defp parse_summary_data(data) do
+    Enum.map(data, fn {timestamp, service_data} ->
+      with {timestamp, _} <- Integer.parse(timestamp),
+           {:ok, datetime} <- DateTime.from_unix(timestamp),
+           {:ok, data} <- Services.parse_data(service_data) do
+        {datetime, data}
+      else
+        _ ->
+          nil
+      end
+    end)
+    |> Enum.filter(& &1)
+    |> Enum.into(%{})
   end
 
   @doc """

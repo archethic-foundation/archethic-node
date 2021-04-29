@@ -30,6 +30,23 @@ defmodule Uniris.OracleChain.Services.UCOPrice do
     end
   end
 
+  @impl Impl
+  @spec parse_data(map()) :: {:ok, map()} | :error
+  def parse_data(service_data) when is_map(service_data) do
+    valid? =
+      Enum.all?(service_data, fn
+        {key, val} when key in @pairs and is_float(val) ->
+          true
+
+        _ ->
+          false
+      end)
+
+    if valid?, do: {:ok, service_data}, else: :error
+  end
+
+  def parse_data(_), do: {:error, :invalid_data}
+
   defp provider do
     Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:provider)
   end

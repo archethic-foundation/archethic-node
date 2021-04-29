@@ -48,6 +48,30 @@ defmodule Uniris.OracleChain.Services do
     end)
   end
 
+  @doc """
+  Parse and ensure the service data are valid according to the service provider's rules
+  """
+  @spec parse_data(map()) :: {:ok, map()} | :error
+  def parse_data(data) when is_map(data) do
+    services = services()
+    |> Enum.map(&{Atom.to_string(elem(&1, 0)), elem(&1, 1)})
+    |> Enum.into(%{})
+
+    valid? = Enum.all?(data, fn {service, service_data} ->
+      with true <- Map.has_key?(services, service),
+           {:ok, _} <- apply(Map.get(services, service), :parse_data, [service_data]) do
+        true
+      else
+        _ ->
+          false
+      end
+    end)
+
+    if valid?, do: {:ok, data}, else: :error
+  end
+
+  def parse_data(_), do: :error
+
   defp services do
     Application.get_env(:uniris, Uniris.OracleChain) |> Keyword.fetch!(:services)
   end

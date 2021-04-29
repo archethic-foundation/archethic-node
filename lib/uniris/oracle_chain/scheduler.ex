@@ -13,6 +13,7 @@ defmodule Uniris.OracleChain.Scheduler do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.OracleChain.Summary
   alias Uniris.OracleChain.Services
 
   alias Uniris.TransactionChain
@@ -135,9 +136,8 @@ defmodule Uniris.OracleChain.Scheduler do
 
   defp handle_new_polling(pid, previous_date = %DateTime{}, date = %DateTime{}) do
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(previous_date)
-    {next_pub, _pv} = Crypto.derive_oracle_keypair(date)
 
-    previous_content =
+    previous_data =
       case TransactionChain.get_transaction(Crypto.hash(prev_pub), data: [:content]) do
         {:ok, %Transaction{data: %TransactionData{content: previous_content}}} ->
           Jason.decode!(previous_content)
@@ -146,13 +146,17 @@ defmodule Uniris.OracleChain.Scheduler do
           %{}
       end
 
-    next_data = Services.fetch_new_data(previous_content)
+    new_data = Services.fetch_new_data(previous_data)
 
-    if map_size(next_data) > 0 do
+    if Enum.empty?(new_data) do
+      Logger.debug("No update for the oracle")
+    else
+      {next_pub, _pv} = Crypto.derive_oracle_keypair(date)
+
       Transaction.new(
         :oracle,
         %TransactionData{
-          content: Jason.encode!(next_data)
+          content: Jason.encode!(new_data)
         },
         prev_pv,
         prev_pub,
@@ -162,34 +166,20 @@ defmodule Uniris.OracleChain.Scheduler do
 
       send(pid, {:new_polling_date, date})
       Logger.debug("New data pushed to the oracle")
-    else
-      Logger.debug("No update for the oracle")
     end
   end
 
   defp handle_new_summary(last_poll_date, date) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(last_poll_date)
+    oracle_chain =
+      last_poll_date
+      |> Crypto.derive_oracle_keypair()
+      |> elem(0)
+      |> Crypto.hash()
+      |> TransactionChain.get(data: [:content])
 
-    aggregated_content =
-      TransactionChain.get(Crypto.hash(prev_pub), data: [:content])
-      |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
-        data = Jason.decode!(content)
-
-        {DateTime.to_unix(timestamp), data}
-      end)
-      |> Enum.into(%{})
-
-    {next_pub, _} = Crypto.derive_oracle_keypair(date)
-
-    Transaction.new(
-      :oracle_summary,
-      %TransactionData{
-        content: Jason.encode!(aggregated_content)
-      },
-      prev_pv,
-      prev_pub,
-      next_pub
-    )
+    %Summary{transactions: oracle_chain, previous_date: last_poll_date, date: date}
+    |> Summary.aggregate()
+    |> Summary.to_transaction()
     |> Uniris.send_new_transaction()
   end
 
