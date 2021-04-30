@@ -93,9 +93,7 @@ defmodule Uniris.P2P.BootstrappingSeeds do
   end
 
   def handle_info({:node_update, _}, state = %{file: file}) do
-    top_nodes =
-      P2P.list_nodes(authorized?: true, availability: :local)
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    top_nodes = Enum.reject(P2P.authorized_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
 
     top_nodes
     |> nodes_to_seeds

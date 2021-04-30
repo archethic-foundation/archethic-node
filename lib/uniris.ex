@@ -11,7 +11,6 @@ defmodule Uniris do
   alias __MODULE__.Mining
 
   alias __MODULE__.P2P
-  alias __MODULE__.P2P.Node
 
   alias __MODULE__.P2P.Message
   alias __MODULE__.P2P.Message.Balance
@@ -59,12 +58,10 @@ defmodule Uniris do
   """
   @spec send_new_transaction(Transaction.t()) :: :ok | {:error, :network_issue}
   def send_new_transaction(tx = %Transaction{}) do
-    case P2P.get_node_info() do
-      %Node{authorized?: true} ->
-        do_send_transaction(tx)
-
-      _ ->
-        forward_transaction_to_an_authorized_node(tx)
+    if P2P.authorized_node?() do
+      do_send_transaction(tx)
+    else
+      forward_transaction_to_an_authorized_node(tx)
     end
   end
 
@@ -82,8 +79,7 @@ defmodule Uniris do
   end
 
   defp forward_transaction_to_an_authorized_node(tx) do
-    P2P.list_nodes(availability: :local, authorized?: true)
-    |> P2P.reply_first(%NewTransaction{transaction: tx})
+    P2P.reply_first(P2P.authorized_nodes(), %NewTransaction{transaction: tx})
   end
 
   @spec get_last_transaction(address :: binary()) ::

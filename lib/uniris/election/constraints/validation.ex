@@ -60,10 +60,7 @@ defmodule Uniris.Election.ValidationConstraints do
     total_transfers = Enum.reduce(transfers, 0, &(&2 + &1.amount))
 
     if total_transfers > 10 do
-      nb_authorized_nodes =
-        P2P.list_nodes(authorized?: true)
-        |> Enum.filter(&(DateTime.diff(timestamp, &1.authorization_date) > 0))
-        |> length()
+      nb_authorized_nodes = P2P.authorized_nodes(timestamp) |> length
 
       validation_number =
         trunc(:math.floor(min_validation_number() * :math.log10(total_transfers)))
@@ -81,7 +78,7 @@ defmodule Uniris.Election.ValidationConstraints do
   def validation_number(%Transaction{}), do: min_validation_number()
 
   defp min_validation_number do
-    nb_authorized_nodes = length(P2P.list_nodes(authorized?: true))
+    nb_authorized_nodes = length(P2P.authorized_nodes())
 
     if nb_authorized_nodes < @default_min_validations do
       nb_authorized_nodes

@@ -95,6 +95,15 @@ defmodule Uniris.P2P do
   @spec list_authorized_public_keys() :: list(Crypto.key())
   defdelegate list_authorized_public_keys, to: MemTable
 
+  def authorized_node?(node_public_key \\ Crypto.node_public_key(0)) when is_binary(node_public_key) do
+    Utils.key_in_node_list?(authorized_nodes(), node_public_key)
+  end
+
+  def authorized_nodes(date = %DateTime{} \\ DateTime.utc_now()) do
+    list_nodes(authorized?: true, availability: :global)
+    |> Enum.filter(&DateTime.diff(&1.authorization_date, date) <= 0)
+  end
+
   @doc """
   Returns node information from a given node first public key
   """

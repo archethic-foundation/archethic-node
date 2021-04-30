@@ -237,10 +237,8 @@ defmodule Uniris.Contracts.Worker do
     # The contract must contains in the data authorized keys
     # the transaction seed encrypted with the storage nonce public key
     if key == Crypto.node_public_key(0) do
-      validation_nodes = P2P.list_nodes(authorized?: true, availability: :global)
-
-      validation_nodes
-      |> P2P.broadcast_message(%StartMining{
+      validation_nodes = P2P.authorized_nodes()
+      P2P.broadcast_message(validation_nodes, %StartMining{
         transaction: next_tx,
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
         welcome_node_public_key: Crypto.node_public_key()

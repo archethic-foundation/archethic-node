@@ -60,11 +60,11 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
     next_transaction_index = Crypto.number_of_network_pool_keys() + 1
     node_public_key = Crypto.node_public_key()
 
-    with %Node{authorized?: true} <- P2P.get_node_info(),
+    with true <- P2P.authorized_node?(),
          next_address <-
            Crypto.node_shared_secrets_public_key(next_transaction_index) |> Crypto.hash(),
          [%Node{last_public_key: ^node_public_key} | _] <-
-           Election.storage_nodes(next_address, P2P.list_nodes(authorized?: true)) do
+           Election.storage_nodes(next_address, P2P.authorized_nodes()) do
       true
     else
       _ ->
@@ -78,6 +78,8 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
         :ok
 
       transfers ->
+        Logger.debug("Sending node reward transaction")
+
         Transaction.new(:node_rewards, %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{

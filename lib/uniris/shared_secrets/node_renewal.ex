@@ -17,8 +17,6 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
-  alias Uniris.Utils
-
   @type t :: %__MODULE__{
           authorized_nodes: list(Crypto.key()),
           secret: binary(),
@@ -30,14 +28,13 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   """
   @spec initiator?() :: boolean()
   def initiator? do
-    authorized_nodes = P2P.list_nodes(authorized?: true)
 
-    if Utils.key_in_node_list?(authorized_nodes, Crypto.node_public_key()) do
+    if P2P.authorized_node?() do
       election_constraints = Election.get_storage_constraints()
 
       %Node{first_public_key: initiator_key} =
         next_address()
-        |> Election.storage_nodes(authorized_nodes, election_constraints)
+        |> Election.storage_nodes(P2P.authorized_nodes(), election_constraints)
         |> List.first()
 
       initiator_key == Crypto.node_public_key(0)

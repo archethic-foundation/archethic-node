@@ -92,7 +92,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       MockClient
@@ -147,7 +147,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       welcome_node = %Node{
@@ -216,7 +216,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       MockClient
@@ -299,7 +299,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       MockClient
@@ -408,7 +408,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       me = self()
@@ -569,7 +569,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.list_nodes(authorized?: true, availability: :global)
+          P2P.authorized_nodes()
         )
 
       me = self()

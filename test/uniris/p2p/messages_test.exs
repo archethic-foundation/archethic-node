@@ -360,7 +360,7 @@ defmodule Uniris.P2P.MessageTest do
         node_public_key:
           <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91, 100,
             169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
-        timestamp: ~U[2020-06-25 15:11:53Z] |> Utils.truncate_datetime()
+        timestamp: ~U[2020-06-25 15:11:53Z] |> DateTime.truncate(:second)
       }
 
       assert msg ==
@@ -696,14 +696,14 @@ defmodule Uniris.P2P.MessageTest do
             amount: 10.5,
             spent?: true,
             type: :UCO,
-            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
           },
           %TransactionInput{
             from:
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
             type: :call,
-            timestamp: DateTime.utc_now() |> Utils.truncate_datetime()
+            timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
           }
         ]
       }
@@ -769,7 +769,7 @@ defmodule Uniris.P2P.MessageTest do
     test "GetLastTransactionAddress message" do
       msg = %GetLastTransactionAddress{
         address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        timestamp: Utils.truncate_datetime(DateTime.utc_now())
+        timestamp: DateTime.truncate(DateTime.utc_now(), :second)
       }
 
       assert msg ==
@@ -795,7 +795,7 @@ defmodule Uniris.P2P.MessageTest do
       msg = %NotifyLastTransactionAddress{
         address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
         previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        timestamp: Utils.truncate_datetime(DateTime.utc_now())
+        timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       assert msg ==
@@ -823,7 +823,7 @@ defmodule Uniris.P2P.MessageTest do
     test "GetBeaconSlot message" do
       msg = %GetBeaconSlot{
         subset: <<0>>,
-        slot_time: DateTime.utc_now() |> Utils.truncate_datetime()
+        slot_time: DateTime.utc_now() |> DateTime.truncate(:second)
       }
 
       assert msg ==
@@ -849,7 +849,7 @@ defmodule Uniris.P2P.MessageTest do
       msg = %NotifyBeaconSlot{
         slot: %Slot{
           subset: <<0>>,
-          slot_time: DateTime.utc_now() |> Utils.truncate_datetime()
+          slot_time: DateTime.utc_now() |> DateTime.truncate(:second)
         }
       }
 

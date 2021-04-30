@@ -3,8 +3,6 @@ defmodule Uniris.Mining do
   Handle the ARCH consensus behavior and transaction mining
   """
 
-  alias Retry.DelayStreams
-
   alias Uniris.Crypto
 
   alias Uniris.Election
@@ -63,12 +61,7 @@ defmodule Uniris.Mining do
   def transaction_validation_nodes(tx = %Transaction{timestamp: timestamp}, sorting_seed)
       when is_binary(sorting_seed) do
     constraints = Election.get_validation_constraints()
-
-    node_list =
-      P2P.list_nodes(authorized?: true, availability: :global)
-      |> Enum.filter(&(DateTime.diff(timestamp, &1.authorization_date) > 0))
-
-    Election.validation_nodes(tx, sorting_seed, node_list, constraints)
+    Election.validation_nodes(tx, sorting_seed, P2P.authorized_nodes(timestamp), constraints)
   end
 
   @doc """
@@ -92,27 +85,22 @@ defmodule Uniris.Mining do
         validation_node_public_keys
       )
       when is_list(validation_node_public_keys) do
-    if Election.valid_proof_of_election?(
-         tx,
-         poe,
-         SharedSecrets.get_daily_nonce_public_key_at(tx.timestamp)
-       ) do
-      case transaction_validation_nodes(tx, poe) do
-        # Should happens only during the network bootstrapping
-        [] ->
-          true
+    daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(tx.timestamp)
 
-        nodes ->
-          same? = Enum.map(nodes, & &1.last_public_key) == validation_node_public_keys
-
-          unless same? do
-            Logger.debug("Expected #{inspect(nodes)} got #{inspect(validation_node_public_keys)}")
-          end
-
-          same?
-      end
+    if daily_nonce_public_key == SharedSecrets.genesis_daily_nonce_public_key() do
+      # Should happens only during the network bootstrapping
+      true
     else
-      false
+      with true <-
+             Election.valid_proof_of_election?(tx, poe, daily_nonce_public_key),
+           nodes = [_ | _] <-
+             transaction_validation_nodes(tx, poe),
+           set_of_validation_node_public_keys <- Enum.map(nodes, & &1.last_public_key) do
+        Enum.all?(validation_node_public_keys, &(&1 in set_of_validation_node_public_keys))
+      else
+        _ ->
+          false
+      end
     end
   end
 
@@ -177,7 +165,7 @@ defmodule Uniris.Mining do
 
   defp get_mining_process!(tx_address) do
     pid =
-      retry_while with: DelayStreams.linear_backoff(100, 2) |> DelayStreams.expiry(3_000) do
+      retry_while with: linear_backoff(100, 2) |> expiry(3_000) do
         case Registry.lookup(WorkflowRegistry, tx_address) do
           [{pid, _}] ->
             {:halt, pid}

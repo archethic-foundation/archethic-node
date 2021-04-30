@@ -98,7 +98,7 @@ defmodule Uniris.ElectionTest do
         Election.validation_nodes(
           tx2,
           "daily_nonce_proof",
-          P2P.list_nodes(authorized?: true, availability: :global),
+          P2P.authorized_nodes(),
           ValidationConstraints.new()
         )
 

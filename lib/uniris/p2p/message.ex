@@ -875,7 +875,7 @@ defmodule Uniris.P2P.Message do
   """
   @spec process(request()) :: response()
   def process(%GetBootstrappingNodes{patch: patch}) do
-    top_nodes = P2P.list_nodes(authorized?: true, availability: :local)
+    top_nodes = P2P.authorized_nodes()
 
     closest_nodes =
       top_nodes
