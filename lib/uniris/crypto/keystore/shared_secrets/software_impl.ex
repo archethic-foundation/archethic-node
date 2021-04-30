@@ -158,14 +158,13 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         _,
         state = %{daily_nonce_keys: keys}
       ) do
-    sorted_keys =
+    {pub, pv} =
       keys
-      |> Map.keys()
-      |> Enum.sort({:desc, DateTime})
+      |> Enum.sort_by(&elem(&1, 0), {:desc, DateTime})
+      |> Enum.filter(&(DateTime.diff(elem(&1, 0), timestamp) <= 0))
+      |> List.first()
+      |> elem(1)
 
-    last_date_from_timestamp = Enum.find(sorted_keys, &(DateTime.compare(&1, timestamp) == :lt))
-
-    {pub, pv} = Map.get(keys, last_date_from_timestamp, Map.get(keys, Enum.at(sorted_keys, 0)))
     Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
 
     {:reply, Crypto.sign(data, pv), state}
@@ -213,19 +212,10 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
       daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
       new_keys =
-        case map_size(daily_nonce_keys) do
-          0 ->
-            %{timestamp => daily_nonce_keypair}
-
-          _ ->
-            last_date =
-              daily_nonce_keys
-              |> Map.keys()
-              |> Enum.sort({:desc, DateTime})
-              |> List.first()
-
-            %{timestamp => daily_nonce_keypair, last_date => Map.get(daily_nonce_keys, last_date)}
-        end
+        daily_nonce_keys
+        |> Map.put(timestamp, daily_nonce_keypair)
+        |> Enum.sort_by(&elem(&1, 0), {:desc, DateTime})
+        |> Enum.into(%{})
 
       Logger.debug(
         "Daily nonce stored for the public key: #{Base.encode16(daily_nonce_keypair |> elem(0))} "

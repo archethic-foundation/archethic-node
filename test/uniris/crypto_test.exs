@@ -10,14 +10,14 @@ defmodule CryptoTest do
   property "symmetric aes encryption and decryption" do
     check all(
             aes_key <- StreamData.binary(length: 32),
-            data <- StreamData.binary()
+            data <- StreamData.binary(min_length: 1)
           ) do
       cipher = Crypto.aes_encrypt(data, aes_key)
       is_binary(cipher) and data == Crypto.aes_decrypt!(cipher, aes_key)
     end
   end
 
-  property "symmetric EC encryption and decryption" do
+  property "symmetric EC encryption and decryption with ECDSA" do
     check all(
             seed <- StreamData.binary(length: 32),
             data <- StreamData.binary(min_length: 1)
@@ -30,7 +30,7 @@ defmodule CryptoTest do
 
   property "symmetric EC encryption and decryption with Ed25519" do
     check all(
-            seed <- StreamData.binary(min_length: 1),
+            seed <- StreamData.binary(length: 32),
             data <- StreamData.binary(min_length: 1)
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(seed, :ed25519)

@@ -79,13 +79,15 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
     index = KeystoreCounter.get_node_key_counter()
     {_, <<curve_id::8, pv::binary>>} = previous_keypair(seed, index)
 
-    shared_secret = case ID.to_curve(curve_id) do
-      :ed25519 ->
-        x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
-        :crypto.compute_key(:ecdh, public_key, x25519_sk, :x25519)
-      curve ->
-        :crypto.compute_key(:ecdh, public_key, pv, curve)
-    end
+    shared_secret =
+      case ID.to_curve(curve_id) do
+        :ed25519 ->
+          x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
+          :crypto.compute_key(:ecdh, public_key, x25519_sk, :x25519)
+
+        curve ->
+          :crypto.compute_key(:ecdh, public_key, pv, curve)
+      end
 
     {:reply, shared_secret, state}
   end

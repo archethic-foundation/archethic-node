@@ -57,7 +57,7 @@ defmodule Uniris.Crypto.SharedSecrets.SoftwareImplTest do
     assert Crypto.sign("hello", pv) ==
              Keystore.sign_with_daily_nonce_key(
                "hello",
-               ~U[2021-04-08 06:29:29Z]
+               ~U[2021-04-08 06:29:30Z]
              )
 
     daily_nonce_seed2 = :crypto.strong_rand_bytes(32)
@@ -67,7 +67,7 @@ defmodule Uniris.Crypto.SharedSecrets.SoftwareImplTest do
              Keystore.decrypt_and_set_daily_nonce_seed(
                encrypted_nonce2,
                encrypted_key,
-               ~U[2021-04-08 06:29:30Z]
+               ~U[2021-04-08 06:29:40Z]
              )
 
     {_, pv2} = Crypto.generate_deterministic_keypair(daily_nonce_seed2)
@@ -78,10 +78,22 @@ defmodule Uniris.Crypto.SharedSecrets.SoftwareImplTest do
                ~U[2021-04-08 06:29:30Z]
              )
 
+    assert Crypto.sign("hello", pv) ==
+             Keystore.sign_with_daily_nonce_key(
+               "hello",
+               ~U[2021-04-08 06:29:39Z]
+             )
+
     assert Crypto.sign("hello", pv2) ==
              Keystore.sign_with_daily_nonce_key(
                "hello",
-               ~U[2021-04-08 06:29:31Z]
+               ~U[2021-04-08 06:29:40Z]
+             )
+
+    assert Crypto.sign("hello", pv2) ==
+             Keystore.sign_with_daily_nonce_key(
+               "hello",
+               ~U[2021-04-08 06:29:41Z]
              )
   end
 
