@@ -107,8 +107,7 @@ defmodule Uniris.Replication do
     case TransactionValidator.validate(
            tx,
            Enum.at(chain, 0),
-           Enum.to_list(inputs_unspent_outputs),
-           self_repair?
+           Enum.to_list(inputs_unspent_outputs)
          ) do
       :ok ->
         :ok = TransactionChain.write(Stream.concat([tx], chain))
@@ -141,12 +140,11 @@ defmodule Uniris.Replication do
     end
   end
 
-  defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, opts)
+  defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, _opts)
        when is_list(roles) do
-    self_repair? = Keyword.get(opts, :self_repair?, false)
     Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
 
-    case TransactionValidator.validate(tx, self_repair?) do
+    case TransactionValidator.validate(tx) do
       :ok ->
         if :IO in roles do
           :ok = TransactionChain.write_transaction(tx)

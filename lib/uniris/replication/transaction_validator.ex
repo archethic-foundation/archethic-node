@@ -50,16 +50,17 @@ defmodule Uniris.Replication.TransactionValidator do
 
   @doc """
   Validate transaction with context
+
+  This function is called by the chain replication nodes
   """
   @spec validate(
           validated_transaction :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t()),
-          self_repair? :: boolean()
+          inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t())
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs_outputs, self_repair? \\ false) do
-    with :ok <- valid_transaction(tx, inputs_outputs, self_repair?),
+  def validate(tx = %Transaction{}, previous_transaction, inputs_outputs) do
+    with :ok <- valid_transaction(tx, inputs_outputs, true),
          true <- Contracts.accept_new_contract?(previous_transaction, tx),
          true <- TransactionChain.valid?([tx, previous_transaction]) do
       :ok
@@ -73,34 +74,37 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   @doc """
-  Validate transaction only
+  Validate transaction only (without chain integrity or unspent outputs)
+
+  This function called by the replication nodes which are involved in the chain storage
   """
-  @spec validate(validated_tx :: Transaction.t(), self_repair? :: boolean()) ::
-          :ok | {:error, error()}
-  def validate(tx = %Transaction{}, self_repair? \\ false),
-    do: valid_transaction(tx, [], self_repair?)
+  @spec validate(Transaction.t()) :: :ok | {:error, error()}
+  def validate(tx = %Transaction{}), do: valid_transaction(tx, [], false)
 
-  defp valid_transaction(tx = %Transaction{}, [], self_repair?) do
-    with :ok <- do_validate_transaction(tx, self_repair?),
-         :ok <- validate_without_unspent_outputs(tx) do
-      :ok
+  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs, chain_node?)
+       when is_list(previous_inputs_unspent_outputs) do
+    with :ok <- check_consensus(tx),
+         :ok <- check_validation_stamp(tx),
+         {:election, true} <- {:election, valid_node_election?(tx)} do
+      if chain_node? do
+        check_unspent_outputs(tx, previous_inputs_unspent_outputs)
+      else
+        :ok
+      end
+    else
+      {:election, false} ->
+        {:error, :invalid_node_election}
+
+      {:error, _} = e ->
+        e
     end
   end
 
-  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs, self_repair?) do
-    with :ok <- do_validate_transaction(tx, self_repair?),
-         :ok <- validate_without_unspent_outputs(tx),
-         :ok <- validate_with_unspent_outputs(tx, previous_inputs_unspent_outputs) do
-      :ok
-    end
-  end
-
-  defp do_validate_transaction(
+  defp check_consensus(
          tx = %Transaction{
-           validation_stamp: validation_stamp = %ValidationStamp{errors: errors},
+           validation_stamp: validation_stamp = %ValidationStamp{},
            cross_validation_stamps: cross_stamps
-         },
-         self_repair?
+         }
        ) do
     with {:atomic_commitment, true} <-
            {:atomic_commitment, Transaction.atomic_commitment?(tx)},
@@ -108,9 +112,7 @@ defmodule Uniris.Replication.TransactionValidator do
            {:cross_stamps_signatures,
             Enum.all?(cross_stamps, &CrossValidationStamp.valid_signature?(&1, validation_stamp))},
          {:no_inconsistencies, true} <-
-           {:no_inconsistencies, Enum.all?(cross_stamps, &(&1.inconsistencies == []))},
-         {:election, true} <- {:election, valid_node_election?(tx, self_repair?)},
-         {:errors, true} <- {:errors, errors == []} do
+           {:no_inconsistencies, Enum.all?(cross_stamps, &(&1.inconsistencies == []))} do
       :ok
     else
       {:atomic_commitment, false} ->
@@ -123,16 +125,10 @@ defmodule Uniris.Replication.TransactionValidator do
       {:no_inconsistencies, false} ->
         Logger.debug("Inconsistencies: #{inspect(Enum.map(cross_stamps, & &1.inconsistencies))}")
         {:error, :invalid_transaction_with_inconsistencies}
-
-      {:election, false} ->
-        {:error, :invalid_node_election}
-
-      {:errors, false} ->
-        {:error, {:transaction_errors_detected, errors}}
     end
   end
 
-  defp validate_without_unspent_outputs(
+  defp check_validation_stamp(
          tx = %Transaction{
            timestamp: timestamp,
            validation_stamp:
@@ -163,7 +159,7 @@ defmodule Uniris.Replication.TransactionValidator do
             Election.valid_proof_of_election?(
               tx,
               poe,
-              SharedSecrets.get_daily_nonce_public_key_at(timestamp)
+              SharedSecrets.get_daily_nonce_public_key(timestamp)
             )},
          {:signature, true} <-
            {:signature,
@@ -212,55 +208,56 @@ defmodule Uniris.Replication.TransactionValidator do
     end
   end
 
-  defp validate_with_unspent_outputs(
+  defp check_unspent_outputs(
+         tx = %Transaction{type: type, address: address},
+         previous_inputs_unspent_outputs
+       ) do
+    cond do
+      address == Bootstrap.genesis_address() ->
+        :ok
+
+      Transaction.network_type?(type) ->
+        :ok
+
+      true ->
+        do_check_unspent_outputs(tx, previous_inputs_unspent_outputs)
+    end
+  end
+
+  defp do_check_unspent_outputs(
          tx = %Transaction{
-           address: address,
-           validation_stamp: %ValidationStamp{ledger_operations: ops}
+           validation_stamp: %ValidationStamp{
+             ledger_operations: ops = %LedgerOperations{unspent_outputs: next_unspent_outputs}
+           }
          },
          previous_inputs_unspent_outputs
        ) do
     previous_storage_nodes_public_keys =
       previous_storage_node_public_keys(tx, previous_inputs_unspent_outputs)
 
-    if LedgerOperations.valid_node_movements_previous_storage_nodes?(
-         ops,
-         previous_storage_nodes_public_keys
-       ) do
-      %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
-        new_ledger_operations(tx, previous_inputs_unspent_outputs)
+    %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
+      new_ledger_operations(tx, previous_inputs_unspent_outputs)
 
-      if address == Bootstrap.genesis_address() do
-        true
-      else
-        validate_unspent_outputs(previous_inputs_unspent_outputs, ops, expected_unspent_outputs)
-      end
-    else
-      {:error, :invalid_previous_storage_nodes_movements}
-    end
-  end
-
-  defp validate_unspent_outputs([], ops, _) do
-    if LedgerOperations.sufficient_funds?(ops, []) do
+    with {:node_movements, true} <-
+           {:node_movements,
+            LedgerOperations.valid_node_movements_previous_storage_nodes?(
+              ops,
+              previous_storage_nodes_public_keys
+            )},
+         {:utxo, true} <-
+           {:utxo, compare_unspent_outputs(next_unspent_outputs, expected_unspent_outputs)},
+         {:funds, true} <-
+           {:funds, LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs)} do
       :ok
     else
-      {:error, :insufficient_funds}
-    end
-  end
+      {:node_movements, false} ->
+        {:error, :invalid_previous_storage_nodes_movements}
 
-  defp validate_unspent_outputs(
-         previous_inputs_unspent_outputs,
-         ops = %LedgerOperations{unspent_outputs: next_unspent_outputs},
-         expected_unspent_outputs
-       ) do
-    cond do
-      !compare_unspent_outputs(next_unspent_outputs, expected_unspent_outputs) ->
+      {:utxo, false} ->
         {:error, :invalid_unspent_outputs}
 
-      !LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs) ->
+      {:funds, false} ->
         {:error, :insufficient_funds}
-
-      true ->
-        :ok
     end
   end
 
@@ -308,8 +305,6 @@ defmodule Uniris.Replication.TransactionValidator do
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
-  # defp valid_node_election?(_tx, true), do: true
-
   defp valid_node_election?(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
@@ -318,8 +313,7 @@ defmodule Uniris.Replication.TransactionValidator do
              }
            },
            cross_validation_stamps: cross_validation_stamps
-         },
-         _self_repair?
+         }
        ) do
     coordinator_node_public_key =
       get_coordinator_node_public_key_from_node_movements(node_movements)
