@@ -26,7 +26,6 @@ defmodule Uniris.OracleChainTest do
   test "valid_summary?/2 should validate the summary content" do
     last_update_at = DateTime.utc_now() |> DateTime.to_unix()
 
-
     content =
       %{
         last_update_at => %{
@@ -35,7 +34,7 @@ defmodule Uniris.OracleChainTest do
       }
       |> Jason.encode!()
 
-    chain =  [
+    chain = [
       %Transaction{
         type: :oracle,
         timestamp: DateTime.from_unix!(last_update_at),

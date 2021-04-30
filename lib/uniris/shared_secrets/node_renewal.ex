@@ -28,7 +28,6 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   """
   @spec initiator?() :: boolean()
   def initiator? do
-
     if P2P.authorized_node?() do
       election_constraints = Election.get_storage_constraints()
 

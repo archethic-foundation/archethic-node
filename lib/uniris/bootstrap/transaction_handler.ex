@@ -2,7 +2,6 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @moduledoc false
 
   use Retry
-  alias Retry.DelayStreams
 
   alias Uniris.Crypto
 
@@ -33,8 +32,8 @@ defmodule Uniris.Bootstrap.TransactionHandler do
         )
 
         retry_while with:
-                      DelayStreams.linear_backoff(10, 2)
-                      |> DelayStreams.cap(1_000)
+                      linear_backoff(10, 2)
+                      |> cap(1_000)
                       |> Stream.take(10) do
           case P2P.reply_first(nodes, %GetTransaction{address: address}) do
             {:ok,
