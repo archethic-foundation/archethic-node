@@ -28,6 +28,11 @@ defmodule Uniris.Bootstrap.Sync do
                                 :out_of_sync_date_threshold
                               ])
 
+  @genesis_daily_nonce_seed Application.compile_env!(:uniris, [
+                              NetworkInit,
+                              :genesis_daily_nonce_seed
+                            ])
+
   @doc """
   Determines if network should be initialized
   """
@@ -84,11 +89,19 @@ defmodule Uniris.Bootstrap.Sync do
   def initialize_network(node_tx = %Transaction{}) do
     NetworkInit.create_storage_nonce()
 
+    secret_key = :crypto.strong_rand_bytes(32)
+    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
+
+    @genesis_daily_nonce_seed
+    |> Crypto.aes_encrypt(secret_key)
+    |> Crypto.decrypt_and_set_daily_nonce_seed(encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
+
     node_tx
     |> NetworkInit.self_validation()
     |> NetworkInit.self_replication()
 
     P2P.set_node_globally_available(Crypto.node_public_key(0))
+    P2P.authorize_node(Crypto.node_public_key(), DateTime.utc_now())
 
     NetworkInit.init_node_shared_secrets_chain()
     NetworkInit.init_genesis_wallets()
