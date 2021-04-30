@@ -457,9 +457,20 @@ defmodule Uniris.P2P do
   """
   @spec reply_atomic(list(Node.t()), non_neg_integer(), Message.request()) ::
           {:ok, Message.response()} | {:error, :network_issue}
-  def reply_atomic(nodes, batch_size, message)
+  def reply_atomic(nodes, batch_size, message, opts \\ [])
       when is_list(nodes) and is_integer(batch_size) and batch_size > 0 do
-    nodes
+
+    patch = Keyword.get(opts, :patch)
+
+    with nil <- patch,
+         {:error, :not_found} <- get_node_info(Crypto.node_public_key(0)) do
+      nodes
+    else
+      {:ok, %Node{network_patch: patch}} ->
+        nearest_nodes(nodes, patch)
+      patch ->
+        nearest_nodes(nodes, patch)
+    end
     |> Enum.chunk_every(batch_size)
     |> do_reply_atomic(message)
   end

@@ -99,7 +99,7 @@ defmodule Uniris.BeaconChain.SummaryValidation do
         true
 
       nodes ->
-        case P2P.reply_first(nodes, %GetTransactionSummary{address: address}) do
+        case P2P.reply_atomic(nodes, 3, %GetTransactionSummary{address: address}) do
           {:ok, ^summary} ->
             true
 
