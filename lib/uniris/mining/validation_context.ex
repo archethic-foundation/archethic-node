@@ -39,8 +39,6 @@ defmodule Uniris.Mining.ValidationContext do
 
   alias Uniris.Replication
 
-  alias Uniris.SharedSecrets
-
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
@@ -798,58 +796,18 @@ defmodule Uniris.Mining.ValidationContext do
     %{context | cross_validation_stamps: [cross_stamp]}
   end
 
-  defp validation_stamp_inconsistencies(
-         context = %__MODULE__{
-           transaction: tx,
-           previous_transaction: prev_tx,
-           unspent_outputs: previous_unspent_outputs,
-           coordinator_node: %Node{last_public_key: coordinator_node_public_key},
-           valid_pending_transaction?: valid_pending_transaction?,
-           validation_stamp:
-             stamp = %ValidationStamp{
-               proof_of_work: pow,
-               proof_of_election: poe,
-               proof_of_integrity: poi,
-               ledger_operations:
-                 operations = %LedgerOperations{
-                   fee: fee,
-                   transaction_movements: tx_movements,
-                   unspent_outputs: next_unspent_outputs
-                 },
-               recipients: tx_recipients,
-               errors: errors
-             }
-         }
-       ) do
-    resolved_transaction_movements = resolve_transaction_movements(tx)
-    initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
-
+  defp validation_stamp_inconsistencies(context = %__MODULE__{validation_stamp: stamp}) do
     subsets_verifications = [
-      signature: fn -> ValidationStamp.valid_signature?(stamp, coordinator_node_public_key) end,
-      proof_of_work: fn -> valid_proof_of_work?(pow, tx) end,
-      proof_of_integrity: fn -> TransactionChain.proof_of_integrity([tx, prev_tx]) == poi end,
-      proof_of_election: fn ->
-        Election.valid_proof_of_election?(
-          tx,
-          poe,
-          SharedSecrets.get_daily_nonce_public_key_at(tx.timestamp)
-        )
-      end,
-      transaction_fee: fn -> Transaction.fee(tx) == fee end,
-      transaction_movements: fn -> resolved_transaction_movements == tx_movements end,
-      recipients: fn -> resolve_transaction_recipients(tx) == tx_recipients end,
-      node_movements: fn -> valid_node_movements?(operations, context) end,
-      unspent_outputs: fn ->
-        valid_unspent_outputs?(
-          tx,
-          previous_unspent_outputs,
-          next_unspent_outputs,
-          resolved_transaction_movements
-        )
-      end,
-      errors: fn ->
-        [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1) == errors
-      end
+      signature: fn -> valid_stamp_signature(stamp, context) end,
+      proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
+      proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
+      proof_of_election: fn -> valid_stamp_proof_of_election?(stamp, context) end,
+      transaction_fee: fn -> valid_stamp_fee?(stamp, context) end,
+      transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
+      recipients: fn -> valid_stamp_recipients?(stamp, context) end,
+      node_movements: fn -> valid_stamp_node_movements?(stamp, context) end,
+      unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, context) end,
+      errors: fn -> valid_stamp_errors?(stamp, context) end
     ]
 
     subsets_verifications
@@ -858,7 +816,15 @@ defmodule Uniris.Mining.ValidationContext do
     |> Enum.map(&elem(&1, 0))
   end
 
-  defp valid_proof_of_work?(pow, tx) do
+  defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
+         coordinator_node: %Node{last_public_key: coordinator_node_public_key}
+       }) do
+    ValidationStamp.valid_signature?(stamp, coordinator_node_public_key)
+  end
+
+  defp valid_stamp_proof_of_work?(%ValidationStamp{proof_of_work: pow}, %__MODULE__{
+         transaction: tx
+       }) do
     case pow do
       "" ->
         do_proof_of_work(tx) == ""
@@ -868,16 +834,56 @@ defmodule Uniris.Mining.ValidationContext do
     end
   end
 
-  defp valid_unspent_outputs?(
-         tx,
-         previous_unspent_outputs,
-         next_unspent_outputs,
-         resolved_transaction_movements
+  defp valid_stamp_proof_of_integrity?(%ValidationStamp{proof_of_integrity: poi}, %__MODULE__{
+         transaction: tx,
+         previous_transaction: prev_tx
+       }),
+       do: TransactionChain.proof_of_integrity([tx, prev_tx]) == poi
+
+  defp valid_stamp_proof_of_election?(%ValidationStamp{proof_of_election: poe}, %__MODULE__{
+         transaction: tx
+       }),
+       do: poe == Election.validation_nodes_election_seed_sorting(tx)
+
+  defp valid_stamp_fee?(
+         %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}},
+         %__MODULE__{transaction: tx}
+       ),
+       do: Transaction.fee(tx) == fee
+
+  defp valid_stamp_errors?(%ValidationStamp{errors: errors}, %__MODULE__{
+         transaction: tx,
+         previous_transaction: prev_tx,
+         valid_pending_transaction?: valid_pending_transaction?
+       }) do
+    initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
+    [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1) == errors
+  end
+
+  defp valid_stamp_recipients?(%ValidationStamp{recipients: recipients}, %__MODULE__{
+         transaction: tx
+       }),
+       do: resolve_transaction_recipients(tx) == recipients
+
+  defp valid_stamp_transaction_movements?(
+         %ValidationStamp{ledger_operations: %LedgerOperations{transaction_movements: movements}},
+         %__MODULE__{transaction: tx}
+       ),
+       do: resolve_transaction_movements(tx) == movements
+
+  defp valid_stamp_unspent_outputs?(
+         %ValidationStamp{
+           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
+         },
+         %__MODULE__{
+           transaction: tx,
+           unspent_outputs: previous_unspent_outputs
+         }
        ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
         fee: Transaction.fee(tx),
-        transaction_movements: resolved_transaction_movements
+        transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
@@ -885,7 +891,7 @@ defmodule Uniris.Mining.ValidationContext do
     expected_unspent_outputs == next_unspent_outputs
   end
 
-  defp valid_node_movements?(ops = %LedgerOperations{}, %__MODULE__{
+  defp valid_stamp_node_movements?(%ValidationStamp{ledger_operations: ops}, %__MODULE__{
          transaction: tx,
          welcome_node: %Node{last_public_key: welcome_node_public_key},
          coordinator_node: %Node{last_public_key: coordinator_node_public_key},
