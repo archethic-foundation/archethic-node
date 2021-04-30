@@ -36,17 +36,13 @@ defmodule Uniris.Reward.WithdrawScheduler do
   def handle_cast(:start_scheduling, state = %{interval: interval}) do
     case Map.get(state, :timer) do
       nil ->
-        :ok
+        timer = schedule(interval)
+        Logger.info("Start the node rewards withdraw scheduler")
+        {:noreply, Map.put(state, :timer, timer), :hibernate}
 
-      timer ->
-        Process.cancel_timer(timer)
+      _timer ->
+        {:noreply, state, :hibernate}
     end
-
-    timer = schedule(interval)
-
-    Logger.info("Start the node rewards withdraw scheduler")
-
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
   def handle_info(:withdraw_rewards, state = %{interval: interval}) do

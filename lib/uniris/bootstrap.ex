@@ -17,8 +17,6 @@ defmodule Uniris.Bootstrap do
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
 
-  alias Uniris.Reward
-
   alias Uniris.OracleChain
 
   alias Uniris.SelfRepair
@@ -182,7 +180,6 @@ defmodule Uniris.Bootstrap do
     SelfRepair.start_scheduler(last_sync_date)
     BeaconChain.start_schedulers()
     OracleChain.start_scheduling()
-    Reward.start_node_withdraw_scheduling()
 
     :persistent_term.put(:uniris_up, :up)
   end

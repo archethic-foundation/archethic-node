@@ -15,19 +15,10 @@ defmodule Uniris.Reward do
   alias __MODULE__.NetworkPoolScheduler
   alias __MODULE__.WithdrawScheduler
 
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
   alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
-
-  @doc """
-  Start the network pool reward scheduling
-  """
-  @spec start_network_pool_scheduling() :: :ok
-  defdelegate start_network_pool_scheduling, to: NetworkPoolScheduler, as: :start_scheduling
-
-  @doc """
-  Start the node reward scheduling
-  """
-  @spec start_node_withdraw_scheduling() :: :ok
-  defdelegate start_node_withdraw_scheduling, to: WithdrawScheduler, as: :start_scheduling
 
   @doc """
   Get the minimum rewards for validation nodes
@@ -58,4 +49,19 @@ defmodule Uniris.Reward do
       %Transfer{to: address, amount: min_validation_nodes_reward - amount}
     end)
   end
+
+  def load_transaction(%Transaction{
+        type: :node_shared_secrets,
+        data: %TransactionData{keys: keys}
+      }) do
+    WithdrawScheduler.start_scheduling()
+
+    if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
+      NetworkPoolScheduler.start_scheduling()
+    end
+
+    :ok
+  end
+
+  def load_transaction(_), do: :ok
 end
