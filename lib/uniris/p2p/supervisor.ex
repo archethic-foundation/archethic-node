@@ -24,7 +24,7 @@ defmodule Uniris.P2P.Supervisor do
     bootstraping_seeds_conf = Application.get_env(:uniris, BootstrappingSeeds)
 
     # Setup the connection handler for the local node
-    Connection.start_link(name: LocalConnection, initiator?: true)
+    Connection.start_link(name: Uniris.P2P.LocalConnection, initiator?: true)
 
     optional_children = [
       {Registry,

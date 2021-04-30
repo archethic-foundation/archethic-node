@@ -56,7 +56,9 @@ defmodule Uniris.P2P.Connection do
         send(connection_pid, {:data, data})
         loop_data(transport, socket, connection_pid)
 
-      {:error, _} = e ->
+      {:error, reason} = e ->
+        Logger.error("Connection closed - #{inspect(reason)}")
+        GenServer.stop(connection_pid)
         e
     end
   end
@@ -73,7 +75,7 @@ defmodule Uniris.P2P.Connection do
     encoded_message = msg |> Message.encode() |> Utils.wrap_binary()
 
     t =
-      Task.start(fn ->
+      Task.async(fn ->
         Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
       end)
 

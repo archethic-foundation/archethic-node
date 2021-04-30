@@ -6,8 +6,6 @@ defmodule Uniris.P2P.Client.RemoteConnection do
   use Retry
   use GenServer
 
-  alias Retry.DelayStreams
-
   alias Uniris.Crypto
 
   alias Uniris.P2P.Connection
@@ -55,9 +53,9 @@ defmodule Uniris.P2P.Client.RemoteConnection do
 
   defp do_connect(transport, ip, port, node_public_key) do
     retry_while with:
-                  DelayStreams.exponential_backoff()
-                  |> DelayStreams.randomize()
-                  |> DelayStreams.cap(1_000) do
+                  exponential_backoff()
+                  |> randomize()
+                  |> cap(1_000) do
       case Transport.connect(transport, ip, port) do
         {:ok, socket} ->
           {:ok, connection_pid} =
@@ -75,6 +73,8 @@ defmodule Uniris.P2P.Client.RemoteConnection do
           {:halt, %{socket: socket, connection_pid: connection_pid}}
 
         {:error, reason} ->
+          :stop
+
           Logger.warning(
             "Error during node connection #{inspect(reason)} to #{:inet.ntoa(ip)}:#{port}"
           )

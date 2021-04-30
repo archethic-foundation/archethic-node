@@ -10,10 +10,9 @@ defmodule Uniris.P2P.Client.DefaultImpl do
   alias Uniris.P2P.Connection
   alias Uniris.P2P.ConnectionRegistry
   alias Uniris.P2P.ConnectionSupervisor
+  alias Uniris.P2P.LocalConnection
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
-
-  alias Retry.DelayStreams
 
   @behaviour ClientImpl
 
@@ -30,8 +29,12 @@ defmodule Uniris.P2P.Client.DefaultImpl do
   def new_connection(ip, port, transport, node_public_key) do
     DynamicSupervisor.start_child(
       ConnectionSupervisor,
-      {RemoteConnection,
-       ip: ip, port: port, transport: transport, node_public_key: node_public_key}
+      %{
+        id: {:remote_conn, node_public_key},
+        start:
+          {RemoteConnection, :start_link,
+           [[ip: ip, port: port, node_public_key: node_public_key, transport: transport]]}
+      }
     )
   end
 
@@ -45,13 +48,17 @@ defmodule Uniris.P2P.Client.DefaultImpl do
       |> Process.whereis()
       |> Connection.send_message(message)
     else
-      retry_while with: DelayStreams.linear_backoff(10, 2) |> DelayStreams.expiry(100) do
+      retry_while with: linear_backoff(10, 2) |> expiry(100) do
         case Registry.lookup(ConnectionRegistry, {:bearer_conn, first_public_key}) do
           [{pid, _}] ->
-            {:halt, Connection.send_message(pid, message)}
-
+            try do
+              {:halt, Connection.send_message(pid, message)}
+            rescue
+              _ ->
+                {:cont, {:error, :network_issue}}
+            end
           [] ->
-            {:cont, :not_found}
+            {:cont, {:error, :network_issue}}
         end
       end
     end
