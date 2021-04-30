@@ -5,6 +5,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
+  alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -86,8 +87,12 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
         data: %TransactionData{content: content}
       }) do
     {daily_nonce_public_key, network_pool_address} = decode_node_shared_secrets_content(content)
-    NetworkLookup.set_daily_nonce_public_key(daily_nonce_public_key, timestamp)
     NetworkLookup.set_network_pool_address(network_pool_address)
+
+    NetworkLookup.set_daily_nonce_public_key(
+      daily_nonce_public_key,
+      NodeRenewalScheduler.next_application_date(timestamp)
+    )
   end
 
   def load_transaction(%Transaction{type: :node_rewards, address: address}) do

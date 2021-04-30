@@ -7,6 +7,8 @@ defmodule Uniris.P2P.MemTableLoader do
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Node
 
+  alias Uniris.SharedSecrets
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -98,7 +100,7 @@ defmodule Uniris.P2P.MemTableLoader do
     keys
     |> Keys.list_authorized_keys()
     |> Enum.map(&MemTable.get_first_node_key/1)
-    |> Enum.each(&MemTable.authorize_node(&1, timestamp))
+    |> Enum.each(&MemTable.authorize_node(&1, SharedSecrets.next_application_date(timestamp)))
   end
 
   def load_transaction(_), do: :ok

@@ -51,15 +51,17 @@ config :uniris, Uniris.OracleChain.Scheduler,
 
 config :uniris, Uniris.Reward.NetworkPoolScheduler,
   # Every day
-  interval: "0 0 * * * * *"
+  interval: "0 0 0 * * * *"
 
 config :uniris, Uniris.Reward.WithdrawScheduler,
   # Every day
   interval: "0 0 * * * * *"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
-  # Every day at midnight at the 50th second
-  interval: "50 0 0 * * * *"
+  # Every day 10 minute before midnight
+  interval: "0 50 0 * * * *",
+  # Every day at midnight
+  application_interval: "0 0 0 * * * *"
 
 config :uniris, Uniris.SelfRepair.Sync, last_sync_file: "priv/p2p/last_sync"
 

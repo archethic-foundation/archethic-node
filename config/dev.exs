@@ -89,7 +89,8 @@ config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second
-  interval: "40 * * * * * *"
+  interval: "40 * * * * * *",
+  application_interval: "0 * * * * * *"
 
 config :uniris, Uniris.P2P.Endpoint,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()

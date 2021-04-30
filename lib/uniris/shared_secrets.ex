@@ -3,8 +3,6 @@ defmodule Uniris.SharedSecrets do
 
   alias Uniris.Crypto
 
-  alias Uniris.Reward
-
   alias __MODULE__.MemTables.NetworkLookup
   alias __MODULE__.MemTables.OriginKeyLookup
   alias __MODULE__.MemTablesLoader
@@ -45,16 +43,10 @@ defmodule Uniris.SharedSecrets do
   defdelegate get_network_pool_address, to: NetworkLookup
 
   @doc """
-  Get the last daily nonce public key
-  """
-  @spec get_daily_nonce_public_key() :: Crypto.key()
-  defdelegate get_daily_nonce_public_key, to: NetworkLookup
-
-  @doc """
   Get the daily nonce public key before this date
   """
-  @spec get_daily_nonce_public_key_at(DateTime.t()) :: Crypto.key()
-  defdelegate get_daily_nonce_public_key_at(date), to: NetworkLookup
+  @spec get_daily_nonce_public_key(DateTime.t()) :: Crypto.key()
+  defdelegate get_daily_nonce_public_key(date \\ DateTime.utc_now()), to: NetworkLookup
 
   @doc """
   Create a new transaction for node shared secrets renewal generating secret encrypted using the aes key and daily nonce seed
@@ -90,9 +82,23 @@ defmodule Uniris.SharedSecrets do
        }) do
     if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
       NodeRenewalScheduler.start_scheduling()
-      Reward.start_network_pool_scheduling()
     end
+
+    :ok
   end
 
   defp do_load_transaction(_), do: :ok
+
+  @doc """
+  Get the genesis daily nonce public key
+  """
+  @spec genesis_daily_nonce_public_key() :: Crypto.key()
+  def genesis_daily_nonce_public_key,
+    do: NetworkLookup.get_daily_nonce_public_key(~U[1970-01-01 00:00:00Z])
+
+  @doc """
+  Get the next application date
+  """
+  @spec next_application_date(DateTime.t()) :: DateTime.t()
+  defdelegate next_application_date(date_from \\ DateTime.utc_now()), to: NodeRenewalScheduler
 end

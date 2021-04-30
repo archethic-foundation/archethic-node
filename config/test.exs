@@ -94,8 +94,8 @@ config :uniris, Uniris.SharedSecrets.MemTables.OriginKeyLookup, enabled: false
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   enabled: false,
-  trigger_interval: 0,
-  interval: 0
+  interval: "0 0 * * * * *",
+  application_interval: "0 0 * * * * *"
 
 config :uniris, Uniris.TransactionChain.MemTables.PendingLedger, enabled: false
 config :uniris, Uniris.TransactionChain.MemTables.KOLedger, enabled: false

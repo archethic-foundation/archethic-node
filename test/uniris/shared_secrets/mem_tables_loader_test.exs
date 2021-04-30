@@ -7,6 +7,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.MemTablesLoader
+  alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -88,10 +89,12 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
       assert NetworkLookup.get_daily_nonce_public_key() ==
                genesis_daily_nonce_public_key
 
-      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now()) ==
+      assert NetworkLookup.get_daily_nonce_public_key(DateTime.utc_now()) ==
                genesis_daily_nonce_public_key
 
-      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(1))
+      assert NetworkLookup.get_daily_nonce_public_key(
+               NodeRenewalScheduler.next_application_date(DateTime.utc_now())
+             )
              |> Base.encode16() ==
                "009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3"
 
@@ -153,13 +156,15 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
         |> Crypto.generate_deterministic_keypair()
         |> elem(0)
 
-      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now()) ==
+      assert NetworkLookup.get_daily_nonce_public_key(DateTime.utc_now()) ==
                genesis_daily_nonce_public_key
 
-      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(10)) ==
+      assert NetworkLookup.get_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(10)) ==
                genesis_daily_nonce_public_key
 
-      assert NetworkLookup.get_daily_nonce_public_key_at(DateTime.utc_now() |> DateTime.add(12))
+      assert NetworkLookup.get_daily_nonce_public_key(
+               NodeRenewalScheduler.next_application_date(DateTime.utc_now())
+             )
              |> Base.encode16() ==
                "009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3"
     end

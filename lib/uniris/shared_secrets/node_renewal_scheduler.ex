@@ -15,6 +15,9 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   At 00.00 UTC, nodes receives will applied the node shared secrets for the transaction mining
   """
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   alias Uniris
 
   alias Uniris.Crypto
@@ -132,5 +135,21 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
       milliseconds ->
         div(milliseconds, 1000)
     end
+  end
+
+  @doc """
+  Get the next shared secrets application date from a given date
+  """
+  @spec next_application_date(DateTime.t()) :: DateTime.t()
+  def next_application_date(date_from = %DateTime{}) do
+    get_application_date_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  defp get_application_date_interval do
+    Application.get_env(:uniris, __MODULE__)
+    |> Keyword.fetch!(:application_interval)
   end
 end

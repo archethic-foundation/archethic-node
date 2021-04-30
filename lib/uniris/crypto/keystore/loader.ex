@@ -4,6 +4,8 @@ defmodule Uniris.Crypto.KeystoreLoader do
   alias Uniris.Crypto
   alias Uniris.Crypto.KeystoreCounter
 
+  alias Uniris.SharedSecrets
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
@@ -111,8 +113,14 @@ defmodule Uniris.Crypto.KeystoreLoader do
           encrypted_secret_key
         )
 
+      daily_nonce_date = SharedSecrets.next_application_date(timestamp)
+
       :ok =
-        Crypto.decrypt_and_set_daily_nonce_seed(daily_nonce_seed, encrypted_secret_key, timestamp)
+        Crypto.decrypt_and_set_daily_nonce_seed(
+          daily_nonce_seed,
+          encrypted_secret_key,
+          daily_nonce_date
+        )
     else
       :ok
     end
