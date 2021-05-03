@@ -61,6 +61,24 @@ defmodule Uniris.BeaconChain.Summary do
   end
 
   @doc """
+  Cast a beacon's slot into a summary
+  """
+  @spec from_slot(Slot.t()) :: t()
+  def from_slot(%Slot{
+        subset: subset,
+        slot_time: slot_time,
+        transaction_summaries: transaction_summaries,
+        end_of_node_synchronizations: end_of_node_sync
+      }) do
+    %__MODULE__{
+      subset: subset,
+      summary_time: slot_time,
+      transaction_summaries: transaction_summaries,
+      end_of_node_synchronizations: end_of_node_sync
+    }
+  end
+
+  @doc """
   Serialize a beacon summary into binary format
 
   ## Examples
