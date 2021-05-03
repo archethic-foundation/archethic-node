@@ -82,6 +82,12 @@ defmodule Uniris.BeaconChain do
   end
 
   @doc """
+  Get the next beacon summary time
+  """
+  @spec next_summary_date(DateTime.t()) :: DateTime.t()
+  defdelegate next_summary_date(date), to: SummaryTimer, as: :next_summary
+
+  @doc """
   Get the next beacon slot time from a given date
   """
   @spec next_slot(last_sync_date :: DateTime.t()) :: DateTime.t()
