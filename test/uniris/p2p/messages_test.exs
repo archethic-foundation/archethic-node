@@ -10,8 +10,6 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.AddBeaconSlotProof
   alias Uniris.P2P.Message.AddMiningContext
   alias Uniris.P2P.Message.Balance
-  alias Uniris.P2P.Message.BatchRequests
-  alias Uniris.P2P.Message.BatchResponses
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.CrossValidate
   alias Uniris.P2P.Message.CrossValidationDone
@@ -35,6 +33,7 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.LastTransactionAddress
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
+  alias Uniris.P2P.Message.NodeAvailability
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.NotifyBeaconSlot
@@ -860,28 +859,9 @@ defmodule Uniris.P2P.MessageTest do
                |> elem(0)
     end
 
-    test "BatchRequests" do
-      msg = %BatchRequests{
-        requests: [
-          %Ok{},
-          %GetTransaction{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
-          %GetTransactionChain{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
-        ]
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "BatchResponses" do
-      msg = %BatchResponses{
-        responses: [
-          {0, %Ok{}},
-          {1, %NotFound{}}
-        ]
+    test "NodeAvailability" do
+      msg = %NodeAvailability{
+        public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

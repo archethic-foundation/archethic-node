@@ -21,8 +21,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.AddBeaconSlotProof
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
-  alias __MODULE__.BatchRequests
-  alias __MODULE__.BatchResponses
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
@@ -46,6 +44,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
+  alias __MODULE__.NodeAvailability
   alias __MODULE__.NodeList
   alias __MODULE__.NotFound
   alias __MODULE__.NotifyBeaconSlot
@@ -105,8 +104,8 @@ defmodule Uniris.P2P.Message do
           | GetBeaconSummary.t()
           | GetBeaconSlot.t()
           | GetLastTransactionAddress.t()
-          | BatchRequests.t()
           | NotifyLastTransactionAddress.t()
+          | NodeAvailability.t()
 
   @type response ::
           Ok.t()
@@ -126,7 +125,6 @@ defmodule Uniris.P2P.Message do
           | FirstPublicKey.t()
           | TransactionChainLength.t()
           | TransactionInputList.t()
-          | BatchResponses.t()
 
   @doc """
   Serialize a message into binary
@@ -291,19 +289,8 @@ defmodule Uniris.P2P.Message do
     <<26::8, subset::binary, DateTime.to_unix(slot_time)::32>>
   end
 
-  def encode(%BatchRequests{requests: requests}) do
-    <<27::8, length(requests)::16,
-      Enum.map(requests, &encode/1) |> :erlang.list_to_bitstring()::bitstring>>
-  end
-
-  def encode(%BatchResponses{responses: responses}) do
-    responses_binary =
-      Enum.map(responses, fn {index, response} ->
-        <<index::16, encode(response)::bitstring>>
-      end)
-      |> :erlang.list_to_bitstring()
-
-    <<238::8, length(responses)::16, responses_binary::bitstring>>
+  def encode(%NodeAvailability{public_key: node_public_key}) do
+    <<27::8, node_public_key::binary>>
   end
 
   def encode(tx_summary = %TransactionSummary{}) do
@@ -647,20 +634,9 @@ defmodule Uniris.P2P.Message do
     {%GetBeaconSlot{subset: subset, slot_time: DateTime.from_unix!(timestamp)}, rest}
   end
 
-  def decode(<<27::8, nb_requests::16, rest::bitstring>>) do
-    {requests, rest} = deserialize_batched_requests(rest, nb_requests, [])
-
-    {%BatchRequests{
-       requests: requests
-     }, rest}
-  end
-
-  def decode(<<238::8, nb_responses::16, rest::bitstring>>) do
-    {responses, rest} = deserialize_batched_responses(rest, nb_responses, [])
-
-    {%BatchResponses{
-       responses: responses
-     }, rest}
+  def decode(<<27::8, rest::binary>>) do
+    {public_key, rest} = deserialize_public_key(rest)
+    {%NodeAvailability{public_key: public_key}, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -847,29 +823,6 @@ defmodule Uniris.P2P.Message do
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
-  defp deserialize_batched_requests(rest, nb_requests, acc) when nb_requests == length(acc) do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_batched_requests(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_batched_requests(rest, nb_requests, acc) do
-    {request, rest} = decode(rest)
-    deserialize_batched_requests(rest, nb_requests, [request | acc])
-  end
-
-  defp deserialize_batched_responses(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_batched_responses(<<index::16, rest::bitstring>>, nb_responses, acc) do
-    {response, rest} = decode(rest)
-    deserialize_batched_responses(rest, nb_responses, [{index, response} | acc])
-  end
-
-  defp deserialize_batched_responses(rest, nb_responses, acc) when nb_responses == length(acc) do
-    {Enum.reverse(acc), rest}
-  end
-
-  # TODO: support streaming
   @doc """
   Handle a P2P message by processing it through the dedicated context
   """
@@ -1160,14 +1113,8 @@ defmodule Uniris.P2P.Message do
     %Ok{}
   end
 
-  def process(%BatchRequests{requests: requests}) do
-    responses =
-      requests
-      |> Enum.with_index()
-      |> Enum.map(fn {request, index} ->
-        {index, process(request)}
-      end)
-
-    %BatchResponses{responses: responses}
+  def process(%NodeAvailability{public_key: public_key}) do
+    P2P.set_node_globally_available(public_key)
+    %Ok{}
   end
 end
