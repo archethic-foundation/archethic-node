@@ -10,8 +10,8 @@ defmodule Uniris.OracleChain.Scheduler do
 
   alias Uniris.P2P.Node
 
-  alias Uniris.OracleChain.Summary
   alias Uniris.OracleChain.Services
+  alias Uniris.OracleChain.Summary
 
   alias Uniris.Replication
 

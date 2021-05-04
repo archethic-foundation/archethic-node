@@ -16,8 +16,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
-  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
 
   alias Uniris.TransactionFactory
 

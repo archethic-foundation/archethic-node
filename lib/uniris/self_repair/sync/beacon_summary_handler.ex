@@ -3,8 +3,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
+  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.Summary, as: BeaconSummary
 
   alias Uniris.Crypto
