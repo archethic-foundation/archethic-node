@@ -25,7 +25,7 @@ defmodule Uniris.Replication.TransactionContextTest do
       {:ok, %TransactionList{transactions: [%Transaction{}]}}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),
@@ -61,7 +61,7 @@ defmodule Uniris.Replication.TransactionContextTest do
        }}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),
@@ -97,7 +97,7 @@ defmodule Uniris.Replication.TransactionContextTest do
        }}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),

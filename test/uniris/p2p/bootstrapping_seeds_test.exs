@@ -131,7 +131,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
           "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
       )
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3003,
       first_public_key: :crypto.strong_rand_bytes(32),
@@ -142,7 +142,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3004,
       first_public_key: :crypto.strong_rand_bytes(32),
@@ -152,7 +152,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
       authorized?: false
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3005,
       first_public_key: :crypto.strong_rand_bytes(32),
@@ -162,7 +162,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
       authorized?: false
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3006,
       first_public_key: :crypto.strong_rand_bytes(32),

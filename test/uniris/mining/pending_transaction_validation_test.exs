@@ -20,7 +20,10 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   import Mox
 
   setup do
-    P2P.add_node(%Node{first_public_key: Crypto.node_public_key(), network_patch: "AAA"})
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.node_public_key(),
+      network_patch: "AAA"
+    })
     :ok
   end
 
@@ -51,7 +54,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
           []
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "node_key1",
@@ -59,7 +62,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "node_key2",
@@ -110,7 +113,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
           ]
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "node_key1",
@@ -118,7 +121,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         available?: true
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "node_key2",
@@ -156,7 +159,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
           0
         )
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "node1",

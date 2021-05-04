@@ -23,7 +23,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
   import Mox
 
   setup do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       available?: false,
       network_patch: "AAA"
@@ -48,7 +48,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       assert {:ok, %Transaction{}, %Node{ip: {127, 0, 0, 1}}} =
                DataFetcher.fetch_previous_transaction("@Alice2", [node])
@@ -69,7 +69,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       assert {:error, :not_found} = DataFetcher.fetch_previous_transaction("@Alice2", [node])
     end
@@ -111,7 +111,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node1)
+      P2P.add_and_connect_node(node1)
 
       {:ok, [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}],
        [%Node{last_public_key: "key1"}]} =
@@ -140,7 +140,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node1)
+      P2P.add_and_connect_node(node1)
 
       {:ok, [%UnspentOutput{from: "@Bob3", amount: 10, type: :UCO}],
        [%Node{last_public_key: "key1"}]} =
@@ -163,7 +163,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       assert {:ok, [], []} = DataFetcher.fetch_unspent_outputs("@Alice2", [node])
     end
@@ -185,7 +185,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       assert {:ok, <<1::1, 1::1>>, %Node{first_public_key: "key1"}} =
                DataFetcher.fetch_p2p_view(["key2", "key3"], [node])

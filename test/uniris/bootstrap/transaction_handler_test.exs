@@ -46,7 +46,7 @@ defmodule Uniris.Bootstrap.TransactionHandlerTest do
       available?: true
     }
 
-    :ok = P2P.add_node(node)
+    :ok = P2P.add_and_connect_node(node)
 
     tx =
       TransactionHandler.create_node_transaction(

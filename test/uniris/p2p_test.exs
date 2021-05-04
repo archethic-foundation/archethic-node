@@ -16,7 +16,7 @@ defmodule Uniris.P2PTest do
   setup :set_mox_global
 
   test "get_node_info/0 should return retrieve local node information" do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),
@@ -60,7 +60,7 @@ defmodule Uniris.P2PTest do
         }
       ]
 
-      Enum.each(nodes, &P2P.add_node/1)
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
       {:ok, %{nodes: nodes}}
     end
 

@@ -21,7 +21,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
   setup :set_mox_global
 
   setup do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: "NodeKey",
       last_public_key: "NodeKey",
       last_address: "@NodeKey",

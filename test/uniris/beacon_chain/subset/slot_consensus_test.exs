@@ -23,7 +23,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
     start_supervised!({SlotTimer, interval: "0 * * * * *"})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),
@@ -35,7 +35,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {59, 23, 123, 10},
       port: 3005,
       first_public_key: Crypto.node_public_key(1),
@@ -47,7 +47,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {120, 200, 10, 23},
       port: 3005,
       first_public_key: Crypto.node_public_key(2),

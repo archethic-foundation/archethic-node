@@ -24,7 +24,7 @@ defmodule Uniris.Mining.TransactionContextTest do
   import Mox
 
   setup do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       network_patch: "AAA",
       available?: false
@@ -99,9 +99,9 @@ defmodule Uniris.Mining.TransactionContextTest do
         authorization_date: DateTime.utc_now()
       }
 
-      P2P.add_node(node1)
-      P2P.add_node(node2)
-      P2P.add_node(node3)
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+      P2P.add_and_connect_node(node3)
 
       assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>,
               <<1::1, 1::1>>} =

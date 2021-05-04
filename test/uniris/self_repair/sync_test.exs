@@ -34,7 +34,7 @@ defmodule Uniris.SelfRepair.SyncTest do
       d1 = DateTime.utc_now()
       d2 = DateTime.utc_now() |> DateTime.add(200)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -44,7 +44,7 @@ defmodule Uniris.SelfRepair.SyncTest do
         authorization_date: d1
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3005,
         first_public_key: "key2",
@@ -119,10 +119,10 @@ defmodule Uniris.SelfRepair.SyncTest do
         }
       ]
 
-      Enum.each(storage_nodes, &P2P.add_node(&1))
+      Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
 
-      P2P.add_node(welcome_node)
-      P2P.add_node(coordinator_node)
+      P2P.add_and_connect_node(welcome_node)
+      P2P.add_and_connect_node(coordinator_node)
 
       {:ok,
        %{

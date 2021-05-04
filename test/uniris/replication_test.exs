@@ -67,7 +67,7 @@ defmodule Uniris.ReplicationTest do
           }
         end)
 
-      Enum.each(nodes, &P2P.add_node/1)
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
       chain_storage_nodes = Replication.chain_storage_nodes_with_type("@Node1", :node)
 
       assert Enum.all?(
@@ -92,7 +92,7 @@ defmodule Uniris.ReplicationTest do
           }
         end)
 
-      Enum.each(nodes, &P2P.add_node/1)
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
 
       chain_storage_nodes =
         Replication.chain_storage_nodes_with_type("@Alice2", :transfer)
@@ -138,7 +138,7 @@ defmodule Uniris.ReplicationTest do
       }
     ]
 
-    Enum.each(nodes, &P2P.add_node/1)
+    Enum.each(nodes, &P2P.add_and_connect_node/1)
 
     beacon_storage_nodes = Replication.beacon_storage_nodes("@Alice2", DateTime.utc_now())
 
@@ -152,7 +152,7 @@ defmodule Uniris.ReplicationTest do
   end
 
   test "process_transaction/2" do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       authorized?: true,
@@ -240,10 +240,10 @@ defmodule Uniris.ReplicationTest do
       }
     ]
 
-    Enum.each(storage_nodes, &P2P.add_node(&1))
+    Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
 
-    P2P.add_node(welcome_node)
-    P2P.add_node(coordinator_node)
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
 
     %{
       welcome_node: welcome_node,
@@ -325,7 +325,7 @@ defmodule Uniris.ReplicationTest do
         {:ok, %Ok{}}
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),

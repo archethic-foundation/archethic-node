@@ -33,7 +33,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   import Mox
 
   setup do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(0),
@@ -98,13 +98,13 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       authorized?: true
     }
 
-    P2P.add_node(node1)
-    P2P.add_node(node2)
-    P2P.add_node(node3)
-    P2P.add_node(node4)
+    P2P.add_and_connect_node(node1)
+    P2P.add_and_connect_node(node2)
+    P2P.add_and_connect_node(node3)
+    P2P.add_and_connect_node(node4)
 
     # Batcher requires the local node to get the network patch for closest nodes comparison
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       network_patch: "AAA",
       available?: false
@@ -172,7 +172,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         authorized?: true
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       summaries = [
         %BeaconSummary{
@@ -204,7 +204,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         authorized?: true
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       me = self()
 
@@ -303,7 +303,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       }
 
-      P2P.add_node(node)
+      P2P.add_and_connect_node(node)
 
       inputs = [
         %TransactionInput{
@@ -440,10 +440,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       }
     ]
 
-    Enum.each(storage_nodes, &P2P.add_node(&1))
+    Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
 
-    P2P.add_node(welcome_node)
-    P2P.add_node(coordinator_node)
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
 
     %{
       welcome_node: welcome_node,

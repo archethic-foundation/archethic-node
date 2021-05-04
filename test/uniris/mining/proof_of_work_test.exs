@@ -18,7 +18,7 @@ defmodule Uniris.Mining.ProofOfWorkTest do
   describe "list_origin_public_keys_candidates/1 when it's a transaction with smart contract" do
     test "load the origin public keys based on the origin family provided " do
       :ok =
-        P2P.add_node(%Node{
+        P2P.add_and_connect_node(%Node{
           last_public_key: Crypto.node_public_key(0),
           first_public_key: Crypto.node_public_key(0),
           ip: {127, 0, 0, 1},

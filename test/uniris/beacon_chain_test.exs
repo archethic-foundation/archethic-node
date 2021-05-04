@@ -159,7 +159,7 @@ defmodule Uniris.BeaconChainTest do
     end
 
     test "should return an error when the previous hash is the not a valid one" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -179,7 +179,7 @@ defmodule Uniris.BeaconChainTest do
     end
 
     test "should return an error when the signatures are not valid" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -199,7 +199,7 @@ defmodule Uniris.BeaconChainTest do
     end
 
     test "should insert the slot" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -230,7 +230,7 @@ defmodule Uniris.BeaconChainTest do
     end
 
     test "should not insert the slot if a slot is already persisted and no more signatures" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -258,7 +258,7 @@ defmodule Uniris.BeaconChainTest do
     end
 
     test "should not insert the slot if the receiving node has more signature than the previous one" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -269,7 +269,7 @@ defmodule Uniris.BeaconChainTest do
         authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(1),

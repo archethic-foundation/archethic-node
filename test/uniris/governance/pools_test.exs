@@ -8,7 +8,7 @@ defmodule Uniris.Governance.PoolsTest do
 
   describe "members_of/1" do
     test "should return the list of nodes public keys for the miners pool " do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -21,7 +21,7 @@ defmodule Uniris.Governance.PoolsTest do
 
   describe "member_of/1" do
     test "should return miners when the public key is a node public key" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",

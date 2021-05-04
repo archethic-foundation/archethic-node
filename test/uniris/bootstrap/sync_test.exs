@@ -91,7 +91,7 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   describe "require_update?/4" do
     test "should return false when only a node is involved in the network" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -103,7 +103,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should return true when the node ip change" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -111,7 +111,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         transport: :tcp
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
@@ -123,7 +123,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should return true when the node port change" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -131,7 +131,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         transport: :tcp
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
@@ -143,7 +143,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should return true when the last date of sync diff is greater than 3 seconds" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -151,7 +151,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         transport: :tcp
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
@@ -169,7 +169,7 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should return true when the transport change" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -177,7 +177,7 @@ defmodule Uniris.Bootstrap.SyncTest do
         transport: :tcp
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: "other_node_key",
@@ -195,7 +195,7 @@ defmodule Uniris.Bootstrap.SyncTest do
       start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
       start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -264,7 +264,7 @@ defmodule Uniris.Bootstrap.SyncTest do
       last_public_key: "key1"
     }
 
-    :ok = P2P.add_node(node)
+    :ok = P2P.add_and_connect_node(node)
 
     MockClient
     |> stub(:send_message, fn
@@ -303,7 +303,7 @@ defmodule Uniris.Bootstrap.SyncTest do
       last_public_key: "key1"
     }
 
-    :ok = P2P.add_node(node)
+    :ok = P2P.add_and_connect_node(node)
 
     MockClient
     |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
@@ -318,7 +318,7 @@ defmodule Uniris.Bootstrap.SyncTest do
   test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do
     BeaconSlotTimer.start_link(interval: "0 * * * * *")
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: :crypto.strong_rand_bytes(32),

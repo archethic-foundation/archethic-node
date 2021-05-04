@@ -68,10 +68,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
       }
     ]
 
-    Enum.each(storage_nodes, &P2P.add_node(&1))
+    Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
 
-    P2P.add_node(welcome_node)
-    P2P.add_node(coordinator_node)
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)

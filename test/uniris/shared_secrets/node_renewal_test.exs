@@ -46,7 +46,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
 
   describe "initiator?/0" do
     test "should return false when the first elected node is not the current node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: Crypto.node_public_key(),
@@ -57,7 +57,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorized?: false
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key2",
@@ -69,7 +69,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key3",
@@ -85,7 +85,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
     end
 
     test "should return true when the first elected node is the current node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: Crypto.node_public_key(),
@@ -103,7 +103,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
 
   describe "next_authorized_node_public_keys/0" do
     test "should not add new nodes with a low tps" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key1",
@@ -115,7 +115,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key2",
@@ -127,7 +127,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key3",
@@ -139,7 +139,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key4",
@@ -159,7 +159,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
     end
 
     test "should add new nodes with a high tps" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key1",
@@ -171,7 +171,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key2",
@@ -183,7 +183,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key3",
@@ -195,7 +195,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key4",

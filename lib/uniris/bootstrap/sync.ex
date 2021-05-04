@@ -96,9 +96,10 @@ defmodule Uniris.Bootstrap.Sync do
     |> Crypto.aes_encrypt(secret_key)
     |> Crypto.decrypt_and_set_daily_nonce_seed(encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
 
-    :ok = node_tx
-    |> NetworkInit.self_validation()
-    |> NetworkInit.self_replication()
+    :ok =
+      node_tx
+      |> NetworkInit.self_validation()
+      |> NetworkInit.self_replication()
 
     P2P.set_node_globally_available(Crypto.node_public_key(0))
     P2P.authorize_node(Crypto.node_public_key(), DateTime.utc_now())
@@ -113,7 +114,7 @@ defmodule Uniris.Bootstrap.Sync do
   @spec load_node_list(list(Node.t())) :: :ok
   def load_node_list(nodes) do
     {:ok, %NodeList{nodes: nodes}} = P2P.reply_first(nodes, %ListNodes{})
-    Enum.each(nodes, &P2P.add_node/1)
+    Enum.each(nodes, &P2P.add_and_connect_node/1)
     Logger.info("Node list refreshed")
   end
 
@@ -147,7 +148,7 @@ defmodule Uniris.Bootstrap.Sync do
 
     (new_seeds ++ closest_nodes)
     |> P2P.distinct_nodes()
-    |> Enum.each(&P2P.add_node/1)
+    |> Enum.each(&P2P.add_and_connect_node/1)
 
     Logger.info("Closest nodes and seeds loaded in the P2P view")
 

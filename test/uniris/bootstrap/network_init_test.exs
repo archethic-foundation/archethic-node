@@ -44,7 +44,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(0),
@@ -171,7 +171,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
 
     me = self()
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},
@@ -232,7 +232,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
         {:ok, %UnspentOutputList{unspent_outputs: []}}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       last_public_key: Crypto.node_public_key(),
       ip: {127, 0, 0, 1},

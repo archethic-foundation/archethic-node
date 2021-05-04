@@ -17,7 +17,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
 
   setup do
     Enum.each(1..50, fn _ ->
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),

@@ -185,7 +185,7 @@ defmodule Uniris.Bootstrap do
   end
 
   defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
-    Enum.each(bootstrapping_seeds, &P2P.add_node/1)
+    Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
 
     closest_nodes = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 

@@ -77,7 +77,7 @@ defmodule Uniris.Replication.TransactionContext do
       message,
       fn
         {:ok, %TransactionInputList{inputs: inputs}} ->
-          Enum.filter(inputs, &DateTime.diff(&1.timestamp, timestamp) <= 0)
+          Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
 
         _ ->
           []

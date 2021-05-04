@@ -28,8 +28,7 @@ defmodule Uniris.SelfRepair.Notifier do
   end
 
   def handle_info(
-        {:node_update,
-         %Node{available?: true, authorized?: true, first_public_key: node_key}},
+        {:node_update, %Node{available?: true, authorized?: true, first_public_key: node_key}},
         state
       ) do
     current_node_public_key = Crypto.node_public_key(0)

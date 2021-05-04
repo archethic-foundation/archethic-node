@@ -42,7 +42,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(0),
@@ -58,7 +58,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: pub,
@@ -162,7 +162,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         last_address: :crypto.strong_rand_bytes(32)
       }
 
-      P2P.add_node(welcome_node)
+      P2P.add_and_connect_node(welcome_node)
 
       fun = fn ->
         {:ok, pid} =
@@ -188,7 +188,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
   describe "add_mining_context/6" do
     test "should aggregate context and wait enough confirmed validation nodes context building",
          %{tx: tx, sorting_seed: sorting_seed} do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "other_validator_key",
@@ -202,7 +202,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         last_address: :crypto.strong_rand_bytes(32)
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "other_validator_key2",
@@ -341,7 +341,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         last_address: :crypto.strong_rand_bytes(32)
       }
 
-      P2P.add_node(welcome_node)
+      P2P.add_and_connect_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -376,7 +376,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         }
       ]
 
-      Enum.each(previous_storage_nodes, &P2P.add_node/1)
+      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,
@@ -410,7 +410,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
          %{tx: tx, sorting_seed: sorting_seed} do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: pub,
@@ -466,7 +466,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         last_address: :crypto.strong_rand_bytes(32)
       }
 
-      P2P.add_node(welcome_node)
+      P2P.add_and_connect_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -509,7 +509,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         }
       ]
 
-      Enum.each(previous_storage_nodes, &P2P.add_node/1)
+      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,
@@ -638,7 +638,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           {:ok, %Ok{}}
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key10",
@@ -652,7 +652,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         last_public_key: "key23",
@@ -674,7 +674,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         last_address: :crypto.strong_rand_bytes(32)
       }
 
-      P2P.add_node(welcome_node)
+      P2P.add_and_connect_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -713,7 +713,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         }
       ]
 
-      Enum.each(previous_storage_nodes, &P2P.add_node/1)
+      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
 
       Workflow.add_mining_context(
         coordinator_pid,

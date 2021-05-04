@@ -69,7 +69,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
     tx_time = DateTime.utc_now()
     tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(0),
@@ -81,7 +81,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(1),
@@ -144,7 +144,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
     tx_time = DateTime.utc_now()
     tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(),
@@ -156,7 +156,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(1),
@@ -168,7 +168,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       authorization_date: DateTime.utc_now()
     })
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: Crypto.node_public_key(2),

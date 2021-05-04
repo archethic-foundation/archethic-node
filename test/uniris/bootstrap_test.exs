@@ -168,7 +168,7 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      Enum.each(nodes, &P2P.add_node/1)
+      Enum.each(nodes, &P2P.add_and_connect_node/1)
 
       MockClient
       |> stub(:send_message, fn
@@ -253,7 +253,7 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      Enum.each(seeds, &P2P.add_node/1)
+      Enum.each(seeds, &P2P.add_and_connect_node/1)
 
       assert :ok =
                Bootstrap.run(
@@ -279,7 +279,7 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      Enum.each(seeds, &P2P.add_node/1)
+      Enum.each(seeds, &P2P.add_and_connect_node/1)
 
       assert :ok =
                Bootstrap.run(
@@ -338,7 +338,7 @@ defmodule Uniris.BootstrapTest do
         }
       ]
 
-      Enum.each(seeds, &P2P.add_node/1)
+      Enum.each(seeds, &P2P.add_and_connect_node/1)
 
       assert :ok =
                Bootstrap.run(

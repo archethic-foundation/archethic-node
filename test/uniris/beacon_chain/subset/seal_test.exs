@@ -20,7 +20,7 @@ defmodule Uniris.BeaconChain.SealingTest do
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(0),
       network_patch: "AAA"
     })
@@ -35,7 +35,7 @@ defmodule Uniris.BeaconChain.SealingTest do
         {:ok, %Slot{subset: <<0>>, slot_time: DateTime.utc_now()}}
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),
@@ -62,7 +62,7 @@ defmodule Uniris.BeaconChain.SealingTest do
         {:ok, %NotFound{}}
       end)
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),

@@ -25,7 +25,7 @@ defmodule Uniris.TransactionChainTest do
         {:ok, %LastTransactionAddress{address: "@Alice2"}}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
       first_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,

@@ -184,10 +184,10 @@ defmodule Uniris.Mining.ValidationContextTest do
       }
     ]
 
-    P2P.add_node(welcome_node)
-    P2P.add_node(coordinator_node)
-    Enum.each(cross_validation_nodes, &P2P.add_node(&1))
-    Enum.each(previous_storage_nodes, &P2P.add_node(&1))
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
+    Enum.each(cross_validation_nodes, &P2P.add_and_connect_node(&1))
+    Enum.each(previous_storage_nodes, &P2P.add_and_connect_node(&1))
 
     %ValidationContext{
       transaction: Transaction.new(:transfer, %TransactionData{}, "seed", 0),

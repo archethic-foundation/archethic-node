@@ -23,7 +23,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
   end
 
   test "start_scheduler/2 should start the self repair timer" do
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(0),
       last_public_key: Crypto.node_public_key(),
       authorized?: true,
@@ -55,7 +55,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
         {:ok, %NotFound{}}
     end)
 
-    P2P.add_node(%Node{
+    P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(0),
       last_public_key: Crypto.node_public_key(),
       authorized?: true,

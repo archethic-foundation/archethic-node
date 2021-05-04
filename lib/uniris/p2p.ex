@@ -12,10 +12,6 @@ defmodule Uniris.P2P do
   alias __MODULE__.Message
   alias __MODULE__.Node
 
-  alias Uniris.TransactionChain
-  alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.TransactionData
-
   alias Uniris.Utils
 
   require Logger
@@ -27,20 +23,14 @@ defmodule Uniris.P2P do
   defdelegate get_geo_patch(ip), to: GeoPatch, as: :from_ip
 
   @doc """
-  Register a node
+  Register a node and establish a connection with
   """
-  @spec add_node(Node.t()) :: :ok
-  def add_node(node = %Node{}) do
+  @spec add_and_connect_node(Node.t()) :: :ok
+  def add_and_connect_node(
+        node = %Node{first_public_key: first_public_key, ip: ip, port: port, transport: transport}
+      ) do
     :ok = MemTable.add_node(node)
-    do_connect_node(node)
-  end
 
-  defp do_connect_node(%Node{
-         ip: ip,
-         port: port,
-         transport: transport,
-         first_public_key: first_public_key
-       }) do
     if first_public_key == Crypto.node_public_key(0) do
       :ok
     else
@@ -374,25 +364,7 @@ defmodule Uniris.P2P do
   @doc """
   Load the transaction into the P2P context updating the P2P view
   """
-  @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(
-        tx = %Transaction{
-          type: :node,
-          data: %TransactionData{content: content},
-          previous_public_key: previous_public_key
-        }
-      ) do
-    {ip, port, transport, _reward_address} = Node.extract_node_info(content)
-    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-
-    unless first_public_key == Crypto.node_public_key(0) do
-      Client.new_connection(ip, port, transport, first_public_key)
-    end
-
-    MemTableLoader.load_transaction(tx)
-  end
-
-  def load_transaction(tx), do: MemTableLoader.load_transaction(tx)
+  defdelegate load_transaction(tx), to: MemTableLoader
 
   @doc """
   Send multiple message at once for the given nodes.

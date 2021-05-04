@@ -32,7 +32,7 @@ defmodule UnirisTest do
 
   describe "search_transaction/1" do
     test "should fetch the transaction locally when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -53,7 +53,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the transaction locally if the current node is not a storage node and return not exists as the transaction not exists" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -74,7 +74,7 @@ defmodule UnirisTest do
     end
 
     test "should request storage nodes if the current node is not a storage node and return the transaction" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -83,7 +83,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -104,7 +104,7 @@ defmodule UnirisTest do
     end
 
     test "should request storage nodes if the current node is not a storage node and return not exists as the transaction not exists" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -113,7 +113,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -136,7 +136,7 @@ defmodule UnirisTest do
 
   describe "send_new_transaction/1" do
     test "should elect validation nodes and broadcast the transaction" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -165,7 +165,7 @@ defmodule UnirisTest do
 
   describe "get_last_transaction/1" do
     test "should fetch the transaction locally when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -190,7 +190,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the transaction remotely when the current node does not have reference from the last one" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -201,7 +201,7 @@ defmodule UnirisTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),
@@ -226,7 +226,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the transaction remotely when the current node does not have reference from the last one but not exists" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -237,7 +237,7 @@ defmodule UnirisTest do
         authorization_date: DateTime.utc_now()
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),
@@ -264,7 +264,7 @@ defmodule UnirisTest do
 
   describe "get_balance/1" do
     test "should fetch the address balance when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -287,7 +287,7 @@ defmodule UnirisTest do
     end
 
     test "should request storage nodes if the current node is not a storage node and return the balance" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -296,7 +296,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -319,7 +319,7 @@ defmodule UnirisTest do
 
   describe "get_transaction_inputs/1" do
     test "should fetch the inputs locally when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -347,7 +347,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the inputs remotely when the current node is not a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -356,7 +356,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -391,7 +391,7 @@ defmodule UnirisTest do
 
   describe "get_transaction_chain/1" do
     test "should fetch the transaction chain locally when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -413,7 +413,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the transaction chain remotely when the current node is not a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -422,7 +422,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",
@@ -449,7 +449,7 @@ defmodule UnirisTest do
 
   describe "get_transaction_chain_length/1" do
     test "should fetch the transaction chain locally when the current node is a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -480,7 +480,7 @@ defmodule UnirisTest do
     end
 
     test "should fetch the transaction chain remotely when the current node is not a storage node" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(),
@@ -489,7 +489,7 @@ defmodule UnirisTest do
         geo_patch: "AAA"
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: "key1",

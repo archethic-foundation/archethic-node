@@ -57,7 +57,7 @@ defmodule Uniris.P2P.Connection do
         loop_data(transport, socket, connection_pid)
 
       {:error, reason} = e ->
-        Logger.error("Connection closed - #{inspect(reason)}")
+        Logger.info("Connection closed - #{inspect(reason)}")
         GenServer.stop(connection_pid)
         e
     end

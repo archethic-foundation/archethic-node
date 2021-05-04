@@ -21,7 +21,7 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
 
   describe "storage_node?/1" do
     test "should return true when the node is a storage node for the summary from the slot" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -37,7 +37,7 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
     end
 
     test "should return false when the node is a storage node for the summary from the slot" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: :crypto.strong_rand_bytes(32),
@@ -117,7 +117,7 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
 
   describe "valid_signature?/1" do
     test "should return when the signatures are valid" do
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: Crypto.node_public_key(0),
@@ -128,7 +128,7 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
         authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
-      P2P.add_node(%Node{
+      P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
         first_public_key: Crypto.node_public_key(1),
