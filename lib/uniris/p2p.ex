@@ -393,7 +393,7 @@ defmodule Uniris.P2P do
   @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
   def broadcast_message(nodes, message) do
     nodes
-    |> Task.async_stream(&send_message(&1, message), ordered: false)
+    |> Task.async_stream(&send_message(&1, message), ordered: false, on_timeout: :kill_task)
     |> Stream.run()
   end
 

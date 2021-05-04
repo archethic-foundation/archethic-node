@@ -94,7 +94,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
        do: {unspent_outputs, [node]}
 
   defp confirm_unspent_outputs(unspent_outputs, tx_address) do
-    Task.async_stream(unspent_outputs, &confirm_unspent_output(&1, tx_address))
+    Task.async_stream(unspent_outputs, &confirm_unspent_output(&1, tx_address), on_timeout: :kill_task)
     |> Stream.filter(&match?({:ok, {:ok, _, _}}, &1))
     |> Enum.reduce(%{unspent_outputs: [], nodes: []}, fn {:ok, {:ok, unspent_output, node}},
                                                          acc ->

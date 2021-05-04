@@ -86,7 +86,7 @@ defmodule Uniris.BeaconChain.SummaryValidation do
   """
   @spec valid_transaction_summaries?(list(TransactionSummary.t())) :: boolean
   def valid_transaction_summaries?(transaction_summaries) when is_list(transaction_summaries) do
-    Task.async_stream(transaction_summaries, &do_valid_transaction_summary/1, ordered: false)
+    Task.async_stream(transaction_summaries, &do_valid_transaction_summary/1, ordered: false, on_timeout: :kill_task)
     |> Enum.into([], fn {:ok, res} -> res end)
     |> Enum.all?(&match?(true, &1))
   end

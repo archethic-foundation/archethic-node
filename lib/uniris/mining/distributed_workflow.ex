@@ -574,8 +574,8 @@ defmodule Uniris.Mining.DistributedWorkflow do
           {:error, :network_issue} ->
             {:error, :network_issue}
         end
-      end
-    )
+      end,
+    on_timeout: :kill_task, ordered?: false)
     |> Stream.filter(&match?({:ok, {:ok, %Node{}}}, &1))
     |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}}} ->
       send(worker_pid, {:acknowledge_storage, node_key})

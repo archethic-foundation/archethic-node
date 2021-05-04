@@ -53,10 +53,13 @@ defmodule Uniris.P2P.Client.DefaultImpl do
           [{pid, _}] ->
             try do
               {:halt, Connection.send_message(pid, message)}
-            rescue
+            catch
               _ ->
                 {:cont, {:error, :network_issue}}
+              :exit, _ ->
+                {:cont, {:error, :network_issue}}
             end
+
           [] ->
             {:cont, {:error, :network_issue}}
         end

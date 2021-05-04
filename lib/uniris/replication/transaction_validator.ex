@@ -300,7 +300,7 @@ defmodule Uniris.Replication.TransactionValidator do
     |> Transaction.get_movements()
     |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
       %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
-    end)
+    end, on_timeout: :kill_task)
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end
