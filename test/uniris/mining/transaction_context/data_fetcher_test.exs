@@ -43,7 +43,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key2",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node)
@@ -62,7 +64,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key2",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node)
@@ -102,7 +106,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3002,
         available?: true,
         geo_patch: "AAA",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node1)
@@ -129,7 +135,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3002,
         available?: true,
         geo_patch: "AAA",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node1)
@@ -150,7 +158,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key1",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node)
@@ -170,7 +180,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcherTest do
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key2",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node)

@@ -68,12 +68,12 @@ defmodule Uniris.ReplicationTest do
         end)
 
       Enum.each(nodes, &P2P.add_node/1)
+      chain_storage_nodes = Replication.chain_storage_nodes_with_type("@Node1", :node)
 
-      chain_storage_nodes =
-        Replication.chain_storage_nodes("@Node1", :node, P2P.list_nodes())
-        |> Enum.map(& &1.last_public_key)
-
-      assert Enum.all?(nodes, &(&1.last_public_key in chain_storage_nodes))
+      assert Enum.all?(
+               chain_storage_nodes,
+               &(&1.first_public_key in P2P.list_node_first_public_keys())
+             )
     end
 
     test "when the transaction is not a network transaction, a shared of nodes is used" do
@@ -95,7 +95,7 @@ defmodule Uniris.ReplicationTest do
       Enum.each(nodes, &P2P.add_node/1)
 
       chain_storage_nodes =
-        Replication.chain_storage_nodes("@Alice2", :transfer, P2P.list_nodes())
+        Replication.chain_storage_nodes_with_type("@Alice2", :transfer)
         |> Enum.map(& &1.last_public_key)
 
       assert !Enum.all?(nodes, &(&1.last_public_key in chain_storage_nodes))
@@ -122,8 +122,8 @@ defmodule Uniris.ReplicationTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: random_patch(),
         available?: true,
-        authorized?: false,
-        enrollment_date: DateTime.utc_now()
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       },
       %Node{
         ip: {88, 130, 19, 2},
@@ -235,7 +235,8 @@ defmodule Uniris.ReplicationTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        enrollment_date: DateTime.utc_now()
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
     ]
 
@@ -270,7 +271,7 @@ defmodule Uniris.ReplicationTest do
         welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
@@ -330,7 +331,9 @@ defmodule Uniris.ReplicationTest do
         first_public_key: :crypto.strong_rand_bytes(32),
         last_public_key: :crypto.strong_rand_bytes(32),
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorization_date: DateTime.utc_now(),
+        authorized?: true
       })
 
       assert :ok =

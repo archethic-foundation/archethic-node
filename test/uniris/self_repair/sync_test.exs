@@ -21,6 +21,8 @@ defmodule Uniris.SelfRepair.SyncTest do
 
   alias Uniris.TransactionChain.TransactionInput
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
+
   alias Uniris.SelfRepair.Sync
 
   alias Uniris.Utils
@@ -37,7 +39,9 @@ defmodule Uniris.SelfRepair.SyncTest do
         port: 3000,
         first_public_key: "key1",
         last_public_key: "key2",
-        enrollment_date: d1
+        enrollment_date: d1,
+        authorized?: true,
+        authorization_date: d1
       })
 
       P2P.add_node(%Node{
@@ -45,7 +49,9 @@ defmodule Uniris.SelfRepair.SyncTest do
         port: 3005,
         first_public_key: "key2",
         last_public_key: "key2",
-        enrollment_date: d2
+        enrollment_date: d2,
+        authorized?: true,
+        authorization_date: d2
       })
 
       assert Sync.last_sync_date() == d1
@@ -107,7 +113,9 @@ defmodule Uniris.SelfRepair.SyncTest do
           geo_patch: "BBB",
           network_patch: "BBB",
           last_address: :crypto.strong_rand_bytes(32),
-          enrollment_date: DateTime.utc_now()
+          enrollment_date: DateTime.utc_now(),
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
         }
       ]
 
@@ -125,7 +133,20 @@ defmodule Uniris.SelfRepair.SyncTest do
     end
 
     test "should retrieve the missing beacon summaries from the given date", context do
-      inputs = [%TransactionInput{from: "@Alice2", amount: 10.0, spent?: true, type: :UCO}]
+      Crypto.generate_deterministic_keypair("daily_nonce_seed")
+      |> elem(0)
+      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 10.0,
+          spent?: true,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
       tx = TransactionFactory.create_valid_transaction(context, inputs)
 
       me = self()

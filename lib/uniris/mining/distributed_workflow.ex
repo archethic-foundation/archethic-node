@@ -102,8 +102,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     Logger.info("Start mining", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
 
-    chain_storage_nodes =
-      Replication.chain_storage_nodes(tx.address, tx.type, P2P.list_nodes(availability: :global))
+    chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
     beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, tx.timestamp)
 
@@ -575,7 +574,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
             {:error, :network_issue}
         end
       end,
-    on_timeout: :kill_task, ordered?: false)
+      on_timeout: :kill_task,
+      ordered?: false
+    )
     |> Stream.filter(&match?({:ok, {:ok, %Node{}}}, &1))
     |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}}} ->
       send(worker_pid, {:acknowledge_storage, node_key})

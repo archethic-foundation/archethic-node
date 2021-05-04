@@ -95,14 +95,21 @@ defmodule Uniris.P2P do
   @spec list_authorized_public_keys() :: list(Crypto.key())
   defdelegate list_authorized_public_keys, to: MemTable
 
+  @doc """
+  Determine if the node public key is authorized
+  """
+  @spec authorized_node?(Crypto.key()) :: boolean()
   def authorized_node?(node_public_key \\ Crypto.node_public_key(0))
       when is_binary(node_public_key) do
     Utils.key_in_node_list?(authorized_nodes(), node_public_key)
   end
 
+  @doc """
+  List the authorized nodes for the given datetime (default to now)
+  """
+  @spec authorized_nodes(DateTime.t()) :: list(Node.t())
   def authorized_nodes(date = %DateTime{} \\ DateTime.utc_now()) do
-    list_nodes(authorized?: true, availability: :global)
-    |> Enum.filter(&(DateTime.diff(&1.authorization_date, date) <= 0))
+    Enum.filter(list_nodes(authorized?: true), &(DateTime.diff(&1.authorization_date, date) <= 0))
   end
 
   @doc """
@@ -459,7 +466,6 @@ defmodule Uniris.P2P do
           {:ok, Message.response()} | {:error, :network_issue}
   def reply_atomic(nodes, batch_size, message, opts \\ [])
       when is_list(nodes) and is_integer(batch_size) and batch_size > 0 do
-
     patch = Keyword.get(opts, :patch)
 
     with nil <- patch,
@@ -468,6 +474,7 @@ defmodule Uniris.P2P do
     else
       {:ok, %Node{network_patch: patch}} ->
         nearest_nodes(nodes, patch)
+
       patch ->
         nearest_nodes(nodes, patch)
     end

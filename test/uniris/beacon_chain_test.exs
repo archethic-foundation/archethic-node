@@ -45,7 +45,9 @@ defmodule Uniris.BeaconChainTest do
             first_public_key: "key1",
             last_public_key: "key1",
             geo_patch: "AAA",
-            available?: true
+            available?: true,
+            authorized?: true,
+            authorization_date: date_ref
           },
           %Node{
             ip: {127, 0, 0, 1},
@@ -53,7 +55,9 @@ defmodule Uniris.BeaconChainTest do
             first_public_key: "key2",
             last_public_key: "key2",
             geo_patch: "AAA",
-            available?: true
+            available?: true,
+            authorized?: true,
+            authorization_date: date_ref
           }
         ])
 
@@ -74,7 +78,9 @@ defmodule Uniris.BeaconChainTest do
             first_public_key: "key1",
             last_public_key: "key1",
             geo_patch: "AAA",
-            available?: true
+            available?: true,
+            authorized?: true,
+            authorization_date: date_ref
           },
           %Node{
             ip: {127, 0, 0, 1},
@@ -82,7 +88,9 @@ defmodule Uniris.BeaconChainTest do
             first_public_key: "key2",
             last_public_key: "key2",
             geo_patch: "AAA",
-            available?: true
+            available?: true,
+            authorized?: true,
+            authorization_date: date_ref
           }
         ])
 
@@ -158,7 +166,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(0),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       assert {:error, :invalid_previous_hash} =
@@ -177,7 +186,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(0),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       assert {:error, :invalid_signatures} =
@@ -196,7 +206,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(0),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: ~U[2021-01-20 15:17:00Z]
+        authorized?: true,
+        authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
@@ -226,7 +237,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(0),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: ~U[2021-01-20 15:17:00Z]
+        authorized?: true,
+        authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
@@ -253,7 +265,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(0),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: ~U[2021-01-20 15:17:00Z]
+        authorized?: true,
+        authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
       P2P.add_node(%Node{
@@ -263,7 +276,8 @@ defmodule Uniris.BeaconChainTest do
         last_public_key: Crypto.node_public_key(1),
         available?: true,
         geo_patch: "AAA",
-        enrollment_date: ~U[2021-01-20 15:17:00Z]
+        authorized?: true,
+        authorization_date: ~U[2021-01-20 15:17:00Z]
       })
 
       slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}

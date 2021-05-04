@@ -93,16 +93,30 @@ defmodule Uniris.Election do
       ...>       %Node{last_public_key: "node5", geo_patch: "F10"},
       ...>       %Node{last_public_key: "node6", geo_patch: "ECA"}
       ...>     ],
-      ...>     %ValidationConstraints{ validation_number: fn _ -> 3 end, min_geo_patch: fn -> 2 end }
+      ...>     [
+      ...>       %Node{last_public_key: "node10", geo_patch: "AAA"},
+      ...>       %Node{last_public_key: "node11", geo_patch: "DEF"},
+      ...>       %Node{last_public_key: "node13", geo_patch: "AA0"},
+      ...>       %Node{last_public_key: "node4", geo_patch: "3AC"},
+      ...>       %Node{last_public_key: "node8", geo_patch: "F10"},
+      ...>       %Node{last_public_key: "node9", geo_patch: "ECA"}
+      ...>     ],
+      ...>     %ValidationConstraints{ validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end }
       ...> )
       [
-        %Node{last_public_key: "node3", geo_patch: "AA0"},
-        %Node{last_public_key: "node2", geo_patch: "DEF"},
         %Node{last_public_key: "node6", geo_patch: "ECA"},
-        %Node{last_public_key: "node4", geo_patch: "3AC"},
+        %Node{last_public_key: "node1", geo_patch: "AAA"},
+        %Node{last_public_key: "node2", geo_patch: "DEF"},
+        %Node{last_public_key: "node5", geo_patch: "F10"}
       ]
   """
-  @spec validation_nodes(Transaction.t(), binary(), list(Node.t())) :: [Node.t()]
+  @spec validation_nodes(
+          pending_transaction :: Transaction.t(),
+          sorting_seed :: binary(),
+          authorized_nodes :: list(Node.t()),
+          storage_nodes :: list(Node.t()),
+          constraints :: ValidationConstraints.t()
+        ) :: list(Node.t())
   def validation_nodes(
         tx = %Transaction{},
         sorting_seed,
@@ -113,7 +127,7 @@ defmodule Uniris.Election do
         } \\ ValidationConstraints.new()
       ) do
     # Evaluate validation constraints
-    nb_validations = validation_number_fun.(tx)
+    nb_validations = validation_number_fun.(tx, length(authorized_nodes))
     min_geo_patch = min_geo_patch_fun.()
 
     if length(nodes) < nb_validations do

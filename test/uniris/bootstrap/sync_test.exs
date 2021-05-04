@@ -202,7 +202,9 @@ defmodule Uniris.Bootstrap.SyncTest do
         last_public_key: Crypto.node_public_key(1),
         authorized?: true,
         authorization_date: DateTime.utc_now(),
-        transport: MockTransport
+        transport: MockTransport,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       })
 
       :ok
@@ -211,6 +213,17 @@ defmodule Uniris.Bootstrap.SyncTest do
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
+
+      MockCrypto
+      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+        pv =
+          Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
+          |> Keyword.fetch!(:genesis_daily_nonce_seed)
+          |> Crypto.generate_deterministic_keypair()
+          |> elem(1)
+
+        Crypto.sign(data, pv)
+      end)
 
       node_tx =
         Transaction.new(:node, %TransactionData{
@@ -311,7 +324,9 @@ defmodule Uniris.Bootstrap.SyncTest do
       first_public_key: :crypto.strong_rand_bytes(32),
       last_public_key: :crypto.strong_rand_bytes(32),
       available?: true,
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     me = self()

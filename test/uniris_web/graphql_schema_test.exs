@@ -29,7 +29,9 @@ defmodule UnirisWeb.GraphQLSchemaTest do
       last_public_key: Crypto.node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA",
-      available?: true
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     :ok

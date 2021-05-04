@@ -29,13 +29,14 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         type: type,
         movements_addresses: mvt_addresses
       }) do
-    chain_storage_nodes = Replication.chain_storage_nodes(address, type, P2P.list_nodes())
+    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+    chain_storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
 
     if Utils.key_in_node_list?(chain_storage_nodes, Crypto.node_public_key(0)) do
       true
     else
       Enum.any?(mvt_addresses, fn address ->
-        io_storage_nodes = Replication.chain_storage_nodes(address, P2P.list_nodes())
+        io_storage_nodes = Replication.chain_storage_nodes(address, node_list)
         node_pool_address = Crypto.hash(Crypto.node_public_key())
 
         Utils.key_in_node_list?(io_storage_nodes, Crypto.node_public_key(0)) or
@@ -55,11 +56,13 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
     storage_nodes =
       address
-      |> Replication.chain_storage_nodes(type, P2P.list_nodes(availability: :global))
+      |> Replication.chain_storage_nodes_with_type(type)
       |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
 
     case P2P.reply_first(storage_nodes, %GetTransaction{address: address}) do
       {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}}} ->
+        node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+
         roles =
           [
             chain:
@@ -67,9 +70,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
                 address,
                 type,
                 Crypto.node_public_key(),
-                P2P.list_nodes()
+                node_list
               ),
-            IO: Replication.io_storage_node?(ops, Crypto.node_public_key(), P2P.list_nodes())
+            IO: Replication.io_storage_node?(ops, Crypto.node_public_key(), node_list)
           ]
           |> Utils.get_keys_from_value_match(true)
 

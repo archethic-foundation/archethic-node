@@ -86,6 +86,17 @@ defmodule Uniris.BootstrapTest do
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
 
+      MockCrypto
+      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+        pv =
+          Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
+          |> Keyword.fetch!(:genesis_daily_nonce_seed)
+          |> Crypto.generate_deterministic_keypair()
+          |> elem(1)
+
+        Crypto.sign(data, pv)
+      end)
+
       seeds = [
         %Node{
           ip: {127, 0, 0, 1},

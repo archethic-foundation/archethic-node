@@ -230,14 +230,14 @@ defmodule Uniris.Contracts.Worker do
          next_transaction: next_tx,
          constants: %Constants{contract: %{"address" => contract_address}}
        }) do
-    [%Node{first_public_key: key}] =
-      Replication.chain_storage_nodes(contract_address, P2P.list_nodes(availability: :global))
+    [%Node{first_public_key: key} | _] = Replication.chain_storage_nodes(contract_address)
 
     # The first storage node of the contract initiate the sending of the new transaction
     # The contract must contains in the data authorized keys
     # the transaction seed encrypted with the storage nonce public key
     if key == Crypto.node_public_key(0) do
       validation_nodes = P2P.authorized_nodes()
+
       P2P.broadcast_message(validation_nodes, %StartMining{
         transaction: next_tx,
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),

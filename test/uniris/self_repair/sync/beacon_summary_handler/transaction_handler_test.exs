@@ -16,6 +16,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
 
   alias Uniris.TransactionFactory
@@ -62,7 +63,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
         geo_patch: "BBB",
         network_patch: "BBB",
         last_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
     ]
 
@@ -70,6 +72,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
 
     P2P.add_node(welcome_node)
     P2P.add_node(coordinator_node)
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
 
     {:ok,
      %{

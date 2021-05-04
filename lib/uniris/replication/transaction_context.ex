@@ -100,14 +100,14 @@ defmodule Uniris.Replication.TransactionContext do
 
   defp replication_nodes(address, timestamp, true) do
     address
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, timestamp) == :lt))
+    |> Replication.chain_storage_nodes()
+    |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
     |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
   end
 
   defp replication_nodes(address, timestamp, false) do
     address
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
-    |> Enum.filter(&(DateTime.compare(&1.enrollment_date, timestamp) == :lt))
+    |> Replication.chain_storage_nodes()
+    |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
   end
 end

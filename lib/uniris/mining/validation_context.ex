@@ -698,9 +698,12 @@ defmodule Uniris.Mining.ValidationContext do
   defp resolve_transaction_movements(tx) do
     tx
     |> Transaction.get_movements()
-    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
-      %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
-    end, on_timeout: :kill_task)
+    |> Task.async_stream(
+      fn mvt = %TransactionMovement{to: to} ->
+        %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end
@@ -710,7 +713,9 @@ defmodule Uniris.Mining.ValidationContext do
          data: %TransactionData{recipients: recipients}
        }) do
     recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, timestamp), on_timeout: :kill_task)
+    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, timestamp),
+      on_timeout: :kill_task
+    )
     |> Enum.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end
@@ -941,16 +946,14 @@ defmodule Uniris.Mining.ValidationContext do
   defp unspent_storage_nodes([]), do: []
 
   defp unspent_storage_nodes(unspent_outputs) do
-    node_list = P2P.list_nodes(availability: :global)
-
     unspent_outputs
-    |> Stream.map(&Replication.chain_storage_nodes(&1.from, node_list))
+    |> Stream.map(&Replication.chain_storage_nodes(&1.from))
     |> Enum.to_list()
   end
 
   defp previous_storage_nodes(tx) do
     tx
     |> Transaction.previous_address()
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+    |> Replication.chain_storage_nodes()
   end
 end

@@ -39,8 +39,7 @@ defmodule Uniris do
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def search_transaction(address) when is_binary(address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     message = %GetTransaction{address: address}
 
@@ -93,7 +92,7 @@ defmodule Uniris do
 
       {:error, :transaction_not_exists} ->
         address
-        |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+        |> Replication.chain_storage_nodes()
         |> P2P.reply_first(message)
         |> handle_transaction_result()
     end
@@ -111,8 +110,7 @@ defmodule Uniris do
   """
   @spec get_balance(binary) :: Account.balance()
   def get_balance(address) when is_binary(address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     message = %GetBalance{address: address}
 
@@ -136,8 +134,7 @@ defmodule Uniris do
   """
   @spec get_transaction_inputs(binary()) :: list(TransactionInput.t())
   def get_transaction_inputs(address) when is_binary(address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     message = %GetTransactionInputs{address: address}
 
@@ -158,8 +155,7 @@ defmodule Uniris do
   """
   @spec get_transaction_chain(binary()) :: list(Transaction.t())
   def get_transaction_chain(address) when is_binary(address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     message = %GetTransactionChain{address: address}
 
@@ -180,8 +176,7 @@ defmodule Uniris do
   """
   @spec get_transaction_chain_length(binary()) :: non_neg_integer()
   def get_transaction_chain_length(address) when is_binary(address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     message = %GetTransactionChainLength{address: address}
 

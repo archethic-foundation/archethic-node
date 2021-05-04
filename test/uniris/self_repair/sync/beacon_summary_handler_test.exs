@@ -21,15 +21,33 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
+
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
 
   alias Uniris.TransactionFactory
 
-  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionInput
 
   import Mox
+
+  setup do
+    P2P.add_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.node_public_key(0),
+      last_public_key: Crypto.node_public_key(0),
+      network_patch: "AAA",
+      geo_patch: "AAA"
+    })
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
+    :ok
+  end
 
   test "get_beacon_summaries/2" do
     node1 = %Node{
@@ -40,7 +58,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     }
 
     node2 = %Node{
@@ -51,7 +70,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     }
 
     node3 = %Node{
@@ -62,7 +82,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     }
 
     node4 = %Node{
@@ -73,7 +94,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       network_patch: "AAA",
       geo_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     }
 
     P2P.add_node(node1)
@@ -146,7 +168,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         last_public_key: "key",
         geo_patch: "AAA",
         available?: true,
-        enrollment_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        authorized?: true
       }
 
       P2P.add_node(node)
@@ -177,10 +200,62 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
-        enrollment_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        authorized?: true
       }
 
       P2P.add_node(node)
+
+      me = self()
+
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 10.0,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      transfer_tx =
+        TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
+          seed: "transfer_seed"
+        )
+
+      node_tx =
+        TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
+          type: :node,
+          seed: "node_seed",
+          content: """
+          ip: 127.0.0.1
+          port: 3000
+          transport: tcp
+          reward address: 00E3F3E1F8E91CD72CF0AC899E89703E5745A5C2681628BE28C5D607B1EA25E82C
+          """
+        )
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: address} ->
+          cond do
+            address == transfer_tx.address ->
+              send(me, :transaction_downloaded)
+              {:ok, transfer_tx}
+
+            address == node_tx.address ->
+              send(me, :transaction_downloaded)
+              {:ok, node_tx}
+
+            true ->
+              {:ok, %NotFound{}}
+          end
+
+        _, %GetTransactionChain{} ->
+          {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransactionInputs{} ->
+          {:ok, %TransactionInputList{inputs: inputs}}
+      end)
 
       summaries = [
         %BeaconSummary{
@@ -188,9 +263,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
           summary_time: DateTime.utc_now(),
           transaction_summaries: [
             %TransactionSummary{
-              address: "@Alice2",
+              address: transfer_tx.address,
               type: :transfer,
-              timestamp: DateTime.utc_now()
+              timestamp: transfer_tx.timestamp
             }
           ]
         },
@@ -199,26 +274,13 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
           summary_time: DateTime.utc_now(),
           transaction_summaries: [
             %TransactionSummary{
-              address: "@Node10",
+              address: node_tx.address,
               type: :node,
-              timestamp: DateTime.utc_now()
+              timestamp: node_tx.timestamp
             }
           ]
         }
       ]
-
-      me = self()
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %GetTransaction{address: "@Alice2"} ->
-          send(me, :transaction_downloaded)
-          {:ok, %Transaction{}}
-
-        _, %GetTransaction{address: "@Node1"} ->
-          send(me, :transaction_downloaded)
-          {:ok, %Transaction{}}
-      end)
 
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
       assert 2 == NetworkStatistics.get_nb_transactions()
@@ -373,7 +435,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         geo_patch: "BBB",
         network_patch: "BBB",
         last_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        authorized?: true
       }
     ]
 

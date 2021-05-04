@@ -33,7 +33,8 @@ defmodule Uniris.Replication.TransactionContextTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     assert 1 =
@@ -68,7 +69,8 @@ defmodule Uniris.Replication.TransactionContextTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
@@ -103,7 +105,8 @@ defmodule Uniris.Replication.TransactionContextTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =

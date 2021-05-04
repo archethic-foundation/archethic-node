@@ -28,15 +28,15 @@ defmodule Uniris.Election.ValidationConstraints do
   - validation_number: Require number of validation nodes for a given transaction.
   """
   @type t :: %__MODULE__{
-          min_geo_patch: non_neg_integer | (() -> non_neg_integer()),
-          min_validation_nodes: non_neg_integer | (() -> non_neg_integer()),
-          validation_number: non_neg_integer | (Transaction.t() -> non_neg_integer())
+          min_geo_patch: (() -> non_neg_integer()),
+          min_validation_nodes: (() -> non_neg_integer()),
+          validation_number: (Transaction.t(), non_neg_integer() -> non_neg_integer())
         }
 
   def new(
         min_geo_patch_fun \\ &min_geo_patch/0,
         min_validation_nodes_fun \\ &min_validation_nodes/0,
-        validation_number_fun \\ &validation_number/1
+        validation_number_fun \\ &validation_number/2
       ) do
     %__MODULE__{
       min_geo_patch: min_geo_patch_fun,
@@ -45,23 +45,33 @@ defmodule Uniris.Election.ValidationConstraints do
     }
   end
 
+  @doc """
+  Determine the minimum of geo patch to cover
+  """
+  @spec min_geo_patch :: non_neg_integer()
   def min_geo_patch, do: @default_min_validation_geo_patch
 
+  @doc """
+  Define the minimum of validations
+  """
+  @spec min_validation_nodes :: non_neg_integer()
   def min_validation_nodes, do: @default_min_validations
 
   @doc """
   Get the number of validations for a given transaction.
   """
-  def validation_number(%Transaction{
-        timestamp: timestamp,
-        data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
-      })
-      when length(transfers) > 0 do
-    total_transfers = Enum.reduce(transfers, 0, &(&2 + &1.amount))
+  @spec validation_number(Transaction.t(), nb_authorized_nodes :: non_neg_integer()) ::
+          non_neg_integer()
+  def validation_number(
+        %Transaction{
+          data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: transfers}}}
+        },
+        nb_authorized_nodes
+      )
+      when is_integer(nb_authorized_nodes) do
+    total_transfers = Enum.reduce(transfers, 0.0, &(&2 + &1.amount))
 
     if total_transfers > 10 do
-      nb_authorized_nodes = P2P.authorized_nodes(timestamp) |> length
-
       validation_number =
         trunc(:math.floor(min_validation_number() * :math.log10(total_transfers)))
 
@@ -74,8 +84,6 @@ defmodule Uniris.Election.ValidationConstraints do
       min_validation_number()
     end
   end
-
-  def validation_number(%Transaction{}), do: min_validation_number()
 
   defp min_validation_number do
     nb_authorized_nodes = length(P2P.authorized_nodes())

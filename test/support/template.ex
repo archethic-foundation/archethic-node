@@ -84,12 +84,7 @@ defmodule UnirisCase do
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->
-      pv =
-        Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
-        |> Keyword.fetch!(:genesis_daily_nonce_seed)
-        |> Crypto.generate_deterministic_keypair()
-        |> elem(1)
-
+      {_, pv} = Crypto.generate_deterministic_keypair("daily_nonce_seed")
       Crypto.sign(data, pv)
     end)
     |> stub(:node_public_key, fn ->

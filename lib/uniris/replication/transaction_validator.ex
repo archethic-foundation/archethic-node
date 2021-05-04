@@ -96,6 +96,7 @@ defmodule Uniris.Replication.TransactionValidator do
         {:error, :invalid_node_election}
 
       {:error, _} = e ->
+        # TODO: start malicious detection
         e
     end
   end
@@ -116,7 +117,6 @@ defmodule Uniris.Replication.TransactionValidator do
       :ok
     else
       {:atomic_commitment, false} ->
-        # TODO: start malicious detection
         {:error, :invalid_atomic_commitment}
 
       {:cross_stamps_signatures, false} ->
@@ -262,16 +262,23 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   defp compare_unspent_outputs(next, expected) do
+    IO.inspect(next)
+    IO.inspect(expected)
+
     Enum.all?(next, fn %{amount: amount, from: from} ->
       Enum.any?(expected, &(&1.from == from and &1.amount >= amount))
     end)
   end
 
   defp previous_storage_node_public_keys(
-         tx = %Transaction{type: type},
+         tx = %Transaction{type: type, timestamp: timestamp},
          previous_inputs_unspent_outputs
        ) do
-    node_list = P2P.list_nodes(availability: :global)
+    node_list =
+      Enum.filter(
+        P2P.authorized_nodes(),
+        &(DateTime.compare(&1.authorization_date, timestamp) == :lt)
+      )
 
     inputs_unspent_outputs_storage_nodes =
       previous_inputs_unspent_outputs
@@ -280,7 +287,11 @@ defmodule Uniris.Replication.TransactionValidator do
       |> Enum.to_list()
 
     P2P.distinct_nodes([
-      Replication.chain_storage_nodes(Transaction.previous_address(tx), type, node_list),
+      Replication.chain_storage_nodes_with_type(
+        Transaction.previous_address(tx),
+        type,
+        node_list
+      ),
       inputs_unspent_outputs_storage_nodes
     ])
     |> Enum.map(& &1.last_public_key)
@@ -298,9 +309,12 @@ defmodule Uniris.Replication.TransactionValidator do
   defp resolve_transaction_movements(tx) do
     tx
     |> Transaction.get_movements()
-    |> Task.async_stream(fn mvt = %TransactionMovement{to: to} ->
-      %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
-    end, on_timeout: :kill_task)
+    |> Task.async_stream(
+      fn mvt = %TransactionMovement{to: to} ->
+        %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
   end

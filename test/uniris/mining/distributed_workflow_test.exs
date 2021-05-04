@@ -34,6 +34,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
+  alias Uniris.Replication
+
   import Mox
 
   setup do
@@ -92,6 +94,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type),
           P2P.authorized_nodes()
         )
 
@@ -147,7 +150,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes()
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
         )
 
       welcome_node = %Node{
@@ -216,7 +220,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes()
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
         )
 
       MockClient
@@ -256,13 +261,19 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           first_public_key: "key10",
-          last_public_key: "key10"
+          last_public_key: "key10",
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
-          last_public_key: "key23"
+          last_public_key: "key23",
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
         }
       ]
 
@@ -299,7 +310,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes()
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
         )
 
       MockClient
@@ -345,14 +357,22 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           port: 3000,
           first_public_key: "key10",
           last_public_key: "key10",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
           last_public_key: "key23",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         }
       ]
 
@@ -408,7 +428,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes()
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
         )
 
       me = self()
@@ -469,14 +490,22 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           port: 3000,
           first_public_key: "key10",
           last_public_key: "key10",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
           last_public_key: "key23",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         }
       ]
 
@@ -504,7 +533,12 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
 
       receive do
         {stamp = %ValidationStamp{}, tree} ->
-          assert [<<0::1, 1::1, 0::1>>, <<0::1, 0::1, 1::1>>, <<1::1, 0::1, 0::1>>] = tree
+          assert [
+                   <<0::1, 1::1, 0::1, 0::1, 1::1>>,
+                   <<0::1, 0::1, 1::1, 0::1, 0::1>>,
+                   <<1::1, 0::1, 0::1, 1::1, 0::1>>
+                 ] = tree
+
           Workflow.cross_validate(cross_validator_pid, stamp, tree)
 
           {:wait_cross_validation_stamps,
@@ -569,7 +603,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          P2P.authorized_nodes()
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
         )
 
       me = self()
@@ -612,7 +647,9 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         geo_patch: "AAA",
         available?: true,
         enrollment_date: DateTime.utc_now(),
-        last_address: :crypto.strong_rand_bytes(32)
+        last_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       P2P.add_node(%Node{
@@ -624,7 +661,9 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         geo_patch: "AAA",
         available?: true,
         enrollment_date: DateTime.utc_now(),
-        last_address: :crypto.strong_rand_bytes(32)
+        last_address: :crypto.strong_rand_bytes(32),
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       welcome_node = %Node{
@@ -659,14 +698,18 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           port: 3000,
           first_public_key: "key10",
           last_public_key: "key10",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
         },
         %Node{
           ip: {127, 0, 0, 1},
           port: 3002,
           first_public_key: "key23",
           last_public_key: "key23",
-          last_address: :crypto.strong_rand_bytes(32)
+          last_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now()
         }
       ]
 

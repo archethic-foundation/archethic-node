@@ -23,7 +23,7 @@ defmodule Uniris.Replication do
   alias Uniris.P2P.Message.AcknowledgeStorage
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
-  alias Uniris.P2P.Message.ReplicateTransaction
+  # alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Node
 
   alias Uniris.OracleChain
@@ -123,9 +123,9 @@ defmodule Uniris.Replication do
           :ok
         end
 
-        unless self_repair? do
-          forward_replication(tx)
-        end
+        # unless self_repair? do
+        #   forward_replication(tx)
+        # end
 
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
@@ -282,7 +282,7 @@ defmodule Uniris.Replication do
 
           if previous_address != next_previous_address do
             previous_storage_nodes =
-              chain_storage_nodes(next_previous_address, P2P.list_nodes(availability: :global))
+              chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
 
             if Utils.key_in_node_list?(previous_storage_nodes, Crypto.node_public_key(0)) do
               acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)
@@ -488,11 +488,11 @@ defmodule Uniris.Replication do
         address,
         type,
         public_key,
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       )
       when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
     address
-    |> chain_storage_nodes(type, node_list)
+    |> chain_storage_nodes_with_type(type, node_list)
     |> Utils.key_in_node_list?(public_key)
   end
 
@@ -501,7 +501,7 @@ defmodule Uniris.Replication do
         address,
         timestamp = %DateTime{},
         public_key,
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       )
       when is_binary(address) and is_binary(public_key) and is_list(node_list) do
     address
@@ -513,7 +513,7 @@ defmodule Uniris.Replication do
   def io_storage_node?(
         ops = %LedgerOperations{},
         public_key,
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       )
       when is_binary(public_key) and is_list(node_list) do
     ops
@@ -524,9 +524,9 @@ defmodule Uniris.Replication do
   @doc """
   Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
   """
-  @spec chain_storage_nodes(binary(), Transaction.transaction_type(), list(Node.t())) ::
+  @spec chain_storage_nodes_with_type(binary(), Transaction.transaction_type(), list(Node.t())) ::
           list(Node.t())
-  def chain_storage_nodes(address, type, node_list)
+  def chain_storage_nodes_with_type(address, type, node_list \\ P2P.authorized_nodes())
       when is_binary(address) and is_atom(type) and is_list(node_list) do
     if Transaction.network_type?(type) do
       node_list
@@ -539,7 +539,7 @@ defmodule Uniris.Replication do
   Return the storage nodes for the transaction chain based on the transaction address and set a nodes
   """
   @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
-  def chain_storage_nodes(address, node_list) when is_binary(address) and is_list(node_list) do
+  def chain_storage_nodes(address, node_list \\ P2P.authorized_nodes()) when is_binary(address) do
     Election.storage_nodes(address, node_list, Election.get_storage_constraints())
   end
 
@@ -549,7 +549,7 @@ defmodule Uniris.Replication do
   @spec io_storage_nodes(LedgerOperations.t(), list(Node.t())) :: list(Node.t())
   def io_storage_nodes(
         operations = %LedgerOperations{},
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       ) do
     operations
     |> LedgerOperations.movement_addresses()
@@ -563,7 +563,7 @@ defmodule Uniris.Replication do
   def beacon_storage_nodes(
         address,
         timestamp = %DateTime{},
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       )
       when is_binary(address) and is_list(node_list) do
     subset = BeaconChain.subset_from_address(address)
@@ -577,10 +577,26 @@ defmodule Uniris.Replication do
     )
   end
 
-  defp forward_replication(tx = %Transaction{address: address, type: type}) do
-    address
-    |> chain_storage_nodes(type, P2P.list_nodes(availability: :global))
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> P2P.broadcast_message(%ReplicateTransaction{transaction: tx})
-  end
+  # defp forward_replication(
+  #        tx = %Transaction{
+  #          address: address,
+  #          type: type
+  #        }
+  #      ) do
+  #   pending_storage_nodes =
+  #     (P2P.available_nodes() -- P2P.authorized_nodes())
+
+  #   secondary_tree = generate_tree(P2P.authorized_nodes(), pending_storage_nodes) |> IO.inspect()
+
+  #   case Map.get(secondary_tree, Crypto.node_public_key(0)) do
+  #     nil ->
+  #       :ok
+
+  #     node_list ->
+  #       address
+  #       |> chain_storage_nodes_with_type(type, node_list)
+  #       |> IO.inspect()
+  #       |> P2P.broadcast_message(%ReplicateTransaction{transaction: tx, roles: [:chain]})
+  #   end
+  # end
 end

@@ -39,7 +39,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockDB
@@ -58,7 +60,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockDB
@@ -86,7 +90,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -114,7 +120,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -164,7 +172,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockDB
@@ -186,7 +196,9 @@ defmodule UnirisTest do
         first_public_key: Crypto.node_public_key(),
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       P2P.add_node(%Node{
@@ -196,7 +208,9 @@ defmodule UnirisTest do
         last_public_key: :crypto.strong_rand_bytes(32),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -218,7 +232,9 @@ defmodule UnirisTest do
         first_public_key: Crypto.node_public_key(),
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
-        geo_patch: "AAA"
+        geo_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       P2P.add_node(%Node{
@@ -228,7 +244,9 @@ defmodule UnirisTest do
         last_public_key: :crypto.strong_rand_bytes(32),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -253,7 +271,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       :ok =
@@ -283,7 +303,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -304,7 +326,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       :ok =
@@ -339,7 +363,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -372,7 +398,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockDB
@@ -401,7 +429,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient
@@ -426,7 +456,9 @@ defmodule UnirisTest do
         last_public_key: Crypto.node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockDB
@@ -464,7 +496,9 @@ defmodule UnirisTest do
         last_public_key: "key1",
         network_patch: "AAA",
         geo_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       MockClient

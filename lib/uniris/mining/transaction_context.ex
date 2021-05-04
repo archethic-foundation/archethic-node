@@ -67,7 +67,7 @@ defmodule Uniris.Mining.TransactionContext do
 
   defp previous_nodes_distribution(previous_address, nb_sub_lists, sample_size) do
     previous_address
-    |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+    |> Replication.chain_storage_nodes()
     |> NodeDistribution.split_storage_nodes(nb_sub_lists, sample_size)
   end
 

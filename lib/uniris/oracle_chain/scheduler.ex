@@ -8,13 +8,12 @@ defmodule Uniris.OracleChain.Scheduler do
 
   alias Uniris.Crypto
 
-  alias Uniris.Election
-
-  alias Uniris.P2P
   alias Uniris.P2P.Node
 
   alias Uniris.OracleChain.Summary
   alias Uniris.OracleChain.Services
+
+  alias Uniris.Replication
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
@@ -125,7 +124,7 @@ defmodule Uniris.OracleChain.Scheduler do
 
     node_public_key = Crypto.node_public_key(0)
 
-    case Election.storage_nodes(next_address, P2P.list_nodes(availability: :global)) do
+    case Replication.chain_storage_nodes(next_address) do
       [%Node{first_public_key: ^node_public_key} | _] ->
         true
 

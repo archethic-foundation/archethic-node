@@ -454,8 +454,8 @@ defmodule Uniris.BeaconChain.Slot do
   def involved_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
     node_list =
       Enum.filter(
-        P2P.list_nodes(availability: :global),
-        &(DateTime.compare(&1.enrollment_date, slot_time) == :lt)
+        P2P.authorized_nodes(),
+        &(DateTime.compare(&1.authorization_date, slot_time) == :lt)
       )
 
     Election.beacon_storage_nodes(
@@ -473,8 +473,8 @@ defmodule Uniris.BeaconChain.Slot do
   def summary_storage_nodes(%__MODULE__{subset: subset, slot_time: slot_time}) do
     node_list =
       Enum.filter(
-        P2P.list_nodes(availability: :global),
-        &(DateTime.compare(&1.enrollment_date, slot_time) == :lt)
+        P2P.authorized_nodes(),
+        &(DateTime.compare(&1.authorization_date, slot_time) == :lt)
       )
 
     Election.beacon_storage_nodes(

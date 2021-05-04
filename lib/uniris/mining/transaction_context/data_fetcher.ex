@@ -94,7 +94,9 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
        do: {unspent_outputs, [node]}
 
   defp confirm_unspent_outputs(unspent_outputs, tx_address) do
-    Task.async_stream(unspent_outputs, &confirm_unspent_output(&1, tx_address), on_timeout: :kill_task)
+    Task.async_stream(unspent_outputs, &confirm_unspent_output(&1, tx_address),
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, {:ok, _, _}}, &1))
     |> Enum.reduce(%{unspent_outputs: [], nodes: []}, fn {:ok, {:ok, unspent_output, node}},
                                                          acc ->
@@ -105,7 +107,7 @@ defmodule Uniris.Mining.TransactionContext.DataFetcher do
   end
 
   defp confirm_unspent_output(unspent_output = %UnspentOutput{from: from}, tx_address) do
-    storage_nodes = Replication.chain_storage_nodes(from, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(from)
 
     case P2P.reply_first(storage_nodes, %GetTransaction{address: from}, node_ack?: true) do
       {:ok, tx = %Transaction{}, node} ->

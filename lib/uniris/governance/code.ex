@@ -10,8 +10,6 @@ defmodule Uniris.Governance.Code do
 
   alias Uniris.Governance.Pools
 
-  alias Uniris.P2P
-
   alias Uniris.Replication
 
   alias Uniris.TransactionChain
@@ -43,8 +41,7 @@ defmodule Uniris.Governance.Code do
   """
   @spec testnet_deployment?(binary()) :: boolean()
   def testnet_deployment?(proposal_address) when is_binary(proposal_address) do
-    storage_nodes =
-      Replication.chain_storage_nodes(proposal_address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(proposal_address)
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
       approvals = TransactionChain.list_signatures_for_pending_transaction(proposal_address)

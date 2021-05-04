@@ -30,8 +30,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
     tx = Keyword.get(opts, :transaction)
     Logger.info("Start mining", transaction: Base.encode16(tx.address))
 
-    chain_storage_nodes =
-      Replication.chain_storage_nodes(tx.address, tx.type, P2P.list_nodes(availability: :global))
+    chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
     beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, tx.timestamp)
 

@@ -163,7 +163,9 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         last_public_key: "node1",
         geo_patch: "AAA",
         network_patch: "AAA",
-        available?: true
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       assert :ok = PoolsMemTable.put_pool_member(:technical_council, tx.previous_public_key)

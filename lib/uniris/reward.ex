@@ -43,7 +43,7 @@ defmodule Uniris.Reward do
       fn node = %Node{last_address: last_address} ->
         {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
           last_address
-          |> Replication.chain_storage_nodes(P2P.list_nodes(availability: :global))
+          |> Replication.chain_storage_nodes()
           |> P2P.reply_first(%GetUnspentOutputs{address: last_address})
 
         {node, Enum.reduce(unspent_outputs, 0.0, &(&1.amount + &2))}

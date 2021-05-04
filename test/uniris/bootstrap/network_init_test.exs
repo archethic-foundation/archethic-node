@@ -23,6 +23,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   alias Uniris.P2P.Node
 
   alias Uniris.SharedSecrets
+  alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
@@ -51,7 +52,9 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      enrollment_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     })
 
     MockClient
@@ -102,14 +105,22 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
   end
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
+    inputs = [
+      %UnspentOutput{amount: 4999.99, from: "genesis", type: :UCO}
+    ]
+
     MockClient
     |> stub(:send_message, fn
       _, %GetTransactionChain{} ->
         {:ok, %TransactionList{transactions: []}}
 
       _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: []}}
+        {:ok, %UnspentOutputList{unspent_outputs: inputs}}
     end)
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
 
     tx =
       TransactionFactory.create_valid_transaction(
@@ -118,7 +129,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
           coordinator_node: P2P.get_node_info(),
           storage_nodes: [P2P.get_node_info()]
         },
-        [],
+        inputs,
         type: :transfer
       )
 
@@ -191,6 +202,15 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       send(me, :set_transaction_seed)
       :ok
     end)
+    |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+      pv =
+        Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
+        |> Keyword.fetch!(:genesis_daily_nonce_seed)
+        |> Crypto.generate_deterministic_keypair()
+        |> elem(1)
+
+      Crypto.sign(data, pv)
+    end)
 
     NetworkInit.init_node_shared_secrets_chain()
 
@@ -219,13 +239,20 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       port: 3000,
       available?: true,
       enrollment_date: DateTime.utc_now(),
-      network_patch: "AAA"
+      network_patch: "AAA",
+      authorization_date: DateTime.utc_now(),
+      authorized?: true
     })
 
-    NetworkInit.init_genesis_wallets()
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
+    assert :ok = NetworkInit.init_genesis_wallets()
 
     funding_address =
-      "002E354A95241E867C836E8BBBBF6F9BF2450860BA28B1CF24B734EF67FF49169E"
+      Application.get_env(:uniris, NetworkInit)
+      |> get_in([:genesis_pools, :funding, :public_key])
       |> Base.decode16!()
       |> Crypto.hash()
 

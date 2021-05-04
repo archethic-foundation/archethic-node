@@ -70,7 +70,9 @@ defmodule Uniris.Mining.TransactionContextTest do
         port: 3002,
         available?: true,
         geo_patch: "BCE",
-        network_patch: "BCE"
+        network_patch: "BCE",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       node2 = %Node{
@@ -80,7 +82,9 @@ defmodule Uniris.Mining.TransactionContextTest do
         port: 3003,
         available?: true,
         geo_patch: "AAA",
-        network_patch: "AAA"
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       node3 = %Node{
@@ -90,7 +94,9 @@ defmodule Uniris.Mining.TransactionContextTest do
         port: 3005,
         available?: true,
         geo_patch: "CDE",
-        network_patch: "CDE"
+        network_patch: "CDE",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       }
 
       P2P.add_node(node1)

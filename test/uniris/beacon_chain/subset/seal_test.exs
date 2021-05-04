@@ -43,7 +43,8 @@ defmodule Uniris.BeaconChain.SealingTest do
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
-        enrollment_date: DateTime.utc_now()
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       assert %Slot{previous_hash: previous_hash} =
@@ -69,7 +70,8 @@ defmodule Uniris.BeaconChain.SealingTest do
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
-        enrollment_date: DateTime.utc_now()
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
       })
 
       assert %Slot{previous_hash: previous_hash} =

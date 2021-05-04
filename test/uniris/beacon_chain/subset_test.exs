@@ -77,7 +77,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -88,7 +89,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     Subset.add_transaction_summary(subset, %TransactionSummary{
@@ -150,7 +152,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -161,7 +164,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -172,7 +176,8 @@ defmodule Uniris.BeaconChain.SubsetTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     tx_summary = %TransactionSummary{

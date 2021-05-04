@@ -45,7 +45,9 @@ defmodule Uniris.Replication.TransactionValidatorTest do
         first_public_key: "key3",
         last_public_key: "key3",
         available?: true,
-        geo_patch: "BBB"
+        geo_patch: "BBB",
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1),
+        authorized?: true
       }
     ]
 

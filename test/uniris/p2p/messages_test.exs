@@ -58,8 +58,6 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionInput
 
-  alias Uniris.Utils
-
   doctest Message
 
   describe "symmetric encoding/decoding of" do

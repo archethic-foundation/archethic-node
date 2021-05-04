@@ -31,7 +31,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -42,7 +43,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     P2P.add_node(%Node{
@@ -53,7 +55,8 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
     })
 
     :ok

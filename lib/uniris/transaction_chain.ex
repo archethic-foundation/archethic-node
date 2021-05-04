@@ -467,7 +467,7 @@ defmodule Uniris.TransactionChain do
   def resolve_last_address(address, timestamp = %DateTime{}) when is_binary(address) do
     message = %GetLastTransactionAddress{address: address, timestamp: timestamp}
 
-    storage_nodes = Replication.chain_storage_nodes(address, P2P.list_nodes())
+    storage_nodes = Replication.chain_storage_nodes(address)
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
       handle_resolve_result({:ok, Message.process(message)}, address)

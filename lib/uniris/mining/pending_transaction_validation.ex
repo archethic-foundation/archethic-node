@@ -283,23 +283,71 @@ defmodule Uniris.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(tx = %Transaction{address: address, type: type})
-       when type in [:oracle, :oracle_summary] do
-    if OracleChain.verify?(tx) do
+  defp do_accept_transaction(%Transaction{
+         address: address,
+         type: :oracle,
+         data: %TransactionData{
+           content: content,
+           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
+           code: "",
+           keys: %Keys{secret: "", authorized_keys: %{}},
+           recipients: []
+         }
+       }) do
+    if OracleChain.valid_services_content?(content) do
       :ok
     else
-      Logger.error("Invalid oracle transaction", transaction: "#{type}@#{Base.encode16(address)}")
+      Logger.error("Invalid oracle transaction", transaction: "oracle@#{Base.encode16(address)}")
       {:error, "Invalid oracle transaction"}
     end
   end
+
+  defp do_accept_transaction(%Transaction{type: :oracle}),
+    do: {:error, "Invalid oracle transaction"}
+
+  defp do_accept_transaction(%Transaction{
+         address: address,
+         type: :oracle_summary,
+         data: %TransactionData{
+           content: content,
+           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
+           code: "",
+           keys: %Keys{secret: "", authorized_keys: %{}},
+           recipients: []
+         },
+         previous_public_key: previous_public_key
+       }) do
+    with previous_address <- Crypto.hash(previous_public_key),
+         oracle_chain <- TransactionChain.get(previous_address, data: [:content]),
+         false <- Enum.empty?(oracle_chain),
+         true <- OracleChain.valid_summary?(content, oracle_chain) do
+      :ok
+    else
+      true ->
+        Logger.error("Oracle transaction summary cannot process with an empty chain",
+          transaction: "oracle_summary@#{Base.encode16(address)}"
+        )
+
+        {:error, "Invalid oracle summary transaction"}
+
+      _ ->
+        Logger.error("Invalid oracle summary transaction",
+          transaction: "oracle_summary@#{Base.encode16(address)}"
+        )
+
+        {:error, "Invalid oracle summary transaction"}
+    end
+  end
+
+  defp do_accept_transaction(%Transaction{type: :oracle_summary}),
+    do: {:error, "Invalid oracle summary transaction"}
 
   defp do_accept_transaction(_), do: :ok
 
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
     previous_address = Transaction.previous_address(tx)
 
-    storage_nodes =
-      Replication.chain_storage_nodes(previous_address, P2P.list_nodes(availability: :global))
+    storage_nodes = Replication.chain_storage_nodes(previous_address)
 
     response_message =
       P2P.reply_first(storage_nodes, %GetFirstPublicKey{address: previous_address})
