@@ -16,6 +16,8 @@ defmodule Uniris.Mining do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
+  alias Uniris.Replication
+
   alias Uniris.SharedSecrets
 
   alias Uniris.TransactionChain.Transaction
@@ -58,10 +60,23 @@ defmodule Uniris.Mining do
   Return the list of validation nodes for a given transaction and the current validation constraints
   """
   @spec transaction_validation_nodes(Transaction.t(), binary()) :: list(Node.t())
-  def transaction_validation_nodes(tx = %Transaction{timestamp: timestamp}, sorting_seed)
+  def transaction_validation_nodes(
+        tx = %Transaction{address: address, type: type, timestamp: timestamp},
+        sorting_seed
+      )
       when is_binary(sorting_seed) do
+    storage_nodes =
+      Replication.chain_storage_nodes_with_type(address, type, P2P.authorized_nodes(timestamp))
+
     constraints = Election.get_validation_constraints()
-    Election.validation_nodes(tx, sorting_seed, P2P.authorized_nodes(timestamp), constraints)
+
+    Election.validation_nodes(
+      tx,
+      sorting_seed,
+      P2P.authorized_nodes(timestamp),
+      storage_nodes,
+      constraints
+    )
   end
 
   @doc """

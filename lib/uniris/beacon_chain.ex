@@ -31,10 +31,10 @@ defmodule Uniris.BeaconChain do
 
   require Logger
 
-  @type summary_pools ::
+  @type pools ::
           list({
             subset :: binary(),
-            nodes_by_summary_date :: list({DateTime.t(), list(Node.t())})
+            nodes_by_date :: list({DateTime.t(), list(Node.t())})
           })
 
   @doc """
@@ -60,21 +60,22 @@ defmodule Uniris.BeaconChain do
   end
 
   @doc """
-  Retrieve the beacon storage nodes from a last synchronization date
-
-  For each subsets available, the computation will be done to find out the missing synchronization summaries
+  Retrieve the beacon summaries storage nodes from a last synchronization date
   """
-  @spec get_summary_pools(DateTime.t()) :: list({subset :: binary(), nodes: list(Node.t())})
+  @spec get_summary_pools(DateTime.t()) :: pools()
   def get_summary_pools(
         last_sync_date = %DateTime{},
-        node_list \\ P2P.list_nodes(availability: :global)
+        node_list \\ P2P.authorized_nodes()
       ) do
     summary_times = SummaryTimer.previous_summaries(last_sync_date)
 
     Enum.reduce(list_subsets(), [], fn subset, acc ->
       nodes_by_summary_time =
         Enum.map(summary_times, fn time ->
-          {time, Election.beacon_storage_nodes(subset, time, node_list)}
+          filter_nodes =
+            Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
+
+          {time, Election.beacon_storage_nodes(subset, time, filter_nodes)}
         end)
 
       [{subset, nodes_by_summary_time} | acc]
@@ -92,6 +93,26 @@ defmodule Uniris.BeaconChain do
   """
   @spec next_slot(last_sync_date :: DateTime.t()) :: DateTime.t()
   defdelegate next_slot(last_sync_date), to: SlotTimer
+
+  @doc """
+  Retrieve the beacon slots storage nodes from a last synchronization date
+  """
+  @spec get_slot_pools(DateTime.t(), list(Node.t())) :: pools()
+  def get_slot_pools(date = %DateTime{}, node_list \\ P2P.authorized_nodes()) do
+    slot_times = SlotTimer.previous_slots(date)
+
+    Enum.reduce(list_subsets(), [], fn subset, acc ->
+      nodes_by_slot_time =
+        Enum.map(slot_times, fn time ->
+          filter_nodes =
+            Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
+
+          {time, Election.beacon_storage_nodes(subset, time, filter_nodes)}
+        end)
+
+      [{subset, nodes_by_slot_time} | acc]
+    end)
+  end
 
   @doc """
   Extract the beacon subset from an address

@@ -96,7 +96,7 @@ defmodule Uniris.Bootstrap.Sync do
     |> Crypto.aes_encrypt(secret_key)
     |> Crypto.decrypt_and_set_daily_nonce_seed(encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
 
-    node_tx
+    :ok = node_tx
     |> NetworkInit.self_validation()
     |> NetworkInit.self_replication()
 

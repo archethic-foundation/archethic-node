@@ -2,6 +2,7 @@ defmodule Uniris.SelfRepair.Sync do
   @moduledoc false
 
   alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.Summary, as: BeaconSummary
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
@@ -30,7 +31,7 @@ defmodule Uniris.SelfRepair.Sync do
           nil
       end
     else
-      case P2P.list_nodes() do
+      case P2P.authorized_nodes() do
         [] ->
           nil
 
@@ -73,7 +74,7 @@ defmodule Uniris.SelfRepair.Sync do
   end
 
   @doc """
-  Retrieve missing transactions from the missing beacon chain slots 
+  Retrieve missing transactions from the missing beacon chain slots
   since the last sync date provided
 
   Beacon chain pools are retrieved from the given latest synchronization
@@ -81,11 +82,35 @@ defmodule Uniris.SelfRepair.Sync do
 
   Once retrieved, the transactions are downloaded and stored if not exists locally
   """
-  @spec load_missed_transactions(last_sync_date :: DateTime.t(), patch :: binary()) :: :ok
-  def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
+  @spec load_missed_transactions(
+          last_sync_date :: DateTime.t(),
+          patch :: binary(),
+          bootstrap? :: boolean()
+        ) :: :ok
+  def load_missed_transactions(last_sync_date = %DateTime{}, patch, bootstrap? \\ false)
+      when is_binary(patch) and is_boolean(bootstrap?) do
+    if bootstrap? do
+      Stream.concat(
+        missed_previous_slots(patch),
+        missed_previous_summaries(last_sync_date, patch)
+      )
+    else
+      missed_previous_summaries(last_sync_date, patch)
+    end
+    |> BeaconSummaryHandler.handle_missing_summaries(patch)
+  end
+
+  defp missed_previous_summaries(last_sync_date, patch) do
     last_sync_date
     |> BeaconChain.get_summary_pools()
     |> BeaconSummaryHandler.get_beacon_summaries(patch)
-    |> BeaconSummaryHandler.handle_missing_summaries(patch)
+  end
+
+  defp missed_previous_slots(patch) do
+    DateTime.utc_now()
+    |> BeaconChain.previous_summary_time()
+    |> BeaconChain.get_slot_pools()
+    |> BeaconSummaryHandler.get_beacon_slots(patch)
+    |> Stream.map(&BeaconSummary.from_slot/1)
   end
 end

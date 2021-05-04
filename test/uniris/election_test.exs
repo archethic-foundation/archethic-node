@@ -42,6 +42,33 @@ defmodule Uniris.ElectionTest do
         }
       ]
 
+      storage_nodes = [
+        %Node{
+          first_public_key: "Node10",
+          last_public_key: "Node10",
+          available?: true,
+          geo_patch: "AAA"
+        },
+        %Node{
+          first_public_key: "Node11",
+          last_public_key: "Node11",
+          available?: true,
+          geo_patch: "CCC"
+        },
+        %Node{
+          first_public_key: "Node12",
+          last_public_key: "Node12",
+          available?: true,
+          geo_patch: "CCC"
+        },
+        %Node{
+          first_public_key: "Node13",
+          last_public_key: "Node13",
+          available?: true,
+          geo_patch: "F24"
+        }
+      ]
+
       tx1 = %Transaction{
         address:
           <<0, 120, 195, 32, 77, 84, 215, 196, 116, 215, 56, 141, 40, 54, 226, 48, 66, 254, 119,
@@ -69,6 +96,7 @@ defmodule Uniris.ElectionTest do
           tx1,
           "sorting_seed",
           authorized_nodes,
+          storage_nodes,
           ValidationConstraints.new()
         )
 
@@ -99,6 +127,7 @@ defmodule Uniris.ElectionTest do
           tx2,
           "daily_nonce_proof",
           P2P.authorized_nodes(),
+          storage_nodes,
           ValidationConstraints.new()
         )
 

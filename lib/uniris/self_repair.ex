@@ -15,12 +15,11 @@ defmodule Uniris.SelfRepair do
   defdelegate start_scheduler(last_sync_date), to: Scheduler
 
   @doc """
-  Start the synchronization process using the last synchronization date
+  Start the bootstrap's synchronization process using the last synchronization date
   """
-  @spec sync(network_patch :: binary()) :: :ok
-  def sync(patch) when is_binary(patch) do
-    date = Sync.last_sync_date()
-    Sync.load_missed_transactions(date, patch)
+  @spec bootstrap_sync(last_sync_date :: DateTime.t(), network_patch :: binary()) :: :ok
+  def bootstrap_sync(date = %DateTime{}, patch) when is_binary(patch) do
+    Sync.load_missed_transactions(date, patch, true)
   end
 
   @doc """

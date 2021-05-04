@@ -126,7 +126,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       port: 3000,
       last_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
 
     coordinator_node = %Node{
@@ -137,7 +137,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       port: 3000,
       last_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
 
     cross_validation_nodes = [
@@ -149,7 +149,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         port: 3000,
         last_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       },
       %Node{
         first_public_key: "key3",
@@ -159,7 +159,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         port: 3000,
         last_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       }
     ]
 
@@ -171,7 +171,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         available?: true,
         last_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       },
       %Node{
         last_public_key: "key3",
@@ -180,7 +180,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         available?: true,
         last_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       }
     ]
 

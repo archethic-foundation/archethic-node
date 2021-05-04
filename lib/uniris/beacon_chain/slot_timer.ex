@@ -51,6 +51,23 @@ defmodule Uniris.BeaconChain.SlotTimer do
     |> DateTime.from_naive!("Etc/UTC")
   end
 
+  @doc """
+  Return the previous slot times
+  """
+  @spec previous_slots(DateTime.t()) :: list(DateTime.t())
+  def previous_slots(date_from) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
+    |> Stream.take_while(fn datetime ->
+      datetime
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.compare(date_from) == :gt
+    end)
+    |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
+    |> Enum.to_list()
+  end
+
   defp get_interval do
     [{_, interval}] = :ets.lookup(:uniris_slot_timer_timer, :interval)
     interval

@@ -171,7 +171,7 @@ defmodule Uniris.Bootstrap do
       patch = Keyword.fetch!(opts, :patch)
 
       Logger.info("Synchronization started")
-      :ok = SelfRepair.sync(patch)
+      :ok = SelfRepair.bootstrap_sync(last_sync_date, patch)
       Logger.info("Synchronization finished")
 
       Sync.publish_end_of_sync()

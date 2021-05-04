@@ -16,6 +16,8 @@ defmodule Uniris.Election do
 
   alias Uniris.TransactionChain.Transaction
 
+  alias Uniris.Utils
+
   @doc """
   Create a seed to sort the validation nodes. This will produce a proof for the election
   """
@@ -120,35 +122,51 @@ defmodule Uniris.Election do
   def validation_nodes(
         tx = %Transaction{},
         sorting_seed,
-        nodes,
+        authorized_nodes,
+        storage_nodes,
         %ValidationConstraints{
           validation_number: validation_number_fun,
           min_geo_patch: min_geo_patch_fun
         } \\ ValidationConstraints.new()
-      ) do
+      )
+      when is_binary(sorting_seed) and is_list(authorized_nodes) and is_list(storage_nodes) do
     # Evaluate validation constraints
     nb_validations = validation_number_fun.(tx, length(authorized_nodes))
     min_geo_patch = min_geo_patch_fun.()
 
-    if length(nodes) < nb_validations do
-      nodes
+    if length(authorized_nodes) <= nb_validations do
+      authorized_nodes
     else
-      do_validation_node_election(nodes, tx, sorting_seed, nb_validations, min_geo_patch)
+      do_validation_node_election(
+        authorized_nodes,
+        tx,
+        sorting_seed,
+        nb_validations,
+        min_geo_patch,
+        storage_nodes
+      )
     end
   end
 
-  defp do_validation_node_election(nodes, tx, sorting_seed, nb_validations, min_geo_patch) do
+  defp do_validation_node_election(
+         authorized_nodes,
+         tx,
+         sorting_seed,
+         nb_validations,
+         min_geo_patch,
+         storage_nodes
+       ) do
     tx_hash =
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    nodes
+    authorized_nodes
     |> sort_validation_nodes_by_key_rotation(sorting_seed, tx_hash)
     |> Enum.reduce_while(
       %{nb_nodes: 0, nodes: [], zones: MapSet.new()},
-      fn node = %Node{geo_patch: geo_patch}, acc ->
+      fn node = %Node{geo_patch: geo_patch, last_public_key: last_public_key}, acc ->
         if validation_constraints_satisfied?(
              nb_validations,
              min_geo_patch,
@@ -157,36 +175,41 @@ defmodule Uniris.Election do
            ) do
           {:halt, acc}
         else
-          # Discard node in the first place if another node already present
-          # in the geo zone to ensure geo distribution of validations
-          #
+          # Discard node in the first place if it's already a storage node and
+          # if another node already present in the geo zone to ensure geo distribution of validations
           # Then if requires the node may be elected during a refining operation
           # to ensure the require number of validations
-          if MapSet.member?(acc.zones, String.first(geo_patch)) do
-            {:cont, acc}
-          else
-            new_acc =
-              acc
-              |> Map.update!(:nb_nodes, &(&1 + 1))
-              |> Map.update!(:nodes, &[node | &1])
-              |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
 
-            {:cont, new_acc}
+          cond do
+            Utils.key_in_node_list?(storage_nodes, last_public_key) ->
+              {:cont, acc}
+
+            MapSet.member?(acc.zones, String.first(geo_patch)) ->
+              {:cont, acc}
+
+            true ->
+              new_acc =
+                acc
+                |> Map.update!(:nb_nodes, &(&1 + 1))
+                |> Map.update!(:nodes, &[node | &1])
+                |> Map.update!(:zones, &MapSet.put(&1, String.first(geo_patch)))
+
+              {:cont, new_acc}
           end
         end
       end
     )
     |> Map.get(:nodes)
     |> Enum.reverse()
-    |> refine_necessary_nodes(nodes, nb_validations)
+    |> refine_necessary_nodes(authorized_nodes, nb_validations)
   end
 
   defp validation_constraints_satisfied?(nb_validations, min_geo_patch, nb_nodes, zones) do
     MapSet.size(zones) > min_geo_patch and nb_nodes > nb_validations
   end
 
-  defp refine_necessary_nodes(selected_nodes, nodes, nb_validations) do
-    rest_nodes = nodes -- selected_nodes
+  defp refine_necessary_nodes(selected_nodes, authorized_nodes, nb_validations) do
+    rest_nodes = authorized_nodes -- selected_nodes
 
     if length(selected_nodes) < nb_validations do
       selected_nodes ++ Enum.take(rest_nodes, nb_validations - length(selected_nodes))
