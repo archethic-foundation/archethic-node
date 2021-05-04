@@ -102,10 +102,11 @@ defmodule Uniris.OracleChain.Summary do
     Transaction.new(
       :oracle_summary,
       %TransactionData{
-        content: aggregated_data
-        |> Enum.map(&{DateTime.to_unix(elem(&1, 0)), elem(&1, 1)})
-        |> Enum.into(%{})
-        |> Jason.encode!
+        content:
+          aggregated_data
+          |> Enum.map(&{DateTime.to_unix(elem(&1, 0)), elem(&1, 1)})
+          |> Enum.into(%{})
+          |> Jason.encode!()
       },
       prev_pv,
       prev_pub,

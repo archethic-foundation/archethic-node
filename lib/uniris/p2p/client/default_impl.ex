@@ -56,6 +56,7 @@ defmodule Uniris.P2P.Client.DefaultImpl do
             catch
               _ ->
                 {:cont, {:error, :network_issue}}
+
               :exit, _ ->
                 {:cont, {:error, :network_issue}}
             end
