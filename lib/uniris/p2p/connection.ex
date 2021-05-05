@@ -63,8 +63,16 @@ defmodule Uniris.P2P.Connection do
     end
   end
 
-  def handle_call({:send_message, msg}, _, state = %{socket: nil}) do
-    {:reply, {:ok, Message.process(msg)}, state}
+  def handle_call({:send_message, msg}, from, state = %{socket: nil, message_id: message_id}) do
+    %Task{ref: ref} = Task.async(fn -> Message.process(msg) end)
+
+    new_state =
+      state
+      |> Map.update!(:clients, &Map.put(&1, message_id, from))
+      |> Map.update!(:tasks, &Map.put(&1, ref, message_id))
+      |> Map.update!(:message_id, &(&1 + 1))
+
+    {:noreply, new_state}
   end
 
   def handle_call(
@@ -74,7 +82,7 @@ defmodule Uniris.P2P.Connection do
       ) do
     encoded_message = msg |> Message.encode() |> Utils.wrap_binary()
 
-    t =
+    %Task{ref: ref} =
       Task.async(fn ->
         Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
       end)
@@ -82,7 +90,7 @@ defmodule Uniris.P2P.Connection do
     new_state =
       state
       |> Map.update!(:clients, &Map.put(&1, message_id, from))
-      |> Map.update!(:tasks, &Map.put(&1, t, message_id))
+      |> Map.update!(:tasks, &Map.put(&1, ref, message_id))
       |> Map.update!(:message_id, &(&1 + 1))
 
     {:noreply, new_state}
@@ -92,7 +100,7 @@ defmodule Uniris.P2P.Connection do
         {:data, <<message_id::32, data::binary>>},
         state = %{initiator?: false, socket: socket, transport: transport}
       ) do
-    t =
+    %Task{ref: ref} =
       Task.async(fn ->
         {msg, _} = Message.decode(data)
 
@@ -105,7 +113,7 @@ defmodule Uniris.P2P.Connection do
         Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
       end)
 
-    {:noreply, Map.update!(state, :tasks, &Map.put(&1, t, message_id))}
+    {:noreply, Map.update!(state, :tasks, &Map.put(&1, ref, message_id))}
   end
 
   def handle_info(
@@ -124,17 +132,39 @@ defmodule Uniris.P2P.Connection do
     end
   end
 
-  def handle_info({%Task{}, {:error, _}}, _state), do: :stop
+  def handle_info({_task_ref, {:error, _}}, _state), do: :stop
 
-  def handle_info({t = %Task{}, :ok}, state) do
-    {:noreply, Map.update!(state, :tasks, &Map.delete(&1, t))}
+  def handle_info({task_ref, :ok}, state) do
+    {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
+  end
+
+  def handle_info({task_ref, data}, state = %{tasks: tasks, clients: clients, socket: nil}) when is_reference(task_ref) do
+    case Map.get(tasks, task_ref) do
+      nil ->
+        {:noreply, state}
+      message_id ->
+        case Map.get(clients, message_id) do
+          nil ->
+            {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
+
+          from ->
+            GenServer.reply(from, {:ok, data})
+
+            new_state =
+              state
+              |> Map.update!(:tasks, &Map.delete(&1, task_ref))
+              |> Map.update!(:clients, &Map.delete(&1, message_id))
+
+            {:noreply, new_state}
+        end
+    end
   end
 
   def handle_info(
-        {t = %Task{}, data},
+        {task_ref, data},
         state = %{transport: transport, socket: socket, tasks: tasks}
-      ) do
-    case Map.get(tasks, t) do
+      ) when is_reference(task_ref) do
+    case Map.get(tasks, task_ref) do
       nil ->
         {:noreply, state}
 
@@ -148,7 +178,7 @@ defmodule Uniris.P2P.Connection do
           Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
         end)
 
-        {:noreply, Map.update!(state, :tasks, &Map.delete(&1, t))}
+        {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
     end
   end
 
