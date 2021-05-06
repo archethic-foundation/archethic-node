@@ -30,8 +30,6 @@ config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
 
 config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
 
-config :uniris, Uniris.DB.KeyValueImpl, root_dir: "priv/storage"
-
 config :uniris, Uniris.Governance.Pools,
   # TODO: provide the true addresses of the members
   initial_members: [
@@ -62,11 +60,6 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   interval: "0 50 0 * * * *",
   # Every day at midnight
   application_interval: "0 0 0 * * * *"
-
-config :uniris, Uniris.SelfRepair.Sync, last_sync_file: "priv/p2p/last_sync"
-
-config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
-  dump_dir: "priv/p2p/network_stats"
 
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight

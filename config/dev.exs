@@ -1,7 +1,9 @@
 import Config
 
 # config :logger, handle_sasl_reports: true
-config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "data1")
+config :uniris,
+       :mut_dir,
+       System.get_env("UNIRIS_MUT_DIR", "data_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}")
 
 config :telemetry_poller, :default, period: 5_000
 
@@ -47,9 +49,6 @@ config :uniris, Uniris.Crypto.SharedSecretsKeystore,
 
 config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
 
-config :uniris, Uniris.DB.KeyValueImpl,
-  root_dir: "priv/storage/#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
-
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
     technical_council: [{"0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000", 1}],
@@ -80,12 +79,6 @@ config :uniris, Uniris.Reward.WithdrawScheduler,
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every minute
   interval: "0 * * * * * *"
-
-config :uniris, Uniris.SelfRepair.Sync,
-  last_sync_file: "priv/p2p/last_sync_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
-
-config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
-  dump_dir: "priv/p2p/network_stats_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second
