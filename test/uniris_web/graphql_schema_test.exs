@@ -69,7 +69,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
         {:ok,
          %Transaction{
            address: addr,
-           timestamp: DateTime.utc_now(),
            type: :transfer,
            data: %TransactionData{}
          }}
@@ -96,7 +95,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
         {:ok,
          %Transaction{
            address: last_address,
-           timestamp: DateTime.utc_now(),
            type: :transfer,
            data: %TransactionData{}
          }}
@@ -145,13 +143,11 @@ defmodule UnirisWeb.GraphQLSchemaTest do
         [
           %Transaction{
             address: addr1,
-            timestamp: DateTime.utc_now(),
             type: :transfer,
             data: %TransactionData{}
           },
           %Transaction{
             address: addr2,
-            timestamp: DateTime.utc_now(),
             type: :transfer,
             data: %TransactionData{}
           }
@@ -175,7 +171,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
 
           %Transaction{
             address: addr,
-            timestamp: DateTime.utc_now(),
             type: :transfer,
             data: %TransactionData{}
           }
@@ -200,7 +195,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
 
           %Transaction{
             address: addr,
-            timestamp: DateTime.utc_now(),
             type: :transfer,
             data: %TransactionData{}
           }
@@ -228,7 +222,6 @@ defmodule UnirisWeb.GraphQLSchemaTest do
 
           %Transaction{
             address: addr,
-            timestamp: DateTime.utc_now(),
             type: :transfer,
             data: %TransactionData{}
           }

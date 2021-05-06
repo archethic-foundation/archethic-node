@@ -59,10 +59,11 @@ defmodule Uniris.Mining do
   @doc """
   Return the list of validation nodes for a given transaction and the current validation constraints
   """
-  @spec transaction_validation_nodes(Transaction.t(), binary()) :: list(Node.t())
+  @spec transaction_validation_nodes(Transaction.t(), binary(), DateTime.t()) :: list(Node.t())
   def transaction_validation_nodes(
-        tx = %Transaction{address: address, type: type, timestamp: timestamp},
-        sorting_seed
+        tx = %Transaction{address: address, type: type},
+        sorting_seed,
+        timestamp = %DateTime{}
       )
       when is_binary(sorting_seed) do
     storage_nodes =
@@ -85,22 +86,22 @@ defmodule Uniris.Mining do
   @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
   def valid_election?(tx = %Transaction{validation_stamp: nil}, validation_node_public_keys)
       when is_list(validation_node_public_keys) do
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
 
     validation_node_public_keys ==
       tx
-      |> transaction_validation_nodes(sorting_seed)
+      |> transaction_validation_nodes(sorting_seed, DateTime.utc_now())
       |> Enum.map(& &1.last_public_key)
   end
 
   def valid_election?(
         tx = %Transaction{
-          validation_stamp: %ValidationStamp{proof_of_election: poe}
+          validation_stamp: %ValidationStamp{timestamp: timestamp, proof_of_election: poe}
         },
         validation_node_public_keys
       )
       when is_list(validation_node_public_keys) do
-    daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(tx.timestamp)
+    daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(timestamp)
 
     if daily_nonce_public_key == SharedSecrets.genesis_daily_nonce_public_key() do
       # Should happens only during the network bootstrapping
@@ -109,7 +110,7 @@ defmodule Uniris.Mining do
       with true <-
              Election.valid_proof_of_election?(tx, poe, daily_nonce_public_key),
            nodes = [_ | _] <-
-             transaction_validation_nodes(tx, poe),
+             transaction_validation_nodes(tx, poe, timestamp),
            set_of_validation_node_public_keys <- Enum.map(nodes, & &1.last_public_key) do
         Enum.all?(validation_node_public_keys, &(&1 in set_of_validation_node_public_keys))
       else
@@ -159,10 +160,18 @@ defmodule Uniris.Mining do
   @spec cross_validate(
           address :: binary(),
           ValidationStamp.t(),
-          replication_tree :: list(bitstring())
+          replication_tree :: %{
+            chain: list(bitstring()),
+            beacon: list(bitstring()),
+            IO: list(bitstring())
+          }
         ) :: :ok
-  def cross_validate(tx_address, stamp = %ValidationStamp{}, replication_tree)
-      when is_list(replication_tree) do
+  def cross_validate(
+        tx_address,
+        stamp = %ValidationStamp{},
+        replication_tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}
+      )
+      when is_list(chain_tree) and is_list(beacon_tree) and is_list(io_tree) do
     tx_address
     |> get_mining_process!()
     |> DistributedWorkflow.cross_validate(stamp, replication_tree)

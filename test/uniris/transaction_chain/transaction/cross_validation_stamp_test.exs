@@ -27,6 +27,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
       |> expect(:node_public_key, fn -> pub end)
 
       validation_stamp = %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         proof_of_work: pow,
         proof_of_integrity: poi,
         proof_of_election: poe,

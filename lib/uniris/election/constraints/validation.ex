@@ -12,8 +12,6 @@ defmodule Uniris.Election.ValidationConstraints do
     :validation_number
   ]
 
-  alias Uniris.P2P
-
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
@@ -29,13 +27,13 @@ defmodule Uniris.Election.ValidationConstraints do
   """
   @type t :: %__MODULE__{
           min_geo_patch: (() -> non_neg_integer()),
-          min_validation_nodes: (() -> non_neg_integer()),
+          min_validation_nodes: (non_neg_integer() -> non_neg_integer()),
           validation_number: (Transaction.t(), non_neg_integer() -> non_neg_integer())
         }
 
   def new(
         min_geo_patch_fun \\ &min_geo_patch/0,
-        min_validation_nodes_fun \\ &min_validation_nodes/0,
+        min_validation_nodes_fun \\ &min_validation_nodes/1,
         validation_number_fun \\ &validation_number/2
       ) do
     %__MODULE__{
@@ -54,8 +52,10 @@ defmodule Uniris.Election.ValidationConstraints do
   @doc """
   Define the minimum of validations
   """
-  @spec min_validation_nodes :: non_neg_integer()
-  def min_validation_nodes, do: @default_min_validations
+  @spec min_validation_nodes(non_neg_integer()) :: non_neg_integer()
+  def min_validation_nodes(nb_authorized_nodes) when nb_authorized_nodes < @default_min_validations, do: nb_authorized_nodes
+
+  def min_validation_nodes(_), do: @default_min_validations
 
   @doc """
   Get the number of validations for a given transaction.
@@ -73,7 +73,7 @@ defmodule Uniris.Election.ValidationConstraints do
 
     if total_transfers > 10 do
       validation_number =
-        trunc(:math.floor(min_validation_number() * :math.log10(total_transfers)))
+        trunc(:math.floor(min_validation_nodes(nb_authorized_nodes) * :math.log10(total_transfers)))
 
       if validation_number > nb_authorized_nodes do
         nb_authorized_nodes
@@ -81,17 +81,9 @@ defmodule Uniris.Election.ValidationConstraints do
         validation_number
       end
     else
-      min_validation_number()
+      min_validation_nodes(nb_authorized_nodes)
     end
   end
 
-  defp min_validation_number do
-    nb_authorized_nodes = length(P2P.authorized_nodes())
 
-    if nb_authorized_nodes < @default_min_validations do
-      nb_authorized_nodes
-    else
-      @default_min_validations
-    end
-  end
 end

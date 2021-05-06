@@ -8,6 +8,7 @@ defmodule Uniris.Crypto.KeystoreLoader do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
@@ -51,7 +52,8 @@ defmodule Uniris.Crypto.KeystoreLoader do
         :address,
         :type,
         :timestamp,
-        data: [:keys]
+        data: [:keys],
+        validation_stamp: [:timestamp]
       ])
       |> Enum.at(0)
 
@@ -89,8 +91,10 @@ defmodule Uniris.Crypto.KeystoreLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node_shared_secrets,
-        timestamp: timestamp,
-        data: %TransactionData{keys: keys = %Keys{secret: secret}}
+        data: %TransactionData{keys: keys = %Keys{secret: secret}},
+        validation_stamp: %ValidationStamp{
+          timestamp: timestamp
+        }
       }) do
     nb_transactions = TransactionChain.size(address)
     KeystoreCounter.set_node_shared_secrets_key_counter(nb_transactions)

@@ -130,9 +130,9 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp check_validation_stamp(
          tx = %Transaction{
-           timestamp: timestamp,
            validation_stamp:
              validation_stamp = %ValidationStamp{
+               timestamp: timestamp,
                proof_of_work: pow,
                proof_of_election: poe,
                ledger_operations:
@@ -268,14 +268,10 @@ defmodule Uniris.Replication.TransactionValidator do
   end
 
   defp previous_storage_node_public_keys(
-         tx = %Transaction{type: type, timestamp: timestamp},
+         tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
          previous_inputs_unspent_outputs
        ) do
-    node_list =
-      Enum.filter(
-        P2P.authorized_nodes(),
-        &(DateTime.compare(&1.authorization_date, timestamp) == :lt)
-      )
+    node_list = P2P.authorized_nodes(timestamp)
 
     inputs_unspent_outputs_storage_nodes =
       previous_inputs_unspent_outputs
@@ -303,12 +299,14 @@ defmodule Uniris.Replication.TransactionValidator do
     |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
   end
 
-  defp resolve_transaction_movements(tx) do
+  defp resolve_transaction_movements(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
+       ) do
     tx
     |> Transaction.get_movements()
     |> Task.async_stream(
       fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
+        %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
       end,
       on_timeout: :kill_task
     )

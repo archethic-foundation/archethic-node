@@ -119,7 +119,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
         {:ok, %TransactionList{transactions: []}}
     end)
 
-    tx_summary = %TransactionSummary{address: "@Alice2"}
+    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
     assert :ok = TransactionHandler.download_transaction(tx_summary, "AAA")
 
     assert_received :transaction_replicated

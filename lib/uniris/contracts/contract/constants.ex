@@ -23,7 +23,6 @@ defmodule Uniris.Contracts.Contract.Constants do
   @spec from_transaction(Transaction.t()) :: map()
   def from_transaction(%Transaction{
         address: address,
-        timestamp: timestamp,
         type: type,
         previous_public_key: previous_public_key,
         data: %TransactionData{
@@ -47,7 +46,6 @@ defmodule Uniris.Contracts.Contract.Constants do
     %{
       "address" => address,
       "type" => type,
-      "timestamp" => timestamp,
       "content" => content,
       "code" => code,
       "authorized_keys" => authorized_keys,

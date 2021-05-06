@@ -17,12 +17,10 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
   alias Uniris.SharedSecrets
 
-  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Uniris.TransactionChain.TransactionData
@@ -139,7 +137,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     operations =
       %LedgerOperations{
         fee: Transaction.fee(tx),
-        transaction_movements: resolve_transaction_movements(tx)
+        transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.distribute_rewards(
@@ -152,8 +150,10 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
     validation_stamp =
       %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),
         ledger_operations: operations
       }
@@ -168,18 +168,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
     }
   end
 
-  defp resolve_transaction_movements(tx) do
-    tx
-    |> Transaction.get_movements()
-    |> Task.async_stream(
-      fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
-  end
 
   def self_replication(tx = %Transaction{}) do
     Replication.process_transaction(tx, [:chain, :IO, :beacon])

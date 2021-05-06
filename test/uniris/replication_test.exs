@@ -277,8 +277,9 @@ defmodule Uniris.ReplicationTest do
 
     validation_stamp =
       %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }

@@ -9,6 +9,7 @@ defmodule Uniris.ContractsTest do
   alias Uniris.Contracts.Contract.Trigger
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Ledger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
@@ -175,7 +176,6 @@ defmodule Uniris.ContractsTest do
       }
 
       next_tx = %Transaction{
-        timestamp: DateTime.utc_now() |> DateTime.add(10),
         data: %TransactionData{
           code: code,
           ledger: %Ledger{
@@ -190,6 +190,9 @@ defmodule Uniris.ContractsTest do
               ]
             }
           }
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now() |> DateTime.add(10)
         }
       }
 
@@ -215,7 +218,6 @@ defmodule Uniris.ContractsTest do
       }
 
       next_tx = %Transaction{
-        timestamp: ref_time,
         data: %TransactionData{
           code: code,
           ledger: %Ledger{
@@ -230,6 +232,9 @@ defmodule Uniris.ContractsTest do
               ]
             }
           }
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: ref_time
         }
       }
 
@@ -255,7 +260,6 @@ defmodule Uniris.ContractsTest do
       {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:20], "Etc/UTC")
 
       next_tx = %Transaction{
-        timestamp: time,
         data: %TransactionData{
           code: code,
           ledger: %Ledger{
@@ -270,6 +274,9 @@ defmodule Uniris.ContractsTest do
               ]
             }
           }
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: time
         }
       }
 
@@ -295,7 +302,6 @@ defmodule Uniris.ContractsTest do
       {:ok, time} = DateTime.new(~D[2016-05-24], ~T[13:26:00.000999], "Etc/UTC")
 
       next_tx = %Transaction{
-        timestamp: time,
         data: %TransactionData{
           code: code,
           ledger: %Ledger{
@@ -310,6 +316,9 @@ defmodule Uniris.ContractsTest do
               ]
             }
           }
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: time
         }
       }
 

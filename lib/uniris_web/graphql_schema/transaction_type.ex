@@ -13,7 +13,6 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
   object :transaction do
     field(:address, :hex)
-    field(:timestamp, :timestamp)
     field(:type, :string)
     field(:data, :data)
     field(:previous_public_key, :hex)
@@ -111,6 +110,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
   - Signature: Coordinator signature of the stamp
   """
   object :validation_stamp do
+    field(:timestamp, :timestamp)
     field(:proof_of_work, :hex)
     field(:proof_of_integrity, :hex)
     field(:ledger_operations, :ledger_operations)

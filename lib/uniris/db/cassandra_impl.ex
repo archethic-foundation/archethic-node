@@ -14,6 +14,7 @@ defmodule Uniris.DB.CassandraImpl do
   alias __MODULE__.SchemaMigrator
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
 
   alias Uniris.Utils
 
@@ -119,15 +120,14 @@ defmodule Uniris.DB.CassandraImpl do
         tx = %Transaction{
           address: address,
           type: type,
-          timestamp: timestamp,
-          previous_public_key: previous_public_key
+          previous_public_key: previous_public_key,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
         }
       ) do
     query = """
     INSERT INTO uniris.transactions(
       address,
       type,
-      timestamp,
       data,
       previous_public_key,
       previous_signature,
@@ -137,7 +137,6 @@ defmodule Uniris.DB.CassandraImpl do
     VALUES(
       :address,
       :type,
-      :timestamp,
       :data,
       :previous_public_key,
       :previous_signature,
@@ -203,8 +202,8 @@ defmodule Uniris.DB.CassandraImpl do
     |> Stream.each(
       fn {tx = %Transaction{
             address: tx_address,
-            timestamp: tx_timestamp,
-            previous_public_key: tx_previous_public_key
+            previous_public_key: tx_previous_public_key,
+            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
           }, index} ->
         write_transaction(tx)
 

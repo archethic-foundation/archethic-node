@@ -24,7 +24,12 @@ defmodule Uniris.Contracts.Loader do
   end
 
   def init(_opts) do
-    TransactionChain.list_all([:address, :previous_public_key, data: [:code]])
+    TransactionChain.list_all([
+      :address,
+      :previous_public_key,
+      data: [:code],
+      validation_stamp: [:timestamp]
+    ])
     |> Stream.filter(&(&1.data.code != ""))
     |> Stream.each(&load_transaction(&1, true))
     |> Stream.run()
@@ -63,8 +68,7 @@ defmodule Uniris.Contracts.Loader do
         tx = %Transaction{
           address: tx_address,
           type: tx_type,
-          timestamp: tx_timestamp,
-          validation_stamp: %ValidationStamp{recipients: recipients}
+          validation_stamp: %ValidationStamp{timestamp: tx_timestamp, recipients: recipients}
         },
         false
       )
@@ -87,8 +91,7 @@ defmodule Uniris.Contracts.Loader do
   def load_transaction(
         %Transaction{
           address: address,
-          timestamp: timestamp,
-          validation_stamp: %ValidationStamp{recipients: recipients}
+          validation_stamp: %ValidationStamp{recipients: recipients, timestamp: timestamp}
         },
         true
       )

@@ -29,9 +29,11 @@ defmodule Uniris.Election.ValidationConstraintsTest do
   end
 
   property "validation_number return more than 3 validation nodes and less than 200 validation nodes" do
-    check all(transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0))) do
+    check all(
+      transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0)),
+      nb_authorized_node <- StreamData.positive_integer()
+    ) do
       tx = %Transaction{
-        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -44,15 +46,16 @@ defmodule Uniris.Election.ValidationConstraintsTest do
         }
       }
 
-      assert ValidationConstraints.validation_number(tx) >= 3 and
-               ValidationConstraints.validation_number(tx) <= 200
+      min = ValidationConstraints.min_validation_nodes(nb_authorized_node)
+
+      nb_validations = ValidationConstraints.validation_number(tx, nb_authorized_node)
+      assert nb_validations >= min and nb_validations <= 200
     end
   end
 
-  describe "validation_number/1" do
+  describe "validation_number/2" do
     test "should return the minimum before 10 UCO" do
       tx = %Transaction{
-        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -62,12 +65,11 @@ defmodule Uniris.Election.ValidationConstraintsTest do
         }
       }
 
-      assert 3 == ValidationConstraints.validation_number(tx)
+      assert 3 == ValidationConstraints.validation_number(tx, 10)
     end
 
     test "should return a number based on the UCO value" do
       tx = %Transaction{
-        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -77,10 +79,9 @@ defmodule Uniris.Election.ValidationConstraintsTest do
         }
       }
 
-      assert 6 == ValidationConstraints.validation_number(tx)
+      assert 6 == ValidationConstraints.validation_number(tx, 10)
 
       tx = %Transaction{
-        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{
@@ -90,7 +91,7 @@ defmodule Uniris.Election.ValidationConstraintsTest do
         }
       }
 
-      assert 9 == ValidationConstraints.validation_number(tx)
+      assert 9 == ValidationConstraints.validation_number(tx, 10)
     end
   end
 end

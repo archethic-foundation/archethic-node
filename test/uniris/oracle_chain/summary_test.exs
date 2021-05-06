@@ -3,6 +3,7 @@ defmodule Uniris.OracleChain.SummaryTest do
 
   alias Uniris.OracleChain.Summary
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   doctest Summary

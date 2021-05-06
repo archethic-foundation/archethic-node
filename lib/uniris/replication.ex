@@ -170,7 +170,10 @@ defmodule Uniris.Replication do
     end
   end
 
-  defp fetch_context(tx = %Transaction{type: type, timestamp: timestamp}, self_repair?) do
+  defp fetch_context(
+         tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         self_repair?
+       ) do
     prev_address = Transaction.previous_address(tx)
 
     if Transaction.network_type?(type) do
@@ -240,7 +243,12 @@ defmodule Uniris.Replication do
   Send an acknowledgment of the replication of the transaction to the welcome node and the previous storage pool
   """
   @spec acknowledge_storage(Transaction.t()) :: :ok
-  def acknowledge_storage(tx = %Transaction{address: address, timestamp: timestamp}) do
+  def acknowledge_storage(
+        tx = %Transaction{
+          address: address,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        }
+      ) do
     Task.start(fn -> notify_welcome_node(tx) end)
 
     Task.start(fn ->
@@ -476,6 +484,38 @@ defmodule Uniris.Replication do
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     :ok
+  end
+
+  @doc """
+  Determine the list of roles for a given transaction and a node public key
+  """
+  @spec roles(Transaction.t(), Crypto.key()) :: list(role())
+  def roles(
+        %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{ledger_operations: ops, timestamp: timestamp}
+        },
+        node_public_key
+      ) do
+    [
+      chain:
+        chain_storage_node?(
+          address,
+          type,
+          node_public_key,
+          P2P.available_nodes()
+        ),
+      beacon:
+        beacon_storage_node?(
+          address,
+          timestamp,
+          node_public_key,
+          P2P.authorized_nodes()
+        ),
+      IO: io_storage_node?(ops, node_public_key, P2P.available_nodes())
+    ]
+    |> Utils.get_keys_from_value_match(true)
   end
 
   @spec chain_storage_node?(

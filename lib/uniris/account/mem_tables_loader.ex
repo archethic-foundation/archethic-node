@@ -25,7 +25,7 @@ defmodule Uniris.Account.MemTablesLoader do
     :address,
     :previous_public_key,
     validation_stamp: [
-      ledger_operations: [:node_movements, :unspent_outputs, :transaction_movements]
+      ledger_operations: [:timestamp, :node_movements, :unspent_outputs, :transaction_movements]
     ]
   ]
 
@@ -34,22 +34,12 @@ defmodule Uniris.Account.MemTablesLoader do
   end
 
   def init(_args) do
-    # allocate_genesis_unspent_outputs()
-
     TransactionChain.list_all(@query_fields)
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
 
     {:ok, []}
   end
-
-  # defp allocate_genesis_unspent_outputs do
-  #   UCOLedger.add_unspent_output(Bootstrap.genesis_unspent_output_address(), %UnspentOutput{
-  #     from: Bootstrap.genesis_unspent_output_address(),
-  #     amount: Bootstrap.genesis_allocation(),
-  #     type: :UCO
-  #   })
-  # end
 
   @doc """
   Load the transaction into the memory tables
@@ -58,9 +48,9 @@ defmodule Uniris.Account.MemTablesLoader do
   def load_transaction(%Transaction{
         address: address,
         type: type,
-        timestamp: timestamp,
         previous_public_key: previous_public_key,
         validation_stamp: %ValidationStamp{
+          timestamp: timestamp,
           ledger_operations: %LedgerOperations{
             unspent_outputs: unspent_outputs,
             node_movements: node_movements,

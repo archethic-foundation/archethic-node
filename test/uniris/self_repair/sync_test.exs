@@ -30,31 +30,8 @@ defmodule Uniris.SelfRepair.SyncTest do
   import Mox
 
   describe "last_sync_date/0" do
-    test "should get the first node enrollment date if not last sync file" do
-      d1 = DateTime.utc_now()
-      d2 = DateTime.utc_now() |> DateTime.add(200)
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "key1",
-        last_public_key: "key2",
-        enrollment_date: d1,
-        authorized?: true,
-        authorization_date: d1
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3005,
-        first_public_key: "key2",
-        last_public_key: "key2",
-        enrollment_date: d2,
-        authorized?: true,
-        authorization_date: d2
-      })
-
-      assert Sync.last_sync_date() == d1
+    test "should get nil if not last sync file" do
+      assert Sync.last_sync_date() == nil
     end
 
     test "should get the last sync date from the stored filed file" do

@@ -39,7 +39,7 @@ defmodule UnirisWeb.TransactionListLive do
     src_transactions =
       src_transactions
       |> Stream.concat([%{address: address, type: type, timestamp: timestamp}])
-      |> Enum.sort_by(& &1.timestamp)
+      |> Enum.sort_by(& &1.validation_stamp.timestamp, {:desc, DateTime})
 
     displayed_transactions =
       case filter_type do

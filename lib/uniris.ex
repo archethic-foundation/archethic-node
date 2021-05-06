@@ -65,8 +65,9 @@ defmodule Uniris do
   end
 
   defp do_send_transaction(tx) do
-    sorting_seed = Election.validation_nodes_election_seed_sorting(tx)
-    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed)
+    current_date = DateTime.utc_now()
+    sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
+    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed, current_date)
 
     message = %StartMining{
       transaction: tx,

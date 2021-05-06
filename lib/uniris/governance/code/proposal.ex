@@ -8,6 +8,7 @@ defmodule Uniris.Governance.Code.Proposal do
   alias Uniris.Crypto
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   defstruct [
@@ -24,7 +25,7 @@ defmodule Uniris.Governance.Code.Proposal do
   @type t :: %__MODULE__{
           address: binary(),
           previous_public_key: Crypto.key(),
-          timestamp: DateTime.t(),
+          timestamp: nil | DateTime.t(),
           description: binary(),
           changes: binary(),
           version: binary(),
@@ -42,7 +43,6 @@ defmodule Uniris.Governance.Code.Proposal do
           | {:error, :missing_version}
   def from_transaction(%Transaction{
         address: address,
-        timestamp: timestamp,
         data: %TransactionData{content: content},
         previous_public_key: previous_public_key
       }) do
@@ -52,7 +52,6 @@ defmodule Uniris.Governance.Code.Proposal do
       {:ok,
        %__MODULE__{
          address: address,
-         timestamp: timestamp,
          previous_public_key: previous_public_key,
          description: description,
          changes: changes,
@@ -60,6 +59,15 @@ defmodule Uniris.Governance.Code.Proposal do
          files: Parser.list_files(changes),
          approvals: []
        }}
+    end
+  end
+
+  def from_transaction(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}) do
+    case from_transaction(tx) do
+      {:ok, prop} ->
+        {:ok, %{ prop | timestamp: timestamp} }
+      {:error, _} = e ->
+        e
     end
   end
 

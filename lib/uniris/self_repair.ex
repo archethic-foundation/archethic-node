@@ -20,6 +20,7 @@ defmodule Uniris.SelfRepair do
   @spec bootstrap_sync(last_sync_date :: DateTime.t(), network_patch :: binary()) :: :ok
   def bootstrap_sync(date = %DateTime{}, patch) when is_binary(patch) do
     Sync.load_missed_transactions(date, patch, true)
+    put_last_sync_date(DateTime.utc_now())
   end
 
   @doc """
@@ -27,6 +28,12 @@ defmodule Uniris.SelfRepair do
   """
   @spec last_sync_date() :: DateTime.t()
   defdelegate last_sync_date, to: Sync
+
+  @doc """
+  Return the default last sync date
+  """
+  @spec default_last_sync_date() :: DateTime.t()
+  defdelegate default_last_sync_date, to: Sync
 
   @doc """
   Set the next last synchronization date

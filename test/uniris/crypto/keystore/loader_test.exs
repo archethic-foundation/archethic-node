@@ -6,6 +6,7 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
   alias Uniris.Crypto.KeystoreLoader
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
@@ -19,7 +20,8 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
       tx = %Transaction{
         address: :crypto.strong_rand_bytes(32),
         type: :node_shared_secrets,
-        data: %TransactionData{keys: %Keys{secret: ""}}
+        data: %TransactionData{keys: %Keys{secret: ""}},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
       MockDB
@@ -78,9 +80,9 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
 
       tx = %Transaction{
         address: :crypto.strong_rand_bytes(32),
-        timestamp: DateTime.utc_now(),
         type: :node_shared_secrets,
-        data: %TransactionData{keys: tx_keys}
+        data: %TransactionData{keys: tx_keys},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
       assert :ok = KeystoreLoader.load_transaction(tx)
@@ -151,7 +153,8 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
             %Transaction{
               address: "@NodeSharedSecrets1",
               type: :node_shared_secrets,
-              data: %TransactionData{keys: %Keys{secret: :crypto.strong_rand_bytes(120)}}
+              data: %TransactionData{keys: %Keys{secret: :crypto.strong_rand_bytes(120)}},
+              validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
             }
           ]
 
@@ -160,12 +163,14 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
             %Transaction{
               address: Crypto.hash("Node2"),
               type: :node,
-              previous_public_key: "Node1"
+              previous_public_key: "Node1",
+              validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
             },
             %Transaction{
               address: Crypto.hash("Node1"),
               type: :node,
-              previous_public_key: "Node0"
+              previous_public_key: "Node0",
+              validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now() |> DateTime.add(-60)}
             }
           ]
       end)

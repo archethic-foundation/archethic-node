@@ -14,6 +14,7 @@ defmodule Uniris.P2P.MemTableLoader do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
@@ -29,7 +30,8 @@ defmodule Uniris.P2P.MemTableLoader do
       :timestamp,
       :type,
       :previous_public_key,
-      data: [:content]
+      data: [:content],
+      validation_stamp: [:timestamp]
     ])
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
@@ -37,8 +39,8 @@ defmodule Uniris.P2P.MemTableLoader do
     last_node_shared_secret_tx =
       TransactionChain.list_transactions_by_type(:node_shared_secrets, [
         :type,
-        :timestamp,
-        data: [:keys]
+        data: [:keys],
+        validation_stamp: [:timestamp]
       ])
       |> Enum.at(0)
 
@@ -59,9 +61,11 @@ defmodule Uniris.P2P.MemTableLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node,
-        timestamp: timestamp,
         previous_public_key: previous_public_key,
-        data: %TransactionData{content: content}
+        data: %TransactionData{content: content},
+        validation_stamp: %ValidationStamp{
+          timestamp: timestamp
+        }
       }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
     {ip, port, transport, reward_address} = extract_node_endpoint(content)
@@ -90,8 +94,10 @@ defmodule Uniris.P2P.MemTableLoader do
 
   def load_transaction(%Transaction{
         type: :node_shared_secrets,
-        timestamp: timestamp,
-        data: %TransactionData{keys: keys}
+        data: %TransactionData{keys: keys},
+        validation_stamp: %ValidationStamp{
+          timestamp: timestamp
+        }
       }) do
     new_authorized_keys = Keys.list_authorized_keys(keys)
     previous_authorized_keys = MemTable.list_authorized_public_keys()

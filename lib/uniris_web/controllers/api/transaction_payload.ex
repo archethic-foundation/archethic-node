@@ -12,12 +12,10 @@ defmodule UnirisWeb.API.TransactionPayload do
   alias UnirisWeb.API.Types.Hex
   alias UnirisWeb.API.Types.PublicKey
   alias UnirisWeb.API.Types.TransactionType
-  alias UnirisWeb.API.Types.UnixTimestamp
 
   embedded_schema do
     field(:address, Hash)
     field(:type, TransactionType)
-    field(:timestamp, UnixTimestamp)
 
     embeds_one :data, TransactionData do
       field(:content, Hex)
@@ -58,7 +56,6 @@ defmodule UnirisWeb.API.TransactionPayload do
     |> cast(params, [
       :address,
       :type,
-      :timestamp,
       :previousPublicKey,
       :previousSignature,
       :originSignature
@@ -66,7 +63,6 @@ defmodule UnirisWeb.API.TransactionPayload do
     |> validate_required([
       :address,
       :type,
-      :timestamp,
       :previousPublicKey,
       :previousSignature,
       :originSignature

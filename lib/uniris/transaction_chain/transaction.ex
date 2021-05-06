@@ -20,7 +20,6 @@ defmodule Uniris.TransactionChain.Transaction do
   defstruct [
     :address,
     :type,
-    :timestamp,
     :data,
     :previous_public_key,
     :previous_signature,
@@ -33,7 +32,6 @@ defmodule Uniris.TransactionChain.Transaction do
   Represent a transaction in pending validation
   - Address: hash of the new generated public key for the given transaction
   - Type: transaction type
-  - Timestamp: creation date of the transaction
   - Data: transaction data zone (identity, keychain, smart contract, etc.)
   - Previous signature: signature from the previous public key
   - Previous public key: previous generated public key matching the previous signature
@@ -46,7 +44,6 @@ defmodule Uniris.TransactionChain.Transaction do
   @type t() :: %__MODULE__{
           address: binary(),
           type: transaction_type(),
-          timestamp: DateTime.t(),
           data: TransactionData.t(),
           previous_public_key: nil | Crypto.key(),
           previous_signature: nil | binary(),
@@ -109,7 +106,6 @@ defmodule Uniris.TransactionChain.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -136,7 +132,6 @@ defmodule Uniris.TransactionChain.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -154,7 +149,6 @@ defmodule Uniris.TransactionChain.Transaction do
     %__MODULE__{
       address: Crypto.hash(next_public_key),
       type: type,
-      timestamp: DateTime.utc_now() |> DateTime.truncate(:millisecond),
       data: data,
       previous_public_key: previous_public_key
     }
@@ -240,27 +234,25 @@ defmodule Uniris.TransactionChain.Transaction do
   end
 
   @doc """
-  Extract the transaction payload for the previous signature including address, timestamp, type and data
+  Extract the transaction payload for the previous signature including address, type and data
   """
   @spec extract_for_previous_signature(t()) :: t()
   def extract_for_previous_signature(tx = %__MODULE__{}) do
     %__MODULE__{
       address: tx.address,
-      timestamp: tx.timestamp,
       type: tx.type,
       data: tx.data
     }
   end
 
   @doc """
-  Extract the transaction payload for the origin signature including address, timestamp,
+  Extract the transaction payload for the origin signature including address
   type data, previous_public_key and previous_signature
   """
   @spec extract_for_origin_signature(t()) :: t()
   def extract_for_origin_signature(tx = %__MODULE__{}) do
     %__MODULE__{
       address: tx.address,
-      timestamp: tx.timestamp,
       type: tx.type,
       data: tx.data,
       previous_public_key: tx.previous_public_key,
@@ -454,7 +446,6 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>   address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...>     196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
       ...>   type: :transfer,
-      ...>   timestamp: ~U[2020-07-07 09:01:20.721Z],
       ...>   data: %TransactionData{},
       ...>   previous_public_key: <<0, 61, 250, 128, 151, 100, 231, 128, 158, 139, 88, 128, 68, 236, 240, 238, 116,
       ...>     186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192, 131, 180, 213>>,
@@ -467,6 +458,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>    214, 93, 126, 179, 251, 41, 101, 249, 226, 180, 88, 241, 184, 154, 181, 156,
       ...>    178, 213, 132, 220, 31, 63, 23, 165, 174, 82, 182, 120, 142, 87, 34, 132>>,
       ...>   validation_stamp: %ValidationStamp{
+      ...>      timestamp: ~U[2020-06-26 06:37:04Z],
       ...>      proof_of_work: <<0, 212, 52, 50, 200, 144, 139, 192, 177, 99, 145, 174, 178, 113, 229, 251, 170,
       ...>        186, 184, 109, 13, 200, 136, 34, 241, 99, 99, 210, 172, 143, 104, 160, 99>>,
       ...>      proof_of_integrity: <<0, 199, 216, 73, 158, 82, 76, 158, 8, 215, 22, 186, 166, 45, 153, 17, 22, 251,
@@ -505,8 +497,6 @@ defmodule Uniris.TransactionChain.Transaction do
       196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85,
       # Transaction type,
       2,
-      # Timestamp
-      0, 0, 1, 115, 40, 130, 21, 209,
       # Code size
       0, 0, 0, 0,
       # Content size
@@ -540,6 +530,8 @@ defmodule Uniris.TransactionChain.Transaction do
       178, 213, 132, 220, 31, 63, 23, 165, 174, 82, 182, 120, 142, 87, 34, 132,
       # Validated transaction
       1,
+      # Validation Stamp timestamp
+      94, 245, 151, 144,
       # Origin public key found
       1::1,
       # Proof of work
@@ -589,7 +581,6 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
         address: address,
-        timestamp: timestamp,
         type: type,
         data: data,
         previous_public_key: nil,
@@ -598,13 +589,11 @@ defmodule Uniris.TransactionChain.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
-      TransactionData.serialize(data)::binary>>
+    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary>>
   end
 
   def serialize(%__MODULE__{
         address: address,
-        timestamp: timestamp,
         type: type,
         data: data,
         previous_public_key: previous_public_key,
@@ -613,14 +602,12 @@ defmodule Uniris.TransactionChain.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary>>
+    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary>>
   end
 
   def serialize(%__MODULE__{
         address: address,
-        timestamp: timestamp,
         type: type,
         data: data,
         previous_public_key: previous_public_key,
@@ -629,15 +616,13 @@ defmodule Uniris.TransactionChain.Transaction do
         validation_stamp: nil,
         cross_validation_stamps: nil
       }) do
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary,
+    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
   end
 
   def serialize(%__MODULE__{
         address: address,
-        timestamp: timestamp,
         type: type,
         data: data,
         previous_public_key: previous_public_key,
@@ -651,9 +636,8 @@ defmodule Uniris.TransactionChain.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    <<address::binary, serialize_type(type)::8, DateTime.to_unix(timestamp, :millisecond)::64,
-      TransactionData.serialize(data)::binary, previous_public_key::binary,
-      byte_size(previous_signature)::8, previous_signature::binary,
+    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
+      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
       ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
       cross_validation_stamps_bin::binary>>
@@ -665,7 +649,7 @@ defmodule Uniris.TransactionChain.Transaction do
   ## Examples
 
       iex> <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
-      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2, 0, 0, 1, 115, 40, 130, 21, 209,
+      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
       ...> 131, 180, 213, 64, 65, 66, 248, 246, 119, 69, 36, 103, 249, 201, 252, 154, 69, 24, 48, 18, 63,
@@ -676,7 +660,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...> 183, 149, 250, 90, 117, 107, 162, 17, 63, 118, 229, 125, 15, 189, 245, 64,
       ...> 214, 93, 126, 179, 251, 41, 101, 249, 226, 180, 88, 241, 184, 154, 181, 156,
       ...> 178, 213, 132, 220, 31, 63, 23, 165, 174, 82, 182, 120, 142, 87, 34, 132,
-      ...> 1, 1::1, 0, 212, 52, 50, 200, 144, 139, 192, 177, 99, 145, 174, 178, 113, 229, 251, 170,
+      ...> 1, 94, 245, 151, 144, 1::1, 0, 212, 52, 50, 200, 144, 139, 192, 177, 99, 145, 174, 178, 113, 229, 251, 170,
       ...> 186, 184, 109, 13, 200, 136, 34, 241, 99, 99, 210, 172, 143, 104, 160, 99,
       ...> 0, 199, 216, 73, 158, 82, 76, 158, 8, 215, 22, 186, 166, 45, 153, 17, 22, 251,
       ...> 133, 212, 35, 220, 155, 242, 198, 93, 133, 134, 244, 226, 122, 87, 17,
@@ -700,7 +684,6 @@ defmodule Uniris.TransactionChain.Transaction do
           address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
             196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
           type: :transfer,
-          timestamp: ~U[2020-07-07 09:01:20.721Z],
           data: %TransactionData{},
           previous_public_key: <<0, 61, 250, 128, 151, 100, 231, 128, 158, 139, 88, 128, 68, 236, 240, 238, 116,
             186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192, 131, 180, 213>>,
@@ -713,6 +696,7 @@ defmodule Uniris.TransactionChain.Transaction do
            214, 93, 126, 179, 251, 41, 101, 249, 226, 180, 88, 241, 184, 154, 181, 156,
            178, 213, 132, 220, 31, 63, 23, 165, 174, 82, 182, 120, 142, 87, 34, 132>>,
           validation_stamp: %ValidationStamp{
+             timestamp: ~U[2020-06-26 06:37:04Z],
              proof_of_work: <<0, 212, 52, 50, 200, 144, 139, 192, 177, 99, 145, 174, 178, 113, 229, 251, 170,
                186, 184, 109, 13, 200, 136, 34, 241, 99, 99, 210, 172, 143, 104, 160, 99>>,
              proof_of_integrity: <<0, 199, 216, 73, 158, 82, 76, 158, 8, 215, 22, 186, 166, 45, 153, 17, 22, 251,
@@ -752,7 +736,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec deserialize(bitstring()) :: {transaction :: t(), rest :: bitstring}
   def deserialize(_serialized_term = <<hash_algo::8, rest::bitstring>>) do
     address_size = Crypto.hash_size(hash_algo)
-    <<address::binary-size(address_size), type::8, timestamp::64, rest::bitstring>> = rest
+    <<address::binary-size(address_size), type::8, rest::bitstring>> = rest
     {data, rest} = TransactionData.deserialize(rest)
 
     <<curve_id::8, rest::bitstring>> = rest
@@ -765,7 +749,6 @@ defmodule Uniris.TransactionChain.Transaction do
     tx = %__MODULE__{
       address: <<hash_algo::8>> <> address,
       type: parse_type(type),
-      timestamp: DateTime.from_unix!(timestamp, :millisecond),
       data: data,
       previous_public_key: <<curve_id::8>> <> previous_public_key,
       previous_signature: previous_signature,
@@ -810,7 +793,6 @@ defmodule Uniris.TransactionChain.Transaction do
     %{
       address: tx.address,
       type: Atom.to_string(tx.type),
-      timestamp: tx.timestamp,
       data: TransactionData.to_map(tx.data),
       previous_public_key: tx.previous_public_key,
       previous_signature: tx.previous_signature,
@@ -841,15 +823,13 @@ defmodule Uniris.TransactionChain.Transaction do
     %__MODULE__{
       address: Map.get(tx, :address),
       type: type,
-      timestamp: Map.get(tx, :timestamp),
       data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.from_map(),
       previous_public_key: Map.get(tx, :previous_public_key),
       previous_signature: Map.get(tx, :previous_signature),
       origin_signature: Map.get(tx, :origin_signature),
-      validation_stamp:
-        Map.get(tx, :validation_stamp, %ValidationStamp{}) |> ValidationStamp.from_map(),
+      validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.from_map(),
       cross_validation_stamps:
-        case Map.get(tx, :cross_validation_stamps, []) do
+        case Map.get(tx, :cross_validation_stamps) do
           nil ->
             nil
 
@@ -872,7 +852,6 @@ defmodule Uniris.TransactionChain.Transaction do
       ...>  type: :node,
       ...>  address: <<0, 242, 227, 55, 140, 255, 148, 250, 79, 250, 27, 146, 106, 32, 155, 154, 45,
       ...>   131, 91, 53, 239, 28, 51, 54, 213, 109, 30, 252, 22, 222, 181, 166, 248>>,
-      ...>  timestamp: DateTime.utc_now(),
       ...>  data: %{},
       ...>  previous_public_key: <<0, 16, 49, 81, 15, 68, 108, 34, 43, 155, 140, 240, 167, 70, 143, 30, 249, 252,
       ...>    51, 229, 15, 125, 82, 219, 125, 38, 252, 214, 106, 30, 243, 236, 36>>,

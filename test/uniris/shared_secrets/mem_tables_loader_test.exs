@@ -10,6 +10,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   import Mox
@@ -70,10 +71,12 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
     test "should load node shared secrets transaction and load public keys and address from content" do
       tx = %Transaction{
         type: :node_shared_secrets,
-        timestamp: DateTime.utc_now(),
         data: %TransactionData{
           content:
             "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now()
         }
       }
 
@@ -119,10 +122,12 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
 
       node_shared_secrets_tx = %Transaction{
         type: :node_shared_secrets,
-        timestamp: DateTime.utc_now() |> DateTime.add(10),
         data: %TransactionData{
           content:
             "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now() |> DateTime.add(10)
         }
       }
 

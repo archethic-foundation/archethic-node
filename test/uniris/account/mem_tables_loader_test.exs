@@ -82,9 +82,9 @@ defmodule Uniris.Account.MemTablesLoaderTest do
   defp create_transaction do
     %Transaction{
       address: "@Charlie3",
-      timestamp: DateTime.utc_now(),
       previous_public_key: "Charlie2",
       validation_stamp: %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         ledger_operations: %LedgerOperations{
           transaction_movements: [
             %TransactionMovement{to: "@Tom4", amount: 34.0, type: :UCO},

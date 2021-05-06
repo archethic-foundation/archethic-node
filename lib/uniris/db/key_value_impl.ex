@@ -11,6 +11,8 @@ defmodule Uniris.DB.KeyValueImpl do
   alias Uniris.DBImpl
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+
   alias Uniris.Utils
 
   @behaviour DBImpl
@@ -85,7 +87,7 @@ defmodule Uniris.DB.KeyValueImpl do
         tx = %Transaction{
           address: address,
           type: type,
-          timestamp: timestamp,
+          validation_stamp: %ValidationStamp{timestamp: timestamp},
           previous_public_key: previous_public_key
         }
       ) do

@@ -6,6 +6,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
   alias Uniris.TransactionChain.MemTables.PendingLedger
   alias Uniris.TransactionChain.MemTablesLoader
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   import Mox
@@ -23,10 +24,12 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
       assert :ok =
                %Transaction{
                  address: "@CodeProp1",
-                 timestamp: DateTime.utc_now(),
                  previous_public_key: "CodeProp0",
                  data: %TransactionData{},
-                 type: :code_proposal
+                 type: :code_proposal,
+                 validation_stamp: %ValidationStamp{
+                  timestamp: DateTime.utc_now()
+                 }
                }
                |> MemTablesLoader.load_transaction()
 
@@ -37,7 +40,6 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
       assert :ok =
                %Transaction{
                  address: "@Contract2",
-                 timestamp: DateTime.utc_now(),
                  previous_public_key: "Contract1",
                  data: %TransactionData{
                    code: """
@@ -45,7 +47,10 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                    actions triggered_by: transaction do end
                    """
                  },
-                 type: :transfer
+                 type: :transfer,
+                 validation_stamp: %ValidationStamp{
+                  timestamp: DateTime.utc_now()
+                 }
                }
                |> MemTablesLoader.load_transaction()
 
@@ -56,22 +61,26 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
       assert :ok =
                %Transaction{
                  address: "@CodeProp1",
-                 timestamp: DateTime.utc_now(),
                  previous_public_key: "CodeProp0",
                  data: %TransactionData{},
-                 type: :code_proposal
+                 type: :code_proposal,
+                 validation_stamp: %ValidationStamp{
+                  timestamp: DateTime.utc_now()
+                 }
                }
                |> MemTablesLoader.load_transaction()
 
       assert :ok =
                %Transaction{
                  address: "@CodeApproval1",
-                 timestamp: DateTime.utc_now(),
                  previous_public_key: "CodeApproval0",
                  data: %TransactionData{
                    recipients: ["@CodeProp1"]
                  },
-                 type: :code_approval
+                 type: :code_approval,
+                 validation_stamp: %ValidationStamp{
+                  timestamp: DateTime.utc_now()
+                 }
                }
                |> MemTablesLoader.load_transaction()
 
@@ -86,33 +95,41 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
         [
           %Transaction{
             address: Crypto.hash("Alice2"),
-            timestamp: DateTime.utc_now(),
             previous_public_key: "Alice1",
             data: %TransactionData{},
-            type: :transfer
+            type: :transfer,
+            validation_stamp: %ValidationStamp{
+              timestamp: DateTime.utc_now()
+             }
           },
           %Transaction{
             address: Crypto.hash("Alice1"),
-            timestamp: DateTime.utc_now() |> DateTime.add(-10),
             previous_public_key: "Alice0",
             data: %TransactionData{},
-            type: :transfer
+            type: :transfer,
+            validation_stamp: %ValidationStamp{
+              timestamp: DateTime.utc_now() |> DateTime.add(-10)
+             }
           },
           %Transaction{
             address: "@CodeProp1",
-            timestamp: DateTime.utc_now(),
             previous_public_key: "CodeProp0",
             data: %TransactionData{},
-            type: :code_proposal
+            type: :code_proposal,
+            validation_stamp: %ValidationStamp{
+              timestamp: DateTime.utc_now()
+             }
           },
           %Transaction{
             address: "@CodeApproval1",
-            timestamp: DateTime.utc_now(),
             previous_public_key: "CodeApproval0",
             data: %TransactionData{
               recipients: ["@CodeProp1"]
             },
-            type: :code_approval
+            type: :code_approval,
+            validation_stamp: %ValidationStamp{
+              timestamp: DateTime.utc_now()
+             }
           }
         ]
       end)

@@ -11,6 +11,10 @@ defmodule Uniris.P2P.Message.CrossValidate do
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           validation_stamp: ValidationStamp.t(),
-          replication_tree: list(bitstring())
+          replication_tree: %{
+            chain: list(bitstring()),
+            beacon: list(bitstring()),
+            IO: list(bitstring())
+          }
         }
 end

@@ -15,6 +15,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.ReplicateTransaction
+  alias Uniris.P2P.Node
 
   alias Uniris.Replication
 
@@ -32,7 +33,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
 
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
-    beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, tx.timestamp)
+    beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, DateTime.utc_now())
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
@@ -82,8 +83,27 @@ defmodule Uniris.Mining.StandaloneWorkflow do
   defp replicate(context) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
-    context
-    |> ValidationContext.get_storage_nodes()
-    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
+    storage_nodes = ValidationContext.get_storage_nodes(context)
+ 
+
+    Logger.debug(
+      "Send validated transaction to #{
+        storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",") }" end) |> Enum.join(",")
+      }",
+      transaction: "#{validated_tx.type}@#{Base.encode16(validated_tx.address)}"
+    )
+
+
+    Task.async_stream(storage_nodes, fn {node, roles} ->
+        P2P.send_message(node, %ReplicateTransaction{
+          transaction: validated_tx,
+          roles: roles,
+          ack_storage?: true
+        })
+      end,
+      on_timeout: :kill_task,
+      ordered: false
+    )
+    |> Stream.run()
   end
 end

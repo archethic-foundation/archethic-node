@@ -9,6 +9,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   @software_origin_key_regex ~r/(?<=software: ).([A-Z0-9\, ])*/
@@ -34,7 +35,8 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
         TransactionChain.list_transactions_by_type(:node_shared_secrets, [
           :type,
           :timestamp,
-          data: [:content]
+          data: [:content],
+          validation_stamp: [:timestamp]
         ])
       end
     ]
@@ -83,8 +85,10 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   def load_transaction(%Transaction{
         type: :node_shared_secrets,
-        timestamp: timestamp,
-        data: %TransactionData{content: content}
+        data: %TransactionData{content: content},
+        validation_stamp: %ValidationStamp{
+          timestamp: timestamp
+        }
       }) do
     {daily_nonce_public_key, network_pool_address} = decode_node_shared_secrets_content(content)
     NetworkLookup.set_network_pool_address(network_pool_address)

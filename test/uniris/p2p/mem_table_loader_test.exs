@@ -6,6 +6,7 @@ defmodule Uniris.P2P.MemTableLoaderTest do
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
 
@@ -91,7 +92,9 @@ defmodule Uniris.P2P.MemTableLoaderTest do
             }
           }
         },
-        timestamp: DateTime.utc_now()
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now()
+        }
       }
 
       shared_secret_tx2 = %Transaction{
@@ -104,7 +107,9 @@ defmodule Uniris.P2P.MemTableLoaderTest do
             }
           }
         },
-        timestamp: DateTime.utc_now() |> DateTime.add(10)
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now() |> DateTime.add(10)
+        }
       }
 
       MockDB
@@ -137,7 +142,9 @@ defmodule Uniris.P2P.MemTableLoaderTest do
         """
       },
       previous_public_key: "Node1",
-      timestamp: ~U[2020-10-22 23:57:27.634295Z]
+      validation_stamp: %ValidationStamp{
+        timestamp: ~U[2020-10-22 23:57:27.634295Z]
+      }
     }
   end
 
@@ -152,7 +159,9 @@ defmodule Uniris.P2P.MemTableLoaderTest do
           }
         }
       },
-      timestamp: ~U[2020-10-22 23:57:27.634295Z]
+      validation_stamp: %ValidationStamp{
+        timestamp: ~U[2020-10-22 23:57:27.634295Z]
+      }
     }
   end
 end

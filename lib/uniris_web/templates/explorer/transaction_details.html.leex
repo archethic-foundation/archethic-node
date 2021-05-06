@@ -8,7 +8,7 @@
             <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
     <% end %>
 
-    <div class="box">   
+    <div class="box">
         <%= if  assigns[:error] != nil and @error == :invalid_address do %>
             <p>The transaction address is invalid.</p>
             <div class="mt-4 box has-background-warning-light">
@@ -29,7 +29,7 @@
                             Explore chain
                         <% end %>
                     </div>
-                </div> 
+                </div>
 
             <% end %>
 
@@ -44,7 +44,7 @@
                     </ul>
                 </div>
 
-                <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>"> 
+                <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>">
 
                     <%= if assigns[:error] != nil and @error == :not_exists do %>
                         <p>The transaction does not exists yet. </p>
@@ -61,7 +61,7 @@
                                 </div>
                                 <div class="column is-3-desktop">
                                     <p class="heading">Date</p>
-                                    <%= format_date(@transaction.timestamp) %>
+                                    <%= format_date(@transaction.validation_stamp.timestamp) %>
                                 </div>
                             </div>
 
@@ -271,7 +271,7 @@
                                     <span class="text_wrap"><%= Base.encode16(@transaction.validation_stamp.proof_of_work) %></span>
                                 </div>
                             </div>
-                            
+
                             <div class="columns mt-4">
                                 <div class="column">
                                     <p class="heading">Proof of integrity</p>
@@ -359,7 +359,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Reward</div>
                                                 <div class="column">
-                                                    <%= format_float(movement.amount) %> 
+                                                    <%= format_float(movement.amount) %>
                                                     <span class="tag is-primary is-light ml-2">UCO</span>
                                                 </div>
                                             </div>

@@ -66,6 +66,7 @@ defmodule Uniris.Bootstrap.SyncTest do
       tx = Transaction.new(:node_shared_secrets, %TransactionData{})
 
       stamp = %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         proof_of_work: "",
         proof_of_integrity: "",
         ledger_operations: %LedgerOperations{},

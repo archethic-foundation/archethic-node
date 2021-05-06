@@ -31,19 +31,27 @@ defmodule Uniris.SelfRepair.Sync do
           nil
       end
     else
-      case P2P.authorized_nodes() do
-        [] ->
-          nil
+      nil
+    end
+  end
 
-        nodes ->
-          %Node{enrollment_date: enrollment_date} =
-            nodes
-            |> Enum.reject(&(&1.enrollment_date == nil))
-            |> Enum.sort_by(& &1.enrollment_date)
-            |> Enum.at(0)
+  @doc """
+  Return the default last sync date
+  """
+  @spec default_last_sync_date() :: DateTime.t()
+  def default_last_sync_date do
+    case P2P.authorized_nodes() do
+      [] ->
+        DateTime.utc_now()
 
-          enrollment_date
-      end
+      nodes ->
+        %Node{enrollment_date: enrollment_date} =
+          nodes
+          |> Enum.reject(&(&1.enrollment_date == nil))
+          |> Enum.sort_by(& &1.enrollment_date)
+          |> Enum.at(0)
+
+        enrollment_date
     end
   end
 
@@ -68,7 +76,7 @@ defmodule Uniris.SelfRepair.Sync do
     relative_filepath =
       :uniris
       |> Application.get_env(__MODULE__)
-      |> Keyword.get(:last_sync_file, "priv/p2p/last_sync")
+      |> Keyword.get(:last_sync_file, "p2p/last_sync")
 
     Utils.mut_dir(relative_filepath)
   end

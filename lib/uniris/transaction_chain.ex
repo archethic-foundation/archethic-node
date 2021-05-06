@@ -104,7 +104,13 @@ defmodule Uniris.TransactionChain do
   Persist only one transaction
   """
   @spec write_transaction(Transaction.t()) :: :ok
-  def write_transaction(tx = %Transaction{address: address, type: type, timestamp: timestamp}) do
+  def write_transaction(
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        }
+      ) do
     with false <- DB.transaction_exists?(address),
          :ok <- DB.write_transaction(tx) do
       KOLedger.remove_transaction(address)
@@ -128,10 +134,13 @@ defmodule Uniris.TransactionChain do
   """
   @spec write(Enumerable.t()) :: :ok
   def write(chain) do
-    sorted_chain = Enum.sort_by(chain, & &1.timestamp, {:desc, DateTime})
+    sorted_chain = Enum.sort_by(chain, & &1.validation_stamp.timestamp, {:desc, DateTime})
 
-    %Transaction{address: tx_address, type: tx_type, timestamp: timestamp} =
-      Enum.at(sorted_chain, 0)
+    %Transaction{
+      address: tx_address,
+      type: tx_type,
+      validation_stamp: %ValidationStamp{timestamp: timestamp}
+    } = Enum.at(sorted_chain, 0)
 
     with false <- DB.transaction_exists?(tx_address),
          :ok <- DB.write_transaction_chain(sorted_chain) do
@@ -244,7 +253,6 @@ defmodule Uniris.TransactionChain do
       ...>        <<0, 39, 163, 67, 107, 232, 10, 57, 194, 81, 76, 150, 114, 10, 168, 60, 248, 52,
       ...>           69, 109, 55, 90, 15, 0, 127, 218, 65, 98, 161, 109, 156, 183, 165>>,
       ...>      type: :transfer,
-      ...>      timestamp: ~U[2020-03-30 10:06:30.000Z],
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
       ...>        <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
@@ -263,8 +271,7 @@ defmodule Uniris.TransactionChain do
       ...>  ]
       ...>  |> TransactionChain.proof_of_integrity()
       # Hash of the transaction
-      <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
-        100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
+      <<0, 44, 98, 114, 189, 239, 125, 3, 238, 170, 24, 98, 13, 211, 204, 124, 49, 106, 79, 80, 158, 20, 224, 4, 239, 43, 205, 15, 182, 5, 195, 81, 77>>
 
     With multiple transactions
 
@@ -274,7 +281,6 @@ defmodule Uniris.TransactionChain do
       ...>       <<61, 7, 130, 64, 140, 226, 192, 8, 238, 88, 226, 106, 137, 45, 69, 113, 239,
       ...>         240, 45, 55, 225, 169, 170, 121, 238, 136, 192, 161, 252, 33, 71, 3>>,
       ...>     type: :transfer,
-      ...>     timestamp: ~U[2020-03-30 11:06:30.000Z],
       ...>     data: %TransactionData{},
       ...>     previous_public_key:
       ...>       <<0, 96, 233, 188, 240, 217, 251, 22, 2, 210, 59, 170, 25, 33, 61, 124, 135,
@@ -295,7 +301,6 @@ defmodule Uniris.TransactionChain do
       ...>        <<0, 39, 163, 67, 107, 232, 10, 57, 194, 81, 76, 150, 114, 10, 168, 60, 248, 52,
       ...>           69, 109, 55, 90, 15, 0, 127, 218, 65, 98, 161, 109, 156, 183, 165>>,
       ...>      type: :transfer,
-      ...>      timestamp: ~U[2020-03-30 10:06:30.000Z],
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
       ...>        <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
@@ -311,15 +316,15 @@ defmodule Uniris.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
-      ...>           100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
+      ...>         proof_of_integrity: <<0, 44, 98, 114, 189, 239, 125, 3, 238, 170, 24, 98, 13, 211, 204,
+      ...>           124, 49, 106, 79, 80, 158, 20, 224, 4, 239, 43, 205, 15, 182, 5, 195, 81, 77>>
       ...>      }
       ...>    }
       ...> ]
       ...> |> TransactionChain.proof_of_integrity()
       # Hash of the transaction + previous proof of integrity
-      <<0, 200, 7, 18, 182, 180, 36, 204, 30, 173, 77, 225, 44, 8, 160, 137, 240, 109,
-          39, 97, 151, 130, 32, 22, 218, 28, 66, 121, 188, 106, 156, 61, 181>>
+      <<0, 97, 223, 250, 224, 5, 27, 254, 102, 80, 2, 69, 21, 101, 12, 154, 221, 209, 172, 156, 138, 180, 191, 138,
+        30, 53, 6, 227, 186, 248, 226, 63, 47>>
   """
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
@@ -350,7 +355,6 @@ defmodule Uniris.TransactionChain do
       ...>       <<61, 7, 130, 64, 140, 226, 192, 8, 238, 88, 226, 106, 137, 45, 69, 113, 239,
       ...>         240, 45, 55, 225, 169, 170, 121, 238, 136, 192, 161, 252, 33, 71, 3>>,
       ...>     type: :transfer,
-      ...>     timestamp: ~U[2020-03-30 11:06:30.000Z],
       ...>     data: %TransactionData{},
       ...>     previous_public_key:
       ...>       <<0, 96, 233, 188, 240, 217, 251, 22, 2, 210, 59, 170, 25, 33, 61, 124, 135,
@@ -366,8 +370,9 @@ defmodule Uniris.TransactionChain do
       ...>       161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>       232, 135, 42, 112, 58, 181, 13>>,
       ...>     validation_stamp: %ValidationStamp{
-      ...>       proof_of_integrity: <<0, 200, 7, 18, 182, 180, 36, 204, 30, 173, 77, 225, 44, 8, 160, 137, 240, 109,
-      ...>         39, 97, 151, 130, 32, 22, 218, 28, 66, 121, 188, 106, 156, 61, 181>>
+      ...>       timestamp: ~U[2020-03-30 12:06:30.000Z],
+      ...>       proof_of_integrity: <<0, 97, 223, 250, 224, 5, 27, 254, 102, 80, 2, 69, 21, 101, 12, 154, 221, 209, 172, 156, 138, 180, 191, 138,
+      ...>         30, 53, 6, 227, 186, 248, 226, 63, 47>>
       ...>       }
       ...>    },
       ...>    %Transaction{
@@ -375,7 +380,6 @@ defmodule Uniris.TransactionChain do
       ...>        <<0, 39, 163, 67, 107, 232, 10, 57, 194, 81, 76, 150, 114, 10, 168, 60, 248, 52,
       ...>           69, 109, 55, 90, 15, 0, 127, 218, 65, 98, 161, 109, 156, 183, 165>>,
       ...>      type: :transfer,
-      ...>      timestamp: ~U[2020-03-30 10:06:30.000Z],
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
       ...>        <<0, 221, 228, 196, 111, 16, 222, 0, 119, 32, 150, 228, 25, 206, 79, 37, 213, 8, 130, 22,
@@ -391,8 +395,9 @@ defmodule Uniris.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 50, 95, 59, 58, 51, 188, 130, 165, 215, 204, 134, 20, 115, 49, 23, 57, 225,
-      ...>           100, 254, 239, 53, 53, 252, 79, 70, 0, 89, 179, 108, 175, 223, 210>>
+      ...>         timestamp: ~U[2020-03-30 10:06:30.000Z],
+      ...>         proof_of_integrity: <<0, 44, 98, 114, 189, 239, 125, 3, 238, 170, 24, 98, 13, 211, 204,
+      ...>           124, 49, 106, 79, 80, 158, 20, 224, 4, 239, 43, 205, 15, 182, 5, 195, 81, 77>>
       ...>      }
       ...>    }
       ...> ]
@@ -418,12 +423,13 @@ defmodule Uniris.TransactionChain do
   def valid?([
         last_tx = %Transaction{
           previous_public_key: previous_public_key,
-          timestamp: timestamp,
-          validation_stamp: %ValidationStamp{proof_of_integrity: poi}
+          validation_stamp: %ValidationStamp{timestamp: timestamp, proof_of_integrity: poi}
         },
         prev_tx = %Transaction{
           address: previous_address,
-          timestamp: previous_timestamp
+          validation_stamp: %ValidationStamp{
+            timestamp: previous_timestamp
+          }
         }
         | _
       ]) do
@@ -442,7 +448,8 @@ defmodule Uniris.TransactionChain do
 
         false
 
-      DateTime.diff(timestamp, previous_timestamp, :microsecond) <= 0 ->
+      DateTime.diff(timestamp, previous_timestamp) < 0 ->
+
         Logger.debug("Invalid timestamp",
           transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
         )

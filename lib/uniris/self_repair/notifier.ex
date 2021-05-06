@@ -83,12 +83,20 @@ defmodule Uniris.SelfRepair.Notifier do
         Replication.chain_storage_nodes_with_type(
           address,
           type
-        )
+        ) -- previous_storage_nodes
 
       with true <- Utils.key_in_node_list?(previous_storage_nodes, current_node_public_key),
            {:ok, tx} <- TransactionChain.get_transaction(address) do
-        # TODO: improve to request if the node has the transaction already
-        P2P.broadcast_message(next_storage_nodes, %ReplicateTransaction{transaction: tx})
+        Task.async_stream(
+          next_storage_nodes,
+          fn node = %Node{first_public_key: node_key} ->
+            roles = Replication.roles(tx, node_key)
+            P2P.send_message(node, %ReplicateTransaction{transaction: tx, roles: roles})
+          end,
+          on_timeout: :kill_task,
+          ordered: false
+        )
+        |> Stream.run()
       end
     end)
     |> Stream.run()

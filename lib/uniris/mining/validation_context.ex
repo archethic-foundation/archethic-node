@@ -18,11 +18,23 @@ defmodule Uniris.Mining.ValidationContext do
     chain_storage_nodes_view: <<>>,
     beacon_storage_nodes: [],
     beacon_storage_nodes_view: <<>>,
-    sub_replication_tree: <<>>,
-    full_replication_tree: [],
+    sub_replication_tree: %{
+      chain: <<>>,
+      beacon: <<>>,
+      IO: <<>>
+    },
+    full_replication_tree: %{
+      chain: [],
+      beacon: [],
+      IO: []
+    },
     io_storage_nodes: [],
     previous_storage_nodes: [],
-    replication_nodes_confirmation: <<>>,
+    replication_nodes_confirmation: %{
+      chain: <<>>,
+      beacon: <<>>,
+      IO: <<>>
+    },
     valid_pending_transaction?: false
   ]
 
@@ -63,10 +75,22 @@ defmodule Uniris.Mining.ValidationContext do
           io_storage_nodes: list(Node.t()),
           cross_validation_nodes_confirmation: bitstring(),
           validation_stamp: nil | ValidationStamp.t(),
-          full_replication_tree: list(bitstring()),
-          sub_replication_tree: bitstring(),
+          full_replication_tree: %{
+            chain: list(bitstring()),
+            beacon: list(bitstring()),
+            IO: list(bitstring())
+          },
+          sub_replication_tree: %{
+            chain: bitstring(),
+            beacon: bitstring(),
+            IO: bitstring()
+          },
           cross_validation_stamps: list(CrossValidationStamp.t()),
-          replication_nodes_confirmation: bitstring(),
+          replication_nodes_confirmation: %{
+            chain: bitstring(),
+            beacon: bitstring(),
+            IO: bitstring()
+          },
           validation_nodes_view: bitstring(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
@@ -177,7 +201,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   ## Examples
 
-      iex> %ValidationContext{cross_validation_nodes_confirmation: <<0::1, 1::1>>} = %ValidationContext{
+      iex> %ValidationContext{
       ...>  cross_validation_nodes: [
       ...>    %Node{last_public_key: "key2"},
       ...>    %Node{last_public_key: "key3"}
@@ -185,6 +209,13 @@ defmodule Uniris.Mining.ValidationContext do
       ...>  cross_validation_nodes_confirmation: <<0::1, 0::1>>
       ...> }
       ...> |> ValidationContext.confirm_validation_node("key3")
+      %ValidationContext{
+        cross_validation_nodes: [
+          %Node{last_public_key: "key2"},
+          %Node{last_public_key: "key3"}
+        ],
+        cross_validation_nodes_confirmation: <<0::1, 1::1>>
+      }
   """
   def confirm_validation_node(
         context = %__MODULE__{cross_validation_nodes: cross_validation_nodes},
@@ -322,18 +353,22 @@ defmodule Uniris.Mining.ValidationContext do
   ## Examples
 
       iex> %ValidationContext{
-      ...>    full_replication_tree: [<<0::1, 1::1>>, <<1::1, 0::1>>],
-      ...>    sub_replication_tree: <<1::1, 0::1>>,
-      ...>    replication_nodes_confirmation: <<0::1, 0::1>>
+      ...>    full_replication_tree: %{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>],  beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] },
+      ...>    sub_replication_tree: %{ chain: <<1::1, 0::1>>, beacon: <<1::1, 0::1>>, IO: <<1::1, 0::1>> },
+      ...>    replication_nodes_confirmation: %{ chain: <<0::1, 0::1>>, beacon: <<0::1, 0::1>>, IO: <<0::1, 0::1>> }
       ...> } = %ValidationContext{
       ...>    coordinator_node: %Node{last_public_key: "key1"},
       ...>    cross_validation_nodes: [%Node{last_public_key: "key2"}],
       ...> }
-      ...> |> ValidationContext.add_replication_tree([<<0::1, 1::1>>, <<1::1, 0::1>>], "key2")
+      ...> |> ValidationContext.add_replication_tree(%{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>], beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] }, "key2")
   """
   @spec add_replication_tree(
           t(),
-          replication_trees :: list(bitstring()),
+          replication_trees :: %{
+            chain: list(bitstring()),
+            beacon: list(bitstring()),
+            IO: list(bitstring())
+          },
           node_public_key :: Crypto.key()
         ) :: t()
   def add_replication_tree(
@@ -341,20 +376,34 @@ defmodule Uniris.Mining.ValidationContext do
           coordinator_node: coordinator_node,
           cross_validation_nodes: cross_validation_nodes
         },
-        tree,
+        tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree},
         node_public_key
       )
-      when is_list(tree) and is_binary(node_public_key) do
+      when is_list(chain_tree) and is_list(beacon_tree) and is_list(io_tree) and
+             is_binary(node_public_key) do
     validation_nodes = [coordinator_node | cross_validation_nodes]
     validator_index = Enum.find_index(validation_nodes, &(&1.last_public_key == node_public_key))
-    sub_tree = Enum.at(tree, validator_index)
-    sub_tree_size = bit_size(sub_tree)
+
+    sub_chain_tree = Enum.at(chain_tree, validator_index)
+
+    sub_beacon_tree = Enum.at(beacon_tree, validator_index)
+    sub_io_tree = Enum.at(io_tree, validator_index)
+
+    sub_tree_size = bit_size(sub_chain_tree)
 
     %{
       context
-      | sub_replication_tree: sub_tree,
+      | sub_replication_tree: %{
+          chain: sub_chain_tree,
+          beacon: sub_beacon_tree,
+          IO: sub_io_tree
+        },
         full_replication_tree: tree,
-        replication_nodes_confirmation: <<0::size(sub_tree_size)>>
+        replication_nodes_confirmation: %{
+          chain: <<0::size(sub_tree_size)>>,
+          beacon: <<0::size(sub_tree_size)>>,
+          IO: <<0::size(sub_tree_size)>>
+        }
     }
   end
 
@@ -369,13 +418,13 @@ defmodule Uniris.Mining.ValidationContext do
       ...>   io_storage_nodes: [%Node{first_public_key: "key4"}, %Node{first_public_key: "key5"}]
       ...> }
       ...> |> ValidationContext.get_storage_nodes()
-      [
-        %Node{first_public_key: "key1"},
-        %Node{first_public_key: "key2"},
-        %Node{first_public_key: "key3"},
-        %Node{first_public_key: "key4"},
-        %Node{first_public_key: "key5"}
-      ]
+      %{
+        %Node{first_public_key: "key1"} => [:beacon, :chain],
+        %Node{first_public_key: "key2"} => [:chain],
+        %Node{first_public_key: "key3"} => [:beacon],
+        %Node{first_public_key: "key4"} => [:IO],
+        %Node{first_public_key: "key5"} => [:IO]
+      }
   """
   @spec get_storage_nodes(t()) :: list(Node.t())
   def get_storage_nodes(%__MODULE__{
@@ -383,48 +432,77 @@ defmodule Uniris.Mining.ValidationContext do
         beacon_storage_nodes: beacon_storage_nodes,
         io_storage_nodes: io_storage_nodes
       }) do
-    [chain_storage_nodes, beacon_storage_nodes, io_storage_nodes]
-    |> P2P.distinct_nodes()
+    [{:chain, chain_storage_nodes}, {:beacon, beacon_storage_nodes}, {:IO, io_storage_nodes}]
+    |> Enum.reduce(%{}, fn {role, nodes}, acc ->
+      Enum.reduce(nodes, acc, fn node, acc ->
+        Map.update(acc, node, [role], &[role | &1])
+      end)
+    end)
   end
 
   @doc """
-  Get the replication nodes from the replication tree for the given validation node public key
+  Get the replication nodes from the replication trees for the actual subtree
 
   ## Examples
 
-      iex> [
-      ...>    %Node{last_public_key: "key5"},
-      ...>    %Node{last_public_key: "key11"}
-      ...>  ] = %ValidationContext{
+      iex> %ValidationContext{
       ...>   chain_storage_nodes: [
-      ...>     %Node{first_public_key: "key5", last_public_key: "key5"},
-      ...>     %Node{first_public_key: "key7", last_public_key: "key7"}
+      ...>     %Node{last_public_key: "key5"},
+      ...>     %Node{last_public_key: "key7"}
       ...>   ],
       ...>   beacon_storage_nodes: [
-      ...>     %Node{first_public_key: "key10", last_public_key: "key10"},
-      ...>     %Node{first_public_key: "key11", last_public_key: "key11"}
+      ...>     %Node{last_public_key: "key10"},
+      ...>     %Node{last_public_key: "key11"}
       ...>  ],
-      ...>   sub_replication_tree: <<1::1, 0::1, 0::1, 1::1>>
+      ...>  io_storage_nodes: [
+      ...>     %Node{last_public_key: "key12"},
+      ...>     %Node{last_public_key: "key5"}
+      ...>  ],
+      ...>   sub_replication_tree: %{
+      ...>     chain: <<1::1, 0::1>>,
+      ...>     beacon: <<1::1, 0::1>>,
+      ...>     IO: <<0::1, 1::1>>
+      ...>   }
       ...> }
       ...> |> ValidationContext.get_replication_nodes()
+      %{
+        %Node{last_public_key: "key10"} => [:beacon],
+        %Node{last_public_key: "key5"} => [:chain, :IO]
+      }
   """
   @spec get_replication_nodes(t()) :: list(Node.t())
-  def get_replication_nodes(context = %__MODULE__{sub_replication_tree: tree}) do
-    do_get_replication_nodes(tree, get_storage_nodes(context))
+  def get_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          chain: chain_tree,
+          beacon: beacon_tree,
+          IO: io_tree
+        },
+        chain_storage_nodes: chain_storage_nodes,
+        beacon_storage_nodes: beacon_storage_nodes,
+        io_storage_nodes: io_storage_nodes
+      }) do
+    chain_storage_node_indexes = get_storage_nodes_tree_indexes(chain_tree)
+    beacon_storage_node_indexes = get_storage_nodes_tree_indexes(beacon_tree)
+    io_storage_node_indexes = get_storage_nodes_tree_indexes(io_tree)
+
+    %{
+      chain: Enum.map(chain_storage_node_indexes, &Enum.at(chain_storage_nodes, &1)),
+      beacon: Enum.map(beacon_storage_node_indexes, &Enum.at(beacon_storage_nodes, &1)),
+      IO: Enum.map(io_storage_node_indexes, &Enum.at(io_storage_nodes, &1))
+    }
+    |> Enum.reduce(%{}, fn {role, nodes}, acc ->
+      Enum.reduce(nodes, acc, fn node, acc ->
+        Map.update(acc, node, [role], &[role | &1])
+      end)
+    end)
   end
 
-  defp do_get_replication_nodes(bit_tree, storage_nodes, index \\ 0, acc \\ [])
-
-  defp do_get_replication_nodes(<<1::1, rest::bitstring>>, storage_nodes, index, acc) do
-    do_get_replication_nodes(rest, storage_nodes, index + 1, [Enum.at(storage_nodes, index) | acc])
-  end
-
-  defp do_get_replication_nodes(<<0::1, rest::bitstring>>, storage_nodes, index, acc) do
-    do_get_replication_nodes(rest, storage_nodes, index + 1, acc)
-  end
-
-  defp do_get_replication_nodes(<<>>, _storage_nodes, _index, acc) do
-    Enum.reverse(acc)
+  defp get_storage_nodes_tree_indexes(tree) do
+    tree
+    |> Utils.bitstring_to_integer_list()
+    |> Enum.with_index()
+    |> Enum.filter(&match?({1, _}, &1))
+    |> Enum.map(&elem(&1, 1))
   end
 
   @doc """
@@ -448,9 +526,13 @@ defmodule Uniris.Mining.ValidationContext do
 
   ## Examples
 
-      iex> %ValidationContext{replication_nodes_confirmation: <<0::1, 0::1, 1::1>>} = %ValidationContext{
-      ...>   replication_nodes_confirmation: <<0::1, 0::1, 0::1>>,
-      ...>   sub_replication_tree: <<0::1, 0::1, 0::1>>,
+      iex> %ValidationContext{replication_nodes_confirmation: %{
+      ...>    chain: <<0::1, 0::1, 1::1>>,
+      ...>    IO: <<0::1, 0::1, 0::1>>,
+      ...>    beacon: <<0::1, 0::1, 0::1>>
+      ...>  }} = %ValidationContext{
+      ...>   replication_nodes_confirmation: %{ chain: <<0::1, 0::1, 0::1>>, beacon: <<0::1, 0::1, 0::1>>, IO: <<0::1, 0::1, 0::1>> },
+      ...>   sub_replication_tree: %{ chain: <<0::1, 0::1, 0::1>>, IO: <<0::1, 0::1, 0::1>>, beacon: <<0::1, 0::1, 0::1>>},
       ...>   coordinator_node: %Node{last_public_key: "key1"},
       ...>   cross_validation_nodes: [%Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}],
       ...>   chain_storage_nodes: [
@@ -459,16 +541,44 @@ defmodule Uniris.Mining.ValidationContext do
       ...>     %Node{first_public_key: "key12", last_public_key: "key12"}
       ...>   ]
       ...> }
-      ...> |> ValidationContext.confirm_replication("key12")
+      ...> |> ValidationContext.confirm_replication("key12", [:chain])
   """
-  @spec confirm_replication(t(), storage_node_key :: Crypto.key()) :: t()
-  def confirm_replication(context = %__MODULE__{}, from) do
-    index =
-      context
-      |> get_storage_nodes()
-      |> Enum.find_index(&(&1.last_public_key == from))
+  @spec confirm_replication(
+          t(),
+          storage_node_key :: Crypto.key(),
+          tree_types :: list(:chain | :beacon | :IO)
+        ) :: t()
+  def confirm_replication(
+        context = %__MODULE__{
+          chain_storage_nodes: chain_storage_nodes,
+          beacon_storage_nodes: beacon_storage_nodes,
+          io_storage_nodes: io_storage_nodes
+        },
+        from,
+        tree_types
+      ) do
+    Enum.reduce(tree_types, context, fn
+      :chain, acc ->
+        index = Enum.find_index(chain_storage_nodes, &(&1.last_public_key == from))
 
-    Map.update!(context, :replication_nodes_confirmation, &Utils.set_bitstring_bit(&1, index))
+        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
+          Map.update!(nodes, :chain, &Utils.set_bitstring_bit(&1, index))
+        end)
+
+      :beacon, acc ->
+        index = Enum.find_index(beacon_storage_nodes, &(&1.last_public_key == from))
+
+        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
+          Map.update!(nodes, :beacon, &Utils.set_bitstring_bit(&1, index))
+        end)
+
+      :IO, acc ->
+        index = Enum.find_index(io_storage_nodes, &(&1.last_public_key == from))
+
+        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
+          Map.update!(nodes, :IO, &Utils.set_bitstring_bit(&1, index))
+        end)
+    end)
   end
 
   @doc """
@@ -477,15 +587,31 @@ defmodule Uniris.Mining.ValidationContext do
   ## Examples
 
       iex> %ValidationContext{
-      ...>    replication_nodes_confirmation: <<0::1, 1::1, 0::1, 0::1, 0::1>>,
-      ...>    sub_replication_tree: <<0::1, 1::1, 0::1, 1::1, 1::1>>
+      ...>    replication_nodes_confirmation: %{
+      ...>      chain: <<0::1, 1::1, 0::1>>,
+      ...>      IO: <<0::1, 0::1, 0::1>>,
+      ...>      beacon: <<0::1, 1::1, 0::1>>
+      ...>    },
+      ...>    sub_replication_tree: %{
+      ...>      chain: <<0::1, 1::1, 0::1>>,
+      ...>      IO: <<0::1, 1::1, 0::1>>,
+      ...>      beacon: <<0::1, 1::1, 0::1>>
+      ...>    }
       ...> }
       ...> |> ValidationContext.enough_replication_confirmations?()
       false
 
       iex> %ValidationContext{
-      ...>    replication_nodes_confirmation: <<0::1, 1::1, 0::1, 1::1, 1::1>>,
-      ...>    sub_replication_tree: <<0::1, 1::1, 0::1, 1::1, 1::1>>
+      ...>    replication_nodes_confirmation: %{
+      ...>      chain: <<0::1, 1::1, 0::1>>,
+      ...>      IO: <<0::1, 1::1, 0::1>>,
+      ...>      beacon: <<0::1, 1::1, 0::1>>
+      ...>    },
+      ...>    sub_replication_tree: %{
+      ...>      chain: <<0::1, 1::1, 0::1>>,
+      ...>      IO: <<0::1, 1::1, 0::1>>,
+      ...>      beacon: <<0::1, 1::1, 0::1>>
+      ...>    }
       ...> }
       ...> |> ValidationContext.enough_replication_confirmations?()
       true
@@ -495,8 +621,10 @@ defmodule Uniris.Mining.ValidationContext do
         replication_nodes_confirmation: replication_nodes_confirmation,
         sub_replication_tree: replication_tree
       }) do
-    Utils.count_bitstring_bits(replication_nodes_confirmation) ==
-      Utils.count_bitstring_bits(replication_tree)
+    Enum.all?(replication_nodes_confirmation, fn {tree, confirmations} ->
+      Utils.count_bitstring_bits(confirmations) ==
+        Utils.count_bitstring_bits(Map.get(replication_tree, tree))
+    end)
   end
 
   @doc """
@@ -657,9 +785,11 @@ defmodule Uniris.Mining.ValidationContext do
 
     validation_stamp =
       %ValidationStamp{
+        timestamp: DateTime.utc_now(),
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations:
           %LedgerOperations{
             transaction_movements: resolve_transaction_movements(tx),
@@ -700,7 +830,7 @@ defmodule Uniris.Mining.ValidationContext do
     |> Transaction.get_movements()
     |> Task.async_stream(
       fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, tx.timestamp)}
+        %{mvt | to: TransactionChain.resolve_last_address(to, DateTime.utc_now())}
       end,
       on_timeout: :kill_task
     )
@@ -709,11 +839,10 @@ defmodule Uniris.Mining.ValidationContext do
   end
 
   defp resolve_transaction_recipients(%Transaction{
-         timestamp: timestamp,
          data: %TransactionData{recipients: recipients}
        }) do
     recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, timestamp),
+    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, DateTime.utc_now()),
       on_timeout: :kill_task
     )
     |> Enum.filter(&match?({:ok, _}, &1))
@@ -729,7 +858,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   @doc """
   Create a replication tree based on the validation context (storage nodes and validation nodes)
-  and store it as a bitstring list.<
+  and store it as a bitstring list.
 
   ## Examples
 
@@ -740,32 +869,71 @@ defmodule Uniris.Mining.ValidationContext do
       ...> }
       ...> |> ValidationContext.create_replication_tree()
       %ValidationContext{
-        sub_replication_tree: <<1::1, 0::1>>,
-        full_replication_tree: [<<1::1, 0::1>>, <<0::1, 1::1>>],
-        replication_nodes_confirmation: <<0::1, 0::1>>,
+        sub_replication_tree: %{
+          chain: <<1::1, 0::1>>,
+          beacon: <<>>,
+          IO: <<>>
+        },
+        full_replication_tree: %{
+          IO: [],
+          beacon: [],
+          chain: [<<1::1, 0::1>>, <<0::1, 1::1>>]
+        },
+        replication_nodes_confirmation: %{
+          IO: <<0::1, 0::1>>,
+          beacon: <<0::1, 0::1>>,
+          chain: <<0::1, 0::1>>
+        },
         coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
         cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
         chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}]
       }
   """
   @spec create_replication_tree(t()) :: t()
-  def create_replication_tree(context = %__MODULE__{}) do
-    storage_nodes = get_storage_nodes(context)
+  def create_replication_tree(
+        context = %__MODULE__{
+          chain_storage_nodes: chain_storage_nodes,
+          beacon_storage_nodes: beacon_storage_nodes,
+          io_storage_nodes: io_storage_nodes
+        }
+      ) do
+    validation_nodes = get_validation_nodes(context)
+    chain_replication_tree = Replication.generate_tree(validation_nodes, chain_storage_nodes)
+    beacon_replication_tree = Replication.generate_tree(validation_nodes, beacon_storage_nodes)
+    io_replication_tree = Replication.generate_tree(validation_nodes, io_storage_nodes)
 
-    tree =
-      context
-      |> get_validation_nodes
-      |> Replication.generate_tree(storage_nodes)
-      |> Enum.map(fn {_, list} -> P2P.bitstring_from_node_subsets(storage_nodes, list) end)
+    tree = %{
+      chain:
+        Enum.map(chain_replication_tree, fn {_, list} ->
+          P2P.bitstring_from_node_subsets(chain_storage_nodes, list)
+        end),
+      beacon:
+        Enum.map(beacon_replication_tree, fn {_, list} ->
+          P2P.bitstring_from_node_subsets(beacon_storage_nodes, list)
+        end),
+      IO:
+        Enum.map(io_replication_tree, fn {_, list} ->
+          P2P.bitstring_from_node_subsets(io_storage_nodes, list)
+        end)
+    }
 
-    sub_tree = Enum.at(tree, 0)
-    sub_tree_size = bit_size(sub_tree)
+    sub_tree = %{
+      chain: tree |> Map.get(:chain) |> Enum.at(0, <<>>),
+      beacon: tree |> Map.get(:beacon) |> Enum.at(0, <<>>),
+      IO: tree |> Map.get(:IO) |> Enum.at(0, <<>>)
+    }
+
+    sub_tree_size = sub_tree |> Map.get(:chain) |> bit_size()
 
     %{
       context
       | sub_replication_tree: sub_tree,
         full_replication_tree: tree,
-        replication_nodes_confirmation: <<0::size(sub_tree_size)>>
+        replication_nodes_confirmation: %{
+          chain: <<0::size(sub_tree_size)>>,
+          beacon: <<0::size(sub_tree_size)>>,
+          IO: <<0::size(sub_tree_size)>>
+        }
     }
   end
 
@@ -803,6 +971,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   defp validation_stamp_inconsistencies(context = %__MODULE__{validation_stamp: stamp}) do
     subsets_verifications = [
+      timestamp: fn -> valid_timestamp(stamp, context) end,
       signature: fn -> valid_stamp_signature(stamp, context) end,
       proof_of_work: fn -> valid_stamp_proof_of_work?(stamp, context) end,
       proof_of_integrity: fn -> valid_stamp_proof_of_integrity?(stamp, context) end,
@@ -819,6 +988,11 @@ defmodule Uniris.Mining.ValidationContext do
     |> Enum.map(&{elem(&1, 0), elem(&1, 1).()})
     |> Enum.filter(&match?({_, false}, &1))
     |> Enum.map(&elem(&1, 0))
+  end
+
+  defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, _) do
+    diff = DateTime.diff(timestamp, DateTime.utc_now())
+    diff <= 0 and diff > -10
   end
 
   defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
@@ -845,10 +1019,13 @@ defmodule Uniris.Mining.ValidationContext do
        }),
        do: TransactionChain.proof_of_integrity([tx, prev_tx]) == poi
 
-  defp valid_stamp_proof_of_election?(%ValidationStamp{proof_of_election: poe}, %__MODULE__{
-         transaction: tx
-       }),
-       do: poe == Election.validation_nodes_election_seed_sorting(tx)
+  defp valid_stamp_proof_of_election?(
+         %ValidationStamp{proof_of_election: poe, timestamp: timestamp},
+         %__MODULE__{
+           transaction: tx
+         }
+       ),
+       do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
          %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}},

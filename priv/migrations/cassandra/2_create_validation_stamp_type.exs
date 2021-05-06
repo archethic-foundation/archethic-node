@@ -7,6 +7,7 @@ defmodule Uniris.DB.CassandraImpl.Migrations.CreateValidationStampType do
 
     Xandra.execute!(:xandra_conn, """
     CREATE TYPE IF NOT EXISTS uniris.validation_stamp(
+      timestamp timestamp,
       proof_of_work blob,
       proof_of_integrity blob,
       ledger_operations frozen<ledger_operations>,

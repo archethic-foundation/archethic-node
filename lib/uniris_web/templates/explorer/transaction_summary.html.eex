@@ -12,7 +12,7 @@
 <div class="columns">
     <div class="column">
         <p class="heading">Date</p>
-        <span><%= format_date(@transaction.timestamp) %></span>
+        <span><%= format_date(@transaction.validation_stamp.timestamp) %></span>
     </div>
     <div class="column">
         <p class="heading">Type</p>

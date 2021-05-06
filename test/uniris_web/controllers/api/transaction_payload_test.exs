@@ -1,6 +1,8 @@
 defmodule UnirisWeb.API.TransactionPayloadTest do
   use ExUnit.Case
 
+  alias Uniris.Crypto
+
   alias UnirisWeb.API.TransactionPayload
 
   describe "changeset/1" do
@@ -11,7 +13,6 @@ defmodule UnirisWeb.API.TransactionPayloadTest do
                  data: {"can't be blank", [validation: :required]},
                  address: {"can't be blank", [validation: :required]},
                  type: {"can't be blank", [validation: :required]},
-                 timestamp: {"can't be blank", [validation: :required]},
                  previousPublicKey: {"can't be blank", [validation: :required]},
                  previousSignature: {"can't be blank", [validation: :required]},
                  originSignature: {"can't be blank", [validation: :required]}
@@ -32,7 +33,6 @@ defmodule UnirisWeb.API.TransactionPayloadTest do
                TransactionPayload.changeset(%{
                  "address" => "abc",
                  "type" => "transfer",
-                 "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
                  "data" => %{
                    "code" => "",
                    "content" => "",
@@ -51,18 +51,6 @@ defmodule UnirisWeb.API.TransactionPayloadTest do
                  "previousSignature" => "abc",
                  "originSignature" => "abc"
                })
-    end
-
-    test "should return an error if the timestamp is not valid" do
-      %Ecto.Changeset{valid?: false, errors: errors} =
-        TransactionPayload.changeset(%{"timestamp" => "abc"})
-
-      assert {"must be an integer", _} = Keyword.get(errors, :timestamp)
-
-      %Ecto.Changeset{valid?: false, errors: errors} =
-        TransactionPayload.changeset(%{"timestamp" => 123_456})
-
-      assert {"invalid unix timestamp", _} = Keyword.get(errors, :timestamp)
     end
 
     test "should return an error if the content is not in hex" do
@@ -505,19 +493,19 @@ defmodule UnirisWeb.API.TransactionPayloadTest do
 
   test "to_map/1 should return a map of the changeset" do
     address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    timestamp = ~U[2021-02-11 10:33:37.104Z]
     previous_public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     previous_signature = :crypto.strong_rand_bytes(64)
     origin_signature = :crypto.strong_rand_bytes(64)
     recipient = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     uco_to = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    secret = :crypto.strong_rand_bytes(32)
-    authorized_public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    encrypted_key = :crypto.strong_rand_bytes(32)
+    aes_key = :crypto.strong_rand_bytes(32)
+    secret = Crypto.aes_encrypt("hello", aes_key)
+
+    {authorized_public_key, _} = Crypto.generate_deterministic_keypair("seed")
+    encrypted_key = Crypto.ec_encrypt(aes_key, authorized_public_key)
 
     assert %{
              address: address,
-             timestamp: timestamp,
              type: "transfer",
              previous_public_key: previous_public_key,
              previous_signature: previous_signature,
@@ -542,7 +530,6 @@ defmodule UnirisWeb.API.TransactionPayloadTest do
              TransactionPayload.changeset(%{
                "address" => Base.encode16(address),
                "type" => "transfer",
-               "timestamp" => DateTime.to_unix(timestamp, :millisecond),
                "previousPublicKey" => Base.encode16(previous_public_key),
                "previousSignature" => Base.encode16(previous_signature),
                "originSignature" => Base.encode16(origin_signature),

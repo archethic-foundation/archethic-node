@@ -122,8 +122,9 @@ defmodule Uniris.BeaconChainTest do
              BeaconChain.add_transaction_summary(%Transaction{
                address: address,
                type: :transfer,
-               timestamp: DateTime.utc_now(),
-               validation_stamp: %ValidationStamp{}
+               validation_stamp: %ValidationStamp{
+                timestamp: DateTime.utc_now()
+               }
              })
 
     subset = BeaconChain.subset_from_address(address)

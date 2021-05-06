@@ -4,6 +4,7 @@ defmodule Uniris.OracleChain.Summary do
   alias Uniris.Crypto
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   defstruct [:transactions, :previous_date, :date, :aggregated]
@@ -25,14 +26,14 @@ defmodule Uniris.OracleChain.Summary do
   ## Examples
 
       iex> %Summary{ transactions: [
-      ...>   %Transaction{timestamp: ~U[2021-04-29 13:10:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-      ...>   %Transaction{timestamp: ~U[2021-04-29 13:00:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
+      ...>   %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
+      ...>   %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
       ...> ]}
       ...> |> Summary.aggregate()
       %Summary{
         transactions: [
-          %Transaction{timestamp: ~U[2021-04-29 13:10:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-          %Transaction{timestamp: ~U[2021-04-29 13:00:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
+          %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
+          %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
         ],
         aggregated: %{
           ~U[2021-04-29 13:00:00Z] => %{ "uco" => %{ "eur" => 0.021, "usd" => 0.019 }},
@@ -44,7 +45,10 @@ defmodule Uniris.OracleChain.Summary do
   def aggregate(summary = %__MODULE__{transactions: transactions}) do
     aggregated =
       transactions
-      |> Enum.map(fn %Transaction{timestamp: timestamp, data: %TransactionData{content: content}} ->
+      |> Enum.map(fn %Transaction{
+                       data: %TransactionData{content: content},
+                       validation_stamp: %ValidationStamp{timestamp: timestamp}
+                     } ->
         data = Jason.decode!(content)
 
         {DateTime.truncate(timestamp, :second), data}
@@ -65,8 +69,8 @@ defmodule Uniris.OracleChain.Summary do
       ...>      ~U[2021-04-29 13:10:00Z] => %{ "uco" => %{ "eur" => 0.02, "usd" => 0.018 }}
       ...>   },
       ...>   transactions: [
-      ...>     %Transaction{timestamp: ~U[2021-04-29 13:10:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
-      ...>     %Transaction{timestamp: ~U[2021-04-29 13:00:00Z], data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
+      ...>     %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:10:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.02, \"usd\":0.018}}"}},
+      ...>     %Transaction{validation_stamp: %ValidationStamp{timestamp: ~U[2021-04-29 13:00:00Z]}, data: %TransactionData{content: "{\"uco\":{\"eur\":0.021, \"usd\":0.019}}"}}
       ...>   ]
       ...> } |> Summary.verify?()
       true

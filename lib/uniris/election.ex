@@ -21,8 +21,8 @@ defmodule Uniris.Election do
   @doc """
   Create a seed to sort the validation nodes. This will produce a proof for the election
   """
-  @spec validation_nodes_election_seed_sorting(Transaction.t()) :: binary()
-  def validation_nodes_election_seed_sorting(tx = %Transaction{timestamp: timestamp}) do
+  @spec validation_nodes_election_seed_sorting(Transaction.t(), DateTime.t()) :: binary()
+  def validation_nodes_election_seed_sorting(tx = %Transaction{}, timestamp = %DateTime{}) do
     tx_hash =
       tx
       |> Transaction.to_pending()
@@ -69,7 +69,6 @@ defmodule Uniris.Election do
       ...>     <<0, 120, 195, 32, 77, 84, 215, 196, 116, 215, 56, 141, 40, 54, 226, 48, 66, 254, 119,
       ...>       11, 73, 77, 243, 125, 62, 94, 133, 67, 9, 253, 45, 134, 89>>,
       ...>   type: :transfer,
-      ...>   timestamp: ~U[2020-06-25 08:57:04.288413Z],
       ...>   data: %TransactionData{},
       ...>   previous_public_key:
       ...>     <<0, 239, 240, 90, 182, 66, 190, 68, 20, 250, 131, 83, 190, 29, 184, 177, 52, 166, 207,

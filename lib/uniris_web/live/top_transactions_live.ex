@@ -46,7 +46,7 @@ defmodule UnirisWeb.TopTransactionLive do
   defp get_last_n(transactions, n) do
     transactions
     |> Stream.reject(&(&1.type == :beacon))
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    |> Enum.sort_by(& &1.validation_stamp.timestamp, {:desc, DateTime})
     |> Enum.take(n)
   end
 end

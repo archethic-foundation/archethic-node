@@ -165,7 +165,7 @@ defmodule Uniris.Bootstrap do
   end
 
   defp post_bootstrap(opts) do
-    last_sync_date = Keyword.get(opts, :last_sync_date, DateTime.utc_now())
+    last_sync_date = Keyword.get(opts, :last_sync_date, SelfRepair.default_last_sync_date())
 
     if Keyword.get(opts, :sync?, true) do
       patch = Keyword.fetch!(opts, :patch)

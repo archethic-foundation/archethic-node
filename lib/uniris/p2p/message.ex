@@ -41,6 +41,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetTransactionInputs
   alias __MODULE__.GetTransactionSummary
   alias __MODULE__.GetUnspentOutputs
+  alias __MODULE__.InvalidTransaction
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
@@ -125,6 +126,7 @@ defmodule Uniris.P2P.Message do
           | FirstPublicKey.t()
           | TransactionChainLength.t()
           | TransactionInputList.t()
+          | InvalidTransaction.t()
 
   @doc """
   Serialize a message into binary
@@ -204,19 +206,42 @@ defmodule Uniris.P2P.Message do
   def encode(%CrossValidate{
         address: address,
         validation_stamp: stamp,
-        replication_tree: replication_tree
+        replication_tree: %{
+          chain: chain_replication_tree,
+          beacon: beacon_replication_tree,
+          IO: io_replication_tree
+        }
       }) do
-    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring,
-      length(replication_tree)::8, bit_size(List.first(replication_tree)),
-      :erlang.list_to_bitstring(replication_tree)::bitstring>>
+    nb_validation_nodes = length(chain_replication_tree)
+    tree_size = chain_replication_tree |> List.first() |> bit_size()
+
+    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
+      tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
+      :erlang.list_to_bitstring(beacon_replication_tree)::bitstring,
+      :erlang.list_to_bitstring(io_replication_tree)::bitstring>>
   end
 
   def encode(%CrossValidationDone{address: address, cross_validation_stamp: stamp}) do
     <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
-  def encode(%ReplicateTransaction{transaction: tx}) do
-    <<11::8, Transaction.serialize(tx)::bitstring>>
+  def encode(%ReplicateTransaction{transaction: tx, roles: roles, ack_storage?: ack_storage?}) do
+    roles_bitstring =
+      Enum.reduce(roles, <<0::1, 0::1, 0::1>>, fn
+        :chain, acc ->
+          Utils.set_bitstring_bit(acc, 0)
+
+        :IO, acc ->
+          Utils.set_bitstring_bit(acc, 1)
+
+        :beacon, acc ->
+          Utils.set_bitstring_bit(acc, 2)
+      end)
+
+    ack_storage_bit = if ack_storage?, do: 1, else: 0
+
+    <<11::8, Transaction.serialize(tx)::bitstring, roles_bitstring::bitstring,
+      ack_storage_bit::1>>
   end
 
   def encode(%AcknowledgeStorage{address: address}) do
@@ -292,6 +317,8 @@ defmodule Uniris.P2P.Message do
   def encode(%NodeAvailability{public_key: node_public_key}) do
     <<27::8, node_public_key::binary>>
   end
+
+  def encode(%InvalidTransaction{}), do: <<238>>
 
   def encode(tx_summary = %TransactionSummary{}) do
     <<239::8, TransactionSummary.serialize(tx_summary)::binary>>
@@ -497,13 +524,20 @@ defmodule Uniris.P2P.Message do
     {address, rest} = deserialize_hash(rest)
     {validation_stamp, rest} = ValidationStamp.deserialize(rest)
 
-    <<nb_sequences::8, sequence_size::8, rest::bitstring>> = rest
-    {replication_tree, rest} = deserialize_bit_sequences(rest, nb_sequences, sequence_size, [])
+    <<nb_validations::8, tree_size::8, rest::bitstring>> = rest
+
+    {chain_tree, rest} = deserialize_bit_sequences(rest, nb_validations, tree_size, [])
+    {beacon_tree, rest} = deserialize_bit_sequences(rest, nb_validations, tree_size, [])
+    {io_tree, rest} = deserialize_bit_sequences(rest, nb_validations, tree_size, [])
 
     {%CrossValidate{
        address: address,
        validation_stamp: validation_stamp,
-       replication_tree: replication_tree
+       replication_tree: %{
+         chain: chain_tree,
+         beacon: beacon_tree,
+         IO: io_tree
+       }
      }, rest}
   end
 
@@ -518,10 +552,24 @@ defmodule Uniris.P2P.Message do
   end
 
   def decode(<<11::8, rest::bitstring>>) do
-    {tx, rest} = Transaction.deserialize(rest)
+    {tx,
+     <<chain_role_bit::1, io_role_bit::1, beacon_role_bit::1, ack_storage_bit::1,
+       rest::bitstring>>} = Transaction.deserialize(rest)
+
+    roles =
+      [
+        {:chain, chain_role_bit == 1 || false},
+        {:IO, io_role_bit == 1 || false},
+        {:beacon, beacon_role_bit == 1 || false}
+      ]
+      |> Utils.get_keys_from_value_match(true)
+
+    ack_storage? = ack_storage_bit == 1 || false
 
     {%ReplicateTransaction{
-       transaction: tx
+       transaction: tx,
+       roles: roles,
+       ack_storage?: ack_storage?
      }, rest}
   end
 
@@ -637,6 +685,10 @@ defmodule Uniris.P2P.Message do
   def decode(<<27::8, rest::binary>>) do
     {public_key, rest} = deserialize_public_key(rest)
     {%NodeAvailability{public_key: public_key}, rest}
+  end
+
+  def decode(<<238, rest::bitstring>>) do
+    {%InvalidTransaction{}, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -931,45 +983,27 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%ReplicateTransaction{
-        transaction:
-          tx = %Transaction{
-            type: type,
-            address: address,
-            timestamp: timestamp,
-            validation_stamp: %ValidationStamp{ledger_operations: ledger_operations}
-          }
+        transaction: tx = %Transaction{address: address, type: type},
+        roles: roles,
+        ack_storage?: ack_storage?
       }) do
     if TransactionChain.transaction_exists?(address) do
       Logger.debug("Transaction already existing",
-        transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+        transaction: "#{type}@#{Base.encode16(address)}"
       )
 
       %Ok{}
     else
-      roles =
-        [
-          chain: Replication.chain_storage_node?(address, type, Crypto.node_public_key()),
-          beacon: Replication.beacon_storage_node?(address, timestamp, Crypto.node_public_key()),
-          IO: Replication.io_storage_node?(ledger_operations, Crypto.node_public_key())
-        ]
-        |> Utils.get_keys_from_value_match(true)
+      Logger.info("Replicate transaction",
+        transaction: "#{type}@#{Base.encode16(address)}"
+      )
 
-      case roles do
-        [] ->
+      case Replication.process_transaction(tx, roles, ack_storage?: ack_storage?) do
+        :ok ->
           %Ok{}
 
-        replication_roles ->
-          Logger.info("Replicate transaction",
-            transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
-          )
-
-          Task.Supervisor.start_child(
-            TaskSupervisor,
-            fn -> Replication.process_transaction(tx, replication_roles, ack_storage?: true) end,
-            restart: :transient
-          )
-
-          %Ok{}
+        _ ->
+          %InvalidTransaction{}
       end
     end
   end

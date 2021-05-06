@@ -79,9 +79,13 @@ defmodule Uniris.Mining.DistributedWorkflow do
   Otherwise the inconsistencies will be signed.
   """
   @spec cross_validate(
-          worker_pid :: pid() | {atom, any} | {:via, atom, any},
+          worker_pid :: pid(),
           ValidationStamp.t(),
-          replication_tree :: list(bitstring())
+          replication_tree :: %{
+            chain: list(bitstring()),
+            beacon: list(bitstring()),
+            IO: list(bitstring())
+          }
         ) :: :ok
   def cross_validate(pid, stamp = %ValidationStamp{}, replication_tree) do
     GenStateMachine.cast(pid, {:cross_validate, stamp, replication_tree})
@@ -104,7 +108,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
-    beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, tx.timestamp)
+    beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, DateTime.utc_now())
 
     context =
       ValidationContext.new(
@@ -449,11 +453,12 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
   def handle_event(
         :info,
-        {:acknowledge_storage, replication_node_public_key},
+        {:acknowledge_storage, replication_node_public_key, tree_types},
         :replication,
         data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
-    new_context = ValidationContext.confirm_replication(context, replication_node_public_key)
+    new_context =
+      ValidationContext.confirm_replication(context, replication_node_public_key, tree_types)
 
     if ValidationContext.enough_replication_confirmations?(new_context) do
       Logger.info("Replication finished", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
@@ -553,33 +558,37 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     Logger.debug(
       "Send validated transaction to #{
-        storage_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+        storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",") }" end) |> Enum.join(",")
       }",
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 
-    message = %ReplicateTransaction{
-      transaction: ValidationContext.get_validated_transaction(context)
-    }
+    validated_tx = ValidationContext.get_validated_transaction(context)
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       storage_nodes,
-      fn node ->
+      fn {node, roles} ->
+        message = %ReplicateTransaction{
+          transaction: validated_tx,
+          roles: roles,
+          ack_storage?: true
+        }
+
         case P2P.send_message(node, message) do
           {:ok, %Ok{}} ->
-            {:ok, node}
+            {:ok, node, roles}
 
-          {:error, :network_issue} ->
-            {:error, :network_issue}
+          _ ->
+            :error
         end
       end,
       on_timeout: :kill_task,
       ordered?: false
     )
-    |> Stream.filter(&match?({:ok, {:ok, %Node{}}}, &1))
-    |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}}} ->
-      send(worker_pid, {:acknowledge_storage, node_key})
+    |> Stream.filter(&match?({:ok, {:ok, %Node{}, _}}, &1))
+    |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}, roles}} ->
+      send(worker_pid, {:acknowledge_storage, node_key, roles})
     end)
     |> Stream.run()
   end

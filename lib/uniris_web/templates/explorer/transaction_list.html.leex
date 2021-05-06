@@ -30,7 +30,7 @@
                 <small>There are no matching results</small>
             </div>
         <% end %>
-        <%= for tx <- Enum.slice(@displayed_transactions, 0, @page * @transactions_by_page) |> Enum.sort_by(& &1.timestamp, {:desc, DateTime}) do %>
+        <%= for tx <- Enum.slice(@displayed_transactions, 0, @page * @transactions_by_page) |> Enum.sort_by(& &1.validation_stamp.timestamp, {:desc, DateTime}) do %>
             <%= render "transaction_summary.html", transaction: tx, conn: @socket %>
             <hr class="hr" />
         <% end %>

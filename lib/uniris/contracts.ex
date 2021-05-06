@@ -17,6 +17,7 @@ defmodule Uniris.Contracts do
   alias Crontab.DateChecker, as: CronDateChecker
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   require Logger
@@ -195,13 +196,13 @@ defmodule Uniris.Contracts do
   end
 
   defp valid_from_trigger?(%Trigger{type: :datetime, opts: [at: datetime]}, %Transaction{
-         timestamp: timestamp
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
     DateTime.diff(timestamp, datetime) == 0
   end
 
   defp valid_from_trigger?(%Trigger{type: :interval, opts: [at: interval]}, %Transaction{
-         timestamp: timestamp
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
        }) do
     interval
     |> CronParser.parse!(true)

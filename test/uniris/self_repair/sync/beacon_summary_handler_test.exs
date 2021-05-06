@@ -103,7 +103,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
     P2P.add_and_connect_node(node3)
     P2P.add_and_connect_node(node4)
 
-    # Batcher requires the local node to get the network patch for closest nodes comparison
     P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.node_public_key(),
       network_patch: "AAA",
@@ -265,7 +264,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
             %TransactionSummary{
               address: transfer_tx.address,
               type: :transfer,
-              timestamp: transfer_tx.timestamp
+              timestamp: transfer_tx.validation_stamp.timestamp
             }
           ]
         },
@@ -276,7 +275,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
             %TransactionSummary{
               address: node_tx.address,
               type: :node,
-              timestamp: node_tx.timestamp
+              timestamp: node_tx.validation_stamp.timestamp
             }
           ]
         }

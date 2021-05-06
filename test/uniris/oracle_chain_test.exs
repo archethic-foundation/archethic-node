@@ -4,6 +4,7 @@ defmodule Uniris.OracleChainTest do
   alias Uniris.OracleChain
 
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   import Mox
@@ -37,13 +38,15 @@ defmodule Uniris.OracleChainTest do
     chain = [
       %Transaction{
         type: :oracle,
-        timestamp: DateTime.from_unix!(last_update_at),
         data: %TransactionData{
           content:
             %{
               "uco" => %{"eur" => 0.20, "usd" => 0.12}
             }
             |> Jason.encode!()
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.from_unix!(last_update_at)
         }
       }
     ]

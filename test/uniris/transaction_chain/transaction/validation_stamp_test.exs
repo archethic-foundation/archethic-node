@@ -26,6 +26,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStampTest do
       expect(MockCrypto, :sign_with_node_key, &Crypto.sign(&1, pv))
 
       assert %ValidationStamp{
+               timestamp: DateTime.utc_now(),
                proof_of_work: proof_of_work,
                proof_of_integrity: proof_of_integrity,
                proof_of_election: proof_of_election,

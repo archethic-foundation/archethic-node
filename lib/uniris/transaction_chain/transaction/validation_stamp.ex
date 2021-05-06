@@ -8,6 +8,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   alias __MODULE__.LedgerOperations
 
   defstruct [
+    :timestamp,
     :signature,
     :proof_of_work,
     :proof_of_integrity,
@@ -21,6 +22,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   @typedoc """
   Validation performed by a coordinator:
+  - Timestamp: DateTime instance representing the timestamp of the transaction validation
   - Proof of work: Origin public key matching the origin signature
   - Proof of integrity: Integrity proof from the entire transaction chain
   - Proof of election: Digest which define the election's order of validation nodes
@@ -31,6 +33,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   - Errors: list of errors returned by the pending transaction validation or after mining context
   """
   @type t :: %__MODULE__{
+          timestamp: DateTime.t(),
           signature: nil | binary(),
           proof_of_work: Crypto.key(),
           proof_of_integrity: Crypto.versioned_hash(),
@@ -56,6 +59,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   """
   @spec extract_for_signature(__MODULE__.t()) :: __MODULE__.t()
   def extract_for_signature(%__MODULE__{
+        timestamp: timestamp,
         proof_of_work: pow,
         proof_of_integrity: poi,
         proof_of_election: poe,
@@ -64,6 +68,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         errors: errors
       }) do
     %__MODULE__{
+      timestamp: timestamp,
       proof_of_work: pow,
       proof_of_integrity: poi,
       proof_of_election: poe,
@@ -79,6 +84,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   ## Examples
 
       iex> %ValidationStamp{
+      ...>   timestamp: ~U[2021-05-07 13:11:19Z],
       ...>   proof_of_work: <<0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...>     155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206>>,
       ...>   proof_of_integrity: <<0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
@@ -100,6 +106,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> }
       ...> |> ValidationStamp.serialize()
       <<
+      # Timestamp
+      96, 149, 60, 119,
       # Flag if the proof of work is founded
       1::1,
       # Proof of work
@@ -136,6 +144,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   """
   @spec serialize(__MODULE__.t()) :: bitstring()
   def serialize(%__MODULE__{
+        timestamp: timestamp,
         proof_of_work: pow,
         proof_of_integrity: poi,
         proof_of_election: poe,
@@ -146,13 +155,14 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       }) do
     pow_bitstring = if pow, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp)::32, pow_bitstring::1, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring>>
   end
 
   def serialize(%__MODULE__{
+        timestamp: timestamp,
         proof_of_work: pow,
         proof_of_integrity: poi,
         proof_of_election: poe,
@@ -163,7 +173,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       }) do
     pow_bitstring = if pow, do: 1, else: 0
 
-    <<pow_bitstring::1, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp)::32, pow_bitstring::1, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
@@ -174,7 +184,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<1::1, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      iex> <<96, 149, 60, 119, 1::1, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
@@ -190,6 +200,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       ...> |> ValidationStamp.deserialize()
       {
         %ValidationStamp{
+          timestamp: ~U[2021-05-07 13:11:19Z],
           proof_of_work: <<0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
             155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,>>,
           proof_of_integrity: << 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
@@ -214,7 +225,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         ""
       }
   """
-  def deserialize(<<origin_sig_ok::1, rest::bitstring>>) do
+  def deserialize(<<timestamp::32, origin_sig_ok::1, rest::bitstring>>) do
     {pow, rest} =
       case origin_sig_ok do
         0 ->
@@ -243,6 +254,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
     {
       %__MODULE__{
+        timestamp: DateTime.from_unix!(timestamp),
         proof_of_work: pow,
         proof_of_integrity: <<poi_hash_id::8, poi_hash::binary>>,
         proof_of_election: poe,
@@ -258,6 +270,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
   @spec from_map(map()) :: __MODULE__.t()
   def from_map(stamp = %{}) do
     %__MODULE__{
+      timestamp: Map.get(stamp, :timestamp),
       proof_of_work: Map.get(stamp, :proof_of_work),
       proof_of_integrity: Map.get(stamp, :proof_of_integrity),
       proof_of_election: Map.get(stamp, :proof_of_election),
@@ -273,6 +286,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   @spec to_map(__MODULE__.t()) :: map()
   def to_map(%__MODULE__{
+        timestamp: timestamp,
         proof_of_work: pow,
         proof_of_integrity: poi,
         proof_of_election: poe,
@@ -282,6 +296,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         errors: errors
       }) do
     %{
+      timestamp: timestamp,
       proof_of_work: pow,
       proof_of_integrity: poi,
       proof_of_election: poe,

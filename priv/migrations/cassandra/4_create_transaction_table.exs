@@ -4,7 +4,6 @@ defmodule Uniris.DB.CassandraImpl.Migrations.CreateTransactionTable do
     CREATE TABLE IF NOT EXISTS uniris.transactions (
       address blob,
       type varchar,
-      timestamp timestamp,
       data frozen<pending_transaction_data>,
       previous_public_key blob,
       previous_signature blob,
