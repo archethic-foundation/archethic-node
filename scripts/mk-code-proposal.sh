@@ -15,6 +15,10 @@ feature_branch=$(git rev-parse --abbrev-ref HEAD)
 feature_log=$(git log --format="  * %B" master..)
 summary="📦 ${feature_branch}\n\n${feature_log}"
 
+cleanup() { git checkout $feature_branch; }
+
+trap cleanup ERR
+
 set -e
 
 git checkout master
