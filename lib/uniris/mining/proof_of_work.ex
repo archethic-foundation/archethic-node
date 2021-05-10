@@ -26,7 +26,7 @@ defmodule Uniris.Mining.ProofOfWork do
   @doc """
   Scan a list of public keys to determine which one matches the transaction's origin signature.
 
-  Once the match is made, the scan is stopped. 
+  Once the match is made, the scan is stopped.
   At the end of the scan, if not public keys has matched the origin signature, return an `{:error, :not_found}` tuple
 
   ## Examples
@@ -69,7 +69,7 @@ defmodule Uniris.Mining.ProofOfWork do
       ...>    type: :transfer
       ...>  })
       {
-        :ok, 
+        :ok,
         # The 4th public key matches
         <<1, 4, 136, 245, 70, 214, 137, 25, 191, 156, 175, 14, 177, 114, 88, 106, 66,
           130, 76, 103, 192, 123, 194, 157, 49, 203, 162, 120, 57, 162, 31, 25, 76, 238,
@@ -128,12 +128,12 @@ defmodule Uniris.Mining.ProofOfWork do
         [previous_key]
 
       _ ->
-        P2P.list_node_first_public_keys()
+        P2P.list_authorized_public_keys()
     end
   end
 
   def list_origin_public_keys_candidates(%Transaction{type: :node_shared_secrets}) do
-    P2P.list_node_first_public_keys()
+    P2P.list_authorized_public_keys()
   end
 
   def list_origin_public_keys_candidates(%Transaction{}),

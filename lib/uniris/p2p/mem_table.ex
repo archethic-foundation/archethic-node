@@ -313,16 +313,7 @@ defmodule Uniris.P2P.MemTable do
   end
 
   @doc """
-  List the P2P nodes supporting filtering by availability and authorization
-
-  Options:
-  - availability: define the level of reachability for the node to retrieve.
-      - `global` means the node have been discovered as online during the beacon chain summary.
-      - `local` means `the node have exchanged successfully for the last time
-  - `authorized?`: determine if the node to retrieve must be an authorized one
-
-  **Note**: this options can be overlapped to produce a more fined grained node selection
-              (i.e authorized but only locally available)
+  List the P2P nodes
 
   ## Examples
 
@@ -336,52 +327,28 @@ defmodule Uniris.P2P.MemTable do
       iex> MemTable.add_node(node)
       iex> [node] == MemTable.list_nodes()
       true
+  """
+  @spec list_nodes() :: list(Node.t())
+  def list_nodes do
+    :ets.foldl(
+      fn entry, acc ->
+        node =
+          entry
+          |> Node.cast()
+          |> toggle_node_authorization()
+          |> toggle_node_availability()
 
-    Returns only the nodes which are globally available
+        [node | acc]
+      end,
+      [],
+      @discovery_table
+    )
+  end
 
-      iex> MemTable.start_link()
-      iex> node1 = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2",
-      ...>   available?: false
-      ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   first_public_key: "key3",
-      ...>   last_public_key: "key3",
-      ...>   available?: true
-      ...> }
-      iex> MemTable.add_node(node2)
-      iex> [node2] == MemTable.list_nodes(availability: :global)
-      true
+  @doc """
+  List the authorized nodes
 
-    Returns only the nodes which are locally available
-
-      iex> MemTable.start_link()
-      iex> node1 = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2",
-      ...>   availability_history: <<0::1, 1::1>>
-      ...> }
-      iex> MemTable.add_node(node1)
-      iex> node2 = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   first_public_key: "key3",
-      ...>   last_public_key: "key3",
-      ...>   availability_history: <<1::1, 1::1>>
-      ...> }
-      iex> MemTable.add_node(node2)
-      iex> [node2] == MemTable.list_nodes(availability: :local)
-      true
-
-   Returns only the nodes which are authorized
+  ## Examples
 
       iex> MemTable.start_link()
       iex> node1 = %Node{
@@ -397,112 +364,74 @@ defmodule Uniris.P2P.MemTable do
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3",
       ...>   authorized?: true,
+      ...>   available?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...> }
       iex> MemTable.add_node(node2)
-      iex> [node2] == MemTable.list_nodes(authorized?: true)
+      iex> [node2] == MemTable.authorized_nodes()
       true
   """
-  @spec list_nodes(availability: :global | :local, authorized?: boolean) :: list(Node.t())
-  def list_nodes(opts \\ []) do
-    availability = Keyword.get(opts, :availability)
-    authorized? = Keyword.get(opts, :authorized?, false)
-
-    do_list_nodes(authorized?: authorized?, availability: availability)
-  end
-
-  defp do_list_nodes(authorized?: true, availability: :local) do
+  @spec authorized_nodes() :: list(Node.t())
+  def authorized_nodes do
     :ets.foldl(
       fn {key, authorization_date}, acc ->
         [res] = :ets.lookup(@discovery_table, key)
-        node = Node.cast(res)
 
-        if Node.locally_available?(node) do
-          [Node.authorize(node, authorization_date) | acc]
-        else
-          acc
-        end
-      end,
-      [],
-      @authorized_nodes_table
-    )
-  end
-
-  defp do_list_nodes(authorized?: true, availability: :global) do
-    :ets.foldl(
-      fn {key, authorization_date}, acc ->
-        if :ets.member(@availability_lookup_table, key) do
-          [res] = :ets.lookup(@discovery_table, key)
-          node = Node.cast(res)
-          [Node.authorize(node, authorization_date) | acc]
-        else
-          acc
-        end
-      end,
-      [],
-      @authorized_nodes_table
-    )
-  end
-
-  defp do_list_nodes(authorized?: true, availability: _) do
-    :ets.foldl(
-      fn {key, authorization_date}, acc ->
-        [res] = :ets.lookup(@discovery_table, key)
-        node = Node.cast(res)
-        [Node.authorize(node, authorization_date) | acc]
-      end,
-      [],
-      @authorized_nodes_table
-    )
-  end
-
-  defp do_list_nodes(authorized?: _, availability: :global) do
-    list_node_first_public_keys()
-    |> Enum.filter(&:ets.member(@availability_lookup_table, &1))
-    |> Enum.map(fn key ->
-      [entry] = :ets.lookup(@discovery_table, key)
-
-      entry
-      |> Node.cast()
-      |> toggle_node_authorization()
-      |> Node.available()
-    end)
-  end
-
-  defp do_list_nodes(authorized?: _, availability: :local) do
-    :ets.foldl(
-      fn entry, acc ->
-        node = Node.cast(entry)
-
-        if Node.locally_available?(node) do
-          node =
-            node
-            |> toggle_node_authorization()
-            |> toggle_node_availability()
-
-          [node | acc]
-        else
-          acc
-        end
-      end,
-      [],
-      @discovery_table
-    )
-  end
-
-  defp do_list_nodes(_) do
-    :ets.foldl(
-      fn entry, acc ->
         node =
-          entry
+          res
           |> Node.cast()
-          |> toggle_node_authorization()
+          |> Node.authorize(authorization_date)
           |> toggle_node_availability()
 
         [node | acc]
       end,
       [],
-      @discovery_table
+      @authorized_nodes_table
+    )
+  end
+
+  @doc """
+  List the nodes whicih are globally available
+
+  ## Examples
+
+      iex> MemTable.start_link()
+      iex> node1 = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   first_public_key: "key1",
+      ...>   last_public_key: "key2"
+      ...> }
+      iex> MemTable.add_node(node1)
+      iex> node2 = %Node{
+      ...>   ip: {127, 0, 0, 1},
+      ...>   port: 3000,
+      ...>   first_public_key: "key3",
+      ...>   last_public_key: "key3",
+      ...>   available?: true,
+      ...>   authorized?: true,
+      ...>   authorization_date: DateTime.utc_now()
+      ...> }
+      iex> MemTable.add_node(node2)
+      iex> [node2] == MemTable.available_nodes()
+      true
+  """
+  @spec available_nodes() :: list(Node.t())
+  def available_nodes do
+    :ets.foldl(
+      fn {key}, acc ->
+        [res] = :ets.lookup(@discovery_table, key)
+
+        node =
+          res
+          |> Node.cast()
+          |> toggle_node_authorization()
+          |> Node.available()
+
+        [node | acc]
+      end,
+      [],
+      @availability_lookup_table
     )
   end
 

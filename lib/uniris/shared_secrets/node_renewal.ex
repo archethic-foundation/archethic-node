@@ -50,7 +50,7 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   @spec next_authorized_node_public_keys() :: list(Crypto.key())
   def next_authorized_node_public_keys do
     SelfRepair.get_latest_tps()
-    |> Election.next_authorized_nodes(P2P.list_nodes(availability: :global))
+    |> Election.next_authorized_nodes(P2P.available_nodes())
     |> Enum.map(& &1.last_public_key)
   end
 

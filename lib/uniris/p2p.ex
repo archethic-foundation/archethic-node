@@ -41,16 +41,15 @@ defmodule Uniris.P2P do
 
   @doc """
   List the nodes registered.
-
-  Options are used to filter the selection:
-  - `availability`: filter nodes based on the level of availability:
-    - `global`: Node discovered and available from the beacon chain daily summary
-    - `local`: Node discovered and available from the last exchange
-  - `authorized?`: if `true`, take only the authorized nodes
   """
-  @spec list_nodes(opts :: [availability: :global | :local, authorized?: boolean()]) ::
-          list(Node.t())
-  defdelegate list_nodes(opts \\ []), to: MemTable
+  @spec list_nodes() :: list(Node.t())
+  defdelegate list_nodes, to: MemTable
+
+  @doc """
+  Return the list of available nodes
+  """
+  @spec available_nodes() :: list(Node.t())
+  defdelegate available_nodes, to: MemTable
 
   @doc """
   Add a node first public key to the list of nodes globally available.
@@ -91,7 +90,7 @@ defmodule Uniris.P2P do
   @spec authorized_node?(Crypto.key()) :: boolean()
   def authorized_node?(node_public_key \\ Crypto.node_public_key(0))
       when is_binary(node_public_key) do
-    Utils.key_in_node_list?(authorized_nodes(), node_public_key)
+    Utils.key_in_node_list?(authorized_nodes(DateTime.utc_now()), node_public_key)
   end
 
   @doc """
@@ -99,7 +98,10 @@ defmodule Uniris.P2P do
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
   def authorized_nodes(date = %DateTime{} \\ DateTime.utc_now()) do
-    Enum.filter(list_nodes(authorized?: true), &(DateTime.diff(&1.authorization_date, date) <= 0))
+    Enum.filter(
+      MemTable.authorized_nodes(),
+      &(DateTime.diff(&1.authorization_date, DateTime.truncate(date, :second)) <= 0)
+    )
   end
 
   @doc """

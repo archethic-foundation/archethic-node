@@ -12,7 +12,7 @@ defmodule UnirisWeb.ExplorerIndexLive do
   alias UnirisWeb.ExplorerView
 
   def mount(_params, _session, socket) do
-    nb_nodes = P2P.list_nodes(availability: :global) |> length()
+    nb_nodes = P2P.authorized_nodes() |> length()
     tps = SelfRepair.get_latest_tps()
     nb_transactions = SelfRepair.get_nb_transactions()
 
@@ -44,7 +44,7 @@ defmodule UnirisWeb.ExplorerIndexLive do
   end
 
   def handle_info({:node_update, _}, socket) do
-    nb_nodes = P2P.list_nodes(availability: :global) |> length()
+    nb_nodes = P2P.authorized_nodes() |> length()
     {:noreply, assign(socket, :nb_nodes, nb_nodes)}
   end
 
