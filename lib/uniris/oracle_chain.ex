@@ -39,7 +39,7 @@ defmodule Uniris.OracleChain do
       true
     else
       {:error, _} ->
-        true
+        false
 
       false ->
         false
