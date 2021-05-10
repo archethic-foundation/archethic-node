@@ -616,27 +616,4 @@ defmodule Uniris.Replication do
       Election.get_storage_constraints()
     )
   end
-
-  # defp forward_replication(
-  #        tx = %Transaction{
-  #          address: address,
-  #          type: type
-  #        }
-  #      ) do
-  #   pending_storage_nodes =
-  #     (P2P.available_nodes() -- P2P.authorized_nodes())
-
-  #   secondary_tree = generate_tree(P2P.authorized_nodes(), pending_storage_nodes) |> IO.inspect()
-
-  #   case Map.get(secondary_tree, Crypto.node_public_key(0)) do
-  #     nil ->
-  #       :ok
-
-  #     node_list ->
-  #       address
-  #       |> chain_storage_nodes_with_type(type, node_list)
-  #       |> IO.inspect()
-  #       |> P2P.broadcast_message(%ReplicateTransaction{transaction: tx, roles: [:chain]})
-  #   end
-  # end
 end

@@ -66,8 +66,17 @@ defmodule Uniris.Mining.TransactionContext do
   end
 
   defp previous_nodes_distribution(previous_address, nb_sub_lists, sample_size) do
+    authorized_nodes = P2P.authorized_nodes()
+
+    node_list =
+      if length(authorized_nodes) == 1 do
+        authorized_nodes
+      else
+        Enum.reject(authorized_nodes, &(&1.first_public_key == Crypto.node_public_key()))
+      end
+
     previous_address
-    |> Replication.chain_storage_nodes()
+    |> Replication.chain_storage_nodes(node_list)
     |> NodeDistribution.split_storage_nodes(nb_sub_lists, sample_size)
   end
 
