@@ -415,7 +415,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
     )
 
     MaliciousDetection.start_link(context)
-    :keep_state_and_data
+    :stop
   end
 
   def handle_event(
@@ -481,6 +481,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
     :stop
   end
 
+  # Reject unexpected events
+  def handle_event(_, _, _, _), do: :keep_state_and_data
+
   defp notify_transaction_context(
          %ValidationContext{
            transaction: %Transaction{address: tx_address, type: tx_type},
@@ -492,21 +495,19 @@ defmodule Uniris.Mining.DistributedWorkflow do
          },
          node_public_key
        ) do
-    Logger.debug("Send mining context to #{:inet.ntoa(coordinator_node.ip)}",
+    Logger.debug(
+      "Send mining context to #{Node.endpoint(coordinator_node)}",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
 
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
-      P2P.send_message!(coordinator_node, %AddMiningContext{
-        address: tx_address,
-        validation_node_public_key: node_public_key,
-        previous_storage_nodes_public_keys:
-          Enum.map(previous_storage_nodes, & &1.last_public_key),
-        validation_nodes_view: validation_nodes_view,
-        chain_storage_nodes_view: chain_storage_nodes_view,
-        beacon_storage_nodes_view: beacon_storage_nodes_view
-      })
-    end)
+    P2P.send_message(coordinator_node, %AddMiningContext{
+      address: tx_address,
+      validation_node_public_key: node_public_key,
+      previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
+      validation_nodes_view: validation_nodes_view,
+      chain_storage_nodes_view: chain_storage_nodes_view,
+      beacon_storage_nodes_view: beacon_storage_nodes_view
+    })
   end
 
   defp request_cross_validations(%ValidationContext{
