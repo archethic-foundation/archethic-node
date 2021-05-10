@@ -7,6 +7,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Message.NotFound
 
   alias Uniris.Replication
 
@@ -50,16 +51,27 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   """
   @spec download_transaction(TransactionSummary.t(), patch :: binary()) ::
           :ok | {:error, :invalid_transaction}
-  def download_transaction(%TransactionSummary{address: address, type: type}, node_patch)
+  def download_transaction(
+        %TransactionSummary{address: address, type: type, timestamp: timestamp},
+        node_patch
+      )
       when is_binary(node_patch) do
     Logger.info("Synchronize missed transaction", transaction: "#{type}@#{Base.encode16(address)}")
 
     storage_nodes =
-      address
-      |> Replication.chain_storage_nodes_with_type(type)
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      case P2P.authorized_nodes(timestamp) do
+        [] ->
+          Replication.chain_storage_nodes_with_type(address, type)
 
-    case P2P.reply_first(storage_nodes, %GetTransaction{address: address}) do
+        nodes ->
+          Replication.chain_storage_nodes_with_type(address, type, nodes)
+      end
+      
+    response = storage_nodes
+    |> Enum.reject(& &1.first_public_key == Crypto.node_public_key(0))
+    |> P2P.reply_first(%GetTransaction{address: address})
+
+    case response do
       {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}}} ->
         node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
 
@@ -78,8 +90,15 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
         Replication.process_transaction(tx, roles, self_repair?: true)
 
-      _ ->
-        raise "Transaction #{Base.encode16(address)} not found from remote nodes during self repair"
+      {:ok, %NotFound{}} ->
+        Logger.error("Transaction not found from remote nodes during self repair",
+          transaction: "#{type}@#{Base.encode16(address)}"
+        )
+
+      {:error, :network_issue} ->
+        Logger.error("Network issue during during self repair",
+          transaction: "#{type}@#{Base.encode16(address)}"
+        )
     end
   end
 end

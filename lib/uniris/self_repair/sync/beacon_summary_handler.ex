@@ -3,8 +3,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.Slot, as: BeaconSlot
-  alias Uniris.BeaconChain.Slot.EndOfNodeSync
-  alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.Summary, as: BeaconSummary
 
   alias Uniris.Crypto
@@ -109,77 +107,89 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    nb_transactions_by_times =
-      Enum.reduce(
-        summaries,
-        %{},
-        fn summary = %BeaconSummary{
-             transaction_summaries: transactions,
-             summary_time: summary_time
-           },
-           acc ->
-          load_summary_in_db(summary)
-          do_handle_missing_summary(summary, node_patch)
+    load_summaries_in_db(summaries)
 
-          Map.update(acc, summary_time, length(transactions), &(&1 + length(transactions)))
-        end
-      )
+    %{transactions: transactions, ends_of_sync: ends_of_sync, stats: stats} =
+      reduce_summaries(summaries)
 
-    Enum.each(nb_transactions_by_times, fn {time, nb_transactions} ->
-      update_statistics(time, nb_transactions)
-    end)
+    synchronize_transactions(transactions, node_patch)
+
+    Enum.each(ends_of_sync, &P2P.set_node_globally_available(&1.public_key))
+
+    update_statistics(stats)
   end
 
-  defp do_handle_missing_summary(
+  defp load_summaries_in_db(summaries) do
+    Task.async_stream(
+      summaries,
+      fn summary = %BeaconSummary{subset: subset, summary_time: summary_time} ->
+        node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+
+        beacon_nodes =
+          Election.beacon_storage_nodes(
+            subset,
+            summary_time,
+            node_list,
+            Election.get_storage_constraints()
+          )
+
+        if Utils.key_in_node_list?(beacon_nodes, Crypto.node_public_key(0)) do
+          DB.register_beacon_summary(summary)
+        end
+      end
+    )
+    |> Stream.run()
+  end
+
+  defp reduce_summaries(summaries) do
+    Enum.reduce(
+      summaries,
+      %{transactions: [], ends_of_sync: [], stats: %{}},
+      &do_reduce_summary/2
+    )
+    |> Map.update!(:transactions, &List.flatten/1)
+    |> Map.update!(:ends_of_sync, &List.flatten/1)
+  end
+
+  defp do_reduce_summary(
          %BeaconSummary{
            transaction_summaries: transaction_summaries,
-           end_of_node_synchronizations: end_of_syncs
+           end_of_node_synchronizations: ends_of_sync,
+           summary_time: summary_time
          },
-         node_patch
+         acc
        ) do
-    (transaction_summaries ++ end_of_syncs)
-    |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
-    |> Enum.each(&handle_update(&1, node_patch))
+    acc
+    |> Map.update!(:transactions, &[transaction_summaries | &1])
+    |> Map.update!(:ends_of_sync, &[ends_of_sync | &1])
+    |> update_in([:stats, Access.key(summary_time, 0)], &(&1 + length(transaction_summaries)))
   end
 
-  defp handle_update(tx_summary = %TransactionSummary{address: address, type: type}, node_patch) do
-    with false <- TransactionChain.transaction_exists?(address),
-         true <- TransactionHandler.download_transaction?(tx_summary) do
-      Logger.info("Need to synchronize #{type}@#{Base.encode16(address)}")
-      TransactionHandler.download_transaction(tx_summary, node_patch)
-    end
+  defp synchronize_transactions(transaction_summaries, node_patch) do
+    transactions_to_sync =
+      transaction_summaries
+      |> Enum.uniq_by(& &1.address)
+      |> Enum.sort_by(& &1.timestamp)
+      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+
+    Logger.info("Need to synchronize #{Enum.count(transactions_to_sync)} transactions")
+
+    Enum.each(transactions_to_sync, &TransactionHandler.download_transaction(&1, node_patch))
   end
 
-  defp handle_update(%EndOfNodeSync{public_key: public_key}, _) do
-    P2P.set_node_globally_available(public_key)
-  end
+  defp update_statistics(stats) do
+    Enum.each(stats, fn {date, nb_transactions} ->
+      previous_summary_time =
+        date
+        |> Utils.truncate_datetime()
+        |> BeaconChain.previous_summary_time()
 
-  defp update_statistics(date, nb_transactions) do
-    previous_date =
-      date
-      |> Utils.truncate_datetime()
-      |> BeaconChain.previous_summary_time()
+      nb_seconds = abs(DateTime.diff(previous_summary_time, date))
+      tps = nb_transactions / nb_seconds
 
-    nb_seconds = abs(DateTime.diff(previous_date, date))
-    tps = nb_transactions / nb_seconds
-
-    NetworkStatistics.register_tps(date, tps, nb_transactions)
-    NetworkStatistics.increment_number_transactions(nb_transactions)
-  end
-
-  defp load_summary_in_db(summary = %BeaconSummary{subset: subset, summary_time: summary_time}) do
-    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
-
-    beacon_nodes =
-      Election.beacon_storage_nodes(
-        subset,
-        summary_time,
-        node_list,
-        Election.get_storage_constraints()
-      )
-
-    if Utils.key_in_node_list?(beacon_nodes, Crypto.node_public_key(0)) do
-      DB.register_beacon_summary(summary)
-    end
+      NetworkStatistics.register_tps(date, tps, nb_transactions)
+      NetworkStatistics.increment_number_transactions(nb_transactions)
+    end)
   end
 end
