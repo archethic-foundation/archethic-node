@@ -66,8 +66,6 @@ defmodule Uniris.P2P.Message do
 
   alias Uniris.Replication
 
-  alias Uniris.TaskSupervisor
-
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
@@ -1133,7 +1131,7 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%NotifyBeaconSlot{slot: slot}) do
-    Task.start(fn -> BeaconChain.register_slot(slot) end)
+    BeaconChain.register_slot(slot)
     %Ok{}
   end
 
