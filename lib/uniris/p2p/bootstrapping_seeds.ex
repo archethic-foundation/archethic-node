@@ -85,14 +85,14 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
     Logger.debug(
       "Bootstrapping seeds list refreshed with #{
-        seeds |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+        seeds |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")
       }"
     )
 
     {:reply, :ok, %{state | seeds: seeds}}
   end
 
-  def handle_info({:node_update, _}, state = %{file: file}) do
+  def handle_info({:node_update, %Node{authorized?: true}}, state = %{file: file}) do
     top_nodes =
       Enum.reject(P2P.authorized_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
 
@@ -102,12 +102,14 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
     Logger.debug(
       "Bootstrapping seeds list refreshed with #{
-        top_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+        top_nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")
       }"
     )
 
     {:noreply, Map.put(state, :seeds, top_nodes)}
   end
+
+  def handle_info({:node_update, _}, state), do: {:noreply, state}
 
   defp flush_seeds(_, ""), do: :ok
 

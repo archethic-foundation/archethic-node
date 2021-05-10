@@ -541,7 +541,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
       |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
 
     Logger.debug(
-      "Send cross validation stamps to #{nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
+      "Send cross validation stamps to #{nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
 

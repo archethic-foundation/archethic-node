@@ -434,4 +434,10 @@ defmodule Uniris.P2P.Node do
 
   defp deserialize_transport(0), do: MockTransport
   defp deserialize_transport(1), do: :tcp
+
+  @doc """
+  Return the node's endpoint stringified
+  """
+  @spec endpoint(t()) :: binary()
+  def endpoint(%__MODULE__{ip: ip, port: port}), do: "#{:inet.ntoa(ip)}:#{port}"
 end
