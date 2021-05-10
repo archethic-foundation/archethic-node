@@ -138,10 +138,12 @@ defmodule Uniris.P2P.Connection do
     {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
   end
 
-  def handle_info({task_ref, data}, state = %{tasks: tasks, clients: clients, socket: nil}) when is_reference(task_ref) do
+  def handle_info({task_ref, data}, state = %{tasks: tasks, clients: clients, socket: nil})
+      when is_reference(task_ref) do
     case Map.get(tasks, task_ref) do
       nil ->
         {:noreply, state}
+
       message_id ->
         case Map.get(clients, message_id) do
           nil ->
@@ -163,7 +165,8 @@ defmodule Uniris.P2P.Connection do
   def handle_info(
         {task_ref, data},
         state = %{transport: transport, socket: socket, tasks: tasks}
-      ) when is_reference(task_ref) do
+      )
+      when is_reference(task_ref) do
     case Map.get(tasks, task_ref) do
       nil ->
         {:noreply, state}

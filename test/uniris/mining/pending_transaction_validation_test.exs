@@ -24,6 +24,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
       first_public_key: Crypto.node_public_key(),
       network_patch: "AAA"
     })
+
     :ok
   end
 

@@ -62,10 +62,13 @@ defmodule Uniris.Governance.Code.Proposal do
     end
   end
 
-  def from_transaction(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}) do
+  def from_transaction(
+        tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
+      ) do
     case from_transaction(tx) do
       {:ok, prop} ->
-        {:ok, %{ prop | timestamp: timestamp} }
+        {:ok, %{prop | timestamp: timestamp}}
+
       {:error, _} = e ->
         e
     end

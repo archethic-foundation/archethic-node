@@ -53,7 +53,9 @@ defmodule Uniris.Election.ValidationConstraints do
   Define the minimum of validations
   """
   @spec min_validation_nodes(non_neg_integer()) :: non_neg_integer()
-  def min_validation_nodes(nb_authorized_nodes) when nb_authorized_nodes < @default_min_validations, do: nb_authorized_nodes
+  def min_validation_nodes(nb_authorized_nodes)
+      when nb_authorized_nodes < @default_min_validations,
+      do: nb_authorized_nodes
 
   def min_validation_nodes(_), do: @default_min_validations
 
@@ -73,7 +75,9 @@ defmodule Uniris.Election.ValidationConstraints do
 
     if total_transfers > 10 do
       validation_number =
-        trunc(:math.floor(min_validation_nodes(nb_authorized_nodes) * :math.log10(total_transfers)))
+        trunc(
+          :math.floor(min_validation_nodes(nb_authorized_nodes) * :math.log10(total_transfers))
+        )
 
       if validation_number > nb_authorized_nodes do
         nb_authorized_nodes
@@ -84,6 +88,4 @@ defmodule Uniris.Election.ValidationConstraints do
       min_validation_nodes(nb_authorized_nodes)
     end
   end
-
-
 end

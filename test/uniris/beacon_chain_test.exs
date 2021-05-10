@@ -123,7 +123,7 @@ defmodule Uniris.BeaconChainTest do
                address: address,
                type: :transfer,
                validation_stamp: %ValidationStamp{
-                timestamp: DateTime.utc_now()
+                 timestamp: DateTime.utc_now()
                }
              })
 

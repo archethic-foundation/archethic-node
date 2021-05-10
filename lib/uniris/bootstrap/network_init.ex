@@ -168,7 +168,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
     }
   end
 
-
   def self_replication(tx = %Transaction{}) do
     Replication.process_transaction(tx, [:chain, :IO, :beacon])
   end

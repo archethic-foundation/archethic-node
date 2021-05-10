@@ -30,9 +30,9 @@ defmodule Uniris.Election.ValidationConstraintsTest do
 
   property "validation_number return more than 3 validation nodes and less than 200 validation nodes" do
     check all(
-      transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0)),
-      nb_authorized_node <- StreamData.positive_integer()
-    ) do
+            transfers <- StreamData.list_of(StreamData.float(min: 0.0, max: 10_000_000_000.0)),
+            nb_authorized_node <- StreamData.positive_integer()
+          ) do
       tx = %Transaction{
         data: %TransactionData{
           ledger: %Ledger{

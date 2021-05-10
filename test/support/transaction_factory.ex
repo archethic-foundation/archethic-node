@@ -47,7 +47,8 @@ defmodule Uniris.TransactionFactory do
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }
@@ -98,7 +99,8 @@ defmodule Uniris.TransactionFactory do
         timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()
@@ -220,7 +222,8 @@ defmodule Uniris.TransactionFactory do
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         ledger_operations: ledger_operations
       }
@@ -263,7 +266,8 @@ defmodule Uniris.TransactionFactory do
         timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()
@@ -297,7 +301,8 @@ defmodule Uniris.TransactionFactory do
         timestamp: DateTime.utc_now(),
         proof_of_work: Crypto.node_public_key(0),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election:
+          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations: ledger_operations
       }
       |> ValidationStamp.sign()

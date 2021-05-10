@@ -170,7 +170,9 @@ defmodule Uniris.Crypto.KeystoreLoaderTest do
               address: Crypto.hash("Node1"),
               type: :node,
               previous_public_key: "Node0",
-              validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now() |> DateTime.add(-60)}
+              validation_stamp: %ValidationStamp{
+                timestamp: DateTime.utc_now() |> DateTime.add(-60)
+              }
             }
           ]
       end)

@@ -28,7 +28,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  data: %TransactionData{},
                  type: :code_proposal,
                  validation_stamp: %ValidationStamp{
-                  timestamp: DateTime.utc_now()
+                   timestamp: DateTime.utc_now()
                  }
                }
                |> MemTablesLoader.load_transaction()
@@ -49,7 +49,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  },
                  type: :transfer,
                  validation_stamp: %ValidationStamp{
-                  timestamp: DateTime.utc_now()
+                   timestamp: DateTime.utc_now()
                  }
                }
                |> MemTablesLoader.load_transaction()
@@ -65,7 +65,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  data: %TransactionData{},
                  type: :code_proposal,
                  validation_stamp: %ValidationStamp{
-                  timestamp: DateTime.utc_now()
+                   timestamp: DateTime.utc_now()
                  }
                }
                |> MemTablesLoader.load_transaction()
@@ -79,7 +79,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  },
                  type: :code_approval,
                  validation_stamp: %ValidationStamp{
-                  timestamp: DateTime.utc_now()
+                   timestamp: DateTime.utc_now()
                  }
                }
                |> MemTablesLoader.load_transaction()
@@ -100,7 +100,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
             type: :transfer,
             validation_stamp: %ValidationStamp{
               timestamp: DateTime.utc_now()
-             }
+            }
           },
           %Transaction{
             address: Crypto.hash("Alice1"),
@@ -109,7 +109,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
             type: :transfer,
             validation_stamp: %ValidationStamp{
               timestamp: DateTime.utc_now() |> DateTime.add(-10)
-             }
+            }
           },
           %Transaction{
             address: "@CodeProp1",
@@ -118,7 +118,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
             type: :code_proposal,
             validation_stamp: %ValidationStamp{
               timestamp: DateTime.utc_now()
-             }
+            }
           },
           %Transaction{
             address: "@CodeApproval1",
@@ -129,7 +129,7 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
             type: :code_approval,
             validation_stamp: %ValidationStamp{
               timestamp: DateTime.utc_now()
-             }
+            }
           }
         ]
       end)

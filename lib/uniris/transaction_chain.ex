@@ -449,7 +449,6 @@ defmodule Uniris.TransactionChain do
         false
 
       DateTime.diff(timestamp, previous_timestamp) < 0 ->
-
         Logger.debug("Invalid timestamp",
           transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
         )

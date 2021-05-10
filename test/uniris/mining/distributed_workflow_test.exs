@@ -82,7 +82,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
         """
       })
 
-    {:ok, %{tx: tx, sorting_seed: Election.validation_nodes_election_seed_sorting(tx, ~U[2021-05-11 08:50:21Z] )}}
+    {:ok,
+     %{
+       tx: tx,
+       sorting_seed: Election.validation_nodes_election_seed_sorting(tx, ~U[2021-05-11 08:50:21Z])
+     }}
   end
 
   describe "start_link/1" do
@@ -534,13 +538,11 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       receive do
         {stamp = %ValidationStamp{},
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
+          assert Enum.all?(chain_tree, &(bit_size(&1) == 3))
 
-          assert Enum.all?(chain_tree, &bit_size(&1) == 3)
+          assert Enum.all?(io_tree, &(bit_size(&1) == 5))
 
-          assert Enum.all?(io_tree, &bit_size(&1) == 5)
-
-          assert Enum.all?(beacon_tree, &bit_size(&1) == 3)
-
+          assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
 
           Workflow.cross_validate(cross_validator_pid, stamp, tree)
 
@@ -769,7 +771,6 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           #   {:replicate_transaction, %Transaction{cross_validation_stamps: stamps}} ->
           #     assert length(stamps) == 1
           # end
-
       end
     end
   end

@@ -191,7 +191,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   defp do_reduce_inconsistencies(<<3::8, rest::bitstring>>), do: {:proof_of_integrity, rest}
   defp do_reduce_inconsistencies(<<4::8, rest::bitstring>>), do: {:proof_of_election, rest}
   defp do_reduce_inconsistencies(<<5::8, rest::bitstring>>), do: {:transaction_fee, rest}
-  defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:transaction_movement, rest}
+  defp do_reduce_inconsistencies(<<6::8, rest::bitstring>>), do: {:transaction_movements, rest}
   defp do_reduce_inconsistencies(<<7::8, rest::bitstring>>), do: {:unspent_outputs, rest}
   defp do_reduce_inconsistencies(<<8::8, rest::bitstring>>), do: {:node_movements, rest}
   defp do_reduce_inconsistencies(<<9::8, rest::bitstring>>), do: {:errors, rest}

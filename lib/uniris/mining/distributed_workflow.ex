@@ -559,7 +559,9 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
     Logger.debug(
       "Send validated transaction to #{
-        storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",") }" end) |> Enum.join(",")
+        storage_nodes
+        |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
+        |> Enum.join(",")
       }",
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )

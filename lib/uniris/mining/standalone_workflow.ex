@@ -84,17 +84,19 @@ defmodule Uniris.Mining.StandaloneWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     storage_nodes = ValidationContext.get_storage_nodes(context)
- 
 
     Logger.debug(
       "Send validated transaction to #{
-        storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",") }" end) |> Enum.join(",")
+        storage_nodes
+        |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
+        |> Enum.join(",")
       }",
       transaction: "#{validated_tx.type}@#{Base.encode16(validated_tx.address)}"
     )
 
-
-    Task.async_stream(storage_nodes, fn {node, roles} ->
+    Task.async_stream(
+      storage_nodes,
+      fn {node, roles} ->
         P2P.send_message(node, %ReplicateTransaction{
           transaction: validated_tx,
           roles: roles,

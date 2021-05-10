@@ -322,10 +322,17 @@ defmodule Uniris.DB.CassandraImplTest do
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
-    assert tx3.address == Cassandra.get_last_chain_address(tx3.address, tx3.validation_stamp.timestamp)
-    assert tx3.address == Cassandra.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
-    assert tx2.address == Cassandra.get_last_chain_address(tx2.address, tx1.validation_stamp.timestamp)
-    assert tx1.address == Cassandra.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
+    assert tx3.address ==
+             Cassandra.get_last_chain_address(tx3.address, tx3.validation_stamp.timestamp)
+
+    assert tx3.address ==
+             Cassandra.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
+
+    assert tx2.address ==
+             Cassandra.get_last_chain_address(tx2.address, tx1.validation_stamp.timestamp)
+
+    assert tx1.address ==
+             Cassandra.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
   end
 
   @tag infrastructure: true

@@ -66,10 +66,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         nodes ->
           Replication.chain_storage_nodes_with_type(address, type, nodes)
       end
-      
-    response = storage_nodes
-    |> Enum.reject(& &1.first_public_key == Crypto.node_public_key(0))
-    |> P2P.reply_first(%GetTransaction{address: address})
+
+    response =
+      storage_nodes
+      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> P2P.reply_first(%GetTransaction{address: address})
 
     case response do
       {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}}} ->
