@@ -11,14 +11,21 @@ defmodule Uniris.P2P.GeoPatch do
   Get a patch from an IP address
   """
   @spec from_ip(:inet.ip_address()) :: binary()
-  def from_ip({127, 0, 0, 1}) do
-    list_char = Enum.concat([?0..?9, ?A..?F])
-    Enum.take_random(list_char, 3) |> List.to_string()
-  end
+  def from_ip({127, 0, 0, 1}), do: compute_random_patch()
 
   def from_ip(ip) when is_tuple(ip) do
-    {lat, lon} = GeoIP.get_coordinates(ip)
-    compute_patch(lat, lon)
+    case GeoIP.get_coordinates(ip) do
+      {0.0, 0.0} ->
+        compute_random_patch()
+
+      {lat, lon} ->
+        compute_patch(lat, lon)
+    end
+  end
+
+  defp compute_random_patch do
+    list_char = Enum.concat([?0..?9, ?A..?F])
+    Enum.take_random(list_char, 3) |> List.to_string()
   end
 
   defp compute_patch(lat, lon) do
