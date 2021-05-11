@@ -6,14 +6,13 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Message.Error
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   require Logger
@@ -24,33 +23,18 @@ defmodule Uniris.Bootstrap.TransactionHandler do
   @spec send_transaction(Transaction.t(), list(Node.t())) :: :ok | {:error, :network_issue}
   def send_transaction(tx = %Transaction{address: address}, nodes) do
     Logger.info("Send node transaction...", transaction: "node@#{Base.encode16(address)}")
+    Logger.info("Waiting transaction replication", transaction: "node@#{Base.encode16(address)}")
 
     case P2P.reply_first(nodes, %NewTransaction{transaction: tx}) do
       {:ok, %Ok{}} ->
-        Logger.info("Waiting transaction replication",
-          transaction: "node@#{Base.encode16(address)}"
-        )
+        :ok
 
-        retry_while with:
-                      linear_backoff(10, 2)
-                      |> cap(1_000)
-                      |> Stream.take(10) do
-          case P2P.reply_first(nodes, %GetTransaction{address: address}) do
-            {:ok,
-             %Transaction{
-               address: ^address,
-               validation_stamp: %ValidationStamp{},
-               cross_validation_stamps: [_ | _]
-             }} ->
-              {:halt, :ok}
+      {:ok, %Error{reason: :network_issue}} ->
+        {:error, :network_issue}
 
-            _ ->
-              {:cont, {:error, :not_found}}
-          end
-        end
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
-
-    :ok
   end
 
   @doc """

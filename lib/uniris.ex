@@ -10,6 +10,8 @@ defmodule Uniris do
 
   alias __MODULE__.Mining
 
+  alias __MODULE__.PubSub
+
   alias __MODULE__.P2P
 
   alias __MODULE__.P2P.Message
@@ -75,7 +77,24 @@ defmodule Uniris do
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
     }
 
+    t =
+      Task.async(fn ->
+        PubSub.register_to_new_transaction_by_address(tx.address)
+
+        receive do
+          {:new_transaction, _} ->
+            :ok
+        end
+      end)
+
     P2P.broadcast_message(validation_nodes, message)
+
+    try do
+      Task.await(t, 5_000)
+    catch
+      :exit, {:timeout, _} ->
+        {:error, :network_issue}
+    end
   end
 
   defp forward_transaction_to_an_authorized_node(tx) do

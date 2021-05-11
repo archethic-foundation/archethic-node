@@ -7,6 +7,8 @@ defmodule UnirisTest do
 
   alias Uniris.Crypto
 
+  alias Uniris.PubSub
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.Balance
   alias Uniris.P2P.Message.GetBalance
@@ -150,13 +152,15 @@ defmodule UnirisTest do
 
       me = self()
 
+      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
       MockClient
       |> expect(:send_message, fn _, %StartMining{} ->
         send(me, :ack_mining)
+        PubSub.notify_new_transaction(tx.address)
         {:ok, %Ok{}}
       end)
 
-      tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
       assert :ok = Uniris.send_new_transaction(tx)
 
       assert_receive :ack_mining

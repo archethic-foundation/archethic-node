@@ -14,14 +14,23 @@ defmodule UnirisWeb.API.TransactionController do
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
-        changeset
-        |> TransactionPayload.to_map()
-        |> Transaction.from_map()
-        |> Uniris.send_new_transaction()
+        res =
+          changeset
+          |> TransactionPayload.to_map()
+          |> Transaction.from_map()
+          |> Uniris.send_new_transaction()
 
-        conn
-        |> put_status(201)
-        |> json(%{status: "ok"})
+        case res do
+          :ok ->
+            conn
+            |> put_status(201)
+            |> json(%{status: "ok"})
+
+          _ ->
+            conn
+            |> put_status(403)
+            |> json(%{status: "error - transaction may be invalid"})
+        end
 
       changeset ->
         conn

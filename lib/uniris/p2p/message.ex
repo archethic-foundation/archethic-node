@@ -25,6 +25,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
   alias __MODULE__.EncryptedStorageNonce
+  alias __MODULE__.Error
   alias __MODULE__.FirstPublicKey
   alias __MODULE__.GetBalance
   alias __MODULE__.GetBeaconSlot
@@ -41,7 +42,6 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetTransactionInputs
   alias __MODULE__.GetTransactionSummary
   alias __MODULE__.GetUnspentOutputs
-  alias __MODULE__.InvalidTransaction
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
   alias __MODULE__.NewTransaction
@@ -124,7 +124,7 @@ defmodule Uniris.P2P.Message do
           | FirstPublicKey.t()
           | TransactionChainLength.t()
           | TransactionInputList.t()
-          | InvalidTransaction.t()
+          | Error.t()
 
   @doc """
   Serialize a message into binary
@@ -316,7 +316,7 @@ defmodule Uniris.P2P.Message do
     <<27::8, node_public_key::binary>>
   end
 
-  def encode(%InvalidTransaction{}), do: <<238>>
+  def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
   def encode(tx_summary = %TransactionSummary{}) do
     <<239::8, TransactionSummary.serialize(tx_summary)::binary>>
@@ -685,8 +685,8 @@ defmodule Uniris.P2P.Message do
     {%NodeAvailability{public_key: public_key}, rest}
   end
 
-  def decode(<<238, rest::bitstring>>) do
-    {%InvalidTransaction{}, rest}
+  def decode(<<238::8, reason::8, rest::bitstring>>) do
+    {%Error{reason: Error.deserialize_reason(reason)}, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -904,8 +904,24 @@ defmodule Uniris.P2P.Message do
   end
 
   def process(%NewTransaction{transaction: tx}) do
-    :ok = Uniris.send_new_transaction(tx)
-    %Ok{}
+    t =
+      Task.async(fn ->
+        PubSub.register_to_new_transaction_by_address(tx.address)
+
+        receive do
+          {:new_transaction, _} ->
+            :ok
+        end
+      end)
+
+    case Uniris.send_new_transaction(tx) do
+      :ok ->
+        :ok = Task.await(t, 5_000)
+        %Ok{}
+
+      {:error, :network_issue} ->
+        %Error{reason: :network_issue}
+    end
   end
 
   def process(%GetTransaction{address: tx_address}) do
@@ -1001,7 +1017,7 @@ defmodule Uniris.P2P.Message do
           %Ok{}
 
         _ ->
-          %InvalidTransaction{}
+          %Error{reason: :invalid_transaction}
       end
     end
   end

@@ -7,8 +7,6 @@ defmodule Uniris.TransactionChain do
 
   alias Uniris.DB
 
-  alias Uniris.PubSub
-
   alias Uniris.P2P
   alias Uniris.P2P.Message
   alias Uniris.P2P.Message.GetLastTransactionAddress
@@ -107,15 +105,13 @@ defmodule Uniris.TransactionChain do
   def write_transaction(
         tx = %Transaction{
           address: address,
-          type: type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
+          type: type
         }
       ) do
     with false <- DB.transaction_exists?(address),
          :ok <- DB.write_transaction(tx) do
       KOLedger.remove_transaction(address)
       Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
-      PubSub.notify_new_transaction(address, type, timestamp)
     else
       true ->
         Logger.debug("Transaction already stored",
@@ -138,8 +134,7 @@ defmodule Uniris.TransactionChain do
 
     %Transaction{
       address: tx_address,
-      type: tx_type,
-      validation_stamp: %ValidationStamp{timestamp: timestamp}
+      type: tx_type
     } = Enum.at(sorted_chain, 0)
 
     with false <- DB.transaction_exists?(tx_address),
@@ -151,8 +146,6 @@ defmodule Uniris.TransactionChain do
       Logger.info("Transaction Chain stored",
         transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
       )
-
-      PubSub.notify_new_transaction(tx_address, tx_type, timestamp)
     else
       true ->
         Logger.debug("Transaction Chain already stored in the cache",
