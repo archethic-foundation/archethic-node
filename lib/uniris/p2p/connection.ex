@@ -6,6 +6,8 @@ defmodule Uniris.P2P.Connection do
   alias Uniris.P2P.Message
   alias Uniris.P2P.Transport
 
+  alias Uniris.TaskSupervisor
+
   alias Uniris.Utils
 
   use GenServer
@@ -45,7 +47,7 @@ defmodule Uniris.P2P.Connection do
 
   def handle_continue(:start_receiving_loop, state = %{socket: socket, transport: transport}) do
     me = self()
-    Task.async(fn -> loop_data(transport, socket, me) end)
+    Task.Supervisor.async_nolink(TaskSupervisor, fn -> loop_data(transport, socket, me) end)
 
     {:noreply, state}
   end
@@ -64,7 +66,7 @@ defmodule Uniris.P2P.Connection do
   end
 
   def handle_call({:send_message, msg}, from, state = %{socket: nil, message_id: message_id}) do
-    %Task{ref: ref} = Task.async(fn -> Message.process(msg) end)
+    %Task{ref: ref} = Task.Supervisor.async_nolink(TaskSupervisor, fn -> Message.process(msg) end)
 
     new_state =
       state
@@ -83,7 +85,7 @@ defmodule Uniris.P2P.Connection do
     encoded_message = msg |> Message.encode() |> Utils.wrap_binary()
 
     %Task{ref: ref} =
-      Task.async(fn ->
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
         Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
       end)
 
@@ -101,7 +103,7 @@ defmodule Uniris.P2P.Connection do
         state = %{initiator?: false, socket: socket, transport: transport}
       ) do
     %Task{ref: ref} =
-      Task.async(fn ->
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
         {msg, _} = Message.decode(data)
 
         encoded_message =
@@ -177,7 +179,7 @@ defmodule Uniris.P2P.Connection do
           |> Message.encode()
           |> Utils.wrap_binary()
 
-        Task.async(fn ->
+        Task.Supervisor.async_nolink(TaskSupervisor, fn ->
           Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
         end)
 
