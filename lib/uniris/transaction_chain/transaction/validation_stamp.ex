@@ -108,8 +108,6 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       <<
       # Timestamp
       96, 149, 60, 119,
-      # Flag if the proof of work is founded
-      1::1,
       # Proof of work
       0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
@@ -153,9 +151,15 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         errors: errors,
         signature: nil
       }) do
-    pow_bitstring = if pow, do: 1, else: 0
+    pow =
+      if pow == "" do
+        # Empty public key if the no public key matching the origin signature
+        <<0::8, 0::256>>
+      else
+        pow
+      end
 
-    <<DateTime.to_unix(timestamp)::32, pow_bitstring::1, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp)::32, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring>>
@@ -171,9 +175,15 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         errors: errors,
         signature: signature
       }) do
-    pow_bitstring = if pow, do: 1, else: 0
+    pow =
+      if pow == "" do
+        # Empty public key if the no public key matching the origin signature
+        <<0::8, 0::256>>
+      else
+        pow
+      end
 
-    <<DateTime.to_unix(timestamp)::32, pow_bitstring::1, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp)::32, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
@@ -184,7 +194,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<96, 149, 60, 119, 1::1, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      iex> <<96, 149, 60, 119, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
@@ -225,19 +235,11 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
         ""
       }
   """
-  def deserialize(<<timestamp::32, origin_sig_ok::1, rest::bitstring>>) do
-    {pow, rest} =
-      case origin_sig_ok do
-        0 ->
-          <<""::binary, rest::bitstring>> = rest
-          {"", rest}
-
-        1 ->
-          <<curve_id::8, rest::bitstring>> = rest
-          key_size = Crypto.key_size(curve_id)
-          <<key::binary-size(key_size), rest::bitstring>> = rest
-          {<<curve_id::8>> <> key, rest}
-      end
+  def deserialize(<<timestamp::32, rest::bitstring>>) do
+    <<pow_curve_id::8, rest::bitstring>> = rest
+    pow_key_size = Crypto.key_size(pow_curve_id)
+    <<pow_key::binary-size(pow_key_size), rest::bitstring>> = rest
+    pow = <<pow_curve_id::8, pow_key::binary>>
 
     <<poi_hash_id::8, rest::bitstring>> = rest
     poi_hash_size = Crypto.hash_size(poi_hash_id)
