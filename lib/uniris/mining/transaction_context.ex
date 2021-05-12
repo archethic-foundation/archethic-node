@@ -52,16 +52,15 @@ defmodule Uniris.Mining.TransactionContext do
         validation_node_public_keys,
         nodes_distribution
       )
-      |> Task.yield_many()
       |> Enum.reduce(%{}, &reduce_tasks/2)
 
     {
       Map.get(context, :previous_transaction),
-      Map.get(context, :unspent_outputs),
-      Map.get(context, :previous_storage_nodes),
-      Map.get(context, :chain_storage_nodes_view),
-      Map.get(context, :beacon_storage_nodes_view),
-      Map.get(context, :validation_nodes_view)
+      Map.get(context, :unspent_outputs, []),
+      Map.get(context, :previous_storage_nodes, []),
+      Map.get(context, :chain_storage_nodes_view, <<>>),
+      Map.get(context, :beacon_storage_nodes_view, <<>>),
+      Map.get(context, :validation_nodes_view, <<>>)
     }
   end
 
@@ -95,39 +94,43 @@ defmodule Uniris.Mining.TransactionContext do
          ]
        ) do
     [
-      Task.async(fn ->
+      prev_tx: fn ->
         DataFetcher.fetch_previous_transaction(previous_address, prev_tx_nodes_split)
-      end),
-      Task.async(fn ->
+      end,
+      utxo: fn ->
         DataFetcher.fetch_unspent_outputs(
           previous_address,
           unspent_outputs_nodes_split,
           unspent_outputs_confirmation?
         )
-      end),
-      Task.async(fn ->
-        {:chain,
-         DataFetcher.fetch_p2p_view(
-           chain_storage_node_public_keys,
-           chain_storage_nodes_view_split
-         )}
-      end),
-      Task.async(fn ->
-        {:beacon,
-         DataFetcher.fetch_p2p_view(
-           beacon_storage_nodes_public_keys,
-           beacon_storage_nodes_view_split
-         )}
-      end),
-      Task.async(fn ->
-        {:validation,
-         DataFetcher.fetch_p2p_view(validation_node_public_keys, validation_nodes_view_split)}
-      end)
+      end,
+      chain_nodes_view: fn ->
+        DataFetcher.fetch_p2p_view(
+          chain_storage_node_public_keys,
+          chain_storage_nodes_view_split
+        )
+      end,
+      beacon_nodes_view: fn ->
+        DataFetcher.fetch_p2p_view(
+          beacon_storage_nodes_public_keys,
+          beacon_storage_nodes_view_split
+        )
+      end,
+      validation_nodes_view: fn ->
+        DataFetcher.fetch_p2p_view(validation_node_public_keys, validation_nodes_view_split)
+      end
     ]
+    |> Task.async_stream(fn {domain, fun} ->
+      {domain, fun.()}
+    end)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Stream.map(&elem(&1, 1))
   end
 
+  defp reduce_tasks({_, {:error, _}}, acc), do: acc
+
   defp reduce_tasks(
-         {%Task{}, {:ok, {:ok, prev_tx = %Transaction{}, prev_tx_node = %Node{}}}},
+         {:prev_tx, {:ok, prev_tx = %Transaction{}, prev_tx_node = %Node{}}},
          acc
        ) do
     acc
@@ -139,10 +142,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:error, :network_issue}}}, acc), do: acc
-  defp reduce_tasks({%Task{}, {:ok, {:error, :not_found}}}, acc), do: acc
-
-  defp reduce_tasks({%Task{}, {:ok, {:ok, unspent_outputs, unspent_outputs_nodes}}}, acc)
+  defp reduce_tasks({:utxo, {:ok, unspent_outputs, unspent_outputs_nodes}}, acc)
        when is_list(unspent_outputs) and is_list(unspent_outputs_nodes) do
     acc
     |> Map.put(:unspent_outputs, unspent_outputs)
@@ -153,7 +153,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:chain, {:ok, view, node = %Node{}}}}}, acc) do
+  defp reduce_tasks({:chain_nodes_view, {:ok, view, node = %Node{}}}, acc) do
     acc
     |> Map.put(:chain_storage_nodes_view, view)
     |> Map.update(
@@ -163,7 +163,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:beacon, {:ok, view, node = %Node{}}}}}, acc) do
+  defp reduce_tasks({:beacon_nodes_view, {:ok, view, node = %Node{}}}, acc) do
     acc
     |> Map.put(:beacon_storage_nodes_view, view)
     |> Map.update(
@@ -173,7 +173,7 @@ defmodule Uniris.Mining.TransactionContext do
     )
   end
 
-  defp reduce_tasks({%Task{}, {:ok, {:validation, {:ok, view, node = %Node{}}}}}, acc) do
+  defp reduce_tasks({:validation_nodes_view, {:ok, view, node = %Node{}}}, acc) do
     acc
     |> Map.put(:validation_nodes_view, view)
     |> Map.update(
