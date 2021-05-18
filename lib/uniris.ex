@@ -35,6 +35,8 @@ defmodule Uniris do
 
   alias __MODULE__.Utils
 
+  @mining_timeout Application.compile_env!(:uniris, [Uniris.Mining, :timeout])
+
   @doc """
   Query the search of the transaction to the dedicated storage pool
   """
@@ -90,7 +92,7 @@ defmodule Uniris do
     P2P.broadcast_message(validation_nodes, message)
 
     try do
-      Task.await(t, 5_000)
+      Task.await(t, @mining_timeout)
     catch
       :exit, {:timeout, _} ->
         {:error, :network_issue}

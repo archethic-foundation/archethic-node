@@ -126,6 +126,9 @@ defmodule Uniris.P2P.Message do
           | TransactionInputList.t()
           | Error.t()
 
+
+  @mining_timeout Application.compile_env!(:uniris, [Uniris.Mining, :timeout])
+
   @doc """
   Serialize a message into binary
 
@@ -916,7 +919,7 @@ defmodule Uniris.P2P.Message do
 
     case Uniris.send_new_transaction(tx) do
       :ok ->
-        :ok = Task.await(t, 5_000)
+        :ok = Task.await(t, @mining_timeout)
         %Ok{}
 
       {:error, :network_issue} ->

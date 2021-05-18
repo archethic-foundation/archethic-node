@@ -41,6 +41,8 @@ defmodule Uniris.Mining.DistributedWorkflow do
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :transient
 
+  @mining_timeout Application.compile_env!(:uniris, [Uniris.Mining, :timeout])
+
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, [])
   end
@@ -132,7 +134,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
     welcome_node = Keyword.get(opts, :welcome_node)
     validation_nodes = Keyword.get(opts, :validation_nodes)
     node_public_key = Keyword.get(opts, :node_public_key)
-    timeout = Keyword.get(opts, :timeout, 3_000)
+    timeout = Keyword.get(opts, :timeout, @mining_timeout)
 
     {tx, welcome_node, validation_nodes, node_public_key, timeout}
   end
