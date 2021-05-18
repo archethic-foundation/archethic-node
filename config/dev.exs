@@ -36,7 +36,7 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
   seeds:
     System.get_env(
       "UNIRIS_P2P_SEEDS",
-      "127.0.0.1:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp"
+      "127.0.0.1:3002:001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
 config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
@@ -51,10 +51,10 @@ config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
 
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
-    technical_council: [{"0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000", 1}],
-    ethical_council: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"],
-    foundation: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"],
-    uniris: ["0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000"]
+    technical_council: [{"001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}],
+    ethical_council: [],
+    foundation: [],
+    uniris: []
   ]
 
 config :uniris, Uniris.OracleChain.Scheduler,

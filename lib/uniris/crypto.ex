@@ -81,7 +81,7 @@ defmodule Uniris.Crypto do
                                                                / (256 bytes) Next private key
                           (256 bytes) Master key  --> HMAC-512
                         /                              Key: Master entropy,
-      seed --> HMAC-512                                Data: Master key + index)
+      seed --> HASH-512                                Data: Master key + index)
                         \
                          (256 bytes) Master entropy
 
@@ -251,10 +251,10 @@ defmodule Uniris.Crypto do
   defdelegate encrypt_network_pool_seed(aes_key), to: SharedSecretsKeystore
 
   defp get_extended_seed(seed, additional_data) do
-    <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hmac(:sha512, "", seed)
+    <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hash(:sha512, seed)
 
     <<extended_pv::binary-32, _::binary-32>> =
-      :crypto.hmac(:sha512, master_entropy, master_key <> additional_data)
+      :crypto.mac(:hmac, :sha512, master_entropy, <<master_key::binary, additional_data::binary>>)
 
     extended_pv
   end
@@ -518,12 +518,12 @@ defmodule Uniris.Crypto do
   ## Examples
 
       ```
-      pub = {pub, _} = Crypto.generate_deterministic_keypair("myseed")
+      {pub, _} = Crypto.generate_deterministic_keypair("myseed")
       Crypto.ec_encrypt("myfakedata", pub)
-      <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
-      108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
-      112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
-      153, 229, 221, 66, 26>>
+      <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41,
+      34, 143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161,
+      195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
+      40, 0, 68, 224, 177, 110, 180, 24>>
       ```
   """
   @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
@@ -557,9 +557,9 @@ defmodule Uniris.Crypto do
   defp generate_ephemeral_encryption_keys(curve), do: :crypto.generate_key(:ecdh, curve)
 
   defp derivate_secrets(dh_key) do
-    pseudorandom_key = :crypto.hmac(:sha256, "", dh_key)
-    iv = binary_part(:crypto.hmac(:sha256, pseudorandom_key, "0"), 0, 32)
-    aes_key = binary_part(:crypto.hmac(:sha256, iv, "1"), 0, 32)
+    pseudorandom_key = :crypto.hash(:sha256, dh_key)
+    iv = binary_part(:crypto.mac(:hmac, :sha256, pseudorandom_key, "0"), 0, 32)
+    aes_key = binary_part(:crypto.mac(:hmac, :sha256, iv, "1"), 0, 32)
     {iv, aes_key}
   end
 
@@ -583,10 +583,10 @@ defmodule Uniris.Crypto do
 
   ## Examples
 
-      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
-      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
-      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
-      ...> 153, 229, 221, 66, 26>>
+      iex> cipher = <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41,
+      ...> 34, 143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161,
+      ...> 195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
+      ...> 40, 0, 68, 224, 177, 110, 180, 24>>
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> Uniris.Crypto.ec_decrypt!(cipher, pv)
       "myfakedata"
@@ -594,10 +594,10 @@ defmodule Uniris.Crypto do
   Invalid message to decrypt or key return an error:
 
       ```
-      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
-      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
-      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
-      ...> 153, 229, 221, 66, 26>>
+      iex> cipher = <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41,
+      ...> 34, 143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161,
+      ...> 195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
+      ...> 40, 0, 68, 224, 177, 110, 180, 24>>
       iex> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
       iex> Crypto.ec_decrypt!(cipher, pv)
       ** (RuntimeError) Decryption failed
@@ -619,19 +619,19 @@ defmodule Uniris.Crypto do
 
   ## Examples
 
-      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
-      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
-      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
-      ...> 153, 229, 221, 66, 26>>
+      iex> cipher = <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41,
+      ...> 34, 143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161,
+      ...> 195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
+      ...> 40, 0, 68, 224, 177, 110, 180, 24>>
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> {:ok, "myfakedata"} = Crypto.ec_decrypt(cipher, pv)
 
   Invalid message to decrypt return an error:
 
-      iex> cipher = <<36, 173, 106, 130, 225, 209, 21, 97, 29, 238, 81, 148, 226, 188, 71, 141, 198,
-      ...> 108, 186, 101, 1, 148, 48, 7, 108, 178, 36, 31, 52, 50, 78, 0, 102, 25, 44,
-      ...> 112, 241, 38, 182, 0, 101, 1, 10, 50, 207, 243, 61, 229, 0, 176, 2, 137, 74,
-      ...> 153, 229, 221, 66, 26>>
+      iex> cipher = <<20, 95, 27, 87, 71, 195, 100, 164, 225, 201, 163, 220, 15, 111, 201, 224, 41,
+      ...> 34, 143, 78, 201, 109, 157, 196, 108, 109, 155, 91, 239, 118, 23, 100, 161,
+      ...> 195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
+      ...> 40, 0, 68, 224, 177, 110, 180, 24>>
       iex> {_, pv} = Crypto.generate_deterministic_keypair("otherseed")
       iex> Crypto.ec_decrypt(cipher, pv)
       {:error, :decryption_failed}

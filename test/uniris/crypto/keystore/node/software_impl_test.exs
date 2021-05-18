@@ -42,9 +42,9 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImplTest do
   test "diffie_hellman/1 should produce a shared secret with the latest node private key" do
     {<<_::8, pub::binary>>, _} = Crypto.generate_deterministic_keypair("otherseed")
 
-    assert <<152, 14, 126, 184, 29, 146, 12, 190, 178, 52, 89, 38, 226, 22, 94, 92, 51, 235, 170,
-             77, 41, 188, 203, 171, 250, 240, 84, 234, 36, 109, 239,
-             120>> == Keystore.diffie_hellman(pub)
+    assert <<45, 29, 152, 238, 71, 110, 105, 157, 247, 108, 42, 93, 248, 189, 247, 80, 104, 89,
+             56, 213, 49, 194, 188, 134, 94, 37, 6, 101, 46, 12, 219,
+             11>> == Keystore.diffie_hellman(pub)
   end
 
   property "node public key/0 should is equal to the previous one" do
