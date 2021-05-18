@@ -42,6 +42,7 @@ defmodule Uniris.Application do
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 
     children = [
+      {Task.Supervisor, name: Uniris.TaskSupervisor},
       Uniris.Telemetry,
       {Registry, keys: :duplicate, name: Uniris.PubSubRegistry},
       DBSupervisor,
@@ -63,8 +64,7 @@ defmodule Uniris.Application do
        Keyword.merge(Application.get_env(:uniris, Uniris.Bootstrap),
          port: port,
          transport: transport
-       )},
-      {Task.Supervisor, name: Uniris.TaskSupervisor}
+       )}
     ]
 
     opts = [strategy: :rest_for_one, name: Uniris.Supervisor]
