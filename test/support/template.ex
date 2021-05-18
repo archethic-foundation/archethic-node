@@ -103,16 +103,13 @@ defmodule UnirisCase do
       {pub, _} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
       pub
     end)
-    |> stub(:encrypt_node_shared_secrets_transaction_seed, fn secret_key ->
-      Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+    |> stub(:wrap_secrets, fn secret_key ->
+      encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+      encrypted_network_pool_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+
+      {encrypted_transaction_seed, encrypted_network_pool_seed}
     end)
-    |> stub(:encrypt_network_pool_seed, fn secret_key ->
-      Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
-    end)
-    |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ -> :ok end)
-    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
-    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ -> :ok end)
-    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ -> :ok end)
+    |> stub(:unwrap_secrets, fn _, _, _ -> :ok end)
     |> stub(:diffie_hellman, fn pub ->
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)

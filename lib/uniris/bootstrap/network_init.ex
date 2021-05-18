@@ -51,16 +51,6 @@ defmodule Uniris.Bootstrap.NetworkInit do
   def init_node_shared_secrets_chain do
     Logger.info("Create first node shared secret transaction")
     secret_key = :crypto.strong_rand_bytes(32)
-    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
-
-    :crypto.strong_rand_bytes(32)
-    |> Crypto.aes_encrypt(secret_key)
-    |> Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_secret_key)
-
-    :crypto.strong_rand_bytes(32)
-    |> Crypto.aes_encrypt(secret_key)
-    |> Crypto.decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_secret_key)
-
     daily_nonce_seed = :crypto.strong_rand_bytes(32)
 
     tx =

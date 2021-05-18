@@ -102,29 +102,9 @@ defmodule Uniris.Crypto.KeystoreLoader do
     if Keys.authorized_key?(keys, Crypto.node_public_key()) do
       encrypted_secret_key = Keys.get_encrypted_key(keys, Crypto.node_public_key())
 
-      <<daily_nonce_seed::binary-size(60), transaction_seed::binary-size(60),
-        network_seed::binary-size(60)>> = secret
-
-      :ok =
-        Crypto.decrypt_and_set_node_shared_secrets_transaction_seed(
-          transaction_seed,
-          encrypted_secret_key
-        )
-
-      :ok =
-        Crypto.decrypt_and_set_node_shared_secrets_network_pool_seed(
-          network_seed,
-          encrypted_secret_key
-        )
-
       daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 
-      :ok =
-        Crypto.decrypt_and_set_daily_nonce_seed(
-          daily_nonce_seed,
-          encrypted_secret_key,
-          daily_nonce_date
-        )
+      Crypto.unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date)
     else
       :ok
     end

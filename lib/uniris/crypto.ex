@@ -163,24 +163,16 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Store the encrypted daily nonce seed in the keystore by decrypting with the given secret key
+  Store the encrypted secrets in the keystore by decrypting them with the given secret key
   """
-  @spec decrypt_and_set_daily_nonce_seed(
-          encrypted_seed :: binary(),
+  @spec unwrap_secrets(
+          encrypted_secrets :: binary(),
           encrypted_secret_key :: binary(),
-          timestamp :: DateTime.t()
-        ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(
-        encrypted_seed,
-        encrypted_secret_key,
-        timestamp = %DateTime{}
-      )
-      when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    SharedSecretsKeystore.decrypt_and_set_daily_nonce_seed(
-      encrypted_seed,
-      encrypted_secret_key,
-      timestamp
-    )
+          date :: DateTime.t()
+        ) :: :ok | :error
+  def unwrap_secrets(encrypted_secrets, encrypted_key, timestamp = %DateTime{})
+      when is_binary(encrypted_secrets) and is_binary(encrypted_key) do
+    SharedSecretsKeystore.unwrap_secrets(encrypted_secrets, encrypted_key, timestamp)
   end
 
   @doc """
@@ -197,23 +189,6 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Store the encrypted network pool seed in the keystore by decrypting with the given secret key
-  """
-  @spec decrypt_and_set_node_shared_secrets_network_pool_seed(
-          encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
-        ) :: :ok
-  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_secret_key)
-      when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    SharedSecretsKeystore.decrypt_and_set_node_shared_secrets_network_pool_seed(
-      encrypted_seed,
-      encrypted_secret_key
-    )
-
-    Logger.info("Network pool shared secrets transaction seed stored")
-  end
-
-  @doc """
   Encrypt the storage nonce from memory using the given public key
   """
   @spec encrypt_storage_nonce(key()) :: binary()
@@ -222,33 +197,11 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Store the encrypted daily nonce seed in the keystore by decrypting with the given secret key
-  """
-  @spec decrypt_and_set_node_shared_secrets_transaction_seed(
-          encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
-        ) :: :ok
-  def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_secret_key)
-      when is_binary(encrypted_seed) and is_binary(encrypted_secret_key) do
-    SharedSecretsKeystore.decrypt_and_set_node_shared_secrets_transaction_seed(
-      encrypted_seed,
-      encrypted_secret_key
-    )
-
-    Logger.info("Node shared secrets transaction seed stored")
-  end
-
-  @doc """
   Encrypt the node shared secrets transaction seed located in the keystore using the given secret key
   """
-  @spec encrypt_node_shared_secrets_transaction_seed(aes_key :: binary()) :: binary()
-  defdelegate encrypt_node_shared_secrets_transaction_seed(aes_key), to: SharedSecretsKeystore
-
-  @doc """
-  Encrypt the network pool transaction seed located in the keystore using the given secret key
-  """
-  @spec encrypt_network_pool_seed(aes_key :: binary()) :: binary()
-  defdelegate encrypt_network_pool_seed(aes_key), to: SharedSecretsKeystore
+  @spec wrap_secrets(key :: binary()) ::
+          {enc_transaction_seed :: binary(), enc_network_pool_seed :: binary()}
+  defdelegate wrap_secrets(aes_key), to: SharedSecretsKeystore
 
   defp get_extended_seed(seed, additional_data) do
     <<master_key::binary-32, master_entropy::binary-32>> = :crypto.hash(:sha512, seed)

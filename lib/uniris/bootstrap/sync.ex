@@ -92,9 +92,15 @@ defmodule Uniris.Bootstrap.Sync do
     secret_key = :crypto.strong_rand_bytes(32)
     encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
 
-    @genesis_daily_nonce_seed
-    |> Crypto.aes_encrypt(secret_key)
-    |> Crypto.decrypt_and_set_daily_nonce_seed(encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
+    encrypted_daily_nonce_seed = Crypto.aes_encrypt(@genesis_daily_nonce_seed, secret_key)
+    encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+    encrypted_network_pool_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
+
+    secrets =
+      <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
+        encrypted_network_pool_seed::binary>>
+
+    :ok = Crypto.unwrap_secrets(secrets, encrypted_secret_key, ~U[1970-01-01 00:00:00Z])
 
     :ok =
       node_tx

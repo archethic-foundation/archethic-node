@@ -5,39 +5,39 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
   alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.SharedSecretsKeystoreImpl
 
-  use GenServer
+  use GenStateMachine, callback_mode: :handle_event_function
 
   require Logger
 
   @behaviour SharedSecretsKeystoreImpl
 
   def start_link(args \\ []) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
+    GenStateMachine.start_link(__MODULE__, args, name: __MODULE__)
   end
 
   @impl SharedSecretsKeystoreImpl
   @spec sign_with_node_shared_secrets_key(data :: binary()) :: binary()
   def sign_with_node_shared_secrets_key(data) do
-    GenServer.call(__MODULE__, {:sign_with_node_shared_key, data})
+    GenStateMachine.call(__MODULE__, {:sign_with_node_shared_key, data})
   end
 
   @impl SharedSecretsKeystoreImpl
   @spec sign_with_node_shared_secrets_key(data :: binary(), index :: non_neg_integer()) ::
           binary()
   def sign_with_node_shared_secrets_key(data, index) do
-    GenServer.call(__MODULE__, {:sign_with_node_shared_key, data, index})
+    GenStateMachine.call(__MODULE__, {:sign_with_node_shared_key, data, index})
   end
 
   @impl SharedSecretsKeystoreImpl
   @spec sign_with_network_pool_key(data :: binary()) :: binary()
   def sign_with_network_pool_key(data) do
-    GenServer.call(__MODULE__, {:sign_with_network_pool_key, data})
+    GenStateMachine.call(__MODULE__, {:sign_with_network_pool_key, data})
   end
 
   @impl SharedSecretsKeystoreImpl
   @spec sign_with_network_pool_key(data :: binary(), index :: non_neg_integer()) :: binary()
   def sign_with_network_pool_key(data, index) do
-    GenServer.call(__MODULE__, {:sign_with_network_pool_key, data, index})
+    GenStateMachine.call(__MODULE__, {:sign_with_network_pool_key, data, index})
   end
 
   @impl SharedSecretsKeystoreImpl
@@ -49,114 +49,102 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @impl SharedSecretsKeystoreImpl
   @spec node_shared_secrets_public_key(index :: non_neg_integer()) :: Crypto.key()
   def node_shared_secrets_public_key(index) do
-    GenServer.call(__MODULE__, {:node_shared_secrets_public_key, index})
+    GenStateMachine.call(__MODULE__, {:node_shared_secrets_public_key, index})
   end
 
   @impl SharedSecretsKeystoreImpl
   @spec network_pool_public_key(index :: non_neg_integer()) :: Crypto.key()
   def network_pool_public_key(index) do
-    GenServer.call(__MODULE__, {:network_pool_public_key, index})
+    GenStateMachine.call(__MODULE__, {:network_pool_public_key, index})
   end
 
   @impl SharedSecretsKeystoreImpl
-  @spec encrypt_node_shared_secrets_transaction_seed(key :: binary()) :: binary()
-  def encrypt_node_shared_secrets_transaction_seed(key) do
-    GenServer.call(__MODULE__, {:encrypt_node_shared_secrets_transaction_seed, key})
+  @spec wrap_secrets(key :: binary()) ::
+          {enc_transaction_seed :: binary(), enc_network_pool_seed :: binary()}
+  def wrap_secrets(key) do
+    GenStateMachine.call(__MODULE__, {:wrap_secrets, key})
   end
 
   @impl SharedSecretsKeystoreImpl
-  @spec encrypt_network_pool_seed(key :: binary()) :: binary()
-  def encrypt_network_pool_seed(key) do
-    GenServer.call(__MODULE__, {:encrypt_network_pool_transaction_seed, key})
+  @spec unwrap_secrets(encrypted_secrets :: binary(), encrypted_key :: binary(), DateTime.t()) ::
+          :ok | :error
+  def unwrap_secrets(
+        secrets,
+        encrypted_secret_key,
+        date = %DateTime{}
+      ) do
+    GenStateMachine.call(__MODULE__, {:unwrap_secrets, secrets, encrypted_secret_key, date})
   end
 
-  @impl SharedSecretsKeystoreImpl
-  @spec decrypt_and_set_node_shared_secrets_transaction_seed(
-          encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
-        ) :: :ok
-  def decrypt_and_set_node_shared_secrets_transaction_seed(encrypted_seed, encrypted_secret_key) do
-    GenServer.call(
-      __MODULE__,
-      {:decrypt_and_set_node_shared_secrets_transaction_seed, encrypted_seed,
-       encrypted_secret_key}
-    )
-  end
-
-  @impl SharedSecretsKeystoreImpl
-  @spec decrypt_and_set_daily_nonce_seed(
-          encrypted_seed :: binary(),
-          encrypted_secret_key :: binary(),
-          timestamp :: DateTime.t()
-        ) :: :ok
-  def decrypt_and_set_daily_nonce_seed(encrypted_seed, encrypted_secret_key, timestamp) do
-    GenServer.call(
-      __MODULE__,
-      {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_secret_key, timestamp}
-    )
-  end
-
-  @impl SharedSecretsKeystoreImpl
-  @spec decrypt_and_set_node_shared_secrets_network_pool_seed(
-          encrypted_seed :: binary(),
-          encrypted_secret_key :: binary()
-        ) :: :ok
-  def decrypt_and_set_node_shared_secrets_network_pool_seed(encrypted_seed, encrypted_secret_key) do
-    GenServer.call(
-      __MODULE__,
-      {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed,
-       encrypted_secret_key}
-    )
-  end
-
-  @impl GenServer
+  @impl GenStateMachine
   def init(_) do
-    {:ok, %{daily_nonce_index: 0, network_pool_index: 0, daily_nonce_keys: %{}}}
+    {:ok, :idle, %{daily_nonce_index: 0, network_pool_index: 0, daily_nonce_keys: %{}}}
   end
 
-  @impl GenServer
-  def handle_call(
+  @impl GenStateMachine
+  def handle_event(
+        {:call, from},
         {:sign_with_node_shared_key, data},
-        _,
-        state = %{node_secrets_transaction_seed: seed}
+        :authorized,
+        %{transaction_seed: seed}
       ) do
     index = KeystoreCounter.get_node_shared_key_counter()
     {_, pv} = previous_keypair(seed, index)
-    {:reply, Crypto.sign(data, pv), state}
+    {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
 
-  def handle_call(
+  def handle_event({:call, _}, {:sign_with_node_shared_key, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
         {:sign_with_node_shared_key, data, index},
-        _,
-        state = %{node_secrets_transaction_seed: seed}
+        :authorized,
+        %{transaction_seed: seed}
       ) do
     {_, pv} = Crypto.derive_keypair(seed, index)
-    {:reply, Crypto.sign(data, pv), state}
+    {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
 
-  def handle_call(
+  def handle_event({:call, _}, {:sign_with_node_shared_key, _, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
         {:sign_with_network_pool_key, data},
-        _,
-        state = %{network_pool_seed: seed}
+        :authorized,
+        %{network_pool_seed: seed}
       ) do
     index = KeystoreCounter.get_network_pool_key_counter()
     {_, pv} = previous_keypair(seed, index)
-    {:reply, Crypto.sign(data, pv), state}
+    {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
 
-  def handle_call(
+  def handle_event({:call, _}, {:sign_with_network_pool_key, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
         {:sign_with_network_pool_key, data, index},
-        _,
-        state = %{network_pool_seed: seed}
+        :authorized,
+        %{network_pool_seed: seed}
       ) do
     {_, pv} = Crypto.derive_keypair(seed, index)
-    {:reply, Crypto.sign(data, pv), state}
+    {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
 
-  def handle_call(
+  def handle_event({:call, _}, {:sign_with_network_pool_key, _, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
         {:sign_with_daily_nonce_key, data, timestamp},
-        _,
-        state = %{daily_nonce_keys: keys}
+        :authorized,
+        %{daily_nonce_keys: keys}
       ) do
     {pub, pv} =
       keys
@@ -167,48 +155,70 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     Logger.debug("Sign with the daily nonce for the public key #{Base.encode16(pub)}")
 
-    {:reply, Crypto.sign(data, pv), state}
+    {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
 
-  def handle_call(
+  def handle_event({:call, _}, {:sign_with_daily_nonce_key, _, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
         {:node_shared_secrets_public_key, index},
+        :authorized,
+        %{transaction_seed: seed}
+      ) do
+    {pub, _} = Crypto.derive_keypair(seed, index)
+    {:keep_state_and_data, {:reply, from, pub}}
+  end
+
+  def handle_event({:call, _}, {:node_shared_secrets_public_key, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event({:call, from}, {:network_pool_public_key, index}, :authorized, %{
+        network_pool_seed: seed
+      }) do
+    {pub, _} = Crypto.derive_keypair(seed, index)
+    {:keep_state_and_data, {:reply, from, pub}}
+  end
+
+  def handle_event({:call, _}, {:network_pool_public_key, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
+        {:wrap_secrets, secret_key},
+        :authorized,
+        %{transaction_seed: transaction_seed, network_pool_seed: network_pool_seed}
+      ) do
+    encrypted_transaction_seed = Crypto.aes_encrypt(transaction_seed, secret_key)
+    encrypted_network_pool_seed = Crypto.aes_encrypt(network_pool_seed, secret_key)
+
+    {:keep_state_and_data,
+     {:reply, from, {encrypted_transaction_seed, encrypted_network_pool_seed}}}
+  end
+
+  def handle_event({:call, _}, {:wrap_secrets, _, _}, :idle, _data) do
+    {:keep_state_and_data, :postpone}
+  end
+
+  def handle_event(
+        {:call, from},
+        {:unwrap_secrets, encrypted_secrets, encrypted_aes_key, timestamp},
         _,
-        state = %{node_secrets_transaction_seed: seed}
-      ) do
-    {pub, _} = Crypto.derive_keypair(seed, index)
-    {:reply, pub, state}
-  end
-
-  def handle_call({:network_pool_public_key, index}, _, state = %{network_pool_seed: seed}) do
-    {pub, _} = Crypto.derive_keypair(seed, index)
-    {:reply, pub, state}
-  end
-
-  def handle_call(
-        {:encrypt_node_shared_secrets_transaction_seed, key},
-        _from,
-        state = %{node_secrets_transaction_seed: seed}
-      ) do
-    {:reply, Crypto.aes_encrypt(seed, key), state}
-  end
-
-  def handle_call(
-        {:encrypt_network_pool_transaction_seed, key},
-        _from,
-        state = %{network_pool_seed: seed}
-      ) do
-    {:reply, Crypto.aes_encrypt(seed, key), state}
-  end
-
-  def handle_call(
-        {:decrypt_and_set_daily_nonce_seed, encrypted_seed, encrypted_aes_key, timestamp},
-        _from,
-        state = %{
+        data = %{
           daily_nonce_keys: daily_nonce_keys
         }
       ) do
+    <<enc_daily_nonce_seed::binary-size(60), enc_transaction_seed::binary-size(60),
+      enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
+
     with {:ok, aes_key} <- Crypto.ec_decrypt_with_node_key(encrypted_aes_key),
-         {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(encrypted_seed, aes_key) do
+         {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
+         {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
+         {:ok, network_pool_seed} <- Crypto.aes_decrypt(enc_network_pool_seed, aes_key) do
       daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
       new_keys =
@@ -221,43 +231,17 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         "Daily nonce stored for the public key: #{Base.encode16(daily_nonce_keypair |> elem(0))} "
       )
 
-      {:reply, :ok, Map.put(state, :daily_nonce_keys, new_keys)}
-    else
-      {:error, :decryption_failed} ->
-        Logger.error("Cannot decrypt the node shared secrets daily nonce seed")
-        {:reply, :error, state}
-    end
-  end
+      new_data =
+        data
+        |> Map.put(:daily_nonce_keys, new_keys)
+        |> Map.put(:transaction_seed, transaction_seed)
+        |> Map.put(:network_pool_seed, network_pool_seed)
 
-  def handle_call(
-        {:decrypt_and_set_node_shared_secrets_network_pool_seed, encrypted_seed,
-         encrypted_aes_key},
-        _from,
-        state
-      ) do
-    with {:ok, aes_key} <- Crypto.ec_decrypt_with_node_key(encrypted_aes_key),
-         {:ok, network_pool_seed} <- Crypto.aes_decrypt(encrypted_seed, aes_key) do
-      {:reply, :ok, Map.put(state, :network_pool_seed, network_pool_seed)}
+      {:next_state, :authorized, new_data, {:reply, from, :ok}}
     else
       {:error, :decryption_failed} ->
-        Logger.error("Cannot decrypt the node shared secrets network pool seed")
-        {:reply, :error, state}
-    end
-  end
-
-  def handle_call(
-        {:decrypt_and_set_node_shared_secrets_transaction_seed, encrypted_seed,
-         encrypted_aes_key},
-        _from,
-        state
-      ) do
-    with {:ok, aes_key} <- Crypto.ec_decrypt_with_node_key(encrypted_aes_key),
-         {:ok, transaction_seed} <- Crypto.aes_decrypt(encrypted_seed, aes_key) do
-      {:reply, :ok, Map.put(state, :node_secrets_transaction_seed, transaction_seed)}
-    else
-      {:error, :decryption_failed} ->
-        Logger.error("Cannot decrypt the node shared secrets transaction seed")
-        {:reply, :error, state}
+        Logger.error("Cannot decrypt the node shared secrets")
+        {:keep_state_and_data, {:reply, from, :error}}
     end
   end
 

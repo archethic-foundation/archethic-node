@@ -13,22 +13,12 @@ defmodule Uniris.Crypto.SharedSecretsKeystoreImpl do
   @callback node_shared_secrets_public_key(index :: non_neg_integer()) :: Crypto.key()
   @callback network_pool_public_key(index :: non_neg_integer()) :: Crypto.key()
 
-  @callback encrypt_node_shared_secrets_transaction_seed(key :: binary()) :: binary()
-  @callback encrypt_network_pool_seed(key :: binary()) :: binary()
+  @callback wrap_secrets(key :: binary()) ::
+              {enc_transaction_seed :: binary(), enc_network_pool_seed :: binary()}
 
-  @callback decrypt_and_set_node_shared_secrets_transaction_seed(
-              encrypted_seed :: binary(),
-              encrypted_secret_key :: binary()
-            ) :: :ok | :error
-
-  @callback decrypt_and_set_daily_nonce_seed(
-              encrypted_seed :: binary(),
+  @callback unwrap_secrets(
+              encrypted_secrets :: binary(),
               encrypted_secret_key :: binary(),
-              timestamp :: DateTime.t()
-            ) :: :ok | :error
-
-  @callback decrypt_and_set_node_shared_secrets_network_pool_seed(
-              encrypted_seed :: binary(),
-              encrypted_secret_key :: binary()
+              date :: DateTime.t()
             ) :: :ok | :error
 end

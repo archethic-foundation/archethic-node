@@ -79,10 +79,12 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
              is_list(authorized_node_public_keys) do
     {daily_nonce_public_key, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
+    {encrypted_transaction_seed, encrypted_network_pool_seed} = Crypto.wrap_secrets(secret_key)
+    encrypted_daily_nonce_seed = Crypto.aes_encrypt(daily_nonce_seed, secret_key)
+
     secret =
-      Crypto.aes_encrypt(daily_nonce_seed, secret_key) <>
-        Crypto.encrypt_node_shared_secrets_transaction_seed(secret_key) <>
-        Crypto.encrypt_network_pool_seed(secret_key)
+      <<encrypted_daily_nonce_seed::binary, encrypted_transaction_seed::binary,
+        encrypted_network_pool_seed::binary>>
 
     network_pool_address =
       Crypto.number_of_network_pool_keys()
