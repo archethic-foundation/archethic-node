@@ -36,7 +36,6 @@ Current implemented features:
 - NFT creation and transfers
 ## Next features to appear very soon:
 - Sampling P2P view on the Beacon chain
-- Summary of the Beacon chain
 - P2P messages encryption
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
@@ -46,6 +45,7 @@ Requirements:
 - Libsodium: for the ed25519 encryption and decryption.
 - OpenSSL 1.11
 - OTP 23: generation of ed25519 key pairs
+- GMP (https://gmplib.org/)
 
 Platforms supported:
 - Linux (Ubuntu 18.04)
