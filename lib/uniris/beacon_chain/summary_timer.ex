@@ -10,6 +10,12 @@ defmodule Uniris.BeaconChain.SummaryTimer do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SubsetRegistry
+
+  alias Uniris.Crypto
+
+  alias Uniris.PubSub
+  alias Uniris.P2P.Node
+
   alias Uniris.Utils
 
   require Logger
@@ -90,6 +96,9 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     interval = Keyword.get(opts, :interval)
     :ets.new(:uniris_summary_timer, [:named_table, :public, read_concurrency: true])
     :ets.insert(:uniris_summary_timer, {:interval, interval})
+
+    PubSub.register_to_node_update()
+
     {:ok, %{interval: interval}, :hibernate}
   end
 
@@ -98,20 +107,35 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     interval
   end
 
-  def handle_cast(:start_scheduler, state = %{interval: interval}) do
-    case Map.get(state, :timer) do
-      nil ->
-        :ok
+  @doc false
+  def handle_info(
+        {:node_update, %Node{authorized?: true, first_public_key: key}},
+        state = %{interval: interval}
+      ) do
+    if key == Crypto.node_public_key() do
+      state
+      |> Map.get(:timer)
+      |> cancel_timer()
 
-      timer ->
-        Process.cancel_timer(timer)
+      timer = schedule_new_summary(interval)
+      {:noreply, Map.put(state, :timer, timer), :hibernate}
+    else
+      {:noreply, state}
     end
-
-    timer = schedule_new_summary(interval)
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
-  @doc false
+  def handle_info({:node_update, %Node{authorized?: false, first_public_key: key}}, state) do
+    if key == Crypto.node_public_key() do
+      state
+      |> Map.get(:timer)
+      |> cancel_timer()
+
+      {:noreply, Map.delete(state, :timer), :hibernate}
+    else
+      {:noreply, state}
+    end
+  end
+
   def handle_info(:new_summary, state = %{interval: interval}) do
     timer = schedule_new_summary(interval)
 
@@ -130,4 +154,7 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   defp schedule_new_summary(interval) do
     Process.send_after(self(), :new_summary, Utils.time_offset(interval) * 1000)
   end
+
+  defp cancel_timer(nil), do: :ok
+  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 end

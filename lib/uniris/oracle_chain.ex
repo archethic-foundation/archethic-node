@@ -5,27 +5,15 @@ defmodule Uniris.OracleChain do
   UCO Price is the first network Oracle and it's used for many algorithms such as: transaction fee, node rewards, smart contracts
   """
 
-  alias Uniris.Crypto
-
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
-  alias __MODULE__.Scheduler
   alias __MODULE__.Services
   alias __MODULE__.Summary
 
   alias Uniris.PubSub
 
-  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
-
-  require Logger
-
-  @doc """
-  Start the oracle scheduling
-  """
-  @spec start_scheduling() :: :ok
-  defdelegate start_scheduling, to: Scheduler
 
   @doc """
   Determines if the oracle transaction is valid.
@@ -93,16 +81,6 @@ defmodule Uniris.OracleChain do
 
   def load_transaction(tx = %Transaction{type: :oracle_summary}),
     do: MemTableLoader.load_transaction(tx)
-
-  def load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
-    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-
-    if Crypto.node_public_key(0) == first_public_key do
-      start_scheduling()
-    else
-      :ok
-    end
-  end
 
   def load_transaction(%Transaction{}), do: :ok
 

@@ -8,6 +8,7 @@ defmodule Uniris.OracleChain.Scheduler do
 
   alias Uniris.Crypto
 
+  alias Uniris.PubSub
   alias Uniris.P2P.Node
 
   alias Uniris.OracleChain.Services
@@ -36,6 +37,8 @@ defmodule Uniris.OracleChain.Scheduler do
     polling_interval = Keyword.fetch!(args, :polling_interval)
     summary_interval = Keyword.fetch!(args, :summary_interval)
 
+    PubSub.register_to_node_update()
+
     {:ok,
      %{
        polling_interval: polling_interval,
@@ -43,27 +46,43 @@ defmodule Uniris.OracleChain.Scheduler do
      }}
   end
 
-  def handle_cast(
-        :start_scheduling,
+  def handle_info(
+        {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
         state = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
-    Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
+    if first_public_key == Crypto.node_public_key(0) do
+      polling_timer = schedule_new_polling(polling_interval)
+      summary_timer = schedule_new_summary(summary_interval)
 
-    polling_timer = schedule_new_polling(polling_interval)
-    summary_timer = schedule_new_summary(summary_interval)
+      new_state =
+        state
+        |> Map.put(:polling_timer, polling_timer)
+        |> Map.put(:summary_timer, summary_timer)
 
-    new_state =
-      state
-      |> Map.put(:polling_timer, polling_timer)
-      |> Map.put(:summary_timer, summary_timer)
-
-    Logger.info("Start the Oracle scheduler")
-
-    {:noreply, new_state}
+      Logger.info("Start the Oracle scheduler")
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
   end
 
-  defp cancel_timer(nil), do: :ok
-  defp cancel_timer(timer), do: Process.cancel_timer(timer)
+  def handle_info(
+        {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
+        state
+      ) do
+    if first_public_key == Crypto.node_public_key(0) do
+      Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
+
+      new_state =
+        state
+        |> Map.delete(:polling_timer)
+        |> Map.delete(:summary_timer)
+
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
+  end
 
   def handle_info(:poll, state = %{polling_interval: interval}) do
     timer = schedule_new_polling(interval)
@@ -117,6 +136,9 @@ defmodule Uniris.OracleChain.Scheduler do
   defp schedule_new_summary(interval) do
     Process.send_after(self(), :summary, Utils.time_offset(interval) * 1000)
   end
+
+  defp cancel_timer(nil), do: :ok
+  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 
   defp trigger_node?(date = %DateTime{}) do
     {next_pub, _pv} = Crypto.derive_oracle_keypair(date)

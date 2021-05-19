@@ -10,6 +10,12 @@ defmodule Uniris.BeaconChain.SlotTimer do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SubsetRegistry
+
+  alias Uniris.Crypto
+
+  alias Uniris.PubSub
+  alias Uniris.P2P.Node
+
   alias Uniris.Utils
 
   require Logger
@@ -87,23 +93,41 @@ defmodule Uniris.BeaconChain.SlotTimer do
     interval = Keyword.get(opts, :interval)
     :ets.new(:uniris_slot_timer_timer, [:named_table, :public, read_concurrency: true])
     :ets.insert(:uniris_slot_timer_timer, {:interval, interval})
+
+    PubSub.register_to_node_update()
+
     {:ok, %{interval: interval}}
   end
 
-  def handle_cast(:start_scheduler, state = %{interval: interval}) do
-    case Map.get(state, :timer) do
-      nil ->
-        :ok
+  @doc false
+  def handle_info(
+        {:node_update, %Node{authorized?: true, first_public_key: key}},
+        state = %{interval: interval}
+      ) do
+    if key == Crypto.node_public_key(0) do
+      state
+      |> Map.get(:timer)
+      |> cancel_timer()
 
-      timer ->
-        Process.cancel_timer(timer)
+      timer = schedule_new_slot(interval)
+      {:noreply, Map.put(state, :timer, timer), :hibernate}
+    else
+      {:noreply, state}
     end
-
-    timer = schedule_new_slot(interval)
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
-  @doc false
+  def handle_info({:node_update, %Node{authorized?: false, first_public_key: key}}, state) do
+    if key == Crypto.node_public_key(0) do
+      state
+      |> Map.get(:timer)
+      |> cancel_timer()
+
+      {:noreply, Map.delete(state, :timer), :hibernate}
+    else
+      {:noreply, state}
+    end
+  end
+
   def handle_info(
         :new_slot,
         state = %{
@@ -127,4 +151,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
   end
+
+  defp cancel_timer(nil), do: :ok
+  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 end
