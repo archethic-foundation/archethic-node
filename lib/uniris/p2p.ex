@@ -6,6 +6,7 @@ defmodule Uniris.P2P do
 
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
+  alias __MODULE__.ConnectionRegistry
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
@@ -481,6 +482,24 @@ defmodule Uniris.P2P do
 
       _ ->
         do_reply_atomic(rest, message)
+    end
+  end
+
+  @doc """
+  Determine if the node has a connection to
+  """
+  @spec has_connection?(Node.t()) :: boolean()
+  def has_connection?(%Node{first_public_key: key}) do
+    if Crypto.node_public_key() == key do
+      true
+    else
+      case Registry.lookup(ConnectionRegistry, {:bearer_conn, key}) do
+        [{_, _}] ->
+          true
+
+        [] ->
+          false
+      end
     end
   end
 end

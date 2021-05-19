@@ -52,6 +52,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.NotifyEndOfNodeSync
   alias __MODULE__.NotifyLastTransactionAddress
   alias __MODULE__.Ok
+  alias __MODULE__.Ping
   alias __MODULE__.P2PView
   alias __MODULE__.ReplicateTransaction
   alias __MODULE__.StartMining
@@ -105,6 +106,8 @@ defmodule Uniris.P2P.Message do
           | GetLastTransactionAddress.t()
           | NotifyLastTransactionAddress.t()
           | NodeAvailability.t()
+          | GetCurrentSlot.t()
+          | Ping.t()
 
   @type response ::
           Ok.t()
@@ -318,6 +321,8 @@ defmodule Uniris.P2P.Message do
   def encode(%NodeAvailability{public_key: node_public_key}) do
     <<27::8, node_public_key::binary>>
   end
+
+  def encode(%Ping{}), do: <<28::8, 0::size(256)>>
 
   def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
@@ -687,6 +692,8 @@ defmodule Uniris.P2P.Message do
     {public_key, rest} = deserialize_public_key(rest)
     {%NodeAvailability{public_key: public_key}, rest}
   end
+
+  def decode(<<28::8, _::size(256)>>), do: %Ping{}
 
   def decode(<<238::8, reason::8, rest::bitstring>>) do
     {%Error{reason: Error.deserialize_reason(reason)}, rest}
@@ -1168,4 +1175,6 @@ defmodule Uniris.P2P.Message do
     P2P.set_node_globally_available(public_key)
     %Ok{}
   end
+
+  def process(%Ping{}), do: %Ok{}
 end

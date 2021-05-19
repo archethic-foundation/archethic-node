@@ -52,4 +52,7 @@ defmodule Uniris.P2P.Transport.TCPImpl do
   def read_from_socket(socket, size \\ 0, timeout \\ :infinity) do
     :gen_tcp.recv(socket, size, timeout)
   end
+
+  @impl TransportImpl
+  def close_socket(socket), do: :gen_tcp.close(socket)
 end

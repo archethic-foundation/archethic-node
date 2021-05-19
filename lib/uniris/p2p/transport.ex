@@ -81,6 +81,15 @@ defmodule Uniris.P2P.Transport do
   defp do_read_from_socket(_, socket, size, timeout),
     do: config_impl().read_from_socket(socket, size, timeout)
 
+  @doc """
+  Close an opened socket
+  """
+  @spec close_socket(supported(), :inet.socket()) :: :ok
+  def close_socket(transport, socket), do: do_close_socket(transport, socket)
+
+  defp do_close_socket(:tcp, socket), do: TCPImpl.close_socket(socket)
+  defp do_close_socket(_, socket), do: config_impl().close_socket(socket)
+
   defp config_impl do
     Application.get_env(:uniris, __MODULE__)[:impl]
   end

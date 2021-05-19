@@ -18,4 +18,6 @@ defmodule Uniris.P2P.TransportImpl do
               size_to_read :: non_neg_integer(),
               timeout :: non_neg_integer()
             ) :: :ok | {:error, :closed | :timeout | :inet.posix()}
+
+  @callback close_socket(:inet.socket()) :: :ok
 end
