@@ -2,11 +2,9 @@ defmodule Uniris.BeaconChain.Subset.P2PSampling do
   @moduledoc false
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message
   alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
-  alias Uniris.P2P.Transport
 
   @type p2p_view :: {available? :: boolean(), latency :: non_neg_integer()}
 
@@ -28,19 +26,17 @@ defmodule Uniris.BeaconChain.Subset.P2PSampling do
   @spec get_p2p_views(list(Node.t())) :: list(p2p_view())
   def get_p2p_views(nodes) when is_list(nodes) do
     nodes
-    |> Task.async_stream(&do_sample_p2p_view/1)
-    |> Enum.into([], fn {:ok, res} -> res end)
+    |> Task.async_stream(&do_sample_p2p_view/1, on_timeout: :kill_task, timeout: 500)
+    |> Enum.map(fn
+      {:ok, res} ->
+        res
+
+      {:exit, :timeout} ->
+        {false, 0}
+    end)
   end
 
   defp do_sample_p2p_view(node = %Node{}) do
-    if P2P.has_connection?(node) do
-      sample_p2p_view_with_connection(node)
-    else
-      sample_p2p_view_without_connection(node)
-    end
-  end
-
-  defp sample_p2p_view_with_connection(node = %Node{}) do
     start_time = System.monotonic_time(:millisecond)
 
     case P2P.send_message(node, %Ping{}) do
@@ -48,29 +44,6 @@ defmodule Uniris.BeaconChain.Subset.P2PSampling do
         end_time = System.monotonic_time(:millisecond)
         latency = end_time - start_time
         {true, trunc(latency)}
-
-      _ ->
-        {false, 0}
-    end
-  end
-
-  defp sample_p2p_view_without_connection(%Node{transport: transport, ip: ip, port: port}) do
-    start_time = System.monotonic_time(:millisecond)
-
-    case Transport.connect(transport, ip, port) do
-      {:ok, socket} ->
-        with :ok <- Transport.send_message(transport, socket, Message.encode(%Ping{})),
-             {:ok, %Ok{}} <- Transport.read_from_socket(transport, socket) do
-          end_time = System.monotonic_time(:millisecond)
-          Transport.close_socket(transport, socket)
-
-          latency = end_time - start_time
-          {true, trunc(latency)}
-        else
-          _ ->
-            Transport.close_socket(transport, socket)
-            {false, 0}
-        end
 
       _ ->
         {false, 0}

@@ -23,6 +23,7 @@ defmodule Uniris.BeaconChainTest do
   import Mox
 
   setup do
+    start_supervised!({SlotTimer, interval: "0 0 * * * *"})
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
     Enum.each(BeaconChain.list_subsets(), &Subset.start_link(subset: &1))
     :ok
@@ -106,13 +107,13 @@ defmodule Uniris.BeaconChainTest do
   end
 
   test "summary_transaction_address/2 should return a address using the storage nonce a subset and a date" do
-    assert <<0, 20, 67, 131, 34, 30, 226, 235, 247, 202, 0, 199, 208, 173, 117, 231, 252, 19, 83,
-             196, 76, 63, 172, 254, 160, 255, 172, 88, 217, 246, 47, 204,
-             235>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
+    assert <<0, 226, 52, 88, 119, 62, 225, 250, 221, 230, 153, 206, 237, 179, 155, 241, 128, 23,
+             162, 219, 201, 90, 206, 21, 133, 68, 1, 27, 12, 204, 78, 156,
+             100>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
 
-    assert <<0, 96, 30, 212, 152, 62, 254, 106, 56, 26, 32, 23, 61, 242, 173, 246, 138, 17, 19,
-             121, 64, 48, 225, 103, 107, 44, 114, 214, 43, 92, 185, 211,
-             119>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
+    assert <<0, 235, 229, 62, 76, 248, 83, 203, 54, 50, 10, 103, 30, 247, 122, 171, 126, 212, 231,
+             93, 164, 224, 165, 120, 119, 63, 165, 191, 209, 60, 93, 199,
+             128>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
   test "add_transaction_summary/1 should register a transaction inside a subset" do
@@ -150,7 +151,6 @@ defmodule Uniris.BeaconChainTest do
   describe "register_slot/1" do
     setup do
       start_supervised!({SummaryTimer, interval: "0 0 0 * * *"})
-      start_supervised!({SlotTimer, interval: "0 0 * * * *"})
       :ok
     end
 
@@ -215,7 +215,8 @@ defmodule Uniris.BeaconChainTest do
 
       sig1 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(0)
 
       me = self()
@@ -246,7 +247,8 @@ defmodule Uniris.BeaconChainTest do
 
       sig1 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(0)
 
       MockDB
@@ -285,7 +287,8 @@ defmodule Uniris.BeaconChainTest do
 
       sig1 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(0)
 
       me = self()
@@ -302,7 +305,8 @@ defmodule Uniris.BeaconChainTest do
 
       sig2 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(1)
 
       assert :ok =

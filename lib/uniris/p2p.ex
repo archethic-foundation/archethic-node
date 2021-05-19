@@ -6,12 +6,14 @@ defmodule Uniris.P2P do
 
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
-  alias __MODULE__.ConnectionRegistry
   alias __MODULE__.GeoPatch
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Message
   alias __MODULE__.Node
+
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
 
   alias Uniris.Utils
 
@@ -27,11 +29,17 @@ defmodule Uniris.P2P do
   Register a node and establish a connection with
   """
   @spec add_and_connect_node(Node.t()) :: :ok
-  def add_and_connect_node(
-        node = %Node{first_public_key: first_public_key, ip: ip, port: port, transport: transport}
-      ) do
+  def add_and_connect_node(node = %Node{}) do
     :ok = MemTable.add_node(node)
+    do_connect_node(node)
+  end
 
+  defp do_connect_node(%Node{
+         ip: ip,
+         port: port,
+         transport: transport,
+         first_public_key: first_public_key
+       }) do
     if first_public_key == Crypto.node_public_key(0) do
       :ok
     else
@@ -367,7 +375,16 @@ defmodule Uniris.P2P do
   @doc """
   Load the transaction into the P2P context updating the P2P view
   """
-  defdelegate load_transaction(tx), to: MemTableLoader
+  def load_transaction(tx = %Transaction{type: :node, previous_public_key: previous_public_key}) do
+    :ok = MemTableLoader.load_transaction(tx)
+
+    previous_public_key
+    |> TransactionChain.get_first_public_key()
+    |> get_node_info!()
+    |> do_connect_node()
+  end
+
+  def load_transaction(tx), do: MemTableLoader.load_transaction(tx)
 
   @doc """
   Send multiple message at once for the given nodes.
@@ -482,24 +499,6 @@ defmodule Uniris.P2P do
 
       _ ->
         do_reply_atomic(rest, message)
-    end
-  end
-
-  @doc """
-  Determine if the node has a connection to
-  """
-  @spec has_connection?(Node.t()) :: boolean()
-  def has_connection?(%Node{first_public_key: key}) do
-    if Crypto.node_public_key() == key do
-      true
-    else
-      case Registry.lookup(ConnectionRegistry, {:bearer_conn, key}) do
-        [{_, _}] ->
-          true
-
-        [] ->
-          false
-      end
     end
   end
 end

@@ -3,9 +3,6 @@ defmodule Uniris.P2P.MemTableLoader do
 
   use GenServer
 
-  alias Uniris.Crypto
-
-  alias Uniris.P2P.Client
   alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Node
@@ -109,28 +106,10 @@ defmodule Uniris.P2P.MemTableLoader do
     keys
     |> Keys.list_authorized_keys()
     |> Enum.map(&MemTable.get_first_node_key/1)
-    |> Enum.each(fn node_key ->
-      MemTable.authorize_node(node_key, SharedSecrets.next_application_date(timestamp))
-      {:ok, node} = MemTable.get_node(node_key)
-      do_connect_node(node)
-    end)
+    |> Enum.each(&MemTable.authorize_node(&1, SharedSecrets.next_application_date(timestamp)))
   end
 
   def load_transaction(_), do: :ok
-
-  defp do_connect_node(%Node{
-         ip: ip,
-         port: port,
-         transport: transport,
-         first_public_key: first_public_key
-       }) do
-    if first_public_key == Crypto.node_public_key(0) do
-      :ok
-    else
-      Client.new_connection(ip, port, transport, first_public_key)
-      :ok
-    end
-  end
 
   defp first_node_change?(first_key, previous_key) when first_key == previous_key, do: true
   defp first_node_change?(_, _), do: false

@@ -9,7 +9,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.AddBeaconSlotProof
+  alias Uniris.P2P.Message.AddBeaconSlot
   alias Uniris.P2P.Message.NotifyBeaconSlot
   alias Uniris.P2P.Node
 
@@ -22,34 +22,20 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
   @doc """
   Start the consensus worker
   """
-  @spec start_link(list()) :: {:ok, pid()}
+  @spec start_link(list()) :: GenStateMachine.on_start()
   def start_link(args \\ []) do
-    GenStateMachine.start(__MODULE__, args)
+    GenStateMachine.start_link(__MODULE__, args)
   end
 
   @doc """
-  Request validation of a beacon slot
-  """
-  @spec validate_and_notify_slot(pid(), Slot.t()) :: :ok
-  def validate_and_notify_slot(pid, slot = %Slot{}) do
-    GenStateMachine.cast(pid, {:validate_and_notify_slot, slot})
-  end
-
-  @doc """
-  Add beacon slot proof to the consensus worker state.
+  Add beacon slot coming from a remote node
 
   If enough valid proofs and signatures are received, the summary can be notified
-  Otherwise a resync step is started excluding any malicious behavior
-  for the invalid transaction summaries
   """
-  @spec add_slot_proof(pid(), binary(), Crypto.key(), binary()) :: :ok | {:error, :invalid_proof}
-  def add_slot_proof(pid, slot_digest, node_public_key, signature)
-      when is_binary(slot_digest) and is_binary(node_public_key) and is_binary(signature) do
-    if Crypto.verify(signature, slot_digest, node_public_key) do
-      GenStateMachine.cast(pid, {:add_slot_proof, slot_digest, node_public_key, signature})
-    else
-      {:error, :invalid_proof}
-    end
+  @spec add_remote_slot(pid(), Slot.t(), Crypto.key(), binary()) :: :ok
+  def add_remote_slot(pid, slot = %Slot{}, node_public_key, signature)
+      when is_binary(node_public_key) and is_binary(signature) do
+    GenStateMachine.cast(pid, {:add_remote_slot, slot, node_public_key, signature})
   end
 
   def init(args) do
@@ -57,128 +43,162 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensus do
     slot = Keyword.fetch!(args, :slot)
     timeout = Keyword.get(args, :timeout, 5_000)
 
-    {:ok, :started, %{node_public_key: node_public_key, slot: slot, timeout: timeout},
-     {:next_event, :internal, :validate_and_notify_slot}}
+    {:ok, :started, %{node_public_key: node_public_key, current_slot: slot, timeout: timeout},
+     {:next_event, :internal, :sign_and_notify_slot}}
   end
 
   def handle_event(
         :internal,
-        :validate_and_notify_slot,
+        :sign_and_notify_slot,
         :started,
         data = %{
           node_public_key: node_public_key,
-          slot: slot = %Slot{subset: subset},
+          current_slot: slot = %Slot{},
           timeout: timeout
         }
       ) do
     storage_nodes = Slot.involved_nodes(slot)
+    signature = slot |> Slot.to_pending() |> Slot.serialize() |> Crypto.sign_with_node_key()
+    notify_slot(storage_nodes, slot, node_public_key, signature)
 
-    digest = Slot.digest(slot)
-    Logger.debug("Notified slot: #{inspect(slot)}", beacon_subset: Base.encode16(subset))
-    notify_digest(subset, digest, storage_nodes)
+    node_pos = Enum.find_index(storage_nodes, &(&1.first_public_key == node_public_key))
+    nb_nodes = length(storage_nodes)
 
-    case Enum.find_index(storage_nodes, &(&1.first_public_key == node_public_key)) do
-      nil ->
-        # Node is not ready or doesn't need it for now
+    current_slot = %{
+      slot
+      | involved_nodes: Utils.set_bitstring_bit(<<0::size(nb_nodes)>>, node_pos),
+        validation_signatures: %{node_pos => signature}
+    }
+
+    case storage_nodes do
+      [%Node{first_public_key: ^node_public_key}] ->
+        notify_summary_pool(slot)
         :stop
 
-      node_pos ->
-        nb_nodes = length(storage_nodes)
+      _ ->
+        new_data =
+          data
+          |> Map.put(:current_slot, current_slot)
+          |> Map.put(:storage_nodes, storage_nodes)
 
-        current_slot = %{
-          slot
-          | involved_nodes: Utils.set_bitstring_bit(<<0::size(nb_nodes)>>, node_pos),
-            validation_signatures: %{node_pos => Crypto.sign_with_node_key(digest)}
-        }
-
-        case storage_nodes do
-          [%Node{first_public_key: ^node_public_key}] ->
-            notify_summary_pool(current_slot)
-            :stop
-
-          _ ->
-            new_data =
-              data
-              |> Map.put(:current_slot, current_slot)
-              |> Map.put(:storage_nodes, storage_nodes)
-              |> Map.put(:digest, digest)
-              |> Map.put(:node_pos, node_pos)
-
-            {:next_state, :waiting_proofs, new_data,
-             {:state_timeout, timeout, :sync_to_summary_pool}}
-        end
+        {:next_state, :waiting_slots, new_data, {:state_timeout, timeout, :sync_to_summary_pool}}
     end
   end
 
   def handle_event(
         :cast,
-        {:add_slot_proof, recv_digest, node_public_key, signature},
-        :waiting_proofs,
+        {:add_remote_slot, slot = %Slot{}, node_public_key, signature},
+        :waiting_slots,
         data = %{
-          digest: digest,
           storage_nodes: storage_nodes,
           current_slot: current_slot
         }
-      )
-      when digest == recv_digest do
-    case Enum.find_index(storage_nodes, &(&1.last_public_key == node_public_key)) do
-      nil ->
+      ) do
+    digest =
+      slot
+      |> Slot.to_pending()
+      |> Slot.serialize()
+
+    with node_pos when node_pos != nil <-
+           Enum.find_index(storage_nodes, &(&1.last_public_key == node_public_key)),
+         true <- Crypto.verify(signature, digest, node_public_key),
+         {:ok, new_slot} <- resolve_conflicts(current_slot, slot) do
+      new_slot =
+        new_slot
+        |> Map.update!(:involved_nodes, &Utils.set_bitstring_bit(&1, node_pos))
+        |> Map.update!(:validation_signatures, &Map.put(&1, node_pos, signature))
+
+      if map_size(new_slot.validation_signatures) == length(storage_nodes) do
+        notify_summary_pool(current_slot)
+        :stop
+      else
+        {:keep_state, Map.put(data, :current_slot, new_slot)}
+      end
+    else
+      _ ->
         :keep_state_and_data
-
-      node_pos ->
-        new_slot =
-          current_slot
-          |> Map.update!(:involved_nodes, &Utils.set_bitstring_bit(&1, node_pos))
-          |> Map.update!(:validation_signatures, &Map.put(&1, node_pos, signature))
-
-        if map_size(new_slot.validation_signatures) == length(storage_nodes) do
-          notify_summary_pool(current_slot)
-          :stop
-        else
-          {:keep_state, Map.put(data, :current_slot, new_slot)}
-        end
     end
   end
 
-  def handle_event(
-        :cast,
-        {:add_slot_proof, _recv_digest, node_public_key, _remote_signature},
-        :waiting_proofs,
-        _data = %{
-          current_slot: slot = %Slot{subset: subset}
-        }
-      ) do
-    Logger.warning("Different beacon slot from #{Base.encode16(node_public_key)}",
-      beacon_subset: Base.encode16(subset)
-    )
-
-    Logger.debug("Current slot: #{inspect(slot)}", beacon_subset: Base.encode16(subset))
-
-    :keep_state_and_data
-  end
-
-  def handle_event(:cast, {:add_slot_proof, _, _, _}, :started, _),
+  def handle_event(:cast, {:add_remote_slot, _, _, _}, :started, _),
     do: {:keep_state_and_data, :postpone}
 
   def handle_event(
         :state_timeout,
         :sync_to_summary_pool,
-        :waiting_proofs,
+        :waiting_slots,
         _data = %{current_slot: slot}
       ) do
     notify_summary_pool(slot)
     :stop
   end
 
-  defp notify_digest(subset, digest, storage_nodes) do
-    signature = Crypto.sign_with_node_key(digest)
+  defp resolve_conflicts(current, remote) do
+    # TODO: check if the transaction summaries are correct
 
+    slot = resolve_p2p_differences(current, remote)
+    {:ok, slot}
+  end
+
+  defp resolve_p2p_differences(
+         current = %Slot{
+           p2p_view: %{availabilities: current_availaiblities, network_stats: current_net_stats}
+         },
+         _incoming = %Slot{
+           p2p_view: %{availabilities: incoming_availabilities, network_stats: incoming_net_stats}
+         }
+       ) do
+    new_availabilities =
+      Utils.aggregate_bitstring(current_availaiblities, incoming_availabilities)
+
+    if length(current_net_stats) == length(incoming_net_stats) do
+      %{
+        current
+        | p2p_view: %{
+            availabilities: new_availabilities,
+            network_stats: resolve_network_stats(current_net_stats, incoming_net_stats, [])
+          }
+      }
+    else
+      current
+    end
+  end
+
+  defp resolve_network_stats(
+         [%{latency: latency_a} | tail_a],
+         [%{latency: latency_b} | tail_b],
+         acc
+       )
+       when latency_a > latency_b do
+    resolve_network_stats(tail_a, tail_b, [%{latency: latency_a} | acc])
+  end
+
+  defp resolve_network_stats(
+         [%{latency: latency_a} | tail_a],
+         [%{latency: latency_b} | tail_b],
+         acc
+       )
+       when latency_a < latency_b do
+    resolve_network_stats(tail_a, tail_b, [%{latency: latency_b} | acc])
+  end
+
+  defp resolve_network_stats(
+         [%{latency: latency_a} | tail_a],
+         [%{latency: latency_b} | tail_b],
+         acc
+       )
+       when latency_a == latency_b do
+    resolve_network_stats(tail_a, tail_b, [%{latency: latency_a} | acc])
+  end
+
+  defp resolve_network_stats([], [], acc), do: Enum.reverse(acc)
+
+  defp notify_slot(storage_nodes, slot, node_public_key, signature) do
     storage_nodes
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> P2P.broadcast_message(%AddBeaconSlotProof{
-      subset: subset,
-      digest: digest,
-      public_key: Crypto.node_public_key(),
+    |> Enum.reject(&(&1.first_public_key == node_public_key))
+    |> P2P.broadcast_message(%AddBeaconSlot{
+      slot: slot,
+      public_key: node_public_key,
       signature: signature
     })
   end

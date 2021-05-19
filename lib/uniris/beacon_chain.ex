@@ -248,8 +248,8 @@ defmodule Uniris.BeaconChain do
   @doc """
   Add a proof of the beacon slot for validation during the beacon slot consensus and synchronization
   """
-  @spec add_slot_proof(binary(), binary(), Crypto.key(), binary()) :: :ok
-  defdelegate add_slot_proof(subset, digest, node_public_key, signature), to: Subset
+  @spec add_slot(Slot.t(), Crypto.key(), binary()) :: :ok
+  defdelegate add_slot(slot, node_public_key, signature), to: Subset
 
   @doc """
   Return the previous summary time

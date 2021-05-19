@@ -5,6 +5,9 @@ defmodule Uniris.BeaconChain.Slot do
   """
   alias __MODULE__.EndOfNodeSync
   alias __MODULE__.TransactionSummary
+
+  alias Uniris.BeaconChain.Subset.P2PSampling
+
   alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.Crypto
@@ -18,13 +21,18 @@ defmodule Uniris.BeaconChain.Slot do
 
   @genesis_previous_hash Enum.map(1..33, fn _ -> <<0>> end) |> :erlang.list_to_binary()
 
+  @type net_stats :: list(%{latency: non_neg_integer()})
+
   defstruct [
     :subset,
     :slot_time,
     previous_hash: @genesis_previous_hash,
     transaction_summaries: [],
     end_of_node_synchronizations: [],
-    p2p_view: <<>>,
+    p2p_view: %{
+      availabilities: <<>>,
+      network_stats: []
+    },
     involved_nodes: <<>>,
     validation_signatures: %{}
   ]
@@ -35,10 +43,29 @@ defmodule Uniris.BeaconChain.Slot do
           previous_hash: binary(),
           transaction_summaries: list(TransactionSummary.t()),
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
-          p2p_view: bitstring(),
+          p2p_view: %{
+            availabilities: <<>>,
+            network_stats: net_stats()
+          },
           involved_nodes: bitstring(),
           validation_signatures: %{(node_position :: non_neg_integer()) => binary()}
         }
+
+  @doc """
+  Create a new slot
+  """
+  @spec new(binary(), DateTime.t(), non_neg_integer()) :: t()
+  def new(subset, date = %DateTime{}, nb_nodes_to_sample)
+      when is_binary(subset) and is_integer(nb_nodes_to_sample) do
+    %__MODULE__{
+      subset: subset,
+      slot_time: date,
+      p2p_view: %{
+        availabilities: <<0::size(nb_nodes_to_sample)>>,
+        network_stats: []
+      }
+    }
+  end
 
   @doc """
   Return the genesis previous hash
@@ -123,64 +150,79 @@ defmodule Uniris.BeaconChain.Slot do
   end
 
   @doc """
-  Provide a digest for a beacon slot
+  Add the p2p views to the beacon slot
 
   ## Examples
 
-    iex> %Slot{
-    ...>   subset: <<0>>,
-    ...>   slot_time: ~U[2021-01-20 10:10:00Z],
-    ...>   previous_hash: <<0, 181, 97, 209, 67, 114, 34, 235, 88, 254, 95, 18, 156, 110, 124, 203, 4,
-    ...>     112, 176, 181, 102, 86, 173, 170, 23, 109, 146, 180, 153, 104, 28, 110, 146>>,
-    ...>   transaction_summaries: [
-    ...>     %TransactionSummary{
-    ...>        address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-    ...>          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-    ...>        timestamp: ~U[2020-06-25 15:11:53Z],
-    ...>        type: :transfer,
-    ...>        movements_addresses: []
-    ...>     }
-    ...>   ],
-    ...>   end_of_node_synchronizations: [ %EndOfNodeSync{
-    ...>     public_key: <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-    ...>      100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
-    ...>     timestamp: ~U[2020-06-25 15:11:53Z]
-    ...>   }],
-    ...>   p2p_view: <<0::1, 1::1, 1::1, 1::1, 1::1>>
-    ...> }
-    ...> |> Slot.digest()
-    <<0, 50, 64, 179, 89, 145, 90, 41, 206, 29, 239, 141, 232, 172, 65,
-    160, 17, 213, 9, 152, 63, 34, 4, 137, 124, 78, 17, 123, 149, 133, 246, 243, 136>>
+      iex> %Slot{
+      ...>    p2p_view: %{ availabilities: <<0::1, 0::1, 0::1>>, network_stats: [] }
+      ...>  }
+      ...> |> Slot.add_p2p_view([{true, 10 }, {false, 0 }, {true, 50 }])
+      %Slot{
+        p2p_view: %{
+          availabilities: <<1::1, 0::1, 1::1>>,
+          network_stats: [
+            %{ latency: 10 },
+            %{ latency: 0},
+            %{ latency: 50}
+          ]
+        }
+      }
   """
-  @spec digest(t()) :: binary()
-  def digest(slot = %__MODULE__{}) do
-    slot
-    |> serialize_before_validation()
-    |> Crypto.hash()
+  @spec add_p2p_view(t(), list(P2PSampling.p2p_view())) :: t()
+  def add_p2p_view(slot = %__MODULE__{p2p_view: %{availabilities: availabilities}}, p2p_views)
+      when bit_size(availabilities) == 0 do
+    nb_nodes_to_sample = length(p2p_views)
+
+    if nb_nodes_to_sample == 0 do
+      slot
+    else
+      %{
+        slot
+        | p2p_view: %{
+            availabilities: <<0::size(nb_nodes_to_sample)>>,
+            network_stats: []
+          }
+      }
+      |> add_p2p_view(p2p_views)
+    end
   end
 
-  defp serialize_before_validation(%__MODULE__{
-         subset: subset,
-         slot_time: slot_time,
-         previous_hash: previous_hash,
-         transaction_summaries: transaction_summaries,
-         end_of_node_synchronizations: end_of_node_synchronizations,
-         p2p_view: p2p_view
-       }) do
-    transaction_summaries_bin =
-      transaction_summaries
-      |> Enum.map(&TransactionSummary.serialize/1)
-      |> :erlang.list_to_binary()
+  def add_p2p_view(slot = %__MODULE__{p2p_view: p2p_view}, p2p_views) do
+    updated_p2p_views =
+      p2p_views
+      |> Enum.with_index()
+      |> Enum.reduce(p2p_view, fn
+        {{true, latency}, i}, acc ->
+          acc
+          |> Map.update!(:availabilities, &Utils.set_bitstring_bit(&1, i))
+          |> Map.update!(:network_stats, &(&1 ++ [%{latency: latency}]))
 
-    end_of_node_synchronizations_bin =
-      end_of_node_synchronizations
-      |> Enum.map(&EndOfNodeSync.serialize/1)
-      |> :erlang.list_to_binary()
+        {{false, _}, _}, acc ->
+          Map.update!(acc, :network_stats, &(&1 ++ [%{latency: 0}]))
+      end)
 
-    <<subset::binary, DateTime.to_unix(slot_time)::32, previous_hash::binary,
-      length(transaction_summaries)::32, transaction_summaries_bin::binary,
-      length(end_of_node_synchronizations)::16, end_of_node_synchronizations_bin::binary,
-      bit_size(p2p_view)::16, p2p_view::bitstring>>
+    %{slot | p2p_view: updated_p2p_views}
+  end
+
+  @doc """
+  Convert a slot to its state before validation
+  """
+  @spec to_pending(t()) :: t()
+  def to_pending(%__MODULE__{
+        subset: subset,
+        slot_time: slot_time,
+        previous_hash: previous_hash,
+        transaction_summaries: tx_summaries,
+        end_of_node_synchronizations: ends_of_sync
+      }) do
+    %__MODULE__{
+      subset: subset,
+      slot_time: slot_time,
+      previous_hash: previous_hash,
+      transaction_summaries: tx_summaries,
+      end_of_node_synchronizations: ends_of_sync
+    }
   end
 
   @doc """
@@ -207,7 +249,13 @@ defmodule Uniris.BeaconChain.Slot do
         ...>      100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
         ...>      timestamp: ~U[2020-06-25 15:11:53Z]
         ...>    }],
-        ...>    p2p_view: <<1::1, 0::1, 1::1, 1::1>>,
+        ...>    p2p_view: %{
+        ...>      availabilities: <<1::1, 0::1>>,
+        ...>      network_stats: [
+        ...>         %{ latency: 10},
+        ...>         %{ latency: 0}
+        ...>      ]
+        ...>    },
         ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
         ...>    validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
         ...>      201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
@@ -241,9 +289,13 @@ defmodule Uniris.BeaconChain.Slot do
         # Node readyness timestamp
         94, 244, 190, 185,
         # P2P view bitstring size
-        0, 4,
-        # P2P view bitstring
-        1::1, 0::1, 1::1, 1::1,
+        0, 2,
+        # P2P view availabilies
+        1::1, 0::1,
+        # P2P view network stats (1st node)
+        10,
+        # P2P view network stats (2nd node)
+        0,
         # Size involved nodes bitstring
         4,
         # Involved nodes bitstring
@@ -256,10 +308,14 @@ defmodule Uniris.BeaconChain.Slot do
         194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
         201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
         181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-        73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88
+        73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88,
         >>
   """
   @spec serialize(t()) :: bitstring()
+  def serialize(slot = %__MODULE__{involved_nodes: <<>>}) do
+    <<serialize_before_validation(slot)::bitstring, 0::8>>
+  end
+
   def serialize(
         slot = %__MODULE__{
           involved_nodes: involved_nodes,
@@ -275,6 +331,38 @@ defmodule Uniris.BeaconChain.Slot do
       involved_nodes::bitstring, validation_signatures_bin::binary>>
   end
 
+  defp serialize_before_validation(%__MODULE__{
+         subset: subset,
+         slot_time: slot_time,
+         previous_hash: previous_hash,
+         transaction_summaries: transaction_summaries,
+         end_of_node_synchronizations: end_of_node_synchronizations,
+         p2p_view: %{
+           availabilities: availabilities,
+           network_stats: network_stats
+         }
+       }) do
+    transaction_summaries_bin =
+      transaction_summaries
+      |> Enum.map(&TransactionSummary.serialize/1)
+      |> :erlang.list_to_binary()
+
+    end_of_node_synchronizations_bin =
+      end_of_node_synchronizations
+      |> Enum.map(&EndOfNodeSync.serialize/1)
+      |> :erlang.list_to_binary()
+
+    net_stats_bin =
+      network_stats
+      |> Enum.map(fn %{latency: latency} -> <<latency::8>> end)
+      |> :erlang.list_to_binary()
+
+    <<subset::binary, DateTime.to_unix(slot_time)::32, previous_hash::binary,
+      length(transaction_summaries)::32, transaction_summaries_bin::binary,
+      length(end_of_node_synchronizations)::16, end_of_node_synchronizations_bin::binary,
+      bit_size(availabilities)::16, availabilities::bitstring, net_stats_bin::binary>>
+  end
+
   @doc """
   Deserialize an encoded BeaconSlot
 
@@ -287,7 +375,8 @@ defmodule Uniris.BeaconChain.Slot do
       ...>   94, 244, 190, 185, 2, 0, 0, 0, 1,
       ...>   0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...>   100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
-      ...>   94, 244, 190, 185, 0, 4, 1::1, 0::1, 1::1, 1::1,
+      ...>   94, 244, 190, 185,
+      ...>   0, 2, 1::1, 0::1, 10, 0,
       ...>   4, 0::1, 1::1, 0::1, 0::1, 1,
       ...>   64, 194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
       ...>   201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
@@ -315,7 +404,13 @@ defmodule Uniris.BeaconChain.Slot do
             100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
             timestamp: ~U[2020-06-25 15:11:53Z]
           }],
-          p2p_view: <<1::1, 0::1, 1::1, 1::1>>,
+          p2p_view: %{
+            availabilities: <<1::1, 0::1>>,
+            network_stats: [
+              %{ latency: 10},
+              %{ latency: 0}
+            ]
+          },
           involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
           validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
             201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
@@ -334,7 +429,9 @@ defmodule Uniris.BeaconChain.Slot do
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_end_of_sync, [])
 
-    <<p2p_view_size::16, p2p_view::bitstring-size(p2p_view_size), rest::bitstring>> = rest
+    <<p2p_view_size::16, availabilities::bitstring-size(p2p_view_size), rest::bitstring>> = rest
+
+    {network_stats, rest} = deserialize_network_stats(rest, p2p_view_size, [])
 
     <<involved_nodes_size::8, involved_nodes::bitstring-size(involved_nodes_size),
       rest::bitstring>> = rest
@@ -351,7 +448,10 @@ defmodule Uniris.BeaconChain.Slot do
         previous_hash: previous_hash,
         transaction_summaries: tx_summaries,
         end_of_node_synchronizations: end_of_node_synchronizations,
-        p2p_view: p2p_view,
+        p2p_view: %{
+          availabilities: availabilities,
+          network_stats: network_stats
+        },
         involved_nodes: involved_nodes,
         validation_signatures: validation_signatures
       },
@@ -406,6 +506,16 @@ defmodule Uniris.BeaconChain.Slot do
     deserialize_validation_signatures(rest, nb_involved_nodes, Map.put(acc, pos, signature))
   end
 
+  defp deserialize_network_stats(rest, 0, _), do: {[], rest}
+
+  defp deserialize_network_stats(rest, nb_nodes, acc) when nb_nodes == length(acc) do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_network_stats(<<latency::8, rest::bitstring>>, nb_nodes, acc) do
+    deserialize_network_stats(rest, nb_nodes, [%{latency: latency} | acc])
+  end
+
   @doc """
   Determines if the beacon slot contains a given transaction
 
@@ -438,14 +548,16 @@ defmodule Uniris.BeaconChain.Slot do
 
   @spec has_changes?(t()) :: boolean
   def has_changes?(%__MODULE__{
-        transaction_summaries: transaction_summaries,
-        end_of_node_synchronizations: end_of_node_sync
-      })
-      when length(transaction_summaries) > 0 or length(end_of_node_sync) > 0 do
-    true
+        transaction_summaries: [],
+        end_of_node_synchronizations: [],
+        p2p_view: %{
+          availabilities: <<>>
+        }
+      }) do
+    false
   end
 
-  def has_changes?(%__MODULE__{}), do: false
+  def has_changes?(%__MODULE__{}), do: true
 
   @doc """
   Retrieve the nodes responsible to manage the slot processing

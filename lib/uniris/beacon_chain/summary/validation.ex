@@ -76,7 +76,12 @@ defmodule Uniris.BeaconChain.SummaryValidation do
           false
 
         node_key ->
-          Crypto.verify(signature, Slot.digest(slot), node_key)
+          digest =
+            slot
+            |> Slot.to_pending()
+            |> Slot.serialize()
+
+          Crypto.verify(signature, digest, node_key)
       end
     end)
   end

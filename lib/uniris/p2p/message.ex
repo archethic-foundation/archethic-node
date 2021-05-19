@@ -18,7 +18,7 @@ defmodule Uniris.P2P.Message do
   alias Uniris.P2P
 
   alias __MODULE__.AcknowledgeStorage
-  alias __MODULE__.AddBeaconSlotProof
+  alias __MODULE__.AddBeaconSlot
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
   alias __MODULE__.BootstrappingNodes
@@ -31,6 +31,7 @@ defmodule Uniris.P2P.Message do
   alias __MODULE__.GetBeaconSlot
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
+  alias __MODULE__.GetCurrentSlot
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
   alias __MODULE__.GetLastTransactionAddress
@@ -99,7 +100,7 @@ defmodule Uniris.P2P.Message do
           | GetTransactionInputs.t()
           | GetTransactionChainLength.t()
           | NotifyEndOfNodeSync.t()
-          | AddBeaconSlotProof.t()
+          | AddBeaconSlot.t()
           | NotifyBeaconSlot.t()
           | GetBeaconSummary.t()
           | GetBeaconSlot.t()
@@ -128,7 +129,6 @@ defmodule Uniris.P2P.Message do
           | TransactionChainLength.t()
           | TransactionInputList.t()
           | Error.t()
-
 
   @mining_timeout Application.compile_env!(:uniris, [Uniris.Mining, :timeout])
 
@@ -304,13 +304,12 @@ defmodule Uniris.P2P.Message do
     <<24::8, Slot.serialize(slot)::bitstring>>
   end
 
-  def encode(%AddBeaconSlotProof{
-        subset: subset,
-        digest: digest,
+  def encode(%AddBeaconSlot{
+        slot: slot,
         public_key: public_key,
         signature: signature
       }) do
-    <<25::8, subset::binary, digest::binary, public_key::binary, byte_size(signature)::8,
+    <<25::8, Slot.serialize(slot)::bitstring, public_key::binary, byte_size(signature)::8,
       signature::binary>>
   end
 
@@ -322,7 +321,7 @@ defmodule Uniris.P2P.Message do
     <<27::8, node_public_key::binary>>
   end
 
-  def encode(%Ping{}), do: <<28::8, 0::size(256)>>
+  def encode(%Ping{}), do: <<28::8>>
 
   def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
@@ -331,7 +330,7 @@ defmodule Uniris.P2P.Message do
   end
 
   def encode(summary = %Summary{}) do
-    <<240::8, Summary.serialize(summary)::binary>>
+    <<240::8, Summary.serialize(summary)::bitstring>>
   end
 
   def encode(slot = %Slot{}) do
@@ -670,15 +669,14 @@ defmodule Uniris.P2P.Message do
     {%NotifyBeaconSlot{slot: slot}, rest}
   end
 
-  def decode(<<25::8, subset::binary-size(1), rest::bitstring>>) do
-    {digest, rest} = deserialize_hash(rest)
+  def decode(<<25::8, rest::bitstring>>) do
+    {slot = %Slot{}, rest} = Slot.deserialize(rest)
 
     {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
       deserialize_public_key(rest)
 
-    {%AddBeaconSlotProof{
-       subset: subset,
-       digest: digest,
+    {%AddBeaconSlot{
+       slot: slot,
        public_key: public_key,
        signature: signature
      }, rest}
@@ -693,7 +691,7 @@ defmodule Uniris.P2P.Message do
     {%NodeAvailability{public_key: public_key}, rest}
   end
 
-  def decode(<<28::8, _::size(256)>>), do: %Ping{}
+  def decode(<<28::8, rest::binary>>), do: {%Ping{}, rest}
 
   def decode(<<238::8, reason::8, rest::bitstring>>) do
     {%Error{reason: Error.deserialize_reason(reason)}, rest}
@@ -1161,13 +1159,12 @@ defmodule Uniris.P2P.Message do
     %Ok{}
   end
 
-  def process(%AddBeaconSlotProof{
-        subset: subset,
-        digest: digest,
+  def process(%AddBeaconSlot{
+        slot: slot,
         public_key: node_public_key,
         signature: signature
       }) do
-    :ok = BeaconChain.add_slot_proof(subset, digest, node_public_key, signature)
+    :ok = BeaconChain.add_slot(slot, node_public_key, signature)
     %Ok{}
   end
 

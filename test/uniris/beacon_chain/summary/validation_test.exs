@@ -143,12 +143,14 @@ defmodule Uniris.BeaconChain.SummaryValidationTest do
 
       sig1 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(0)
 
       sig2 =
         slot
-        |> Slot.digest()
+        |> Slot.to_pending()
+        |> Slot.serialize()
         |> Crypto.sign_with_node_key(1)
 
       assert true ==

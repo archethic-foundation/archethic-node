@@ -10,7 +10,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.AddBeaconSlotProof
+  alias Uniris.P2P.Message.AddBeaconSlot
   alias Uniris.P2P.Message.NotifyBeaconSlot
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Node
@@ -80,15 +80,18 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       )
 
     MockClient
-    |> stub(:send_message, fn _, %AddBeaconSlotProof{} ->
+    |> stub(:send_message, fn _, %AddBeaconSlot{} ->
       {:ok, %Ok{}}
     end)
 
-    assert {:waiting_proofs, _} = :sys.get_state(pid)
+    assert {:waiting_slots, %{current_slot: %Slot{involved_nodes: involved_nodes}}} =
+             :sys.get_state(pid)
+
+    assert Utils.count_bitstring_bits(involved_nodes) == 1
   end
 
-  describe "add_slot_proof/2" do
-    test "should reject a proof which is not cryptographically valid" do
+  describe "add_remote_slot/2" do
+    test "should reject a slot which is not cryptographically valid" do
       slot = %Slot{
         subset: <<0>>,
         slot_time: DateTime.utc_now(),
@@ -102,20 +105,25 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
       }
 
       MockClient
-      |> stub(:send_message, fn _, %AddBeaconSlotProof{} ->
+      |> stub(:send_message, fn _, %AddBeaconSlot{} ->
         {:ok, %Ok{}}
       end)
 
       {:ok, pid} =
         SlotConsensus.start_link(node_public_key: Crypto.node_public_key(0), slot: slot)
 
-      assert {:error, :invalid_proof} =
-               SlotConsensus.add_slot_proof(
+      assert :ok =
+               SlotConsensus.add_remote_slot(
                  pid,
-                 Slot.digest(slot),
+                 slot,
                  <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  :crypto.strong_rand_bytes(64)
                )
+
+      {:waiting_slots, %{current_slot: %Slot{involved_nodes: involved_nodes}}} =
+        :sys.get_state(pid)
+
+      assert Utils.count_bitstring_bits(involved_nodes) == 1
     end
 
     test "should accept the proof and wait to receive enough proofs" do
@@ -140,19 +148,19 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %AddBeaconSlotProof{} ->
+        _, %AddBeaconSlot{} ->
           {:ok, %Ok{}}
       end)
 
       assert :ok =
-               SlotConsensus.add_slot_proof(
+               SlotConsensus.add_remote_slot(
                  pid,
-                 Slot.digest(slot),
+                 slot,
                  Crypto.node_public_key(1),
-                 Crypto.sign_with_node_key(Slot.digest(slot), 1)
+                 Crypto.sign_with_node_key(slot |> Slot.to_pending() |> Slot.serialize(), 1)
                )
 
-      assert {:waiting_proofs,
+      assert {:waiting_slots,
               %{
                 current_slot: %Slot{
                   involved_nodes: involved_nodes,
@@ -181,7 +189,7 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %AddBeaconSlotProof{} ->
+        _, %AddBeaconSlot{} ->
           {:ok, %Ok{}}
 
         _, %NotifyBeaconSlot{} ->
@@ -197,19 +205,19 @@ defmodule Uniris.BeaconChain.Subset.SlotConsensusTest do
         )
 
       assert :ok =
-               SlotConsensus.add_slot_proof(
+               SlotConsensus.add_remote_slot(
                  pid,
-                 Slot.digest(slot),
+                 slot,
                  Crypto.node_public_key(1),
-                 Crypto.sign_with_node_key(Slot.digest(slot), 1)
+                 Crypto.sign_with_node_key(slot |> Slot.to_pending() |> Slot.serialize(), 1)
                )
 
       assert :ok =
-               SlotConsensus.add_slot_proof(
+               SlotConsensus.add_remote_slot(
                  pid,
-                 Slot.digest(slot),
+                 slot,
                  Crypto.node_public_key(2),
-                 Crypto.sign_with_node_key(Slot.digest(slot), 2)
+                 Crypto.sign_with_node_key(slot |> Slot.to_pending() |> Slot.serialize(), 2)
                )
 
       assert_receive :slot_sent, 3_000

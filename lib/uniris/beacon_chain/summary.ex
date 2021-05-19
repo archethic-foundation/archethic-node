@@ -8,13 +8,22 @@ defmodule Uniris.BeaconChain.Summary do
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
 
-  defstruct [:subset, :summary_time, transaction_summaries: [], end_of_node_synchronizations: []]
+  alias Uniris.Utils
+
+  defstruct [
+    :subset,
+    :summary_time,
+    transaction_summaries: [],
+    end_of_node_synchronizations: [],
+    node_availabilities: <<>>
+  ]
 
   @type t :: %__MODULE__{
           subset: binary(),
           summary_time: DateTime.t(),
           transaction_summaries: list(TransactionSummary.t()),
-          end_of_node_synchronizations: list(EndOfNodeSync.t())
+          end_of_node_synchronizations: list(EndOfNodeSync.t()),
+          node_availabilities: bitstring()
         }
 
   @doc """
@@ -22,7 +31,8 @@ defmodule Uniris.BeaconChain.Summary do
 
   ## Examples
 
-      iex> Summary.aggregate_slots(%Summary{}, [%Slot{
+      iex> Summary.aggregate_slots(%Summary{}, [
+      ...>  %Slot{
       ...>   transaction_summaries: [
       ...>     %TransactionSummary{
       ...>       address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
@@ -30,34 +40,83 @@ defmodule Uniris.BeaconChain.Summary do
       ...>       type: :transfer,
       ...>       timestamp: ~U[2020-06-25 15:11:53Z]
       ...>      }
-      ...>   ]
-      ...> }])
+      ...>   ],
+      ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
+      ...>  },
+      ...>  %Slot{ p2p_view: %{availabilities: <<0::1, 1::1, 1::1>>} },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>} },
+      ...>  %Slot{ p2p_view: %{availabilities: <<1::1, 1::1, 0::1>>} }
+      ...> ])
       %Summary{
           transaction_summaries: [
-          %TransactionSummary{
-              address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                      99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-              type: :transfer,
-              timestamp: ~U[2020-06-25 15:11:53Z]
-          }
-          ]
+            %TransactionSummary{
+                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                        99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+                type: :transfer,
+                timestamp: ~U[2020-06-25 15:11:53Z]
+            }
+          ],
+          node_availabilities: <<1::1, 1::1, 0::1>>
       }
   """
   @spec aggregate_slots(t(), Enumerable.t() | list(Slot.t())) :: t()
   def aggregate_slots(summary = %__MODULE__{}, slots) do
-    Enum.reduce(slots, summary, fn %Slot{
-                                     transaction_summaries: summaries,
-                                     end_of_node_synchronizations: end_of_syncs
-                                   },
-                                   acc ->
-      acc
-      |> Map.update(:transaction_summaries, summaries, fn acc ->
-        Enum.sort_by(summaries ++ acc, & &1.timestamp)
+    summary
+    |> aggregate_transaction_summaries(slots)
+    |> aggregate_end_of_node_synchronizations(slots)
+    |> aggregate_availabilities(slots)
+  end
+
+  defp aggregate_transaction_summaries(summary = %__MODULE__{}, slots) do
+    transaction_summaries =
+      slots
+      |> Enum.flat_map(& &1.transaction_summaries)
+      |> Enum.sort_by(& &1.timestamp)
+
+    %{summary | transaction_summaries: transaction_summaries}
+  end
+
+  defp aggregate_end_of_node_synchronizations(summary = %__MODULE__{}, slots) do
+    end_of_node_synchronizations =
+      slots
+      |> Enum.flat_map(& &1.end_of_node_synchronizations)
+      |> Enum.sort_by(& &1.timestamp)
+
+    %{summary | end_of_node_synchronizations: end_of_node_synchronizations}
+  end
+
+  defp aggregate_availabilities(summary = %__MODULE__{}, slots) do
+    nb_slots = Enum.count(slots)
+    %Slot{p2p_view: %{availabilities: availabilities}} = Enum.at(slots, 0)
+    nb_nodes_sampled = bit_size(availabilities)
+
+    node_availabilities =
+      Enum.reduce(slots, %{}, fn %Slot{p2p_view: %{availabilities: availabilities}}, acc ->
+        availabilities
+        |> Utils.bitstring_to_integer_list()
+        |> Enum.with_index()
+        |> Enum.reduce(acc, fn
+          {1, index}, acc ->
+            Map.update(acc, index, 1, &(&1 + 1))
+
+          {0, _}, acc ->
+            acc
+        end)
+        |> Enum.into(%{})
       end)
-      |> Map.update(:end_of_node_synchronizations, end_of_syncs, fn acc ->
-        Enum.sort_by(end_of_syncs ++ acc, & &1.timestamp)
+      |> Enum.reduce(<<0::size(nb_nodes_sampled)>>, fn
+        {_, 0}, acc ->
+          acc
+
+        {index, nb_times}, acc ->
+          if nb_times / nb_slots > 0.70 do
+            Utils.set_bitstring_bit(acc, index)
+          else
+            acc
+          end
       end)
-    end)
+
+    %{summary | node_availabilities: node_availabilities}
   end
 
   @doc """
@@ -101,7 +160,8 @@ defmodule Uniris.BeaconChain.Summary do
       ...>        100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
       ...>       timestamp: ~U[2020-06-25 15:11:53Z],
       ...>     }
-      ...>   ]
+      ...>   ],
+      ...>   node_availabilities: <<1::1, 1::1>>
       ...> }
       ...> |> Summary.serialize()
       <<
@@ -126,7 +186,11 @@ defmodule Uniris.BeaconChain.Summary do
       0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
       # Timestamp
-      94, 244, 190, 185
+      94, 244, 190, 185,
+      # Nb Node availabilities
+      0, 2,
+      # Availabilities
+      1::1, 1::1
       >>
   """
   @spec serialize(t()) :: bitstring()
@@ -134,7 +198,8 @@ defmodule Uniris.BeaconChain.Summary do
         subset: subset,
         summary_time: summary_time,
         transaction_summaries: transaction_summaries,
-        end_of_node_synchronizations: end_of_node_synchronizations
+        end_of_node_synchronizations: end_of_node_synchronizations,
+        node_availabilities: node_availabilities
       }) do
     transaction_summaries_bin =
       transaction_summaries
@@ -148,7 +213,8 @@ defmodule Uniris.BeaconChain.Summary do
 
     <<subset::binary, DateTime.to_unix(summary_time)::32, length(transaction_summaries)::32,
       transaction_summaries_bin::binary, length(end_of_node_synchronizations)::16,
-      end_of_node_synchronizations_bin::binary>>
+      end_of_node_synchronizations_bin::binary, bit_size(node_availabilities)::16,
+      node_availabilities::bitstring>>
   end
 
   @doc """
@@ -161,26 +227,28 @@ defmodule Uniris.BeaconChain.Summary do
       ...> 94, 244, 190, 185, 2, 0, 0, 0, 1,
       ...> 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...> 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
-      ...> 94, 244, 190, 185>>
+      ...> 94, 244, 190, 185, 0, 2, 1::1, 1::1>>
       ...> |> Summary.deserialize()
       {
       %Summary{
           subset: <<0>>,
           summary_time: ~U[2021-01-20 00:00:00Z],
           transaction_summaries: [
-          %TransactionSummary{
-              address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-              99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-              timestamp: ~U[2020-06-25 15:11:53Z],
-              type: :transfer,
-              movements_addresses: []
-          }
+            %TransactionSummary{
+                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+                timestamp: ~U[2020-06-25 15:11:53Z],
+                type: :transfer,
+                movements_addresses: []
+            }
           ],
           end_of_node_synchronizations: [ %EndOfNodeSync{
-          public_key: <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-          100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
-          timestamp: ~U[2020-06-25 15:11:53Z]
-          }]
+            public_key: <<0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
+            100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241>>,
+            timestamp: ~U[2020-06-25 15:11:53Z]
+            }
+          ],
+          node_availabilities: <<1::1, 1::1>>
       },
       ""
       }
@@ -196,11 +264,15 @@ defmodule Uniris.BeaconChain.Summary do
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_nodes_entries, [])
 
+    <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
+      rest
+
     {%__MODULE__{
        subset: <<subset>>,
        summary_time: DateTime.from_unix!(summary_timestamp),
        transaction_summaries: transaction_summaries,
-       end_of_node_synchronizations: end_of_node_synchronizations
+       end_of_node_synchronizations: end_of_node_synchronizations,
+       node_availabilities: availabilities
      }, rest}
   end
 

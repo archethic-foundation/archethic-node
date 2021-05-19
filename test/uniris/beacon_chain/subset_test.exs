@@ -13,7 +13,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.AddBeaconSlotProof
+  alias Uniris.P2P.Message.AddBeaconSlot
   alias Uniris.P2P.Message.GetBeaconSlot
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.Ok
@@ -24,9 +24,9 @@ defmodule Uniris.BeaconChain.SubsetTest do
   import Mox
 
   setup do
-    pid = start_supervised!({Subset, subset: <<0>>})
     start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
     start_supervised!({SlotTimer, interval: "0 * * * * *"})
+    pid = start_supervised!({Subset, subset: <<0>>})
     {:ok, subset: <<0>>, pid: pid}
   end
 
@@ -118,7 +118,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       _, %GetBeaconSlot{} ->
         {:ok, %NotFound{}}
 
-      _, %AddBeaconSlotProof{} ->
+      _, %AddBeaconSlot{} ->
         {:ok, %Ok{}}
     end)
 
@@ -128,7 +128,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     %{consensus_worker: consensus_pid} = :sys.get_state(pid)
 
-    assert {:waiting_proofs,
+    assert {:waiting_slots,
             %{
               current_slot: %Slot{
                 transaction_summaries: [%TransactionSummary{address: ^tx_address}],
@@ -137,7 +137,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
             }} = :sys.get_state(consensus_pid)
   end
 
-  test "add_slot_proof/2 should add beacon slot proof to the consensus worker", %{
+  test "add_slot/2 should add beacon remote slot to the consensus worker", %{
     subset: subset,
     pid: pid
   } do
@@ -194,28 +194,27 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     Subset.add_transaction_summary(subset, tx_summary)
 
-    slot_time = DateTime.utc_now()
-    send(pid, {:create_slot, slot_time})
-
     MockClient
     |> stub(:send_message, fn
       _, %GetBeaconSlot{} ->
         {:ok, %NotFound{}}
 
-      _, %AddBeaconSlotProof{} ->
+      _, %AddBeaconSlot{} ->
         {:ok, %Ok{}}
     end)
 
-    slot_digest =
-      %Slot{subset: subset, slot_time: slot_time, transaction_summaries: [tx_summary]}
-      |> Slot.digest()
+    slot_time = DateTime.utc_now()
+    send(pid, {:create_slot, slot_time})
+
+    Process.sleep(500)
+
+    slot = %Slot{subset: subset, slot_time: slot_time, transaction_summaries: [tx_summary]}
 
     :ok =
-      Subset.add_slot_proof(
-        subset,
-        slot_digest,
+      Subset.add_slot(
+        slot,
         Crypto.node_public_key(1),
-        Crypto.sign_with_node_key(slot_digest, 1)
+        Crypto.sign_with_node_key(slot |> Slot.to_pending() |> Slot.serialize(), 1)
       )
 
     %{consensus_worker: consensus_pid} = :sys.get_state(pid)
