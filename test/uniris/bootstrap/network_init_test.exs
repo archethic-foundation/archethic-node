@@ -190,16 +190,10 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
     end)
 
     MockCrypto
-    |> stub(:decrypt_and_set_node_shared_secrets_network_pool_seed, fn _, _ ->
-      send(me, :set_network_pool)
-      :ok
-    end)
-    |> stub(:decrypt_and_set_daily_nonce_seed, fn _, _, _ ->
+    |> stub(:unwrap_secrets, fn _, _, _ ->
       send(me, :set_daily_nonce)
-      :ok
-    end)
-    |> stub(:decrypt_and_set_node_shared_secrets_transaction_seed, fn _, _ ->
       send(me, :set_transaction_seed)
+      send(me, :set_network_pool)
       :ok
     end)
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->

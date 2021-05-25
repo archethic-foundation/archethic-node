@@ -5,8 +5,8 @@ defmodule Uniris.BeaconChain.Subset.P2PSamplingTest do
 
   alias Uniris.P2P
   alias Uniris.P2P.ConnectionRegistry
-  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Node
 
   import Mox

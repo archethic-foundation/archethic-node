@@ -8,9 +8,10 @@ defmodule Uniris.P2P.Client.RemoteConnectionTest do
   test "start_link/1 should open a socket and a connection worker" do
     MockTransport
     |> expect(:connect, fn _, _, _ -> {:ok, make_ref()} end)
-    |> stub(:read_from_socket, fn _, _, _ ->
+    |> expect(:read_from_socket, fn _, _, _ ->
       {:ok, <<0::32, 0::8>>}
     end)
+    |> expect(:read_from_socket, fn _, _, _ -> {:error, :closed} end)
 
     {:ok, pid} =
       RemoteConnection.start_link(
@@ -21,5 +22,7 @@ defmodule Uniris.P2P.Client.RemoteConnectionTest do
       )
 
     assert %{socket: _, connection_pid: _} = :sys.get_state(pid)
+
+    Process.sleep(200)
   end
 end
