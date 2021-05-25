@@ -454,11 +454,17 @@ defmodule Uniris.P2P do
 
   If the first batch responses are not atomic, the next one will be used until the end of the list.
   """
-  @spec reply_atomic(list(Node.t()), non_neg_integer(), Message.request()) ::
+  @spec reply_atomic(
+          node_list :: list(Node.t()),
+          batch_size :: non_neg_integer(),
+          request :: Message.request(),
+          options :: [patch: binary(), compare_fun: (any() -> any())]
+        ) ::
           {:ok, Message.response()} | {:error, :network_issue}
   def reply_atomic(nodes, batch_size, message, opts \\ [])
       when is_list(nodes) and is_integer(batch_size) and batch_size > 0 do
     patch = Keyword.get(opts, :patch)
+    compare_fun = Keyword.get(opts, :compare_fun, fn x -> x end)
 
     with nil <- patch,
          {:error, :not_found} <- get_node_info(Crypto.node_public_key(0)) do
@@ -471,34 +477,39 @@ defmodule Uniris.P2P do
         nearest_nodes(nodes, patch)
     end
     |> Enum.chunk_every(batch_size)
-    |> do_reply_atomic(message)
+    |> do_reply_atomic(message, compare_fun)
   end
 
-  defp do_reply_atomic([], _), do: {:error, :network_issue}
+  defp do_reply_atomic([], _, _), do: {:error, :network_issue}
 
-  defp do_reply_atomic([nodes | rest], message) do
+  defp do_reply_atomic([nodes | rest], message, compare_fun) do
     responses =
       nodes
-      |> Enum.map(fn node = %Node{first_public_key: first_public_key} ->
-        case send_message(node, message) do
-          {:error, :network_issue} ->
-            MemTable.decrease_node_availability(first_public_key)
-            {:error, :network_issue}
+      |> Task.async_stream(
+        fn node = %Node{first_public_key: first_public_key} ->
+          case send_message(node, message) do
+            {:error, :network_issue} ->
+              MemTable.decrease_node_availability(first_public_key)
+              {:error, :network_issue}
 
-          {:ok, res} ->
-            MemTable.increase_node_availability(first_public_key)
-            res
-        end
-      end)
-      |> Enum.reject(&match?({:error, :network_issue}, &1))
-      |> Enum.dedup()
+            {:ok, res} ->
+              MemTable.increase_node_availability(first_public_key)
+              res
+          end
+        end,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(&elem(&1, 1))
+      |> Stream.reject(&match?({:error, :network_issue}, &1))
+      |> Enum.dedup_by(compare_fun)
 
     case responses do
       [res] ->
         {:ok, res}
 
       _ ->
-        do_reply_atomic(rest, message)
+        do_reply_atomic(rest, message, compare_fun)
     end
   end
 end
