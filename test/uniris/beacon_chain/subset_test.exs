@@ -5,7 +5,6 @@ defmodule Uniris.BeaconChain.SubsetTest do
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer
-  alias Uniris.BeaconChain.Summary
   alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.BeaconChain.Subset
@@ -13,11 +12,13 @@ defmodule Uniris.BeaconChain.SubsetTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.AddBeaconSlot
-  alias Uniris.P2P.Message.GetBeaconSlot
-  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Node
+
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
 
   alias Uniris.Utils
 
@@ -113,31 +114,24 @@ defmodule Uniris.BeaconChain.SubsetTest do
       timestamp: ready_time
     })
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetBeaconSlot{} ->
-        {:ok, %NotFound{}}
+    me = self()
 
-      _, %AddBeaconSlot{} ->
-        {:ok, %Ok{}}
+    MockClient
+    |> expect(:send_message, fn _, %ReplicateTransaction{transaction: tx} ->
+      send(me, {:beacon_tx, tx})
+      {:ok, %Ok{}}
     end)
 
     send(pid, {:create_slot, DateTime.utc_now()})
 
-    Process.sleep(200)
+    assert_receive {:beacon_tx,
+                    %Transaction{type: :beacon, data: %TransactionData{content: content}}}
 
-    %{consensus_worker: consensus_pid} = :sys.get_state(pid)
-
-    assert {:waiting_slots,
-            %{
-              current_slot: %Slot{
-                transaction_summaries: [%TransactionSummary{address: ^tx_address}],
-                end_of_node_synchronizations: [%EndOfNodeSync{public_key: ^public_key}]
-              }
-            }} = :sys.get_state(consensus_pid)
+    assert {%Slot{transaction_summaries: [%TransactionSummary{address: ^tx_address}]}, _} =
+             Slot.deserialize(content)
   end
 
-  test "add_slot/2 should add beacon remote slot to the consensus worker", %{
+  test "new summary is created when the slot time is the summary time", %{
     subset: subset,
     pid: pid
   } do
@@ -147,13 +141,13 @@ defmodule Uniris.BeaconChain.SubsetTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.node_public_key(),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.node_public_key(0),
+      last_public_key: Crypto.node_public_key(0),
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: ~U[2020-09-01 00:00:00Z]
     })
 
     P2P.add_and_connect_node(%Node{
@@ -165,19 +159,7 @@ defmodule Uniris.BeaconChain.SubsetTest do
       network_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
-
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: Crypto.node_public_key(2),
-      last_public_key: Crypto.node_public_key(2),
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: ~U[2020-09-01 00:00:00Z]
     })
 
     tx_summary = %TransactionSummary{
@@ -194,94 +176,61 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     Subset.add_transaction_summary(subset, tx_summary)
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %GetBeaconSlot{} ->
-        {:ok, %NotFound{}}
-
-      _, %AddBeaconSlot{} ->
-        {:ok, %Ok{}}
-    end)
-
-    slot_time = DateTime.utc_now()
-    send(pid, {:create_slot, slot_time})
-
-    Process.sleep(500)
-
-    slot = %Slot{subset: subset, slot_time: slot_time, transaction_summaries: [tx_summary]}
-
-    :ok =
-      Subset.add_slot(
-        slot,
-        Crypto.node_public_key(1),
-        Crypto.sign_with_node_key(slot |> Slot.to_pending() |> Slot.serialize(), 1)
-      )
-
-    %{consensus_worker: consensus_pid} = :sys.get_state(pid)
-
-    assert {_,
-            %{
-              current_slot: %Slot{
-                involved_nodes: involved_nodes,
-                validation_signatures: signatures
-              }
-            }} = :sys.get_state(consensus_pid)
-
-    assert 2 == map_size(signatures)
-    assert 2 == Utils.count_bitstring_bits(involved_nodes)
-  end
-
-  test "new summary is created when receive a :create_summary message", %{pid: pid} do
     me = self()
 
+    MockClient
+    |> expect(:send_message, fn _, %ReplicateTransaction{} ->
+      {:ok, %Ok{}}
+    end)
+
+    beacon_addr = Crypto.derive_beacon_chain_address(subset, ~U[2020-10-01 00:00:00Z])
+
     MockDB
-    |> expect(:register_beacon_summary, fn summary ->
-      send(me, {:summary, summary})
+    |> stub(:write_transaction_chain, fn chain ->
+      send(me, {:chain, chain})
       :ok
     end)
-    |> expect(:get_beacon_slots, fn _, _ ->
-      [
-        %Slot{
-          transaction_summaries: [
-            %TransactionSummary{
-              address: "@Alice2",
-              type: :transfer,
-              timestamp: ~U[2021-01-22 09:01:56Z]
+    |> stub(:get_transaction_chain, fn address, _ ->
+      case address do
+        ^beacon_addr ->
+          [
+            %Transaction{
+              address: address,
+              type: :beacon,
+              data: %TransactionData{
+                content:
+                  %Slot{
+                    subset: subset,
+                    slot_time: ~U[2020-10-01 00:00:00Z],
+                    transaction_summaries: [tx_summary],
+                    p2p_view: %{availabilities: <<1::1>>, network_stats: [%{latency: 10}]}
+                  }
+                  |> Slot.serialize()
+                  |> Utils.wrap_binary()
+              },
+              validation_stamp: %ValidationStamp{
+                timestamp: ~U[2020-10-01 00:00:00Z]
+              }
             }
           ]
-        },
-        %Slot{
-          transaction_summaries: [
-            %TransactionSummary{
-              address: "@Bob3",
-              type: :transfer,
-              timestamp: ~U[2021-01-22 08:50:22Z]
-            }
-          ],
-          end_of_node_synchronizations: [
-            %EndOfNodeSync{
-              public_key: "NodeKey1",
-              timestamp: ~U[2021-01-22 08:53:18Z]
-            }
-          ]
-        }
-      ]
+
+        _ ->
+          []
+      end
     end)
 
-    summary_time = DateTime.utc_now()
-    send(pid, {:create_summary, summary_time})
+    send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
+    Process.sleep(500)
 
-    assert_receive {:summary,
-                    %Summary{
-                      subset: <<0>>,
-                      summary_time: ^summary_time,
-                      transaction_summaries: [
-                        %TransactionSummary{address: "@Bob3"},
-                        %TransactionSummary{address: "@Alice2"}
-                      ],
-                      end_of_node_synchronizations: [
-                        %EndOfNodeSync{public_key: "NodeKey1"}
-                      ]
-                    }}
+    assert_receive {:chain, beacon_chain1}
+    assert Enum.count(beacon_chain1) == 1
+
+    assert [%Transaction{type: :beacon}] = Enum.to_list(beacon_chain1)
+
+    assert_receive {:chain, beacon_chain2}
+    assert Enum.count(beacon_chain2) == 2
+
+    assert [%Transaction{type: :beacon_summary}, %Transaction{type: :beacon}] =
+             Enum.to_list(beacon_chain2)
   end
 end

@@ -19,8 +19,8 @@ config :uniris, Uniris.BeaconChain.SlotTimer,
   interval: "*/10 * * * * *"
 
 config :uniris, Uniris.BeaconChain.SummaryTimer,
-  # At the 58th second
-  interval: "58 * * * * *"
+  # Every minute
+  interval: "0 * * * * *"
 
 config :uniris, Uniris.Bootstrap,
   reward_address:
@@ -78,7 +78,7 @@ config :uniris, Uniris.Reward.WithdrawScheduler,
 
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every minute
-  interval: "0 * * * * * *"
+  interval: "5 * * * * * *"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # At 40th second

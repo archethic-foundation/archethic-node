@@ -14,36 +14,6 @@ defmodule Uniris.BeaconChain.SummaryTimerTest do
     :ok
   end
 
-  test "receive create_summary message after timer elapsed" do
-    {:ok, pid} = SummaryTimer.start_link([interval: "*/1 * * * * * *"], [])
-    SummaryTimer.start_scheduler(pid)
-
-    current = DateTime.utc_now()
-
-    receive do
-      {:create_summary, time} ->
-        assert 1 == DateTime.diff(time, current)
-    end
-  end
-
-  test "handle_info/3 receive a summary creation message" do
-    {:ok, pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
-    SummaryTimer.start_scheduler(pid)
-
-    send(pid, :new_summary)
-
-    Process.sleep(200)
-
-    nb_create_summary_messages =
-      self()
-      |> :erlang.process_info(:messages)
-      |> elem(1)
-      |> Enum.filter(&match?({:create_summary, _}, &1))
-      |> length()
-
-    assert nb_create_summary_messages == 256
-  end
-
   test "next_summary/2 should get the next summary time from a given date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
     now = DateTime.utc_now()
@@ -69,5 +39,12 @@ defmodule Uniris.BeaconChain.SummaryTimerTest do
 
     assert ~U[2021-02-03 13:07:37Z] =
              SummaryTimer.previous_summary(~U[2021-02-03 13:07:37.761481Z])
+  end
+
+  test "match_interval? check if a date match the summary timer interval" do
+    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
+    assert true == SummaryTimer.match_interval?(~U[2021-02-03 13:00:00Z])
+
+    assert false == SummaryTimer.match_interval?(~U[2021-02-03 13:00:50Z])
   end
 end

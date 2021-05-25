@@ -3,9 +3,6 @@ defmodule Uniris.DB.CassandraImplTest do
 
   @moduletag capture_log: true
 
-  alias Uniris.BeaconChain.Slot
-  alias Uniris.BeaconChain.Summary
-
   alias Uniris.Crypto
 
   alias Uniris.DB.CassandraImpl, as: Cassandra
@@ -161,99 +158,6 @@ defmodule Uniris.DB.CassandraImplTest do
              Cassandra.list_last_transaction_addresses() |> Enum.to_list()
 
     assert Utils.truncate_datetime(timestamp) == d2
-  end
-
-  @tag infrastructure: true
-  test "register_beacon_slot/1 should register a beacon slot" do
-    slot_time = DateTime.utc_now()
-    assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: slot_time})
-
-    prepared_tx_query =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT * FROM uniris.beacon_chain_slot WHERE subset = ? and slot_time = ?"
-      )
-
-    assert {:ok, %Xandra.Page{content: [_]}} =
-             Xandra.execute(:xandra_conn, prepared_tx_query, [<<0>>, slot_time])
-  end
-
-  describe "get_beacon_slots/1" do
-    @tag infrastructure: true
-    test "should return an empty list when not previous slots were registered" do
-      assert 0 == Cassandra.get_beacon_slots(<<0>>, DateTime.utc_now()) |> Enum.count()
-    end
-
-    @tag infrastructure: true
-    test "should return a list of beacon slots registered" do
-      assert :ok =
-               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
-
-      assert :ok =
-               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
-
-      assert :ok =
-               Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
-
-      assert 3 ==
-               Cassandra.get_beacon_slots(<<0>>, DateTime.utc_now() |> DateTime.add(2))
-               |> Enum.count()
-    end
-  end
-
-  describe "get_beacon_slot/2" do
-    @tag infrastructure: true
-    test "should retrieve a given slot by subset and slot time" do
-      d1 = DateTime.utc_now()
-      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
-
-      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
-      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<1>>, slot_time: d2})
-
-      assert {:ok, %Slot{slot_time: slot_time}} = Cassandra.get_beacon_slot(<<1>>, d2)
-      assert Utils.truncate_datetime(slot_time) == d2
-    end
-
-    @tag infrastructure: true
-    test "should return an error when not slot is found for the given subset and date" do
-      d1 = DateTime.utc_now()
-      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
-
-      assert :ok = Cassandra.register_beacon_slot(%Slot{subset: <<0>>, slot_time: d1})
-      assert {:error, :not_found} = Cassandra.get_beacon_slot(<<1>>, d2)
-    end
-  end
-
-  @tag infrastructure: true
-  test "register_beacon_summary/1 should register the summary into the database" do
-    assert :ok =
-             Cassandra.register_beacon_summary(%Summary{
-               subset: <<0>>,
-               summary_time: DateTime.utc_now()
-             })
-  end
-
-  describe "get_beacon_summary/2" do
-    @tag infrastructure: true
-    test "should retrieve a given summary by subset and summary time" do
-      d1 = DateTime.utc_now()
-      d2 = DateTime.utc_now() |> DateTime.add(2) |> Utils.truncate_datetime()
-
-      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
-      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<1>>, summary_time: d2})
-
-      assert {:ok, %Summary{summary_time: summary_time}} = Cassandra.get_beacon_summary(<<1>>, d2)
-      assert Utils.truncate_datetime(summary_time) == d2
-    end
-
-    @tag infrastructure: true
-    test "should return an error when not summary is found for the given subset and date" do
-      d1 = DateTime.utc_now()
-      d2 = DateTime.utc_now() |> DateTime.add(2)
-
-      assert :ok = Cassandra.register_beacon_summary(%Summary{subset: <<0>>, summary_time: d1})
-      assert {:error, :not_found} = Cassandra.get_beacon_summary(<<1>>, d2)
-    end
   end
 
   @tag infrastructure: true

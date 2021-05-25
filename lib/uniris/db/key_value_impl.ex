@@ -3,9 +3,6 @@ defmodule Uniris.DB.KeyValueImpl do
 
   use GenServer
 
-  alias Uniris.BeaconChain.Slot
-  alias Uniris.BeaconChain.Summary
-
   alias Uniris.Crypto
 
   alias Uniris.DBImpl
@@ -95,7 +92,12 @@ defmodule Uniris.DB.KeyValueImpl do
     true = :ets.insert(@transaction_by_type_table, {type, address, timestamp})
 
     previous_address = Crypto.hash(previous_public_key)
-    add_last_transaction_address(previous_address, address, Utils.truncate_datetime(timestamp))
+
+    add_last_transaction_address(
+      previous_address,
+      address,
+      DateTime.truncate(timestamp, :millisecond)
+    )
 
     true = :ets.insert(@chain_public_key_lookup, {address, previous_public_key})
 
@@ -163,72 +165,6 @@ defmodule Uniris.DB.KeyValueImpl do
       {:ok, tx} = get_transaction(address, fields)
       tx
     end)
-  end
-
-  @impl DBImpl
-  @spec get_beacon_slots(binary(), DateTime.t()) :: Enumerable.t()
-  def get_beacon_slots(subset, from_date = %DateTime{}) when is_binary(subset) do
-    Stream.resource(
-      fn -> :ets.lookup(@beacon_slots_db_name, subset) end,
-      fn
-        [{_, slot_time} | rest] ->
-          if DateTime.compare(from_date, slot_time) == :gt do
-            {:ok, slot} = get_beacon_slot(subset, slot_time)
-            {[slot], rest}
-          else
-            {[], rest}
-          end
-
-        _ ->
-          {:halt, []}
-      end,
-      fn _ -> :ok end
-    )
-  end
-
-  @impl DBImpl
-  @spec get_beacon_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
-  def get_beacon_slot(subset, date = %DateTime{}) when is_binary(subset) do
-    case :ets.lookup(@beacon_slot_db_name, {subset, date}) do
-      [] ->
-        {:error, :not_found}
-
-      [{_, slot}] ->
-        {:ok, slot}
-    end
-  end
-
-  @impl DBImpl
-  @spec get_beacon_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
-  def get_beacon_summary(subset, date = %DateTime{}) when is_binary(subset) do
-    case :ets.lookup(@beacon_summary_db_name, {subset, date}) do
-      [] ->
-        {:error, :not_found}
-
-      [{_, summary}] ->
-        {:ok, summary}
-    end
-  end
-
-  @impl DBImpl
-  def register_beacon_slot(slot = %Slot{subset: subset, slot_time: slot_time}) do
-    true = :ets.insert(@beacon_slot_db_name, {{subset, slot_time}, slot})
-    true = :ets.insert(@beacon_slots_db_name, {subset, slot_time})
-    :ok
-  end
-
-  @impl DBImpl
-  @spec register_beacon_summary(Uniris.BeaconChain.Summary.t()) :: :ok
-  def register_beacon_summary(summary = %Summary{subset: subset, summary_time: summary_time}) do
-    true = :ets.insert(@beacon_summary_db_name, {{subset, summary_time}, summary})
-
-    :ets.lookup(@beacon_slots_db_name, subset)
-    |> Enum.filter(&(DateTime.compare(summary_time, elem(&1, 1)) == :gt))
-    |> Enum.each(&:ets.delete(@beacon_slot_db_name, &1))
-
-    :ets.delete(@beacon_slots_db_name, subset)
-
-    :ok
   end
 
   @impl DBImpl

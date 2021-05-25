@@ -9,11 +9,12 @@ defmodule Uniris.BeaconChain do
   alias Uniris.BeaconChain.Slot
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.Slot.Validation, as: SlotValidation
+
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Subset
   alias Uniris.BeaconChain.Summary
   alias Uniris.BeaconChain.SummaryTimer
-  alias Uniris.BeaconChain.SummaryValidation
 
   alias Uniris.Crypto
 
@@ -22,11 +23,15 @@ defmodule Uniris.BeaconChain do
   alias Uniris.Election
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetTransactionChain
+  alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
   alias Uniris.PubSub
 
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
   require Logger
 
@@ -172,85 +177,6 @@ defmodule Uniris.BeaconChain do
   end
 
   @doc """
-  Get the beacon chain slot from the given subset and date
-  """
-  @spec get_slot(binary(), DateTime.t()) :: {:ok, Slot.t()} | {:error, :not_found}
-  defdelegate get_slot(subset, date), to: DB, as: :get_beacon_slot
-
-  @doc """
-  Process a new incoming beacon slot to register into the DB if the checks pass.
-
-  If a slot was already persisted it will not rewrite it unless the new bring more new validations
-  """
-  @spec register_slot(Slot.t()) ::
-          :ok
-          | {:error, :not_storage_node}
-          | {:invalid_previous_hash}
-          | {:error, :invalid_signatures}
-  def register_slot(slot = %Slot{}) do
-    case validate_new_slot(slot) do
-      :ok ->
-        do_slot_registration(slot)
-
-      {:error, reason} = e ->
-        Logger.debug("Invalid Beacon Slot - #{inspect(reason)} -  Slot is rejected",
-          beacon_subset: Base.encode16(slot.subset)
-        )
-
-        e
-    end
-  end
-
-  defp validate_new_slot(
-         slot = %Slot{
-           transaction_summaries: transaction_summaries,
-           end_of_node_synchronizations: end_of_node_sync
-         }
-       ) do
-    cond do
-      !SummaryValidation.storage_node?(slot) ->
-        {:error, :not_storage_node}
-
-      !SummaryValidation.valid_previous_hash?(slot) ->
-        {:error, :invalid_previous_hash}
-
-      !SummaryValidation.valid_signatures?(slot) ->
-        {:error, :invalid_signatures}
-
-      !SummaryValidation.valid_transaction_summaries?(transaction_summaries) ->
-        {:error, :invalid_transaction_summaries}
-
-      !SummaryValidation.valid_end_of_node_sync?(end_of_node_sync) ->
-        {:error, :invalid_end_of_node_sync}
-
-      true ->
-        :ok
-    end
-  end
-
-  defp do_slot_registration(
-         slot = %Slot{subset: subset, slot_time: slot_time, validation_signatures: new_signatures}
-       ) do
-    case DB.get_beacon_slot(subset, slot_time) do
-      {:ok, %Slot{validation_signatures: signatures}} ->
-        if map_size(signatures) < map_size(new_signatures) do
-          DB.register_beacon_slot(slot)
-        else
-          :ok
-        end
-
-      {:error, :not_found} ->
-        DB.register_beacon_slot(slot)
-    end
-  end
-
-  @doc """
-  Add a proof of the beacon slot for validation during the beacon slot consensus and synchronization
-  """
-  @spec add_slot(Slot.t(), Crypto.key(), binary()) :: :ok
-  defdelegate add_slot(slot, node_public_key, signature), to: Subset
-
-  @doc """
   Return the previous summary time
   """
   @spec previous_summary_time(DateTime.t()) :: DateTime.t()
@@ -259,6 +185,48 @@ defmodule Uniris.BeaconChain do
   @doc """
   Load the transaction in the beacon chain context
   """
-  @spec load_transaction(Transaction.t()) :: :ok
+  @spec load_transaction(Transaction.t()) :: :ok | :error
+  def load_transaction(
+        tx = %Transaction{
+          address: address,
+          type: :beacon,
+          data: %TransactionData{content: content}
+        }
+      ) do
+    with {%Slot{} = slot, _} <- Slot.deserialize(content),
+         :ok <- validate_slot(tx, slot),
+         invovled_nodes <- Slot.involved_nodes(slot),
+         {:ok, %TransactionList{transactions: transactions}} <-
+           P2P.reply_atomic(invovled_nodes, 3, %GetTransactionChain{address: address}) do
+      [tx]
+      |> Stream.concat(transactions)
+      |> TransactionChain.write()
+
+      :ok
+    else
+      _ ->
+        :error
+    end
+  end
+
   def load_transaction(_), do: :ok
+
+  defp validate_slot(
+         %Transaction{address: address},
+         slot = %Slot{subset: subset, slot_time: slot_time}
+       ) do
+    cond do
+      address != Crypto.derive_beacon_chain_address(subset, slot_time) ->
+        {:error, :invalid_address}
+
+      !SlotValidation.valid_transaction_summaries?(slot) ->
+        {:error, :invalid_transaction_summaries}
+
+      !SlotValidation.valid_end_of_node_sync?(slot) ->
+        {:error, :invalid_end_of_node_sync}
+
+      true ->
+        :ok
+    end
+  end
 end

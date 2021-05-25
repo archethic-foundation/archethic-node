@@ -10,8 +10,6 @@ defmodule Uniris.BeaconChain.Slot do
 
   alias Uniris.BeaconChain.SummaryTimer
 
-  alias Uniris.Crypto
-
   alias Uniris.Election
 
   alias Uniris.P2P
@@ -19,36 +17,30 @@ defmodule Uniris.BeaconChain.Slot do
 
   alias Uniris.Utils
 
-  @genesis_previous_hash Enum.map(1..33, fn _ -> <<0>> end) |> :erlang.list_to_binary()
-
   @type net_stats :: list(%{latency: non_neg_integer()})
 
   defstruct [
     :subset,
     :slot_time,
-    previous_hash: @genesis_previous_hash,
     transaction_summaries: [],
     end_of_node_synchronizations: [],
     p2p_view: %{
       availabilities: <<>>,
       network_stats: []
     },
-    involved_nodes: <<>>,
-    validation_signatures: %{}
+    involved_nodes: <<>>
   ]
 
   @type t :: %__MODULE__{
           subset: binary(),
           slot_time: DateTime.t(),
-          previous_hash: binary(),
           transaction_summaries: list(TransactionSummary.t()),
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
           p2p_view: %{
             availabilities: <<>>,
             network_stats: net_stats()
           },
-          involved_nodes: bitstring(),
-          validation_signatures: %{(node_position :: non_neg_integer()) => binary()}
+          involved_nodes: bitstring()
         }
 
   @doc """
@@ -66,12 +58,6 @@ defmodule Uniris.BeaconChain.Slot do
       }
     }
   end
-
-  @doc """
-  Return the genesis previous hash
-  """
-  @spec genesis_previous_hash() :: binary()
-  def genesis_previous_hash, do: @genesis_previous_hash
 
   @doc """
   Add a transaction summary to the slot if not exists
@@ -206,26 +192,6 @@ defmodule Uniris.BeaconChain.Slot do
   end
 
   @doc """
-  Convert a slot to its state before validation
-  """
-  @spec to_pending(t()) :: t()
-  def to_pending(%__MODULE__{
-        subset: subset,
-        slot_time: slot_time,
-        previous_hash: previous_hash,
-        transaction_summaries: tx_summaries,
-        end_of_node_synchronizations: ends_of_sync
-      }) do
-    %__MODULE__{
-      subset: subset,
-      slot_time: slot_time,
-      previous_hash: previous_hash,
-      transaction_summaries: tx_summaries,
-      end_of_node_synchronizations: ends_of_sync
-    }
-  end
-
-  @doc """
   Serialize a BeaconSlot into a binary format
 
     ## Examples
@@ -233,8 +199,6 @@ defmodule Uniris.BeaconChain.Slot do
         iex> %Slot{
         ...>    subset: <<0>>,
         ...>    slot_time: ~U[2021-01-20 10:10:00Z],
-        ...>    previous_hash: <<0, 181, 97, 209, 67, 114, 34, 235, 88, 254, 95, 18, 156, 110, 124, 203, 4,
-        ...>      112, 176, 181, 102, 86, 173, 170, 23, 109, 146, 180, 153, 104, 28, 110, 146>>,
         ...>    transaction_summaries: [
         ...>      %TransactionSummary{
         ...>        address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
@@ -256,20 +220,13 @@ defmodule Uniris.BeaconChain.Slot do
         ...>         %{ latency: 0}
         ...>      ]
         ...>    },
-        ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
-        ...>    validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
-        ...>      201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
-        ...>      181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-        ...>      73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>> }
+        ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>
         ...>  } |> Slot.serialize()
         <<
         # Subset
         0,
         # Slot time
         96, 8, 1, 120,
-        # Previous hash
-        0, 181, 97, 209, 67, 114, 34, 235, 88, 254, 95, 18, 156, 110, 124, 203, 4,
-        112, 176, 181, 102, 86, 173, 170, 23, 109, 146, 180, 153, 104, 28, 110, 146,
         # Nb transaction summaries
         0, 0, 0, 1,
         # Address
@@ -277,8 +234,8 @@ defmodule Uniris.BeaconChain.Slot do
         99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
         # Timestamp
         94, 244, 190, 185,
-        # Type
-        2,
+        # Type (transfer)
+        253,
         # Nb movements addresses
         0, 0,
         # Nb of node synchronizations
@@ -299,49 +256,21 @@ defmodule Uniris.BeaconChain.Slot do
         # Size involved nodes bitstring
         4,
         # Involved nodes bitstring
-        0::1, 1::1, 0::1, 0::1,
-        # Validation signature node's position
-        1,
-        # Validation signature size
-        64,
-        # Validation signature for the involved node at position 0
-        194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
-        201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
-        181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-        73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88,
+        0::1, 1::1, 0::1, 0::1
         >>
   """
   @spec serialize(t()) :: bitstring()
-  def serialize(slot = %__MODULE__{involved_nodes: <<>>}) do
-    <<serialize_before_validation(slot)::bitstring, 0::8>>
-  end
-
-  def serialize(
-        slot = %__MODULE__{
-          involved_nodes: involved_nodes,
-          validation_signatures: validation_signatures
-        }
-      ) do
-    validation_signatures_bin =
-      validation_signatures
-      |> Enum.map(fn {pos, sig} -> <<pos::8, byte_size(sig)::8, sig::binary>> end)
-      |> :erlang.list_to_binary()
-
-    <<serialize_before_validation(slot)::bitstring, bit_size(involved_nodes)::8,
-      involved_nodes::bitstring, validation_signatures_bin::binary>>
-  end
-
-  defp serialize_before_validation(%__MODULE__{
-         subset: subset,
-         slot_time: slot_time,
-         previous_hash: previous_hash,
-         transaction_summaries: transaction_summaries,
-         end_of_node_synchronizations: end_of_node_synchronizations,
-         p2p_view: %{
-           availabilities: availabilities,
-           network_stats: network_stats
-         }
-       }) do
+  def serialize(%__MODULE__{
+        subset: subset,
+        slot_time: slot_time,
+        transaction_summaries: transaction_summaries,
+        end_of_node_synchronizations: end_of_node_synchronizations,
+        p2p_view: %{
+          availabilities: availabilities,
+          network_stats: network_stats
+        },
+        involved_nodes: involved_nodes
+      }) do
     transaction_summaries_bin =
       transaction_summaries
       |> Enum.map(&TransactionSummary.serialize/1)
@@ -357,10 +286,11 @@ defmodule Uniris.BeaconChain.Slot do
       |> Enum.map(fn %{latency: latency} -> <<latency::8>> end)
       |> :erlang.list_to_binary()
 
-    <<subset::binary, DateTime.to_unix(slot_time)::32, previous_hash::binary,
-      length(transaction_summaries)::32, transaction_summaries_bin::binary,
-      length(end_of_node_synchronizations)::16, end_of_node_synchronizations_bin::binary,
-      bit_size(availabilities)::16, availabilities::bitstring, net_stats_bin::binary>>
+    <<subset::binary, DateTime.to_unix(slot_time)::32, length(transaction_summaries)::32,
+      transaction_summaries_bin::binary, length(end_of_node_synchronizations)::16,
+      end_of_node_synchronizations_bin::binary, bit_size(availabilities)::16,
+      availabilities::bitstring, net_stats_bin::binary, bit_size(involved_nodes)::8,
+      involved_nodes::bitstring>>
   end
 
   @doc """
@@ -368,28 +298,19 @@ defmodule Uniris.BeaconChain.Slot do
 
   ## Examples
 
-      iex> <<0, 96, 8, 1, 120, 0, 181, 97, 209, 67, 114, 34, 235, 88, 254, 95, 18, 156, 110, 124, 203, 4,
-      ...>   112, 176, 181, 102, 86, 173, 170, 23, 109, 146, 180, 153, 104, 28, 110, 146, 0, 0, 0, 1,
-      ...>   0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>   99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
-      ...>   94, 244, 190, 185, 2, 0, 0, 0, 1,
-      ...>   0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-      ...>   100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
-      ...>   94, 244, 190, 185,
-      ...>   0, 2, 1::1, 0::1, 10, 0,
-      ...>   4, 0::1, 1::1, 0::1, 0::1, 1,
-      ...>   64, 194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
-      ...>   201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
-      ...>   181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-      ...>   73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88
-      ...> >>
+      iex> <<0, 96, 8, 1, 120, 0, 0, 0, 1,
+      ...>  0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>  99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
+      ...>  94, 244, 190, 185, 253, 0, 0,
+      ...>  0, 1, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
+      ...>  100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241, 94, 244, 190, 185,
+      ...>  0, 2, 1::1, 0::1, 10,
+      ...>  0, 4, 0::1, 1::1, 0::1, 0::1>>
       ...> |> Slot.deserialize()
       {
         %Slot{
           subset: <<0>>,
           slot_time: ~U[2021-01-20 10:10:00Z],
-          previous_hash: <<0, 181, 97, 209, 67, 114, 34, 235, 88, 254, 95, 18, 156, 110, 124, 203, 4,
-            112, 176, 181, 102, 86, 173, 170, 23, 109, 146, 180, 153, 104, 28, 110, 146>>,
           transaction_summaries: [
             %TransactionSummary{
               address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
@@ -411,18 +332,15 @@ defmodule Uniris.BeaconChain.Slot do
               %{ latency: 0}
             ]
           },
-          involved_nodes: <<0::1, 1::1, 0::1, 0::1>>,
-          validation_signatures: %{ 1 => <<194, 20, 133, 185, 6, 130, 218, 157, 233, 83, 166, 166, 66, 90, 63, 142, 147,
-            201, 236, 62, 113, 45, 223, 78, 98, 138, 168, 152, 170, 137, 128, 47, 171,
-            181, 214, 43, 149, 88, 183, 9, 170, 55, 134, 25, 46, 24, 243, 146, 82, 165,
-            73, 196, 182, 182, 220, 10, 181, 137, 113, 78, 34, 100, 194, 88>>}
+          involved_nodes: <<0::1, 1::1, 0::1, 0::1>>
         },
         ""
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<subset::8, slot_timestamp::32, rest::bitstring>>) do
-    {previous_hash, <<nb_transaction_summaries::32, rest::bitstring>>} = deserialize_hash(rest)
+  def deserialize(
+        <<subset::8, slot_timestamp::32, nb_transaction_summaries::32, rest::bitstring>>
+      ) do
     {tx_summaries, rest} = deserialize_tx_summaries(rest, nb_transaction_summaries, [])
     <<nb_end_of_sync::16, rest::bitstring>> = rest
 
@@ -436,33 +354,20 @@ defmodule Uniris.BeaconChain.Slot do
     <<involved_nodes_size::8, involved_nodes::bitstring-size(involved_nodes_size),
       rest::bitstring>> = rest
 
-    nb_involved_nodes = Utils.count_bitstring_bits(involved_nodes)
-
-    {validation_signatures, rest} =
-      deserialize_validation_signatures(rest, nb_involved_nodes, %{})
-
     {
       %__MODULE__{
         subset: <<subset>>,
         slot_time: DateTime.from_unix!(slot_timestamp),
-        previous_hash: previous_hash,
         transaction_summaries: tx_summaries,
         end_of_node_synchronizations: end_of_node_synchronizations,
         p2p_view: %{
           availabilities: availabilities,
           network_stats: network_stats
         },
-        involved_nodes: involved_nodes,
-        validation_signatures: validation_signatures
+        involved_nodes: involved_nodes
       },
       rest
     }
-  end
-
-  defp deserialize_hash(<<hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<hash::binary-size(hash_size), rest::bitstring>> = rest
-    {<<hash_id::8, hash::binary>>, rest}
   end
 
   defp deserialize_tx_summaries(rest, 0, _acc), do: {[], rest}
@@ -489,21 +394,6 @@ defmodule Uniris.BeaconChain.Slot do
     deserialize_end_of_node_synchronizations(rest, nb_end_of_node_synchronizations, [
       end_of_sync | acc
     ])
-  end
-
-  defp deserialize_validation_signatures(rest, 0, _acc), do: {%{}, rest}
-
-  defp deserialize_validation_signatures(rest, nb_involved_nodes, acc)
-       when map_size(acc) == nb_involved_nodes do
-    {acc, rest}
-  end
-
-  defp deserialize_validation_signatures(
-         <<pos::8, signature_size::8, signature::binary-size(signature_size), rest::bitstring>>,
-         nb_involved_nodes,
-         acc
-       ) do
-    deserialize_validation_signatures(rest, nb_involved_nodes, Map.put(acc, pos, signature))
   end
 
   defp deserialize_network_stats(rest, 0, _), do: {[], rest}

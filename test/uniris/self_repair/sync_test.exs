@@ -3,6 +3,7 @@ defmodule Uniris.SelfRepair.SyncTest do
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.Slot.TransactionSummary
+  alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
   alias Uniris.BeaconChain.Summary, as: BeaconSummary
   alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
@@ -19,6 +20,8 @@ defmodule Uniris.SelfRepair.SyncTest do
 
   alias Uniris.TransactionFactory
 
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionInput
 
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
@@ -56,6 +59,7 @@ defmodule Uniris.SelfRepair.SyncTest do
   describe "load_missed_transactions/2" do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
+      start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
       Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       welcome_node = %Node{
@@ -65,7 +69,9 @@ defmodule Uniris.SelfRepair.SyncTest do
         geo_patch: "BBB",
         network_patch: "BBB",
         last_address: :crypto.strong_rand_bytes(32),
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10)
       }
 
       coordinator_node = %Node{
@@ -92,7 +98,7 @@ defmodule Uniris.SelfRepair.SyncTest do
           last_address: :crypto.strong_rand_bytes(32),
           enrollment_date: DateTime.utc_now(),
           authorized?: true,
-          authorization_date: DateTime.utc_now()
+          authorization_date: DateTime.utc_now() |> DateTime.add(-10)
         }
       ]
 
@@ -129,20 +135,6 @@ defmodule Uniris.SelfRepair.SyncTest do
       me = self()
 
       MockDB
-      |> stub(:get_beacon_summary, fn _, _ ->
-        {:ok,
-         %BeaconSummary{
-           subset: <<0>>,
-           summary_time: DateTime.utc_now(),
-           transaction_summaries: [
-             %TransactionSummary{
-               address: tx.address,
-               type: :transfer,
-               timestamp: DateTime.utc_now()
-             }
-           ]
-         }}
-      end)
       |> stub(:write_transaction_chain, fn _ ->
         send(me, :storage)
         :ok
@@ -150,8 +142,32 @@ defmodule Uniris.SelfRepair.SyncTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransaction{} ->
-          {:ok, tx}
+        _, %GetTransaction{address: address} ->
+          if address == tx.address do
+            {:ok, tx}
+          else
+            tx_content =
+              %BeaconSummary{
+                subset: <<0>>,
+                summary_time: DateTime.utc_now(),
+                transaction_summaries: [
+                  %TransactionSummary{
+                    address: tx.address,
+                    type: :transfer,
+                    timestamp: DateTime.utc_now()
+                  }
+                ]
+              }
+              |> BeaconSummary.serialize()
+              |> Utils.wrap_binary()
+
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{content: tx_content}
+             }}
+          end
 
         _, %GetTransactionInputs{} ->
           {:ok, %TransactionInputList{inputs: inputs}}

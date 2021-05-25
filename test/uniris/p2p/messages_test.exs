@@ -1,23 +1,19 @@
 defmodule Uniris.P2P.MessageTest do
   use UnirisCase
 
-  alias Uniris.BeaconChain.Slot
-
   alias Uniris.Crypto
 
   alias Uniris.P2P.Message
   alias Uniris.P2P.Message.AcknowledgeStorage
-  alias Uniris.P2P.Message.AddBeaconSlotProof
   alias Uniris.P2P.Message.AddMiningContext
   alias Uniris.P2P.Message.Balance
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.CrossValidate
   alias Uniris.P2P.Message.CrossValidationDone
   alias Uniris.P2P.Message.EncryptedStorageNonce
+  alias Uniris.P2P.Message.Error
   alias Uniris.P2P.Message.FirstPublicKey
   alias Uniris.P2P.Message.GetBalance
-  alias Uniris.P2P.Message.GetBeaconSlot
-  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetFirstPublicKey
   alias Uniris.P2P.Message.GetLastTransaction
@@ -36,11 +32,11 @@ defmodule Uniris.P2P.MessageTest do
   alias Uniris.P2P.Message.NodeAvailability
   alias Uniris.P2P.Message.NodeList
   alias Uniris.P2P.Message.NotFound
-  alias Uniris.P2P.Message.NotifyBeaconSlot
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.NotifyLastTransactionAddress
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.P2PView
+  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Message.StartMining
   alias Uniris.P2P.Message.TransactionChainLength
@@ -341,19 +337,6 @@ defmodule Uniris.P2P.MessageTest do
                %AcknowledgeStorage{
                  address: address
                }
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "GetBeaconSummary message" do
-      msg = %GetBeaconSummary{
-        subset: <<1>>,
-        date: ~U[2020-06-25 15:11:53Z]
-      }
-
-      assert msg ==
-               msg
                |> Message.encode()
                |> Message.decode()
                |> elem(0)
@@ -809,52 +792,9 @@ defmodule Uniris.P2P.MessageTest do
                |> elem(0)
     end
 
-    test "AddBeaconSlotProof message" do
-      msg = %AddBeaconSlotProof{
-        subset: <<0>>,
-        digest: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        signature: :crypto.strong_rand_bytes(32)
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "GetBeaconSlot message" do
-      msg = %GetBeaconSlot{
-        subset: <<0>>,
-        slot_time: DateTime.utc_now() |> DateTime.truncate(:second)
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
     test "GetTransactionSummary message" do
       msg = %GetTransactionSummary{
         address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-
-      assert msg ==
-               msg
-               |> Message.encode()
-               |> Message.decode()
-               |> elem(0)
-    end
-
-    test "NotifyBeaconSlot message" do
-      msg = %NotifyBeaconSlot{
-        slot: %Slot{
-          subset: <<0>>,
-          slot_time: DateTime.utc_now() |> DateTime.truncate(:second)
-        }
       }
 
       assert msg ==
@@ -868,6 +808,26 @@ defmodule Uniris.P2P.MessageTest do
       msg = %NodeAvailability{
         public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "Ping message" do
+      msg = %Ping{}
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "Error message" do
+      msg = %Error{reason: :invalid_transaction}
 
       assert msg ==
                msg

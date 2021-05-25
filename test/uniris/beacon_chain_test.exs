@@ -13,10 +13,15 @@ defmodule Uniris.BeaconChainTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetTransactionChain
+  alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
+
+  alias Uniris.Utils
 
   doctest Uniris.BeaconChain
 
@@ -148,171 +153,222 @@ defmodule Uniris.BeaconChainTest do
     } = :sys.get_state(pid)
   end
 
-  describe "register_slot/1" do
-    setup do
-      start_supervised!({SummaryTimer, interval: "0 0 0 * * *"})
-      :ok
-    end
-
-    test "should return an error when the node is not in expected summary pool" do
-      assert {:error, :not_storage_node} =
-               BeaconChain.register_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
-    end
-
-    test "should return an error when the previous hash is the not a valid one" do
+  describe "load_transaction/1 for beacon transaction" do
+    test "should fetch the transaction chain from the beacon involved nodes" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(0),
+        first_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        last_public_key: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
         available?: true,
         geo_patch: "AAA",
+        network_patch: "AAA",
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10)
       })
 
-      assert {:error, :invalid_previous_hash} =
-               BeaconChain.register_slot(%Slot{
-                 subset: <<0>>,
-                 slot_time: DateTime.utc_now(),
-                 previous_hash: :crypto.strong_rand_bytes(32)
-               })
-    end
+      tx = %Transaction{
+        address: Crypto.derive_beacon_chain_address(<<0>>, DateTime.utc_now()),
+        type: :beacon,
+        data: %TransactionData{
+          content:
+            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_summaries: []}
+            |> Slot.serialize()
+            |> Utils.wrap_binary()
+        },
+        validation_stamp: %ValidationStamp{
+          timestamp: DateTime.utc_now()
+        }
+      }
 
-    test "should return an error when the signatures are not valid" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(0),
-        available?: true,
-        geo_patch: "AAA",
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      })
-
-      assert {:error, :invalid_signatures} =
-               BeaconChain.register_slot(%Slot{
-                 subset: <<0>>,
-                 slot_time: DateTime.utc_now(),
-                 validation_signatures: [{0, :crypto.strong_rand_bytes(32)}]
-               })
-    end
-
-    test "should insert the slot" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(0),
-        available?: true,
-        geo_patch: "AAA",
-        authorized?: true,
-        authorization_date: ~U[2021-01-20 15:17:00Z]
-      })
-
-      slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
-
-      sig1 =
-        slot
-        |> Slot.to_pending()
-        |> Slot.serialize()
-        |> Crypto.sign_with_node_key(0)
+      MockClient
+      |> expect(:send_message, fn _, %GetTransactionChain{} ->
+        {:ok,
+         %TransactionList{
+           transactions: []
+         }}
+      end)
 
       me = self()
 
       MockDB
-      |> expect(:register_beacon_slot, fn slot ->
-        send(me, {:slot, slot})
+      |> expect(:write_transaction_chain, fn chain ->
+        send(me, {:chain, chain})
         :ok
       end)
 
-      assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: [{0, sig1}]})
-      assert_receive {:slot, %Slot{subset: <<0>>}}
-    end
+      assert :ok = BeaconChain.load_transaction(tx)
 
-    test "should not insert the slot if a slot is already persisted and no more signatures" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(0),
-        available?: true,
-        geo_patch: "AAA",
-        authorized?: true,
-        authorization_date: ~U[2021-01-20 15:17:00Z]
-      })
-
-      slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
-
-      sig1 =
-        slot
-        |> Slot.to_pending()
-        |> Slot.serialize()
-        |> Crypto.sign_with_node_key(0)
-
-      MockDB
-      |> stub(:get_beacon_slot, fn
-        _, ~U[2021-01-22 15:17:00Z] -> {:ok, slot}
-        _, _ -> {:error, :not_found}
-      end)
-
-      assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig1}})
-    end
-
-    test "should not insert the slot if the receiving node has more signature than the previous one" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(0),
-        available?: true,
-        geo_patch: "AAA",
-        authorized?: true,
-        authorization_date: ~U[2021-01-20 15:17:00Z]
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.node_public_key(1),
-        last_public_key: Crypto.node_public_key(1),
-        available?: true,
-        geo_patch: "AAA",
-        authorized?: true,
-        authorization_date: ~U[2021-01-20 15:17:00Z]
-      })
-
-      slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
-
-      sig1 =
-        slot
-        |> Slot.to_pending()
-        |> Slot.serialize()
-        |> Crypto.sign_with_node_key(0)
-
-      me = self()
-
-      MockDB
-      |> stub(:get_beacon_slot, fn
-        _, ~U[2021-01-22 15:17:00Z] -> {:ok, slot}
-        _, _ -> {:error, :not_found}
-      end)
-      |> expect(:register_beacon_slot, fn slot ->
-        send(me, {:slot, slot})
-        :ok
-      end)
-
-      sig2 =
-        slot
-        |> Slot.to_pending()
-        |> Slot.serialize()
-        |> Crypto.sign_with_node_key(1)
-
-      assert :ok =
-               BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig2, 1 => sig1}})
-
-      assert_receive {:slot, %Slot{validation_signatures: %{}}}
+      assert_receive {:chain, chain}
+      assert Enum.count(chain) == 1
     end
   end
+
+  # describe "register_slot/1" do
+  #   setup do
+  #     start_supervised!({SummaryTimer, interval: "0 0 0 * * *"})
+  #     :ok
+  #   end
+
+  #   test "should return an error when the node is not in expected summary pool" do
+  #     assert {:error, :not_storage_node} =
+  #              BeaconChain.register_slot(%Slot{subset: <<0>>, slot_time: DateTime.utc_now()})
+  #   end
+
+  #   test "should return an error when the previous hash is the not a valid one" do
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(0),
+  #       last_public_key: Crypto.node_public_key(0),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+  #     })
+
+  #     assert {:error, :invalid_previous_hash} =
+  #              BeaconChain.register_slot(%Slot{
+  #                subset: <<0>>,
+  #                slot_time: DateTime.utc_now(),
+  #                previous_hash: :crypto.strong_rand_bytes(32)
+  #              })
+  #   end
+
+  #   test "should return an error when the signatures are not valid" do
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(0),
+  #       last_public_key: Crypto.node_public_key(0),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: DateTime.utc_now() |> DateTime.add(-1)
+  #     })
+
+  #     assert {:error, :invalid_signatures} =
+  #              BeaconChain.register_slot(%Slot{
+  #                subset: <<0>>,
+  #                slot_time: DateTime.utc_now(),
+  #                validation_signatures: [{0, :crypto.strong_rand_bytes(32)}]
+  #              })
+  #   end
+
+  #   test "should insert the slot" do
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(0),
+  #       last_public_key: Crypto.node_public_key(0),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: ~U[2021-01-20 15:17:00Z]
+  #     })
+
+  #     slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
+
+  #     sig1 =
+  #       slot
+  #       |> Slot.to_pending()
+  #       |> Slot.serialize()
+  #       |> Crypto.sign_with_node_key(0)
+
+  #     me = self()
+
+  #     MockDB
+  #     |> expect(:register_beacon_slot, fn slot ->
+  #       send(me, {:slot, slot})
+  #       :ok
+  #     end)
+
+  #     assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: [{0, sig1}]})
+  #     assert_receive {:slot, %Slot{subset: <<0>>}}
+  #   end
+
+  #   test "should not insert the slot if a slot is already persisted and no more signatures" do
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(0),
+  #       last_public_key: Crypto.node_public_key(0),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: ~U[2021-01-20 15:17:00Z]
+  #     })
+
+  #     slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
+
+  #     sig1 =
+  #       slot
+  #       |> Slot.to_pending()
+  #       |> Slot.serialize()
+  #       |> Crypto.sign_with_node_key(0)
+
+  #     MockDB
+  #     |> stub(:get_beacon_slot, fn
+  #       _, ~U[2021-01-22 15:17:00Z] -> {:ok, slot}
+  #       _, _ -> {:error, :not_found}
+  #     end)
+
+  #     assert :ok = BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig1}})
+  #   end
+
+  #   test "should not insert the slot if the receiving node has more signature than the previous one" do
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(0),
+  #       last_public_key: Crypto.node_public_key(0),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: ~U[2021-01-20 15:17:00Z]
+  #     })
+
+  #     P2P.add_and_connect_node(%Node{
+  #       ip: {127, 0, 0, 1},
+  #       port: 3000,
+  #       first_public_key: Crypto.node_public_key(1),
+  #       last_public_key: Crypto.node_public_key(1),
+  #       available?: true,
+  #       geo_patch: "AAA",
+  #       authorized?: true,
+  #       authorization_date: ~U[2021-01-20 15:17:00Z]
+  #     })
+
+  #     slot = %Slot{subset: <<0>>, slot_time: ~U[2021-01-22 15:17:00Z]}
+
+  #     sig1 =
+  #       slot
+  #       |> Slot.to_pending()
+  #       |> Slot.serialize()
+  #       |> Crypto.sign_with_node_key(0)
+
+  #     me = self()
+
+  #     MockDB
+  #     |> stub(:get_beacon_slot, fn
+  #       _, ~U[2021-01-22 15:17:00Z] -> {:ok, slot}
+  #       _, _ -> {:error, :not_found}
+  #     end)
+  #     |> expect(:register_beacon_slot, fn slot ->
+  #       send(me, {:slot, slot})
+  #       :ok
+  #     end)
+
+  #     sig2 =
+  #       slot
+  #       |> Slot.to_pending()
+  #       |> Slot.serialize()
+  #       |> Crypto.sign_with_node_key(1)
+
+  #     assert :ok =
+  #              BeaconChain.register_slot(%{slot | validation_signatures: %{0 => sig2, 1 => sig1}})
+
+  #     assert_receive {:slot, %Slot{validation_signatures: %{}}}
+  #   end
+  # end
 end

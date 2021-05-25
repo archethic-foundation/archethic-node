@@ -12,7 +12,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetTransactionInputs
@@ -28,7 +27,11 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
   alias Uniris.TransactionFactory
 
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionInput
+
+  alias Uniris.Utils
 
   import Mox
 
@@ -109,30 +112,144 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: false
     })
 
+    summary_time = ~U[2021-01-22 16:12:58Z]
+
+    addr1 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr2 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr3 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr4 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr5 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+
     MockClient
     |> stub(:send_message, fn
-      _, %GetBeaconSummary{subset: "D"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice3"}]}}
+      _, %GetTransaction{address: address} ->
+        cond do
+          address == Crypto.derive_beacon_chain_address("D", summary_time, true) ->
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{
+                 content:
+                   %BeaconSummary{
+                     subset: "D",
+                     summary_time: summary_time,
+                     transaction_summaries: [
+                       %TransactionSummary{
+                         address: addr1,
+                         timestamp: DateTime.utc_now(),
+                         type: :transfer
+                       }
+                     ]
+                   }
+                   |> BeaconSummary.serialize()
+                   |> Utils.wrap_binary()
+               }
+             }}
 
-      _, %GetBeaconSummary{subset: "B"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Charlie5"}]}}
+          address == Crypto.derive_beacon_chain_address("B", summary_time, true) ->
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{
+                 content:
+                   %BeaconSummary{
+                     subset: "B",
+                     summary_time: summary_time,
+                     transaction_summaries: [
+                       %TransactionSummary{
+                         address: addr2,
+                         timestamp: DateTime.utc_now(),
+                         type: :transfer
+                       }
+                     ]
+                   }
+                   |> BeaconSummary.serialize()
+                   |> Utils.wrap_binary()
+               }
+             }}
 
-      _, %GetBeaconSummary{subset: "A"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Alice2"}]}}
+          address == Crypto.derive_beacon_chain_address("A", summary_time, true) ->
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{
+                 content:
+                   %BeaconSummary{
+                     subset: "A",
+                     summary_time: summary_time,
+                     transaction_summaries: [
+                       %TransactionSummary{
+                         address: addr3,
+                         timestamp: DateTime.utc_now(),
+                         type: :transfer
+                       }
+                     ]
+                   }
+                   |> BeaconSummary.serialize()
+                   |> Utils.wrap_binary()
+               }
+             }}
 
-      _, %GetBeaconSummary{subset: "F"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom2"}]}}
+          address == Crypto.derive_beacon_chain_address("F", summary_time, true) ->
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{
+                 content:
+                   %BeaconSummary{
+                     subset: "F",
+                     summary_time: summary_time,
+                     transaction_summaries: [
+                       %TransactionSummary{
+                         address: addr4,
+                         timestamp: DateTime.utc_now(),
+                         type: :transfer
+                       }
+                     ]
+                   }
+                   |> BeaconSummary.serialize()
+                   |> Utils.wrap_binary()
+               }
+             }}
 
-      _, %GetBeaconSummary{subset: "E"} ->
-        {:ok, %BeaconSummary{transaction_summaries: [%TransactionSummary{address: "@Tom1"}]}}
+          address == Crypto.derive_beacon_chain_address("E", summary_time, true) ->
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{
+                 content:
+                   %BeaconSummary{
+                     subset: "E",
+                     summary_time: summary_time,
+                     transaction_summaries: [
+                       %TransactionSummary{
+                         address: addr5,
+                         timestamp: DateTime.utc_now(),
+                         type: :transfer
+                       }
+                     ]
+                   }
+                   |> BeaconSummary.serialize()
+                   |> Utils.wrap_binary()
+               }
+             }}
+
+          true ->
+            raise "Error"
+        end
     end)
 
     expected_addresses = [
-      "@Alice2",
-      "@Charlie5",
-      "@Alice3",
-      "@Tom1",
-      "@Tom2"
+      addr1,
+      addr2,
+      addr3,
+      addr4,
+      addr5
     ]
 
     summary_pools = [

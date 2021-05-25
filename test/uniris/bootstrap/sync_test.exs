@@ -192,8 +192,8 @@ defmodule Uniris.Bootstrap.SyncTest do
 
   describe "initialize_network/2" do
     setup do
-      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
       start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
       start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
       P2P.add_and_connect_node(%Node{

@@ -28,8 +28,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
   import Mox
 
   setup do
-    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
+    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
     welcome_node = %Node{
       first_public_key: "key1",

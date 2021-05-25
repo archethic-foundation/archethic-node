@@ -7,18 +7,17 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias Uniris.Crypto
 
-  alias Uniris.DB
-
   alias Uniris.Election
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.GetBeaconSlot
-  alias Uniris.P2P.Message.GetBeaconSummary
+  alias Uniris.P2P.Message.GetTransaction
 
   alias __MODULE__.NetworkStatistics
   alias __MODULE__.TransactionHandler
 
   alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.TransactionData
 
   alias Uniris.Utils
 
@@ -39,35 +38,64 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     |> :lists.flatten()
     |> Task.async_stream(
       fn {nodes, subset, summary_time} ->
-        do_fetch_summary(subset, summary_time, nodes, patch)
+        beacon_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
+
+        beacon_address
+        |> do_fetch_summary_transaction(nodes, patch)
+        |> handle_summary_transaction(subset, summary_time, nodes, beacon_address)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
-    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-    |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+    |> Stream.filter(&match?({:ok, %Transaction{}}, &1))
+    |> Stream.map(fn {:ok, %Transaction{data: %TransactionData{content: content}}} ->
+      {summary, _} = BeaconSummary.deserialize(content)
+      summary
+    end)
   end
 
-  defp do_fetch_summary(subset, summary_time, nodes, patch) do
+  defp do_fetch_summary_transaction(beacon_address, nodes, patch) do
     if Utils.key_in_node_list?(nodes, Crypto.node_public_key(0)) do
-      case DB.get_beacon_summary(subset, summary_time) do
-        {:ok, summary} ->
-          {:ok, summary}
+      case TransactionChain.get_transaction(beacon_address) do
+        {:ok, tx} ->
+          {:ok, tx}
 
         _ ->
           # If the node did not receive the beacon summary it can request another remote node
           # to find it
-          download_summary(nodes, subset, summary_time, patch)
+          download_summary(nodes, beacon_address, patch)
       end
     else
-      download_summary(nodes, subset, summary_time, patch)
+      download_summary(nodes, beacon_address, patch)
     end
   end
 
-  defp download_summary(nodes, subset, summary_time, patch) do
+  defp download_summary(nodes, beacon_address, patch) do
     nodes
     |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> P2P.reply_atomic(3, %GetBeaconSummary{subset: subset, date: summary_time}, patch: patch)
+    |> P2P.reply_atomic(3, %GetTransaction{address: beacon_address},
+      patch: patch,
+      compare_fun: fn %Transaction{data: %TransactionData{content: content}} -> content end
+    )
+  end
+
+  defp handle_summary_transaction({:ok, tx}, subset, summary_time, nodes, _beacon_address) do
+    beacon_storage_nodes =
+      Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
+
+    if Utils.key_in_node_list?(beacon_storage_nodes, Crypto.node_public_key(0)) do
+      TransactionChain.write_transaction(tx)
+    end
+
+    tx
+  end
+
+  defp handle_summary_transaction(res, _subset, _summary_time, nodes, beacon_address) do
+    Logger.error("Cannot fetch during self repair from #{inspect(nodes)}",
+      transaction: "summary@#{Base.encode16(beacon_address)}"
+    )
+
+    res
   end
 
   @doc """
@@ -85,15 +113,17 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     |> :lists.flatten()
     |> Task.async_stream(
       fn {nodes, subset, slot_time} ->
-        P2P.reply_atomic(nodes, 3, %GetBeaconSlot{subset: subset, slot_time: slot_time},
-          patch: patch
-        )
+        beacon_address = Crypto.derive_beacon_chain_address(subset, slot_time)
+        P2P.reply_atomic(nodes, 3, %GetTransaction{address: beacon_address}, patch: patch)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
-    |> Stream.filter(&match?({:ok, {:ok, %BeaconSlot{}}}, &1))
-    |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+    |> Stream.filter(&match?({:ok, {:ok, %Transaction{}}}, &1))
+    |> Stream.map(fn {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} ->
+      {slot, _} = BeaconSlot.deserialize(content)
+      slot
+    end)
   end
 
   @doc """
@@ -107,8 +137,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    load_summaries_in_db(summaries)
-
     %{transactions: transactions, ends_of_sync: ends_of_sync, stats: stats} =
       reduce_summaries(summaries)
 
@@ -117,28 +145,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     Enum.each(ends_of_sync, &P2P.set_node_globally_available(&1.public_key))
 
     update_statistics(stats)
-  end
-
-  defp load_summaries_in_db(summaries) do
-    Task.async_stream(
-      summaries,
-      fn summary = %BeaconSummary{subset: subset, summary_time: summary_time} ->
-        node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
-
-        beacon_nodes =
-          Election.beacon_storage_nodes(
-            subset,
-            summary_time,
-            node_list,
-            Election.get_storage_constraints()
-          )
-
-        if Utils.key_in_node_list?(beacon_nodes, Crypto.node_public_key(0)) do
-          DB.register_beacon_summary(summary)
-        end
-      end
-    )
-    |> Stream.run()
   end
 
   defp reduce_summaries(summaries) do

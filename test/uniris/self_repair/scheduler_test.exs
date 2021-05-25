@@ -2,13 +2,14 @@ defmodule Uniris.SelfRepair.SchedulerTest do
   use UnirisCase, async: false
 
   alias Uniris.BeaconChain
+  alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Uniris.BeaconChain.Subset, as: BeaconSubset
   alias Uniris.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Uniris.Crypto
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.GetBeaconSummary
+  alias Uniris.P2P.Message.GetTransaction
   alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Node
 
@@ -18,6 +19,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
 
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 * * * * * *"})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     :ok
   end
@@ -34,7 +36,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetBeaconSummary{} ->
+    |> stub(:send_message, fn _, %GetTransaction{} ->
       {:ok, %NotFound{}}
     end)
 
@@ -51,7 +53,7 @@ defmodule Uniris.SelfRepair.SchedulerTest do
   test "handle_info/3 should initiate the loading of missing transactions, schedule the next repair and update the last sync date" do
     MockClient
     |> stub(:send_message, fn
-      _, %GetBeaconSummary{} ->
+      _, %GetTransaction{} ->
         {:ok, %NotFound{}}
     end)
 

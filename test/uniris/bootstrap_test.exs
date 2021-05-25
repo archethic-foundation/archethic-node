@@ -16,7 +16,6 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.AcknowledgeStorage
   alias Uniris.P2P.Message.BootstrappingNodes
   alias Uniris.P2P.Message.EncryptedStorageNonce
-  alias Uniris.P2P.Message.GetBeaconSummary
   alias Uniris.P2P.Message.GetBootstrappingNodes
   alias Uniris.P2P.Message.GetLastTransactionAddress
   alias Uniris.P2P.Message.GetStorageNonce
@@ -28,7 +27,6 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.P2P.Message.ListNodes
   alias Uniris.P2P.Message.NewTransaction
   alias Uniris.P2P.Message.NodeList
-  alias Uniris.P2P.Message.NotFound
   alias Uniris.P2P.Message.NotifyEndOfNodeSync
   alias Uniris.P2P.Message.Ok
   alias Uniris.P2P.Message.TransactionList
@@ -54,12 +52,12 @@ defmodule Uniris.BootstrapTest do
   import Mox
 
   setup do
-    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
+    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -219,9 +217,6 @@ defmodule Uniris.BootstrapTest do
 
         _, %ListNodes{} ->
           {:ok, %NodeList{nodes: nodes}}
-
-        _, %GetBeaconSummary{} ->
-          {:ok, %NotFound{}}
 
         _, %NotifyEndOfNodeSync{} ->
           send(me, :node_ready)

@@ -25,7 +25,7 @@ defmodule Uniris.TransactionChain.Transaction do
     :previous_signature,
     :origin_signature,
     :validation_stamp,
-    :cross_validation_stamps
+    cross_validation_stamps: []
   ]
 
   @typedoc """
@@ -56,34 +56,38 @@ defmodule Uniris.TransactionChain.Transaction do
   Supported transaction types
   """
   @type transaction_type ::
-          :identity
-          | :keychain
-          | :transfer
-          | :node
+          :node
           | :node_shared_secrets
           | :origin_shared_secrets
-          | :hosting
-          | :code_proposal
-          | :code_approval
-          | :nft
+          | :node_rewards
+          | :beacon
+          | :beacon_summary
           | :oracle
           | :oracle_summary
-          | :node_rewards
+          | :code_proposal
+          | :code_approval
+          | :keychain
+          | :keychain_access
+          | :transfer
+          | :nft
+          | :hosting
 
   @transaction_types [
-    :identity,
-    :keychain,
-    :transfer,
     :node,
     :node_shared_secrets,
     :origin_shared_secrets,
-    :hosting,
-    :code_proposal,
-    :code_approval,
-    :nft,
+    :beacon,
+    :beacon_summary,
     :oracle,
     :oracle_summary,
-    :node_rewards
+    :node_rewards,
+    :code_proposal,
+    :code_approval,
+    :keychain,
+    :keychain_access,
+    :transfer,
+    :hosting,
+    :nft
   ]
 
   @doc """
@@ -264,37 +268,47 @@ defmodule Uniris.TransactionChain.Transaction do
   Serialize transaction type
   """
   @spec serialize_type(transaction_type()) :: non_neg_integer()
-  def serialize_type(:identity), do: 0
-  def serialize_type(:keychain), do: 1
-  def serialize_type(:transfer), do: 2
-  def serialize_type(:node), do: 3
-  def serialize_type(:node_shared_secrets), do: 4
-  def serialize_type(:origin_shared_secrets), do: 5
-  def serialize_type(:hosting), do: 6
+  # Network transaction's type
+  def serialize_type(:node), do: 0
+  def serialize_type(:node_shared_secrets), do: 1
+  def serialize_type(:origin_shared_secrets), do: 2
+  def serialize_type(:beacon), do: 3
+  def serialize_type(:beacon_summary), do: 4
+  def serialize_type(:oracle), do: 5
+  def serialize_type(:oracle_summary), do: 6
   def serialize_type(:code_proposal), do: 7
   def serialize_type(:code_approval), do: 8
-  def serialize_type(:nft), do: 9
-  def serialize_type(:oracle), do: 10
-  def serialize_type(:oracle_summary), do: 11
-  def serialize_type(:node_rewards), do: 12
+  def serialize_type(:node_rewards), do: 9
+
+  # User transaction's type
+  def serialize_type(:keychain), do: 255
+  def serialize_type(:keychain_access), do: 254
+  def serialize_type(:transfer), do: 253
+  def serialize_type(:hosting), do: 252
+  def serialize_type(:nft), do: 251
 
   @doc """
   Parse a serialize transaction type
   """
   @spec parse_type(non_neg_integer()) :: transaction_type()
-  def parse_type(0), do: :identity
-  def parse_type(1), do: :keychain
-  def parse_type(2), do: :transfer
-  def parse_type(3), do: :node
-  def parse_type(4), do: :node_shared_secrets
-  def parse_type(5), do: :origin_shared_secrets
-  def parse_type(6), do: :hosting
+  # Network transaction's type
+  def parse_type(0), do: :node
+  def parse_type(1), do: :node_shared_secrets
+  def parse_type(2), do: :origin_shared_secrets
+  def parse_type(3), do: :beacon
+  def parse_type(4), do: :beacon_summary
+  def parse_type(5), do: :oracle
+  def parse_type(6), do: :oracle_summary
   def parse_type(7), do: :code_proposal
   def parse_type(8), do: :code_approval
-  def parse_type(9), do: :nft
-  def parse_type(10), do: :oracle
-  def parse_type(11), do: :oracle_summary
-  def parse_type(12), do: :node_rewards
+  def parse_type(9), do: :node_rewards
+
+  # User transaction's type
+  def parse_type(255), do: :keychain
+  def parse_type(254), do: :keychain_access
+  def parse_type(253), do: :transfer
+  def parse_type(252), do: :hosting
+  def parse_type(251), do: :nft
 
   @doc """
   Determines if a transaction type is a network one
@@ -495,8 +509,8 @@ defmodule Uniris.TransactionChain.Transaction do
       # Address
       0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85,
-      # Transaction type,
-      2,
+      # Transaction type (transfer),
+      253,
       # Code size
       0, 0, 0, 0,
       # Content size
@@ -584,8 +598,7 @@ defmodule Uniris.TransactionChain.Transaction do
         previous_public_key: nil,
         previous_signature: nil,
         origin_signature: nil,
-        validation_stamp: nil,
-        cross_validation_stamps: nil
+        validation_stamp: nil
       }) do
     <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary>>
   end
@@ -597,8 +610,7 @@ defmodule Uniris.TransactionChain.Transaction do
         previous_public_key: previous_public_key,
         previous_signature: previous_signature,
         origin_signature: nil,
-        validation_stamp: nil,
-        cross_validation_stamps: nil
+        validation_stamp: nil
       }) do
     <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
       previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary>>
@@ -611,8 +623,7 @@ defmodule Uniris.TransactionChain.Transaction do
         previous_public_key: previous_public_key,
         previous_signature: previous_signature,
         origin_signature: origin_signature,
-        validation_stamp: nil,
-        cross_validation_stamps: nil
+        validation_stamp: nil
       }) do
     <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
       previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
@@ -647,7 +658,7 @@ defmodule Uniris.TransactionChain.Transaction do
   ## Examples
 
       iex> <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
-      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 2,
+      ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 253,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
       ...> 131, 180, 213, 64, 65, 66, 248, 246, 119, 69, 36, 103, 249, 201, 252, 154, 69, 24, 48, 18, 63,
@@ -798,13 +809,7 @@ defmodule Uniris.TransactionChain.Transaction do
       origin_signature: tx.origin_signature,
       validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
       cross_validation_stamps:
-        case tx.cross_validation_stamps do
-          nil ->
-            []
-
-          _ ->
-            Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
-        end
+        Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
     }
   end
 

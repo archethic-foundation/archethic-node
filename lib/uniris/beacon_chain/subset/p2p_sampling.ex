@@ -2,8 +2,8 @@ defmodule Uniris.BeaconChain.Subset.P2PSampling do
   @moduledoc false
 
   alias Uniris.P2P
-  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Node
 
   @type p2p_view :: {available? :: boolean(), latency :: non_neg_integer()}

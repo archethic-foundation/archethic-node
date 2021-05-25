@@ -49,7 +49,7 @@ defmodule Uniris.DB do
   @doc """
   Flush a transaction in the database
   """
-  @spec write_transaction(Transaction.t()) :: :ok
+  @spec write_transaction(Transaction.t()) :: :ok | {:error, :transaction_already_exists}
   def write_transaction(tx = %Transaction{address: tx_address}) do
     case get_transaction(tx_address, [:type]) do
       {:ok, _} ->

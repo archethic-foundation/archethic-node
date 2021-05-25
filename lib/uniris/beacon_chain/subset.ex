@@ -8,16 +8,24 @@ defmodule Uniris.BeaconChain.Subset do
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.SlotTimer
-
-  alias Uniris.BeaconChain.Subset.Seal
+  alias Uniris.BeaconChain.Summary
+  alias Uniris.BeaconChain.SummaryTimer
 
   alias __MODULE__.P2PSampling
-  alias __MODULE__.Seal
-  alias __MODULE__.SlotConsensus
 
   alias Uniris.BeaconChain.SubsetRegistry
 
   alias Uniris.Crypto
+
+  alias Uniris.Election
+
+  alias Uniris.P2P
+  alias Uniris.P2P.Message.ReplicateTransaction
+
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
 
   alias Uniris.Utils
 
@@ -96,7 +104,7 @@ defmodule Uniris.BeaconChain.Subset do
         beacon_subset: Base.encode16(subset)
       )
 
-      # Request the P2P view sampling if the not perfomed from the last 10 seconds
+      # Request the P2P view sampling if the not perfomed from the last 3 seconds
       case Map.get(state, :sampling_time) do
         nil ->
           new_state =
@@ -134,73 +142,84 @@ defmodule Uniris.BeaconChain.Subset do
     {:noreply, %{state | current_slot: current_slot}}
   end
 
-  def handle_cast(
-        {:add_slot, slot, node_public_key, signature},
-        state = %{consensus_worker: pid}
-      ) do
-    SlotConsensus.add_remote_slot(pid, slot, node_public_key, signature)
-    {:noreply, state}
-  end
-
-  def handle_cast({:add_slot, _, _, _}, state), do: {:noreply, state}
-
-  def handle_call(:get_current_slot, _, state = %{current_slot: slot}) do
-    {:reply, slot, state}
-  end
-
   def handle_info(
-        {:create_slot, _time},
-        state = %{
-          subset: subset,
-          current_slot: current_slot = %Slot{slot_time: slot_time},
-          node_public_key: node_public_key
-        }
+        {:create_slot, time},
+        state
       ) do
-    if beacon_slot_node?(subset, slot_time, node_public_key) do
+    new_state = handle_slot(time, state)
+    handle_summary(time, state)
+
+    {:noreply, new_state}
+  end
+
+  defp handle_slot(
+         time,
+         state = %{
+           subset: subset,
+           current_slot: current_slot = %Slot{},
+           node_public_key: node_public_key
+         }
+       ) do
+    if beacon_slot_node?(subset, time, node_public_key) do
+      current_slot = ensure_p2p_view(current_slot)
+
+      beacon_transaction =
+        %Transaction{previous_public_key: previous_public_key} =
+        create_beacon_transaction(current_slot)
+
+      # Write the beacon chain
+      beacon_chain =
+        if SummaryTimer.match_interval?(SlotTimer.previous_slot(time)) do
+          []
+        else
+          previous_public_key
+          |> Crypto.hash()
+          |> TransactionChain.get()
+        end
+
+      [beacon_transaction]
+      |> Stream.concat(beacon_chain)
+      |> TransactionChain.write()
+
       nb_nodes_to_sample =
         subset
         |> P2PSampling.list_nodes_to_sample()
         |> length()
 
+      next_time = SlotTimer.next_slot(time)
+
       new_state =
-        state
-        |> Map.put(
+        Map.put(
+          state,
           :current_slot,
-          Slot.new(subset, SlotTimer.next_slot(DateTime.utc_now()), nb_nodes_to_sample)
+          Slot.new(subset, next_time, nb_nodes_to_sample)
         )
-        |> Map.put(:last_slot_date, slot_time)
 
-      current_slot = ensure_p2p_view(current_slot)
-      previous_date = Map.get(state, :last_slot_date) || DateTime.utc_now()
-
-      if Slot.has_changes?(current_slot) do
-        sealed_slot = Seal.link_to_previous_slot(current_slot, previous_date)
-
-        {:ok, consensus_worker} =
-          SlotConsensus.start_link(node_public_key: node_public_key, slot: sealed_slot)
-
-        {:noreply, Map.put(new_state, :consensus_worker, consensus_worker)}
+      if time |> SlotTimer.next_slot() |> SummaryTimer.match_interval?() do
+        new_state
       else
-        {:noreply, state}
+        # Send the transaction for the next pool
+        %Slot{subset: subset, slot_time: next_time}
+        |> Slot.involved_nodes()
+        |> Enum.reject(&(&1.first_public_key == node_public_key))
+        |> P2P.broadcast_message(%ReplicateTransaction{
+          transaction: beacon_transaction
+        })
+
+        new_state
       end
     else
-      {:noreply, state}
+      state
     end
   end
 
-  def handle_info(
-        {:create_summary, summary_time},
-        state = %{
-          subset: subset,
-          current_slot: current_slot = %Slot{slot_time: slot_time},
-          node_public_key: node_public_key
-        }
-      ) do
-    if beacon_summary_node?(subset, slot_time, node_public_key) do
-      Task.start(fn -> Seal.new_summary(subset, summary_time, current_slot) end)
-      {:noreply, Map.delete(state, :last_slot_date)}
+  defp handle_summary(time, state = %{subset: subset, node_public_key: node_public_key}) do
+    if SummaryTimer.match_interval?(DateTime.truncate(time, :millisecond)) and
+         beacon_summary_node?(subset, time, node_public_key) do
+      Task.start(fn -> create_summary_transaction(subset, time) end)
+      state
     else
-      {:noreply, state}
+      state
     end
   end
 
@@ -210,9 +229,19 @@ defmodule Uniris.BeaconChain.Subset do
     |> Utils.key_in_node_list?(node_public_key)
   end
 
-  defp beacon_summary_node?(subset, slot_time, node_public_key) do
-    %Slot{subset: subset, slot_time: slot_time}
-    |> Slot.summary_storage_nodes()
+  defp beacon_summary_node?(subset, summary_time, node_public_key) do
+    node_list =
+      Enum.filter(
+        P2P.authorized_nodes(),
+        &(DateTime.compare(&1.authorization_date, summary_time) == :lt)
+      )
+
+    Election.beacon_storage_nodes(
+      subset,
+      summary_time,
+      node_list,
+      Election.get_storage_constraints()
+    )
     |> Utils.key_in_node_list?(node_public_key)
   end
 
@@ -227,4 +256,89 @@ defmodule Uniris.BeaconChain.Subset do
   end
 
   defp ensure_p2p_view(slot = %Slot{}), do: slot
+
+  defp create_beacon_transaction(slot = %Slot{subset: subset, slot_time: slot_time}) do
+    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, SlotTimer.previous_slot(slot_time))
+    {next_pub, _} = Crypto.derive_beacon_keypair(subset, slot_time)
+
+    tx =
+      Transaction.new(
+        :beacon,
+        %TransactionData{content: Slot.serialize(slot) |> Utils.wrap_binary()},
+        prev_pv,
+        prev_pub,
+        next_pub
+      )
+
+    previous_address = Transaction.previous_address(tx)
+
+    prev_tx =
+      case TransactionChain.get_transaction(previous_address) do
+        {:error, :transaction_not_exists} ->
+          nil
+
+        {:ok, prev_tx} ->
+          prev_tx
+      end
+
+    stamp = create_validation_stamp(tx, prev_tx, slot_time)
+
+    %{tx | validation_stamp: stamp}
+  end
+
+  defp create_summary_transaction(subset, summary_time) do
+    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, summary_time)
+    {pub, _} = Crypto.derive_beacon_keypair(subset, summary_time, true)
+
+    beacon_chain =
+      prev_pub
+      |> Crypto.hash()
+      |> TransactionChain.get()
+
+    previous_slots =
+      Stream.map(beacon_chain, fn %Transaction{data: %TransactionData{content: content}} ->
+        {slot, _} = Slot.deserialize(content)
+        slot
+      end)
+
+    tx_content =
+      %Summary{subset: subset, summary_time: summary_time}
+      |> Summary.aggregate_slots(previous_slots)
+      |> Summary.serialize()
+
+    tx =
+      Transaction.new(
+        :beacon_summary,
+        %TransactionData{content: tx_content |> Utils.wrap_binary()},
+        prev_pv,
+        prev_pub,
+        pub
+      )
+
+    stamp = create_validation_stamp(tx, nil, summary_time)
+
+    [%{tx | validation_stamp: stamp}]
+    |> Stream.concat(beacon_chain)
+    |> TransactionChain.write()
+  end
+
+  defp create_validation_stamp(tx = %Transaction{}, nil, time = %DateTime{}) do
+    %ValidationStamp{
+      proof_of_work: Crypto.node_public_key(0),
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+      proof_of_election: <<0::size(512)>>,
+      timestamp: time
+    }
+    |> ValidationStamp.sign()
+  end
+
+  defp create_validation_stamp(tx = %Transaction{}, prev_tx = %Transaction{}, time = %DateTime{}) do
+    %ValidationStamp{
+      proof_of_work: Crypto.node_public_key(0),
+      proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
+      proof_of_election: <<0::size(512)>>,
+      timestamp: time
+    }
+    |> ValidationStamp.sign()
+  end
 end

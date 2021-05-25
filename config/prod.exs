@@ -15,12 +15,12 @@ config :uniris, Uniris.Bootstrap.Sync,
 # config :uniris, Uniris.Bootstrap.NetworkInit, genesis_pools: []
 
 config :uniris, Uniris.BeaconChain.SlotTimer,
-  # Every 10 minutes at the 50th second
-  interval: "50 */10 * * * * *"
+  # Every 10 minutes
+  interval: "0 */10 * * * * *"
 
 config :uniris, Uniris.BeaconChain.SummaryTimer,
-  # Every day at midnight at the 50th second
-  interval: "50 0 0 * * * *"
+  # Every day at midnight
+  interval: "0 0 0 * * * *"
 
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
@@ -44,16 +44,16 @@ config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.NAT
 config :uniris, Uniris.OracleChain.Scheduler,
   # Poll new changes every minute
   polling_interval: "0 * * * * *",
-  # Aggregate chain every day at midnight at 40th second
-  summary_interval: "40 0 0 * * * *"
+  # Aggregate chain every day 10 minute before midnight
+  summary_interval: "0 50 0 * * * *"
 
 config :uniris, Uniris.Reward.NetworkPoolScheduler,
-  # Every day
+  # Every day at midnight
   interval: "0 0 0 * * * *"
 
 config :uniris, Uniris.Reward.WithdrawScheduler,
-  # Every day
-  interval: "0 0 * * * * *"
+  # Every day at midnight
+  interval: "0 0 0 * * * *"
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day 10 minute before midnight

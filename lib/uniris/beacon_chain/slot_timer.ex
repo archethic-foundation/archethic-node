@@ -13,8 +13,9 @@ defmodule Uniris.BeaconChain.SlotTimer do
 
   alias Uniris.Crypto
 
-  alias Uniris.PubSub
   alias Uniris.P2P.Node
+
+  alias Uniris.PubSub
 
   alias Uniris.Utils
 
@@ -31,6 +32,14 @@ defmodule Uniris.BeaconChain.SlotTimer do
   Give the next beacon chain slot using the `SlotTimer` interval
   """
   @spec next_slot(DateTime.t()) :: DateTime.t()
+  def next_slot(date_from = %DateTime{microsecond: {0, 0}}) do
+    get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_dates(DateTime.to_naive(date_from))
+    |> Enum.at(1)
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
   def next_slot(date_from = %DateTime{}) do
     get_interval()
     |> CronParser.parse!(true)
@@ -78,15 +87,6 @@ defmodule Uniris.BeaconChain.SlotTimer do
     [{_, interval}] = :ets.lookup(:uniris_slot_timer_timer, :interval)
     interval
   end
-
-  @doc """
-  Start the scheduler
-  """
-  @spec start_scheduler() :: :ok
-  def start_scheduler, do: GenServer.cast(__MODULE__, :start_scheduler)
-
-  @doc false
-  def start_scheduler(pid), do: GenServer.cast(pid, :start_scheduler)
 
   @doc false
   def init(opts) do
