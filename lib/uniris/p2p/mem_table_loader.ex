@@ -3,6 +3,7 @@ defmodule Uniris.P2P.MemTableLoader do
 
   use GenServer
 
+  alias Uniris.P2P
   alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.MemTable
   alias Uniris.P2P.Node
@@ -97,7 +98,7 @@ defmodule Uniris.P2P.MemTableLoader do
         }
       }) do
     new_authorized_keys = Keys.list_authorized_keys(keys)
-    previous_authorized_keys = MemTable.list_authorized_public_keys()
+    previous_authorized_keys = P2P.authorized_nodes() |> Enum.map(& &1.last_public_key)
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
 
