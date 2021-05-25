@@ -8,8 +8,9 @@ defmodule Uniris.OracleChain.Scheduler do
 
   alias Uniris.Crypto
 
-  alias Uniris.PubSub
   alias Uniris.P2P.Node
+
+  alias Uniris.PubSub
 
   alias Uniris.OracleChain.Services
   alias Uniris.OracleChain.Summary

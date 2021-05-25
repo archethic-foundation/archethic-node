@@ -1,9 +1,13 @@
 defmodule Uniris.BeaconChain.SlotTimerTest do
-  use ExUnit.Case
+  use UnirisCase
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.SubsetRegistry
+
+  alias Uniris.Crypto
+
+  alias Uniris.P2P.Node
 
   setup do
     Enum.each(BeaconChain.list_subsets(), fn subset ->
@@ -13,9 +17,43 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
     :ok
   end
 
+  test "should start scheduler when the current become authorized" do
+    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+
+    send(
+      pid,
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+    )
+
+    assert %{timer: _} = :sys.get_state(pid)
+  end
+
+  test "should stop scheduler when the current become unauthorized" do
+    {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+
+    send(
+      pid,
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+    )
+
+    assert %{timer: timer} = :sys.get_state(pid)
+
+    send(
+      pid,
+      {:node_update, %Node{authorized?: false, first_public_key: Crypto.node_public_key()}}
+    )
+
+    Process.sleep(200)
+    assert false == Process.read_timer(timer)
+  end
+
   test "receive create_slot message after timer elapsed" do
     {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
-    SlotTimer.start_scheduler(pid)
+
+    send(
+      pid,
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+    )
 
     current = DateTime.utc_now()
 
@@ -27,7 +65,11 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
   test "handle_info/3 receive a slot creation message" do
     {:ok, pid} = SlotTimer.start_link([interval: "0 * * * * * *"], [])
-    SlotTimer.start_scheduler(pid)
+
+    send(
+      pid,
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+    )
 
     send(pid, :new_slot)
 
