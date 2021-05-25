@@ -140,15 +140,27 @@ defmodule Uniris.Crypto do
 
   The date can be either a specific datetime or a specific day
   """
-  @spec derive_beacon_chain_address(subset :: binary(), date :: DateTime.t()) :: binary()
-  def derive_beacon_chain_address(subset, date = %DateTime{}) when is_binary(subset) do
-    {pub, _} =
-      derive_keypair(
-        :persistent_term.get(:storage_nonce),
-        hash([subset, <<DateTime.to_unix(date)::32>>]) |> :binary.decode_unsigned()
-      )
+  @spec derive_beacon_chain_address(subset :: binary(), date :: DateTime.t(), boolean()) ::
+          binary()
+  def derive_beacon_chain_address(subset, date = %DateTime{}, summary? \\ false)
+      when is_binary(subset) do
+    subset
+    |> derive_beacon_keypair(date, summary?)
+    |> elem(0)
+    |> hash()
+  end
 
-    hash(pub)
+  @doc """
+  Derive a keypair for beacon transaction based on the subset and the date
+  """
+  @spec derive_beacon_keypair(binary(), DateTime.t(), boolean()) :: {key(), key()}
+  def derive_beacon_keypair(subset, date = %DateTime{}, summary? \\ false) do
+    summary_byte = if summary?, do: 1, else: 0
+
+    derive_keypair(
+      :persistent_term.get(:storage_nonce),
+      hash([subset, <<DateTime.to_unix(date)::32, summary_byte::8>>])
+    )
   end
 
   @doc """
