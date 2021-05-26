@@ -6,8 +6,9 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
   alias Uniris.Crypto
   alias Uniris.Crypto.Ed25519
   alias Uniris.Crypto.ID
-  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.NodeKeystoreImpl
+
+  alias Uniris.TransactionChain
 
   require Logger
 
@@ -18,23 +19,28 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl NodeKeystoreImpl
-  def sign_with_node_key(data) do
-    GenServer.call(__MODULE__, {:sign_with_node_key, data})
+  def sign_with_first_key(data) do
+    GenServer.call(__MODULE__, {:sign_with_first_key, data})
   end
 
   @impl NodeKeystoreImpl
-  def sign_with_node_key(data, index) do
-    GenServer.call(__MODULE__, {:sign_with_node_key, data, index})
+  def sign_with_last_key(data) do
+    GenServer.call(__MODULE__, {:sign_with_last_key, data})
   end
 
   @impl NodeKeystoreImpl
-  def node_public_key do
-    GenServer.call(__MODULE__, :node_public_key)
+  def last_public_key do
+    GenServer.call(__MODULE__, :last_public_key)
   end
 
   @impl NodeKeystoreImpl
-  def node_public_key(index) do
-    GenServer.call(__MODULE__, {:node_public_key, index})
+  def first_public_key do
+    GenServer.call(__MODULE__, :first_public_key)
+  end
+
+  @impl NodeKeystoreImpl
+  def next_public_key do
+    GenServer.call(__MODULE__, :next_public_key)
   end
 
   @impl NodeKeystoreImpl
@@ -42,43 +48,69 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
     GenServer.call(__MODULE__, {:diffie_hellman, public_key})
   end
 
+  @impl NodeKeystoreImpl
+  def persist_next_keypair do
+    GenServer.cast(__MODULE__, :persist_next_keypair)
+  end
+
   @impl GenServer
   def init(opts) do
     seed = Keyword.fetch!(opts, :seed)
-    {:ok, %{node_seed: seed}}
+    first_keypair = {first_pub_key, _} = Crypto.derive_keypair(seed, 0)
+
+    nb_keys =
+      first_pub_key
+      |> Crypto.hash()
+      |> TransactionChain.get_last_address()
+      |> TransactionChain.size()
+
+    last_keypair = Crypto.derive_keypair(seed, nb_keys)
+    next_keypair = Crypto.derive_keypair(seed, nb_keys + 1)
+
+    {:ok,
+     %{
+       first_keypair: first_keypair,
+       last_keypair: last_keypair,
+       next_keypair: next_keypair,
+       index: nb_keys,
+       seed: seed
+     }}
   end
 
   @impl GenServer
   def handle_call(
-        {:sign_with_node_key, data},
+        {:sign_with_first_key, data},
         _,
-        state = %{node_seed: seed}
+        state = %{first_keypair: {_, pv}}
       ) do
-    index = KeystoreCounter.get_node_key_counter()
-    {_, pv} = previous_keypair(seed, index)
     {:reply, Crypto.sign(data, pv), state}
   end
 
-  def handle_call({:sign_with_node_key, data, index}, _, state = %{node_seed: seed}) do
-    {_, pv} = Crypto.derive_keypair(seed, index)
+  def handle_call(
+        {:sign_with_last_key, data},
+        _,
+        state = %{last_keypair: {_, pv}}
+      ) do
     {:reply, Crypto.sign(data, pv), state}
   end
 
-  def handle_call(:node_public_key, _, state = %{node_seed: seed}) do
-    index = KeystoreCounter.get_node_key_counter()
-    {pub, _} = previous_keypair(seed, index)
+  def handle_call(:first_public_key, _, state = %{first_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 
-  def handle_call({:node_public_key, index}, _, state = %{node_seed: seed}) do
-    {pub, _} = Crypto.derive_keypair(seed, index)
+  def handle_call(:last_public_key, _, state = %{last_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 
-  def handle_call({:diffie_hellman, public_key}, _, state = %{node_seed: seed}) do
-    index = KeystoreCounter.get_node_key_counter()
-    {_, <<curve_id::8, pv::binary>>} = previous_keypair(seed, index)
+  def handle_call(:next_public_key, _, state = %{next_keypair: {pub, _}}) do
+    {:reply, pub, state}
+  end
 
+  def handle_call(
+        {:diffie_hellman, public_key},
+        _,
+        state = %{last_keypair: {_, <<curve_id::8, pv::binary>>}}
+      ) do
     shared_secret =
       case ID.to_curve(curve_id) do
         :ed25519 ->
@@ -92,11 +124,9 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
     {:reply, shared_secret, state}
   end
 
-  defp previous_keypair(seed, 0) do
-    Crypto.derive_keypair(seed, 0)
-  end
-
-  defp previous_keypair(seed, index) do
-    Crypto.derive_keypair(seed, index - 1)
+  @impl GenServer
+  def handle_cast(:persist_next_keypair, state = %{index: index, seed: seed}) do
+    next_keypair = Crypto.derive_keypair(seed, index + 1)
+    {:noreply, Map.put(state, :next_keypair, next_keypair)}
   end
 end

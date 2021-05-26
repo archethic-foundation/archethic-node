@@ -76,10 +76,8 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     do: {:reply, :ok, state}
 
   def handle_call({:new_seeds, seeds}, _from, state = %{file: file}) do
-    first_node_public_key = Crypto.node_public_key(0)
-
     seeds
-    |> Enum.reject(&(&1.first_public_key == first_node_public_key))
+    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
     |> nodes_to_seeds
     |> flush_seeds(file)
 
@@ -94,7 +92,10 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   def handle_info({:node_update, %Node{authorized?: true}}, state = %{file: file}) do
     top_nodes =
-      Enum.reject(P2P.authorized_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
+      Enum.reject(
+        P2P.authorized_nodes(),
+        &(&1.first_public_key == Crypto.first_node_public_key())
+      )
 
     top_nodes
     |> nodes_to_seeds

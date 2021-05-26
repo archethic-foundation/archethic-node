@@ -80,7 +80,7 @@ defmodule Uniris.SharedSecrets do
          type: :node_shared_secrets,
          data: %TransactionData{keys: keys}
        }) do
-    if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
+    if Crypto.last_node_public_key() in Keys.list_authorized_keys(keys) do
       NodeRenewalScheduler.start_scheduling()
     end
 

@@ -130,8 +130,8 @@ defmodule Uniris.Mining.ValidationContextTest do
     }
 
     coordinator_node = %Node{
-      first_public_key: Crypto.node_public_key(),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -210,7 +210,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -270,7 +270,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -305,7 +305,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -342,7 +342,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -377,7 +377,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: %LedgerOperations{
@@ -433,7 +433,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:

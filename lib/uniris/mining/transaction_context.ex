@@ -71,7 +71,7 @@ defmodule Uniris.Mining.TransactionContext do
       if length(authorized_nodes) == 1 do
         authorized_nodes
       else
-        Enum.reject(authorized_nodes, &(&1.first_public_key == Crypto.node_public_key()))
+        Enum.reject(authorized_nodes, &(&1.first_public_key == Crypto.first_node_public_key()))
       end
 
     previous_address

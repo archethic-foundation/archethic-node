@@ -2,7 +2,6 @@ defmodule Uniris.BootstrapTest do
   use UnirisCase
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.BeaconChain
   alias Uniris.BeaconChain.SlotTimer, as: BeaconSlotTimer
@@ -99,8 +98,8 @@ defmodule Uniris.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: Crypto.node_public_key(0),
-          last_public_key: Crypto.node_public_key()
+          first_public_key: Crypto.first_node_public_key(),
+          last_public_key: Crypto.last_node_public_key()
         }
       ]
 
@@ -212,7 +211,8 @@ defmodule Uniris.BootstrapTest do
         _, %GetStorageNonce{} ->
           {:ok,
            %EncryptedStorageNonce{
-             digest: Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.node_public_key())
+             digest:
+               Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.last_node_public_key())
            }}
 
         _, %ListNodes{} ->
@@ -261,7 +261,7 @@ defmodule Uniris.BootstrapTest do
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                )
 
-      assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.node_public_key(0)))
+      assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.first_node_public_key()))
     end
 
     test "should update a node" do
@@ -294,10 +294,8 @@ defmodule Uniris.BootstrapTest do
         transport: :tcp
       } = P2P.get_node_info()
 
-      assert first_public_key == Crypto.node_public_key(0)
-      assert last_public_key == Crypto.node_public_key(0)
-
-      KeystoreCounter.set_node_key_counter(1)
+      assert first_public_key == Crypto.first_node_public_key()
+      assert last_public_key == Crypto.first_node_public_key()
 
       MockDB
       |> stub(:get_first_public_key, fn _ -> first_public_key end)
@@ -319,8 +317,8 @@ defmodule Uniris.BootstrapTest do
         transport: :tcp
       } = P2P.get_node_info()
 
-      assert first_public_key == Crypto.node_public_key(0)
-      assert last_public_key == Crypto.node_public_key(1)
+      assert first_public_key == Crypto.first_node_public_key()
+      assert last_public_key == Crypto.last_node_public_key()
     end
 
     test "should not bootstrap when you are the first node and you restart the node" do
@@ -346,7 +344,7 @@ defmodule Uniris.BootstrapTest do
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                )
 
-      assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.node_public_key(0))
+      assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.first_node_public_key())
 
       Process.sleep(200)
 

@@ -2,8 +2,15 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @moduledoc false
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.KeystoreCounter
   alias Uniris.Crypto.SharedSecretsKeystoreImpl
+
+  alias Uniris.SharedSecrets
+
+  alias Uniris.TransactionChain
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
 
   use GenStateMachine, callback_mode: :handle_event_function
 
@@ -76,9 +83,77 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
     GenStateMachine.call(__MODULE__, {:unwrap_secrets, secrets, encrypted_secret_key, date})
   end
 
+  @impl SharedSecretsKeystoreImpl
+  @spec get_network_pool_key_index() :: non_neg_integer()
+  def get_network_pool_key_index do
+    GenStateMachine.call(__MODULE__, :get_network_pool_key_index)
+  end
+
+  @impl SharedSecretsKeystoreImpl
+  @spec set_network_pool_key_index(non_neg_integer()) :: :ok
+  def set_network_pool_key_index(index) do
+    GenStateMachine.cast(__MODULE__, {:set_network_pool_key_index, index})
+  end
+
+  @impl SharedSecretsKeystoreImpl
+  @spec get_node_shared_key_index() :: non_neg_integer()
+  def get_node_shared_key_index do
+    GenStateMachine.call(__MODULE__, :get_node_shared_key_index)
+  end
+
+  @impl SharedSecretsKeystoreImpl
+  @spec set_node_shared_secrets_key_index(non_neg_integer()) :: :ok
+  def set_node_shared_secrets_key_index(index) do
+    GenStateMachine.cast(__MODULE__, {:set_node_shared_secrets_key_index, index})
+  end
+
   @impl GenStateMachine
   def init(_) do
-    {:ok, :idle, %{daily_nonce_index: 0, network_pool_index: 0, daily_nonce_keys: %{}}}
+    nb_node_shared_secrets_keys =
+      TransactionChain.count_transactions_by_type(:node_shared_secrets)
+
+    Logger.debug("#{nb_node_shared_secrets_keys} node shared keys loaded into the keystore")
+
+    nb_network_pool_keys = TransactionChain.count_transactions_by_type(:node_rewards)
+    Logger.debug("#{nb_network_pool_keys} network pool keys loaded into the keystore")
+
+    {:ok, :idle,
+     %{
+       shared_secrets_index: nb_node_shared_secrets_keys,
+       network_pool_index: nb_network_pool_keys,
+       daily_nonce_keys: %{}
+     }, {:next_event, :internal, :initial_load}}
+  end
+
+  def handle_event(:internal, :initial_load, :idle, data) do
+    last_node_shared_tx =
+      TransactionChain.list_transactions_by_type(:node_shared_secrets,
+        data: [:keys],
+        validation_stamp: [:timestamp]
+      )
+      |> Enum.at(0)
+
+    case last_node_shared_tx do
+      nil ->
+        :keep_state_and_data
+
+      %Transaction{
+        data: %TransactionData{keys: keys = %Keys{secret: secret}},
+        validation_stamp: %ValidationStamp{timestamp: timestamp}
+      } ->
+        if Keys.authorized_key?(keys, Crypto.last_node_public_key()) do
+          encrypted_secret_key = Keys.get_encrypted_key(keys, Crypto.last_node_public_key())
+
+          daily_nonce_date = SharedSecrets.next_application_date(timestamp)
+
+          {:ok, new_data} =
+            do_unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date, data)
+
+          {:next_state, :authorized, new_data}
+        else
+          :keep_state_and_data
+        end
+    end
   end
 
   @impl GenStateMachine
@@ -86,9 +161,8 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         {:call, from},
         {:sign_with_node_shared_key, data},
         :authorized,
-        %{transaction_seed: seed}
+        %{transaction_seed: seed, shared_secrets_index: index}
       ) do
-    index = KeystoreCounter.get_node_shared_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
@@ -115,9 +189,8 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         {:call, from},
         {:sign_with_network_pool_key, data},
         :authorized,
-        %{network_pool_seed: seed}
+        %{network_pool_seed: seed, network_pool_index: index}
       ) do
-    index = KeystoreCounter.get_network_pool_key_counter()
     {_, pv} = previous_keypair(seed, index)
     {:keep_state_and_data, {:reply, from, Crypto.sign(data, pv)}}
   end
@@ -208,10 +281,50 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         {:call, from},
         {:unwrap_secrets, encrypted_secrets, encrypted_aes_key, timestamp},
         _,
-        data = %{
-          daily_nonce_keys: daily_nonce_keys
-        }
+        data
       ) do
+    case do_unwrap_secrets(encrypted_secrets, encrypted_aes_key, timestamp, data) do
+      {:ok, new_data} ->
+        {:next_state, :authorized, new_data, {:reply, from, :ok}}
+
+      {:error, :decryption_failed} ->
+        Logger.error("Cannot decrypt the node shared secrets")
+        {:keep_state_and_data, {:reply, from, :error}}
+    end
+  end
+
+  def handle_event(
+        {:call, from},
+        :get_node_shared_key_index,
+        _,
+        _data = %{shared_secrets_index: index}
+      ) do
+    {:keep_state_and_data, {:reply, from, index}}
+  end
+
+  def handle_event(
+        {:call, from},
+        :get_network_pool_key_index,
+        _,
+        _data = %{network_pool_index: index}
+      ) do
+    {:keep_state_and_data, {:reply, from, index}}
+  end
+
+  def handle_event(:cast, {:set_network_pool_key_index, index}, _, data) do
+    {:keep_state, Map.put(data, :network_pool_index, index)}
+  end
+
+  def handle_event(:cast, {:set_node_shared_secrets_key_index, index}, _, data) do
+    {:keep_state, Map.put(data, :shared_secrets_index, index)}
+  end
+
+  defp do_unwrap_secrets(
+         encrypted_secrets,
+         encrypted_aes_key,
+         timestamp,
+         data = %{daily_nonce_keys: daily_nonce_keys}
+       ) do
     <<enc_daily_nonce_seed::binary-size(60), enc_transaction_seed::binary-size(60),
       enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
 
@@ -227,21 +340,13 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
         |> Enum.sort_by(&elem(&1, 0), {:desc, DateTime})
         |> Enum.into(%{})
 
-      Logger.debug(
-        "Daily nonce stored for the public key: #{Base.encode16(daily_nonce_keypair |> elem(0))} "
-      )
-
       new_data =
         data
         |> Map.put(:daily_nonce_keys, new_keys)
         |> Map.put(:transaction_seed, transaction_seed)
         |> Map.put(:network_pool_seed, network_pool_seed)
 
-      {:next_state, :authorized, new_data, {:reply, from, :ok}}
-    else
-      {:error, :decryption_failed} ->
-        Logger.error("Cannot decrypt the node shared secrets")
-        {:keep_state_and_data, {:reply, from, :error}}
+      {:ok, new_data}
     end
   end
 

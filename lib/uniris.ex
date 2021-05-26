@@ -47,7 +47,7 @@ defmodule Uniris do
 
     message = %GetTransaction{address: address}
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       handle_transaction_result({:ok, Message.process(message)})
     else
       storage_nodes
@@ -75,7 +75,7 @@ defmodule Uniris do
 
     message = %StartMining{
       transaction: tx,
-      welcome_node_public_key: Crypto.node_public_key(),
+      welcome_node_public_key: Crypto.last_node_public_key(),
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
     }
 
@@ -136,7 +136,7 @@ defmodule Uniris do
 
     message = %GetBalance{address: address}
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       handle_balance_result({:ok, Message.process(message)})
     else
       storage_nodes
@@ -160,7 +160,7 @@ defmodule Uniris do
 
     message = %GetTransactionInputs{address: address}
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       handle_inputs_result({:ok, Message.process(message)})
     else
       storage_nodes
@@ -181,7 +181,7 @@ defmodule Uniris do
 
     message = %GetTransactionChain{address: address}
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       handle_chain_result({:ok, Message.process(message)})
     else
       storage_nodes
@@ -202,7 +202,7 @@ defmodule Uniris do
 
     message = %GetTransactionChainLength{address: address}
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       handle_chain_length_result({:ok, Message.process(message)})
     else
       storage_nodes

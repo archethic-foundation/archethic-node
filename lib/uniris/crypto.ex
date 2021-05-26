@@ -28,12 +28,17 @@ defmodule Uniris.Crypto do
   alias __MODULE__.ECDSA
   alias __MODULE__.Ed25519
   alias __MODULE__.ID
-  alias __MODULE__.KeystoreCounter
-  alias __MODULE__.KeystoreLoader
   alias __MODULE__.NodeKeystore
   alias __MODULE__.SharedSecretsKeystore
 
+  alias Uniris.SharedSecrets
+
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
+
   alias Uniris.Utils
 
   require Logger
@@ -227,22 +232,20 @@ defmodule Uniris.Crypto do
   @doc """
   Return the last node public key
   """
-  @spec node_public_key() :: key()
-  defdelegate node_public_key, to: NodeKeystore
+  @spec last_node_public_key() :: key()
+  defdelegate last_node_public_key, to: NodeKeystore, as: :last_public_key
 
   @doc """
-  Return a node public key by using key derivation from an index
-
-  ## Examples
-
-    iex> pub0 = Crypto.node_public_key(0)
-    iex> pub10 = Crypto.node_public_key(10)
-    iex> pub0_bis = Crypto.node_public_key(0)
-    iex> pub0 != pub10 and pub0 == pub0_bis
-    true
+  Return the first node public key
   """
-  @spec node_public_key(index :: number()) :: key()
-  defdelegate node_public_key(index), to: NodeKeystore
+  @spec first_node_public_key() :: key()
+  defdelegate first_node_public_key, to: NodeKeystore, as: :first_public_key
+
+  @doc """
+  Return the next node public key
+  """
+  @spec next_node_public_key() :: key()
+  defdelegate next_node_public_key, to: NodeKeystore, as: :next_public_key
 
   @doc """
   Return the the node shared secrets public key using the node shared secret transaction seed
@@ -277,24 +280,20 @@ defmodule Uniris.Crypto do
   end
 
   @doc """
-  Return the number of node keys after incrementation
-  """
-  @spec number_of_node_keys() :: non_neg_integer()
-  defdelegate number_of_node_keys, to: KeystoreCounter, as: :get_node_key_counter
-
-  @doc """
   Return the number of node shared secrets keys after incrementation
   """
   @spec number_of_node_shared_secrets_keys() :: non_neg_integer()
   defdelegate number_of_node_shared_secrets_keys,
-    to: KeystoreCounter,
-    as: :get_node_shared_key_counter
+    to: SharedSecretsKeystore,
+    as: :get_node_shared_key_index
 
   @doc """
   Return the number of network pool keys after incrementation
   """
   @spec number_of_network_pool_keys() :: non_neg_integer()
-  defdelegate number_of_network_pool_keys, to: KeystoreCounter, as: :get_network_pool_key_counter
+  defdelegate number_of_network_pool_keys,
+    to: SharedSecretsKeystore,
+    as: :get_network_pool_key_index
 
   @doc """
   Generate a keypair in a deterministic way using a seed
@@ -316,7 +315,7 @@ defmodule Uniris.Crypto do
   """
   @spec generate_deterministic_keypair(
           seed :: binary(),
-          curve :: __MODULE__.supported_curve()
+          curve :: supported_curve()
         ) :: {public_key :: key(), private_key :: key()}
   def generate_deterministic_keypair(
         seed,
@@ -336,6 +335,14 @@ defmodule Uniris.Crypto do
     curve
     |> ECDSA.generate_keypair(seed)
     |> ID.prepend_keypair(curve)
+  end
+
+  @doc """
+  Generate random keypair
+  """
+  @spec generate_random_keypair(supported_curve()) :: {public_key :: key(), private_key :: key()}
+  def generate_random_keypair(curve \\ Application.get_env(:uniris, __MODULE__)[:default_curve]) do
+    generate_deterministic_keypair(:crypto.strong_rand_bytes(32), curve)
   end
 
   @doc """
@@ -366,22 +373,20 @@ defmodule Uniris.Crypto do
   @doc """
   Sign the data with the last node private key
   """
-  @spec sign_with_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
-  def sign_with_node_key(data) when is_bitstring(data) or is_list(data) do
+  @spec sign_with_last_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
+  def sign_with_last_node_key(data) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
-    |> NodeKeystore.sign_with_node_key()
+    |> NodeKeystore.sign_with_last_key()
   end
 
   @doc """
-  Sign the data with the private key at the given index.
+  Sign the data with the first node private key
   """
-  @spec sign_with_node_key(data :: iodata(), index :: non_neg_integer()) :: binary()
-  def sign_with_node_key(data, index)
-      when (is_bitstring(data) or is_list(data)) and is_integer(index) and index >= 0 do
+  def sign_with_first_node_key(data) do
     data
     |> Utils.wrap_binary()
-    |> NodeKeystore.sign_with_node_key(index)
+    |> NodeKeystore.sign_with_first_key()
   end
 
   @doc """
@@ -656,7 +661,7 @@ defmodule Uniris.Crypto do
   @spec ec_decrypt_with_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
   def ec_decrypt_with_node_key(encoded_cipher) when is_binary(encoded_cipher) do
-    <<curve_id::8, _::binary>> = NodeKeystore.node_public_key()
+    <<curve_id::8, _::binary>> = NodeKeystore.last_public_key()
     key_size = key_size(curve_id)
 
     <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
@@ -874,7 +879,42 @@ defmodule Uniris.Crypto do
   Load the transaction for the Keystore indexing
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  defdelegate load_transaction(tx), to: KeystoreLoader
+  def load_transaction(%Transaction{
+        address: address,
+        type: :node_shared_secrets,
+        data: %TransactionData{keys: keys = %Keys{secret: secret}},
+        validation_stamp: %ValidationStamp{
+          timestamp: timestamp
+        }
+      }) do
+    nb_transactions = TransactionChain.size(address)
+    SharedSecretsKeystore.set_node_shared_secrets_key_index(nb_transactions)
+
+    if Keys.authorized_key?(keys, last_node_public_key()) do
+      encrypted_secret_key = Keys.get_encrypted_key(keys, last_node_public_key())
+
+      daily_nonce_date = SharedSecrets.next_application_date(timestamp)
+
+      unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date)
+    else
+      :ok
+    end
+  end
+
+  def load_transaction(%Transaction{type: :node_rewards, address: address}) do
+    nb_transactions = TransactionChain.size(address)
+    SharedSecretsKeystore.set_network_pool_key_index(nb_transactions)
+  end
+
+  def load_transaction(%Transaction{type: :node, address: address}) do
+    if NodeKeystore.next_public_key() |> hash() == address do
+      NodeKeystore.persist_next_keypair()
+    else
+      :ok
+    end
+  end
+
+  def load_transaction(_), do: :ok
 
   @doc """
   Return the storage nonce filepath

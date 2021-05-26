@@ -42,7 +42,7 @@ defmodule Uniris.Mining.StandaloneWorkflow do
         Transaction.previous_address(tx),
         Enum.map(chain_storage_nodes, & &1.last_public_key),
         Enum.map(beacon_storage_nodes, & &1.last_public_key),
-        [Crypto.node_public_key()]
+        [Crypto.last_node_public_key()]
       )
 
     valid_pending_transaction? =

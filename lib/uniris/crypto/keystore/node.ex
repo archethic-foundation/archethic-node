@@ -9,33 +9,45 @@ defmodule Uniris.Crypto.NodeKeystore do
   def child_spec(opts), do: impl().child_spec(opts)
 
   @impl NodeKeystoreImpl
-  @spec sign_with_node_key(data :: binary()) :: binary()
-  def sign_with_node_key(data) do
-    impl().sign_with_node_key(data)
+  @spec sign_with_first_key(data :: binary()) :: binary()
+  def sign_with_first_key(data) do
+    impl().sign_with_first_key(data)
   end
 
   @impl NodeKeystoreImpl
-  @spec sign_with_node_key(data :: binary(), index :: non_neg_integer()) :: binary()
-  def sign_with_node_key(data, index) do
-    impl().sign_with_node_key(data, index)
+  @spec sign_with_last_key(data :: binary()) :: binary()
+  def sign_with_last_key(data) do
+    impl().sign_with_last_key(data)
   end
 
   @impl NodeKeystoreImpl
-  @spec node_public_key() :: Crypto.key()
-  def node_public_key do
-    impl().node_public_key()
+  @spec last_public_key() :: Crypto.key()
+  def last_public_key do
+    impl().last_public_key()
   end
 
   @impl NodeKeystoreImpl
-  @spec node_public_key(index :: number()) :: Crypto.key()
-  def node_public_key(index) do
-    impl().node_public_key(index)
+  @spec first_public_key() :: Crypto.key()
+  def first_public_key do
+    impl().first_public_key()
+  end
+
+  @impl NodeKeystoreImpl
+  @spec next_public_key() :: Crypto.key()
+  def next_public_key do
+    impl().next_public_key()
   end
 
   @impl NodeKeystoreImpl
   @spec diffie_hellman(public_key :: Crypto.key()) :: binary()
   def diffie_hellman(public_key) do
     impl().diffie_hellman(public_key)
+  end
+
+  @impl NodeKeystoreImpl
+  @spec persist_next_keypair() :: :ok
+  def persist_next_keypair do
+    impl().persist_next_keypair()
   end
 
   defp impl do

@@ -16,7 +16,7 @@ defmodule Uniris.Replication.TransactionValidatorTest do
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   setup do
-    SharedSecrets.add_origin_public_key(:software, Crypto.node_public_key(0))
+    SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
@@ -30,8 +30,8 @@ defmodule Uniris.Replication.TransactionValidatorTest do
     }
 
     coordinator_node = %Node{
-      first_public_key: Crypto.node_public_key(0),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-1),

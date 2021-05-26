@@ -61,7 +61,7 @@ defmodule Uniris.Reward do
       }) do
     WithdrawScheduler.start_scheduling()
 
-    if Crypto.node_public_key() in Keys.list_authorized_keys(keys) do
+    if Crypto.last_node_public_key() in Keys.list_authorized_keys(keys) do
       NetworkPoolScheduler.start_scheduling()
     end
 

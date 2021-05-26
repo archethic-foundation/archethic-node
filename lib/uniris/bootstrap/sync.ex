@@ -42,7 +42,7 @@ defmodule Uniris.Bootstrap.Sync do
   end
 
   def should_initialize_network?([%Node{first_public_key: node_key} | _]) do
-    node_key == Crypto.node_public_key(0) and
+    node_key == Crypto.first_node_public_key() and
       TransactionChain.count_transactions_by_type(:node_shared_secrets) == 0
   end
 
@@ -60,7 +60,7 @@ defmodule Uniris.Bootstrap.Sync do
   def require_update?(_ip, _port, _transport, nil), do: false
 
   def require_update?(ip, port, transport, last_sync_date) do
-    first_node_public_key = Crypto.node_public_key(0)
+    first_node_public_key = Crypto.first_node_public_key()
 
     case P2P.list_nodes() do
       [%Node{first_public_key: ^first_node_public_key}] ->
@@ -90,7 +90,7 @@ defmodule Uniris.Bootstrap.Sync do
     NetworkInit.create_storage_nonce()
 
     secret_key = :crypto.strong_rand_bytes(32)
-    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.node_public_key())
+    encrypted_secret_key = Crypto.ec_encrypt(secret_key, Crypto.last_node_public_key())
 
     encrypted_daily_nonce_seed = Crypto.aes_encrypt(@genesis_daily_nonce_seed, secret_key)
     encrypted_transaction_seed = Crypto.aes_encrypt(:crypto.strong_rand_bytes(32), secret_key)
@@ -107,8 +107,8 @@ defmodule Uniris.Bootstrap.Sync do
       |> NetworkInit.self_validation()
       |> NetworkInit.self_replication()
 
-    P2P.set_node_globally_available(Crypto.node_public_key(0))
-    P2P.authorize_node(Crypto.node_public_key(), DateTime.utc_now())
+    P2P.set_node_globally_available(Crypto.first_node_public_key())
+    P2P.authorize_node(Crypto.last_node_public_key(), DateTime.utc_now())
 
     NetworkInit.init_node_shared_secrets_chain()
     NetworkInit.init_genesis_wallets()
@@ -129,7 +129,7 @@ defmodule Uniris.Bootstrap.Sync do
   """
   @spec load_storage_nonce(list(Node.t())) :: :ok
   def load_storage_nonce(nodes) do
-    message = %GetStorageNonce{public_key: Crypto.node_public_key()}
+    message = %GetStorageNonce{public_key: Crypto.last_node_public_key()}
 
     {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}} = P2P.reply_first(nodes, message)
     :ok = Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
@@ -169,11 +169,11 @@ defmodule Uniris.Bootstrap.Sync do
     ready_date = DateTime.utc_now()
 
     message = %NotifyEndOfNodeSync{
-      node_public_key: Crypto.node_public_key(),
+      node_public_key: Crypto.last_node_public_key(),
       timestamp: ready_date
     }
 
-    Crypto.node_public_key(0)
+    Crypto.first_node_public_key()
     |> Replication.beacon_storage_nodes(ready_date)
     |> P2P.broadcast_message(message)
   end

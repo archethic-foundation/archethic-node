@@ -45,8 +45,8 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.node_public_key(0),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       authorization_date: DateTime.utc_now(),
       available?: true,
@@ -744,7 +744,7 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
           {_, %{context: %ValidationContext{validation_stamp: validation_stamp}}} =
             :sys.get_state(coordinator_pid)
 
-          if List.last(validation_nodes).last_public_key == Crypto.node_public_key() do
+          if List.last(validation_nodes).last_public_key == Crypto.last_node_public_key() do
             stamp = CrossValidationStamp.sign(%CrossValidationStamp{}, validation_stamp)
             Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
           else

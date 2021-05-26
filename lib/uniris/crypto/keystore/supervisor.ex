@@ -3,8 +3,6 @@ defmodule Uniris.Crypto.KeystoreSupervisor do
 
   use Supervisor
 
-  alias Uniris.Crypto.KeystoreCounter
-  alias Uniris.Crypto.KeystoreLoader
   alias Uniris.Crypto.NodeKeystore
   alias Uniris.Crypto.SharedSecretsKeystore
 
@@ -19,9 +17,7 @@ defmodule Uniris.Crypto.KeystoreSupervisor do
 
     children = [
       {NodeKeystore, Application.get_env(:uniris, node_keystore_impl)},
-      SharedSecretsKeystore,
-      KeystoreCounter,
-      KeystoreLoader
+      SharedSecretsKeystore
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :rest_for_one)

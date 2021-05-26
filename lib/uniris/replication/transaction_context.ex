@@ -102,7 +102,7 @@ defmodule Uniris.Replication.TransactionContext do
     address
     |> Replication.chain_storage_nodes()
     |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
   end
 
   defp replication_nodes(address, timestamp, false) do

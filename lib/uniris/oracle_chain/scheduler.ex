@@ -51,7 +51,7 @@ defmodule Uniris.OracleChain.Scheduler do
         {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
         state = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
-    if first_public_key == Crypto.node_public_key(0) do
+    if first_public_key == Crypto.first_node_public_key() do
       polling_timer = schedule_new_polling(polling_interval)
       summary_timer = schedule_new_summary(summary_interval)
 
@@ -71,7 +71,7 @@ defmodule Uniris.OracleChain.Scheduler do
         {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
         state
       ) do
-    if first_public_key == Crypto.node_public_key(0) do
+    if first_public_key == Crypto.first_node_public_key() do
       Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
 
       new_state =
@@ -145,7 +145,7 @@ defmodule Uniris.OracleChain.Scheduler do
     {next_pub, _pv} = Crypto.derive_oracle_keypair(date)
     next_address = Crypto.hash(next_pub)
 
-    node_public_key = Crypto.node_public_key(0)
+    node_public_key = Crypto.first_node_public_key()
 
     case Replication.chain_storage_nodes(next_address) do
       [%Node{first_public_key: ^node_public_key} | _] ->

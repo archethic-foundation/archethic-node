@@ -41,6 +41,23 @@ defmodule Uniris.Crypto.SharedSecretsKeystore do
   def unwrap_secrets(encrypted_secrets, encrypted_key, timestamp),
     do: impl().unwrap_secrets(encrypted_secrets, encrypted_key, timestamp)
 
+  @impl SharedSecretsKeystoreImpl
+  @spec get_network_pool_key_index() :: non_neg_integer()
+  def get_network_pool_key_index, do: impl().get_network_pool_key_index()
+
+  @impl SharedSecretsKeystoreImpl
+  @spec set_network_pool_key_index(non_neg_integer()) :: :ok
+  def set_network_pool_key_index(index), do: impl().set_network_pool_key_index(index)
+
+  @impl SharedSecretsKeystoreImpl
+  @spec get_node_shared_key_index() :: non_neg_integer()
+  def get_node_shared_key_index, do: impl().get_node_shared_key_index()
+
+  @impl SharedSecretsKeystoreImpl
+  @spec set_node_shared_secrets_key_index(non_neg_integer()) :: :ok
+  def set_node_shared_secrets_key_index(index),
+    do: impl().set_node_shared_secrets_key_index(index)
+
   defp impl do
     Application.get_env(:uniris, __MODULE__, impl: @default_impl)
     |> Keyword.fetch!(:impl)

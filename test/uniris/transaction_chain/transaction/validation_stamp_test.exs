@@ -23,7 +23,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStampTest do
             ledger_operations <- gen_ledger_operations()
           ) do
       {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
-      expect(MockCrypto, :sign_with_node_key, &Crypto.sign(&1, pv))
+      expect(MockCrypto, :sign_with_last_key, &Crypto.sign(&1, pv))
 
       assert %ValidationStamp{
                timestamp: DateTime.utc_now(),

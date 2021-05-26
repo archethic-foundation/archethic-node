@@ -25,7 +25,7 @@ defmodule Uniris.Mining.TransactionContextTest do
 
   setup do
     P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA",
       available?: false
     })

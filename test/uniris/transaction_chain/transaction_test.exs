@@ -20,13 +20,13 @@ defmodule Uniris.TransactionChain.TransactionTest do
     test "with type ':node' create a new transaction using the node keys" do
       tx = Transaction.new(:node, %TransactionData{})
 
-      assert tx.address == Crypto.hash(Crypto.node_public_key(Crypto.number_of_node_keys() + 1))
-      assert tx.previous_public_key == Crypto.node_public_key(Crypto.number_of_node_keys())
+      assert tx.address == Crypto.hash(Crypto.next_node_public_key())
+      assert tx.previous_public_key == Crypto.last_node_public_key()
 
       assert Crypto.verify(
                tx.origin_signature,
                tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
-               Crypto.node_public_key(0)
+               Crypto.first_node_public_key()
              )
     end
 
@@ -46,7 +46,7 @@ defmodule Uniris.TransactionChain.TransactionTest do
       assert Crypto.verify(
                tx.origin_signature,
                tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
-               Crypto.node_public_key(0)
+               Crypto.first_node_public_key()
              )
     end
   end

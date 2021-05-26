@@ -39,8 +39,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.node_public_key(0),
-      last_public_key: Crypto.node_public_key(0),
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.first_node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA"
     })
@@ -107,7 +107,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
     P2P.add_and_connect_node(node4)
 
     P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA",
       available?: false
     })
@@ -408,8 +408,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       node = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(),
-        last_public_key: Crypto.node_public_key(),
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
@@ -530,8 +530,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
     }
 
     coordinator_node = %Node{
-      first_public_key: Crypto.node_public_key(0),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),

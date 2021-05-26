@@ -5,6 +5,13 @@ defmodule CryptoTest do
   alias Uniris.Crypto
   alias Uniris.Crypto.ID
 
+  alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
+
+  import Mox
+
   doctest Crypto
 
   property "symmetric aes encryption and decryption" do
@@ -49,7 +56,7 @@ defmodule CryptoTest do
 
     assert :ok =
              Crypto.decrypt_and_set_storage_nonce(
-               Crypto.ec_encrypt(storage_nonce, Crypto.node_public_key())
+               Crypto.ec_encrypt(storage_nonce, Crypto.last_node_public_key())
              )
 
     assert {:ok, _} = File.read(Crypto.storage_nonce_filepath())
@@ -64,5 +71,85 @@ defmodule CryptoTest do
              pub
              |> Crypto.encrypt_storage_nonce()
              |> Crypto.ec_decrypt!(pv)
+  end
+
+  describe "load_transaction/1" do
+    test "should create a new next keypair when the node transaction is validated" do
+      me = self()
+
+      MockCrypto
+      |> expect(:persist_next_keypair, fn ->
+        send(me, :new_keypair)
+        :ok
+      end)
+
+      tx = Transaction.new(:node, %TransactionData{})
+      assert :ok = Crypto.load_transaction(tx)
+
+      assert_receive :new_keypair
+    end
+
+    test "should update node shared secrets" do
+      me = self()
+
+      MockCrypto
+      |> expect(:set_node_shared_secrets_key_index, fn _ ->
+        send(me, :inc_node_shared_key_index)
+        :ok
+      end)
+
+      tx = %Transaction{
+        address: "@NodeSharedSecrets1",
+        type: :node_shared_secrets,
+        data: %TransactionData{},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      }
+
+      assert :ok = Crypto.load_transaction(tx)
+      assert_received :inc_node_shared_key_index
+    end
+
+    test "should decrypt and load node shared secrets seeds" do
+      transaction_seed = :crypto.strong_rand_bytes(32)
+      daily_nonce_seed = :crypto.strong_rand_bytes(32)
+      network_seed = :crypto.strong_rand_bytes(32)
+
+      secret_key = :crypto.strong_rand_bytes(32)
+
+      me = self()
+
+      MockCrypto
+      |> stub(:unwrap_secrets, fn _, _, _ ->
+        send(me, {:daily_nonce_seed, daily_nonce_seed})
+        send(me, {:transaction_seed, transaction_seed})
+        send(me, {:network_seed, network_seed})
+        :ok
+      end)
+
+      enc_daily_nonce_seed = Crypto.aes_encrypt(daily_nonce_seed, secret_key)
+      enc_transaction_seed = Crypto.aes_encrypt(transaction_seed, secret_key)
+      enc_network_seed = Crypto.aes_encrypt(network_seed, secret_key)
+
+      secret =
+        <<enc_daily_nonce_seed::binary, enc_transaction_seed::binary, enc_network_seed::binary>>
+
+      tx_keys = Keys.new([Crypto.last_node_public_key()], secret_key, secret)
+
+      MockDB
+      |> expect(:chain_size, fn _ -> 0 end)
+
+      tx = %Transaction{
+        address: :crypto.strong_rand_bytes(32),
+        type: :node_shared_secrets,
+        data: %TransactionData{keys: tx_keys},
+        validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
+      }
+
+      assert :ok = Crypto.load_transaction(tx)
+
+      assert_receive {:transaction_seed, ^transaction_seed}
+      assert_receive {:daily_nonce_seed, ^daily_nonce_seed}
+      assert_receive {:network_seed, ^network_seed}
+    end
   end
 end

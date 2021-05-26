@@ -7,7 +7,6 @@ defmodule UnirisCase do
 
   alias Uniris.Crypto
   alias Uniris.Crypto.ECDSA
-  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.Election.Constraints
 
@@ -33,8 +32,7 @@ defmodule UnirisCase do
   setup do
     :persistent_term.put(:storage_nonce, "nonce")
 
-    File.rm_rf(Utils.mut_dir("priv/p2p/last_sync_test"))
-    Path.wildcard(Utils.mut_dir("priv/p2p/network_stats*")) |> Enum.each(&File.rm_rf!/1)
+    Path.wildcard(Utils.mut_dir()) |> Enum.each(&File.rm_rf!/1)
 
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
@@ -53,13 +51,16 @@ defmodule UnirisCase do
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_transactions, fn _ -> [] end)
 
+    {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
+    {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
+
     MockCrypto
-    |> stub(:sign_with_node_key, fn data ->
+    |> stub(:sign_with_first_key, fn data ->
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
-    |> stub(:sign_with_node_key, fn data, index ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", index, :secp256r1)
+    |> stub(:sign_with_last_key, fn data ->
+      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_node_shared_secrets_key, fn data ->
@@ -82,12 +83,12 @@ defmodule UnirisCase do
       {_, pv} = Crypto.generate_deterministic_keypair("daily_nonce_seed")
       Crypto.sign(data, pv)
     end)
-    |> stub(:node_public_key, fn ->
+    |> stub(:last_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
-    |> stub(:node_public_key, fn index ->
-      {pub, _} = Crypto.derive_keypair("seed", index, :secp256r1)
+    |> stub(:first_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
     |> stub(:node_shared_secrets_public_key, fn index ->
@@ -109,6 +110,19 @@ defmodule UnirisCase do
       {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)
+    |> stub(:next_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 1, :secp256r1)
+      pub
+    end)
+    |> stub(:persist_next_keypair, fn -> :ok end)
+    |> stub(:get_network_pool_key_index, fn -> Agent.get(network_pool_counter, & &1) end)
+    |> stub(:get_node_shared_key_index, fn -> Agent.get(shared_secrets_counter, & &1) end)
+    |> stub(:set_network_pool_key_index, fn index ->
+      Agent.update(network_pool_counter, fn _ -> index end)
+    end)
+    |> stub(:set_node_shared_secrets_key_index, fn index ->
+      Agent.update(shared_secrets_counter, fn _ -> index end)
+    end)
 
     MockClient
     |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
@@ -123,7 +137,6 @@ defmodule UnirisCase do
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkStatistics)
     start_supervised!(NetworkLookup)
-    start_supervised!(KeystoreCounter)
 
     :ok
   end

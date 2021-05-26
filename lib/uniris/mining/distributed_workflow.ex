@@ -541,7 +541,7 @@ defmodule Uniris.Mining.DistributedWorkflow do
     nodes =
       [coordinator_node | cross_validation_nodes]
       |> P2P.distinct_nodes()
-      |> Enum.reject(&(&1.last_public_key == Crypto.node_public_key()))
+      |> Enum.reject(&(&1.last_public_key == Crypto.last_node_public_key()))
 
     Logger.debug(
       "Send cross validation stamps to #{nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}",

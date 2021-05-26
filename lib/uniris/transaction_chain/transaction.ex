@@ -175,9 +175,8 @@ defmodule Uniris.TransactionChain.Transaction do
   end
 
   defp get_transaction_public_keys(_) do
-    key_index = Crypto.number_of_node_keys()
-    previous_public_key = Crypto.node_public_key(key_index)
-    next_public_key = Crypto.node_public_key(key_index + 1)
+    previous_public_key = Crypto.last_node_public_key()
+    next_public_key = Crypto.next_node_public_key()
     {previous_public_key, next_public_key}
   end
 
@@ -206,13 +205,11 @@ defmodule Uniris.TransactionChain.Transaction do
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{}) do
-    key_index = Crypto.number_of_node_keys()
-
     previous_signature =
       tx
       |> extract_for_previous_signature()
       |> serialize()
-      |> Crypto.sign_with_node_key(key_index)
+      |> Crypto.sign_with_last_node_key()
 
     %{tx | previous_signature: previous_signature}
   end
@@ -232,7 +229,7 @@ defmodule Uniris.TransactionChain.Transaction do
       tx
       |> extract_for_origin_signature
       |> serialize()
-      |> Crypto.sign_with_node_key(0)
+      |> Crypto.sign_with_first_node_key()
 
     %{tx | origin_signature: origin_sig}
   end

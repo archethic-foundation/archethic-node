@@ -84,7 +84,7 @@ defmodule Uniris.BeaconChain.Subset do
 
     {:ok,
      %{
-       node_public_key: Crypto.node_public_key(0),
+       node_public_key: Crypto.first_node_public_key(),
        subset: subset,
        current_slot: Slot.new(subset, SlotTimer.next_slot(DateTime.utc_now()), nb_nodes_to_sample)
      }}
@@ -324,7 +324,7 @@ defmodule Uniris.BeaconChain.Subset do
 
   defp create_validation_stamp(tx = %Transaction{}, nil, time = %DateTime{}) do
     %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: <<0::size(512)>>,
       timestamp: time
@@ -334,7 +334,7 @@ defmodule Uniris.BeaconChain.Subset do
 
   defp create_validation_stamp(tx = %Transaction{}, prev_tx = %Transaction{}, time = %DateTime{}) do
     %ValidationStamp{
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
       proof_of_election: <<0::size(512)>>,
       timestamp: time

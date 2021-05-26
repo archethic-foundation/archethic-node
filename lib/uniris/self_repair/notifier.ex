@@ -31,7 +31,7 @@ defmodule Uniris.SelfRepair.Notifier do
         {:node_update, %Node{available?: true, authorized?: true, first_public_key: node_key}},
         state
       ) do
-    current_node_public_key = Crypto.node_public_key(0)
+    current_node_public_key = Crypto.first_node_public_key()
 
     if node_key == current_node_public_key do
       {:noreply, state}

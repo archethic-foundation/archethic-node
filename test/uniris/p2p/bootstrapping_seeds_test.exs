@@ -23,7 +23,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     File.mkdir_p(Path.dirname(file_path))
 
     MockCrypto
-    |> stub(:node_public_key, fn _ -> :crypto.strong_rand_bytes(32) end)
+    |> stub(:last_public_key, fn -> :crypto.strong_rand_bytes(32) end)
 
     on_exit(fn ->
       File.rm_rf(Path.dirname(file_path))

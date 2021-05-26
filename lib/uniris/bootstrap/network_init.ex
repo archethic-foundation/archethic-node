@@ -41,7 +41,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     Logger.info("Create storage nonce")
     storage_nonce_seed = :crypto.strong_rand_bytes(32)
     {_, pv} = Crypto.generate_deterministic_keypair(storage_nonce_seed)
-    Crypto.decrypt_and_set_storage_nonce(Crypto.ec_encrypt(pv, Crypto.node_public_key()))
+    Crypto.decrypt_and_set_storage_nonce(Crypto.ec_encrypt(pv, Crypto.last_node_public_key()))
   end
 
   @doc """
@@ -55,7 +55,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
     tx =
       SharedSecrets.new_node_shared_secrets_transaction(
-        [Crypto.node_public_key(0)],
+        [Crypto.first_node_public_key()],
         daily_nonce_seed,
         secret_key
       )
@@ -131,9 +131,9 @@ defmodule Uniris.Bootstrap.NetworkInit do
       }
       |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.distribute_rewards(
-        %Node{last_public_key: Crypto.node_public_key()},
-        %Node{last_public_key: Crypto.node_public_key()},
-        [%Node{last_public_key: Crypto.node_public_key()}],
+        %Node{last_public_key: Crypto.last_node_public_key()},
+        %Node{last_public_key: Crypto.last_node_public_key()},
+        [%Node{last_public_key: Crypto.last_node_public_key()}],
         []
       )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
@@ -141,7 +141,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: tx |> Transaction.serialize() |> Crypto.hash(),

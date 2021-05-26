@@ -75,8 +75,8 @@ defmodule Uniris.SelfRepair.SyncTest do
       }
 
       coordinator_node = %Node{
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
         available?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-10),

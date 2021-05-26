@@ -35,7 +35,7 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
       |> Replication.chain_storage_nodes()
       |> List.first()
 
-    initiator_key == Crypto.node_public_key(0)
+    initiator_key == Crypto.first_node_public_key()
   end
 
   defp next_address do

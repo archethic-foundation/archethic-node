@@ -104,7 +104,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
         {:node_update, %Node{authorized?: true, first_public_key: key}},
         state = %{interval: interval}
       ) do
-    if key == Crypto.node_public_key(0) do
+    if key == Crypto.first_node_public_key() do
       state
       |> Map.get(:timer)
       |> cancel_timer()
@@ -117,7 +117,7 @@ defmodule Uniris.BeaconChain.SlotTimer do
   end
 
   def handle_info({:node_update, %Node{authorized?: false, first_public_key: key}}, state) do
-    if key == Crypto.node_public_key(0) do
+    if key == Crypto.first_node_public_key() do
       state
       |> Map.get(:timer)
       |> cancel_timer()

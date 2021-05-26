@@ -156,8 +156,8 @@ defmodule Uniris.ReplicationTest do
       ip: {127, 0, 0, 1},
       port: 3000,
       authorized?: true,
-      last_public_key: Crypto.node_public_key(),
-      first_public_key: Crypto.node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
@@ -204,7 +204,7 @@ defmodule Uniris.ReplicationTest do
   end
 
   defp transaction_context do
-    SharedSecrets.add_origin_public_key(:software, Crypto.node_public_key(0))
+    SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
 
     welcome_node = %Node{
       first_public_key: "key1",
@@ -216,8 +216,8 @@ defmodule Uniris.ReplicationTest do
     }
 
     coordinator_node = %Node{
-      first_public_key: Crypto.node_public_key(0),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       available?: true,
       authorization_date: DateTime.utc_now(),
@@ -278,7 +278,7 @@ defmodule Uniris.ReplicationTest do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),

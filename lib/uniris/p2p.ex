@@ -40,7 +40,7 @@ defmodule Uniris.P2P do
          transport: transport,
          first_public_key: first_public_key
        }) do
-    if first_public_key == Crypto.node_public_key(0) do
+    if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
       Client.new_connection(ip, port, transport, first_public_key)
@@ -97,7 +97,7 @@ defmodule Uniris.P2P do
   Determine if the node public key is authorized
   """
   @spec authorized_node?(Crypto.key()) :: boolean()
-  def authorized_node?(node_public_key \\ Crypto.node_public_key(0))
+  def authorized_node?(node_public_key \\ Crypto.first_node_public_key())
       when is_binary(node_public_key) do
     Utils.key_in_node_list?(authorized_nodes(DateTime.utc_now()), node_public_key)
   end
@@ -140,7 +140,7 @@ defmodule Uniris.P2P do
   """
   @spec get_node_info() :: Node.t()
   def get_node_info do
-    {:ok, node} = get_node_info(Crypto.node_public_key(0))
+    {:ok, node} = get_node_info(Crypto.first_node_public_key())
     node
   end
 
@@ -415,7 +415,7 @@ defmodule Uniris.P2P do
     patch = Keyword.get(opts, :patch)
 
     with nil <- patch,
-         {:error, :not_found} <- get_node_info(Crypto.node_public_key(0)) do
+         {:error, :not_found} <- get_node_info(Crypto.first_node_public_key()) do
       get_first_reply(nodes, message, node_ack?)
     else
       {:ok, %Node{network_patch: patch}} ->
@@ -467,7 +467,7 @@ defmodule Uniris.P2P do
     compare_fun = Keyword.get(opts, :compare_fun, fn x -> x end)
 
     with nil <- patch,
-         {:error, :not_found} <- get_node_info(Crypto.node_public_key(0)) do
+         {:error, :not_found} <- get_node_info(Crypto.first_node_public_key()) do
       nodes
     else
       {:ok, %Node{network_patch: patch}} ->

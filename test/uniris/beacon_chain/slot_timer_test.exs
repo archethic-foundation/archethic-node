@@ -22,7 +22,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
     send(
       pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
     )
 
     assert %{timer: _} = :sys.get_state(pid)
@@ -33,14 +33,14 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
     send(
       pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
     )
 
     assert %{timer: timer} = :sys.get_state(pid)
 
     send(
       pid,
-      {:node_update, %Node{authorized?: false, first_public_key: Crypto.node_public_key()}}
+      {:node_update, %Node{authorized?: false, first_public_key: Crypto.first_node_public_key()}}
     )
 
     Process.sleep(200)
@@ -52,7 +52,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
     send(
       pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
     )
 
     current = DateTime.utc_now()
@@ -68,7 +68,7 @@ defmodule Uniris.BeaconChain.SlotTimerTest do
 
     send(
       pid,
-      {:node_update, %Node{authorized?: true, first_public_key: Crypto.node_public_key()}}
+      {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
     )
 
     send(pid, :new_slot)

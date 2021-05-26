@@ -43,7 +43,7 @@ defmodule Uniris.Governance.Code do
   def testnet_deployment?(proposal_address) when is_binary(proposal_address) do
     storage_nodes = Replication.chain_storage_nodes(proposal_address)
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       approvals = TransactionChain.list_signatures_for_pending_transaction(proposal_address)
       ratio = length(approvals) / length(Pools.members_of(:technical_council))
       ratio >= Pools.threshold_acceptance_for(:technical_council)

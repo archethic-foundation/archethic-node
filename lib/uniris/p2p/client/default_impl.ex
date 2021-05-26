@@ -43,7 +43,7 @@ defmodule Uniris.P2P.Client.DefaultImpl do
   """
   @impl ClientImpl
   def send_message(%Node{first_public_key: first_public_key}, message) do
-    if first_public_key == Crypto.node_public_key(0) do
+    if first_public_key == Crypto.first_node_public_key() do
       LocalConnection
       |> Process.whereis()
       |> Connection.send_message(message)

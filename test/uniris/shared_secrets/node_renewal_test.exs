@@ -31,12 +31,12 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
       }
     } =
       SharedSecrets.new_node_shared_secrets_transaction(
-        [Crypto.node_public_key()],
+        [Crypto.last_node_public_key()],
         "daily_nonce_seed",
         aes_key
       )
 
-    assert Map.has_key?(authorized_keys, Crypto.node_public_key())
+    assert Map.has_key?(authorized_keys, Crypto.last_node_public_key())
 
     assert Regex.match?(
              ~r/daily nonce public_key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
@@ -49,8 +49,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        last_public_key: Crypto.node_public_key(),
-        first_public_key: Crypto.node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        first_public_key: Crypto.last_node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,
@@ -88,8 +88,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        last_public_key: Crypto.node_public_key(),
-        first_public_key: Crypto.node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        first_public_key: Crypto.last_node_public_key(),
         network_patch: "AAA",
         geo_patch: "AAA",
         available?: true,

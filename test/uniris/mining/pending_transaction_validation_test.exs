@@ -2,7 +2,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
   use UnirisCase, async: false
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.KeystoreCounter
 
   alias Uniris.Governance.Pools.MemTable, as: PoolsMemTable
 
@@ -21,7 +20,7 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
 
   setup do
     P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA"
     })
 
@@ -49,12 +48,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
-      MockDB
-      |> expect(:list_transactions_by_type, fn
-        :node_shared_secrets, _ ->
-          []
-      end)
-
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -89,31 +82,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with next tx" do
-      prev_address1 =
-        Crypto.hash(
-          Crypto.node_shared_secrets_public_key(Crypto.number_of_node_shared_secrets_keys())
-        )
-
-      prev_address2 =
-        Crypto.hash(
-          Crypto.node_shared_secrets_public_key(Crypto.number_of_node_shared_secrets_keys() + 1)
-        )
-
-      MockDB
-      |> expect(:list_transactions_by_type, fn
-        :node_shared_secrets, _ ->
-          [
-            %Transaction{
-              address: prev_address2,
-              type: :node_shared_secrets
-            },
-            %Transaction{
-              address: prev_address1,
-              type: :node_shared_secrets
-            }
-          ]
-      end)
-
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -129,8 +97,6 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         last_public_key: "node_key2",
         available?: true
       })
-
-      KeystoreCounter.set_node_shared_secrets_key_counter(1)
 
       tx =
         Transaction.new(

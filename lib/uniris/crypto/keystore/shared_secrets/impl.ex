@@ -21,4 +21,10 @@ defmodule Uniris.Crypto.SharedSecretsKeystoreImpl do
               encrypted_secret_key :: binary(),
               date :: DateTime.t()
             ) :: :ok | :error
+
+  @callback get_network_pool_key_index() :: non_neg_integer()
+  @callback set_network_pool_key_index(non_neg_integer()) :: :ok
+
+  @callback get_node_shared_key_index() :: non_neg_integer()
+  @callback set_node_shared_secrets_key_index(non_neg_integer()) :: :ok
 end

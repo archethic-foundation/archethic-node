@@ -49,7 +49,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       stamp
       |> extract_for_signature()
       |> serialize()
-      |> Crypto.sign_with_node_key()
+      |> Crypto.sign_with_last_node_key()
 
     %{stamp | signature: sig}
   end

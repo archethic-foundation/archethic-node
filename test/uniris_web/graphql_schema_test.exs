@@ -25,8 +25,8 @@ defmodule UnirisWeb.GraphQLSchemaTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.node_public_key(),
-      last_public_key: Crypto.node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA",
       available?: true,

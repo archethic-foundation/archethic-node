@@ -33,14 +33,14 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
     node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
 
-    if Utils.key_in_node_list?(chain_storage_nodes, Crypto.node_public_key(0)) do
+    if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
       true
     else
       Enum.any?(mvt_addresses, fn address ->
         io_storage_nodes = Replication.chain_storage_nodes(address, node_list)
-        node_pool_address = Crypto.hash(Crypto.node_public_key())
+        node_pool_address = Crypto.hash(Crypto.last_node_public_key())
 
-        Utils.key_in_node_list?(io_storage_nodes, Crypto.node_public_key(0)) or
+        Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) or
           address == node_pool_address
       end)
     end
@@ -69,7 +69,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
     response =
       storage_nodes
-      |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
       |> P2P.reply_first(%GetTransaction{address: address})
 
     case response do

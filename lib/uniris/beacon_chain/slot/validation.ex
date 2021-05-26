@@ -55,7 +55,7 @@ defmodule Uniris.BeaconChain.Slot.Validation do
 
       diff == :lt or diff == :eq
     end)
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
+    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
   end
 
   @doc """

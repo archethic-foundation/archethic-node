@@ -58,7 +58,7 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
 
   defp sender? do
     next_transaction_index = Crypto.number_of_network_pool_keys() + 1
-    node_public_key = Crypto.node_public_key()
+    node_public_key = Crypto.last_node_public_key()
 
     with true <- P2P.authorized_node?(),
          next_address <-

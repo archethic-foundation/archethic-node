@@ -19,8 +19,8 @@ defmodule Uniris.Mining.ProofOfWorkTest do
     test "load the origin public keys based on the origin family provided " do
       :ok =
         P2P.add_and_connect_node(%Node{
-          last_public_key: Crypto.node_public_key(0),
-          first_public_key: Crypto.node_public_key(0),
+          last_public_key: Crypto.first_node_public_key(),
+          first_public_key: Crypto.first_node_public_key(),
           ip: {127, 0, 0, 1},
           port: 3000
         })

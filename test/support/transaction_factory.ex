@@ -46,7 +46,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -97,7 +97,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -180,7 +180,7 @@ defmodule Uniris.TransactionFactory do
 
     validation_stamp = %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.node_public_key(0),
+      proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: ledger_operations,
@@ -221,7 +221,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
@@ -264,7 +264,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
@@ -289,7 +289,11 @@ defmodule Uniris.TransactionFactory do
         fee: 0.01,
         node_movements: [
           %NodeMovement{to: "key1", amount: 20, roles: [:welcome_node]},
-          %NodeMovement{to: Crypto.node_public_key(), amount: 20, roles: [:coordinator_node]},
+          %NodeMovement{
+            to: Crypto.last_node_public_key(),
+            amount: 20,
+            roles: [:coordinator_node]
+          },
           %NodeMovement{to: "key3", amount: 20, roles: [:cross_validation_node]},
           %NodeMovement{to: "key4", amount: 20, roles: [:previous_storage_node]}
         ]
@@ -299,7 +303,7 @@ defmodule Uniris.TransactionFactory do
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: Crypto.node_public_key(0),
+        proof_of_work: Crypto.first_node_public_key(),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),

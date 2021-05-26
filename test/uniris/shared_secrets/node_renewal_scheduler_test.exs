@@ -25,8 +25,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
   describe "start_link/1" do
     test "should initiate the node renewal scheduler and trigger node renewal every each seconds" do
       P2P.add_and_connect_node(%Node{
-        first_public_key: Crypto.node_public_key(),
-        last_public_key: Crypto.node_public_key(),
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         geo_patch: "AAA",
         available?: true,
         authorized?: true,

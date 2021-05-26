@@ -71,7 +71,7 @@ defmodule Uniris.Bootstrap do
   def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date, reward_address)
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
     network_patch =
-      case P2P.get_node_info(Crypto.node_public_key()) do
+      case P2P.get_node_info(Crypto.first_node_public_key()) do
         {:ok, %Node{network_patch: patch}} ->
           patch
 
@@ -90,7 +90,7 @@ defmodule Uniris.Bootstrap do
         reward_address
       )
     else
-      P2P.set_node_globally_available(Crypto.node_public_key(0))
+      P2P.set_node_globally_available(Crypto.first_node_public_key())
       post_bootstrap(last_sync_date: last_sync_date, sync?: false)
     end
   end
@@ -98,7 +98,7 @@ defmodule Uniris.Bootstrap do
   defp should_bootstrap?(_ip, _port, _, nil), do: true
 
   defp should_bootstrap?(ip, port, transport, last_sync_date) do
-    case P2P.get_node_info(Crypto.node_public_key(0)) do
+    case P2P.get_node_info(Crypto.first_node_public_key()) do
       {:ok, _} ->
         if Sync.require_update?(ip, port, transport, last_sync_date) do
           Logger.debug("Node chain need to updated")
@@ -133,7 +133,7 @@ defmodule Uniris.Bootstrap do
 
       post_bootstrap(sync?: false)
     else
-      if Crypto.number_of_node_keys() == 0 do
+      if Crypto.first_node_public_key() == Crypto.last_node_public_key() do
         Logger.info("Node initialization...")
 
         first_initialization(
@@ -191,7 +191,10 @@ defmodule Uniris.Bootstrap do
   end
 
   defp update_node(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
-    case Enum.reject(bootstrapping_seeds, &(&1.first_public_key == Crypto.node_public_key(0))) do
+    case Enum.reject(
+           bootstrapping_seeds,
+           &(&1.first_public_key == Crypto.first_node_public_key())
+         ) do
       [] ->
         Logger.warning("Not enough nodes in the network. No node update")
 

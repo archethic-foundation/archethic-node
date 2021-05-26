@@ -202,55 +202,19 @@ defmodule Uniris.Mining.PendingTransactionValidation do
            ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
            recipients: [],
            code: ""
-         },
-         previous_public_key: previous_public_key
+         }
        })
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
     nodes = P2P.list_nodes()
 
-    case Enum.at(TransactionChain.list_transactions_by_type(:node_shared_secrets, [:address]), 0) do
-      nil ->
-        if Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) do
-          :ok
-        else
-          Logger.error("Node shared secrets can only contains public node list",
-            transaction: "node_shared_secrets@#{Base.encode16(address)}"
-          )
+    if Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) do
+      :ok
+    else
+      Logger.error("Node shared secrets can only contains public node list",
+        transaction: "node_shared_secrets@#{Base.encode16(address)}"
+      )
 
-          {:error, "Invalid node shared secrets transaction"}
-        end
-
-      %Transaction{address: prev_address} ->
-        cond do
-          Crypto.hash(previous_public_key) != prev_address ->
-            Logger.error("Node shared secrets chain does not match",
-              transaction: "node_shared_secrets@#{Base.encode16(address)}"
-            )
-
-            Logger.debug("Previous address: #{Base.encode16(prev_address)}",
-              transaction: "node_shared_secrets@#{Base.encode16(address)}"
-            )
-
-            Logger.debug("Hash of the previous public key: #{Base.encode16(previous_public_key)}",
-              transaction: "node_shared_secrets@#{Base.encode16(address)}"
-            )
-
-            {:error, "Invalid node shared secrets transaction"}
-
-          !Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) ->
-            Logger.error("Node shared secrets can only contains public node list",
-              transaction: "node_shared_secrets@#{Base.encode16(address)}"
-            )
-
-            Logger.debug("Unexpected node list: #{Enum.map(keys, &Base.encode16/1)}",
-              transaction: "node_shared_secrets@#{Base.encode16(address)}"
-            )
-
-            {:error, "Invalid node shared secrets transaction"}
-
-          true ->
-            :ok
-        end
+      {:error, "Invalid node shared secrets transaction"}
     end
   end
 

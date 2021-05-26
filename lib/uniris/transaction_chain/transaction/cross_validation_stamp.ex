@@ -42,9 +42,9 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
       ) do
     signature =
       [ValidationStamp.serialize(validation_stamp), marshal_inconsistencies(inconsistencies)]
-      |> Crypto.sign_with_node_key()
+      |> Crypto.sign_with_last_node_key()
 
-    %{cross_stamp | node_public_key: Crypto.node_public_key(), signature: signature}
+    %{cross_stamp | node_public_key: Crypto.last_node_public_key(), signature: signature}
   end
 
   @doc """

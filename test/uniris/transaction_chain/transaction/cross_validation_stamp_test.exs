@@ -23,8 +23,8 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
       {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
 
       MockCrypto
-      |> expect(:sign_with_node_key, &Crypto.sign(&1, pv))
-      |> expect(:node_public_key, fn -> pub end)
+      |> expect(:sign_with_last_key, &Crypto.sign(&1, pv))
+      |> expect(:last_public_key, fn -> pub end)
 
       validation_stamp = %ValidationStamp{
         timestamp: DateTime.utc_now(),

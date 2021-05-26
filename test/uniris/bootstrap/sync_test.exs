@@ -95,8 +95,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
@@ -107,8 +107,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
@@ -127,8 +127,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
@@ -147,8 +147,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
@@ -173,8 +173,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
@@ -199,8 +199,8 @@ defmodule Uniris.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key: Crypto.node_public_key(0),
-        last_public_key: Crypto.node_public_key(1),
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
         authorization_date: DateTime.utc_now(),
         transport: MockTransport,
@@ -242,7 +242,6 @@ defmodule Uniris.Bootstrap.SyncTest do
 
       assert %Node{authorized?: true} = P2P.get_node_info()
       assert 1 == Crypto.number_of_node_shared_secrets_keys()
-      assert 1 == Crypto.number_of_node_keys()
 
       Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.map(fn {_, public_key: key, amount: amount} -> {key, amount} end)
