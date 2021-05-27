@@ -850,9 +850,9 @@ defmodule Uniris.Mining.ValidationContext do
   end
 
   defp add_io_storage_nodes(
-         context = %__MODULE__{validation_stamp: %ValidationStamp{ledger_operations: ops}}
+         context = %__MODULE__{transaction: tx, validation_stamp: validation_stamp}
        ) do
-    io_storage_nodes = Replication.io_storage_nodes(ops)
+    io_storage_nodes = Replication.io_storage_nodes(%{tx | validation_stamp: validation_stamp})
     %{context | io_storage_nodes: io_storage_nodes}
   end
 

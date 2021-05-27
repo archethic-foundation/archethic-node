@@ -12,7 +12,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   alias Uniris.Replication
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.ValidationStamp
 
   alias Uniris.Utils
 
@@ -73,7 +72,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       |> P2P.reply_first(%GetTransaction{address: address})
 
     case response do
-      {:ok, tx = %Transaction{validation_stamp: %ValidationStamp{ledger_operations: ops}}} ->
+      {:ok, tx = %Transaction{}} ->
         node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
 
         roles =
@@ -82,10 +81,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
               Replication.chain_storage_node?(
                 address,
                 type,
-                Crypto.node_public_key(),
+                Crypto.last_node_public_key(),
                 node_list
               ),
-            IO: Replication.io_storage_node?(ops, Crypto.node_public_key(), node_list)
+            IO: Replication.io_storage_node?(tx, Crypto.last_node_public_key(), node_list)
           ]
           |> Utils.get_keys_from_value_match(true)
 

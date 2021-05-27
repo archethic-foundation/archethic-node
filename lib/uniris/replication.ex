@@ -39,6 +39,8 @@ defmodule Uniris.Replication do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
 
   alias Uniris.Utils
 
@@ -292,7 +294,7 @@ defmodule Uniris.Replication do
             previous_storage_nodes =
               chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
 
-            if Utils.key_in_node_list?(previous_storage_nodes, Crypto.node_public_key(0)) do
+            if Utils.key_in_node_list?(previous_storage_nodes, Crypto.first_node_public_key()) do
               acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)
             else
               P2P.broadcast_message(previous_storage_nodes, %NotifyLastTransactionAddress{
@@ -491,10 +493,10 @@ defmodule Uniris.Replication do
   """
   @spec roles(Transaction.t(), Crypto.key()) :: list(role())
   def roles(
-        %Transaction{
+        tx = %Transaction{
           address: address,
           type: type,
-          validation_stamp: %ValidationStamp{ledger_operations: ops, timestamp: timestamp}
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
         node_public_key
       ) do
@@ -513,7 +515,7 @@ defmodule Uniris.Replication do
           node_public_key,
           P2P.authorized_nodes()
         ),
-      IO: io_storage_node?(ops, node_public_key, P2P.available_nodes())
+      IO: io_storage_node?(tx, node_public_key, P2P.available_nodes())
     ]
     |> Utils.get_keys_from_value_match(true)
   end
@@ -549,14 +551,14 @@ defmodule Uniris.Replication do
     |> Utils.key_in_node_list?(public_key)
   end
 
-  @spec io_storage_node?(LedgerOperations.t(), Crypto.key(), list(Node.t())) :: boolean()
+  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
   def io_storage_node?(
-        ops = %LedgerOperations{},
+        tx = %Transaction{},
         public_key,
         node_list \\ P2P.authorized_nodes()
       )
       when is_binary(public_key) and is_list(node_list) do
-    ops
+    tx
     |> io_storage_nodes(node_list)
     |> Utils.key_in_node_list?(public_key)
   end
@@ -584,14 +586,35 @@ defmodule Uniris.Replication do
   end
 
   @doc """
-  Return the storage nodes for the transaction IO based on the `LedgerOperations` and a set of nodes
+  Return the storage nodes for the transaction IO and a set of nodes
   """
-  @spec io_storage_nodes(LedgerOperations.t(), list(Node.t())) :: list(Node.t())
+  @spec io_storage_nodes(Transaction.t(), list(Node.t())) :: list(Node.t())
   def io_storage_nodes(
-        operations = %LedgerOperations{},
+        tx = %Transaction{
+          validation_stamp: %ValidationStamp{ledger_operations: ops, recipients: recipients}
+        },
         node_list \\ P2P.authorized_nodes()
       ) do
-    operations
+    operations_nodes = operation_storage_nodes(ops, node_list)
+    recipients_nodes = Enum.map(recipients, &chain_storage_nodes(&1, node_list))
+    additional_nodes = additional_storage_nodes(tx)
+
+    P2P.distinct_nodes([operations_nodes, recipients_nodes, additional_nodes])
+  end
+
+  defp additional_storage_nodes(%Transaction{
+         type: :node_shared_secrets,
+         data: %TransactionData{keys: keys}
+       }) do
+    keys
+    |> Keys.list_authorized_keys()
+    |> Enum.map(&P2P.get_node_info!/1)
+  end
+
+  defp additional_storage_nodes(_), do: []
+
+  defp operation_storage_nodes(ops, node_list) do
+    ops
     |> LedgerOperations.movement_addresses()
     |> Election.io_storage_nodes(node_list, Election.get_storage_constraints())
   end
