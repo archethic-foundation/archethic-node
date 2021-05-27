@@ -463,43 +463,81 @@
 
                 <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
                     <%= if Enum.count(@inputs) > 0 do %>
-                            <%= for input <- @inputs do %>
-                                <div class="columns">
+                        
+                      <%= for input <- @inputs do %>
+                                <div class="box">
+                                  <div class="columns">
                                     <div class="column is-1-desktop">
-                                        <%= if input.spent? do %>
-                                            <span class="tag is-danger is-light">Spent</span>
-                                        <% else %>
-                                            <span class="tag is-success is-light">Unspent</span>
-                                        <% end %>
+                                      <div class="columns">
+                                         <div class="column heading">Status</div>
+                                      </div>
+                                      <div class="columns">
+                                         <div class="column">
+                                            <%= if input.spent? do %>
+                                                <span class="tag is-danger is-light">Spent</span>
+                                            <% else %>
+                                                <span class="tag is-success is-light">Unspent</span>
+                                            <% end %>
+                                         </div>
+                                      </div>
                                     </div>
+                                    <div class="column is-2-desktop">
+                                      <div class="columns">
+                                         <div class="column heading">Date</div>
+                                      </div>
+                                      <div class="columns">
+                                         <div class="column"><%= format_date(input.timestamp) %></div>
+                                      </div>
+                                    </div>	 
                                     <div class="column">
+                                      <div class="columns">
+                                         <div class="column heading">From</div>
+                                      </div>
+                                      <div class="columns">
+                                        <div class="column">
                                         <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
                                             <span class="is-hidden-mobile"><%= Base.encode16(input.from) %></span>
                                             <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 12)) %>...</span>
                                         <% end %>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div class="column is-1-desktop">
+                                      <div class="columns">
+                                        <div class="column heading">Amount</div>
+                                      </div>
+                                      <div class="columns">
+                                          <div class="column"><%= format_float(input.amount) %></div>
+                                      </div>
                                     </div>
                                     <div class="column">
-                                        <%= case input.type do %>
-                                            <% :UCO -> %>
+                                      <div class="columns">
+                                        <div class="column heading">Asset type</div>
+                                      </div>
+                                        <div class="columns">
+                                          <div class="column">
+                                          <%= case input.type do %>
+                                             <% :UCO -> %>
+                                                <span class="tag is-primary is-light">UCO</span>
+                                                <%= if input.reward? do %>
+                                                  <span class="tag is-info is-light">Mining reward</span>
+                                                <% end %>
+                                             <% {:NFT, nft_address} -> %>
                                                 <div class="columns">
-                                                    <div class="column is-5-desktop"><%= format_float(input.amount) %></div>
-                                                    <div class="column is-2-desktop"><span class="tag is-primary is-light">UCO</span></div>
-                                                    <div class="column is-4-desktop is-hidden-mobile"></div>
+                                                  <div class="column is-2-desktop"><span class="tag" is-success is-light">NFT</span></div>
+                                                  <div class="column is-4-desktop">
+                                                    <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
+                                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
+                                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(nft_address, 0, 12)) %>...</span>
+                                                    <% end %>
+                                                  </div>
                                                 </div>
-                                            <% {:NFT, nft_address} -> %>
-                                                <div class="columns">
-                                                    <div class="column is-5-desktop"><%= format_float(input.amount) %></div>
-                                                    <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
-                                                    <div class="column is-4-desktop">
-                                                        <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
-                                                            <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
-                                                            <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(nft_address, 0, 12)) %>...</span>
-                                                        <% end %>
-                                                    </div>
-                                                </div>
-                                        <% end %>
+                                            <% end %>
+                                         </div>
+                                       </div>
                                     </div>
                                 </div>
+                              </div>
                             <% end %>
                     <% else %>
                         <div class="columns">
@@ -513,10 +551,23 @@
                  <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>">
                     <%= if Enum.count(@calls) > 0 do %>
                         <%= for call <- @calls do %>
-                            <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
-                                <span class="is-hidden-mobile"><%= Base.encode16(call.from) %></span>
-                                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(call.from, 0, 12)) %>...</span>
-                            <% end %>
+                          <div class="box">
+                            <div class="columns">
+                              <div class="column">
+                              <div class="columns">
+                                <div class="column heading">From</div>
+                              </div>
+                              <div class="columns">
+                                <div class="column">
+                                  <%= link to: Routes.live_path(@socket, UnirisWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
+                                    <span class="is-hidden-mobile"><%= Base.encode16(call.from) %></span>
+                                    <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(call.from, 0, 12)) %>...</span>
+                                  <% end %>
+                                </div>
+                              </div>
+                              </div>
+                            </div>
+                          </div>
                         <% end %>
                     <% else %>
                         There are no matching inputs

@@ -56,9 +56,9 @@ defmodule Uniris.Account.MemTables.UCOLedger do
       iex> { :ets.tab2list(:uniris_uco_ledger), :ets.tab2list(:uniris_uco_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Charlie10"}, 1.0, false, ~U[2021-03-05 13:41:34Z]},
-          {{"@Alice2", "@Bob3"}, 3.0, false, ~U[2021-03-05 13:41:34Z]}
-        ],
+          {{"@Alice2", "@Charlie10"}, 1.0, false, ~U[2021-03-05 13:41:34Z], false},
+          {{"@Alice2", "@Bob3"}, 3.0, false, ~U[2021-03-05 13:41:34Z], false}
+       ],
         [
           {"@Alice2", "@Bob3"},
           {"@Alice2", "@Charlie10"}
@@ -67,9 +67,13 @@ defmodule Uniris.Account.MemTables.UCOLedger do
 
   """
   @spec add_unspent_output(binary(), UnspentOutput.t(), DateTime.t()) :: :ok
-  def add_unspent_output(to, %UnspentOutput{from: from, amount: amount}, timestamp = %DateTime{})
+  def add_unspent_output(
+        to,
+        %UnspentOutput{from: from, amount: amount, reward?: reward?},
+        timestamp = %DateTime{}
+      )
       when is_binary(to) and is_float(amount) do
-    true = :ets.insert(@ledger_table, {{to, from}, amount, false, timestamp})
+    true = :ets.insert(@ledger_table, {{to, from}, amount, false, timestamp, reward?})
     true = :ets.insert(@unspent_output_index_table, {to, from})
     :ok
   end
@@ -86,7 +90,7 @@ defmodule Uniris.Account.MemTables.UCOLedger do
       [
         %UnspentOutput{from: "@Charlie10", amount: 1.0, type: :UCO},
         %UnspentOutput{from: "@Bob3", amount: 3.0, type: :UCO},
-      ]
+       ]
 
       iex> {:ok, _pid} = UCOLedger.start_link()
       iex> UCOLedger.get_unspent_outputs("@Alice2")
@@ -98,12 +102,13 @@ defmodule Uniris.Account.MemTables.UCOLedger do
     |> :ets.lookup(address)
     |> Enum.reduce([], fn {_, from}, acc ->
       case :ets.lookup(@ledger_table, {address, from}) do
-        [{_, amount, false, _}] ->
+        [{_, amount, false, _, reward?}] ->
           [
             %UnspentOutput{
               from: from,
               amount: amount,
-              type: :UCO
+              type: :UCO,
+              reward?: reward?
             }
             | acc
           ]
@@ -165,14 +170,15 @@ defmodule Uniris.Account.MemTables.UCOLedger do
     @unspent_output_index_table
     |> :ets.lookup(address)
     |> Enum.map(fn {_, from} ->
-      [{_, amount, spent?, timestamp}] = :ets.lookup(@ledger_table, {address, from})
+      [{_, amount, spent?, timestamp, reward?}] = :ets.lookup(@ledger_table, {address, from})
 
       %TransactionInput{
         from: from,
         amount: amount,
         spent?: spent?,
         type: :UCO,
-        timestamp: timestamp
+        timestamp: timestamp,
+        reward?: reward?
       }
     end)
   end

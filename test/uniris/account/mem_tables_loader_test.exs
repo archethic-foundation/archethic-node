@@ -24,7 +24,7 @@ defmodule Uniris.Account.MemTablesLoaderTest do
     P2P.add_and_connect_node(%Node{
       first_public_key: "NodeKey",
       last_public_key: "NodeKey",
-      last_address: "@NodeKey",
+      reward_address: "@NodeKey",
       ip: {127, 0, 0, 1},
       port: 3000,
       geo_patch: "AAA"

@@ -110,18 +110,13 @@ defmodule Uniris.Account.MemTablesLoader do
     node_movements
     |> Enum.filter(&(&1.amount > 0.0))
     |> Enum.each(fn %NodeMovement{to: to, amount: amount} ->
-      case P2P.get_node_info!(to) do
-        # Should only happens during the bootstrap of the network when the first node transaction arrives
-        %Node{last_address: nil} ->
-          :ok
+      %Node{reward_address: reward_address} = P2P.get_node_info!(to)
 
-        %Node{last_address: last_address} ->
-          UCOLedger.add_unspent_output(
-            last_address,
-            %UnspentOutput{amount: amount, from: address, type: :UCO},
-            timestamp
-          )
-      end
+      UCOLedger.add_unspent_output(
+        reward_address,
+        %UnspentOutput{amount: amount, from: address, type: :UCO, reward?: true},
+        timestamp
+      )
     end)
   end
 end

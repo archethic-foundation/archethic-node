@@ -43,7 +43,8 @@ defmodule Uniris.DB.CassandraImpl.Migrations.CreateValidationStampType do
       "from" blob,
       amount double,
       type varchar,
-      nft_address blob
+      nft_address blob,
+      reward boolean
     );
     """)
   end

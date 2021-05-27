@@ -597,7 +597,9 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Unspent output amount
       64, 0, 0, 0, 0, 0, 0, 0,
-      ## Unspent output type (UCO)
+      # Unspent output type (UCO)
+      0,
+      # Unspent output reward?
       0
       >>
   """
@@ -634,7 +636,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 63, 211, 51, 51, 51, 51, 51, 51, 4, 0, 1, 2, 3, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 64, 0, 0, 0, 0, 0, 0, 0, 0 >>
+      ...> 64, 0, 0, 0, 0, 0, 0, 0, 0, 0 >>
       ...> |> LedgerOperations.deserialize()
       {
         %LedgerOperations{
@@ -660,7 +662,8 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
               from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 2.0,
-              type: :UCO
+              type: :UCO,
+              reward?: false
             }
           ]
         },
