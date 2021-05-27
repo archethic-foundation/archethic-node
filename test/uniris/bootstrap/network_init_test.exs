@@ -54,7 +54,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now(),
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     MockClient
@@ -180,7 +181,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       authorized?: true,
       authorization_date: DateTime.utc_now(),
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     MockDB
@@ -235,7 +237,8 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
       enrollment_date: DateTime.utc_now(),
       network_patch: "AAA",
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")

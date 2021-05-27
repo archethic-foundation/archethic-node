@@ -78,19 +78,5 @@
                 </div>
             </div>
         </div>
-        <div class="columns">
-            <div class="column">
-                <div>
-                    <p class="heading">Mining rewards</p>
-                    <span><strong><%= format_float(@mining_rewards) %> UCO</strong></span>
-                </div>
-            </div>
-            <div class="column">
-                <div>
-                    <p class="heading">Reward withdraw address's UCO Balance</p>
-                    <span><strong><%= format_float(@reward_balance) %> UCO</strong></span>
-                 </div>
-             </div>
-         </div>
     <% end %>
 </div>

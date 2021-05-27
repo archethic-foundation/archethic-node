@@ -63,7 +63,8 @@ defmodule Uniris.ReplicationTest do
             available?: true,
             authorized?: rem(i, 7) == 0,
             authorization_date: DateTime.utc_now(),
-            enrollment_date: DateTime.utc_now()
+            enrollment_date: DateTime.utc_now(),
+            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
           }
         end)
 
@@ -88,7 +89,8 @@ defmodule Uniris.ReplicationTest do
             available?: true,
             authorized?: rem(i, 7) == 0,
             authorization_date: DateTime.utc_now(),
-            enrollment_date: DateTime.utc_now()
+            enrollment_date: DateTime.utc_now(),
+            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
           }
         end)
 
@@ -113,7 +115,8 @@ defmodule Uniris.ReplicationTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       },
       %Node{
         ip: {88, 130, 19, 1},
@@ -123,7 +126,8 @@ defmodule Uniris.ReplicationTest do
         geo_patch: random_patch(),
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       },
       %Node{
         ip: {88, 130, 19, 2},
@@ -134,7 +138,8 @@ defmodule Uniris.ReplicationTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        enrollment_date: DateTime.utc_now()
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
     ]
 
@@ -162,7 +167,8 @@ defmodule Uniris.ReplicationTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now() |> DateTime.add(-10)
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
@@ -212,7 +218,8 @@ defmodule Uniris.ReplicationTest do
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB",
-      enrollment_date: DateTime.utc_now()
+      enrollment_date: DateTime.utc_now(),
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     coordinator_node = %Node{
@@ -223,7 +230,8 @@ defmodule Uniris.ReplicationTest do
       authorization_date: DateTime.utc_now(),
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now()
+      enrollment_date: DateTime.utc_now(),
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     storage_nodes = [
@@ -236,7 +244,8 @@ defmodule Uniris.ReplicationTest do
         geo_patch: "BBB",
         network_patch: "BBB",
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
     ]
 
@@ -335,7 +344,8 @@ defmodule Uniris.ReplicationTest do
         geo_patch: "AAA",
         available?: true,
         authorization_date: DateTime.utc_now(),
-        authorized?: true
+        authorized?: true,
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       })
 
       assert :ok =

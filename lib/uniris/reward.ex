@@ -15,8 +15,8 @@ defmodule Uniris.Reward do
   alias Uniris.Replication
 
   alias __MODULE__.NetworkPoolScheduler
-  alias __MODULE__.WithdrawScheduler
 
+  alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
@@ -38,17 +38,22 @@ defmodule Uniris.Reward do
   def get_transfers_for_in_need_validation_nodes do
     min_validation_nodes_reward = min_validation_nodes_reward()
 
-    Enum.map(
-      P2P.authorized_nodes(),
-      fn node = %Node{last_address: last_address} ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
-          last_address
-          |> Replication.chain_storage_nodes()
-          |> P2P.reply_first(%GetUnspentOutputs{address: last_address})
+    Task.async_stream(P2P.authorized_nodes(), fn node = %Node{reward_address: reward_address} ->
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
+        reward_address
+        |> TransactionChain.resolve_last_address(DateTime.utc_now())
+        |> Replication.chain_storage_nodes()
+        |> P2P.reply_first(%GetUnspentOutputs{address: reward_address})
 
-        {node, Enum.reduce(unspent_outputs, 0.0, &(&1.amount + &2))}
-      end
-    )
+      mining_rewards =
+        unspent_outputs
+        |> Enum.filter(
+          &(&1.type == :reward and DateTime.compare(&1.timestamp, DateTime.utc_now()) == :lt)
+        )
+        |> Enum.reduce(0.0, &(&1.amount + &2))
+
+      {node, mining_rewards}
+    end)
     |> Enum.filter(fn {_, balance} -> balance < min_validation_nodes_reward end)
     |> Enum.map(fn {%Node{reward_address: address}, amount} ->
       %Transfer{to: address, amount: min_validation_nodes_reward - amount}
@@ -59,8 +64,6 @@ defmodule Uniris.Reward do
         type: :node_shared_secrets,
         data: %TransactionData{keys: keys}
       }) do
-    WithdrawScheduler.start_scheduling()
-
     if Crypto.last_node_public_key() in Keys.list_authorized_keys(keys) do
       NetworkPoolScheduler.start_scheduling()
     end

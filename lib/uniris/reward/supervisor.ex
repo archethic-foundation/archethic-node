@@ -4,7 +4,6 @@ defmodule Uniris.Reward.Supervisor do
   use Supervisor
 
   alias Uniris.Reward.NetworkPoolScheduler
-  alias Uniris.Reward.WithdrawScheduler
 
   alias Uniris.Utils
 
@@ -14,8 +13,7 @@ defmodule Uniris.Reward.Supervisor do
 
   def init(_) do
     children = [
-      {NetworkPoolScheduler, Application.get_env(:uniris, NetworkPoolScheduler)},
-      {WithdrawScheduler, Application.get_env(:uniris, WithdrawScheduler)}
+      {NetworkPoolScheduler, Application.get_env(:uniris, NetworkPoolScheduler)}
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)

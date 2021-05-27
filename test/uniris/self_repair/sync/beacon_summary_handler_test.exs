@@ -42,7 +42,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.first_node_public_key(),
       network_patch: "AAA",
-      geo_patch: "AAA"
+      geo_patch: "AAA",
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -62,7 +63,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       geo_patch: "AAA",
       available?: true,
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node2 = %Node{
@@ -74,7 +76,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       geo_patch: "AAA",
       available?: true,
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node3 = %Node{
@@ -86,7 +89,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       geo_patch: "AAA",
       available?: true,
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node4 = %Node{
@@ -98,7 +102,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       geo_patch: "AAA",
       available?: true,
       authorization_date: DateTime.utc_now(),
-      authorized?: true
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     P2P.add_and_connect_node(node1)
@@ -285,7 +290,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         geo_patch: "AAA",
         available?: true,
         authorization_date: DateTime.utc_now(),
-        authorized?: true
+        authorized?: true,
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       P2P.add_and_connect_node(node)
@@ -317,7 +323,8 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         geo_patch: "AAA",
         network_patch: "AAA",
         authorization_date: DateTime.utc_now(),
-        authorized?: true
+        authorized?: true,
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       P2P.add_and_connect_node(node)
@@ -413,7 +420,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         available?: true,
         geo_patch: "AAA",
         network_patch: "AAA",
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         enrollment_date: DateTime.utc_now(),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-1)
@@ -525,7 +532,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB",
-      last_address: :crypto.strong_rand_bytes(32),
+      reward_address: :crypto.strong_rand_bytes(32),
       enrollment_date: DateTime.utc_now()
     }
 
@@ -537,7 +544,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
       network_patch: "AAA",
-      last_address: :crypto.strong_rand_bytes(32),
+      reward_address: :crypto.strong_rand_bytes(32),
       enrollment_date: DateTime.utc_now()
     }
 
@@ -550,7 +557,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         authorization_date: DateTime.utc_now(),
         authorized?: true
       }

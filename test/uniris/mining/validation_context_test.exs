@@ -124,7 +124,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
       port: 3000,
-      last_address: :crypto.strong_rand_bytes(32),
+      reward_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
@@ -135,7 +135,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       geo_patch: "AAA",
       ip: {127, 0, 0, 1},
       port: 3000,
-      last_address: :crypto.strong_rand_bytes(32),
+      reward_address: :crypto.strong_rand_bytes(32),
       authorized?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-2)
     }
@@ -147,7 +147,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         geo_patch: "AAA",
         ip: {127, 0, 0, 1},
         port: 3000,
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       },
@@ -157,7 +157,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         geo_patch: "AAA",
         ip: {127, 0, 0, 1},
         port: 3000,
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       }
@@ -169,7 +169,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         first_public_key: "key2",
         geo_patch: "AAA",
         available?: true,
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       },
@@ -178,7 +178,7 @@ defmodule Uniris.Mining.ValidationContextTest do
         first_public_key: "key3",
         geo_patch: "DEA",
         available?: true,
-        last_address: :crypto.strong_rand_bytes(32),
+        reward_address: :crypto.strong_rand_bytes(32),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-2)
       }

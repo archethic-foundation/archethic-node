@@ -529,7 +529,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       }) do
     Enum.map(transaction_movements, & &1.to) ++
       Enum.map(node_movements, fn %NodeMovement{to: public_key} ->
-        %Node{last_address: address} = P2P.get_node_info!(public_key)
+        %Node{reward_address: address} = P2P.get_node_info!(public_key)
         address
       end)
   end

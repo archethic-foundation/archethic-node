@@ -19,19 +19,14 @@ defmodule UnirisWeb.NodeController do
            P2P.get_node_info(pub) do
       node_address = Crypto.hash(last_public_key)
 
-      %{uco: mining_rewards} = Uniris.get_balance(node_address)
-      %{uco: reward_balance} = Uniris.get_balance(reward_address)
-
       render(conn, "show.html",
         node: node,
-        mining_rewards: mining_rewards,
         node_address: node_address,
-        reward_address: reward_address,
-        reward_balance: reward_balance
+        reward_address: reward_address
       )
     else
       {:error, :not_found} ->
-        render(conn, "show.html", node: nil, mining_rewards: 0.0, reward_balance: 0.0)
+        render(conn, "show.html", node: nil)
 
       _ ->
         render(conn, "show.html",
