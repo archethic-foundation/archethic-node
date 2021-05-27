@@ -41,7 +41,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
         beacon_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
 
         beacon_address
-        |> do_fetch_summary_transaction(nodes, patch)
+        |> download_summary(nodes, patch)
         |> handle_summary_transaction(subset, summary_time, nodes, beacon_address)
       end,
       on_timeout: :kill_task,
@@ -54,36 +54,29 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     end)
   end
 
-  defp do_fetch_summary_transaction(beacon_address, nodes, patch) do
-    if Utils.key_in_node_list?(nodes, Crypto.node_public_key(0)) do
-      case TransactionChain.get_transaction(beacon_address) do
-        {:ok, tx} ->
-          {:ok, tx}
+  defp download_summary(beacon_address, nodes, patch) do
+    case Enum.reject(nodes, &(&1.first_public_key == Crypto.first_node_public_key())) do
+      [] ->
+        if Utils.key_in_node_list?(nodes, Crypto.first_node_public_key()) do
+          TransactionChain.get_transaction(beacon_address)
+        else
+          {:error, :network_issue}
+        end
 
-        _ ->
-          # If the node did not receive the beacon summary it can request another remote node
-          # to find it
-          download_summary(nodes, beacon_address, patch)
-      end
-    else
-      download_summary(nodes, beacon_address, patch)
+      remote_nodes ->
+        P2P.reply_atomic(remote_nodes, 3, %GetTransaction{address: beacon_address},
+          patch: patch,
+          compare_fun: fn %Transaction{data: %TransactionData{content: content}} -> content end
+        )
     end
-  end
-
-  defp download_summary(nodes, beacon_address, patch) do
-    nodes
-    |> Enum.reject(&(&1.first_public_key == Crypto.node_public_key(0)))
-    |> P2P.reply_atomic(3, %GetTransaction{address: beacon_address},
-      patch: patch,
-      compare_fun: fn %Transaction{data: %TransactionData{content: content}} -> content end
-    )
   end
 
   defp handle_summary_transaction({:ok, tx}, subset, summary_time, nodes, _beacon_address) do
     beacon_storage_nodes =
       Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
 
-    if Utils.key_in_node_list?(beacon_storage_nodes, Crypto.node_public_key(0)) do
+    with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
+         false <- TransactionChain.transaction_exists?(tx.address) do
       TransactionChain.write_transaction(tx)
     end
 
