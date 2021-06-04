@@ -3,8 +3,11 @@ defmodule Uniris.Contracts.Interpreter.TransactionStatements do
 
   alias Uniris.Contracts.Contract
 
+  alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData.NFTLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
+
+  @transaction_types Transaction.types() |> Enum.map(&Atom.to_string/1)
 
   @doc """
   Set the transaction type
@@ -15,7 +18,7 @@ defmodule Uniris.Contracts.Interpreter.TransactionStatements do
        %Contract{ next_transaction: %Transaction{type: :transfer, data: %TransactionData{}} }
   """
   @spec set_type(Contract.t(), binary()) :: Contract.t()
-  def set_type(contract = %Contract{}, type) when is_binary(type) do
+  def set_type(contract = %Contract{}, type) when type in @transaction_types do
     put_in(contract, access_path([:next_transaction, :type]), String.to_existing_atom(type))
   end
 

@@ -24,7 +24,17 @@ defmodule Uniris.Contracts.LoaderTest do
         address: "@SC1",
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end
+          condition transaction: [
+            content: "hello"
+          ]
+
+          condition inherit: [
+            content: "hi"
+          ]
+
+          actions triggered_by: transaction do
+            set_content "hi"
+          end
           """
         },
         previous_public_key: ""
@@ -40,7 +50,7 @@ defmodule Uniris.Contracts.LoaderTest do
 
       assert %{
                contract: %Contract{
-                 triggers: [%Trigger{type: :transaction, actions: {:__block__, [], []}}],
+                 triggers: [%Trigger{type: :transaction}],
                  constants: %Constants{contract: %{"address" => "@SC1"}}
                }
              } = :sys.get_state(pid)
@@ -51,7 +61,17 @@ defmodule Uniris.Contracts.LoaderTest do
         address: Crypto.hash("Alice2"),
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end
+          condition transaction: [
+            content: "hello"
+          ]
+
+          condition inherit: [
+            content: "hi"
+          ]
+
+          actions triggered_by: transaction do
+            set_content "hi"
+          end
           """
         },
         previous_public_key: "Alice1"
@@ -61,7 +81,17 @@ defmodule Uniris.Contracts.LoaderTest do
         address: Crypto.hash("Alice3"),
         data: %TransactionData{
           code: """
-          actions triggered_by: transaction do end
+          condition transaction: [
+            content: "hello"
+          ]
+
+          condition inherit: [
+            content: "hi"
+          ]
+
+          actions triggered_by: transaction do
+            set_content "hi2"
+          end
           """
         },
         previous_public_key: "Alice2"
@@ -90,7 +120,17 @@ defmodule Uniris.Contracts.LoaderTest do
           address: "@SC2",
           data: %TransactionData{
             code: """
-            actions triggered_by: transaction do end
+            condition transaction: [
+              content: "hello"
+            ]
+
+            condition inherit: [
+              content: "hi"
+            ]
+
+            actions triggered_by: transaction do
+              set_content "hi"
+            end
             """
           },
           previous_public_key: ""
@@ -108,7 +148,7 @@ defmodule Uniris.Contracts.LoaderTest do
 
     assert %{
              contract: %Contract{
-               triggers: [%Trigger{type: :transaction, actions: {:__block__, [], []}}],
+               triggers: [%Trigger{type: :transaction}],
                constants: %Constants{contract: %{"address" => "@SC2"}}
              }
            } = :sys.get_state(pid)

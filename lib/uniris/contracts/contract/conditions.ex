@@ -4,24 +4,43 @@ defmodule Uniris.Contracts.Contract.Conditions do
   """
 
   defstruct [
-    :transaction,
-    :origin_family,
-    :oracle,
-    :inherit
+    :type,
+    :content,
+    :code,
+    :authorized_keys,
+    :secret,
+    :uco_transfers,
+    :nft_transfers,
+    :previous_public_key,
+    origin_family: :all
   ]
 
   alias Uniris.SharedSecrets
+  alias Uniris.TransactionChain.Transaction
 
-  @typedoc """
-  Smart contract conditions are defined by:
-  - Transaction: code evaluated defining the rules to accept transaction towards the contract
-  - Inherit: code evaluated defining the term of acceptance to chain a new transaction
-  - Origin family: security level to restrict the origin signature and Proof of Work to the origin family set
-  """
   @type t :: %__MODULE__{
-          transaction: Macro.t(),
-          inherit: Macro.t(),
-          origin_family: nil | SharedSecrets.origin_family(),
-          oracle: Macro.t()
+          type: Transaction.transaction_type() | nil,
+          content: binary() | Macro.t() | nil,
+          code: binary() | Macro.t() | nil,
+          authorized_keys: map() | Macro.t() | nil,
+          secret: binary() | Macro.t() | nil,
+          uco_transfers: map() | Macro.t() | nil,
+          nft_transfers: map() | Macro.t() | nil,
+          previous_public_key: binary() | Macro.t() | nil,
+          origin_family: SharedSecrets.origin_family() | :all
         }
+
+  def empty?(%__MODULE__{
+        type: nil,
+        content: nil,
+        code: nil,
+        authorized_keys: nil,
+        secret: nil,
+        uco_transfers: nil,
+        nft_transfers: nil,
+        previous_public_key: nil
+      }),
+      do: true
+
+  def empty?(%__MODULE__{}), do: false
 end

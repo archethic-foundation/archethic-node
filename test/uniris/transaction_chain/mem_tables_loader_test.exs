@@ -43,7 +43,10 @@ defmodule Uniris.TransactionChain.MemTablesLoaderTest do
                  previous_public_key: "Contract1",
                  data: %TransactionData{
                    code: """
-                   condition transaction: regex_match?(content, \"hello\")
+                   condition transaction: [
+                     content: regex_match?(\"hello\")
+                   ]
+
                    actions triggered_by: transaction do end
                    """
                  },

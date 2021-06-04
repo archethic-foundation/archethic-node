@@ -28,10 +28,10 @@ defmodule Uniris.Contracts do
   ## Examples
 
       iex> "
-      ...>    condition origin_family: biometric
-      ...>
-      ...>    condition inherit,
-      ...>       content: regex_match?(\"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\")
+      ...>    condition inherit: [
+      ...>       content: regex_match?(\"^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$\"),
+      ...>       origin_family: biometric
+      ...>    ]
       ...>
       ...>    actions triggered_by: datetime, at: 1601039923 do
       ...>      set_type hosting
@@ -41,56 +41,20 @@ defmodule Uniris.Contracts do
       ...> |> Contracts.parse()
       {:ok,
         %Contract{
-          conditions: %Conditions{
-            inherit: {
-                    :and,
-                    [line: 0],
-                    [
-                      {
-                        :and,
-                        [line: 0],
-                        [
-                          {
-                            :and,
-                            [line: 0],
-                            [
-                              {
-                                :and,
-                                [line: 0],
-                                [
-                                  {
-                                    :and,
-                                    [line: 0],
-                                    [
-                                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "code"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "code"]]}]},
-                                      {
-                                        :==,
-                                        [line: 4],
-                                        [
-                                          {
-                                            {:., [line: 4], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
-                                            [line: 4],
-                                            [{:get_in, [line: 4], [{:scope, [line: 4], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]
-                                          },
-                                          {:get_in, [line: 4], [{:scope, [line: 4], nil}, ["next", "content"]]}
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "nft_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "nft_transfers"]]}]}
-                                ]
-                              },
-                              {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "secret"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "secret"]]}]}
-                            ]
-                          },
-                          {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "type"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "type"]]}]}
-                        ]
-                      },
-                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "uco_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "uco_transfers"]]}]}
-                    ]
-                  },
-            origin_family: :biometric,
-            transaction: nil
+          conditions: %{
+            inherit: %Conditions{
+              content: {:==, [line: 2], [
+                true,
+                {
+                  {:., [line: 2], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
+                  [line: 2],
+                  [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]
+                }
+              ]},
+              origin_family: :biometric
+            },
+            transaction: %Conditions{},
+            oracle: %Conditions{}
           },
           constants: %Constants{
             contract: nil,
@@ -125,11 +89,22 @@ defmodule Uniris.Contracts do
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
   def parse(contract_code) when is_binary(contract_code) do
     case Interpreter.parse(contract_code) do
-      {:ok, %Contract{triggers: [_ | _], conditions: %Conditions{inherit: []}}} ->
-        {:error, "missing inherit constraints"}
+      {:ok,
+       contract = %Contract{
+         triggers: triggers,
+         conditions: %{transaction: transaction_conditions, oracle: oracle_conditions}
+       }} ->
+        cond do
+          Enum.any?(triggers, &(&1.type == :transaction)) and
+              Conditions.empty?(transaction_conditions) ->
+            {:error, "missing transaction conditions"}
 
-      {:ok, contract = %Contract{}} ->
-        {:ok, contract}
+          Enum.any?(triggers, &(&1.type == :oracle)) and Conditions.empty?(oracle_conditions) ->
+            {:error, "missing oracle conditions"}
+
+          true ->
+            {:ok, contract}
+        end
 
       {:error, _} = e ->
         e
@@ -169,24 +144,22 @@ defmodule Uniris.Contracts do
     {:ok,
      %Contract{
        triggers: triggers,
-       conditions: %Conditions{inherit: inherit_constraints}
+       conditions: %{inherit: inherit_conditions}
      }} = Interpreter.parse(code)
 
     constants = %{
-      "prev" => Constants.from_transaction(prev_tx),
+      "previous" => Constants.from_transaction(prev_tx),
       "next" => Constants.from_transaction(next_tx)
     }
 
-    with {:inherit, true} <- {:inherit, Interpreter.execute(inherit_constraints, constants)},
+    with {:inherit, true} <-
+           {:inherit, Interpreter.valid_conditions?(inherit_conditions, constants)},
          {:origin, true} <- {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx))} do
       true
     else
-      {:inherit, nil} ->
-        Logger.error("Inherit constraints not respected")
-        false
-
       {:inherit, false} ->
         Logger.error("Inherit constraints not respected")
+
         false
 
       {:origin, false} ->

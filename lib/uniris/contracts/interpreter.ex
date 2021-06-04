@@ -7,10 +7,15 @@ defmodule Uniris.Contracts.Interpreter do
   alias __MODULE__.TransactionStatements
 
   alias Uniris.Contracts.Contract
+  alias Uniris.Contracts.Contract.Conditions
 
   alias Uniris.SharedSecrets
 
-  @library_functions_names Library.__info__(:functions) |> Enum.map(&Atom.to_string(elem(&1, 0)))
+  alias Uniris.TransactionChain.Transaction
+
+  @library_functions_names Library.__info__(:functions)
+                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
+
   @transaction_statements_functions_names TransactionStatements.__info__(:functions)
                                           |> Enum.map(&Atom.to_string(elem(&1, 0)))
 
@@ -33,16 +38,13 @@ defmodule Uniris.Contracts.Interpreter do
     "recipients"
   ]
 
-  @inherit_fields [
-    "code",
-    "secret",
-    "content",
-    "uco_transfers",
-    "nft_transfers",
-    "type"
-  ]
+  @condition_fields Conditions.__struct__()
+                    |> Map.keys()
+                    |> Enum.reject(&(&1 == :__struct__))
+                    |> Enum.map(&Atom.to_string/1)
 
-  @allowed_transaction_types ["transfer", "nft", "hosting"]
+  @transaction_types Transaction.types() |> Enum.map(&Atom.to_string/1)
+  @origin_families SharedSecrets.list_origin_families() |> Enum.map(&Atom.to_string/1)
 
   @doc ~S"""
   Parse a smart contract code and return the filtered AST representation.
@@ -52,14 +54,18 @@ defmodule Uniris.Contracts.Interpreter do
   ## Examples
 
       iex> Interpreter.parse("
-      ...>    condition origin_family: biometric
+      ...>    condition transaction: [ 
+      ...>      content: regex_match?(\"^Mr.Y|Mr.X{1}$\"),
+      ...>      origin_family: biometric
+      ...>    ]
       ...>
-      ...>    condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
-      ...>
-      ...>    condition inherit,
+      ...>    condition inherit: [
       ...>       content: regex_match?(\"hello\")
-      ...>
-      ...>   condition oracle: json_path_extract(content, \"$.uco.eur\") > 1
+      ...>    ]
+      ...>   
+      ...>    condition oracle: [
+      ...>      content: json_path_extract(\"$.uco.eur\") > 1
+      ...>    ]
       ...>
       ...>    actions triggered_by: datetime, at: 1603270603 do
       ...>      new_content = \"Sent #{10.04}\"
@@ -74,68 +80,65 @@ defmodule Uniris.Contracts.Interpreter do
       ...> ")
       {:ok,
         %Contract{
-         conditions: %Conditions{
-            inherit: {
-                    :and,
-                    [line: 0],
-                    [
-                      {
-                        :and,
-                        [line: 0],
-                        [
-                          {
-                            :and,
-                            [line: 0],
-                            [
-                              {
-                                :and,
-                                [line: 0],
-                                [
-                                  {
-                                    :and,
-                                    [line: 0],
-                                    [
-                                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "code"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "code"]]}]},
-                                      {
-                                        :==,
-                                        [line: 6],
-                                        [
-                                          {
-                                            {:., [line: 6], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
-                                            [line: 6],
-                                            [{:get_in, [line: 6], [{:scope, [line: 6], nil}, ["next", "content"]]}, "hello"]
-                                          },
-                                          {:get_in, [line: 6], [{:scope, [line: 6], nil}, ["next", "content"]]}
-                                        ]
-                                      }
-                                    ]
-                                  },
-                                  {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "nft_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "nft_transfers"]]}]}
-                                ]
-                              },
-                              {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "secret"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "secret"]]}]}
-                            ]
-                          },
-                          {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "type"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "type"]]}]}
-                        ]
-                      },
-                      {:==, [line: 0], [{:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", "uco_transfers"]]}, {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", "uco_transfers"]]}]}
-                    ]
+          conditions: %{
+             inherit: %Uniris.Contracts.Contract.Conditions{
+                content: {
+                      :==,
+                      [line: 7],
+                      [
+                        true,
+                        {{:., [line: 7], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]}, [line: 7], [{:get_in, [line: 7], [{:scope, [line: 7], nil}, ["next", "content"]]}, "hello"]}
+                      ]
+                },
+                authorized_keys: nil,
+                code: nil,
+                nft_transfers: nil,
+                origin_family: :all,
+                previous_public_key: nil,
+                type: nil,
+                uco_transfers: nil
+             },
+            oracle: %Uniris.Contracts.Contract.Conditions{
+                 content: {
+                      :>,
+                      [line: 11],
+                      [
+                        {
+                          :==,
+                          [line: 11],
+                          [
+                            {:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]},
+                            {{:., [line: 11], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :json_path_extract]}, [line: 11], [{:get_in, [line: 11], [{:scope, [line: 11], nil}, ["transaction", "content"]]}, "$.uco.eur"]}
+                          ]
+                        },
+                        1
+                      ]
                   },
-            oracle: {
-                    :>,
-                    [line: 8],
-                    [
-                      {
-                        {:., [line: 8], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :json_path_extract]},
-                        [line: 8],
-                        [{:get_in, [line: 8], [{:scope, [line: 8], nil}, ["data"]]}, "content", "$.uco.eur"]
-                      },
-                      1
-                    ]
-                  },
-            origin_family: :biometric,
-            transaction: {{:., [line: 3], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]}, [line: 3], [{:get_in, [line: 3], [{:scope, [line: 3], nil}, ["content"]]}, "^Mr.Y|Mr.X{1}$"]}
+                 authorized_keys: nil,
+                 code: nil,
+                 nft_transfers: nil,
+                 origin_family: :all,
+                 previous_public_key: nil,
+                 type: nil,
+                 uco_transfers: nil
+             },
+             transaction: %Uniris.Contracts.Contract.Conditions{
+                 content: {
+                      :==,
+                      [line: 2],
+                      [
+                        true,
+                        {{:., [line: 2], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]}, :regex_match?]}, [line: 2], [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["transaction", "content"]]}, "^Mr.Y|Mr.X{1}$"]}
+                      ]
+                 },
+                 origin_family: :biometric,
+                 authorized_keys: nil,
+                 code: nil,
+                 nft_transfers: nil,
+                 previous_public_key: nil,
+                 type: nil,
+                 uco_transfers: nil
+             }
          },
          constants: %Constants{},
          next_transaction: %Transaction{ data: %TransactionData{}},
@@ -143,29 +146,29 @@ defmodule Uniris.Contracts.Interpreter do
            %Trigger{
              actions: {:__block__, [],
               [
-                {:=, [line: 11], [{:scope, [line: 11], nil}, {{:., [line: 11], [{:__aliases__, [line: 11], [:Map]}, :put]}, [line: 11], [{:scope, [line: 11], nil}, "new_content", "Sent 10.04"]}]},
+                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 10.04"]}]},
                 {
                   :=,
-                  [line: 12],
+                  [line: 16],
                   [
-                    {:scope, [line: 12], nil},
-                    {:update_in, [line: 12], [{:scope, [line: 12], nil}, ["contract"], {:&, [line: 12], [{{:., [line: 12], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 12], [{:&, [line: 12], [1]}, "transfer"]}]}]}
+                    {:scope, [line: 16], nil},
+                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["contract"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
                   ]
                 },
                 {
                   :=,
-                  [line: 13],
+                  [line: 17],
                   [
-                    {:scope, [line: 13], nil},
-                    {:update_in, [line: 13], [{:scope, [line: 13], nil}, ["contract"], {:&, [line: 13], [{{:., [line: 13], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 13], [{:&, [line: 13], [1]}, {:get_in, [line: 13], [{:scope, [line: 13], nil}, ["new_content"]]}]}]}]}
+                    {:scope, [line: 17], nil},
+                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["contract"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
                   ]
                 },
                 {
                   :=,
-                  [line: 14],
+                  [line: 18],
                   [
-                    {:scope, [line: 14], nil},
-                    {:update_in, [line: 14], [{:scope, [line: 14], nil}, ["contract"], {:&, [line: 14], [{{:., [line: 14], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 14], [{:&, [line: 14], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
+                    {:scope, [line: 18], nil},
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["contract"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
                   ]
                 }
               ]},
@@ -174,32 +177,32 @@ defmodule Uniris.Contracts.Interpreter do
            },
            %Trigger{actions: {
               :=,
-              [line: 18],
+              [line: 22],
               [
-                {:scope, [line: 18], nil},
-                {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["contract"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 18], [{:&, [line: 18], [1]}, "uco price changed"]}]}]}
+                {:scope, [line: 22], nil},
+                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["contract"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: Uniris.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
               ]
            }, opts: [], type: :oracle}
          ]
         }
       }
 
-     Returns an error when there are invalid trigger options
+  #   Returns an error when there are invalid trigger options
 
-       iex> Interpreter.parse("
-       ...>    actions triggered_by: datetime, at: 0000000 do
-       ...>    end
-       ...> ")
-       {:error, "invalid trigger - invalid datetime - arguments at:0 - L1"}
+  #     iex> Interpreter.parse("
+  #     ...>    actions triggered_by: datetime, at: 0000000 do
+  #     ...>    end
+  #     ...> ")
+  #     {:error, "invalid trigger - invalid datetime - arguments at:0 - L1"}
 
-     Returns an error when a invalid term is provided
+  #   Returns an error when a invalid term is provided
 
-       iex> Interpreter.parse("
-       ...>    actions do
-       ...>       System.user_home
-       ...>    end
-       ...> ")
-       {:error, "unexpected token - System - L2"}
+  #     iex> Interpreter.parse("
+  #     ...>    actions do
+  #     ...>       System.user_home
+  #     ...>    end
+  #     ...> ")
+  #     {:error, "unexpected token - System - L2"}
   """
   @spec parse(code :: binary()) :: {:ok, Contract.t()} | {:error, reason :: binary()}
   def parse(code) when is_binary(code) do
@@ -228,6 +231,9 @@ defmodule Uniris.Contracts.Interpreter do
 
     {{:error, :unexpected_token}, {:atom, key}} ->
       {:error, format_error_reason({[], "unexpected_token", key})}
+
+    {{:error, :unexpected_token}, {{:atom, key}, metadata, _}} ->
+      {:error, format_error_reason({metadata, "unexpected_token", key})}
 
     {:error, reason = {_metadata, _message, _cause}} ->
       {:error, format_error_reason(reason)}
@@ -272,43 +278,44 @@ defmodule Uniris.Contracts.Interpreter do
   end
 
   # Whitelist operators
-  defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:-, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:-, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:/, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:/, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:*, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:*, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:>, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:>, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:<, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:<, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:>=, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:>=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:<=, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:<=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
   defp prewalk(node = {:|>, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:==, _, _}, acc = {:ok, %{scope: {scope, _}}}) when scope != :root,
+  defp prewalk(node = {:==, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
   # Allow variable assignation inside the actions
-  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
+  defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
+    do: {node, acc}
 
   # Whitelist the use of doted statement
-  defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc) do
-    {node, acc}
-  end
+  defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
+       when scope != :root,
+       do: {node, acc}
 
   # # Whitelist the definition of globals in the root
   # defp prewalk(node = {:@, _, [{key, _, [val]}]}, acc = {:ok, :root})
@@ -320,17 +327,16 @@ defmodule Uniris.Contracts.Interpreter do
   #   do: {node, acc}
 
   # Whitelist conditional oeprators
-  defp prewalk(node = {:if, _, [_, [do: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
+  defp prewalk(node = {:if, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:if, _, [_, [do: _, else: _]]}, acc = {:ok, %{scope: {:actions, _}}}),
+  defp prewalk(node = {:else, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = {:else, _}, acc = {:ok, %{scope: {:actions, _}}}),
+  defp prewalk(node = [do: _, else: _], acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
-  defp prewalk(node = [do: _, else: _], acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
-  defp prewalk(node = :else, acc = {:ok, %{scope: {:actions, _}}}), do: {node, acc}
+  defp prewalk(node = :else, acc = {:ok, %{scope: scope}}) when scope != :root, do: {node, acc}
 
   defp prewalk(node = {:and, _, _}, acc = {:ok, _}), do: {node, acc}
   defp prewalk(node = {:or, _, _}, acc = {:ok, _}), do: {node, acc}
@@ -345,60 +351,6 @@ defmodule Uniris.Contracts.Interpreter do
     {node, acc}
   end
 
-  # Whitelist custom atom
-  defp prewalk(node = :atom, acc), do: {node, acc}
-
-  defp prewalk(node = {{:atom, "actions"}, _, _}, {:ok, acc = %{scope: :root}}) do
-    {node, {:ok, %{acc | scope: :actions}}}
-  end
-
-  # Whitelist the triggered_by DSL in the actions
-  defp prewalk(
-         node = [
-           {{:atom, "triggered_by"}, {{:atom, trigger_type}, meta = [line: _], _}} | trigger_opts
-         ],
-         {:ok, acc = %{scope: :actions}}
-       )
-       when trigger_type in ["datetime", "interval", "transaction", "oracle"] do
-    case valid_trigger_opts(trigger_type, trigger_opts) do
-      :ok ->
-        {node, {:ok, %{acc | scope: :actions_triggered_by}}}
-
-      {:error, reason} ->
-        params = Enum.map(trigger_opts, fn {{:atom, k}, v} -> "#{k}:#{v}" end) |> Enum.join(", ")
-        throw({:error, {meta, "invalid trigger - #{reason}", "arguments #{params}"}})
-    end
-  end
-
-  # Define scope of the triggered actions
-  defp prewalk(
-         node = {{:atom, "datetime"}, [line: _], nil},
-         {:ok, acc = %{scope: :actions_triggered_by}}
-       ) do
-    {node, {:ok, %{acc | scope: {:actions, :datetime}}}}
-  end
-
-  defp prewalk(
-         node = {{:atom, "interval"}, [line: _], nil},
-         {:ok, acc = %{scope: :actions_triggered_by}}
-       ) do
-    {node, {:ok, %{acc | scope: {:actions, :interval}}}}
-  end
-
-  defp prewalk(
-         node = {{:atom, "oracle"}, [line: _], nil},
-         {:ok, acc = %{scope: :actions_triggered_by}}
-       ) do
-    {node, {:ok, %{acc | scope: {:actions, :oracle}}}}
-  end
-
-  defp prewalk(
-         node = {{:atom, "transaction"}, [line: _], nil},
-         {:ok, acc = %{scope: :actions_triggered_by}}
-       ) do
-    {node, {:ok, %{acc | scope: {:actions, :transaction}}}}
-  end
-
   # Whitelist the multiline
   defp prewalk(node = {{:__block__, _, _}}, acc = {:ok, _}) do
     {node, acc}
@@ -408,62 +360,92 @@ defmodule Uniris.Contracts.Interpreter do
     {node, acc}
   end
 
-  # Whitelist the condition DSL inside transaction trigger
+  # Whitelist custom atom
+  defp prewalk(node = :atom, acc), do: {node, acc}
+
+  # Whitelist the actions DSL
+  defp prewalk(node = {{:atom, "actions"}, _, _}, {:ok, acc = %{scope: :root}}) do
+    {node, {:ok, %{acc | scope: :actions}}}
+  end
+
+  # Whitelist the triggered_by DSL in the actions
   defp prewalk(
-         node = {{:atom, "condition"}, [line: _], _},
+         node = [
+           {{:atom, "triggered_by"}, {{:atom, trigger_type}, meta = [line: _], _}} | trigger_opts
+         ],
+         acc = {:ok, %{scope: :actions}}
+       )
+       when trigger_type in ["datetime", "interval", "transaction", "oracle"] do
+    case valid_trigger_opts(trigger_type, trigger_opts) do
+      :ok ->
+        {node, acc}
+
+      {:error, reason} ->
+        params = Enum.map(trigger_opts, fn {{:atom, k}, v} -> "#{k}:#{v}" end) |> Enum.join(", ")
+        {node, {:error, {meta, "invalid trigger - #{reason}", "arguments #{params}"}}}
+    end
+  end
+
+  defp prewalk(
+         node = {{:atom, "triggered_by"}, {{:atom, trigger_type}, _, _}},
+         acc = {:ok, %{scope: :actions}}
+       )
+       when trigger_type in ["datetime", "interval", "transaction", "oracle"],
+       do: {node, acc}
+
+  defp prewalk(node = {:atom, trigger_type}, acc = {:ok, %{scope: :actions}})
+       when trigger_type in ["datetime", "interval", "transaction", "oracle"],
+       do: {node, acc}
+
+  # Whitelist triggers 'at' argument
+  defp prewalk(node = {{:atom, "at"}, _arg}, acc = {:ok, %{scope: :actions}}), do: {node, acc}
+
+  # Whitelist the condition DSL
+  defp prewalk(
+         node = {{:atom, "condition"}, _, [{{:atom, condition_name}, [_]}]},
          {:ok, acc = %{scope: :root}}
-       ) do
+       )
+       when condition_name in ["inherit", "transaction", "oracle"] do
     {node, {:ok, %{acc | scope: :condition}}}
   end
 
-  # Whitelist the condition 'origin_family'
+  defp prewalk(node = [{{:atom, condition}, [_ | _]}], acc = {:ok, %{scope: :condition}})
+       when condition in ["inherit", "transaction", "oracle"] do
+    {node, acc}
+  end
+
   defp prewalk(
-         node = [{{:atom, "origin_family"}, {_, [line: _], _}}],
-         {:ok, acc = %{scope: :condition}}
-       ) do
-    {node, {:ok, %{acc | scope: {:condition, :origin_family}}}}
+         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, _}]]},
+         {:ok, acc = %{scope: :root}}
+       )
+       when condition_name in ["inherit", "transaction", "oracle"] do
+    {node, {:ok, %{acc | scope: :condition}}}
   end
 
-  # Whitelist the condition 'inherit' with brackets
-  defp prewalk(node = [{{:atom, "inherit"}, _}], {:ok, acc = %{scope: :condition}}) do
-    {node, {:ok, %{acc | scope: {:condition, :inherit}}}}
+  defp prewalk(node = [{{:atom, _}, _} | _], acc = {:ok, %{scope: :condition}}) do
+    {node, acc}
   end
 
-  # Whitelist the condition 'inherit' with comma and without brackets
-  defp prewalk(node = {{:atom, "inherit"}, _, _}, {:ok, acc = %{scope: :condition}}) do
-    {node, {:ok, %{acc | scope: {:condition, :inherit}}}}
+  defp prewalk(node = {{:atom, condition_name}, _}, acc = {:ok, %{scope: :condition}})
+       when condition_name in ["inherit", "transaction", "oracle"] do
+    {node, acc}
   end
 
-  # Whitelist the condition: 'transaction'
-  defp prewalk(node = [{{:atom, "transaction"}, _}], {:ok, acc = %{scope: :condition}}) do
-    {node, {:ok, %{acc | scope: {:condition, :transaction}}}}
-  end
+  defp prewalk(node = {:atom, condition_name}, acc = {:ok, %{scope: :condition}})
+       when condition_name in ["inherit", "transaction", "oracle"],
+       do: {node, acc}
 
-  defp prewalk(node = {{:atom, "transaction"}, [line: _], _}, {:ok, acc = %{scope: :condition}}) do
-    {node, {:ok, %{acc | scope: {:condition, :transaction}}}}
-  end
+  defp prewalk(node = {:atom, field_name}, acc = {:ok, %{scope: :condition}})
+       when field_name in @condition_fields,
+       do: {node, acc}
 
-  defp prewalk(node = {:atom, "transaction"}, {:ok, acc = %{scope: {:condition, :transaction}}}) do
-    {node, {:ok, %{acc | scope: {:condition, :transaction}}}}
-  end
-
-  # Whitelist the condition: 'oracle'
-  defp prewalk(node = [{{:atom, "oracle"}, _}], {:ok, acc = %{scope: :condition}}) do
-    {node, {:ok, %{acc | scope: {:condition, :oracle}}}}
-  end
-
-  # Whitelist only the valid origin families
   defp prewalk(
-         node = {{:atom, family}, [line: _], _},
-         acc = {:ok, %{scope: {:condition, :origin_family}}}
-       ) do
-    authorized_families = SharedSecrets.list_origin_families() |> Enum.map(&Atom.to_string/1)
-
-    if family in authorized_families do
-      {node, acc}
-    else
-      {node, {:error, :invalid_origin_family}}
-    end
+         node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]},
+         acc = {:ok, %{scope: :condition}}
+       )
+       when transaction_ref in ["next", "previous", "transaction", "contract"] and
+              type in @transaction_fields do
+    {node, acc}
   end
 
   # Whitelist Access key based with brackets, ie. uco_transfers["Alice"]
@@ -471,9 +453,10 @@ defmodule Uniris.Contracts.Interpreter do
          node =
            {{:., metadata, [Access, :get]}, _,
             [{{:., [_], [{{:atom, subject}, [_], nil}, {:atom, field}]}, _, []}, key]},
-         acc = {:ok, _}
+         acc = {:ok, scope: scope}
        )
-       when subject in [:next_transaction, :contract, :previous_transaction, :transaction] and
+       when scope != :root and
+              subject in [:contract, :prev, :next, :transaction] and
               field in @transaction_fields and is_binary(key) do
     case Base.decode16(key, case: :mixed) do
       {:ok, _} ->
@@ -484,48 +467,66 @@ defmodule Uniris.Contracts.Interpreter do
     end
   end
 
+  # Whitelist the use of list
+  defp prewalk(node = [{{:atom, _}, _, nil} | _], acc = {:ok, %{scope: scope}})
+       when scope != :root do
+    {node, acc}
+  end
+
   # Whitelist access to map field
-  defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, _}), do: {node, acc}
+  defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, %{scope: scope}}) when scope != :root,
+    do: {node, acc}
 
-  # Whitelist usage of map inside inherit conditions
+  # Whitelist condition fields
+
+  # Whitelist the origin family condition
   defp prewalk(
-         node = {{:atom, field}, {:%{}, _, _}},
-         acc = {:ok, %{scope: {:condition, :inherit}}}
-       )
-       when field in @inherit_fields do
-    {node, acc}
+         node = {{:atom, "origin_family"}, {{:atom, family}, metadata, nil}},
+         acc = {:ok, %{scope: :condition}}
+       ) do
+    if family in @origin_families do
+      {node, acc}
+    else
+      {node, {:error, metadata, "unexpected token"}, "invalid origin family"}
+    end
   end
 
-  defp prewalk(node = {:%{}, _, _}, acc = {:ok, %{scope: {:condition, :inherit}}}) do
-    {node, acc}
-  end
+  defp prewalk(node = {:atom, origin_family}, acc = {:ok, %{scope: :condition}})
+       when origin_family in @origin_families,
+       do: {node, acc}
 
-  defp prewalk(node = [{{:atom, _}, _} | _], acc = {:ok, %{scope: {:condition, :inherit}}}) do
-    {node, acc}
-  end
-
-  # Whitelist the use of transaction fields in the transaction condition
+  # Whitelist the transaction type condition
   defp prewalk(
-         node = {{:atom, field}, [line: _], _},
-         acc = {:ok, %{scope: {:condition, :transaction}}}
-       )
-       when field in @transaction_fields do
-    {node, acc}
+         node = {{:atom, "type"}, {{:atom, type}, metadata, nil}},
+         acc = {:ok, %{scope: :condition}}
+       ) do
+    if type in @transaction_types do
+      {node, acc}
+    else
+      {node, {:error, metadata, "unexpected token"}, "invalid transaction type"}
+    end
   end
 
-  # Whitelist the use of transaction fields in the transaction condition
   defp prewalk(
-         node = {{:atom, field}, [line: _], _},
-         acc = {:ok, %{scope: {:condition, :oracle}}}
+         node = {{:atom, field}, _},
+         acc = {:ok, %{scope: :condition}}
        )
-       when field in @transaction_fields do
+       when field in @condition_fields do
     {node, acc}
   end
 
   # Whitelist the use of transaction and contract fields in the actions
   defp prewalk(
          node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
-         acc = {:ok, %{scope: {:actions, _}}}
+         acc = {:ok, %{scope: :actions}}
+       )
+       when key in ["contract", "transaction"] and field in @transaction_fields do
+    {node, acc}
+  end
+
+  defp prewalk(
+         node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
+         acc = {:ok, %{scope: :condition}}
        )
        when key in ["contract", "transaction"] and field in @transaction_fields do
     {node, acc}
@@ -539,212 +540,159 @@ defmodule Uniris.Contracts.Interpreter do
     {node, acc}
   end
 
-  # Whitelist the used of functions in the condition
+  # Whitelist the size/1 function
   defp prewalk(
-         node = {{:atom, "regex_match?"}, _, [input, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
+         node = {{:atom, "size"}, _, [_data]},
+         acc = {:ok, %{scope: scope}}
        )
-       when condition in [:transaction, :oracle] and is_binary(input) and is_binary(search) do
+       when scope != :root do
     {node, acc}
   end
 
+  # Whitelist the hash/1 function
+  defp prewalk(node = {{:atom, "hash"}, _, [_data]}, acc = {:ok, %{scope: scope}})
+       when scope != :root,
+       do: {node, acc}
+
+  # Whitelist the regex_match?/2 function
   defp prewalk(
-         node = {{:atom, "regex_match?"}, _, [{{:atom, key}, _, _}, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
+         node = {{:atom, "regex_match?"}, _, [_input, _search]},
+         acc = {:ok, %{scope: scope}}
        )
-       when condition in [:transaction, :oracle] and key in @transaction_fields and
-              is_binary(search) do
-    {node, acc}
-  end
+       when scope != :root,
+       do: {node, acc}
 
+  # Whitelist the regex_extract/2 function
   defp prewalk(
-         node =
-           {{:atom, "regex_match?"}, _,
-            [{{:., _, [{{:atom, "contract"}, _, nil}, field]}, _, _}, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
+         node = {{:atom, "regex_extract"}, _, [_input, _search]},
+         acc = {:ok, %{scope: scope}}
        )
-       when condition in [:transaction, :oracle] and field in @transaction_fields and
-              is_binary(search) do
-    {node, acc}
-  end
+       when scope != :root,
+       do: {node, acc}
 
+  # Whitelist the json_path_extract/2 function
   defp prewalk(
-         node = {{:atom, "json_path_extract"}, _, [input, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
+         node = {{:atom, "json_path_extract"}, _, [_input, _search]},
+         acc = {:ok, %{scope: scope}}
        )
-       when condition in [:transaction, :oracle] and is_binary(input) and is_binary(search) do
-    {node, acc}
-  end
+       when scope != :root,
+       do: {node, acc}
 
+  # Whitelist the json_path_match?/2 function
   defp prewalk(
-         node = {{:atom, "json_path_extract"}, _, [{{:atom, key}, _, _}, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
+         node = {{:atom, "json_path_match?"}, _, [_input, _search]},
+         acc = {:ok, %{scope: scope}}
        )
-       when condition in [:transaction, :oracle] and key in @transaction_fields and
-              is_binary(search) do
-    {node, acc}
-  end
+       when scope != :root,
+       do: {node, acc}
 
+  # Whitelist the regex_match?/1 function in the condition
   defp prewalk(
-         node =
-           {{:atom, "json_path_extract"}, _,
-            [{{:., _, [{{:atom, "contract"}, _, nil}, field]}, _, _}, search]},
-         acc = {:ok, %{scope: {:condition, condition}}}
-       )
-       when condition in [:transaction, :oracle] and field in @transaction_fields and
-              is_binary(search) do
+         node = {{:atom, "regex_match?"}, _, [_search]},
+         acc = {:ok, %{scope: :condition}}
+       ) do
     {node, acc}
   end
 
+  # Whitelist the json_path_extract/1 function in the condition
   defp prewalk(
-         node = {{:atom, "hash"}, _, [data]},
-         acc = {:ok, %{scope: {:condition, condition}}}
-       )
-       when condition in [:transaction, :oracle] and is_binary(data) do
+         node = {{:atom, "json_path_extract"}, _, [_search]},
+         acc = {:ok, %{scope: :condition}}
+       ) do
     {node, acc}
   end
 
+  # Whitelist the json_path_match?/1 function in the condition
   defp prewalk(
-         node = {{:atom, "hash"}, _, [{{:atom, key}, _, _}]},
-         acc = {:ok, %{scope: {:condition, condition}}}
-       )
-       when condition in [:transaction, :oracle] and key in @transaction_fields do
+         node = {{:atom, "json_path_match?"}, _, [_search]},
+         acc = {:ok, %{scope: :condition}}
+       ) do
     {node, acc}
   end
 
+  # Whitelist the hash/0 function in the condition
   defp prewalk(
-         node = {{:atom, "hash"}, _, [{{:., _, [{{:atom, "contract"}, _, nil}, field]}, _, _}]},
-         acc = {:ok, %{scope: {:condition, condition}}}
-       )
-       when condition in [:transaction, :oracle] and field in @transaction_fields do
+         node = {{:atom, "hash"}, _, []},
+         acc = {:ok, %{scope: :condition}}
+       ) do
     {node, acc}
   end
 
-  defp prewalk(node = [{{:atom, field}, _}], acc = {:ok, %{scope: {:condition, :inherit}}})
-       when field in @transaction_fields do
-    {node, acc}
-  end
-
+  # Whitelist the in?/1 function in the condition
   defp prewalk(
-         node = {{:atom, "regex_match?"}, _, [search]},
-         acc = {:ok, %{scope: {:condition, :inherit}}}
-       )
-       when is_binary(search) do
+         node = {{:atom, "in?"}, _, [_data]},
+         acc = {:ok, %{scope: :condition}}
+       ) do
     {node, acc}
   end
 
-  defp prewalk(
-         node = {{:atom, "json_path_extract"}, _, [search]},
-         acc = {:ok, %{scope: {:condition, :inherit}}}
-       )
-       when is_binary(search) do
-    {node, acc}
-  end
-
-  defp prewalk(node = {{:atom, "hash"}, _, [data]}, acc = {:ok, %{scope: {:condition, :inherit}}})
-       when is_binary(data) do
-    {node, acc}
-  end
+  # Whitelist the size/0 function in the condition
+  defp prewalk(node = {{:atom, "size"}, _, []}, acc = {:ok, %{scope: :condition}}),
+    do: {node, acc}
 
   # Whitelist the used of functions in the actions
-  defp prewalk(
-         node = {{:atom, "set_type"}, _metadata, [_]},
-         {:ok, acc = %{scope: scope = {:actions, _}}}
-       ) do
-    {node, {:ok, %{acc | scope: {:function, "set_type", scope}}}}
-  end
+  defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})
+       when fun_name in @transaction_statements_functions_names,
+       do: {node, {:ok, %{acc | scope: {:function, fun_name, :actions}}}}
 
   defp prewalk(
-         node = {{:atom, transaction_type}, _, _},
-         acc = {:ok, %{scope: {:function, "set_type", {:actions, _}}}}
-       )
-       when transaction_type in @allowed_transaction_types do
-    {node, acc}
-  end
-
-  defp prewalk(
-         node = {{:atom, _}, _, nil},
-         acc = {:ok, %{scope: {:function, "set_type", {:actions, _}}}}
+         node = [{{:atom, _variable_name}, _, nil}],
+         acc = {:ok, %{scope: {:function, "set_content", :actions}}}
        ) do
     {node, acc}
   end
 
-  defp prewalk(
-         node = {{:atom, "set_content"}, _metadata, [_content]},
-         {:ok, acc = %{scope: scope = {:actions, _}}}
-       ) do
-    {node, {:ok, %{acc | scope: {:function, "set_content", scope}}}}
-  end
-
-  defp prewalk(
-         node = [{{:atom, _}, _, nil}],
-         acc = {:ok, %{scope: {:function, "set_content", {:actions, _}}}}
-       ) do
-    {node, acc}
-  end
-
-  defp prewalk(
-         node = {{:atom, "add_uco_transfer"}, _metadata, [_]},
-         {:ok, acc = %{scope: scope = {:actions, _}}}
-       ) do
-    {node, {:ok, %{acc | scope: {:function, "add_uco_transfer", scope}}}}
-  end
-
+  # Whitelist the add_uco_transfer argument list
   defp prewalk(
          node = [{{:atom, "to"}, _to}, {{:atom, "amount"}, _amount}],
-         acc = {:ok, %{scope: {:function, "add_uco_transfer", {:actions, _}}}}
+         acc = {:ok, %{scope: {:function, "add_uco_transfer", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
-         node = {{:atom, "add_nft_transfer"}, _metadata, [_]},
-         {:ok, acc = %{scope: scope = {:actions, _}}}
-       ) do
-    {node, {:ok, %{acc | scope: {:function, "add_nft_transfer", scope}}}}
-  end
+         node = {{:atom, arg}, _},
+         acc = {:ok, %{scope: {:function, "add_uco_transfer", :actions}}}
+       )
+       when arg in ["to", "amount"],
+       do: {node, acc}
 
+  # Whitelist the add_nft_tranfser argument list
   defp prewalk(
          node = [
            {{:atom, "to"}, _to},
            {{:atom, "amount"}, _amount},
-           {{:atom, "nft"}, _nft}
+           {{:atom, "nft"}, _nft_address}
          ],
-         acc = {:ok, %{scope: {:function, "add_nft_transfer", {:actions, _}}}}
+         acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
-         node = {{:atom, "set_secret"}, _metadata, [_]},
-         acc = {:ok, _acc = %{scope: _scope = {:actions, _}}}
-       ) do
-    {node, acc}
-  end
+         node = {{:atom, arg}, _},
+         acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
+       )
+       when arg in ["to", "amount", "nft"],
+       do: {node, acc}
 
-  defp prewalk(
-         node = {{:atom, "add_authorized_key"}, _metadata, [_secret]},
-         {:ok, acc = %{scope: scope = {:actions, _}}}
-       ) do
-    {node, {:ok, %{acc | scope: {:function, "add_authorized_key", scope}}}}
-  end
-
+  # Whitelist the add_authorized_key argument list
   defp prewalk(
          node = [
            {{:atom, "public_key"}, _public_key},
            {{:atom, "encrypted_secret_key"}, _encrypted_secret_key}
          ],
-         acc = {:ok, %{scope: {:function, "add_authorized_key", {:actions, _}}}}
+         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
-         node = {{:atom, "add_recipient"}, _metadata, [_recipient]},
-         acc = {:ok, _acc = %{scope: _scope = {:actions, _}}}
-       ) do
-    {node, acc}
-  end
+         node = {{:atom, arg}, _},
+         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
+       )
+       when arg in ["public_key", "encrypted_secret_key"],
+       do: {node, acc}
 
   # Whitelist generics
   defp prewalk(true, acc = {:ok, _}), do: {true, acc}
@@ -754,15 +702,16 @@ defmodule Uniris.Contracts.Interpreter do
   defp prewalk(node = [do: _], acc = {:ok, _}), do: {node, acc}
   defp prewalk(node = {:do, _}, acc = {:ok, _}), do: {node, acc}
   defp prewalk(node = :do, acc = {:ok, _}), do: {node, acc}
-  defp prewalk(node = {{:atom, key}, _}, acc = {:ok, _}) when is_binary(key), do: {node, acc}
-  defp prewalk(node = {{:atom, key}, _, _}, acc = {:ok, _}) when is_binary(key), do: {node, acc}
-  defp prewalk(node = {:atom, key}, acc) when is_binary(key), do: {node, acc}
+  # Literals
+  defp prewalk(node = {{:atom, key}, _, nil}, acc = {:ok, _}) when is_binary(key),
+    do: {node, acc}
+
+  defp prewalk(node = {:atom, key}, acc = {:ok, _}) when is_binary(key), do: {node, acc}
 
   # Whitelist interpolation of strings
   defp prewalk(
          node =
-           {:<<>>, _,
-            [{:"::", _, [{{:., [line: 1], [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}]},
+           {:<<>>, _, [{:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, _]},
          acc
        ) do
     {node, acc}
@@ -773,14 +722,14 @@ defmodule Uniris.Contracts.Interpreter do
            {:<<>>, _,
             [
               _,
-              {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}
+              {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}
             ]},
          acc
        ) do
     {node, acc}
   end
 
-  defp prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, {:binary, _, nil}]}, acc) do
+  defp prewalk(node = {:"::", _, [{{:., _, [Kernel, :to_string]}, _, _}, _]}, acc) do
     {node, acc}
   end
 
@@ -795,6 +744,10 @@ defmodule Uniris.Contracts.Interpreter do
   defp prewalk(node = Kernel, acc), do: {node, acc}
   defp prewalk(node = :to_string, acc), do: {node, acc}
   defp prewalk(node = {:binary, _, nil}, acc), do: {node, acc}
+
+  defp prewalk(node, acc) when is_list(node) do
+    {node, acc}
+  end
 
   # Blacklist anything else
   defp prewalk(node, {:ok, _acc}) do
@@ -814,8 +767,7 @@ defmodule Uniris.Contracts.Interpreter do
       inject_bindings_and_functions(actions,
         bindings: %{
           "contract" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
-          "transaction" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
-          "data" => ""
+          "transaction" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
         }
       )
 
@@ -850,103 +802,104 @@ defmodule Uniris.Contracts.Interpreter do
     {node, {:ok, %{acc | scope: :root}}}
   end
 
+  # Add conditions with brackets
   defp postwalk(
-         node =
-           {{:atom, "condition"}, _, [[{{:atom, "origin_family"}, {{:atom, family}, _, _}}]]},
+         node = {{:atom, "condition"}, _, [[{{:atom, condition_name}, conditions}]]},
          {:ok, acc}
        ) do
-    new_acc =
-      acc
-      |> Map.update!(
-        :contract,
-        &Contract.add_condition(&1, :origin_family, String.to_existing_atom(family))
-      )
-      |> Map.put(:scope, :root)
+    bindings = Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
 
-    {node, {:ok, new_acc}}
-  end
+    bindings =
+      case condition_name do
+        "inherit" ->
+          Map.merge(bindings, %{
+            "next" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
+            "previous" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+          })
 
-  # Add inherit conditions with brackets
-  defp postwalk(
-         node = {{:atom, "condition"}, _, [[{{:atom, "inherit"}, conditions}]]},
-         {:ok, acc}
-       ) do
-    new_acc =
-      acc
-      |> Map.update!(
-        :contract,
-        &Contract.add_condition(&1, :inherit, aggregate_inherit_conditions(conditions))
-      )
-      |> Map.put(:scope, :root)
+        _ ->
+          Map.merge(bindings, %{
+            "contract" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
+            "transaction" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+          })
+      end
 
-    {node, {:ok, new_acc}}
-  end
+    subject_scope = if condition_name == "inherit", do: "next", else: "transaction"
 
-  # Add inherit conditions with comma instead of brackets
-  defp postwalk(
-         node = {{:atom, "condition"}, _, [{{:atom, "inherit"}, _, nil}, conditions]},
-         {:ok, acc}
-       ) do
-    new_acc =
-      acc
-      |> Map.update!(
-        :contract,
-        &Contract.add_condition(&1, :inherit, aggregate_inherit_conditions(conditions))
-      )
-      |> Map.put(:scope, :root)
-
-    {node, {:ok, new_acc}}
-  end
-
-  defp postwalk(
-         node = {{:atom, "condition"}, _, [[{{:atom, "transaction"}, conditions}]]},
-         {:ok, acc}
-       ) do
     conditions =
       inject_bindings_and_functions(conditions,
-        bindings: Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+        bindings: bindings,
+        subject: subject_scope
       )
 
     new_acc =
       acc
-      |> Map.update!(:contract, &Contract.add_condition(&1, :transaction, conditions))
+      |> Map.update!(
+        :contract,
+        &Contract.add_condition(
+          &1,
+          String.to_existing_atom(condition_name),
+          aggregate_conditions(conditions, subject_scope)
+        )
+      )
       |> Map.put(:scope, :root)
 
     {node, {:ok, new_acc}}
   end
 
+  # Add complex conditions with if statements
   defp postwalk(
          node =
-           {{:atom, "condition"}, _, [{{:atom, "transaction"}, [line: _], _}, [do: conditions]]},
+           {{:atom, "condition"}, _,
+            [
+              {{:atom, condition_name}, _,
+               [
+                 conditions
+               ]}
+            ]},
          {:ok, acc}
        ) do
+    subject_scope = if condition_name == "inherit", do: "next", else: "transaction"
+
+    bindings = Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+
+    bindings =
+      case condition_name do
+        "inherit" ->
+          Map.merge(bindings, %{
+            "next" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
+            "previous" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+          })
+
+        _ ->
+          Map.merge(bindings, %{
+            "contract" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{}),
+            "transaction" => Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+          })
+      end
+
     conditions =
       inject_bindings_and_functions(conditions,
-        bindings: Enum.map(@transaction_fields, &{&1, ""}) |> Enum.into(%{})
+        bindings: bindings,
+        subject: subject_scope
       )
 
     new_acc =
       acc
-      |> Map.update!(:contract, &Contract.add_condition(&1, :transaction, conditions))
+      |> Map.update!(
+        :contract,
+        &Contract.add_condition(
+          &1,
+          String.to_existing_atom(condition_name),
+          aggregate_conditions(conditions, subject_scope)
+        )
+      )
       |> Map.put(:scope, :root)
 
     {node, {:ok, new_acc}}
   end
 
-  defp postwalk(
-         node = {{:atom, "condition"}, _, [[{{:atom, "oracle"}, conditions}]]},
-         {:ok, acc}
-       ) do
-    conditions = inject_bindings_and_functions(conditions, subject: "data")
-
-    new_acc =
-      acc
-      |> Map.update!(:contract, &Contract.add_condition(&1, :oracle, conditions))
-      |> Map.put(:scope, :root)
-
-    {node, {:ok, new_acc}}
-  end
-
+  # Return to the parent scope after parsing the function call
   defp postwalk(node = {{:atom, _}, _, _}, {:ok, acc = %{scope: {:function, _, scope}}}) do
     {node, {:ok, %{acc | scope: scope}}}
   end
@@ -955,7 +908,7 @@ defmodule Uniris.Contracts.Interpreter do
   defp postwalk(
          {{:., meta1, [Access, :get]}, meta2,
           [{{:., meta3, [{subject, meta4, nil}, {:atom, field}]}, meta5, []}, {:atom, key}]},
-         acc
+         acc = {:ok, _}
        ) do
     {
       {{:., meta1, [Access, :get]}, meta2,
@@ -968,7 +921,7 @@ defmodule Uniris.Contracts.Interpreter do
   end
 
   # Convert map key to binary
-  defp postwalk({:%{}, meta, params}, acc = {:ok, %{scope: {:condition, :inherit}}}) do
+  defp postwalk({:%{}, meta, params}, acc = {:ok, _}) do
     encoded_params =
       Enum.map(params, fn
         {{:atom, key}, value} when is_binary(key) ->
@@ -1017,6 +970,75 @@ defmodule Uniris.Contracts.Interpreter do
   defp valid_trigger_opts("oracle", []), do: :ok
 
   defp valid_trigger_opts(_, _), do: {:error, "unexpected token"}
+
+  defp aggregate_conditions(conditions, subject_scope) do
+    Enum.reduce(conditions, %Conditions{}, fn {subject, condition}, acc ->
+      condition =
+        if subject == "origin_family" do
+          String.to_existing_atom(condition)
+        else
+          if is_binary(condition) or is_number(condition) do
+            {:==, [],
+             [
+               {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
+               condition
+             ]}
+          else
+            Macro.postwalk(condition, &to_boolean_expression(&1, subject_scope, subject))
+          end
+        end
+
+      Map.put(acc, String.to_existing_atom(subject), condition)
+    end)
+  end
+
+  defp to_boolean_expression(
+         {{:., metadata, [{:__aliases__, _, [:Library]}, fun]}, _, args},
+         subject_scope,
+         subject
+       ) do
+    arguments =
+      if :erlang.function_exported(Library, fun, length(args)) do
+        # If the number of arguments fullfill the function's arity  (without subject)
+        args
+      else
+        [
+          {:get_in, metadata, [{:scope, metadata, nil}, [subject_scope, subject]]} | args
+        ]
+      end
+
+    if fun |> Atom.to_string() |> String.ends_with?("?") do
+      {:==, metadata,
+       [
+         true,
+         {{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, fun]}, metadata,
+          arguments}
+       ]}
+    else
+      {:==, metadata,
+       [
+         {:get_in, metadata, [{:scope, metadata, nil}, [subject_scope, subject]]},
+         {{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, fun]}, metadata,
+          arguments}
+       ]}
+    end
+  end
+
+  defp to_boolean_expression(condition = {:%{}, _, _}, subject_scope, subject) do
+    {:==, [],
+     [
+       {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
+       condition
+     ]}
+  end
+
+  # Flatten comparison operations
+  defp to_boolean_expression({op, _, [{:==, metadata, [{:get_in, _, _}, comp_a]}, comp_b]}, _, _)
+       when op in [:==, :>=, :<=] do
+    {op, metadata, [comp_a, comp_b]}
+  end
+
+  defp to_boolean_expression(condition, _, _), do: condition
 
   @doc """
 
@@ -1233,23 +1255,10 @@ defmodule Uniris.Contracts.Interpreter do
     }
   end
 
-  defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc = %{subject: nil})
+  defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc)
        when atom in @library_functions_names do
     {{{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, String.to_atom(atom)]},
       metadata, args}, acc}
-  end
-
-  defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc = %{subject: subject})
-       when atom in @library_functions_names do
-    subject_args =
-      if is_list(subject) do
-        subject
-      else
-        [subject]
-      end
-
-    {{{:., metadata, [{:__aliases__, [alias: Library], [:Library]}, String.to_atom(atom)]},
-      metadata, [{:get_in, metadata, [{:scope, metadata, nil}, subject_args]} | args || []]}, acc}
   end
 
   defp do_postwalk_execution(_node = {{:atom, atom}, metadata, args}, acc)
@@ -1289,11 +1298,25 @@ defmodule Uniris.Contracts.Interpreter do
 
   defp do_postwalk_execution(
          _node = {{:atom, atom}, metadata, _args},
-         acc = %{bindings: bindings}
+         acc = %{bindings: bindings, subject: subject}
        ) do
     if Map.has_key?(bindings, atom) do
+      search =
+        case subject do
+          nil ->
+            [atom]
+
+          subject ->
+            # Do not use the subject when using reserved keyword
+            if atom in ["contract", "transaction", "next", "previous"] do
+              [atom]
+            else
+              [subject, atom]
+            end
+        end
+
       {
-        {:get_in, metadata, [{:scope, metadata, nil}, [atom]]},
+        {:get_in, metadata, [{:scope, metadata, nil}, search]},
         acc
       }
     else
@@ -1352,56 +1375,6 @@ defmodule Uniris.Contracts.Interpreter do
 
   defp do_postwalk_execution(node, acc), do: {parse_value(node), acc}
 
-  defp aggregate_inherit_conditions(conditions) do
-    default_conditions =
-      Enum.map(@inherit_fields, fn key ->
-        {key,
-         {:==, [line: 0],
-          [
-            {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["next", key]]},
-            {:get_in, [line: 0], [{:scope, [line: 0], nil}, ["prev", key]]}
-          ]}}
-      end)
-      |> Enum.into(%{})
-
-    conditions =
-      Enum.map(conditions, fn {{:atom, subject}, condition} ->
-        case inject_bindings_and_functions(condition, subject: ["next", subject]) do
-          {op, metadata, args} ->
-            {subject,
-             {:==, metadata,
-              [
-                {op, metadata, args},
-                {:get_in, metadata, [{:scope, metadata, nil}, ["next", subject]]}
-              ]}}
-
-          val ->
-            {subject, {:==, [], [val, {:get_in, [], [{:scope, [], nil}, ["next", subject]]}]}}
-        end
-      end)
-
-    default_conditions
-    |> Map.merge(Enum.into(conditions, %{}))
-    |> Enum.reduce(nil, fn
-      {_, ast}, nil ->
-        ast
-
-      {_, ast}, prev_ast = {:and, metadata, _} ->
-        {:and, metadata,
-         [
-           prev_ast,
-           ast
-         ]}
-
-      {_, ast}, prev_ast = {_, metadata, _} ->
-        {:and, metadata,
-         [
-           prev_ast,
-           ast
-         ]}
-    end)
-  end
-
   defp parse_value(val) when is_binary(val) do
     case Base.decode16(val) do
       {:ok, bin} ->
@@ -1413,4 +1386,63 @@ defmodule Uniris.Contracts.Interpreter do
   end
 
   defp parse_value(val), do: val
+
+  @spec valid_conditions?(Conditions.t(), map()) :: boolean()
+  def valid_conditions?(conditions = %Conditions{}, constants = %{}) do
+    result =
+      conditions
+      |> Map.from_struct()
+      |> Enum.all?(&match?({_, true}, validate_condition(&1, constants)))
+
+    if result do
+      result
+    else
+      result
+    end
+  end
+
+  defp validate_condition({:origin_family, _}, _) do
+    # Skip the verification
+    # The Proof of Work algorithm will use this condition to verify the transaction
+    {:origin_family, true}
+  end
+
+  defp validate_condition({:previous_public_key, nil}, _) do
+    # Skip the verification as previous public key change for each transaction
+    {:previous_public_key, true}
+  end
+
+  # Validation rules for inherit constraints
+  defp validate_condition({field, nil}, %{"previous" => prev, "next" => next}) do
+    {field, Map.get(prev, Atom.to_string(field)) == Map.get(next, Atom.to_string(field))}
+  end
+
+  defp validate_condition({field, condition}, constants = %{"next" => next}) do
+    result = execute(condition, constants)
+
+    if is_boolean(result) do
+      {field, result}
+    else
+      {field, Map.get(next, Atom.to_string(field)) == result}
+    end
+  end
+
+  # Validation rules for incoming transaction
+  defp validate_condition({field, nil}, %{"transaction" => _}) do
+    # Skip the validation if no transaction conditions are provided
+    {field, true}
+  end
+
+  defp validate_condition(
+         {field, condition},
+         constants = %{"transaction" => transaction}
+       ) do
+    result = execute(condition, constants)
+
+    if is_boolean(result) do
+      {field, result}
+    else
+      {field, Map.get(transaction, Atom.to_string(field)) == result}
+    end
+  end
 end

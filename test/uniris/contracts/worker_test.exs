@@ -105,8 +105,9 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit,
+      condition inherit: [
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+      ]
 
       actions triggered_by: datetime, at: #{
         DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()
@@ -140,8 +141,9 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit,
+      condition inherit: [
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+      ]
 
       actions triggered_by: interval, at: "* * * * * *" do
         set_type transfer
@@ -199,8 +201,9 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = """
-      condition inherit,
+      condition inherit: [
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+      ]
 
       actions triggered_by: transaction do
         set_type transfer
@@ -240,10 +243,13 @@ defmodule Uniris.Contracts.WorkerTest do
            expected_tx: expected_tx
          } do
       code = """
-      condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
+      condition transaction: [
+        content: regex_match?(\"^Mr.Y|Mr.X{1}$\")
+      ]
 
-      condition inherit,
+      condition inherit: [
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+      ]
 
       actions triggered_by: transaction do
         set_type transfer
@@ -290,19 +296,25 @@ defmodule Uniris.Contracts.WorkerTest do
       expected_tx: expected_tx
     } do
       code = ~s"""
-      condition transaction: regex_match?(content, "^Mr.Y|Mr.X{1}$")
+      condition transaction: [
+        content: regex_match?("^Mr.Y|Mr.X{1}$")
+      ]
 
-      condition inherit,
+      condition inherit: [
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+      ]
 
       actions triggered_by: transaction do
         set_type transfer
         add_uco_transfer to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04
         set_code "
-          condition transaction: regex_match?(content, \\"^Mr.Y|Mr.X{1}$\\")
+          condition transaction: [
+            content: regex_match?(\\"^Mr.Y|Mr.X{1}$\\")
+          ]
 
-          condition inherit,
+          condition inherit: [
             uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9.20}
+          ]
 
           actions triggered_by: transaction do
             set_type transfer
@@ -331,10 +343,13 @@ defmodule Uniris.Contracts.WorkerTest do
           assert tx.address == expected_tx.address
           assert tx.data.ledger == expected_tx.data.ledger
           assert tx.data.code == "
-    condition transaction: regex_match?(content, \"^Mr.Y|Mr.X{1}$\")
+    condition transaction: [
+      content: regex_match?(\"^Mr.Y|Mr.X{1}$\")
+    ]
 
-    condition inherit,
+    condition inherit: [
       uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9.20}
+    ]
 
     actions triggered_by: transaction do
       set_type transfer
@@ -350,13 +365,16 @@ defmodule Uniris.Contracts.WorkerTest do
       constants: constants = %{"address" => _contract_address}
     } do
       code = ~S"""
-      condition oracle: json_path_extract("$.uco.eur") > 0.20
+      condition oracle: [
+        content: json_path_extract("$.uco.eur") > 0.20
+      ]
 
-      condition inherit,
+      condition inherit: [
         content: regex_match?("(price increased).([0-9]+.[0-9]+)")
+      ]
 
       actions triggered_by: oracle do
-        uco_price = json_path_extract(data, "$.uco.eur")
+        uco_price = json_path_extract(transaction.content, "$.uco.eur")
         set_content "price increased #{uco_price}"
         set_type hosting
       end
@@ -372,11 +390,26 @@ defmodule Uniris.Contracts.WorkerTest do
       {:ok, _pid} = Worker.start_link(contract)
 
       Process.sleep(100)
-      PubSub.notify_new_oracle_data(Jason.encode!(%{"uco" => %{"eur" => 0.21}}))
+
+      oracle_tx = %Transaction{
+        address: "@Oracle1",
+        type: :oracle,
+        data: %TransactionData{
+          content: Jason.encode!(%{"uco" => %{"eur" => 0.21}})
+        }
+      }
+
+      PubSub.notify_new_transaction("@Oracle1", :oracle, DateTime.utc_now())
+
+      MockDB
+      |> expect(:get_transaction, fn "@Oracle1", _ -> {:ok, oracle_tx} end)
 
       receive do
         {:transaction_sent, tx} ->
           assert %Transaction{data: %TransactionData{content: "price increased 0.21"}} = tx
+      after
+        3_000 ->
+          raise "Timeout"
       end
     end
   end

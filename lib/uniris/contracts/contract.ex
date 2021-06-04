@@ -15,17 +15,25 @@ defmodule Uniris.Contracts.Contract do
   alias Uniris.TransactionChain.TransactionData
 
   defstruct triggers: [],
-            conditions: %Conditions{},
+            conditions: %{
+              transaction: %Conditions{},
+              inherit: %Conditions{},
+              oracle: %Conditions{}
+            },
             constants: %Constants{},
             next_transaction: %Transaction{data: %TransactionData{}}
 
   @type trigger_type() :: :datetime | :interval | :transaction
-  @type condition() :: :origin_family | :transaction | :inherit | :oracle
+  @type condition() :: :transaction | :inherit | :oracle
   @type origin_family :: SharedSecrets.origin_family()
 
   @type t() :: %__MODULE__{
           triggers: list(Trigger.t()),
-          conditions: Conditions.t(),
+          conditions: %{
+            transaction: Conditions.t(),
+            inherit: Conditions.t(),
+            oracle: Conditions.t()
+          },
           constants: Constants.t(),
           next_transaction: Transaction.t()
         }
@@ -77,29 +85,13 @@ defmodule Uniris.Contracts.Contract do
   @doc """
   Add a condition to the contract
   """
-  @spec add_condition(t(), condition(), origin_family() | Macro.t()) :: t()
-  def add_condition(contract = %__MODULE__{conditions: conditions}, :origin_family, family)
-      when is_atom(family) do
-    %{contract | conditions: %{conditions | origin_family: family}}
-  end
-
-  def add_condition(contract = %__MODULE__{conditions: conditions}, :transaction, macro) do
-    %{contract | conditions: %{conditions | transaction: macro}}
-  end
-
+  @spec add_condition(t(), condition(), any()) :: t()
   def add_condition(
-        contract = %__MODULE__{conditions: conditions = %Conditions{}},
-        :inherit,
-        inherit_conditions
-      ) do
-    %{contract | conditions: %{conditions | inherit: inherit_conditions}}
-  end
-
-  def add_condition(
-        contract = %__MODULE__{conditions: conditions = %Conditions{}},
-        :oracle,
-        macro
-      ) do
-    %{contract | conditions: %{conditions | oracle: macro}}
+        contract = %__MODULE__{conditions: conditions},
+        condition_name,
+        condition
+      )
+      when condition_name in [:transaction, :inherit, :oracle] do
+    %{contract | conditions: Map.put(conditions, condition_name, condition)}
   end
 end

@@ -8,6 +8,8 @@ defmodule Uniris.Contracts.InterpreterTest do
 
   alias Uniris.Contracts.Interpreter
 
+  alias Uniris.Crypto
+
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
 
@@ -309,10 +311,28 @@ defmodule Uniris.Contracts.InterpreterTest do
     end
 
     test "should parse a contract with some map based inherit constraints" do
-      assert {:ok, _} =
+      assert {:ok,
+              %Contract{
+                conditions: %{
+                  inherit: %Conditions{
+                    uco_transfers:
+                      {:==, _,
+                       [
+                         {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
+                         {:%{}, _,
+                          [
+                            {<<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                               189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
+                               37, 132, 112, 179>>, 10.04}
+                          ]}
+                       ]}
+                  }
+                }
+              }} =
                """
-               condition inherit,
+               condition inherit: [
                  uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04 }
+               ]
 
                actions triggered_by: datetime, at: 1102190390 do
                  set_type transfer
@@ -323,11 +343,31 @@ defmodule Uniris.Contracts.InterpreterTest do
     end
 
     test "should parse multiline inherit constraints" do
-      assert {:ok, _} =
+      assert {:ok,
+              %Contract{
+                conditions: %{
+                  inherit: %Conditions{
+                    uco_transfers:
+                      {:==, _,
+                       [
+                         {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
+                         {:%{}, _,
+                          [
+                            {<<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                               189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
+                               37, 132, 112, 179>>, 10.04}
+                          ]}
+                       ]},
+                    content:
+                      {:==, _, [{:get_in, _, [{:scope, _, nil}, ["next", "content"]]}, "hello"]}
+                  }
+                }
+              }} =
                """
-                 condition inherit,
+                 condition inherit: [
                    uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04 },
                    content: "hello"
+                 ]
 
                """
                |> Interpreter.parse()
@@ -380,6 +420,116 @@ defmodule Uniris.Contracts.InterpreterTest do
 
       assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "hello 4"}}} =
                Interpreter.execute_actions(contract, :transaction)
+    end
+
+    test "should flatten comparison operators" do
+      code = """
+      condition inherit: [
+        secret: size() >= 10
+      ]
+      """
+
+      {:ok,
+       %Contract{
+         conditions: %{
+           inherit: %Conditions{
+             secret:
+               {:>=, [line: 2],
+                [
+                  {{:., [line: 2],
+                    [
+                      {:__aliases__, [alias: Uniris.Contracts.Interpreter.Library], [:Library]},
+                      :size
+                    ]}, [line: 2],
+                   [
+                     {:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "secret"]]}
+                   ]},
+                  10
+                ]}
+           }
+         }
+       }} = Interpreter.parse(code)
+    end
+
+    test "should accept conditional code within condition" do
+      {:ok, %Contract{}} =
+        ~S"""
+        condition inherit: [
+          content: if type == transfer do
+           regex_match?("hello")
+          else
+           regex_match?("hi")
+          end
+        ]
+
+        """
+        |> Interpreter.parse()
+    end
+
+    test "should accept different type of transaction keyword references" do
+      {:ok, %Contract{}} =
+        ~S"""
+         condition inherit: [
+          content: if next.type == transfer do
+            "hi"
+          else
+            if previous.type == transfer do
+              "hi"
+            else
+              "hello"
+            end
+          end
+         ]
+
+        condition transaction: [
+          content: "#{hash(contract.code)} - YES"
+        ]
+        """
+        |> Interpreter.parse()
+    end
+  end
+
+  describe "execute/2" do
+    test "should execute complex condition with if statements" do
+      code = ~S"""
+      condition inherit: [
+        type: in?([transfer, nft]),
+        content: if type == transfer do
+         regex_match?("reason transfer: (.*)")
+        else
+         regex_match?("reason nft creation: (.*)")
+        end,
+      ]
+
+      condition transaction: [
+        content: hash(contract.code)
+      ]
+      """
+
+      {:ok,
+       %Contract{conditions: %{inherit: inherit_conditions, transaction: transaction_conditions}}} =
+        Interpreter.parse(code)
+
+      assert true ==
+               Interpreter.valid_conditions?(inherit_conditions, %{
+                 "next" => %{"type" => "transfer", "content" => "reason transfer: pay back alice"}
+               })
+
+      assert false ==
+               Interpreter.valid_conditions?(inherit_conditions, %{
+                 "next" => %{"type" => "transfer", "content" => "dummy"}
+               })
+
+      assert true ==
+               Interpreter.valid_conditions?(inherit_conditions, %{
+                 "next" => %{"type" => "nft", "content" => "reason nft creation: new super token"}
+               })
+
+      assert true ==
+               Interpreter.valid_conditions?(transaction_conditions, %{
+                 "transaction" => %{"content" => Crypto.hash(code)},
+                 "contract" => %{"code" => code}
+               })
     end
   end
 end

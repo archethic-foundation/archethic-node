@@ -1,6 +1,8 @@
 defmodule Uniris.Contracts.Worker do
   @moduledoc false
 
+  # TODO: should process functions only if there is funds (for the prepaid default option)
+
   alias Uniris.ContractRegistry
   alias Uniris.Contracts.Contract
   alias Uniris.Contracts.Contract.Conditions
@@ -67,7 +69,7 @@ defmodule Uniris.Contracts.Worker do
             contract = %Contract{
               triggers: triggers,
               constants: %Constants{contract: contract_constants},
-              conditions: %Conditions{transaction: transaction_condition}
+              conditions: %{transaction: transaction_condition}
             }
         }
       ) do
@@ -82,28 +84,15 @@ defmodule Uniris.Contracts.Worker do
         "transaction" => Constants.from_transaction(incoming_tx)
       }
 
-      case transaction_condition do
-        nil ->
-          contract
-          |> Interpreter.execute_actions(:transaction, constants)
-          |> chain_transaction()
-          |> handle_new_transaction()
+      if Interpreter.valid_conditions?(transaction_condition, constants) do
+        contract
+        |> Interpreter.execute_actions(:transaction, constants)
+        |> chain_transaction()
+        |> handle_new_transaction()
 
-          {:reply, :ok, state}
-
-        _ ->
-          case Interpreter.execute(transaction_condition, Map.get(constants, "transaction")) do
-            true ->
-              contract
-              |> Interpreter.execute_actions(:transaction, constants)
-              |> chain_transaction()
-              |> handle_new_transaction()
-
-              {:reply, :ok, state}
-
-            _ ->
-              {:reply, {:error, :invalid_condition}, state}
-          end
+        {:reply, :ok, state}
+      else
+        {:reply, {:error, :invalid_condition}, state}
       end
     else
       {:reply, {:error, :no_transaction_trigger}, state}
@@ -158,43 +147,44 @@ defmodule Uniris.Contracts.Worker do
   end
 
   def handle_info(
-        {:new_oracle_data, data},
+        {:new_transaction, tx_address, :oracle},
         state = %{
           contract:
             contract = %Contract{
               triggers: triggers,
               constants: %Constants{contract: contract_constants = %{"address" => address}},
-              conditions: %Conditions{oracle: oracle_condition}
+              conditions: %{oracle: oracle_condition}
             }
         }
       ) do
     Logger.info("Execute contract oracle trigger actions", contract: Base.encode16(address))
 
     if Enum.any?(triggers, &(&1.type == :oracle)) do
-      constants = %{"contract" => contract_constants, "data" => data}
+      {:ok, tx} = TransactionChain.get_transaction(tx_address)
 
-      case oracle_condition do
-        nil ->
+      constants = %{
+        "contract" => contract_constants,
+        "transaction" => Constants.from_transaction(tx)
+      }
+
+      if Conditions.empty?(oracle_condition) do
+        contract
+        |> Interpreter.execute_actions(:oracle, constants)
+        |> chain_transaction()
+        |> handle_new_transaction()
+
+        {:noreply, state}
+      else
+        if Interpreter.valid_conditions?(oracle_condition, constants) do
           contract
           |> Interpreter.execute_actions(:oracle, constants)
           |> chain_transaction()
           |> handle_new_transaction()
 
           {:noreply, state}
-
-        _ ->
-          case Interpreter.execute(oracle_condition, %{"data" => data}) do
-            true ->
-              contract
-              |> Interpreter.execute_actions(:oracle, constants)
-              |> chain_transaction()
-              |> handle_new_transaction()
-
-              {:noreply, state}
-
-            _ ->
-              {:noreply, state}
-          end
+        else
+          {:noreply, state}
+        end
       end
     else
       {:noreply, state}
@@ -215,7 +205,7 @@ defmodule Uniris.Contracts.Worker do
   end
 
   defp schedule_trigger(%Trigger{type: :oracle}) do
-    PubSub.register_to_oracle_data()
+    PubSub.register_to_new_transaction_by_type(:oracle)
   end
 
   defp schedule_trigger(_), do: :ok

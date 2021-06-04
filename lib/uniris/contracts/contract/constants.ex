@@ -45,10 +45,10 @@ defmodule Uniris.Contracts.Contract.Constants do
       }) do
     %{
       "address" => address,
-      "type" => type,
+      "type" => Atom.to_string(type),
       "content" => content,
       "code" => code,
-      "authorized_keys" => authorized_keys,
+      "authorized_keys" => Map.keys(authorized_keys),
       "secret" => secret,
       "previous_public_key" => previous_public_key,
       "recipients" => recipients,
@@ -63,7 +63,7 @@ defmodule Uniris.Contracts.Contract.Constants do
                          amount: amount,
                          nft: nft_address
                        } ->
-          {to, %{amount: amount, nft: nft_address}}
+          {to, %{"amount" => amount, "nft" => nft_address}}
         end)
         |> Enum.into(%{})
     }
