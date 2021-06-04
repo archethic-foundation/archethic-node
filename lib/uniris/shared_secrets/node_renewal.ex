@@ -94,12 +94,43 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
     Transaction.new(
       :node_shared_secrets,
       %TransactionData{
+        code: """
+        condition inherit: [
+          # We need to ensure the type stays consistent
+          # So we can apply specific rules during the transaction validation
+          type: node_shared_secrets,
+
+          # We discard the content, authorized_key and secret verification
+          content: true,
+          authorized_keys: true,
+          secret: true
+        ]
+        """,
         content: """
-        daily nonce public_key: #{Base.encode16(daily_nonce_public_key)}
+        daily nonce public key: #{Base.encode16(daily_nonce_public_key)}
         network pool address: #{Base.encode16(network_pool_address)}
         """,
         keys: Keys.new(authorized_node_public_keys, secret_key, secret)
       }
     )
+  end
+
+  @doc """
+  Decode the transaction content from the node renewal transaction
+  """
+  @spec decode_transaction_content(binary()) :: {:ok, binary(), binary()} | :error
+  def decode_transaction_content(content) when is_binary(content) do
+    pattern =
+      ~r/daily nonce public key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m
+
+    with [[daily_nonce_public_key, network_pool_address]] <-
+           Regex.scan(pattern, content, capture: :all_but_first),
+         {:ok, daily_nonce_public_key} <- Base.decode16(daily_nonce_public_key, case: :mixed),
+         {:ok, network_pool_address} <- Base.decode16(network_pool_address, case: :mixed) do
+      {:ok, daily_nonce_public_key, network_pool_address}
+    else
+      _ ->
+        :error
+    end
   end
 end

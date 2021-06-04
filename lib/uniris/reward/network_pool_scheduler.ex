@@ -81,6 +81,13 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
         Logger.debug("Sending node reward transaction")
 
         Transaction.new(:node_rewards, %TransactionData{
+          code: """
+          condition inherit: [ 
+             # We need to ensure the transaction type keep consistent
+             # So we can apply specific rules during the transaction verification
+             type: node_rewards
+          ]
+          """,
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: transfers

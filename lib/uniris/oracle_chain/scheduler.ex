@@ -85,17 +85,25 @@ defmodule Uniris.OracleChain.Scheduler do
     end
   end
 
-  def handle_info(:poll, state = %{polling_interval: interval}) do
-    timer = schedule_new_polling(interval)
+  def handle_info(
+        :poll,
+        state = %{polling_interval: polling_interval}
+      ) do
+    timer = schedule_new_polling(polling_interval)
 
     date = DateTime.utc_now() |> Utils.truncate_datetime()
 
     if trigger_node?(date) do
-      Logger.debug("Trigger oracle data fecthing")
+      Logger.debug("Trigger oracle data fetching")
       me = self()
 
       previous_date = Map.get(state, :last_poll_date) || date
-      handle_new_polling(me, previous_date, next_date(interval))
+
+      handle_new_polling(
+        me,
+        previous_date,
+        next_date(polling_interval)
+      )
     end
 
     {:noreply, Map.put(state, :polling_timer, timer), :hibernate}
@@ -156,7 +164,11 @@ defmodule Uniris.OracleChain.Scheduler do
     end
   end
 
-  defp handle_new_polling(pid, previous_date = %DateTime{}, date = %DateTime{}) do
+  defp handle_new_polling(
+         pid,
+         previous_date = %DateTime{},
+         date = %DateTime{}
+       ) do
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(previous_date)
 
     previous_data =
@@ -178,7 +190,24 @@ defmodule Uniris.OracleChain.Scheduler do
       Transaction.new(
         :oracle,
         %TransactionData{
-          content: Jason.encode!(new_data)
+          content: Jason.encode!(new_data),
+          code: ~S"""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: in?([oracle, oracle_summary]),
+
+            # We discard the content and code verification
+            content: true,
+            
+            # We ensure the code stay the same
+            code: if type == oracle_summary do
+              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+            else
+              previous.code
+            end
+          ]
+          """
         },
         prev_pv,
         prev_pub,

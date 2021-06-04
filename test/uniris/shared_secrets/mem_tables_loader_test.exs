@@ -73,7 +73,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
         type: :node_shared_secrets,
         data: %TransactionData{
           content:
-            "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+            "daily nonce public key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
         },
         validation_stamp: %ValidationStamp{
           timestamp: DateTime.utc_now()
@@ -124,7 +124,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoaderTest do
         type: :node_shared_secrets,
         data: %TransactionData{
           content:
-            "daily nonce public_key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
+            "daily nonce public key: 009848F36BA37DE3B7A545EF793926EBDB7FBEC137E9D6FBB49A4349AE90A97DC3\nnetwork pool address: 008676C004975D50724E60682A714C168E4F8AA99F5D50F6413BABB6DF6003AA12\n"
         },
         validation_stamp: %ValidationStamp{
           timestamp: DateTime.utc_now() |> DateTime.add(10)

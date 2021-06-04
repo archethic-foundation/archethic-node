@@ -106,6 +106,11 @@ defmodule Uniris.OracleChain.Summary do
     Transaction.new(
       :oracle_summary,
       %TransactionData{
+        code: """
+          # We stop the inheritance of transaction by ensuring no other
+          # summary transaction will continue on this chain
+          condition inherit: [ content: "" ]
+        """,
         content:
           aggregated_data
           |> Enum.map(&{DateTime.to_unix(elem(&1, 0)), elem(&1, 1)})

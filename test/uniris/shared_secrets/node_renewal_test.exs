@@ -39,7 +39,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
     assert Map.has_key?(authorized_keys, Crypto.last_node_public_key())
 
     assert Regex.match?(
-             ~r/daily nonce public_key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
+             ~r/daily nonce public key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
              content
            )
   end

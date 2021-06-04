@@ -2,6 +2,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
   @moduledoc false
 
   alias Uniris.Contracts
+  alias Uniris.Contracts.Contract
 
   alias Uniris.Crypto
 
@@ -19,14 +20,13 @@ defmodule Uniris.Mining.PendingTransactionValidation do
 
   alias Uniris.Reward
 
-  alias Uniris.SharedSecrets
+  alias Uniris.SharedSecrets.NodeRenewal
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.TransactionData
   alias Uniris.TransactionChain.TransactionData.Keys
   alias Uniris.TransactionChain.TransactionData.Ledger
-  alias Uniris.TransactionChain.TransactionData.NFTLedger
   alias Uniris.TransactionChain.TransactionData.UCOLedger
 
   alias Uniris.Utils
@@ -39,9 +39,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
   @spec validate(Transaction.t()) :: :ok | {:error, any()}
   def validate(tx = %Transaction{address: address, type: type}) do
     with true <- Transaction.verify_previous_signature?(tx),
-         :ok <- validate_contract(tx),
-         :ok <- validate_node_withdraw(tx),
-         :ok <- validate_network_pool_transfers(tx) do
+         :ok <- validate_contract(tx) do
       do_accept_transaction(tx)
     else
       false ->
@@ -63,108 +61,49 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          type: type,
          data: %TransactionData{code: code, keys: keys}
        }) do
-    with {:ok, _contract} <- Contracts.parse(code),
-         true <- Crypto.storage_nonce_public_key() in Keys.list_authorized_keys(keys) do
-      :ok
-    else
+    case Contracts.parse(code) do
+      {:ok, %Contract{triggers: [_ | _]}} ->
+        if Crypto.storage_nonce_public_key() in Keys.list_authorized_keys(keys) do
+          :ok
+        else
+          Logger.error("Require storage nonce public key as authorized keys",
+            transaction: "#{type}@#{Base.encode16(address)}"
+          )
+
+          {:error, "Requires storage nonce public key as authorized keys"}
+        end
+
+      {:ok, %Contract{}} ->
+        :ok
+
       {:error, reason} ->
         Logger.error("Smart contract invalid #{inspect(reason)}",
           transaction: "#{type}@#{Base.encode16(address)}"
         )
 
         {:error, reason}
+    end
+  end
 
-      false ->
-        Logger.error("Require storage nonce public key as authorized keys",
-          transaction: "#{type}@#{Base.encode16(address)}"
+  defp do_accept_transaction(%Transaction{
+         address: address,
+         type: :node_rewards,
+         data: %TransactionData{
+           ledger: %Ledger{
+             uco: %UCOLedger{transfers: uco_transfers}
+           }
+         }
+       }) do
+    case Reward.get_transfers_for_in_need_validation_nodes() do
+      ^uco_transfers ->
+        :ok
+
+      _ ->
+        Logger.error("Invalid network pool transfers",
+          transaction: "node_rewards@#{Base.encode16(address)}"
         )
 
-        {:error, "Requires storage nonce public key as authorized keys"}
-    end
-  end
-
-  defp validate_node_withdraw(%Transaction{
-         address: address,
-         type: type,
-         data: %TransactionData{
-           code: code,
-           content: content,
-           keys: keys,
-           ledger: %Ledger{
-             uco: %UCOLedger{transfers: uco_transfers},
-             nft: %NFTLedger{transfers: nft_transfers}
-           },
-           recipients: recipients
-         },
-         previous_public_key: previous_public_key
-       }) do
-    from_node? =
-      P2P.list_nodes()
-      |> Enum.map(& &1.last_address)
-      |> Enum.any?(&(&1 == Crypto.hash(previous_public_key)))
-
-    if from_node? do
-      network_pool_address = SharedSecrets.get_network_pool_address()
-
-      with true <-
-             Enum.any?(uco_transfers, &(&1.to == network_pool_address and &1.amount >= 0.0)),
-           %Keys{secret: "", authorized_keys: %{}} <- keys,
-           "" <- code,
-           "" <- content,
-           [] <- nft_transfers,
-           [] <- recipients do
-        :ok
-      else
-        false ->
-          Logger.error("Node withdraw must transfer a part to the network pool",
-            transaction: "#{type}@#{Base.encode16(address)}"
-          )
-
-          {:error, "Invalid transaction from node"}
-
-        _ ->
-          {:error, "Invalid transaction from node"}
-      end
-    else
-      :ok
-    end
-  end
-
-  defp validate_network_pool_transfers(%Transaction{
-         address: address,
-         type: type,
-         data: %TransactionData{
-           ledger: %Ledger{
-             uco: %UCOLedger{transfers: uco_transfers},
-             nft: %NFTLedger{transfers: nft_transfers}
-           },
-           code: code,
-           content: content,
-           recipients: recipients,
-           keys: keys
-         },
-         previous_public_key: previous_public_key
-       }) do
-    network_pool_address = SharedSecrets.get_network_pool_address()
-
-    if Crypto.hash(previous_public_key) == network_pool_address do
-      with ^uco_transfers <- Reward.get_transfers_for_in_need_validation_nodes(),
-           %Keys{secret: "", authorized_keys: %{}} <- keys,
-           "" <- code,
-           "" <- content,
-           [] <- nft_transfers,
-           [] <- recipients do
-        :ok
-      else
-        _ ->
-          Logger.error("Invalid network pool transfers",
-            transaction: "#{type}@#{Base.encode16(address)}"
-          )
-
-          {:error, "Invalid network pool transfers"}
-      end
-    else
-      :ok
+        {:error, "Invalid network pool transfers"}
     end
   end
 
@@ -172,11 +111,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          address: address,
          type: :node,
          data: %TransactionData{
-           content: content,
-           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-           recipients: [],
-           code: "",
-           keys: %Keys{secret: "", authorized_keys: %{}}
+           content: content
          }
        }) do
     case Regex.scan(Node.transaction_content_regex(), content, capture: :all_but_first) do
@@ -192,29 +127,34 @@ defmodule Uniris.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :node}), do: {:error, "Invalid node transaction"}
-
   defp do_accept_transaction(%Transaction{
          address: address,
          type: :node_shared_secrets,
          data: %TransactionData{
-           keys: keys = %Keys{secret: secret, authorized_keys: authorized_keys},
-           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-           recipients: [],
-           code: ""
+           content: content,
+           keys: %Keys{secret: secret, authorized_keys: authorized_keys}
          }
        })
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
-    nodes = P2P.list_nodes()
+    nodes = P2P.available_nodes()
 
-    if Enum.all?(Keys.list_authorized_keys(keys), &Utils.key_in_node_list?(nodes, &1)) do
+    with {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
+         true <- Enum.all?(Map.keys(authorized_keys), &Utils.key_in_node_list?(nodes, &1)) do
       :ok
     else
-      Logger.error("Node shared secrets can only contains public node list",
-        transaction: "node_shared_secrets@#{Base.encode16(address)}"
-      )
+      :error ->
+        Logger.error("Node shared secrets has invalid content",
+          transaction: "node_shared_secrets@#{Base.encode16(address)}"
+        )
 
-      {:error, "Invalid node shared secrets transaction"}
+        {:error, "Invalid node shared secrets transaction"}
+
+      false ->
+        Logger.error("Node shared secrets can only contains public node list",
+          transaction: "node_shared_secrets@#{Base.encode16(address)}"
+        )
+
+        {:error, "Invalid node shared secrets transaction"}
     end
   end
 
@@ -225,11 +165,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
   defp do_accept_transaction(
          tx = %Transaction{
            address: address,
-           type: :code_proposal,
-           data: %TransactionData{
-             ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-             code: ""
-           }
+           type: :code_proposal
          }
        ) do
     with {:ok, prop} <- CodeProposal.from_transaction(tx),
@@ -245,16 +181,11 @@ defmodule Uniris.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :code_proposal}),
-    do: {:error, "Invalid code proposal transaction"}
-
   defp do_accept_transaction(
          tx = %Transaction{
            address: address,
            type: :code_approval,
            data: %TransactionData{
-             ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-             code: "",
              recipients: [proposal_address]
            }
          }
@@ -291,9 +222,6 @@ defmodule Uniris.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :code_approval}),
-    do: {:error, "Invalid code approval transaction"}
-
   defp do_accept_transaction(%Transaction{
          address: address,
          type: :nft,
@@ -312,11 +240,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          address: address,
          type: :oracle,
          data: %TransactionData{
-           content: content,
-           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-           code: "",
-           keys: %Keys{secret: "", authorized_keys: %{}},
-           recipients: []
+           content: content
          }
        }) do
     if OracleChain.valid_services_content?(content) do
@@ -327,18 +251,11 @@ defmodule Uniris.Mining.PendingTransactionValidation do
     end
   end
 
-  defp do_accept_transaction(%Transaction{type: :oracle}),
-    do: {:error, "Invalid oracle transaction"}
-
   defp do_accept_transaction(%Transaction{
          address: address,
          type: :oracle_summary,
          data: %TransactionData{
-           content: content,
-           ledger: %Ledger{uco: %UCOLedger{transfers: []}, nft: %NFTLedger{transfers: []}},
-           code: "",
-           keys: %Keys{secret: "", authorized_keys: %{}},
-           recipients: []
+           content: content
          },
          previous_public_key: previous_public_key
        }) do
@@ -363,9 +280,6 @@ defmodule Uniris.Mining.PendingTransactionValidation do
         {:error, "Invalid oracle summary transaction"}
     end
   end
-
-  defp do_accept_transaction(%Transaction{type: :oracle_summary}),
-    do: {:error, "Invalid oracle summary transaction"}
 
   defp do_accept_transaction(_), do: :ok
 

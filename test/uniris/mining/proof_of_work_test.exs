@@ -35,7 +35,9 @@ defmodule Uniris.Mining.ProofOfWorkTest do
           :transfer,
           %TransactionData{
             code: """
-            condition origin_family: biometric
+            condition inherit: [
+              origin_family: biometric
+            ]
             """
           },
           "seed",

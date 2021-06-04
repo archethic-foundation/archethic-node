@@ -3,8 +3,10 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   use GenServer
 
+  alias Uniris.SharedSecrets.NodeRenewal
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
+  alias Uniris.SharedSecrets.NodeRenewal
   alias Uniris.SharedSecrets.NodeRenewalScheduler
 
   alias Uniris.TransactionChain
@@ -90,7 +92,9 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
           timestamp: timestamp
         }
       }) do
-    {daily_nonce_public_key, network_pool_address} = decode_node_shared_secrets_content(content)
+    {:ok, daily_nonce_public_key, network_pool_address} =
+      NodeRenewal.decode_transaction_content(content)
+
     NetworkLookup.set_network_pool_address(network_pool_address)
 
     NetworkLookup.set_daily_nonce_public_key(
@@ -104,17 +108,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
   end
 
   def load_transaction(_), do: :ok
-
-  defp decode_node_shared_secrets_content(content) do
-    [[daily_nonce_public_key, network_pool_address]] =
-      Regex.scan(
-        ~r/daily nonce public_key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
-        content,
-        capture: :all_but_first
-      )
-
-    {Base.decode16!(daily_nonce_public_key), Base.decode16!(network_pool_address)}
-  end
 
   defp get_origin_public_keys_from_tx_content(content) when is_binary(content) do
     [

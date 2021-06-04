@@ -68,40 +68,15 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         Transaction.new(
           :node_shared_secrets,
           %TransactionData{
-            keys: %Keys{
-              secret: :crypto.strong_rand_bytes(32),
-              authorized_keys: %{
-                "node_key1" => "",
-                "node_key2" => ""
-              }
-            }
-          }
-        )
-
-      assert :ok = PendingTransactionValidation.validate(tx)
-    end
-
-    test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with next tx" do
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "node_key1",
-        last_public_key: "node_key1",
-        available?: true
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: "node_key2",
-        last_public_key: "node_key2",
-        available?: true
-      })
-
-      tx =
-        Transaction.new(
-          :node_shared_secrets,
-          %TransactionData{
+            content: """
+            daily nonce public key: 00E05F60452CB68ACA06EC767109AD7B6730A286147A713C7AC724694F1C0C42D8
+            network pool address: 004321DEBA4949B0EA9B0790177FEE2C735344B39CCBBAF4D812A4D76225F370FD
+            """,
+            code: """
+            condition inherit: [
+              type: node_shared_secrets
+            ]
+            """,
             keys: %Keys{
               secret: :crypto.strong_rand_bytes(32),
               authorized_keys: %{
@@ -191,8 +166,13 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
           :transfer,
           %TransactionData{
             code: """
-            condition inherit,
+            condition inherit: [
               content: "hello"
+            ]
+
+            condition transaction: [
+              content: ""
+            ]
 
             actions triggered_by: transaction do
               set_content "hello"
