@@ -12,6 +12,8 @@ defmodule UnirisCase do
 
   alias Uniris.Governance.Pools.MemTable, as: PoolsMemTable
 
+  alias Uniris.OracleChain.MemTable, as: OracleMemTable
+
   alias Uniris.P2P.MemTable, as: P2PMemTable
 
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
@@ -137,6 +139,7 @@ defmodule UnirisCase do
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkStatistics)
     start_supervised!(NetworkLookup)
+    start_supervised!(OracleMemTable)
 
     :ok
   end

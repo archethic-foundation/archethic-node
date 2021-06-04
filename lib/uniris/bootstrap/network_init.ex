@@ -11,6 +11,8 @@ defmodule Uniris.Bootstrap.NetworkInit do
 
   alias Uniris.Election
 
+  alias Uniris.Mining
+
   alias Uniris.P2P.Node
 
   alias Uniris.Replication
@@ -126,7 +128,7 @@ defmodule Uniris.Bootstrap.NetworkInit do
   def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
     operations =
       %LedgerOperations{
-        fee: Transaction.fee(tx),
+        fee: Mining.get_transaction_fee(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)

@@ -10,6 +10,8 @@ defmodule Uniris.Replication.TransactionValidator do
 
   alias Uniris.Mining
 
+  alias Uniris.OracleChain
+
   alias Uniris.Replication
 
   alias Uniris.SharedSecrets
@@ -164,7 +166,7 @@ defmodule Uniris.Replication.TransactionValidator do
          {:signature, true} <-
            {:signature,
             ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key)},
-         {:fee, true} <- {:fee, fee == Transaction.fee(tx)},
+         {:fee, true} <- {:fee, fee == get_transaction_fee(tx)},
          {:tx_movements, true} <- {:tx_movements, resolved_tx_movements == transaction_movements},
          {:node_movements_roles, true} <-
            {:node_movements_roles, LedgerOperations.valid_node_movements_roles?(ops)},
@@ -206,6 +208,17 @@ defmodule Uniris.Replication.TransactionValidator do
       {:errors, false} ->
         {:error, {:transaction_errors_detected, errors}}
     end
+  end
+
+  defp get_transaction_fee(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
+       ) do
+    uco_price_usd =
+      timestamp
+      |> OracleChain.get_uco_price()
+      |> Keyword.fetch!(:usd)
+
+    Mining.get_transaction_fee(tx, uco_price_usd)
   end
 
   defp check_unspent_outputs(
@@ -292,7 +305,7 @@ defmodule Uniris.Replication.TransactionValidator do
 
   defp new_ledger_operations(tx, previous_unspent_outputs) do
     %LedgerOperations{
-      fee: Transaction.fee(tx),
+      fee: get_transaction_fee(tx),
       transaction_movements: resolve_transaction_movements(tx)
     }
     |> LedgerOperations.from_transaction(tx)

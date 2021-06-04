@@ -5,6 +5,7 @@ defmodule Uniris.Mining.ValidationContextTest do
 
   alias Uniris.Election
 
+  alias Uniris.Mining.Fee
   alias Uniris.Mining.ValidationContext
 
   alias Uniris.P2P
@@ -215,7 +216,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Transaction.fee(tx),
+          fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx)
@@ -245,7 +246,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Transaction.fee(tx),
+          fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx)
@@ -266,7 +267,7 @@ defmodule Uniris.Mining.ValidationContextTest do
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
-         unspent_outputs: _unspent_outputs
+         unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
@@ -276,15 +277,9 @@ defmodule Uniris.Mining.ValidationContextTest do
       ledger_operations:
         %LedgerOperations{
           fee: 20.20,
-          transaction_movements: Transaction.get_movements(tx),
-          unspent_outputs: [
-            %UnspentOutput{
-              amount: 2.0300000000000002,
-              from: tx.address,
-              type: :UCO
-            }
-          ]
+          transaction_movements: Transaction.get_movements(tx)
         }
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
           welcome_node,
           coordinator_node,
@@ -301,7 +296,7 @@ defmodule Uniris.Mining.ValidationContextTest do
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
-         unspent_outputs: _unspent_outputs
+         unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
@@ -310,18 +305,19 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Transaction.fee(tx),
+          fee: Fee.calculate(tx, 0.07),
           transaction_movements: [
             %TransactionMovement{to: "@Bob3", amount: 2000, type: :UCO}
           ],
           unspent_outputs: [
             %UnspentOutput{
-              amount: 2.0300000000000002,
+              amount: 0.611416,
               from: tx.address,
               type: :UCO
             }
           ]
         }
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
           welcome_node,
           coordinator_node,
@@ -347,7 +343,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Transaction.fee(tx),
+          fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx),
           unspent_outputs: [
             %UnspentOutput{
@@ -373,52 +369,47 @@ defmodule Uniris.Mining.ValidationContextTest do
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
-         unspent_outputs: _unspent_outputs
+         unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
       proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations: %LedgerOperations{
-        fee: Transaction.fee(tx),
-        transaction_movements: Transaction.get_movements(tx),
-        unspent_outputs: [
-          %UnspentOutput{
-            amount: 2.0300000000000002,
-            from: tx.address,
-            type: :UCO
-          }
-        ],
-        node_movements: [
-          %NodeMovement{to: welcome_node.last_public_key, amount: 10.0, roles: [:welcome_node]},
-          %NodeMovement{
-            to: coordinator_node.last_public_key,
-            amount: 20.0,
-            roles: [:coordinator_node]
-          },
-          %NodeMovement{
-            to: Enum.at(cross_validation_nodes, 0).last_public_key,
-            amount: 15.0,
-            roles: [:cross_validation_node]
-          },
-          %NodeMovement{
-            to: Enum.at(cross_validation_nodes, 1).last_public_key,
-            amount: 15.0,
-            roles: [:cross_validation_node]
-          },
-          %NodeMovement{
-            to: Enum.at(previous_storage_nodes, 0).last_public_key,
-            amount: 10.0,
-            roles: [:previous_storage_node]
-          },
-          %NodeMovement{
-            to: Enum.at(previous_storage_nodes, 1).last_public_key,
-            amount: 10.0,
-            roles: [:previous_storage_node]
-          }
-        ]
-      }
+      ledger_operations:
+        %LedgerOperations{
+          fee: Fee.calculate(tx, 0.07),
+          transaction_movements: Transaction.get_movements(tx),
+          node_movements: [
+            %NodeMovement{to: welcome_node.last_public_key, amount: 10.0, roles: [:welcome_node]},
+            %NodeMovement{
+              to: coordinator_node.last_public_key,
+              amount: 20.0,
+              roles: [:coordinator_node]
+            },
+            %NodeMovement{
+              to: Enum.at(cross_validation_nodes, 0).last_public_key,
+              amount: 15.0,
+              roles: [:cross_validation_node]
+            },
+            %NodeMovement{
+              to: Enum.at(cross_validation_nodes, 1).last_public_key,
+              amount: 15.0,
+              roles: [:cross_validation_node]
+            },
+            %NodeMovement{
+              to: Enum.at(previous_storage_nodes, 0).last_public_key,
+              amount: 10.0,
+              roles: [:previous_storage_node]
+            },
+            %NodeMovement{
+              to: Enum.at(previous_storage_nodes, 1).last_public_key,
+              amount: 10.0,
+              roles: [:previous_storage_node]
+            }
+          ]
+        }
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
     }
     |> ValidationStamp.sign()
   end
@@ -438,7 +429,7 @@ defmodule Uniris.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Transaction.fee(tx),
+          fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)

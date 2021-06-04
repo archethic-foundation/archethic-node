@@ -4,7 +4,6 @@ defmodule Uniris.TransactionChain.Transaction do
 
   Blocks are reduce to its unitary form to provide high scalability, avoiding double spending attack and chain integrity
   """
-  alias Uniris.Bootstrap
 
   alias Uniris.Crypto
 
@@ -838,51 +837,5 @@ defmodule Uniris.TransactionChain.Transaction do
             Enum.map(cross_stamps, &CrossValidationStamp.from_map/1)
         end
     }
-  end
-
-  @doc """
-  Calculate the transaction fee.
-
-  The fee will differ according to the transaction type and transaction complexity
-
-  ## Examples
-
-      # Network transaction (node, node shared secrets, etc.) cost nothing
-
-      iex> %Transaction{
-      ...>  type: :node,
-      ...>  address: <<0, 242, 227, 55, 140, 255, 148, 250, 79, 250, 27, 146, 106, 32, 155, 154, 45,
-      ...>   131, 91, 53, 239, 28, 51, 54, 213, 109, 30, 252, 22, 222, 181, 166, 248>>,
-      ...>  data: %{},
-      ...>  previous_public_key: <<0, 16, 49, 81, 15, 68, 108, 34, 43, 155, 140, 240, 167, 70, 143, 30, 249, 252,
-      ...>    51, 229, 15, 125, 82, 219, 125, 38, 252, 214, 106, 30, 243, 236, 36>>,
-      ...>  previous_signature: <<57, 161, 215, 112, 48, 145, 24, 70, 73, 47, 106, 66, 62, 196, 4, 60, 13, 104,
-      ...>    195, 92, 219, 232, 228, 52, 14, 168, 173, 30, 243, 103, 188, 89, 104, 126,
-      ...>    147, 61, 68, 207, 207, 223, 29, 226, 141, 54, 225, 103, 171, 58, 131, 248, 3,
-      ...>    247, 166, 73, 45, 113, 66, 234, 44, 94, 38, 247, 243, 174>>,
-      ...>  origin_signature: <<233, 14, 92, 8, 156, 23, 132, 167, 253, 177, 63, 112, 104, 221, 61, 134, 255,
-      ...>    249, 230, 82, 24, 56, 19, 146, 140, 220, 101, 137, 128, 84, 105, 45, 3, 53,
-      ...>    247, 227, 183, 178, 39, 253, 124, 207, 38, 107, 105, 170, 225, 152, 70, 6,
-      ...>    216, 73, 148, 253, 155, 46, 9, 247, 55, 141, 186, 37, 155, 251>>
-      ...> }
-      ...> |> Transaction.fee()
-      0.0
-
-  """
-  @spec fee(t()) :: float()
-  def fee(%__MODULE__{type: :identity}), do: 0.0
-  def fee(%__MODULE__{type: :keychain}), do: 0.0
-
-  def fee(%__MODULE__{type: type, address: address}) do
-    if network_type?(type) do
-      0.0
-    else
-      if address == Bootstrap.genesis_address() do
-        0.0
-      else
-        # TODO: implement the fee computation algorithm
-        0.01
-      end
-    end
   end
 end

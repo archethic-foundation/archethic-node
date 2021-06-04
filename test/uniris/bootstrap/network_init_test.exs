@@ -97,8 +97,7 @@ defmodule Uniris.Bootstrap.NetworkInitTest do
                    %TransactionMovement{to: "@Alice2", amount: 5_000.0, type: :UCO}
                  ],
                  unspent_outputs: [
-                   # TODO: use the right change when the fee algorithm is implemented
-                   %UnspentOutput{amount: 4999.99, from: _, type: :UCO}
+                   %UnspentOutput{amount: 4994.999997, from: _, type: :UCO}
                  ]
                }
              }

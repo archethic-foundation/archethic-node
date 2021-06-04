@@ -44,7 +44,10 @@ defmodule Uniris.Mining.ValidationContext do
 
   alias Uniris.Election
 
+  alias Uniris.Mining.Fee
   alias Uniris.Mining.ProofOfWork
+
+  alias Uniris.OracleChain
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
@@ -793,7 +796,11 @@ defmodule Uniris.Mining.ValidationContext do
         ledger_operations:
           %LedgerOperations{
             transaction_movements: resolve_transaction_movements(tx),
-            fee: Transaction.fee(tx)
+            fee:
+              Fee.calculate(
+                tx,
+                OracleChain.get_uco_price(DateTime.utc_now()) |> Keyword.fetch!(:usd)
+              )
           }
           |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.distribute_rewards(
@@ -1028,10 +1035,14 @@ defmodule Uniris.Mining.ValidationContext do
        do: poe == Election.validation_nodes_election_seed_sorting(tx, timestamp)
 
   defp valid_stamp_fee?(
-         %ValidationStamp{ledger_operations: %LedgerOperations{fee: fee}},
+         %ValidationStamp{timestamp: timestamp, ledger_operations: %LedgerOperations{fee: fee}},
          %__MODULE__{transaction: tx}
-       ),
-       do: Transaction.fee(tx) == fee
+       ) do
+    Fee.calculate(
+      tx,
+      OracleChain.get_uco_price(timestamp) |> Keyword.fetch!(:usd)
+    ) == fee
+  end
 
   defp valid_stamp_errors?(%ValidationStamp{errors: errors}, %__MODULE__{
          transaction: tx,
@@ -1055,7 +1066,7 @@ defmodule Uniris.Mining.ValidationContext do
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
-           ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
+           ledger_operations: %LedgerOperations{fee: fee, unspent_outputs: next_unspent_outputs}
          },
          %__MODULE__{
            transaction: tx,
@@ -1064,7 +1075,7 @@ defmodule Uniris.Mining.ValidationContext do
        ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
-        fee: Transaction.fee(tx),
+        fee: fee,
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)

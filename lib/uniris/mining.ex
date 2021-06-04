@@ -8,6 +8,7 @@ defmodule Uniris.Mining do
   alias Uniris.Election
 
   alias __MODULE__.DistributedWorkflow
+  alias __MODULE__.Fee
   alias __MODULE__.PendingTransactionValidation
   alias __MODULE__.StandaloneWorkflow
   alias __MODULE__.WorkerSupervisor
@@ -211,4 +212,10 @@ defmodule Uniris.Mining do
   """
   @spec validate_pending_transaction(Transaction.t()) :: :ok | {:error, any()}
   defdelegate validate_pending_transaction(tx), to: PendingTransactionValidation, as: :validate
+
+  @doc """
+  Get the transaction fee
+  """
+  @spec get_transaction_fee(Transaction.t(), float()) :: float()
+  defdelegate get_transaction_fee(tx, uco_price_in_usd), to: Fee, as: :calculate
 end

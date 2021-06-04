@@ -5,6 +5,8 @@ defmodule Uniris.TransactionFactory do
 
   alias Uniris.Election
 
+  alias Uniris.Mining.Fee
+
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.CrossValidationStamp
@@ -32,7 +34,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: Transaction.fee(tx),
+        fee: Fee.calculate(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.distribute_rewards(
@@ -83,8 +85,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        # TODO: change when the fee algorithm will be implemented
-        fee: 0.01
+        fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
@@ -126,8 +127,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        # TODO: change when the fee algorithm will be implemented
-        fee: 0.01
+        fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
@@ -167,8 +167,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        # TODO: change when the fee algorithm will be implemented
-        fee: 0.01
+        fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
@@ -250,7 +249,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: 0.01,
+        fee: Fee.calculate(tx, 0.07),
         transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30, type: :UCO}]
       }
       |> LedgerOperations.distribute_rewards(
@@ -286,7 +285,7 @@ defmodule Uniris.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: 0.01,
+        fee: Fee.calculate(tx, 0.07),
         node_movements: [
           %NodeMovement{to: "key1", amount: 20, roles: [:welcome_node]},
           %NodeMovement{

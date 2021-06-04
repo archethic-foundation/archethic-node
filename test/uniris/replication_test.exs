@@ -13,6 +13,8 @@ defmodule Uniris.ReplicationTest do
 
   alias Uniris.Election
 
+  alias Uniris.Mining.Fee
+
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
@@ -273,8 +275,7 @@ defmodule Uniris.ReplicationTest do
 
     ledger_operations =
       %LedgerOperations{
-        # TODO: change when the fee algorithm will be implemented
-        fee: 0.01
+        fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
         welcome_node,
