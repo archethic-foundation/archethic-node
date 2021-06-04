@@ -48,13 +48,13 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
   defp handle_pending_transaction(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp handle_pending_transaction(tx = %Transaction{address: address}) do
-    # TODO: improve the criteria of pending detection
-    case Contract.from_transaction!(tx) do
-      %Contract{conditions: %Conditions{transaction: nil}} ->
-        :ok
+    %Contract{conditions: %{transaction: transaction_conditions}} = Contract.from_transaction!(tx)
 
-      _ ->
-        PendingLedger.add_address(address)
+    # TODO: improve the criteria of pending detection
+    if Conditions.empty?(transaction_conditions) do
+      :ok
+    else
+      PendingLedger.add_address(address)
     end
   end
 

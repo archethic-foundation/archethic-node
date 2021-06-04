@@ -4,6 +4,7 @@ defmodule Uniris.Contracts.Loader do
   alias Uniris.ContractRegistry
   alias Uniris.ContractSupervisor
 
+  alias Uniris.Contracts
   alias Uniris.Contracts.Contract
   alias Uniris.Contracts.TransactionLookup
   alias Uniris.Contracts.Worker
@@ -55,13 +56,25 @@ defmodule Uniris.Contracts.Loader do
       when code != "" do
     stop_contract(Crypto.hash(previous_public_key))
 
-    {:ok, _} =
-      DynamicSupervisor.start_child(
-        ContractSupervisor,
-        {Worker, Contract.from_transaction!(tx)}
-      )
+    case Contracts.parse!(code) do
+      # Only load smart contract which are expecting interactions
+      %Contract{triggers: triggers = [_ | _]} ->
+        triggers = Enum.reject(triggers, &(&1.actions == {:__block__, [], []}))
 
-    Logger.debug("Smart contract loaded", transaction: "#{type}@#{Base.encode16(address)}")
+        # Avoid to load empty smart contract
+        if length(triggers) > 0 do
+          {:ok, _} =
+            DynamicSupervisor.start_child(
+              ContractSupervisor,
+              {Worker, Contract.from_transaction!(tx)}
+            )
+
+          Logger.debug("Smart contract loaded", transaction: "#{type}@#{Base.encode16(address)}")
+        end
+
+      _ ->
+        :ok
+    end
   end
 
   def load_transaction(
