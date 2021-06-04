@@ -25,7 +25,11 @@ defmodule Uniris.Reward do
   """
   @spec min_validation_nodes_reward() :: float()
   def min_validation_nodes_reward do
-    uco_eur_price = OracleChain.get_uco_price() |> Keyword.get(:eur)
+    uco_eur_price =
+      DateTime.utc_now()
+      |> OracleChain.get_uco_price()
+      |> Keyword.get(:eur)
+
     uco_eur_price * 50
   end
 

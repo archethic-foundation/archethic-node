@@ -5,6 +5,7 @@ defmodule Uniris.OracleChain.MemTableLoader do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
+  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
 
   use GenServer
@@ -14,7 +15,11 @@ defmodule Uniris.OracleChain.MemTableLoader do
   end
 
   def init(_) do
-    TransactionChain.list_transactions_by_type(:oracle_summary, [:type, data: [:content]])
+    TransactionChain.list_transactions_by_type(:oracle_summary, [
+      :type,
+      data: [:content],
+      validation_stamp: [:timestamp]
+    ])
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
 
@@ -22,11 +27,15 @@ defmodule Uniris.OracleChain.MemTableLoader do
   end
 
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{type: :oracle, data: %TransactionData{content: content}}) do
+  def load_transaction(%Transaction{
+        type: :oracle,
+        data: %TransactionData{content: content},
+        validation_stamp: %ValidationStamp{timestamp: timestamp}
+      }) do
     content
     |> Jason.decode!()
     |> Enum.each(fn {service, data} ->
-      MemTable.add_oracle_data(service, data)
+      MemTable.add_oracle_data(service, data, timestamp)
     end)
   end
 
@@ -36,9 +45,10 @@ defmodule Uniris.OracleChain.MemTableLoader do
       }) do
     content
     |> Jason.decode!()
-    |> Enum.each(fn {_timestamp, aggregated_data} ->
+    |> Enum.each(fn {timestamp, aggregated_data} ->
       Enum.each(aggregated_data, fn {service, data} ->
-        MemTable.add_oracle_data(service, data)
+        {timestamp, _} = Integer.parse(timestamp)
+        MemTable.add_oracle_data(service, data, DateTime.from_unix!(timestamp))
       end)
     end)
   end

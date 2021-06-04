@@ -85,16 +85,21 @@ defmodule Uniris.OracleChain do
   def load_transaction(%Transaction{}), do: :ok
 
   @doc """
-  Get the last UCO price in euro
+  Get the UCO price at the given date
+
+  Returns the EUR and USD price
+
+  If the price is not found, it use the default value at $0.07
+
   """
-  @spec get_uco_price() :: list({binary(), float()})
-  def get_uco_price do
-    case MemTable.get_oracle_data("uco") do
+  @spec get_uco_price(DateTime.t()) :: list({binary(), float()})
+  def get_uco_price(date = %DateTime{}) do
+    case MemTable.get_oracle_data("uco", date) do
       {:ok, prices} ->
         Enum.map(prices, fn {pair, price} -> {String.to_existing_atom(pair), price} end)
 
       _ ->
-        [eur: 0.0, usd: 0.0]
+        [eur: 0.05, usd: 0.07]
     end
   end
 end
