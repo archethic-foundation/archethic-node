@@ -3,11 +3,12 @@ defmodule Uniris.P2P.Message.GetTransactionChain do
   Represents a message to request an entire transaction chain
   """
   @enforce_keys [:address]
-  defstruct [:address]
+  defstruct [:address, :after]
 
   alias Uniris.Crypto
 
   @type t :: %__MODULE__{
-          address: Crypto.versioned_hash()
+          address: Crypto.versioned_hash(),
+          after: nil | DateTime.t()
         }
 end

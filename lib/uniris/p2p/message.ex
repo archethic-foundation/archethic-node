@@ -157,8 +157,12 @@ defmodule Uniris.P2P.Message do
     <<3::8, tx_address::binary>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address}) do
+  def encode(%GetTransactionChain{address: tx_address, after: nil}) do
     <<4::8, tx_address::binary>>
+  end
+
+  def encode(%GetTransactionChain{address: tx_address, after: date = %DateTime{}}) do
+    <<4::8, tx_address::binary, DateTime.to_unix(date)::32>>
   end
 
   def encode(%GetUnspentOutputs{address: tx_address}) do
@@ -432,6 +436,16 @@ defmodule Uniris.P2P.Message do
 
   def decode(<<4::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
+
+    case rest do
+      <<timestamp::32, rest::bitstring>> ->
+        date = DateTime.from_unix!(timestamp)
+        {%GetTransactionChain{address: address, after: date}, rest}
+
+      _ ->
+        {%GetTransactionChain{address: address}, rest}
+    end
+
     {%GetTransactionChain{address: address}, rest}
   end
 
@@ -872,13 +886,23 @@ defmodule Uniris.P2P.Message do
     end
   end
 
-  def process(%GetTransactionChain{address: tx_address}) do
-    %TransactionList{
-      transactions:
-        tx_address
-        |> TransactionChain.get()
-        |> Enum.to_list()
-    }
+  def process(%GetTransactionChain{address: tx_address, after: date = %DateTime{}}) do
+    transactions =
+      tx_address
+      |> TransactionChain.get()
+      |> Stream.filter(&(DateTime.compare(&1.validation_stamp.timestamp, date) == :gt))
+      |> Enum.to_list()
+
+    %TransactionList{transactions: transactions}
+  end
+
+  def process(%GetTransactionChain{address: tx_address, after: nil}) do
+    transactions =
+      tx_address
+      |> TransactionChain.get()
+      |> Enum.to_list()
+
+    %TransactionList{transactions: transactions}
   end
 
   def process(%GetUnspentOutputs{address: tx_address}) do

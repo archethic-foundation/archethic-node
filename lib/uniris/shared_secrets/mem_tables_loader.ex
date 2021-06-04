@@ -3,7 +3,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   use GenServer
 
-  alias Uniris.SharedSecrets.NodeRenewal
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.NodeRenewal

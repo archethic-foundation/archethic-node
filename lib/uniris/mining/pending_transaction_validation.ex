@@ -94,7 +94,7 @@ defmodule Uniris.Mining.PendingTransactionValidation do
            }
          }
        }) do
-    case Reward.get_transfers_for_in_need_validation_nodes() do
+    case Reward.get_transfers_for_in_need_validation_nodes(Reward.last_scheduling_date()) do
       ^uco_transfers ->
         :ok
 

@@ -3,12 +3,12 @@ defmodule Uniris.Reward do
   Module which handles the rewards and transfer scheduling
   """
 
-  alias Uniris.Crypto
-
   alias Uniris.OracleChain
 
   alias Uniris.P2P
+  alias Uniris.P2P.Message.GetTransactionChain
   alias Uniris.P2P.Message.GetUnspentOutputs
+  alias Uniris.P2P.Message.TransactionList
   alias Uniris.P2P.Message.UnspentOutputList
   alias Uniris.P2P.Node
 
@@ -18,8 +18,6 @@ defmodule Uniris.Reward do
 
   alias Uniris.TransactionChain
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.TransactionData
-  alias Uniris.TransactionChain.TransactionData.Keys
   alias Uniris.TransactionChain.TransactionData.UCOLedger.Transfer
 
   @doc """
@@ -32,25 +30,23 @@ defmodule Uniris.Reward do
   end
 
   @doc """
-  Return the list of transaction for the validation nodes which receive less than the minimum validation node reward
+  Return the list of transfers to rewards the validation nodes which receive less than the minimum validation node reward
+
+  This will get and check all the unspent outputs after the last reward date and determine which were mining reward
+  and compare it with the minimum of rewards for a validation node
   """
-  @spec get_transfers_for_in_need_validation_nodes() :: list(Transfer.t())
-  def get_transfers_for_in_need_validation_nodes do
+  @spec get_transfers_for_in_need_validation_nodes(last_reward_date :: DateTime.t()) ::
+          reward_transfers :: list(Transfer.t())
+  def get_transfers_for_in_need_validation_nodes(last_date = %DateTime{}) do
     min_validation_nodes_reward = min_validation_nodes_reward()
 
     Task.async_stream(P2P.authorized_nodes(), fn node = %Node{reward_address: reward_address} ->
-      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
-        reward_address
-        |> TransactionChain.resolve_last_address(DateTime.utc_now())
-        |> Replication.chain_storage_nodes()
-        |> P2P.reply_first(%GetUnspentOutputs{address: reward_address})
-
       mining_rewards =
-        unspent_outputs
-        |> Enum.filter(
-          &(&1.type == :reward and DateTime.compare(&1.timestamp, DateTime.utc_now()) == :lt)
-        )
-        |> Enum.reduce(0.0, &(&1.amount + &2))
+        reward_address
+        |> get_transactions_after(last_date)
+        |> Task.async_stream(&get_reward_unspent_outputs/1, timeout: 500, on_exit: :kill_task)
+        |> Stream.filter(&match?({:ok, _}, &1))
+        |> Enum.flat_map(& &1)
 
       {node, mining_rewards}
     end)
@@ -60,16 +56,31 @@ defmodule Uniris.Reward do
     end)
   end
 
-  def load_transaction(%Transaction{
-        type: :node_shared_secrets,
-        data: %TransactionData{keys: keys}
-      }) do
-    if Crypto.last_node_public_key() in Keys.list_authorized_keys(keys) do
-      NetworkPoolScheduler.start_scheduling()
-    end
+  defp get_transactions_after(address, date) do
+    last_address = TransactionChain.resolve_last_address(address, DateTime.utc_now())
 
-    :ok
+    {:ok, %TransactionList{transactions: chain}} =
+      last_address
+      |> Replication.chain_storage_nodes()
+      |> P2P.reply_first(%GetTransactionChain{address: last_address, after: date})
+
+    chain
+  end
+
+  defp get_reward_unspent_outputs(%Transaction{address: address}) do
+    {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
+      address
+      |> Replication.chain_storage_nodes()
+      |> P2P.reply_first(%GetUnspentOutputs{address: address})
+
+    Enum.filter(unspent_outputs, &(&1.type == :reward))
   end
 
   def load_transaction(_), do: :ok
+
+  @doc """
+  Returns the last date of the rewards scheduling from the network pool
+  """
+  @spec last_scheduling_date() :: DateTime.t()
+  defdelegate last_scheduling_date, to: NetworkPoolScheduler, as: :last_date
 end
