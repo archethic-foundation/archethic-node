@@ -25,9 +25,13 @@
 
         <div id="navbar" class="navbar-menu">
             <div class="navbar-end">
-            <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.TransactionListLive) %>">
-                Transactions
-            </a>
+    <!-- 
+          TODO: implement the listing of transactions through BeaconChain
+
+              <a class="navbar-item" href="<%= Routes.live_path(@conn, UnirisWeb.TransactionListLive) %>">
+                 Transactions
+              </a>
+  -->
             <a class="navbar-item" href="<%= Routes.explorer_path(@conn, :chain) %>">
                 Chains
             </a>
