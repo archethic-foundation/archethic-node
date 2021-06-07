@@ -77,6 +77,25 @@ To clean the environment simply remove mutable storage folder
 rm -rf data1 data2
 ```
 
+### Development with `docker-compose`
+
+Requires working `docker-compose`
+
+To start testnet:
+```
+UID=$(id -u) GID=$(id -g) docker-compose up
+```
+
+To run benchmarks:
+```
+UID=$(id -u) GID=$(id -g) docker-compose up bench
+```
+
+To validate testnet:
+```
+UID=$(id -u) GID=$(id -g) docker-compose up validate
+```
+
 ### Automation
 
 Requires working `docker-compose`

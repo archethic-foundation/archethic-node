@@ -15,7 +15,16 @@ defmodule Uniris.MixProject do
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
+      escript: escript(),
       dialyzer: [plt_add_apps: [:mix]]
+    ]
+  end
+
+  def escript do
+    [
+      main_module: Uniris.Governance.Code.Proposal.Validator,
+      name: "uniris-proposal-validator",
+      app: nil
     ]
   end
 
@@ -34,6 +43,8 @@ defmodule Uniris.MixProject do
   defp deps do
     [
       {:flow, "~> 1.0"},
+      {:mint, "~> 1.0"},
+      {:benchee, "~> 1.0"},
       {:xandra, "~> 0.11"},
       {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},
@@ -65,6 +76,7 @@ defmodule Uniris.MixProject do
       {:inet_ext, "~> 1.0"},
       {:inet_cidr, "~> 1.1", hex: :erl_cidr, override: true},
       {:telemetry_metrics, "~> 0.6"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0.0"},
       {:telemetry_poller, "~> 0.5.1"},
       {:poolboy, "~> 1.5.1"},
       {:ecto, "~> 3.5"},

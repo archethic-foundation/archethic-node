@@ -32,20 +32,13 @@ WORKDIR /opt/code
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
+COPY config ./config
 RUN mix do deps.get, deps.compile
 
 # build assets
 COPY assets ./assets 
-<<<<<<< HEAD
 RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
  && npm --prefix ./assets run deploy
-=======
-RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error deploy
-
-COPY config config
-RUN mkdir -p priv/static 
-RUN mix phx.digest 
->>>>>>> 4565ade... Fix config and priv/static for Dockerfile
 
 COPY . .
 
@@ -57,7 +50,7 @@ RUN git config user.name uniris \
 RUN mix do phx.digest, distillery.release
 
 # gen PLT
-RUN [ $skip_tests -eq 0 ] && mix git_hooks.run pre_push || true
+RUN if [ $skip_tests -eq 0 ]; then mix git_hooks.run pre_push ;fi
 
 # Install
 RUN mkdir /opt/app \

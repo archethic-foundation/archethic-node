@@ -6,6 +6,7 @@
     "watch": "webpack --mode development --watch"
   },
   "dependencies": {
+    "chokidar": "^3.5.1",
     "diff2html": "^3.1.11",
     "highlight.js": "^10.4.1",
     "phoenix": "file:../deps/phoenix",
