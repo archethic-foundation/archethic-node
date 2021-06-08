@@ -132,6 +132,7 @@ defmodule Uniris.Bootstrap do
       Sync.initialize_network(tx)
 
       post_bootstrap(sync?: false)
+      SelfRepair.put_last_sync_date(DateTime.utc_now())
     else
       if Crypto.first_node_public_key() == Crypto.last_node_public_key() do
         Logger.info("Node initialization...")
