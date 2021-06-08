@@ -33,31 +33,22 @@ defmodule Uniris.DB do
   @doc """
   Flush an entire transaction chain in the database
   """
-  @spec write_transaction_chain(Enumerable.t()) :: :ok | {:error, :transaction_already_exists}
+  @spec write_transaction_chain(Enumerable.t()) :: :ok
   def write_transaction_chain(chain) do
-    %Transaction{address: last_address} = Enum.at(chain, 0)
-
-    case get_transaction(last_address, [:type]) do
-      {:ok, _} ->
-        {:error, :transaction_already_exists}
-
-      _ ->
-        :ok = impl().write_transaction_chain(chain)
-    end
+    impl().write_transaction_chain(chain)
   end
 
   @doc """
   Flush a transaction in the database
   """
-  @spec write_transaction(Transaction.t()) :: :ok | {:error, :transaction_already_exists}
-  def write_transaction(tx = %Transaction{address: tx_address}) do
-    case get_transaction(tx_address, [:type]) do
-      {:ok, _} ->
-        {:error, :transaction_already_exists}
+  @spec write_transaction(Transaction.t()) :: :ok
+  def write_transaction(tx = %Transaction{}) do
+    impl().write_transaction(tx)
+  end
 
-      _ ->
-        impl().write_transaction(tx)
-    end
+  @spec write_transaction(Transaction.t(), binary()) :: :ok
+  def write_transaction(tx = %Transaction{}, chain_address) do
+    impl().write_transaction(tx, chain_address)
   end
 
   @doc """
@@ -194,6 +185,31 @@ defmodule Uniris.DB do
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   def get_first_public_key(public_key) when is_binary(public_key) do
     impl().get_first_public_key(public_key)
+  end
+
+  @doc """
+  Register a new transaction per second for the given date and the number of transactions
+  """
+  @spec register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
+  def register_tps(date = %DateTime{}, tps, nb_transactions)
+      when is_float(tps) and is_integer(nb_transactions) do
+    impl().register_tps(date, tps, nb_transactions)
+  end
+
+  @doc """
+  Retreive the number of transactions in the network
+  """
+  @spec get_nb_transactions() :: non_neg_integer()
+  def get_nb_transactions do
+    impl().get_nb_transactions()
+  end
+
+  @doc """
+  Retrieve the last TPS
+  """
+  @spec get_latest_tps() :: float()
+  def get_latest_tps do
+    impl().get_latest_tps
   end
 
   defp impl do

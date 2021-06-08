@@ -3,6 +3,8 @@ defmodule Uniris.P2P.MemTableLoader do
 
   use GenServer
 
+  alias Uniris.BeaconChain.Summary, as: BeaconSummary
+
   alias Uniris.P2P
   alias Uniris.P2P.GeoPatch
   alias Uniris.P2P.MemTable
@@ -25,12 +27,19 @@ defmodule Uniris.P2P.MemTableLoader do
   def init(_args) do
     TransactionChain.list_transactions_by_type(:node, [
       :address,
-      :timestamp,
       :type,
       :previous_public_key,
       data: [:content],
       validation_stamp: [:timestamp]
     ])
+    |> Stream.each(&load_transaction/1)
+    |> Stream.run()
+
+    TransactionChain.list_transactions_by_type(
+      :beacon_summary,
+      [:type, data: [:content], validation_stamp: [:timestamp]]
+    )
+    |> Enum.sort_by(& &1.validation_stamp.timestamp)
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
 
@@ -66,7 +75,7 @@ defmodule Uniris.P2P.MemTableLoader do
         }
       }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-    {ip, port, transport, reward_address} = extract_node_endpoint(content)
+    {ip, port, transport, reward_address} = Node.extract_node_info(content)
 
     node = %Node{
       ip: ip,
@@ -110,36 +119,29 @@ defmodule Uniris.P2P.MemTableLoader do
     |> Enum.each(&MemTable.authorize_node(&1, SharedSecrets.next_application_date(timestamp)))
   end
 
+  def load_transaction(%Transaction{
+        type: :beacon_summary,
+        data: %TransactionData{content: content}
+      }) do
+    {summary = %BeaconSummary{
+       end_of_node_synchronizations: end_of_node_sync
+     }, _} = BeaconSummary.deserialize(content)
+
+    Enum.each(end_of_node_sync, &MemTable.set_node_available(&1.public_key))
+
+    summary
+    |> BeaconSummary.get_node_availabilities()
+    |> Enum.each(fn {%Node{first_public_key: key}, available?} ->
+      if available? do
+        MemTable.set_node_available(key)
+      else
+        MemTable.set_node_unavailable(key)
+      end
+    end)
+  end
+
   def load_transaction(_), do: :ok
 
   defp first_node_change?(first_key, previous_key) when first_key == previous_key, do: true
   defp first_node_change?(_, _), do: false
-
-  defp extract_node_endpoint(content) do
-    [[ip_match, port_match, transport_match, reward_address_match]] =
-      Regex.scan(Node.transaction_content_regex(), content, capture: :all_but_first)
-
-    {:ok, ip} =
-      ip_match
-      |> String.trim()
-      |> String.to_charlist()
-      |> :inet.parse_address()
-
-    port =
-      port_match
-      |> String.trim()
-      |> String.to_integer()
-
-    transport =
-      transport_match
-      |> String.trim()
-      |> String.to_existing_atom()
-
-    reward_address =
-      reward_address_match
-      |> String.trim()
-      |> Base.decode16!()
-
-    {ip, port, transport, reward_address}
-  end
 end

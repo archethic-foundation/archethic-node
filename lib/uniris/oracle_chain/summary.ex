@@ -45,10 +45,10 @@ defmodule Uniris.OracleChain.Summary do
   def aggregate(summary = %__MODULE__{transactions: transactions}) do
     aggregated =
       transactions
-      |> Enum.map(fn %Transaction{
-                       data: %TransactionData{content: content},
-                       validation_stamp: %ValidationStamp{timestamp: timestamp}
-                     } ->
+      |> Stream.map(fn %Transaction{
+                         data: %TransactionData{content: content},
+                         validation_stamp: %ValidationStamp{timestamp: timestamp}
+                       } ->
         data = Jason.decode!(content)
 
         {DateTime.truncate(timestamp, :second), data}

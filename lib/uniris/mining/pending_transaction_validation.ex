@@ -260,18 +260,11 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          previous_public_key: previous_public_key
        }) do
     with previous_address <- Crypto.hash(previous_public_key),
-         oracle_chain <- TransactionChain.get(previous_address, data: [:content]),
-         false <- Enum.empty?(oracle_chain),
+         oracle_chain <-
+           TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp]),
          true <- OracleChain.valid_summary?(content, oracle_chain) do
       :ok
     else
-      true ->
-        Logger.error("Oracle transaction summary cannot process with an empty chain",
-          transaction: "oracle_summary@#{Base.encode16(address)}"
-        )
-
-        {:error, "Invalid oracle summary transaction"}
-
       _ ->
         Logger.error("Invalid oracle summary transaction",
           transaction: "oracle_summary@#{Base.encode16(address)}"

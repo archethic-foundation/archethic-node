@@ -47,8 +47,6 @@ config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
 config :uniris, Uniris.Crypto.SharedSecretsKeystore,
   impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :uniris, Uniris.DB, impl: Uniris.DB.KeyValueImpl
-
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
     technical_council: [{"001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}],

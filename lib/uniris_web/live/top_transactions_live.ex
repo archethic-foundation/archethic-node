@@ -18,7 +18,7 @@ defmodule UnirisWeb.TopTransactionLive do
     end
 
     transactions =
-      [:address, :type, :timestamp]
+      [:address, :type, validation_stamp: [:timestamp]]
       |> TransactionChain.list_all()
       |> get_last_n(@nb_transactions)
 

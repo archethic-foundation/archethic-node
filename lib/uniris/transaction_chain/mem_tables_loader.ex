@@ -14,7 +14,23 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   require Logger
 
-  @query_fields [:address, :type, :timestamp, :previous_public_key, data: [:code]]
+  @query_fields [
+    :address,
+    :type,
+    :previous_public_key,
+    data: [:code]
+  ]
+
+  @excluded_types [
+    :node,
+    :node_shared_secrets,
+    :oracle,
+    :oracle_summary,
+    :beacon,
+    :beacon_summary,
+    :node_rewards,
+    :origin_shared_secrets
+  ]
 
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
@@ -22,6 +38,7 @@ defmodule Uniris.TransactionChain.MemTablesLoader do
 
   def init(_args) do
     DB.list_transactions(@query_fields)
+    |> Stream.reject(&(&1.type in @excluded_types))
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
 

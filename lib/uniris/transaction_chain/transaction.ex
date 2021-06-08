@@ -805,7 +805,7 @@ defmodule Uniris.TransactionChain.Transaction do
       origin_signature: tx.origin_signature,
       validation_stamp: ValidationStamp.to_map(tx.validation_stamp),
       cross_validation_stamps:
-        Enum.map(tx.cross_validation_stamps, &CrossValidationStamp.to_map/1)
+        Enum.map(tx.cross_validation_stamps || [], &CrossValidationStamp.to_map/1)
     }
   end
 
@@ -829,13 +829,8 @@ defmodule Uniris.TransactionChain.Transaction do
       origin_signature: Map.get(tx, :origin_signature),
       validation_stamp: Map.get(tx, :validation_stamp) |> ValidationStamp.from_map(),
       cross_validation_stamps:
-        case Map.get(tx, :cross_validation_stamps) do
-          nil ->
-            nil
-
-          cross_stamps ->
-            Enum.map(cross_stamps, &CrossValidationStamp.from_map/1)
-        end
+        (Map.get(tx, :cross_validation_stamps) || [])
+        |> Enum.map(&CrossValidationStamp.from_map/1)
     }
   end
 end

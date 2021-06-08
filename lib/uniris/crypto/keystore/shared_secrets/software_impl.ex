@@ -109,9 +109,13 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   @impl GenStateMachine
   def init(_) do
-    nb_node_shared_secrets_keys =
-      TransactionChain.count_transactions_by_type(:node_shared_secrets)
+    node_shared_secrets_chain =
+      TransactionChain.list_transactions_by_type(:node_shared_secrets,
+        data: [:keys],
+        validation_stamp: [:timestamp]
+      )
 
+    nb_node_shared_secrets_keys = Enum.count(node_shared_secrets_chain)
     Logger.debug("#{nb_node_shared_secrets_keys} node shared keys loaded into the keystore")
 
     nb_network_pool_keys = TransactionChain.count_transactions_by_type(:node_rewards)
@@ -122,18 +126,11 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
        shared_secrets_index: nb_node_shared_secrets_keys,
        network_pool_index: nb_network_pool_keys,
        daily_nonce_keys: %{}
-     }, {:next_event, :internal, :initial_load}}
+     }, {:next_event, :internal, {:initial_load, node_shared_secrets_chain}}}
   end
 
-  def handle_event(:internal, :initial_load, :idle, data) do
-    last_node_shared_tx =
-      TransactionChain.list_transactions_by_type(:node_shared_secrets,
-        data: [:keys],
-        validation_stamp: [:timestamp]
-      )
-      |> Enum.at(0)
-
-    case last_node_shared_tx do
+  def handle_event(:internal, {:initial_load, node_shared_secrets_chain}, :idle, data) do
+    case Enum.at(node_shared_secrets_chain, 0) do
       nil ->
         :keep_state_and_data
 

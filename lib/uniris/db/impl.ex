@@ -10,6 +10,7 @@ defmodule Uniris.DBImpl do
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_transaction_chain(binary(), fields :: list()) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
+  @callback write_transaction(Transaction.t(), binary()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
@@ -24,4 +25,8 @@ defmodule Uniris.DBImpl do
   @callback get_last_chain_address(binary(), DateTime.t()) :: binary()
   @callback get_first_chain_address(binary()) :: binary()
   @callback get_first_public_key(Crypto.key()) :: binary()
+
+  @callback register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
+  @callback get_latest_tps() :: float()
+  @callback get_nb_transactions() :: non_neg_integer()
 end

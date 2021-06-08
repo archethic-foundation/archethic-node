@@ -35,7 +35,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
       fn ->
         TransactionChain.list_transactions_by_type(:node_shared_secrets, [
           :type,
-          :timestamp,
           data: [:content],
           validation_stamp: [:timestamp]
         ])

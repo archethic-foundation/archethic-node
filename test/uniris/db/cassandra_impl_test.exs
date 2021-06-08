@@ -6,6 +6,7 @@ defmodule Uniris.DB.CassandraImplTest do
   alias Uniris.Crypto
 
   alias Uniris.DB.CassandraImpl, as: Cassandra
+  alias Uniris.DB.CassandraImpl.Supervisor, as: CassandraSupervisor
 
   alias Uniris.P2P
   alias Uniris.P2P.Node
@@ -17,33 +18,23 @@ defmodule Uniris.DB.CassandraImplTest do
   alias Uniris.Utils
 
   setup_all do
-    Code.compiler_options(ignore_module_conflict: true)
-
     {:ok, conn} = Xandra.start_link()
     Xandra.execute!(conn, "DROP KEYSPACE IF EXISTS uniris")
-    {:ok, _pid} = Cassandra.start_link()
-
-    on_exit(fn ->
-      Code.compiler_options(ignore_module_conflict: false)
-    end)
-  end
-
-  setup do
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transactions")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transaction_chains")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.transaction_type_lookup")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_first_address")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_first_key")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.chain_lookup_by_last_address")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.beacon_chain_slot")
-    Xandra.execute!(:xandra_conn, "TRUNCATE uniris.beacon_chain_summary")
-
+    start_supervised!(CassandraSupervisor)
     :ok
   end
 
-  @tag infrastructure: true
-  test "start_link/1 should initiate create the connection pool and run the migrations" do
-    assert {:ok, _} = Xandra.execute(:xandra_conn, "select * from uniris.transaction_chains")
+  setup do
+    Xandra.run(:xandra_conn, fn conn ->
+      Xandra.execute!(conn, "TRUNCATE uniris.transactions")
+      Xandra.execute!(conn, "TRUNCATE uniris.transaction_type_lookup")
+      Xandra.execute!(conn, "TRUNCATE uniris.chain_lookup_by_first_address")
+      Xandra.execute!(conn, "TRUNCATE uniris.chain_lookup_by_first_key")
+      Xandra.execute!(conn, "TRUNCATE uniris.chain_lookup_by_last_address")
+      Xandra.execute!(conn, "TRUNCATE uniris.network_stats_by_date")
+    end)
+
+    :ok
   end
 
   @tag infrastructure: true
@@ -52,10 +43,15 @@ defmodule Uniris.DB.CassandraImplTest do
     assert :ok = Cassandra.write_transaction(tx)
 
     prepared_tx_query =
-      Xandra.prepare!(:xandra_conn, "SELECT address FROM uniris.transactions WHERE address = ?")
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT address, type FROM uniris.transactions WHERE chain_address = ?"
+      )
 
-    assert {:ok, %Xandra.Page{content: [_]}} =
-             Xandra.execute(:xandra_conn, prepared_tx_query, [tx.address])
+    tx_address = tx.address
+
+    assert %{"address" => ^tx_address, "type" => "transfer"} =
+             Xandra.execute!(:xandra_conn, prepared_tx_query, [tx_address]) |> Enum.at(0)
   end
 
   @tag infrastructure: true
@@ -67,24 +63,19 @@ defmodule Uniris.DB.CassandraImplTest do
     chain = [tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
-    prepared_tx_query =
-      Xandra.prepare!(:xandra_conn, "SELECT address FROM uniris.transactions WHERE address = ?")
-
-    assert Enum.all?(chain, fn tx ->
-             assert {:ok, %Xandra.Page{content: [_]}} =
-                      Xandra.execute(:xandra_conn, prepared_tx_query, [tx.address])
-           end)
-
     chain_prepared_query =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT * FROM uniris.transaction_chains WHERE chain_address = ?"
+        "SELECT * FROM uniris.transactions WHERE chain_address = ?"
       )
 
-    assert {:ok, %Xandra.Page{content: [_ | _]}} =
-             Xandra.execute(:xandra_conn, chain_prepared_query, [
-               List.first(chain).address
-             ])
+    chain =
+      Xandra.execute!(:xandra_conn, chain_prepared_query, [
+        List.first(chain).address
+      ])
+      |> Enum.to_list()
+
+    assert length(chain) == 2
   end
 
   @tag infrastructure: true
@@ -265,6 +256,17 @@ defmodule Uniris.DB.CassandraImplTest do
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx3.previous_public_key)
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx2.previous_public_key)
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx1.previous_public_key)
+  end
+
+  @tag infrastructure: true
+  test "register_tps/3 should insert the tps and the nb transactions for a given date" do
+    :ok = Cassandra.register_tps(DateTime.utc_now(), 10, 10_000)
+
+    assert 10 =
+             :xandra_conn
+             |> Xandra.execute!("SELECT * FROM uniris.network_stats_by_date")
+             |> Enum.at(0)
+             |> Map.get("tps")
   end
 
   defp create_transaction(opts \\ []) do

@@ -23,10 +23,22 @@ defmodule Uniris.Account.MemTablesLoader do
 
   @query_fields [
     :address,
+    :type,
     :previous_public_key,
     validation_stamp: [
-      ledger_operations: [:timestamp, :node_movements, :unspent_outputs, :transaction_movements]
+      :timestamp,
+      ledger_operations: [:node_movements, :unspent_outputs, :transaction_movements]
     ]
+  ]
+
+  @excluded_types [
+    :node,
+    :beacon,
+    :beacon_summary,
+    :oracle,
+    :oracle_summary,
+    :node_shared_secrets,
+    :origin_shared_secrets
   ]
 
   def start_link(args \\ []) do
@@ -35,6 +47,7 @@ defmodule Uniris.Account.MemTablesLoader do
 
   def init(_args) do
     TransactionChain.list_all(@query_fields)
+    |> Stream.reject(&(&1.type in @excluded_types))
     |> Stream.each(&load_transaction/1)
     |> Stream.run()
 

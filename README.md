@@ -58,24 +58,21 @@ Requires Cassandra/ScyllaDB installation to use for the backend storage
 Requires Elixir 1.11
 
 At first, get dependencies:
-```
+```bash
 mix deps.get
 ```
 
-To start first node:
+To start a single node:
 ```bash
-iex -S mix phx.server
+iex -S mix
 ```
 
-To start a second node
+To clean the data from the database
 ```bash
-UNIRIS_CRYPTO_SEED="node2" UNIRIS_P2P_PORT=3005 UNIRIS_HTTP_PORT=4005 UNIRIS_MUT_DIR="data2" iex -S mix
+mix uniris.clean_db
 ```
 
-To clean the environment simply remove mutable storage folder
-```bash
-rm -rf data1 data2
-```
+To start multiple nodes, you can leverage: `docker-compose`
 
 ### Development with `docker-compose`
 

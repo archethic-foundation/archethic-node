@@ -28,7 +28,6 @@ config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.Sof
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED")
 
-config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
 
 config :uniris, Uniris.Governance.Pools,
   # TODO: provide the true addresses of the members

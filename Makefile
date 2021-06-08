@@ -14,8 +14,10 @@ priv/c_dist:
 clean:
 	rm -f priv/c_dist/libsodium
 	rm -f priv/c_dist/hypergeometric_distribution
+	rm -rf data*
+	mix uniris.clean_db
 
-hostclean: clean
+docker-clean: clean
 	-docker container stop $$(docker ps -a --filter=name=utn* -q)
 	-docker container rm   $$(docker ps -a --filter=name=utn* -q)
 	-docker container rm uniris-prop-313233

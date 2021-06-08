@@ -226,7 +226,7 @@ defmodule Uniris.OracleChain.Scheduler do
       |> Crypto.derive_oracle_keypair()
       |> elem(0)
       |> Crypto.hash()
-      |> TransactionChain.get(data: [:content])
+      |> TransactionChain.get(data: [:content], validation_stamp: [:timestamp])
 
     %Summary{transactions: oracle_chain, previous_date: last_poll_date, date: date}
     |> Summary.aggregate()

@@ -7,12 +7,15 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias Uniris.Crypto
 
+  alias Uniris.DB
+
   alias Uniris.Election
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
 
-  alias __MODULE__.NetworkStatistics
+  alias Uniris.PubSub
+
   alias __MODULE__.TransactionHandler
 
   alias Uniris.TransactionChain
@@ -187,8 +190,13 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
       nb_seconds = abs(DateTime.diff(previous_summary_time, date))
       tps = nb_transactions / nb_seconds
 
-      NetworkStatistics.register_tps(date, tps, nb_transactions)
-      NetworkStatistics.increment_number_transactions(nb_transactions)
+      DB.register_tps(date, tps, nb_transactions)
+
+      Logger.info(
+        "TPS #{tps} on #{Utils.time_to_string(date)} with #{nb_transactions} transactions"
+      )
+
+      PubSub.notify_new_tps(tps)
     end)
   end
 end

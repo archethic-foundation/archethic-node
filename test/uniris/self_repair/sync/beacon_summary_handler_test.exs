@@ -23,7 +23,6 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
 
   alias Uniris.SelfRepair.Sync.BeaconSummaryHandler
-  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
 
   alias Uniris.TransactionFactory
 
@@ -308,6 +307,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         }
       ]
 
+      MockDB
+      |> stub(:register_tps, fn _, _, _ -> :ok end)
+
       :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
       {:ok, node} = P2P.get_node_info("key")
       assert true = Node.globally_available?(node)
@@ -405,8 +407,10 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         }
       ]
 
+      MockDB
+      |> stub(:register_tps, fn _, _, _ -> :ok end)
+
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
-      assert 2 == NetworkStatistics.get_nb_transactions()
     end
 
     test "should synchronize transactions when the node is in the storage node pools" do
@@ -517,8 +521,12 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
           {:ok, %TransactionInputList{inputs: inputs}}
       end)
 
+      MockDB
+      |> stub(:register_tps, fn _, _, _ ->
+        :ok
+      end)
+
       assert :ok = BeaconSummaryHandler.handle_missing_summaries(summaries, "AAA")
-      assert 2 == NetworkStatistics.get_nb_transactions()
 
       assert_received :transaction_stored
       assert_received :transaction_stored

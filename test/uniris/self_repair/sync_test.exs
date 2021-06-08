@@ -44,6 +44,7 @@ defmodule Uniris.SelfRepair.SyncTest do
       last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
 
       new_sync_date = last_sync_date |> DateTime.to_unix() |> Integer.to_string()
+      Path.dirname(file) |> File.mkdir_p!()
       :ok = File.write!(file, new_sync_date, [:write])
 
       assert Sync.last_sync_date() == last_sync_date
@@ -175,6 +176,9 @@ defmodule Uniris.SelfRepair.SyncTest do
         _, %GetTransactionChain{} ->
           {:ok, %TransactionList{transactions: []}}
       end)
+
+      MockDB
+      |> stub(:register_tps, fn _, _, _ -> :ok end)
 
       assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1), "AAA")
 

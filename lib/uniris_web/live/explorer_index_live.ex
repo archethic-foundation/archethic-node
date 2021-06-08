@@ -5,16 +5,17 @@ defmodule UnirisWeb.ExplorerIndexLive do
 
   alias Phoenix.View
 
+  alias Uniris.DB
+
   alias Uniris.P2P
   alias Uniris.PubSub
-  alias Uniris.SelfRepair
 
   alias UnirisWeb.ExplorerView
 
   def mount(_params, _session, socket) do
     nb_nodes = P2P.authorized_nodes() |> length()
-    tps = SelfRepair.get_latest_tps()
-    nb_transactions = SelfRepair.get_nb_transactions()
+    tps = DB.get_latest_tps()
+    nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
       PubSub.register_to_new_tps()

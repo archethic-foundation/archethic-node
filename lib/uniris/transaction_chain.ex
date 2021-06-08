@@ -108,16 +108,15 @@ defmodule Uniris.TransactionChain do
           type: type
         }
       ) do
-    case DB.write_transaction(tx) do
-      :ok ->
-        KOLedger.remove_transaction(address)
-        Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
+    DB.write_transaction(tx)
+    KOLedger.remove_transaction(address)
+    Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
+  end
 
-      {:error, :transaction_already_exists} ->
-        Logger.debug("Transaction already stored",
-          transaction: "#{type}@#{Base.encode16(address)}"
-        )
-    end
+  def write_transaction(tx = %Transaction{address: address, type: type}, chain_address) do
+    DB.write_transaction(tx, chain_address)
+    KOLedger.remove_transaction(address)
+    Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
   end
 
   @doc """
@@ -132,21 +131,12 @@ defmodule Uniris.TransactionChain do
       type: tx_type
     } = Enum.at(sorted_chain, 0)
 
-    case DB.write_transaction_chain(sorted_chain) do
-      :ok ->
-        chain
-        |> Stream.each(&KOLedger.remove_transaction(&1.address))
-        |> Stream.run()
+    DB.write_transaction_chain(sorted_chain)
+    KOLedger.remove_transaction(tx_address)
 
-        Logger.info("Transaction Chain stored",
-          transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
-        )
-
-      {:error, :transaction_already_exists} ->
-        Logger.debug("Transaction Chain already stored",
-          transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
-        )
-    end
+    Logger.info("Transaction Chain stored",
+      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+    )
   end
 
   @doc """

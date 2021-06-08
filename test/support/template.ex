@@ -16,8 +16,6 @@ defmodule UnirisCase do
 
   alias Uniris.P2P.MemTable, as: P2PMemTable
 
-  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
-
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
 
@@ -137,7 +135,6 @@ defmodule UnirisCase do
     start_supervised!(P2PMemTable)
     start_supervised!(Constraints)
     start_supervised!(PoolsMemTable)
-    start_supervised!(NetworkStatistics)
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
 
