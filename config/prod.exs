@@ -25,9 +25,9 @@ config :uniris, Uniris.BeaconChain.SummaryTimer,
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
 
-config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
-  seed: System.get_env("UNIRIS_CRYPTO_SEED")
-
+# TODO: to remove when the implementation will be detected
+config :uniris, Uniris.Crypto.SharedSecretsKeystore,
+  impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
 
 config :uniris, Uniris.Governance.Pools,
   # TODO: provide the true addresses of the members
@@ -54,6 +54,9 @@ config :uniris, Uniris.Reward.WithdrawScheduler,
   # Every day at midnight
   interval: "0 0 0 * * * *"
 
+config :uniris, Uniris.Crypto.SharedSecretsKeystore,
+  impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
+
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day 10 minute before midnight
   interval: "0 50 0 * * * *",
@@ -63,16 +66,6 @@ config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
 config :uniris, Uniris.SelfRepair.Scheduler,
   # Every day at midnight
   interval: "0 0 0 * * * *"
-
-config :uniris, Uniris.P2P.BootstrappingSeeds,
-  seeds:
-    System.get_env(
-      "UNIRIS_P2P_SEEDS",
-      """
-      51.83.252.250:3002:001682A30A527217F52D9503791ABC5138705541EB06199DE21C50EE1F37FBD0B0:tcp
-      51.89.224.208:3002:003243BC6AF1527A158DB58B0DD3A32AB915F4C1BEEDC94EBB13336528452782D3:tcp
-      """
-    )
 
 config :uniris, Uniris.P2P.Endpoint,
   port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()

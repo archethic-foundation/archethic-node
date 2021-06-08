@@ -62,7 +62,6 @@ config :uniris, Uniris.OracleChain.Services.UCOPrice, provider: MockUCOPriceProv
 config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
 config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
 
-config :uniris, Uniris.P2P.Batcher, enabled: false
 config :uniris, Uniris.P2P.Endpoint.Listener, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
@@ -82,11 +81,7 @@ config :uniris, Uniris.SelfRepair.Notifier, enabled: false
 
 config :uniris, Uniris.SelfRepair.Sync,
   network_startup_date: DateTime.utc_now(),
-  last_sync_file: "priv/p2p/last_sync_test"
-
-config :uniris, Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics,
-  dump_dir: "priv/p2p/network_stats_test",
-  enabled: false
+  last_sync_file: "p2p/last_sync_test"
 
 config :uniris, Uniris.SharedSecrets.MemTablesLoader, enabled: false
 config :uniris, Uniris.SharedSecrets.MemTables.NetworkLookup, enabled: false

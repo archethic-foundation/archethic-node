@@ -53,7 +53,11 @@ config :uniris, Uniris.Crypto,
   default_hash: :sha256,
   storage_nonce_file: "crypto/storage_nonce"
 
+config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
+  seed: System.get_env("UNIRIS_CRYPTO_SEED")
+
 config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
+
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_seed:
     <<226, 4, 212, 129, 254, 162, 178, 168, 206, 139, 176, 91, 179, 29, 83, 20, 50, 98, 0, 25,
@@ -62,8 +66,12 @@ config :uniris, Uniris.Bootstrap.NetworkInit,
     <<190, 107, 211, 23, 6, 230, 228, 144, 253, 154, 200, 213, 66, 172, 229, 96, 5, 171, 134, 249,
       80, 160, 149, 4, 106, 249, 155, 116, 186, 125, 77, 192>>
 
+config :uniris, Uniris.Networking.IPLookup.Static,
+  hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
 
-config :uniris, Uniris.P2P.BootstrappingSeeds, file: "p2p/seeds"
+config :uniris, Uniris.P2P.BootstrappingSeeds,
+  backup_file: "p2p/seeds",
+  genesis_seeds: System.get_env("UNIRIS_P2P_SEEDS")
 
 config :uniris, Uniris.P2P.Endpoint,
   nb_acceptors: 100,

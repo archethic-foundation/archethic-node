@@ -19,13 +19,18 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   require Logger
 
+  @type options :: [
+          genesis_seeds: binary(),
+          backup_file: binary()
+        ]
+
   @doc """
   Start the bootstrapping seeds holder
 
   Options:
   - File: path from the P2P bootstrapping seeds backup
   """
-  @spec start_link(opts :: [file :: String.t()]) :: {:ok, pid()}
+  @spec start_link(options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -43,16 +48,16 @@ defmodule Uniris.P2P.BootstrappingSeeds do
   def update(seeds), do: GenServer.call(__MODULE__, {:new_seeds, seeds})
 
   def init(opts) do
-    hardcoded_seeds = Keyword.get(opts, :seeds, "")
-    file = Keyword.get(opts, :file, "")
+    genesis_seeds = Keyword.get(opts, :genesis_seeds, "")
+    backup_file = Keyword.get(opts, :backup_file, "")
 
     seeds =
-      case File.read(file) do
+      case File.read(backup_file) do
         {:ok, data} when data != "" ->
           extract_seeds(data)
 
         _ ->
-          extract_seeds(hardcoded_seeds)
+          extract_seeds(genesis_seeds)
       end
 
     Logger.debug(
@@ -63,7 +68,7 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
     PubSub.register_to_node_update()
 
-    {:ok, %{seeds: seeds, file: file}}
+    {:ok, %{seeds: seeds, backup_file: backup_file}}
   end
 
   def handle_call(:list_seeds, _from, state = %{seeds: seeds}) do
@@ -72,10 +77,10 @@ defmodule Uniris.P2P.BootstrappingSeeds do
 
   def handle_call({:new_seeds, []}, _from, state), do: {:reply, :ok, state}
 
-  def handle_call({:new_seeds, _seeds}, _from, state = %{file: ""}),
+  def handle_call({:new_seeds, _seeds}, _from, state = %{backup_file: ""}),
     do: {:reply, :ok, state}
 
-  def handle_call({:new_seeds, seeds}, _from, state = %{file: file}) do
+  def handle_call({:new_seeds, seeds}, _from, state = %{backup_file: file}) do
     seeds
     |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
     |> nodes_to_seeds
@@ -90,7 +95,7 @@ defmodule Uniris.P2P.BootstrappingSeeds do
     {:reply, :ok, %{state | seeds: seeds}}
   end
 
-  def handle_info({:node_update, %Node{authorized?: true}}, state = %{file: file}) do
+  def handle_info({:node_update, %Node{authorized?: true}}, state = %{backup_file: file}) do
     top_nodes =
       Enum.reject(
         P2P.authorized_nodes(),

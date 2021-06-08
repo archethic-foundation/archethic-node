@@ -44,10 +44,9 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
       File.write(file_path, seed_str, [:write])
 
-      {:ok, pid} = BootstrappingSeeds.start_link(file: file_path)
+      {:ok, pid} = BootstrappingSeeds.start_link(backup_file: file_path)
 
-      %{seeds: seeds, file: file} = :sys.get_state(pid)
-
+      %{seeds: seeds, backup_file: file} = :sys.get_state(pid)
       assert file == file_path
       assert [%Node{port: 3005}, %Node{port: 3003}] = seeds
     end
@@ -59,7 +58,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
             "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
         )
 
-      %{seeds: seeds, file: file} = :sys.get_state(pid)
+      %{seeds: seeds, backup_file: file} = :sys.get_state(pid)
       assert file == ""
 
       assert [%Node{port: 3002, first_public_key: node_key, transport: :tcp}] = seeds
@@ -82,7 +81,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
     File.write(file_path, seed_str, [:write])
 
-    {:ok, _pid} = BootstrappingSeeds.start_link(file: file_path)
+    {:ok, _pid} = BootstrappingSeeds.start_link(backup_file: file_path)
 
     assert [%Node{port: 3005, transport: :tcp}, %Node{port: 3003, transport: :tcp}] =
              BootstrappingSeeds.list()
@@ -99,7 +98,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
     File.write(file_path, seed_str, [:write])
 
-    {:ok, _pid} = BootstrappingSeeds.start_link(file: file_path)
+    {:ok, _pid} = BootstrappingSeeds.start_link(backup_file: file_path)
 
     assert [%Node{port: 3005}, %Node{port: 3003}] = BootstrappingSeeds.list()
 

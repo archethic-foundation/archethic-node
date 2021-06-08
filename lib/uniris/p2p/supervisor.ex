@@ -35,8 +35,8 @@ defmodule Uniris.P2P.Supervisor do
       {EndpointSupervisor, Keyword.put(endpoint_conf, :port, port)},
       {BootstrappingSeeds,
        [
-         file: Utils.mut_dir(Keyword.fetch!(bootstraping_seeds_conf, :file)),
-         seeds: Keyword.get(bootstraping_seeds_conf, :seeds)
+         backup_file: Utils.mut_dir(Keyword.fetch!(bootstraping_seeds_conf, :backup_file)),
+         genesis_seeds: Keyword.get(bootstraping_seeds_conf, :genesis_seeds)
        ]}
     ]
 
