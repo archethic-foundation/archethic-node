@@ -10,8 +10,6 @@ defmodule Uniris.SharedSecrets do
   alias __MODULE__.NodeRenewalScheduler
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.TransactionData
-  alias Uniris.TransactionChain.TransactionData.Keys
 
   @type origin_family :: :software | :usb | :biometric
 
@@ -73,21 +71,7 @@ defmodule Uniris.SharedSecrets do
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(tx = %Transaction{}) do
     MemTablesLoader.load_transaction(tx)
-    do_load_transaction(tx)
   end
-
-  defp do_load_transaction(%Transaction{
-         type: :node_shared_secrets,
-         data: %TransactionData{keys: keys}
-       }) do
-    if Crypto.last_node_public_key() in Keys.list_authorized_keys(keys) do
-      NodeRenewalScheduler.start_scheduling()
-    end
-
-    :ok
-  end
-
-  defp do_load_transaction(_), do: :ok
 
   @doc """
   Get the genesis daily nonce public key

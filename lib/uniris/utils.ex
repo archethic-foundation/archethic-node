@@ -519,4 +519,21 @@ defmodule Uniris.Utils do
   end
 
   def mut_dir, do: mut_dir("")
+
+  @doc """
+  Return the remaining seconds from timer
+  """
+  @spec remaining_seconds_from_timer(reference()) :: non_neg_integer()
+  def remaining_seconds_from_timer(timer) do
+    seconds =
+      case Process.read_timer(timer) do
+        false ->
+          0
+
+        milliseconds ->
+          div(milliseconds, 1000)
+      end
+
+    HumanizeTime.format_seconds(seconds)
+  end
 end

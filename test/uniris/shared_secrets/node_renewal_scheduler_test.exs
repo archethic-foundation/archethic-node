@@ -44,10 +44,15 @@ defmodule Uniris.SharedSecrets.NodeRenewalSchedulerTest do
 
       MockDB
       |> expect(:get_latest_tps, fn -> 10.0 end)
+
       assert {:ok, pid} = Scheduler.start_link([interval: "*/2 * * * * *"], [])
-      Scheduler.start_scheduling(pid)
 
       assert %{interval: "*/2 * * * * *"} = :sys.get_state(pid)
+
+      send(
+        pid,
+        {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
+      )
 
       assert_receive :renewal_processed, 3_000
     end

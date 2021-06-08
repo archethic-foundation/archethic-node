@@ -21,6 +21,10 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   alias Uniris
 
   alias Uniris.Crypto
+
+  alias Uniris.P2P.Node
+  alias Uniris.PubSub
+
   alias Uniris.SharedSecrets.NodeRenewal
 
   alias Uniris.Utils
@@ -45,59 +49,50 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     GenServer.start_link(__MODULE__, args, opts)
   end
 
-  @doc """
-  Start the scheduler
-  """
-  @spec start_scheduling() :: :ok
-  def start_scheduling, do: GenServer.cast(__MODULE__, :start_scheduling)
-
-  @doc false
-  def start_scheduling(pid), do: GenServer.cast(pid, :start_scheduling)
-
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
+    PubSub.register_to_node_update()
     {:ok, %{interval: interval}, :hibernate}
   end
 
-  def handle_cast(:start_scheduling, state = %{scheduler_started?: true}), do: {:noreply, state}
-
-  def handle_cast(
-        :start_scheduling,
+  def handle_info(
+        {:node_update, %Node{first_public_key: first_public_key, authorized?: true}},
         state = %{interval: interval}
       ) do
-    Logger.info("Start node shared secrets scheduling")
+    if Crypto.first_node_public_key() == first_public_key do
+      Logger.info("Start node shared secrets scheduling")
+      timer = schedule_renewal_message(interval)
 
-    timer =
-      case Map.get(state, :timer) do
-        nil ->
-          schedule_renewal_message(interval)
+      Logger.info(
+        "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
+      )
 
-        timer ->
-          Process.cancel_timer(timer)
-          schedule_renewal_message(interval)
-      end
+      {:noreply, Map.put(state, :timer, timer), :hibernate}
+    else
+      {:noreply, state, :hibernate}
+    end
+  end
 
-    remaining_seconds = remaining_seconds_from_timer(timer)
-
-    Logger.info(
-      "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
-    )
-
-    new_state =
-      state
-      |> Map.put(:scheduler_started?, true)
-      |> Map.put(:timer, timer)
-
-    {:noreply, new_state, :hibernate}
+  def handle_info(
+        {:node_update, %Node{first_public_key: first_public_key, authorized?: false}},
+        state
+      ) do
+    with ^first_public_key <- Crypto.first_node_public_key(),
+         timer when timer != nil <- Map.get(state, :timer) do
+      Process.cancel_timer(timer)
+      {:noreply, Map.delete(state, :timer), :hibernate}
+    else
+      _ ->
+        {:noreply, state, :hibernate}
+    end
   end
 
   def handle_info(:make_renewal, state = %{interval: interval}) do
     timer = schedule_renewal_message(interval)
-    remaining_seconds = remaining_seconds_from_timer(timer)
 
     Logger.info(
-      "Node shared secrets will be renewed in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
     )
 
     if NodeRenewal.initiator?() do
@@ -125,16 +120,6 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
 
   defp schedule_renewal_message(interval) do
     Process.send_after(self(), :make_renewal, Utils.time_offset(interval) * 1000)
-  end
-
-  defp remaining_seconds_from_timer(timer) do
-    case Process.read_timer(timer) do
-      false ->
-        0
-
-      milliseconds ->
-        div(milliseconds, 1000)
-    end
   end
 
   @doc """
