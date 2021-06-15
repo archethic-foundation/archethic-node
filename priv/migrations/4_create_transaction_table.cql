@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS uniris.transactions (
   chain_address blob,
   bucket int,
   timestamp timestamp,
+  version int,
   address blob,
   type varchar,
   data frozen<pending_transaction_data>,

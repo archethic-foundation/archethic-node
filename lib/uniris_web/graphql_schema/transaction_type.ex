@@ -12,6 +12,7 @@ defmodule UnirisWeb.GraphQLSchema.TransactionType do
 
   @desc "[Transaction] represents a unitary transaction in the Uniris network."
   object :transaction do
+    field(:version, :integer)
     field(:address, :hex)
     field(:type, :string)
     field(:data, :data)

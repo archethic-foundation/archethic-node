@@ -24,7 +24,8 @@ defmodule Uniris.TransactionChain.Transaction do
     :previous_signature,
     :origin_signature,
     :validation_stamp,
-    cross_validation_stamps: []
+    cross_validation_stamps: [],
+    version: 1
   ]
 
   @typedoc """
@@ -35,6 +36,7 @@ defmodule Uniris.TransactionChain.Transaction do
   - Previous signature: signature from the previous public key
   - Previous public key: previous generated public key matching the previous signature
   - Origin signature: signature from the device which originated the transaction (used in the Proof of work)
+  - Version: version of the transaction (used for backward compatiblity)
 
   When the transaction is validated the following fields are filled:
   - Validation stamp: coordinator work result
@@ -48,7 +50,8 @@ defmodule Uniris.TransactionChain.Transaction do
           previous_signature: nil | binary(),
           origin_signature: nil | binary(),
           validation_stamp: nil | ValidationStamp.t(),
-          cross_validation_stamps: nil | list(CrossValidationStamp.t())
+          cross_validation_stamps: nil | list(CrossValidationStamp.t()),
+          version: pos_integer()
         }
 
   @typedoc """
@@ -453,6 +456,7 @@ defmodule Uniris.TransactionChain.Transaction do
   ## Examples
 
       iex> %Transaction{
+      ...>   version: 1,
       ...>   address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...>     196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
       ...>   type: :transfer,
@@ -502,6 +506,8 @@ defmodule Uniris.TransactionChain.Transaction do
       ...> }
       ...> |> Transaction.serialize()
       <<
+      # Version
+      0, 0, 0, 1,
       # Address
       0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85,
@@ -588,6 +594,7 @@ defmodule Uniris.TransactionChain.Transaction do
   """
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
+        version: version,
         address: address,
         type: type,
         data: data,
@@ -596,10 +603,12 @@ defmodule Uniris.TransactionChain.Transaction do
         origin_signature: nil,
         validation_stamp: nil
       }) do
-    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary>>
+    <<version::32, address::binary, serialize_type(type)::8,
+      TransactionData.serialize(data)::binary>>
   end
 
   def serialize(%__MODULE__{
+        version: version,
         address: address,
         type: type,
         data: data,
@@ -608,11 +617,13 @@ defmodule Uniris.TransactionChain.Transaction do
         origin_signature: nil,
         validation_stamp: nil
       }) do
-    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
-      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary>>
+    <<version::32, address::binary, serialize_type(type)::8,
+      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      byte_size(previous_signature)::8, previous_signature::binary>>
   end
 
   def serialize(%__MODULE__{
+        version: version,
         address: address,
         type: type,
         data: data,
@@ -621,12 +632,14 @@ defmodule Uniris.TransactionChain.Transaction do
         origin_signature: origin_signature,
         validation_stamp: nil
       }) do
-    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
-      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
+    <<version::32, address::binary, serialize_type(type)::8,
+      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 0::8>>
   end
 
   def serialize(%__MODULE__{
+        version: version,
         address: address,
         type: type,
         data: data,
@@ -641,8 +654,9 @@ defmodule Uniris.TransactionChain.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    <<address::binary, serialize_type(type)::8, TransactionData.serialize(data)::binary,
-      previous_public_key::binary, byte_size(previous_signature)::8, previous_signature::binary,
+    <<version::32, address::binary, serialize_type(type)::8,
+      TransactionData.serialize(data)::binary, previous_public_key::binary,
+      byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
       ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
       cross_validation_stamps_bin::binary>>
@@ -653,7 +667,7 @@ defmodule Uniris.TransactionChain.Transaction do
 
   ## Examples
 
-      iex> <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
+      iex> <<0, 0, 0, 1, 0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 253,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
@@ -686,6 +700,7 @@ defmodule Uniris.TransactionChain.Transaction do
       ...> |> Transaction.deserialize()
       {
         %Transaction{
+          version: 1,
           address: <<0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
             196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85>>,
           type: :transfer,
@@ -797,6 +812,7 @@ defmodule Uniris.TransactionChain.Transaction do
   @spec to_map(t()) :: map()
   def to_map(tx = %__MODULE__{}) do
     %{
+      version: tx.version,
       address: tx.address,
       type: Atom.to_string(tx.type),
       data: TransactionData.to_map(tx.data),
@@ -821,6 +837,7 @@ defmodule Uniris.TransactionChain.Transaction do
       end
 
     %__MODULE__{
+      version: Map.get(tx, :version),
       address: Map.get(tx, :address),
       type: type,
       data: Map.get(tx, :data, %TransactionData{}) |> TransactionData.from_map(),

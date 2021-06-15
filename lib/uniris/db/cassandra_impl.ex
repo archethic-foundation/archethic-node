@@ -99,6 +99,7 @@ defmodule Uniris.DB.CassandraImpl do
       "chain_address" => chain_address,
       "bucket" => bucket,
       "timestamp" => timestamp,
+      "version" => version,
       "address" => address,
       "type" => type,
       "data" => data,
