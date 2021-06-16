@@ -56,10 +56,9 @@ defmodule Uniris.SelfRepair.Scheduler do
     end
 
     timer = schedule_sync(interval)
-    remaining_seconds = remaining_seconds_from_timer(timer)
 
     Logger.info(
-      "Next Self-Repair Sync will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
+      "Next Self-Repair Sync will be started in #{Utils.remaining_seconds_from_timer(timer)}"
     )
 
     new_state =
@@ -86,11 +85,7 @@ defmodule Uniris.SelfRepair.Scheduler do
     end)
 
     timer = schedule_sync(interval)
-    remaining_seconds = remaining_seconds_from_timer(timer)
-
-    Logger.info(
-      "Self-Repair will be started in #{HumanizeTime.format_seconds(remaining_seconds)}"
-    )
+    Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
     new_state =
       state
@@ -98,6 +93,16 @@ defmodule Uniris.SelfRepair.Scheduler do
       |> Map.put(:timer, timer)
 
     {:noreply, new_state, :hibernate}
+  end
+
+  def handle_cast({:new_conf, conf}, state) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        {:noreply, state}
+
+      new_interval ->
+        {:noreply, Map.put(state, :interval, new_interval)}
+    end
   end
 
   defp get_node_patch do
@@ -121,13 +126,9 @@ defmodule Uniris.SelfRepair.Scheduler do
     |> DateTime.to_string()
   end
 
-  defp remaining_seconds_from_timer(timer) do
-    case Process.read_timer(timer) do
-      false ->
-        0
+  def config_change(nil), do: :ok
 
-      milliseconds ->
-        div(milliseconds, 1000)
-    end
+  def config_change(new_conf) do
+    GenServer.cast(__MODULE__, {:new_conf, new_conf})
   end
 end

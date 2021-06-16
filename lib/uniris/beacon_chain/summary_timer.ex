@@ -86,4 +86,21 @@ defmodule Uniris.BeaconChain.SummaryTimer do
     [{_, interval}] = :ets.lookup(:uniris_summary_timer, :interval)
     interval
   end
+
+  def handle_cast({:new_conf, conf}, state) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        {:noreply, state}
+
+      new_interval ->
+        :ets.insert(:uniris_summary_timer, {:interval, new_interval})
+        {:noreply, Map.put(state, :interval, new_interval)}
+    end
+  end
+
+  def config_change(nil), do: :ok
+
+  def config_change(conf) do
+    GenServer.cast(__MODULE__, {:new_conf, conf})
+  end
 end

@@ -84,15 +84,15 @@ defmodule Uniris.BeaconChain.SlotTimer do
   end
 
   defp get_interval do
-    [{_, interval}] = :ets.lookup(:uniris_slot_timer_timer, :interval)
+    [{_, interval}] = :ets.lookup(:uniris_slot_timer, :interval)
     interval
   end
 
   @doc false
   def init(opts) do
     interval = Keyword.get(opts, :interval)
-    :ets.new(:uniris_slot_timer_timer, [:named_table, :public, read_concurrency: true])
-    :ets.insert(:uniris_slot_timer_timer, {:interval, interval})
+    :ets.new(:uniris_slot_timer, [:named_table, :public, read_concurrency: true])
+    :ets.insert(:uniris_slot_timer, {:interval, interval})
 
     PubSub.register_to_node_update()
 
@@ -148,10 +148,27 @@ defmodule Uniris.BeaconChain.SlotTimer do
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
+  def handle_cast({:new_conf, conf}, state) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        {:noreply, state}
+
+      new_interval ->
+        :ets.insert(:uniris_slot_timer, {:interval, new_interval})
+        {:noreply, Map.put(state, :interval, new_interval)}
+    end
+  end
+
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
   end
 
   defp cancel_timer(nil), do: :ok
   defp cancel_timer(timer), do: Process.cancel_timer(timer)
+
+  def config_change(nil), do: :ok
+
+  def config_change(conf) do
+    GenServer.cast(__MODULE__, {:new_conf, conf})
+  end
 end

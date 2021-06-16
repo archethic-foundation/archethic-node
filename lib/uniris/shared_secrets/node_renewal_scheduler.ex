@@ -103,6 +103,16 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
+  def handle_cast({:new_conf, conf}, state) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        {:noreply, state}
+
+      new_interval ->
+        {:noreply, Map.put(state, :interval, new_interval)}
+    end
+  end
+
   defp make_renewal do
     NodeRenewal.next_authorized_node_public_keys()
     |> NodeRenewal.new_node_shared_secrets_transaction(
@@ -122,15 +132,35 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
     Process.send_after(self(), :make_renewal, Utils.time_offset(interval) * 1000)
   end
 
+  def config_change(nil), do: :ok
+
+  def config_change(changed_config) do
+    GenServer.cast(__MODULE__, {:new_conf, changed_config})
+  end
+
   @doc """
   Get the next shared secrets application date from a given date
   """
   @spec next_application_date(DateTime.t()) :: DateTime.t()
   def next_application_date(date_from = %DateTime{}) do
-    get_application_date_interval()
+    if renewal_date?(date_from) do
+      get_application_date_interval()
+      |> CronParser.parse!(true)
+      |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+      |> DateTime.from_naive!("Etc/UTC")
+    else
+      date_from
+    end
+  end
+
+  defp renewal_date?(date) do
+    get_trigger_interval()
     |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    |> Crontab.DateChecker.matches_date?(DateTime.to_naive(date))
+  end
+
+  defp get_trigger_interval do
+    Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:interval)
   end
 
   defp get_application_date_interval do

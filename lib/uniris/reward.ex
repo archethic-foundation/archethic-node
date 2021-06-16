@@ -87,4 +87,10 @@ defmodule Uniris.Reward do
   """
   @spec last_scheduling_date() :: DateTime.t()
   defdelegate last_scheduling_date, to: NetworkPoolScheduler, as: :last_date
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(NetworkPoolScheduler)
+    |> NetworkPoolScheduler.config_change()
+  end
 end

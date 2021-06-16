@@ -95,6 +95,16 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
     {:reply, get_last_date(interval), state}
   end
 
+  def handle_cast({:new_conf, conf}, state) do
+    case Keyword.get(conf, :interval) do
+      nil ->
+        {:noreply, state}
+
+      new_interval ->
+        {:noreply, Map.put(state, :interval, new_interval)}
+    end
+  end
+
   defp get_last_date(interval) do
     cron_expression = CronParser.parse!(interval, true)
 
@@ -152,5 +162,11 @@ defmodule Uniris.Reward.NetworkPoolScheduler do
 
   defp schedule(interval) do
     Process.send_after(self(), :send_rewards, Utils.time_offset(interval) * 1000)
+  end
+
+  def config_change(nil), do: :ok
+
+  def config_change(conf) do
+    GenServer.cast(__MODULE__, {:new_conf, conf})
   end
 end

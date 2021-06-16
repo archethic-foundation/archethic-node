@@ -7,6 +7,7 @@ defmodule Uniris.OracleChain do
 
   alias __MODULE__.MemTable
   alias __MODULE__.MemTableLoader
+  alias __MODULE__.Scheduler
   alias __MODULE__.Services
   alias __MODULE__.Summary
 
@@ -101,5 +102,11 @@ defmodule Uniris.OracleChain do
       _ ->
         [eur: 0.05, usd: 0.07]
     end
+  end
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
   end
 end

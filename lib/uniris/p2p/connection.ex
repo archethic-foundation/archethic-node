@@ -47,16 +47,21 @@ defmodule Uniris.P2P.Connection do
 
   def handle_continue(:start_receiving_loop, state = %{socket: socket, transport: transport}) do
     me = self()
-    Task.Supervisor.async_nolink(TaskSupervisor, fn -> loop_data(transport, socket, me) end)
+
+    Task.Supervisor.async_nolink(TaskSupervisor, __MODULE__, :receiving_loop, [
+      transport,
+      socket,
+      me
+    ])
 
     {:noreply, state}
   end
 
-  defp loop_data(transport, socket, connection_pid) do
+  def receiving_loop(transport, socket, connection_pid) do
     case Transport.read_from_socket(transport, socket) do
       {:ok, data} ->
         send(connection_pid, {:data, data})
-        loop_data(transport, socket, connection_pid)
+        __MODULE__.receiving_loop(transport, socket, connection_pid)
 
       {:error, reason} = e ->
         Logger.info("Connection closed - #{inspect(reason)}")
@@ -66,7 +71,7 @@ defmodule Uniris.P2P.Connection do
   end
 
   def handle_call({:send_message, msg}, from, state = %{socket: nil, message_id: message_id}) do
-    %Task{ref: ref} = Task.Supervisor.async_nolink(TaskSupervisor, fn -> Message.process(msg) end)
+    %Task{ref: ref} = Task.Supervisor.async_nolink(TaskSupervisor, Message, :process, [msg])
 
     new_state =
       state
@@ -84,10 +89,14 @@ defmodule Uniris.P2P.Connection do
       ) do
     encoded_message = msg |> Message.encode() |> Utils.wrap_binary()
 
+    envelop_message = <<message_id::32, encoded_message::binary>>
+
     %Task{ref: ref} =
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
-        Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
-      end)
+      Task.Supervisor.async_nolink(TaskSupervisor, Transport, :send_message, [
+        transport,
+        socket,
+        envelop_message
+      ])
 
     new_state =
       state
@@ -179,9 +188,13 @@ defmodule Uniris.P2P.Connection do
           |> Message.encode()
           |> Utils.wrap_binary()
 
-        Task.Supervisor.async_nolink(TaskSupervisor, fn ->
-          Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
-        end)
+        envelop_messsage = <<message_id::32, encoded_message::binary>>
+
+        Task.Supervisor.async_nolink(TaskSupervisor, Transport, :send_message, [
+          transport,
+          socket,
+          envelop_message
+        ])
 
         {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
     end

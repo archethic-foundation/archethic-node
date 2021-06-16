@@ -24,17 +24,17 @@ defmodule Uniris.P2P.Transport.TCPImpl do
     {:ok, listen_socket} = :gen_tcp.listen(port, @server_options)
 
     Enum.each(1..@nb_acceptors, fn _ ->
-      Task.start_link(fn -> accept_loop(listen_socket, handle_new_socket_fun) end)
+      Task.start_link(__MODULE__, :accept_loop, [listen_socket, handle_new_socket_fun])
     end)
 
     {:ok, listen_socket}
   end
 
-  defp accept_loop(listen_socket, handle_new_socket_fun) do
+  def accept_loop(listen_socket, handle_new_socket_fun) do
     case :gen_tcp.accept(listen_socket) do
       {:ok, socket} ->
         handle_new_socket_fun.(socket)
-        accept_loop(listen_socket, handle_new_socket_fun)
+        __MODULE__.accept_loop(listen_socket, handle_new_socket_fun)
 
       {:error, reason} ->
         Logger.info("Connection failed: #{reason}")

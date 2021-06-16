@@ -4,25 +4,40 @@ defmodule Uniris.Application do
   use Application
 
   alias Uniris.Account.Supervisor, as: AccountSupervisor
+
+  alias Uniris.BeaconChain
   alias Uniris.BeaconChain.Supervisor, as: BeaconChainSupervisor
+
   alias Uniris.Bootstrap
+
   alias Uniris.Contracts.Supervisor, as: ContractsSupervisor
+
   alias Uniris.Crypto.Supervisor, as: CryptoSupervisor
+
   alias Uniris.DB.Supervisor, as: DBSupervisor
+
   alias Uniris.Election.Supervisor, as: ElectionSupervisor
+
   alias Uniris.Governance.Supervisor, as: GovernanceSupervisor
+
   alias Uniris.Mining.Supervisor, as: MiningSupervisor
 
   alias Uniris.Networking
 
   alias Uniris.P2P.Supervisor, as: P2PSupervisor
 
+  alias Uniris.OracleChain
   alias Uniris.OracleChain.Supervisor, as: OracleChainSupervisor
 
+  alias Uniris.Reward
   alias Uniris.Reward.Supervisor, as: RewardSupervisor
 
+  alias Uniris.SelfRepair
   alias Uniris.SelfRepair.Supervisor, as: SelfRepairSupervisor
+
+  alias Uniris.SharedSecrets
   alias Uniris.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
+
   alias Uniris.TransactionChain.Supervisor, as: TransactionChainSupervisor
 
   alias Uniris.Utils
@@ -75,6 +90,13 @@ defmodule Uniris.Application do
     # Tell Phoenix to update the endpoint configuration
     # whenever the application is updated.
     WebEndpoint.config_change(changed, removed)
+
+    # Update the configuration of process which depends on configuration
+    SharedSecrets.config_change(changed)
+    SelfRepair.config_change(changed)
+    OracleChain.config_change(changed)
+    Reward.config_change(changed)
+    BeaconChain.config_change(changed)
     :ok
   end
 end

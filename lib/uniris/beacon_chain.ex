@@ -236,4 +236,14 @@ defmodule Uniris.BeaconChain do
   """
   @spec list_p2p_sampling_nodes(binary()) :: list(Node.t())
   defdelegate list_p2p_sampling_nodes(subset), to: P2PSampling, as: :list_nodes_to_sample
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(SummaryTimer)
+    |> SummaryTimer.config_change()
+
+    changed_conf
+    |> Keyword.get(SlotTimer)
+    |> SlotTimer.config_change()
+  end
 end

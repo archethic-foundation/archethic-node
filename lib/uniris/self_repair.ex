@@ -39,4 +39,10 @@ defmodule Uniris.SelfRepair do
   """
   @spec put_last_sync_date(DateTime.t()) :: :ok
   defdelegate put_last_sync_date(datetime), to: Sync, as: :store_last_sync_date
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
+  end
 end

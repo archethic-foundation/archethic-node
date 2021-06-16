@@ -85,4 +85,10 @@ defmodule Uniris.SharedSecrets do
   """
   @spec next_application_date(DateTime.t()) :: DateTime.t()
   defdelegate next_application_date(date_from \\ DateTime.utc_now()), to: NodeRenewalScheduler
+
+  def config_change(changed_conf) do
+    changed_conf
+    |> Keyword.get(NodeRenewalScheduler)
+    |> NodeRenewalScheduler.config_change()
+  end
 end

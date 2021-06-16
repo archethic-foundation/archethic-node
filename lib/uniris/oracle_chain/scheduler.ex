@@ -138,6 +138,36 @@ defmodule Uniris.OracleChain.Scheduler do
     {:noreply, Map.delete(state, :last_poll_date), :hibernate}
   end
 
+  def handle_cast(
+        {:new_conf, conf},
+        state = %{polling_interval: old_polling_interval, summary_interval: old_summary_interval}
+      ) do
+    summary_interval =
+      case Keyword.get(conf, :summary_interval) do
+        nil ->
+          old_summary_interval
+
+        new_interval ->
+          new_interval
+      end
+
+    polling_interval =
+      case Keyword.get(conf, :polling_interval) do
+        nil ->
+          old_polling_interval
+
+        new_interval ->
+          new_interval
+      end
+
+    new_state =
+      state
+      |> Map.put(:polling_interval, polling_interval)
+      |> Map.put(:summary_interval, summary_interval)
+
+    {:noreply, new_state}
+  end
+
   defp schedule_new_polling(interval) do
     Process.send_after(self(), :poll, Utils.time_offset(interval) * 1000)
   end
@@ -239,5 +269,11 @@ defmodule Uniris.OracleChain.Scheduler do
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
     |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  def config_change(nil), do: :ok
+
+  def config_change(conf) do
+    GenServer.cast(__MODULE__, {:new_conf, conf})
   end
 end
