@@ -37,6 +37,8 @@ defmodule Uniris.P2P.ConnectionTest do
                  address: address
                })
 
+      Process.exit(pid, :normal)
+
       Process.sleep(200)
     end
   end

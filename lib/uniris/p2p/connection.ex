@@ -188,7 +188,7 @@ defmodule Uniris.P2P.Connection do
           |> Message.encode()
           |> Utils.wrap_binary()
 
-        envelop_messsage = <<message_id::32, encoded_message::binary>>
+        envelop_message = <<message_id::32, encoded_message::binary>>
 
         Task.Supervisor.async_nolink(TaskSupervisor, Transport, :send_message, [
           transport,
