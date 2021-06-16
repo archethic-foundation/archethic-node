@@ -19,14 +19,6 @@ defmodule Uniris.BeaconChain.SummaryTimer do
   @doc """
   Give the next beacon chain slot using the `SlotTimer` interval
   """
-  @spec next_summary(DateTime.t()) :: DateTime.t()
-  def next_summary(date_from = %DateTime{microsecond: {0, 0}}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_dates(DateTime.to_naive(date_from))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
-  end
 
   def next_summary(date_from = %DateTime{}) do
     get_interval()

@@ -13,14 +13,12 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.Ok
+  alias Uniris.P2P.Message.Ping
   alias Uniris.P2P.Message.ReplicateTransaction
   alias Uniris.P2P.Node
 
   alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
-
-  alias Uniris.Utils
 
   import Mox
 
@@ -117,9 +115,18 @@ defmodule Uniris.BeaconChain.SubsetTest do
     me = self()
 
     MockClient
-    |> expect(:send_message, fn _, %ReplicateTransaction{transaction: tx} ->
-      send(me, {:beacon_tx, tx})
-      {:ok, %Ok{}}
+    |> stub(:send_message, fn
+      _, %ReplicateTransaction{transaction: tx} ->
+        send(me, {:beacon_tx, tx})
+        {:ok, %Ok{}}
+
+      _, %Ping{} ->
+        {:ok, %Ok{}}
+    end)
+
+    MockDB
+    |> expect(:write_transaction, fn %Transaction{type: :beacon}, _ ->
+      :ok
     end)
 
     send(pid, {:create_slot, DateTime.utc_now()})
@@ -176,61 +183,33 @@ defmodule Uniris.BeaconChain.SubsetTest do
 
     Subset.add_transaction_summary(subset, tx_summary)
 
-    me = self()
-
     MockClient
-    |> expect(:send_message, fn _, %ReplicateTransaction{} ->
-      {:ok, %Ok{}}
-    end)
+    |> stub(:send_message, fn
+      _, %ReplicateTransaction{} ->
+        {:ok, %Ok{}}
 
-    beacon_addr = Crypto.derive_beacon_chain_address(subset, ~U[2020-10-01 00:00:00Z])
+      _, %Ping{} ->
+        {:ok, %Ok{}}
+    end)
 
     MockDB
-    |> stub(:write_transaction_chain, fn chain ->
-      send(me, {:chain, chain})
-      :ok
-    end)
-    |> stub(:get_transaction_chain, fn address, _ ->
-      case address do
-        ^beacon_addr ->
-          [
-            %Transaction{
-              address: address,
-              type: :beacon,
-              data: %TransactionData{
-                content:
-                  %Slot{
-                    subset: subset,
-                    slot_time: ~U[2020-10-01 00:00:00Z],
-                    transaction_summaries: [tx_summary],
-                    p2p_view: %{availabilities: <<1::1>>, network_stats: [%{latency: 10}]}
-                  }
-                  |> Slot.serialize()
-                  |> Utils.wrap_binary()
-              },
-              validation_stamp: %ValidationStamp{
-                timestamp: ~U[2020-10-01 00:00:00Z]
-              }
-            }
-          ]
+    |> stub(:write_transaction, fn %Transaction{
+                                     type: :beacon,
+                                     data: %TransactionData{content: content}
+                                   },
+                                   _ ->
+      {%Slot{
+         subset: ^subset,
+         p2p_view: %{
+           availabilities: <<1::1, 1::1>>,
+           network_stats: [%{latency: 0}, %{latency: 0}]
+         }
+       }, _} = Slot.deserialize(content)
 
-        _ ->
-          []
-      end
+      :ok
     end)
 
     send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
     Process.sleep(500)
-
-    assert_receive {:chain, beacon_chain1}
-    assert Enum.count(beacon_chain1) == 1
-
-    assert [%Transaction{type: :beacon}] = Enum.to_list(beacon_chain1)
-
-    assert_receive {:chain, beacon_chain2}
-    assert Enum.count(beacon_chain2) == 2
-
-    assert [%Transaction{type: :beacon_summary}, %Transaction{type: :beacon}] =
-             Enum.to_list(beacon_chain2)
   end
 end

@@ -77,16 +77,11 @@ defmodule Uniris.BeaconChain.Subset do
   end
 
   def init([subset]) do
-    nb_nodes_to_sample =
-      subset
-      |> P2PSampling.list_nodes_to_sample()
-      |> length()
-
     {:ok,
      %{
        node_public_key: Crypto.first_node_public_key(),
        subset: subset,
-       current_slot: Slot.new(subset, SlotTimer.next_slot(DateTime.utc_now()), nb_nodes_to_sample)
+       current_slot: %Slot{subset: subset, slot_time: SlotTimer.next_slot(DateTime.utc_now())}
      }}
   end
 
@@ -144,83 +139,90 @@ defmodule Uniris.BeaconChain.Subset do
 
   def handle_info(
         {:create_slot, time},
-        state
+        state = %{subset: subset, node_public_key: node_public_key, current_slot: current_slot}
       ) do
-    new_state = handle_slot(time, state)
-    handle_summary(time, state)
+    if beacon_slot_node?(subset, time, node_public_key) do
+      handle_slot(time, current_slot, node_public_key)
 
-    {:noreply, new_state}
+      if summary_time?(time) and beacon_summary_node?(subset, time, node_public_key) do
+        handle_summary(time, subset)
+      end
+    end
+
+    {:noreply, next_state(state, time)}
   end
 
   defp handle_slot(
          time,
-         state = %{
-           subset: subset,
-           current_slot: current_slot = %Slot{},
-           node_public_key: node_public_key
-         }
+         current_slot = %Slot{subset: subset},
+         node_public_key
        ) do
-    if beacon_slot_node?(subset, time, node_public_key) do
-      current_slot = ensure_p2p_view(current_slot)
+    current_slot = ensure_p2p_view(current_slot)
 
-      beacon_transaction =
-        %Transaction{previous_public_key: previous_public_key} =
-        create_beacon_transaction(current_slot)
+    # Avoid to store or dispatch an empty beacon's slot
+    unless Slot.empty?(current_slot) do
+      beacon_transaction = create_beacon_transaction(current_slot)
 
-      # Write the beacon chain
-      beacon_chain =
-        if SummaryTimer.match_interval?(SlotTimer.previous_slot(time)) do
-          []
+      summary_time =
+        if summary_time?(time) do
+          time
         else
-          previous_public_key
-          |> Crypto.hash()
-          |> TransactionChain.get()
+          SummaryTimer.next_summary(time)
         end
 
-      [beacon_transaction]
-      |> Stream.concat(beacon_chain)
-      |> TransactionChain.write()
-
-      nb_nodes_to_sample =
-        subset
-        |> P2PSampling.list_nodes_to_sample()
-        |> length()
-
-      next_time = SlotTimer.next_slot(time)
-
-      new_state =
-        Map.put(
-          state,
-          :current_slot,
-          Slot.new(subset, next_time, nb_nodes_to_sample)
-        )
-
-      if time |> SlotTimer.next_slot() |> SummaryTimer.match_interval?() do
-        new_state
-      else
-        # Send the transaction for the next pool
-        %Slot{subset: subset, slot_time: next_time}
-        |> Slot.involved_nodes()
-        |> Enum.reject(&(&1.first_public_key == node_public_key))
-        |> P2P.broadcast_message(%ReplicateTransaction{
-          transaction: beacon_transaction
-        })
-
-        new_state
+      # Local summary node prestore the transaction
+      if beacon_summary_node?(subset, summary_time, node_public_key) do
+        chain_address = beacon_summary_address(subset, summary_time)
+        TransactionChain.write_transaction(beacon_transaction, chain_address)
       end
-    else
-      state
+
+      # Before the summary time, we dispatch to other summary nodes the transaction
+      unless summary_time?(time) do
+        next_time = SlotTimer.next_slot(time)
+        broadcast_beacon_transaction(subset, next_time, beacon_transaction, node_public_key)
+      end
     end
   end
 
-  defp handle_summary(time, state = %{subset: subset, node_public_key: node_public_key}) do
-    if SummaryTimer.match_interval?(DateTime.truncate(time, :millisecond)) and
-         beacon_summary_node?(subset, time, node_public_key) do
-      Task.start(fn -> create_summary_transaction(subset, time) end)
-      state
-    else
-      state
+  defp next_state(state = %{subset: subset}, time) do
+    next_time = SlotTimer.next_slot(time)
+
+    Map.put(
+      state,
+      :current_slot,
+      %Slot{subset: subset, slot_time: next_time}
+    )
+  end
+
+  defp broadcast_beacon_transaction(subset, next_time, transaction, node_public_key) do
+    %Slot{subset: subset, slot_time: next_time}
+    |> Slot.involved_nodes()
+    |> Enum.reject(&(&1.first_public_key == node_public_key))
+    |> P2P.broadcast_message(%ReplicateTransaction{
+      transaction: transaction
+    })
+  end
+
+  defp handle_summary(time, subset) do
+    chain_address = beacon_summary_address(subset, time)
+
+    case TransactionChain.get(chain_address, data: [:content]) do
+      [] ->
+        :ok
+
+      beacon_chain ->
+        beacon_chain
+        |> create_summary_transaction(subset, time)
+        |> TransactionChain.write_transaction()
     end
+  end
+
+  defp summary_time?(time) do
+    SummaryTimer.match_interval?(DateTime.truncate(time, :millisecond))
+  end
+
+  defp beacon_summary_address(subset, time) do
+    Crypto.derive_beacon_chain_address(subset, time, true)
   end
 
   defp beacon_slot_node?(subset, slot_time, node_public_key) do
@@ -286,17 +288,14 @@ defmodule Uniris.BeaconChain.Subset do
     %{tx | validation_stamp: stamp}
   end
 
-  defp create_summary_transaction(subset, summary_time) do
+  defp create_summary_transaction(beacon_chain, subset, summary_time) do
     {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, summary_time)
     {pub, _} = Crypto.derive_beacon_keypair(subset, summary_time, true)
 
-    beacon_chain =
-      prev_pub
-      |> Crypto.hash()
-      |> TransactionChain.get()
-
     previous_slots =
-      Stream.map(beacon_chain, fn %Transaction{data: %TransactionData{content: content}} ->
+      Enum.map(beacon_chain, fn %Transaction{
+                                  data: %TransactionData{content: content}
+                                } ->
         {slot, _} = Slot.deserialize(content)
         slot
       end)
@@ -315,27 +314,16 @@ defmodule Uniris.BeaconChain.Subset do
         pub
       )
 
-    stamp = create_validation_stamp(tx, nil, summary_time)
-
-    [%{tx | validation_stamp: stamp}]
-    |> Stream.concat(beacon_chain)
-    |> TransactionChain.write()
+    stamp = create_validation_stamp(tx, Enum.at(beacon_chain, 0), summary_time)
+    %{tx | validation_stamp: stamp}
   end
 
-  defp create_validation_stamp(tx = %Transaction{}, nil, time = %DateTime{}) do
-    %ValidationStamp{
-      proof_of_work: Crypto.first_node_public_key(),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: <<0::size(512)>>,
-      timestamp: time
-    }
-    |> ValidationStamp.sign()
-  end
+  defp create_validation_stamp(tx = %Transaction{}, prev_tx, time = %DateTime{}) do
+    poi = [tx, prev_tx] |> Enum.filter(& &1) |> TransactionChain.proof_of_integrity()
 
-  defp create_validation_stamp(tx = %Transaction{}, prev_tx = %Transaction{}, time = %DateTime{}) do
     %ValidationStamp{
       proof_of_work: Crypto.first_node_public_key(),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
+      proof_of_integrity: poi,
       proof_of_election: <<0::size(512)>>,
       timestamp: time
     }

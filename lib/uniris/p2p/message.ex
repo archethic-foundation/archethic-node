@@ -958,13 +958,24 @@ defmodule Uniris.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransaction{transaction: tx = %Transaction{type: :beacon}}) do
-    case BeaconChain.load_transaction(tx) do
-      :ok ->
-        %Ok{}
+  def process(%ReplicateTransaction{
+        transaction: tx = %Transaction{address: address, type: :beacon}
+      }) do
+    if TransactionChain.transaction_exists?(address) do
+      Logger.debug("Transaction already exists", transaction: "beacon@#{Base.encode16(address)}")
+      %Ok{}
+    else
+      Logger.info("Replicate new transaction",
+        transaction: "beacon@#{Base.encode16(address)}"
+      )
 
-      :error ->
-        %Error{reason: :invalid_transaction}
+      case BeaconChain.load_transaction(tx) do
+        :ok ->
+          %Ok{}
+
+        :error ->
+          %Error{reason: :invalid_transaction}
+      end
     end
   end
 
@@ -974,13 +985,13 @@ defmodule Uniris.P2P.Message do
         ack_storage?: ack_storage?
       }) do
     if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already existing",
+      Logger.debug("Transaction already exists",
         transaction: "#{type}@#{Base.encode16(address)}"
       )
 
       %Ok{}
     else
-      Logger.info("Replicate transaction",
+      Logger.info("Replicate new transaction",
         transaction: "#{type}@#{Base.encode16(address)}"
       )
 
