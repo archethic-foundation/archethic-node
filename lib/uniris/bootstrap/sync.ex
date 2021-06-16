@@ -70,7 +70,6 @@ defmodule Uniris.Bootstrap.Sync do
         diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
 
         case P2P.get_node_info(first_node_public_key) do
-          # TODO: change the diff sync parameter when the self repair will be moved to daily
           {:ok, %Node{ip: prev_ip, port: prev_port, transport: prev_transport}}
           when ip != prev_ip or port != prev_port or diff_sync > @out_of_sync_date_threshold or
                  prev_transport != transport ->

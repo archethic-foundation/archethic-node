@@ -170,10 +170,9 @@ defmodule Uniris.Bootstrap do
       Logger.info("Synchronization started")
       :ok = SelfRepair.bootstrap_sync(last_sync_date, patch)
       Logger.info("Synchronization finished")
-
-      Sync.publish_end_of_sync()
     end
 
+    Sync.publish_end_of_sync()
     SelfRepair.start_scheduler(last_sync_date)
 
     :persistent_term.put(:uniris_up, :up)
