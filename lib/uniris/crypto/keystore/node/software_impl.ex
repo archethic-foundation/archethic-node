@@ -64,7 +64,13 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
       |> TransactionChain.get_last_address()
       |> TransactionChain.size()
 
-    last_keypair = Crypto.derive_keypair(seed, nb_keys)
+    last_keypair =
+      if nb_keys > 0 do
+        Crypto.derive_keypair(seed, nb_keys - 1)
+      else
+        Crypto.derive_keypair(seed, 0)
+      end
+
     next_keypair = Crypto.derive_keypair(seed, nb_keys + 1)
 
     {:ok,
