@@ -13,6 +13,7 @@ defmodule Uniris.BeaconChain do
 
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Subset
+  alias Uniris.BeaconChain.Subset.P2PSampling
   alias Uniris.BeaconChain.Summary
   alias Uniris.BeaconChain.SummaryTimer
 
@@ -229,4 +230,10 @@ defmodule Uniris.BeaconChain do
         :ok
     end
   end
+
+  @doc """
+  List the nodes for the subset to sample the P2P availability
+  """
+  @spec list_p2p_sampling_nodes(binary()) :: list(Node.t())
+  defdelegate list_p2p_sampling_nodes(subset), to: P2PSampling, as: :list_nodes_to_sample
 end

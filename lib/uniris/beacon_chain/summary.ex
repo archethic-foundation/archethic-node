@@ -8,6 +8,8 @@ defmodule Uniris.BeaconChain.Summary do
   alias Uniris.BeaconChain.Slot.EndOfNodeSync
   alias Uniris.BeaconChain.Slot.TransactionSummary
 
+  alias Uniris.BeaconChain.Subset.P2PSampling
+
   alias Uniris.Utils
 
   defstruct [
@@ -301,5 +303,30 @@ defmodule Uniris.BeaconChain.Summary do
     deserialize_end_of_node_synchronizations(rest, nb_end_of_node_synchronizations, [
       end_of_node_sync | acc
     ])
+  end
+
+  @doc """
+  Return the list node availabilites by identifying the nodes from the binary list
+  """
+  @spec get_node_availabilities(t()) :: list({Node.t(), boolean()})
+  def get_node_availabilities(%__MODULE__{
+        node_availabilities: node_availabilities,
+        subset: subset
+      }) do
+    node_list = P2PSampling.list_nodes_to_sample(subset)
+
+    Utils.bitstring_to_integer_list(node_availabilities)
+    |> Enum.with_index()
+    |> Enum.map(fn {available_bit, index} ->
+      node = Enum.at(node_list, index)
+
+      case available_bit do
+        1 ->
+          {node, true}
+
+        0 ->
+          {node, false}
+      end
+    end)
   end
 end

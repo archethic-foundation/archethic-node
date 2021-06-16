@@ -13,6 +13,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias Uniris.P2P
   alias Uniris.P2P.Message.GetTransaction
+  alias Uniris.P2P.Node
 
   alias Uniris.PubSub
 
@@ -86,12 +87,22 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     tx
   end
 
-  defp handle_summary_transaction(res, _subset, _summary_time, nodes, beacon_address) do
+  defp handle_summary_transaction({:error, :transaction_not_exists}, _, _, _, _) do
+    {:error, :transaction_not_exists}
+  end
+
+  defp handle_summary_transaction(
+         {:error, :network_issue},
+         _subset,
+         _summary_time,
+         nodes,
+         beacon_address
+       ) do
     Logger.error("Cannot fetch during self repair from #{inspect(nodes)}",
       transaction: "summary@#{Base.encode16(beacon_address)}"
     )
 
-    res
+    {:error, :network_issue}
   end
 
   @doc """
@@ -133,12 +144,24 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   """
   @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
   def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    %{transactions: transactions, ends_of_sync: ends_of_sync, stats: stats} =
-      reduce_summaries(summaries)
+    %{
+      transactions: transactions,
+      ends_of_sync: ends_of_sync,
+      stats: stats,
+      p2p_availabilities: p2p_availabilities
+    } = reduce_summaries(summaries)
 
     synchronize_transactions(transactions, node_patch)
 
     Enum.each(ends_of_sync, &P2P.set_node_globally_available(&1.public_key))
+
+    Enum.each(p2p_availabilities, fn
+      {%Node{first_public_key: node_key}, true} ->
+        P2P.set_node_globally_available(node_key)
+
+      {%Node{first_public_key: node_key}, false} ->
+        P2P.set_node_globally_unavailable(node_key)
+    end)
 
     update_statistics(stats)
   end
@@ -146,15 +169,16 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
   defp reduce_summaries(summaries) do
     Enum.reduce(
       summaries,
-      %{transactions: [], ends_of_sync: [], stats: %{}},
+      %{transactions: [], ends_of_sync: [], stats: %{}, p2p_availabilities: []},
       &do_reduce_summary/2
     )
     |> Map.update!(:transactions, &List.flatten/1)
     |> Map.update!(:ends_of_sync, &List.flatten/1)
+    |> Map.update!(:p2p_availabilities, &List.flatten/1)
   end
 
   defp do_reduce_summary(
-         %BeaconSummary{
+         summary = %BeaconSummary{
            transaction_summaries: transaction_summaries,
            end_of_node_synchronizations: ends_of_sync,
            summary_time: summary_time
@@ -164,6 +188,7 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandler do
     acc
     |> Map.update!(:transactions, &[transaction_summaries | &1])
     |> Map.update!(:ends_of_sync, &[ends_of_sync | &1])
+    |> Map.update!(:p2p_availabilities, &[BeaconSummary.get_node_availabilities(summary) | &1])
     |> update_in([:stats, Access.key(summary_time, 0)], &(&1 + length(transaction_summaries)))
   end
 

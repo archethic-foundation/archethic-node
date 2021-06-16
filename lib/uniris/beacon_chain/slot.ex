@@ -15,8 +15,6 @@ defmodule Uniris.BeaconChain.Slot do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
-  alias Uniris.Utils
-
   @type net_stats :: list(%{latency: non_neg_integer()})
 
   defstruct [
@@ -37,27 +35,11 @@ defmodule Uniris.BeaconChain.Slot do
           transaction_summaries: list(TransactionSummary.t()),
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
           p2p_view: %{
-            availabilities: <<>>,
+            availabilities: bitstring(),
             network_stats: net_stats()
           },
           involved_nodes: bitstring()
         }
-
-  @doc """
-  Create a new slot
-  """
-  @spec new(binary(), DateTime.t(), non_neg_integer()) :: t()
-  def new(subset, date = %DateTime{}, nb_nodes_to_sample)
-      when is_binary(subset) and is_integer(nb_nodes_to_sample) do
-    %__MODULE__{
-      subset: subset,
-      slot_time: date,
-      p2p_view: %{
-        availabilities: <<0::size(nb_nodes_to_sample)>>,
-        network_stats: []
-      }
-    }
-  end
 
   @doc """
   Add a transaction summary to the slot if not exists
@@ -156,39 +138,28 @@ defmodule Uniris.BeaconChain.Slot do
       }
   """
   @spec add_p2p_view(t(), list(P2PSampling.p2p_view())) :: t()
-  def add_p2p_view(slot = %__MODULE__{p2p_view: %{availabilities: availabilities}}, p2p_views)
-      when bit_size(availabilities) == 0 do
-    nb_nodes_to_sample = length(p2p_views)
-
-    if nb_nodes_to_sample == 0 do
-      slot
-    else
-      %{
-        slot
-        | p2p_view: %{
-            availabilities: <<0::size(nb_nodes_to_sample)>>,
-            network_stats: []
-          }
-      }
-      |> add_p2p_view(p2p_views)
-    end
-  end
-
-  def add_p2p_view(slot = %__MODULE__{p2p_view: p2p_view}, p2p_views) do
-    updated_p2p_views =
+  def add_p2p_view(slot = %__MODULE__{}, p2p_views) do
+    %{availabilities: availabilities, network_stats: network_stats} =
       p2p_views
-      |> Enum.with_index()
-      |> Enum.reduce(p2p_view, fn
-        {{true, latency}, i}, acc ->
+      |> Enum.reduce(%{availabilities: [], network_stats: []}, fn
+        {true, latency}, acc ->
           acc
-          |> Map.update!(:availabilities, &Utils.set_bitstring_bit(&1, i))
+          |> Map.update!(:availabilities, &(&1 ++ [<<1::1>>]))
           |> Map.update!(:network_stats, &(&1 ++ [%{latency: latency}]))
 
-        {{false, _}, _}, acc ->
-          Map.update!(acc, :network_stats, &(&1 ++ [%{latency: 0}]))
+        {false, _}, acc ->
+          acc
+          |> Map.update!(:availabilities, &(&1 ++ [<<0::1>>]))
+          |> Map.update!(:network_stats, &(&1 ++ [%{latency: 0}]))
       end)
 
-    %{slot | p2p_view: updated_p2p_views}
+    %{
+      slot
+      | p2p_view: %{
+          availabilities: :erlang.list_to_bitstring(availabilities),
+          network_stats: network_stats
+        }
+    }
   end
 
   @doc """
@@ -486,4 +457,17 @@ defmodule Uniris.BeaconChain.Slot do
       Election.get_storage_constraints()
     )
   end
+
+  @doc """
+  Determines if the Slot is empty
+  """
+  @spec empty?(t()) :: boolean()
+  def empty?(%__MODULE__{
+        transaction_summaries: [],
+        end_of_node_synchronizations: [],
+        p2p_view: %{availabilities: <<>>, network_stats: []}
+      }),
+      do: true
+
+  def empty?(%__MODULE__{}), do: false
 end

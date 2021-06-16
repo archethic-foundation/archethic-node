@@ -251,7 +251,7 @@ defmodule Uniris.BeaconChain.Subset do
     Slot.add_p2p_view(current_slot, p2p_views)
   end
 
-  defp ensure_p2p_view(slot = %Slot{p2p_view: %{network_stats: []}}) do
+  defp ensure_p2p_view(slot = %Slot{p2p_view: %{availabilities: <<>>}}) do
     add_p2p_view(slot)
   end
 
