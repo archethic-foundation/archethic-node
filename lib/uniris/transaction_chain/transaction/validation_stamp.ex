@@ -324,7 +324,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       |> extract_for_signature
       |> serialize
 
-    Crypto.verify(signature, raw_stamp, public_key)
+    Crypto.verify?(signature, raw_stamp, public_key)
   end
 
   defp deserialize_list_of_recipients_addresses(rest, 0, _acc), do: {[], rest}

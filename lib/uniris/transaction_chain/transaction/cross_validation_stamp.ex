@@ -63,7 +63,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
         stamp = %ValidationStamp{}
       ) do
     data = [ValidationStamp.serialize(stamp), marshal_inconsistencies(inconsistencies)]
-    Crypto.verify(signature, data, node_public_key)
+    Crypto.verify?(signature, data, node_public_key)
   end
 
   defp marshal_inconsistencies(inconsistencies) do

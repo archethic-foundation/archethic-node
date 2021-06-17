@@ -12,9 +12,9 @@ defmodule Uniris.Crypto.Ed25519Test do
     assert Ed25519.sign(pv, "hello") == Ed25519.sign(pv, "hello")
   end
 
-  test "verify/4 should return true when the signature is valid" do
+  test "verify?/4 should return true when the signature is valid" do
     {pub, pv} = Ed25519.generate_keypair("myseed")
     sig = Ed25519.sign(pv, "hello")
-    assert Ed25519.verify(pub, "hello", sig)
+    assert Ed25519.verify?(pub, "hello", sig)
   end
 end

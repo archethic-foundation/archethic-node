@@ -13,9 +13,9 @@ defmodule Uniris.Crypto.ECDSATest do
     assert ECDSA.sign(:secp256r1, pv, "hello") != ECDSA.sign(:secp256r1, pv, "hello")
   end
 
-  test "verify/4 should return true when the signature is valid" do
+  test "verify?/4 should return true when the signature is valid" do
     {pub, pv} = :crypto.generate_key(:ecdh, :secp256r1)
     sig = ECDSA.sign(:secp256r1, pv, "hello")
-    assert ECDSA.verify(:secp256r1, pub, "hello", sig)
+    assert ECDSA.verify?(:secp256r1, pub, "hello", sig)
   end
 end

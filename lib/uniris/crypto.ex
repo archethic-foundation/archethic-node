@@ -368,10 +368,10 @@ defmodule Uniris.Crypto do
 
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> Crypto.sign("myfakedata", pv)
-      <<27, 255, 138, 135, 216, 145, 51, 246, 201, 113, 139, 48, 249, 222, 114, 191,
-      122, 83, 221, 14, 45, 82, 89, 193, 75, 141, 89, 136, 107, 140, 147, 27, 172,
-      25, 22, 200, 125, 103, 19, 39, 205, 60, 199, 176, 113, 134, 204, 45, 7, 182,
-      89, 7, 214, 145, 114, 135, 229, 177, 11, 221, 12, 24, 15, 12>>
+      <<220, 110, 7, 254, 119, 249, 124, 5, 24, 45, 224, 214, 60, 49, 223, 238, 47,
+      58, 91, 108, 33, 18, 230, 144, 178, 191, 236, 235, 188, 32, 224, 129, 47, 18,
+      216, 220, 32, 82, 252, 20, 55, 2, 204, 94, 73, 37, 44, 220, 33, 26, 44, 124,
+      20, 44, 255, 249, 77, 201, 97, 108, 213, 107, 134, 9>>
   """
   @spec sign(data :: iodata(), private_key :: binary()) :: signature :: binary()
   def sign(data, _private_key = <<curve_id::8, _::8, key::binary>>)
@@ -462,22 +462,22 @@ defmodule Uniris.Crypto do
 
       iex> {pub, pv} = Crypto.generate_deterministic_keypair("myseed")
       iex> sig = Crypto.sign("myfakedata", pv)
-      iex> Crypto.verify(sig, "myfakedata", pub)
+      iex> Crypto.verify?(sig, "myfakedata", pub)
       true
 
   Returns false when the signature is invalid
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed")
       iex> sig = <<1, 48, 69, 2, 33, 0, 185, 231, 7, 86, 207, 253, 8, 230, 199, 94, 251, 33, 42, 172, 95, 93, 7, 209, 175, 69, 216, 121, 239, 24, 17, 21, 41, 129, 255, 49, 153, 116, 2, 32, 85, 1, 212, 69, 182, 98, 174, 213, 79, 154, 69, 84, 149, 126, 169, 44, 98, 64, 21, 211, 20, 235, 165, 97, 61, 8, 239, 194, 196, 177, 46, 199>>
-      iex> Crypto.verify(sig, "myfakedata", pub)
+      iex> Crypto.verify?(sig, "myfakedata", pub)
       false
   """
-  @spec verify(
+  @spec verify?(
           signature :: binary(),
           data :: iodata() | bitstring() | [bitstring],
           public_key :: key()
         ) ::
           boolean()
-  def verify(
+  def verify?(
         sig,
         data,
         <<curve_id::8, _::8, key::binary>> = _public_key
@@ -485,11 +485,11 @@ defmodule Uniris.Crypto do
       when is_bitstring(data) or is_list(data) do
     curve_id
     |> ID.to_curve()
-    |> do_verify(key, Utils.wrap_binary(data), sig)
+    |> do_verify?(key, Utils.wrap_binary(data), sig)
   end
 
-  defp do_verify(:ed25519, key, data, sig), do: Ed25519.verify(key, data, sig)
-  defp do_verify(curve, key, data, sig), do: ECDSA.verify(curve, key, data, sig)
+  defp do_verify?(:ed25519, key, data, sig), do: Ed25519.verify?(key, data, sig)
+  defp do_verify?(curve, key, data, sig), do: ECDSA.verify?(curve, key, data, sig)
 
   @doc """
   Encrypts data using public key authenticated encryption (ECIES).

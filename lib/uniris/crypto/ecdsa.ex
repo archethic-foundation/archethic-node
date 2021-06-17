@@ -32,7 +32,7 @@ defmodule Uniris.Crypto.ECDSA do
   @spec sign(curve(), binary(), iodata()) :: binary()
   def sign(curve, private_key, data)
       when curve in @curves and (is_binary(data) or is_list(data)) and is_binary(private_key) do
-    :crypto.sign(:ecdsa, :sha256, :crypto.hash(:sha256, data), [
+    :crypto.sign(:ecdsa, :sha256, data, [
       private_key,
       curve
     ])
@@ -41,13 +41,13 @@ defmodule Uniris.Crypto.ECDSA do
   @doc """
   Verify a signature using the given public key and data
   """
-  @spec verify(curve(), binary(), iodata(), binary()) :: boolean()
-  def verify(curve, public_key, data, sig)
+  @spec verify?(curve(), binary(), iodata(), binary()) :: boolean()
+  def verify?(curve, public_key, data, sig)
       when curve in @curves and (is_binary(data) or is_list(data)) and is_binary(sig) do
     :crypto.verify(
       :ecdsa,
       :sha256,
-      :crypto.hash(:sha256, data),
+      data,
       sig,
       [
         public_key,

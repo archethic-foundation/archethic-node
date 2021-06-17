@@ -432,7 +432,7 @@ defmodule Uniris.TransactionChain.Transaction do
       |> extract_for_origin_signature()
       |> serialize()
 
-    Crypto.verify(origin_signature, raw_tx, public_key)
+    Crypto.verify?(origin_signature, raw_tx, public_key)
   end
 
   @doc """
@@ -447,7 +447,7 @@ defmodule Uniris.TransactionChain.Transaction do
       |> extract_for_previous_signature()
       |> serialize()
 
-    Crypto.verify(prev_sig, raw_tx, prev_key)
+    Crypto.verify?(prev_sig, raw_tx, prev_key)
   end
 
   @doc """

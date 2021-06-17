@@ -53,15 +53,15 @@ defmodule Uniris.Crypto.Ed25519 do
   """
   @spec sign(binary(), iodata()) :: binary()
   def sign(_key = <<private_key::binary-32>>, data) when is_binary(data) or is_list(data) do
-    :crypto.sign(:eddsa, :sha512, :crypto.hash(:sha512, data), [private_key, :ed25519])
+    :crypto.sign(:eddsa, :sha512, data, [private_key, :ed25519])
   end
 
   @doc """
   Verify if a given Ed25519 public key matches the signature among with its data
   """
-  @spec verify(binary(), binary(), binary()) :: boolean()
-  def verify(<<public_key::binary-32>>, data, sig)
+  @spec verify?(binary(), binary(), binary()) :: boolean()
+  def verify?(<<public_key::binary-32>>, data, sig)
       when (is_binary(data) or is_list(data)) and is_binary(sig) do
-    :crypto.verify(:eddsa, :sha512, :crypto.hash(:sha512, data), sig, [public_key, :ed25519])
+    :crypto.verify(:eddsa, :sha512, data, sig, [public_key, :ed25519])
   end
 end

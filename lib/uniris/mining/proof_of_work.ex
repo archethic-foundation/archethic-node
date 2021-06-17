@@ -88,7 +88,7 @@ defmodule Uniris.Mining.ProofOfWork do
   end
 
   defp do_find_transaction_origin_public_key(data, sig, [public_key | rest]) do
-    if Crypto.verify(sig, data, public_key) do
+    if Crypto.verify?(sig, data, public_key) do
       {:ok, public_key}
     else
       do_find_transaction_origin_public_key(data, sig, rest)

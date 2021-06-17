@@ -44,7 +44,7 @@ defmodule Uniris.Election do
       |> Transaction.serialize()
       |> Crypto.hash()
 
-    Crypto.verify(proof_of_election, data, daily_nonce_public_key)
+    Crypto.verify?(proof_of_election, data, daily_nonce_public_key)
   end
 
   @doc """
