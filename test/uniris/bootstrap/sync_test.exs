@@ -34,6 +34,7 @@ defmodule Uniris.Bootstrap.SyncTest do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
 
   doctest Sync
 
@@ -212,31 +213,49 @@ defmodule Uniris.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
-      MockDB
-      |> stub(:chain_size, fn _ -> 1 end)
-
-      MockCrypto
-      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
-        pv =
+      {:ok, daily_nonce_key} =
+        Agent.start_link(fn ->
           Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
           |> Keyword.fetch!(:genesis_daily_nonce_seed)
           |> Crypto.generate_deterministic_keypair()
           |> elem(1)
+        end)
 
-        Crypto.sign(data, pv)
+      MockDB
+      |> stub(:chain_size, fn _ -> 1 end)
+      |> stub(:write_transaction_chain, fn
+        [
+          %Transaction{
+            type: :node_shared_secrets,
+            data: %TransactionData{keys: %Keys{authorized_keys: keys, secret: secret}}
+          }
+        ] ->
+          encrypted_key = Map.get(keys, Crypto.last_node_public_key())
+          aes_key = Crypto.ec_decrypt_with_node_key!(encrypted_key)
+          <<encrypted_daily_nonce_seed::binary-size(60), _::binary>> = secret
+          daily_nonce_seed = Crypto.aes_decrypt!(encrypted_daily_nonce_seed, aes_key)
+
+          Agent.update(daily_nonce_key, fn _ ->
+            daily_nonce_seed |> Crypto.generate_deterministic_keypair() |> elem(1)
+          end)
+
+        _ ->
+          :ok
+      end)
+
+      MockCrypto
+      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+        Crypto.sign(data, Agent.get(daily_nonce_key, & &1))
       end)
 
       node_tx =
         Transaction.new(:node, %TransactionData{
-          content: """
-          ip: 127.0.0.1
-          port: 3000
-          transport: tcp
-          reward address: 00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45
-          """
+          content:
+            <<127, 0, 0, 1, 3000::16, 1, 0, :crypto.strong_rand_bytes(32)::binary, 64::16,
+              :crypto.strong_rand_bytes(64)::binary>>
         })
 
-      Sync.initialize_network(node_tx)
+      :ok = Sync.initialize_network(node_tx)
 
       assert :persistent_term.get(:storage_nonce) != nil
 

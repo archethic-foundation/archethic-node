@@ -72,14 +72,14 @@ defmodule Uniris.Mining.DistributedWorkflowTest do
       reward_address: :crypto.strong_rand_bytes(32)
     })
 
+    certificate = Crypto.get_key_certificate(Crypto.first_node_public_key())
+
     tx =
       Transaction.new(:node, %TransactionData{
-        content: """
-        ip: 127.0.0.1
-        port: 3000
-        transport: tcp
-        reward address: 0010E99CAC8FE4EC0CE34C01500CEC450AD106EAAC61BCF0CF467340752C5284BA
-        """
+        content:
+          <<127, 0, 0, 1, 3000::16, 1, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80,
+            12, 236, 69, 10, 209, 6, 234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132,
+            186, byte_size(certificate)::16, certificate::binary>>
       })
 
     {:ok,

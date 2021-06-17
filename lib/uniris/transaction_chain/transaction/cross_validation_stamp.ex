@@ -78,7 +78,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
   ## Examples
 
       iex> %CrossValidationStamp{
-      ...>   node_public_key: <<0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+      ...>   node_public_key: <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
       ...>     35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
       ...>   signature: <<70, 102, 163, 198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72,
       ...>     169, 219, 71, 63, 236, 35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46,
@@ -89,7 +89,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
       ...> |> CrossValidationStamp.serialize()
       <<
       # Public key
-      0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+      0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
       35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137,
       # Signature size
       64,
@@ -135,7 +135,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
 
   ## Examples
 
-      iex> <<0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+      iex> <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
       ...> 35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137,
       ...> 64, 70, 102, 163, 198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72,
       ...> 169, 219, 71, 63, 236, 35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46,
@@ -145,7 +145,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
       ...> |> CrossValidationStamp.deserialize()
       {
         %CrossValidationStamp{
-          node_public_key:  <<0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
+          node_public_key:  <<0, 0, 32, 44, 135, 146, 55, 226, 199, 234, 83, 141, 249, 46, 64, 213, 172, 218, 137,
             35, 16, 193, 228, 78, 130, 36, 204, 242, 96, 90, 230, 5, 193, 137>>,
           signature: <<70, 102, 163, 198, 192, 91, 177, 10, 201, 156, 10, 109, 165, 39, 226, 156, 72,
             169, 219, 71, 63, 236, 35, 228, 182, 45, 13, 166, 165, 102, 216, 23, 183, 46,
@@ -157,7 +157,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<curve_id::8, rest::bitstring>>) do
+  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
     <<key::binary-size(key_size), signature_size::8, signature::binary-size(signature_size),
@@ -167,7 +167,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStamp do
 
     {
       %__MODULE__{
-        node_public_key: <<curve_id::8>> <> key,
+        node_public_key: <<curve_id::8, origin_id::8, key::binary>>,
         signature: signature,
         inconsistencies: inconsistencies
       },

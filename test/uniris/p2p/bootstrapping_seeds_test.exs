@@ -54,8 +54,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     test "should load from conf if present" do
       {:ok, pid} =
         BootstrappingSeeds.start_link(
-          seeds:
-            "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+          genesis_seeds:
+            "127.0.0.1:3002:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
         )
 
       %{seeds: seeds, backup_file: file} = :sys.get_state(pid)
@@ -65,7 +65,7 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
 
       assert node_key ==
                Base.decode16!(
-                 "00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491"
+                 "0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491"
                )
     end
   end
@@ -123,18 +123,18 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     assert BootstrappingSeeds.nodes_to_seeds(new_seeds) == File.read!(file_path)
   end
 
-  test "when receive a node updat message should update the seeds list with the top nodes" do
+  test "when receive a node update message should update the seeds list with the top nodes" do
     {:ok, _pid} =
       BootstrappingSeeds.start_link(
-        seeds:
-          "127.0.0.1:3002:00DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+        genesis_seeds:
+          "127.0.0.1:3002:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
       )
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3003,
-      first_public_key: :crypto.strong_rand_bytes(32),
-      last_public_key: :crypto.strong_rand_bytes(32),
+      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
       available?: true,
       authorized?: true,
@@ -144,8 +144,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3004,
-      first_public_key: :crypto.strong_rand_bytes(32),
-      last_public_key: :crypto.strong_rand_bytes(32),
+      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
       available?: true,
       authorized?: false
@@ -154,8 +154,8 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3005,
-      first_public_key: :crypto.strong_rand_bytes(32),
-      last_public_key: :crypto.strong_rand_bytes(32),
+      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
       available?: false,
       authorized?: false
@@ -164,13 +164,15 @@ defmodule Uniris.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3006,
-      first_public_key: :crypto.strong_rand_bytes(32),
-      last_public_key: :crypto.strong_rand_bytes(32),
+      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
       available?: true,
       authorized?: true,
       authorization_date: DateTime.utc_now()
     })
+
+    Process.sleep(200)
 
     assert Enum.all?(BootstrappingSeeds.list(), &(&1.port in [3003, 3006]))
   end

@@ -25,7 +25,7 @@ defmodule Uniris.Mining.ProofOfWorkTest do
           port: 3000
         })
 
-      other_public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      other_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       :ok = SharedSecrets.add_origin_public_key(:biometric, other_public_key)
       :ok = SharedSecrets.add_origin_public_key(:software, :crypto.strong_rand_bytes(32))

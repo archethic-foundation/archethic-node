@@ -551,7 +551,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       ...>   ],
       ...>   node_movements: [
       ...>     %NodeMovement{
-      ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>       to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 0.3,
       ...>       roles: [:welcome_node, :coordinator_node, :cross_validation_node, :previous_storage_node]
@@ -582,7 +582,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
       # Nb of node movements
       1,
       # Node public key
-      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Node reward
       63, 211, 51, 51, 51, 51, 51, 51,
@@ -632,7 +632,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
 
       iex> <<63, 185, 153, 153, 153, 153, 153, 154, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195,
       ...> 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47,
-      ...> 158, 139, 207, "@$ffffff", 0, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
+      ...> 158, 139, 207, "@$ffffff", 0, 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
       ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 63, 211, 51, 51, 51, 51, 51, 51, 4, 0, 1, 2, 3, 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
@@ -651,7 +651,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations d
           ],
           node_movements: [
             %NodeMovement{
-              to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+              to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 0.3,
               roles: [:welcome_node, :coordinator_node, :cross_validation_node, :previous_storage_node]

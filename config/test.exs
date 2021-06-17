@@ -25,6 +25,22 @@ config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 3
 
 config :uniris, Uniris.Contracts.Loader, enabled: false
 
+config :uniris, Uniris.Crypto,
+  root_ca_public_keys: [
+    #  From `:crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")`
+    software:
+      <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
+        194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
+        186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
+        70, 95, 28, 35, 233, 21, 230>>,
+    tpm:
+      <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
+        194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
+        186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
+        70, 95, 28, 35, 233, 21, 230>>
+  ],
+  software_root_ca_key: :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key") |> elem(1)
+
 config :uniris, Uniris.Crypto.NodeKeystore, impl: MockCrypto, enabled: false
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl, seed: "fake seed"
 config :uniris, Uniris.Crypto.SharedSecretsKeystore, impl: MockCrypto, enabled: false

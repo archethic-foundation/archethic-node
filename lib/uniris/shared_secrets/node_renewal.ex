@@ -106,10 +106,7 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
           secret: true
         ]
         """,
-        content: """
-        daily nonce public key: #{Base.encode16(daily_nonce_public_key)}
-        network pool address: #{Base.encode16(network_pool_address)}
-        """,
+        content: <<daily_nonce_public_key::binary, network_pool_address::binary>>,
         keys: Keys.new(authorized_node_public_keys, secret_key, secret)
       }
     )
@@ -120,14 +117,14 @@ defmodule Uniris.SharedSecrets.NodeRenewal do
   """
   @spec decode_transaction_content(binary()) :: {:ok, binary(), binary()} | :error
   def decode_transaction_content(content) when is_binary(content) do
-    pattern =
-      ~r/daily nonce public key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m
-
-    with [[daily_nonce_public_key, network_pool_address]] <-
-           Regex.scan(pattern, content, capture: :all_but_first),
-         {:ok, daily_nonce_public_key} <- Base.decode16(daily_nonce_public_key, case: :mixed),
-         {:ok, network_pool_address} <- Base.decode16(network_pool_address, case: :mixed) do
-      {:ok, daily_nonce_public_key, network_pool_address}
+    with <<curve_id::8, origin_id::8, rest::binary>> <- content,
+         daily_nonce_public_key_size <- Crypto.key_size(curve_id),
+         <<daily_nonce_public_key::binary-size(daily_nonce_public_key_size),
+           network_pool_address_hash_id::8, rest::binary>> <- rest,
+         network_pool_address_size <- Crypto.hash_size(network_pool_address_hash_id),
+         <<network_pool_address::binary-size(network_pool_address_size), _::binary>> <- rest do
+      {:ok, <<curve_id::8, origin_id::8, daily_nonce_public_key::binary>>,
+       <<network_pool_address_hash_id::8, network_pool_address::binary>>}
     else
       _ ->
         :error

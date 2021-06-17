@@ -27,8 +27,9 @@ defmodule Uniris.Crypto.SharedSecrets.SoftwareImplTest do
       timestamp = ~U[2021-10-10 00:00:00Z]
 
       MockDB
-      |> expect(:count_transactions_by_type, fn :node_shared_secrets -> 2 end)
-      |> expect(:count_transactions_by_type, fn :node_rewards -> 1 end)
+      |> expect(:count_transactions_by_type, fn
+        :node_rewards -> 1
+      end)
       |> expect(:list_transactions_by_type, fn :node_shared_secrets, _ ->
         [
           %Transaction{
@@ -49,7 +50,7 @@ defmodule Uniris.Crypto.SharedSecrets.SoftwareImplTest do
       assert {:authorized,
               %{
                 daily_nonce_keys: %{^timestamp => ^daily_nonce_keypair},
-                shared_secrets_index: 2,
+                shared_secrets_index: 1,
                 network_pool_index: 1
               }} = :sys.get_state(pid)
     end

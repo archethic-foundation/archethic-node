@@ -22,7 +22,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
   ## Examples
 
       iex> %NodeMovement{
-      ...>    to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      ...>    to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 0.30,
       ...>    roles: [:coordinator_node, :previous_storage_node]
@@ -30,7 +30,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
       ...>  |> NodeMovement.serialize()
       <<
       # Node public key
-      0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
       63, 211, 51, 51, 51, 51, 51, 51,
@@ -56,14 +56,14 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
 
   ## Examples
 
-      iex> <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 63, 211, 51, 51, 51, 51, 51, 51, 2, 1, 3
       ...> >>
       ...> |> NodeMovement.deserialize()
       {
         %NodeMovement{
-          to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+          to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 0.30,
           roles: [:coordinator_node, :previous_storage_node]
@@ -72,7 +72,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<curve_id::8, rest::bitstring>>) do
+  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
     <<key::binary-size(key_size), amount::float, nb_roles::8, bin_roles::binary-size(nb_roles),
@@ -80,7 +80,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.N
 
     {
       %__MODULE__{
-        to: <<curve_id::8>> <> key,
+        to: <<curve_id::8, origin_id::8, key::binary>>,
         amount: amount,
         roles: bin_roles_to_list(bin_roles)
       },

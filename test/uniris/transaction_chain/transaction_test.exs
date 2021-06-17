@@ -23,7 +23,7 @@ defmodule Uniris.TransactionChain.TransactionTest do
       assert tx.address == Crypto.hash(Crypto.next_node_public_key())
       assert tx.previous_public_key == Crypto.last_node_public_key()
 
-      assert Crypto.verify(
+      assert Crypto.verify?(
                tx.origin_signature,
                tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
                Crypto.first_node_public_key()
@@ -43,7 +43,7 @@ defmodule Uniris.TransactionChain.TransactionTest do
       key_index = Crypto.number_of_node_shared_secrets_keys()
       assert tx.previous_public_key == Crypto.node_shared_secrets_public_key(key_index)
 
-      assert Crypto.verify(
+      assert Crypto.verify?(
                tx.origin_signature,
                tx |> Transaction.extract_for_origin_signature() |> Transaction.serialize(),
                Crypto.first_node_public_key()

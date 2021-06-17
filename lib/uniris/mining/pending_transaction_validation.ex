@@ -112,18 +112,32 @@ defmodule Uniris.Mining.PendingTransactionValidation do
          type: :node,
          data: %TransactionData{
            content: content
-         }
+         },
+         previous_public_key: previous_public_key
        }) do
-    case Regex.scan(Node.transaction_content_regex(), content, capture: :all_but_first) do
-      [] ->
+    with {:ok, _, _, _, _, key_certificate} <- Node.decode_transaction_content(content),
+         root_ca_public_key <- Crypto.get_root_ca_public_key(previous_public_key),
+         true <-
+           Crypto.verify_key_certificate?(
+             previous_public_key,
+             key_certificate,
+             root_ca_public_key
+           ) do
+      :ok
+    else
+      :error ->
         Logger.error("Invalid node transaction content",
           transaction: "node@#{Base.encode16(address)}"
         )
 
         {:error, "Invalid node transaction"}
 
-      _ ->
-        :ok
+      false ->
+        Logger.error("Invalid node key certificate",
+          transaction: "node@#{Base.encode16(address)}"
+        )
+
+        {:error, "Invalid node transaction"}
     end
   end
 

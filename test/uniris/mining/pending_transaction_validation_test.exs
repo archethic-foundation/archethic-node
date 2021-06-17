@@ -29,16 +29,17 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
 
   describe "validate_pending_transaction/1" do
     test "should :ok when a node transaction data content contains node endpoint information" do
+      {public_key, _} = Crypto.derive_keypair("seed", 0)
+      certificate = Crypto.get_key_certificate(public_key)
+
       tx =
         Transaction.new(
           :node,
           %TransactionData{
-            content: """
-            ip: 127.0.0.1
-            port: 3000
-            transport: tcp
-            reward address: 00A3EDE95D0EF1F10890DA69108AF3DF11B65709073592AE7D05F42A23D18E18A4
-            """
+            content:
+              <<127, 0, 0, 1, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115,
+                128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64,
+                157, 137, byte_size(certificate)::16, certificate::binary>>
           },
           "seed",
           0
@@ -68,10 +69,11 @@ defmodule Uniris.Mining.PendingTransactionValidationTest do
         Transaction.new(
           :node_shared_secrets,
           %TransactionData{
-            content: """
-            daily nonce public key: 00E05F60452CB68ACA06EC767109AD7B6730A286147A713C7AC724694F1C0C42D8
-            network pool address: 004321DEBA4949B0EA9B0790177FEE2C735344B39CCBBAF4D812A4D76225F370FD
-            """,
+            content:
+              <<0, 0, 219, 82, 144, 35, 140, 59, 161, 231, 225, 145, 111, 203, 173, 197, 200, 150,
+                213, 145, 87, 209, 98, 25, 28, 148, 198, 77, 174, 48, 16, 117, 253, 15, 0, 105,
+                113, 238, 128, 201, 90, 172, 230, 46, 99, 215, 130, 104, 26, 196, 222, 157, 89,
+                101, 74, 248, 245, 118, 36, 194, 213, 108, 141, 175, 248, 6, 120>>,
             code: """
             condition inherit: [
               type: node_shared_secrets

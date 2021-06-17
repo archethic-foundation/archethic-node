@@ -80,10 +80,10 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImplTest do
   end
 
   test "diffie_helman/1 should perform a ecdh with the last node private key" do
-    {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("fake seed", 0)
+    {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("fake seed", 0)
     {:ok, _pid} = Keystore.start_link(seed: "fake seed")
 
-    {<<_::8, pub::binary>>, _} = Crypto.generate_random_keypair()
+    {<<_::8, _::8, pub::binary>>, _} = Crypto.generate_random_keypair()
 
     x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
     ecdh = :crypto.compute_key(:ecdh, pub, x25519_sk, :x25519)

@@ -75,7 +75,8 @@ defmodule Uniris.P2P.MemTableLoader do
         }
       }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
-    {ip, port, transport, reward_address} = Node.extract_node_info(content)
+
+    {:ok, ip, port, transport, reward_address, _} = Node.decode_transaction_content(content)
 
     node = %Node{
       ip: ip,

@@ -8,6 +8,10 @@ defmodule UnirisWeb.ExplorerView do
   alias Uniris.BeaconChain.Slot.TransactionSummary
   alias Uniris.BeaconChain.Summary
 
+  alias Uniris.SharedSecrets.NodeRenewal
+
+  alias Uniris.P2P.Node
+
   alias Uniris.Utils
 
   alias Phoenix.Naming
@@ -26,6 +30,19 @@ defmodule UnirisWeb.ExplorerView do
       |> String.upcase()
 
     content_tag("span", formatted_type, class: "tag is-warning is-light")
+  end
+
+  def format_transaction_content(:node, content) do
+    {:ok, ip, port, transport, reward_address, key_certificate} =
+      Node.decode_transaction_content(content)
+
+    """
+    IP: #{:inet.ntoa(ip)}
+    Port: #{port}
+    Transport: #{transport}
+    Reward address: #{Base.encode16(reward_address)}
+    Key certificate: #{Base.encode16(key_certificate)}
+    """
   end
 
   def format_transaction_content(:beacon, content) do
@@ -105,6 +122,17 @@ defmodule UnirisWeb.ExplorerView do
     P2P node availabilites: #{
       Utils.bitstring_to_integer_list(node_availabilities) |> Enum.join(",")
     }
+    """
+  end
+
+  def format_transaction_content(:node_shared_secrets, content) do
+    {:ok, daily_nonce_public_key, network_address} =
+      NodeRenewal.decode_transaction_content(content)
+
+    """
+    daily nonce public key: #{Base.encode16(daily_nonce_public_key)}
+
+    network address: #{Base.encode16(network_address)}
     """
   end
 

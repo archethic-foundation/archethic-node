@@ -241,7 +241,7 @@ defmodule Uniris.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      proof_of_work: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:

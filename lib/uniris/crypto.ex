@@ -2,25 +2,26 @@ defmodule Uniris.Crypto do
   @moduledoc ~S"""
   Provide cryptographic operations for Uniris network.
 
-  An algorithm identification is produced as a first byte from keys and hashes.
-  This identification helps to determine which algorithm/implementation to use in key generation,
-  signatures, encryption or hashing.
+  An algorithm identification is produced by prepending keys and hashes.
+  This identification helps to determine which algorithm/implementation to use in key generation and hashing.
 
-      Ed25519    Public key
-        |           /
-        |          /
-      <<0, 106, 58, 193, 73, 144, 121, 104, 101, 53, 140, 125, 240, 52, 222, 35, 181,
+   Ed25519  Software  Public key
+        |  /           |
+        |  |   |-------|  
+        |  |   |
+      <<0, 0, 106, 58, 193, 73, 144, 121, 104, 101, 53, 140, 125, 240, 52, 222, 35, 181,
       13, 81, 241, 114, 227, 205, 51, 167, 139, 100, 176, 111, 68, 234, 206, 72>>
 
-       NIST P-256   Public key
-        |          /
-        |         /
-      <<1, 4, 7, 161, 46, 148, 183, 43, 175, 150, 13, 39, 6, 158, 100, 2, 46, 167,
+       NIST P-256  Software   Public key
+        |  |-------|         |
+        |  |  |--------------|
+        |  |  |
+      <<1, 0, 4, 7, 161, 46, 148, 183, 43, 175, 150, 13, 39, 6, 158, 100, 2, 46, 167,
        101, 222, 82, 108, 56, 71, 28, 192, 188, 104, 154, 182, 87, 11, 218, 58, 107,
       222, 154, 48, 222, 193, 176, 88, 174, 1, 6, 154, 72, 28, 217, 222, 147, 106,
       73, 150, 128, 209, 93, 99, 115, 17, 39, 96, 47, 203, 104, 34>>
 
-  Some functions rely on software implementations such as hashing, encryption or signature verification.
+  Some functions rely on software implementations such as hashing, signature verification.
   Other can rely on hardware or software as a configuration choice to generate keys, sign or decrypt data.
   According to the implementation, keys can be stored and regenerated on the fly
   """
@@ -54,14 +55,21 @@ defmodule Uniris.Crypto do
   @type supported_curve :: :ed25519 | ECDSA.curve()
 
   @typedoc """
+  List of the supported key origins
+  """
+  @type supported_origin :: :software | :tpm
+
+  @typedoc """
   Binary representing a hash prepend by a single byte to identify the algorithm of the generated hash
   """
   @type versioned_hash :: <<_::8, _::_*8>>
 
   @typedoc """
-  Binary representing a key prepend by a single byte to identify the elliptic curve for a key
+  Binary representing a key prepend by two bytes:
+  - to identify the elliptic curve for a key
+  - to identify the origin of the key derivation (software, TPM)
   """
-  @type key :: <<_::8, _::_*8>>
+  @type key :: <<_::16, _::_*8>>
 
   @typedoc """
   Binary representing a AES key on 32 bytes
@@ -76,6 +84,12 @@ defmodule Uniris.Crypto do
   - The rest for the ciphertext
   """
   @type aes_cipher :: <<_::384, _::_*8>>
+
+  @certification_public_keys Application.compile_env(
+                               :uniris,
+                               [__MODULE__, :root_ca_public_keys],
+                               []
+                             )
 
   @doc """
   Derive a new keypair from a seed (retrieved from the local keystore
@@ -302,12 +316,12 @@ defmodule Uniris.Crypto do
 
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed")
       iex> pub
-      <<0, 91, 43, 89, 132, 233, 51, 190, 190, 189, 73, 102, 74, 55, 126, 44, 117, 50,
+      <<0, 0, 91, 43, 89, 132, 233, 51, 190, 190, 189, 73, 102, 74, 55, 126, 44, 117, 50,
       36, 220, 249, 242, 73, 105, 55, 83, 190, 3, 75, 113, 199, 247, 165>>
 
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed", :secp256r1)
       iex> pub
-      <<1, 4, 140, 235, 188, 198, 146, 160, 92, 132, 81, 177, 113, 230, 39, 220, 122,
+      <<1, 0, 4, 140, 235, 188, 198, 146, 160, 92, 132, 81, 177, 113, 230, 39, 220, 122,
       112, 231, 18, 90, 66, 156, 47, 54, 192, 141, 44, 45, 223, 115, 28, 30, 48,
       105, 253, 171, 105, 87, 148, 108, 150, 86, 128, 28, 102, 163, 51, 28, 57, 33,
       133, 109, 49, 202, 92, 184, 138, 187, 26, 123, 45, 5, 94, 180, 250>>
@@ -360,7 +374,7 @@ defmodule Uniris.Crypto do
       89, 7, 214, 145, 114, 135, 229, 177, 11, 221, 12, 24, 15, 12>>
   """
   @spec sign(data :: iodata(), private_key :: binary()) :: signature :: binary()
-  def sign(data, _private_key = <<curve_id::8, key::binary>>)
+  def sign(data, _private_key = <<curve_id::8, _::8, key::binary>>)
       when is_bitstring(data) or is_list(data) do
     curve_id
     |> ID.to_curve()
@@ -466,7 +480,7 @@ defmodule Uniris.Crypto do
   def verify(
         sig,
         data,
-        <<curve_id::8, key::binary>> = _public_key
+        <<curve_id::8, _::8, key::binary>> = _public_key
       )
       when is_bitstring(data) or is_list(data) do
     curve_id
@@ -497,7 +511,7 @@ defmodule Uniris.Crypto do
       ```
   """
   @spec ec_encrypt(message :: binary(), public_key :: key()) :: binary()
-  def ec_encrypt(message, <<curve_id::8, public_key::binary>> = _public_key)
+  def ec_encrypt(message, <<curve_id::8, _::8, public_key::binary>> = _public_key)
       when is_binary(message) do
     curve = ID.to_curve(curve_id)
 
@@ -610,7 +624,7 @@ defmodule Uniris.Crypto do
           {:ok, binary()} | {:error, :decryption_failed}
   def ec_decrypt(
         encoded_cipher,
-        _private_key = <<curve_id::8, private_key::binary>>
+        _private_key = <<curve_id::8, _::8, private_key::binary>>
       )
       when is_binary(encoded_cipher) do
     key_size = key_size(curve_id)
@@ -661,7 +675,7 @@ defmodule Uniris.Crypto do
   @spec ec_decrypt_with_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
   def ec_decrypt_with_node_key(encoded_cipher) when is_binary(encoded_cipher) do
-    <<curve_id::8, _::binary>> = NodeKeystore.last_public_key()
+    <<curve_id::8, _::8, _::binary>> = NodeKeystore.last_public_key()
     key_size = key_size(curve_id)
 
     <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
@@ -832,9 +846,9 @@ defmodule Uniris.Crypto do
   Determine if a public key is valid
   """
   @spec valid_public_key?(binary()) :: boolean()
-  def valid_public_key?(<<0::8, _::binary-size(32)>>), do: true
-  def valid_public_key?(<<1::8, _::binary-size(65)>>), do: true
-  def valid_public_key?(<<2::8, _::binary-size(65)>>), do: true
+  def valid_public_key?(<<0::8, _::8, _::binary-size(32)>>), do: true
+  def valid_public_key?(<<1::8, _::8, _::binary-size(65)>>), do: true
+  def valid_public_key?(<<2::8, _::8, _::binary-size(65)>>), do: true
   def valid_public_key?(_), do: false
 
   @doc """
@@ -923,5 +937,76 @@ defmodule Uniris.Crypto do
   def storage_nonce_filepath do
     rel_filepath = Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:storage_nonce_file)
     Utils.mut_dir(rel_filepath)
+  end
+
+  @doc """
+  Determine the origin of the key from an ID
+  """
+  @spec key_origin(non_neg_integer()) :: supported_origin()
+  defdelegate key_origin(origin), to: ID, as: :to_origin
+
+  @spec get_key_certificate(key()) :: binary()
+  def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do
+    origin_id
+    |> ID.to_origin()
+    |> do_get_key_certificate(key)
+  end
+
+  defp do_get_key_certificate(:software, key) do
+    case Application.get_env(:uniris, __MODULE__) |> Keyword.get(:software_root_ca_key) do
+      nil ->
+        ""
+
+      root_ca_key ->
+        :crypto.sign(:ecdsa, :sha256, key, [root_ca_key, :secp256r1])
+    end
+  end
+
+  defp do_get_key_certificate(:tpm, key) do
+    [
+      Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:key_certificates_dir),
+      Base.encode16(key, case: :lower)
+    ]
+    |> Path.join()
+    |> File.read!()
+  end
+
+  @doc """
+  Return the Root CA public key for the given versioned public key 
+  """
+  @spec get_root_ca_public_key(key()) :: binary()
+  def get_root_ca_public_key(<<_::8, origin_id::8, _::binary>>) do
+    origin = ID.to_origin(origin_id)
+    Keyword.get(@certification_public_keys, origin, "")
+  end
+
+  @doc """
+  Determine if the public key if authorized from the given certificate
+
+  ## Examples
+
+      iex> Crypto.verify_key_certificate?(
+      ...> <<0, 0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96,
+      ...>  203, 174, 116, 191, 211, 39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161, 102>>,
+      ...> <<48, 68, 2, 32, 90, 47, 10, 125, 165, 179, 88, 67, 83, 56, 55, 240, 78, 168,
+      ...>  241, 104, 124, 212, 13, 10, 30, 80, 2, 170, 174, 8, 129, 205, 30, 40, 7, 196,
+      ...>  2, 32, 27, 21, 21, 174, 186, 126, 63, 184, 50, 195, 46, 118, 188, 2, 112, 214,
+      ...>  196, 121, 250, 48, 223, 110, 152, 189, 231, 137, 152, 25, 78, 29, 76, 191>>,
+      ...> <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
+      ...>  194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
+      ...>  186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
+      ...>  70, 95, 28, 35, 233, 21, 230>>)
+      true
+  """
+  @spec verify_key_certificate?(key(), binary(), binary()) :: boolean()
+  def verify_key_certificate?(<<_::8, origin_id::8, key::binary>>, certificate, root_ca_key)
+      when is_binary(certificate) and is_binary(root_ca_key) do
+    case ID.to_origin(origin_id) do
+      :tpm ->
+        ECDSA.verify?(:secp256r1, root_ca_key, key, certificate)
+
+      :software ->
+        ECDSA.verify?(:secp256r1, root_ca_key, key, certificate)
+    end
   end
 end

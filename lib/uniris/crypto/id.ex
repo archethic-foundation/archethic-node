@@ -54,6 +54,28 @@ defmodule Uniris.Crypto.ID do
   def from_hash(:blake2b), do: 4
 
   @doc """
+  Get an identification from a key origin
+
+  ## Examples
+
+      iex> ID.from_origin(:software)
+      0
+
+      iex> ID.from_origin(:tpm)
+      1
+  """
+  @spec from_origin(Crypto.supported_origin()) :: integer()
+  def from_origin(:software), do: 0
+  def from_origin(:tpm), do: 1
+
+  @doc """
+  Get a origin from an identification
+  """
+  @spec to_origin(integer()) :: Crypto.supported_origin()
+  def to_origin(0), do: :software
+  def to_origin(1), do: :tpm
+
+  @doc """
   Prepend hash by the algorithm identification byte
 
   ## Examples
@@ -80,20 +102,25 @@ defmodule Uniris.Crypto.ID do
       ...>   172, 79, 60, 159, 89, 230, 31, 254, 187, 176, 70, 166, 119, 96, 87, 194>>
       ...> }, :ed25519)
       {
-        <<0, 38, 59, 8, 1, 172, 20, 74, 63, 15, 72, 206, 129, 140, 212, 188, 102, 203, 51,
+        <<0, 0, 38, 59, 8, 1, 172, 20, 74, 63, 15, 72, 206, 129, 140, 212, 188, 102, 203, 51,
           188, 207, 135, 134, 211, 3, 87, 148, 178, 162, 118, 208, 109, 96>>,
-        <<0, 21, 150, 237, 25, 119, 159, 16, 128, 43, 48, 169, 243, 214, 246, 102, 147,
+        <<0, 0, 21, 150, 237, 25, 119, 159, 16, 128, 43, 48, 169, 243, 214, 246, 102, 147,
           172, 79, 60, 159, 89, 230, 31, 254, 187, 176, 70, 166, 119, 96, 87, 194>>
       }
   """
-  @spec prepend_keypair({Crypto.key(), Crypto.key()}, Crypto.supported_curve()) ::
+  @spec prepend_keypair(
+          {Crypto.key(), Crypto.key()},
+          Crypto.supported_curve(),
+          Crypto.supported_origin()
+        ) ::
           {Crypto.key(), Crypto.key()}
-  def prepend_keypair({public_key, private_key}, curve) do
+  def prepend_keypair({public_key, private_key}, curve, origin \\ :software) do
     curve_id = from_curve(curve)
+    origin_id = from_origin(origin)
 
     {
-      <<curve_id::8, public_key::binary>>,
-      <<curve_id::8, private_key::binary>>
+      <<curve_id::8, origin_id::8, public_key::binary>>,
+      <<curve_id::8, origin_id::8, private_key::binary>>
     }
   end
 end

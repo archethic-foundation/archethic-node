@@ -6,8 +6,6 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
   alias Uniris.P2P
   alias Uniris.P2P.Node
 
-  alias Uniris.SelfRepair.Sync.BeaconSummaryHandler.NetworkStatistics
-
   alias Uniris.SharedSecrets
   alias Uniris.SharedSecrets.NodeRenewal
 
@@ -16,6 +14,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
   alias Uniris.TransactionChain.TransactionData.Keys
 
   alias Uniris.SharedSecrets.NodeRenewal
+
+  import Mox
 
   test "new_node_shared_secrets_transaction/3 should create a new node shared secrets transaction" do
     aes_key = :crypto.strong_rand_bytes(32)
@@ -38,10 +38,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
 
     assert Map.has_key?(authorized_keys, Crypto.last_node_public_key())
 
-    assert Regex.match?(
-             ~r/daily nonce public key: ([0-9a-fA-F]{66,130})\nnetwork pool address: ([0-9a-fA-F]{66,130})/m,
-             content
-           )
+    assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end
 
   describe "initiator?/0" do
@@ -150,7 +147,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      NetworkStatistics.register_tps(DateTime.utc_now(), 10.0, 100)
+      MockDB
+      |> expect(:get_latest_tps, fn -> 10.0 end)
 
       assert Enum.all?(
                NodeRenewal.next_authorized_node_public_keys(),
@@ -206,7 +204,8 @@ defmodule Uniris.SharedSecrets.NodeRenewalTest do
         authorization_date: DateTime.utc_now()
       })
 
-      NetworkStatistics.register_tps(DateTime.utc_now(), 1000.0, 500)
+      MockDB
+      |> expect(:get_latest_tps, fn -> 1000.0 end)
 
       assert Enum.all?(
                NodeRenewal.next_authorized_node_public_keys(),

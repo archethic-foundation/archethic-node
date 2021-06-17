@@ -17,14 +17,14 @@ defmodule Uniris.BeaconChain.Slot.EndOfNodeSync do
   ## Examples
 
         iex> %EndOfNodeSync{
-        ...>   public_key:  <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
+        ...>   public_key:  <<0, 0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
         ...>    81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94>>,
         ...>   timestamp: ~U[2020-06-25 15:11:53Z],
         ...> }
         ...> |> EndOfNodeSync.serialize()
         <<
         # Public key
-        0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
+        0, 0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
         81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94,
         # Timestamp
         94, 244, 190, 185
@@ -40,12 +40,12 @@ defmodule Uniris.BeaconChain.Slot.EndOfNodeSync do
 
   ## Examples
 
-      iex> <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
+      iex> <<0, 0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
       ...> 81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94, 94, 244, 190, 185>>
       ...> |> EndOfNodeSync.deserialize()
       {
         %EndOfNodeSync{
-          public_key:  <<0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
+          public_key:  <<0, 0, 27, 7, 231, 56, 158, 71, 37, 55, 178, 16, 94, 82, 36, 5, 33, 248, 1, 151, 236,
             81, 191, 35, 110, 247, 4, 87, 172, 199, 154, 209, 17, 94>>,
           timestamp: ~U[2020-06-25 15:11:53Z]
         },
@@ -53,13 +53,13 @@ defmodule Uniris.BeaconChain.Slot.EndOfNodeSync do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<curve_id::8, rest::bitstring>>) do
+  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
     <<key::binary-size(key_size), timestamp::32, rest::bitstring>> = rest
 
     {
       %__MODULE__{
-        public_key: <<curve_id::8>> <> key,
+        public_key: <<curve_id::8, origin_id::8, key::binary>>,
         timestamp: DateTime.from_unix!(timestamp)
       },
       rest

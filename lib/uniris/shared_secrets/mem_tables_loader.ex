@@ -3,6 +3,8 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   use GenServer
 
+  alias Uniris.Crypto
+
   alias Uniris.SharedSecrets.MemTables.NetworkLookup
   alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
   alias Uniris.SharedSecrets.NodeRenewal
@@ -12,10 +14,6 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
   alias Uniris.TransactionChain.Transaction
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.TransactionData
-
-  @software_origin_key_regex ~r/(?<=software: ).([A-Z0-9\, ])*/
-  @biometric_origin_key_regex ~r/(?<=biometric: ).([A-Z0-9\, ])*/
-  @hardware_origin_key_regex ~r/(?<=hardware: ).([A-Z0-9\, ])*/
 
   require Logger
 
@@ -60,10 +58,20 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
     unless OriginKeyLookup.has_public_key?(first_public_key) do
-      # TODO: detect which family to use (ie. software, hardware)
-      :ok = OriginKeyLookup.add_public_key(:software, previous_public_key)
+      <<_::8, origin_id::8, _::binary>> = previous_public_key
 
-      Logger.info("Load origin public key #{Base.encode16(previous_public_key)} - #{:software}")
+      family =
+        case Crypto.key_origin(origin_id) do
+          :software ->
+            :software
+
+          :tpm ->
+            :hardware
+        end
+
+      :ok = OriginKeyLookup.add_public_key(family, previous_public_key)
+
+      Logger.info("Load origin public key #{Base.encode16(previous_public_key)} - #{family}")
     end
 
     :ok
@@ -74,7 +82,7 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
         data: %TransactionData{content: content}
       }) do
     content
-    |> get_origin_public_keys_from_tx_content()
+    |> get_origin_public_keys(%{software: [], hardware: []})
     |> Enum.each(fn {family, keys} ->
       Enum.each(keys, fn key ->
         :ok = OriginKeyLookup.add_public_key(family, key)
@@ -107,32 +115,24 @@ defmodule Uniris.SharedSecrets.MemTablesLoader do
 
   def load_transaction(_), do: :ok
 
-  defp get_origin_public_keys_from_tx_content(content) when is_binary(content) do
-    [
-      software: extract_origin_public_keys_from_family(@software_origin_key_regex, content),
-      hardware: extract_origin_public_keys_from_family(@hardware_origin_key_regex, content),
-      biometric: extract_origin_public_keys_from_family(@biometric_origin_key_regex, content)
-    ]
-  end
+  defp get_origin_public_keys(<<>>, acc), do: acc
 
-  defp extract_origin_public_keys_from_family(family_regex, origin_keys_string) do
-    Regex.scan(family_regex, origin_keys_string)
-    |> Enum.flat_map(& &1)
-    |> List.first()
-    |> handle_origin_family_match()
-  end
+  defp get_origin_public_keys(<<curve_id::8, origin_id::8, rest::binary>>, acc) do
+    key_size = Crypto.key_size(curve_id)
+    <<key::binary-size(key_size), rest::binary>> = rest
 
-  defp handle_origin_family_match(nil), do: []
+    family =
+      case Crypto.key_origin(origin_id) do
+        :software ->
+          :software
 
-  defp handle_origin_family_match(str) when is_binary(str) do
-    str
-    |> String.trim()
-    |> String.split(",")
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.map(fn key ->
-      key
-      |> String.trim()
-      |> Base.decode16!()
-    end)
+        :tpm ->
+          :hardware
+      end
+
+    get_origin_public_keys(
+      rest,
+      Map.update!(acc, family, &[<<curve_id::8, origin_id::8, key::binary>> | &1])
+    )
   end
 end

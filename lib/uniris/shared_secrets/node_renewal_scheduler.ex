@@ -16,6 +16,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.DateChecker, as: CronDateChecker
   alias Crontab.Scheduler, as: CronScheduler
 
   alias Uniris
@@ -156,7 +157,7 @@ defmodule Uniris.SharedSecrets.NodeRenewalScheduler do
   defp renewal_date?(date) do
     get_trigger_interval()
     |> CronParser.parse!(true)
-    |> Crontab.DateChecker.matches_date?(DateTime.to_naive(date))
+    |> CronDateChecker.matches_date?(DateTime.to_naive(date))
   end
 
   defp get_trigger_interval do

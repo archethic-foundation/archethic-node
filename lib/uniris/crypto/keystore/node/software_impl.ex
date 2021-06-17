@@ -115,7 +115,7 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
   def handle_call(
         {:diffie_hellman, public_key},
         _,
-        state = %{last_keypair: {_, <<curve_id::8, pv::binary>>}}
+        state = %{last_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
       ) do
     shared_secret =
       case ID.to_curve(curve_id) do

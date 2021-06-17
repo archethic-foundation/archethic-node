@@ -32,59 +32,107 @@ defmodule Uniris.P2P.Node do
     transport: Application.get_env(:uniris, Transport, impl: :tcp) |> Keyword.fetch!(:impl)
   ]
 
-  @doc """
-  Return the transaction content regex to validate
-  """
-  @spec transaction_content_regex() :: Regex.t()
-  def transaction_content_regex do
-    ~r/ip: ([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\nport: ([0-9].*)\ntransport: (#{
-      Enum.join(Transport.supported(), "|")
-    })\nreward address: ([0-9a-fA-F]{66,130})/m
-  end
-
   @doc ~S"""
-  Extract node information
+  Decode node information from transaction content
 
   ## Examples
 
-      iex> Node.extract_node_info("ip: 127.0.0.1\nport: 3000\ntransport: tcp\nreward address: 00ADB3F67EF7DF1456C937BE1D3BD4C42459B2B9D317441E164B27C508BAA77BB6")
-      {
+      iex> Node.decode_transaction_content(<<
+      ...>  127, 0, 0, 1, 
+      ...>  11, 184, 
+      ...>  1,
+      ...>  0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
+      ...>  0, 64,
+      ...>  63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
+      ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
+      ...>  132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
+      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126 
+      ...> >>)
+      { :ok, 
         {127, 0, 0, 1},
         3000,
         :tcp,
         <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
-          89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>
+          89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
+        <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
+         175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
+         132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
+         255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>> 
       }
   """
-  @spec extract_node_info(binary()) ::
-          {:inet.ip_address(), :inet.port_number(), Transport.supported(),
-           reward_address :: binary()}
-  def extract_node_info(content) when is_binary(content) do
-    [[ip_match, port_match, transport_match, reward_address_match]] =
-      Regex.scan(transaction_content_regex(), content, capture: :all_but_first)
+  @spec decode_transaction_content(binary()) ::
+          {:ok, :inet.ip_address(), :inet.port_number(), Transport.supported(),
+           reward_address :: binary(), key_certificate :: binary()}
+          | :error
+  def decode_transaction_content(<<ip::binary-size(4), port::16, transport::8, rest::binary>>) do
+    with <<ip0, ip1, ip2, ip3>> <- ip,
+         <<reward_address_hash_id::8, rest::binary>> <- rest,
+         reward_address_size <- Crypto.hash_size(reward_address_hash_id),
+         <<reward_address::binary-size(reward_address_size), rest::binary>> <- rest,
+         <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
+           _::binary>> <- rest do
+      {:ok, {ip0, ip1, ip2, ip3}, port, deserialize_transport(transport),
+       <<reward_address_hash_id::8, reward_address::binary>>, key_certificate}
+    else
+      _ ->
+        :error
+    end
+  end
 
-    {:ok, ip} =
-      ip_match
-      |> String.trim()
-      |> String.to_charlist()
-      |> :inet.parse_address()
+  def decode_transaction_content(<<>>), do: :error
 
-    port =
-      port_match
-      |> String.trim()
-      |> String.to_integer()
+  @doc """
+  Encode node's transaction content
 
-    transport =
-      transport_match
-      |> String.trim()
-      |> String.to_existing_atom()
+  ## Examples
 
-    reward_address =
-      reward_address_match
-      |> String.trim()
-      |> Base.decode16!()
-
-    {ip, port, transport, reward_address}
+      iex> Node.encode_transaction_content(
+      ...> {127, 0, 0, 1},
+      ...> 3000,
+      ...> :tcp,
+      ...> <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...>   89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
+      ...> <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
+      ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
+      ...>  132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
+      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>> 
+      ...> )
+      <<
+      # IP
+      127,0, 0, 1,
+      # Port
+      11, 184,
+      # Transport
+      1,
+      # Reward address
+      0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
+      # Certificate size
+      0, 64,
+      # Certificate
+      63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
+      175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
+      132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
+      255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126 
+      >>
+  """
+  @spec encode_transaction_content(
+          :inet.ip_address(),
+          :inet.port_number(),
+          Transport.supported(),
+          binary(),
+          binary()
+        ) :: binary()
+  def encode_transaction_content(
+        {ip1, ip2, ip3, ip4},
+        port,
+        transport,
+        reward_address,
+        key_certificate
+      ) do
+    <<ip1, ip2, ip3, ip4, port::16, serialize_transport(transport)::8, reward_address::binary,
+      byte_size(key_certificate)::16, key_certificate::binary>>
   end
 
   @type t() :: %__MODULE__{
@@ -252,9 +300,9 @@ defmodule Uniris.P2P.Node do
   ## Examples
 
       iex> Node.serialize(%Node{
-      ...>   first_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      ...>   first_public_key: <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...>     92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
-      ...>   last_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      ...>   last_public_key: <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...>     92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
@@ -293,10 +341,10 @@ defmodule Uniris.P2P.Node do
       # Authorization date
       94, 245, 179, 123,
       # First public key
-      0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       # Last public key
-      0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       # Reward address
       0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
@@ -351,9 +399,9 @@ defmodule Uniris.P2P.Node do
       ...> 127, 0, 0, 1, 11, 184, 1, "FA9", "AVC", 80,
       ...> 94, 245, 179, 123, 1::1,
       ...> 1::1, 94, 245, 179, 123,
-      ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      ...> 0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
-      ...> 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+      ...> 0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       ...> 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...> 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
@@ -362,9 +410,9 @@ defmodule Uniris.P2P.Node do
       ...> >>)
       {
         %Node{
-            first_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+            first_public_key: <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
               92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
-            last_public_key: <<0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
+            last_public_key: <<0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
               92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
             ip: {127, 0, 0, 1},
             port: 3000,
@@ -397,9 +445,12 @@ defmodule Uniris.P2P.Node do
     authorization_date =
       if authorization_date == 0, do: nil, else: DateTime.from_unix!(authorization_date)
 
-    <<first_curve_id::8, rest::bitstring>> = rest
+    <<first_curve_id::8, first_origin_id::8, rest::bitstring>> = rest
     key_size = Crypto.key_size(first_curve_id)
-    <<first_key::binary-size(key_size), last_curve_id::8, rest::bitstring>> = rest
+
+    <<first_key::binary-size(key_size), last_curve_id::8, last_origin_id::8, rest::bitstring>> =
+      rest
+
     key_size = Crypto.key_size(first_curve_id)
     <<last_key::binary-size(key_size), rest::bitstring>> = rest
 
@@ -423,8 +474,8 @@ defmodule Uniris.P2P.Node do
         available?: available?,
         authorized?: authorized?,
         authorization_date: authorization_date,
-        first_public_key: <<first_curve_id::8, first_key::binary>>,
-        last_public_key: <<last_curve_id::8, last_key::binary>>,
+        first_public_key: <<first_curve_id::8, first_origin_id::8, first_key::binary>>,
+        last_public_key: <<last_curve_id::8, last_origin_id::8, last_key::binary>>,
         reward_address: <<renewal_address_hash_id::8, reward_address::binary>>,
         last_address: <<last_address_hash_id::8, last_address::binary>>
       },

@@ -409,13 +409,13 @@ defmodule Uniris.P2P.Message do
     }
   end
 
-  def decode(<<1::8, curve_id::8, rest::bitstring>>) do
+  def decode(<<1::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
     <<public_key::binary-size(key_size), rest::bitstring>> = rest
 
     {
       %GetStorageNonce{
-        public_key: <<curve_id::8, public_key::binary>>
+        public_key: <<curve_id::8, origin_id::8, public_key::binary>>
       },
       rest
     }
@@ -477,7 +477,7 @@ defmodule Uniris.P2P.Message do
 
   def decode(<<8::8, hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), curve_id::8, rest::bitstring>> = rest
+    <<address::binary-size(hash_size), curve_id::8, origin_id::8, rest::bitstring>> = rest
     key_size = Crypto.key_size(curve_id)
     <<key::binary-size(key_size), nb_previous_storage_nodes::8, rest::bitstring>> = rest
 
@@ -494,7 +494,7 @@ defmodule Uniris.P2P.Message do
 
     {%AddMiningContext{
        address: <<hash_id::8, address::binary>>,
-       validation_node_public_key: <<curve_id::8, key::binary>>,
+       validation_node_public_key: <<curve_id::8, origin_id::8, key::binary>>,
        validation_nodes_view: validation_nodes_view,
        chain_storage_nodes_view: chain_storage_nodes_view,
        beacon_storage_nodes_view: beacon_storage_nodes_view,
@@ -787,10 +787,10 @@ defmodule Uniris.P2P.Message do
     {<<hash_id::8, hash::binary>>, rest}
   end
 
-  defp deserialize_public_key(<<curve_id::8, rest::bitstring>>) do
+  defp deserialize_public_key(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
     <<public_key::binary-size(key_size), rest::bitstring>> = rest
-    {<<curve_id::8, public_key::binary>>, rest}
+    {<<curve_id::8, origin_id::8, public_key::binary>>, rest}
   end
 
   defp deserialize_bit_sequences(rest, nb_sequences, _sequence_size, acc)

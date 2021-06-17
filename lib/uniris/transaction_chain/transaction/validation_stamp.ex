@@ -85,7 +85,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
       iex> %ValidationStamp{
       ...>   timestamp: ~U[2021-05-07 13:11:19Z],
-      ...>   proof_of_work: <<0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      ...>   proof_of_work: <<0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...>     155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206>>,
       ...>   proof_of_integrity: <<0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...>     28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
@@ -109,7 +109,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       # Timestamp
       96, 149, 60, 119,
       # Proof of work
-      0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       # Proof of integrity
       0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
@@ -154,7 +154,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     pow =
       if pow == "" do
         # Empty public key if the no public key matching the origin signature
-        <<0::8, 0::256>>
+        <<0::8, 0::8, 0::256>>
       else
         pow
       end
@@ -178,7 +178,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
     pow =
       if pow == "" do
         # Empty public key if the no public key matching the origin signature
-        <<0::8, 0::256>>
+        <<0::8, 0::8, 0::256>>
       else
         pow
       end
@@ -194,7 +194,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<96, 149, 60, 119, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      iex> <<96, 149, 60, 119, 0, 0,  34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
@@ -211,7 +211,7 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       {
         %ValidationStamp{
           timestamp: ~U[2021-05-07 13:11:19Z],
-          proof_of_work: <<0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+          proof_of_work: <<0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
             155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,>>,
           proof_of_integrity: << 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
             28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170>>,
@@ -236,10 +236,10 @@ defmodule Uniris.TransactionChain.Transaction.ValidationStamp do
       }
   """
   def deserialize(<<timestamp::32, rest::bitstring>>) do
-    <<pow_curve_id::8, rest::bitstring>> = rest
+    <<pow_curve_id::8, pow_origin_id::8, rest::bitstring>> = rest
     pow_key_size = Crypto.key_size(pow_curve_id)
     <<pow_key::binary-size(pow_key_size), rest::bitstring>> = rest
-    pow = <<pow_curve_id::8, pow_key::binary>>
+    pow = <<pow_curve_id::8, pow_origin_id::8, pow_key::binary>>
 
     <<poi_hash_id::8, rest::bitstring>> = rest
     poi_hash_size = Crypto.hash_size(poi_hash_id)

@@ -56,27 +56,31 @@ defmodule UnirisCase do
 
     MockCrypto
     |> stub(:sign_with_first_key, fn data ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_last_key, fn data ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_node_shared_secrets_key, fn data ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", 0, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_node_shared_secrets_key, fn data, index ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} =
+        Crypto.derive_keypair("shared_secret_seed", index, :secp256r1)
+
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_network_pool_key, fn data ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", 0, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_network_pool_key, fn data, index ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} =
+        Crypto.derive_keypair("network_pool_seed", index, :secp256r1)
+
       ECDSA.sign(:secp256r1, pv, data)
     end)
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->
@@ -107,7 +111,7 @@ defmodule UnirisCase do
     end)
     |> stub(:unwrap_secrets, fn _, _, _ -> :ok end)
     |> stub(:diffie_hellman, fn pub ->
-      {_, <<_::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)
     |> stub(:next_public_key, fn ->

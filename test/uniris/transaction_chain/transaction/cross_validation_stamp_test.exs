@@ -15,7 +15,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
     check all(
             keypair_seed <- StreamData.binary(length: 32),
             inconsistencies <- gen_inconsistencies(),
-            pow <- StreamData.binary(length: 33),
+            pow <- StreamData.binary(length: 32),
             poi <- StreamData.binary(length: 33),
             poe <- StreamData.binary(length: 64),
             signature <- StreamData.binary(length: 64)
@@ -28,7 +28,7 @@ defmodule Uniris.TransactionChain.Transaction.CrossValidationStampTest do
 
       validation_stamp = %ValidationStamp{
         timestamp: DateTime.utc_now(),
-        proof_of_work: pow,
+        proof_of_work: <<0::8, 0::8, pow::binary>>,
         proof_of_integrity: poi,
         proof_of_election: poe,
         ledger_operations: %LedgerOperations{},

@@ -112,13 +112,13 @@ defmodule Uniris.BeaconChainTest do
   end
 
   test "summary_transaction_address/2 should return a address using the storage nonce a subset and a date" do
-    assert <<0, 226, 52, 88, 119, 62, 225, 250, 221, 230, 153, 206, 237, 179, 155, 241, 128, 23,
-             162, 219, 201, 90, 206, 21, 133, 68, 1, 27, 12, 204, 78, 156,
-             100>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
+    assert <<0, 141, 146, 109, 188, 197, 248, 255, 123, 14, 172, 53, 198, 233, 233, 205, 180, 221,
+             95, 244, 203, 222, 149, 194, 205, 73, 214, 9, 207, 197, 55, 59,
+             182>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
 
-    assert <<0, 235, 229, 62, 76, 248, 83, 203, 54, 50, 10, 103, 30, 247, 122, 171, 126, 212, 231,
-             93, 164, 224, 165, 120, 119, 63, 165, 191, 209, 60, 93, 199,
-             128>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
+    assert <<0, 25, 97, 166, 116, 204, 210, 75, 152, 0, 193, 90, 253, 228, 140, 38, 248, 49, 160,
+             210, 186, 181, 32, 203, 157, 110, 67, 255, 181, 80, 96, 160,
+             239>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
   test "add_transaction_summary/1 should register a transaction inside a subset" do

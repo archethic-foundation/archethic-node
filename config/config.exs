@@ -51,7 +51,8 @@ config :uniris, Uniris.Crypto,
   ],
   default_curve: :ed25519,
   default_hash: :sha256,
-  storage_nonce_file: "crypto/storage_nonce"
+  storage_nonce_file: "crypto/storage_nonce",
+  key_certificates_dir: System.get_env("UNIRIS_CRYPTO_CERT_DIR", "certs")
 
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED")
@@ -95,31 +96,31 @@ config :uniris, Uniris.Governance.Code.CICD, impl: Uniris.Governance.Code.CICD.D
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_pools: [
     funding: [
-      public_key: "0004D1E769768AA6ABE40E9D04BD5AF5D5E0CACFB50C250455AD95222D54644721",
+      public_key: "000004D1E769768AA6ABE40E9D04BD5AF5D5E0CACFB50C250455AD95222D54644721",
       amount: 3.82e9
     ],
     deliverable: [
-      public_key: "00D8F54BEDBBB3BAEC8A0680F816886E9B12C2000A382BADE92B2FD0E4474BBBF0",
+      public_key: "0000D8F54BEDBBB3BAEC8A0680F816886E9B12C2000A382BADE92B2FD0E4474BBBF0",
       amount: 2.36e9
     ],
     enhancement: [
-      public_key: "00E5225BBA00C651A55CFDBA3F1A39861FB57A3052477B465ABA8FFAD9E732577D",
+      public_key: "0000E5225BBA00C651A55CFDBA3F1A39861FB57A3052477B465ABA8FFAD9E732577D",
       amount: 9.0e8
     ],
     team: [
-      public_key: "00857C0A211D1D4186C9D639E3A2AE8A2F112118298ECF574BD346176537780B1B",
+      public_key: "0000857C0A211D1D4186C9D639E3A2AE8A2F112118298ECF574BD346176537780B1B",
       amount: 5.6e8
     ],
     exchange: [
-      public_key: "00BDC880BCA2AF01FDDB12816D9410E1A429FD07D37ECBD24097334143D4BD144F",
+      public_key: "0000BDC880BCA2AF01FDDB12816D9410E1A429FD07D37ECBD24097334143D4BD144F",
       amount: 3.4e8
     ],
     marketing: [
-      public_key: "00BC759DBEE4972D169D7CD3C550C825DC38B0580572B9AAE8ABE44319FD995439",
+      public_key: "0000BC759DBEE4972D169D7CD3C550C825DC38B0580572B9AAE8ABE44319FD995439",
       amount: 3.4e8
     ],
     foundation: [
-      public_key: "00240B3822D15985542549EE697F3FF186807C13C01184D19C648C5725FC3F81F7",
+      public_key: "0000240B3822D15985542549EE697F3FF186807C13C01184D19C648C5725FC3F81F7",
       amount: 2.2e8
     ]
   ]

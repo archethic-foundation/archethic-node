@@ -5,7 +5,8 @@ config :logger, level: :info
 
 config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "/opt/data")
 
-config :uniris, Uniris.Bootstrap, reward_address: System.get_env("UNIRIS_REWARD_ADDRESS")
+config :uniris, Uniris.Bootstrap,
+  reward_address: System.get_env("UNIRIS_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
 config :uniris, Uniris.Bootstrap.Sync,
   # 15 days
@@ -21,6 +22,16 @@ config :uniris, Uniris.BeaconChain.SlotTimer,
 config :uniris, Uniris.BeaconChain.SummaryTimer,
   # Every day at midnight
   interval: "0 0 0 * * * *"
+
+config :uniris, Uniris.Crypto,
+  root_ca_public_keys: [
+    software:
+      System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY", "") |> Base.decode16!(case: :mixed),
+    tpm: System.get("UNIRIS_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
+  ],
+  software_root_ca_key: [
+    System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
+  ]
 
 # TODO: specify the crypto implementation using hardware when developed
 config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl

@@ -43,6 +43,8 @@ defmodule Uniris.BootstrapTest do
   alias Uniris.TransactionChain.Transaction.ValidationStamp
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+  alias Uniris.TransactionChain.TransactionData
+  alias Uniris.TransactionChain.TransactionData.Keys
 
   alias Uniris.PubSub
 
@@ -78,20 +80,44 @@ defmodule Uniris.BootstrapTest do
 
         _, %GetTransactionChain{} ->
           {:ok, %TransactionList{transactions: []}}
+
+        _, %NotifyEndOfNodeSync{} ->
+          {:ok, %Ok{}}
       end)
 
-      MockDB
-      |> stub(:chain_size, fn _ -> 1 end)
-
-      MockCrypto
-      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
-        pv =
+      {:ok, daily_nonce_key} =
+        Agent.start_link(fn ->
           Application.get_env(:uniris, Uniris.Bootstrap.NetworkInit)
           |> Keyword.fetch!(:genesis_daily_nonce_seed)
           |> Crypto.generate_deterministic_keypair()
           |> elem(1)
+        end)
 
-        Crypto.sign(data, pv)
+      MockDB
+      |> stub(:chain_size, fn _ -> 1 end)
+      |> stub(:write_transaction_chain, fn
+        [
+          %Transaction{
+            type: :node_shared_secrets,
+            data: %TransactionData{keys: %Keys{authorized_keys: keys, secret: secret}}
+          }
+        ] ->
+          encrypted_key = Map.get(keys, Crypto.last_node_public_key())
+          aes_key = Crypto.ec_decrypt_with_node_key!(encrypted_key)
+          <<encrypted_daily_nonce_seed::binary-size(60), _::binary>> = secret
+          daily_nonce_seed = Crypto.aes_decrypt!(encrypted_daily_nonce_seed, aes_key)
+
+          Agent.update(daily_nonce_key, fn _ ->
+            daily_nonce_seed |> Crypto.generate_deterministic_keypair() |> elem(1)
+          end)
+
+        _ ->
+          :ok
+      end)
+
+      MockCrypto
+      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
+        Crypto.sign(data, Agent.get(daily_nonce_key, & &1))
       end)
 
       seeds = [
@@ -111,6 +137,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       assert [%Node{ip: {127, 0, 0, 1}, authorized?: true, transport: :tcp} | _] =
@@ -129,11 +156,11 @@ defmodule Uniris.BootstrapTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           last_public_key:
-            <<0, 220, 205, 110, 4, 194, 222, 148, 194, 164, 97, 116, 158, 146, 181, 138, 166, 24,
-              164, 86, 69, 130, 245, 19, 203, 19, 163, 2, 19, 160, 205, 9, 200>>,
+            <<0, 0, 220, 205, 110, 4, 194, 222, 148, 194, 164, 97, 116, 158, 146, 181, 138, 166,
+              24, 164, 86, 69, 130, 245, 19, 203, 19, 163, 2, 19, 160, 205, 9, 200>>,
           first_public_key:
-            <<0, 220, 205, 110, 4, 194, 222, 148, 194, 164, 97, 116, 158, 146, 181, 138, 166, 24,
-              164, 86, 69, 130, 245, 19, 203, 19, 163, 2, 19, 160, 205, 9, 200>>,
+            <<0, 0, 220, 205, 110, 4, 194, 222, 148, 194, 164, 97, 116, 158, 146, 181, 138, 166,
+              24, 164, 86, 69, 130, 245, 19, 203, 19, 163, 2, 19, 160, 205, 9, 200>>,
           geo_patch: "AAA",
           network_patch: "AAA",
           authorized?: true,
@@ -148,11 +175,11 @@ defmodule Uniris.BootstrapTest do
           ip: {127, 0, 0, 1},
           port: 3000,
           last_public_key:
-            <<0, 186, 140, 57, 71, 50, 47, 229, 252, 24, 60, 6, 188, 83, 193, 145, 249, 111, 74,
-              30, 113, 111, 191, 242, 155, 199, 104, 181, 21, 95, 208, 108, 146>>,
+            <<0, 0, 186, 140, 57, 71, 50, 47, 229, 252, 24, 60, 6, 188, 83, 193, 145, 249, 111,
+              74, 30, 113, 111, 191, 242, 155, 199, 104, 181, 21, 95, 208, 108, 146>>,
           first_public_key:
-            <<0, 186, 140, 57, 71, 50, 47, 229, 252, 24, 60, 6, 188, 83, 193, 145, 249, 111, 74,
-              30, 113, 111, 191, 242, 155, 199, 104, 181, 21, 95, 208, 108, 146>>,
+            <<0, 0, 186, 140, 57, 71, 50, 47, 229, 252, 24, 60, 6, 188, 83, 193, 145, 249, 111,
+              74, 30, 113, 111, 191, 242, 155, 199, 104, 181, 21, 95, 208, 108, 146>>,
           geo_patch: "BBB",
           network_patch: "BBB",
           authorized?: true,
@@ -243,9 +270,12 @@ defmodule Uniris.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32),
-          network_patch: "AAA"
+          first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          network_patch: "AAA",
+          reward_address:
+            <<0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164, 74,
+              201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
         }
       ]
 
@@ -259,6 +289,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       assert Enum.any?(P2P.list_nodes(), &(&1.first_public_key == Crypto.first_node_public_key()))
@@ -269,8 +300,8 @@ defmodule Uniris.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32),
+          first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
           reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
         }
@@ -286,6 +317,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       %Node{
@@ -309,6 +341,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       %Node{
@@ -327,8 +360,8 @@ defmodule Uniris.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: :crypto.strong_rand_bytes(32),
-          last_public_key: :crypto.strong_rand_bytes(32),
+          first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
           reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
         }
@@ -344,6 +377,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       assert %Node{ip: {127, 0, 0, 1}} = P2P.get_node_info!(Crypto.first_node_public_key())
@@ -358,6 +392,7 @@ defmodule Uniris.BootstrapTest do
                  seeds,
                  DateTime.utc_now(),
                  "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 |> Base.decode16!()
                )
 
       Process.sleep(100)

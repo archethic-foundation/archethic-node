@@ -28,15 +28,32 @@ config :uniris, Uniris.Bootstrap,
       "UNIRIS_REWARD_ADDRESS",
       Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>)
     )
+    |> Base.decode16!(case: :mixed)
 
 config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
+
+config :uniris, Uniris.Crypto,
+  root_ca_public_keys: [
+    #  From `:crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")`
+    software:
+      <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
+        194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
+        186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
+        70, 95, 28, 35, 233, 21, 230>>,
+    tpm:
+      <<4, 210, 136, 107, 189, 140, 118, 86, 124, 217, 244, 69, 111, 61, 56, 224, 56, 150, 230,
+        194, 203, 81, 213, 212, 220, 19, 1, 180, 114, 44, 230, 149, 21, 125, 69, 206, 32, 173,
+        186, 81, 243, 58, 13, 198, 129, 169, 33, 179, 201, 50, 49, 67, 38, 156, 38, 199, 97, 59,
+        70, 95, 28, 35, 233, 21, 230>>
+  ],
+  software_root_ca_key: :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key") |> elem(1)
 
 config :uniris, Uniris.P2P.BootstrappingSeeds,
   # First node crypto seed is "node1"
   genesis_seeds:
     System.get_env(
       "UNIRIS_P2P_SEEDS",
-      "127.0.0.1:3002:001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
+      "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
 config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
@@ -46,7 +63,9 @@ config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
 
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
-    technical_council: [{"001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}],
+    technical_council: [
+      {"00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}
+    ],
     ethical_council: [],
     foundation: [],
     uniris: []

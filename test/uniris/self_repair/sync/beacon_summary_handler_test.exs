@@ -351,12 +351,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
           type: :node,
           seed: "node_seed",
-          content: """
-          ip: 127.0.0.1
-          port: 3000
-          transport: tcp
-          reward address: 00E3F3E1F8E91CD72CF0AC899E89703E5745A5C2681628BE28C5D607B1EA25E82C
-          """
+          content:
+            <<127, 0, 0, 1, 3000::16, 1, 0, :crypto.strong_rand_bytes(32)::binary, 64::16,
+              :crypto.strong_rand_bytes(64)::binary>>
         )
 
       MockClient
@@ -459,12 +456,9 @@ defmodule Uniris.SelfRepair.Sync.BeaconSummaryHandlerTest do
         TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
           type: :node,
           seed: "node_seed",
-          content: """
-          ip: 127.0.0.1
-          port: 3000
-          transport: tcp
-          reward address: 00E3F3E1F8E91CD72CF0AC899E89703E5745A5C2681628BE28C5D607B1EA25E82C
-          """
+          content:
+            <<127, 0, 0, 1, 3000::16, 1, 0::8, :crypto.strong_rand_bytes(32)::binary, 64::16,
+              :crypto.strong_rand_bytes(64)::binary>>
         )
 
       summaries = [
