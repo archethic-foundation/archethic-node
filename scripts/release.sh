@@ -49,37 +49,28 @@ echo ""
 echo "Version: ${VERSION}"
 echo "Installation dir: ${INSTALL_DIR}"
 
-mkdir -p ${INSTALL_DIR}/mainnet
-mkdir -p ${INSTALL_DIR}/testnet
+mkdir -p ${INSTALL_DIR}
 
 if [ $UPGRADE == 1 ]
 then
     # Build upgrade releases
     echo "Build the upgrade release"
     MIX_ENV=prod mix distillery.release --upgrade
-    MIX_ENV=dev mix distillery.release --upgrade
 
-    echo "Copy upgraded release into ${INSTALL_DIR}/mainnet/releases/${VERSION}"
-    echo "Copy upgraded release into ${INSTALL_DIR}/testnet/releases/${VERSION}"
+    echo "Copy upgraded release into ${INSTALL_DIR}/releases/${VERSION}"
 
-    cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/mainnet/releases/${VERSION}
-    cp "_build/dev/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/testnet/releases/${VERSION}
+    cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/releases/${VERSION}
 
     echo "Run the upgrade"
-    ${INSTALL_DIR}/mainnet/bin/uniris_node upgrade ${VERSION}
-    ${INSTALL_DIR}/testnet/bin/uniris_node upgrade ${VERSION}
+    ${INSTALL_DIR}/bin/uniris_node upgrade ${VERSION}
 else
     # Build the releases
 
     echo "Generate release"
     MIX_ENV=prod mix distillery.release
-    MIX_ENV=dev mix distillery.release
 
-    echo "Install MainNet release"
-    tar zxvf "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}/mainnet
-
-    echo "Install TestNet release"
-    tar zxvf "_build/dev/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}/testnet
+    echo "Install  release"
+    tar zxvf "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}
 fi
 
 exit

@@ -127,7 +127,7 @@ defmodule Uniris.Governance.Code.CICD.Docker do
     :ok
   end
 
-  @ci_script "/opt/code/scripts/proposal_ci_job.sh"
+  @ci_script "/opt/code/scripts/governance/proposal_ci_job.sh"
 
   defp do_run_docker_ci(%Proposal{address: address, changes: changes}) do
     Logger.info("Verify proposal", address: Base.encode16(address))
