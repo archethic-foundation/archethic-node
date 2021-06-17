@@ -91,7 +91,7 @@ defmodule Uniris.Crypto.ID do
   end
 
   @doc """
-  Prepend each keys by the identify byte curve
+  Prepend each keys by the identifying curve and the origin
 
   ## Examples
 
@@ -109,18 +109,23 @@ defmodule Uniris.Crypto.ID do
       }
   """
   @spec prepend_keypair(
-          {Crypto.key(), Crypto.key()},
+          {binary(), binary()},
           Crypto.supported_curve(),
           Crypto.supported_origin()
         ) ::
           {Crypto.key(), Crypto.key()}
   def prepend_keypair({public_key, private_key}, curve, origin \\ :software) do
+    {prepend_key(public_key, curve, origin), prepend_key(private_key, curve, origin)}
+  end
+
+  @doc """
+  Prepend key by identifying the curve and the origin
+  """
+  @spec prepend_key(binary(), Crypto.supported_curve(), Crypto.supported_origin()) :: Crypto.key()
+  def prepend_key(key, curve, origin \\ :software) do
     curve_id = from_curve(curve)
     origin_id = from_origin(origin)
 
-    {
-      <<curve_id::8, origin_id::8, public_key::binary>>,
-      <<curve_id::8, origin_id::8, private_key::binary>>
-    }
+    <<curve_id::8, origin_id::8, key::binary>>
   end
 end

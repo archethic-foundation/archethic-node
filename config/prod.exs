@@ -33,8 +33,7 @@ config :uniris, Uniris.Crypto,
     System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
   ]
 
-# TODO: specify the crypto implementation using hardware when developed
-config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
+config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.TPMImpl
 
 # TODO: to remove when the implementation will be detected
 config :uniris, Uniris.Crypto.SharedSecretsKeystore,

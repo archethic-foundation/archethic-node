@@ -56,7 +56,15 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
       "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
-config :uniris, Uniris.Crypto.NodeKeystore, impl: Uniris.Crypto.NodeKeystore.SoftwareImpl
+config :uniris, Uniris.Crypto.NodeKeystore,
+  impl:
+    (case System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE", "SOFTWARE") do
+       "SOFTWARE" ->
+         Uniris.Crypto.NodeKeystore.SoftwareImpl
+
+       "TPM" ->
+         Uniris.Crypto.NodeKeystore.TPMImpl
+     end)
 
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
