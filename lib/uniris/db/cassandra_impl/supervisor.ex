@@ -7,13 +7,19 @@ defmodule Uniris.DB.CassandraImpl.Supervisor do
   alias Uniris.DB.CassandraImpl.Producer
   alias Uniris.DB.CassandraImpl.SchemaMigrator
 
+  require Logger
+
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args)
   end
 
   def init(_args) do
+    host = Application.get_env(:uniris, Uniris.DB.CassandraImpl) |> Keyword.fetch!(:host)
+
+    Logger.info("Start Cassandra connection at #{host}")
+
     children = [
-      {Xandra, name: :xandra_conn, pool_size: 10, nodes: ["127.0.0.1:9042"]},
+      {Xandra, name: :xandra_conn, pool_size: 10, nodes: [host]},
       Producer,
       Consumer,
       SchemaMigrator

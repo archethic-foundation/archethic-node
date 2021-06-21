@@ -1,9 +1,6 @@
 import Config
 
-# config :logger, handle_sasl_reports: true
-config :uniris,
-       :mut_dir,
-       System.get_env("UNIRIS_MUT_DIR", "data_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}")
+config :uniris, :mut_dir, "data_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
 
 config :telemetry_poller, :default, period: 5_000
 
@@ -51,10 +48,7 @@ config :uniris, Uniris.Crypto,
 config :uniris, Uniris.P2P.BootstrappingSeeds,
   # First node crypto seed is "node1"
   genesis_seeds:
-    System.get_env(
-      "UNIRIS_P2P_SEEDS",
-      "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
-    )
+    "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
 
 config :uniris, Uniris.Crypto.NodeKeystore,
   impl:
@@ -68,6 +62,8 @@ config :uniris, Uniris.Crypto.NodeKeystore,
 
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
+
+config :uniris, Uniris.DB.CassandraImpl, host: System.get_env("UNIRIS_DB_HOST", "127.0.0.1:9042")
 
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
@@ -86,6 +82,9 @@ config :uniris, Uniris.OracleChain.Scheduler,
   summary_interval: "50 * * * * *"
 
 config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
+
+config :uniris, Uniris.Networking.IPLookup.Static,
+  hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
 
 config :uniris, Uniris.Reward.NetworkPoolScheduler,
   # At the 30th second
