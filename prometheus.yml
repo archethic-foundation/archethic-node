@@ -1,0 +1,13 @@
+#global:
+#  scrape_interval: 5s
+#  scrape_timeout: 5s
+#
+#scrape_configs:
+#- job_name: testnet
+#  static_configs:
+#  - targets:
+#    - node1:4000
+#    - node2:4000
+#    - node3:4000
+#    - node4:4000
+#    - node5:4000

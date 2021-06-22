@@ -50,7 +50,7 @@ RUN git config user.name uniris \
 RUN mix do phx.digest, distillery.release
 
 # gen PLT
-RUN if [ $skip_tests -eq 0 ]; then mix git_hooks.run pre_push ;fi
+RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
 
 # Install
 RUN mkdir /opt/app \

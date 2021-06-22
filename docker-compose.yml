@@ -33,196 +33,179 @@ version: "3.9"
 services:
 
   node1:
-    build:
-      context: .
-      args:
-        skip_tests: 1
-      target: uniris-ci
-    image: uniris-dev:latest
+    image: uniris-node:latest
     environment:
-      - HOME=/opt/code/_build
       - UNIRIS_CRYPTO_SEED=node1
       - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_STATIC_IP=172.16.1.101
+      - UNIRIS_STATIC_IP=172.16.1.10
+      - UNIRIS_DB_HOST=scylladb1:9042
     volumes:
-      - ./scripts/build-assets.sh:/build-assets.sh:ro
-      - .:/opt/code:ro
-      - .devnet/data1:/opt/data
-      - .devnet/deps:/opt/code/deps
-      - .devnet/_build:/opt/code/_build
-      - .devnet/static:/opt/code/priv/static
-      - .devnet/c_dist:/opt/code/priv/c_dist
-      - .devnet/node_modules:/opt/code/assets/node_modules
-    user: '${UID}:${GID}'
-    command: ["/build-assets.sh", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt"]
-    stdin_open: true
-    tty: true
+      -  ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
+      -  ./data1:/opt/data
+    command: ["/wait-for-it.sh", "sleep 60", "./bin/uniris_node", "foreground"]
     networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.101
+      uniris-node:
+        ipv4_address: 172.16.1.10
+    links:
+      - scylladb1
+    depends_on:
+      - scylladb1
+
+  scylladb1:
+    image: scylladb/scylla
+    volumes:
+      - ./data1:/var/lib/scylla
+    networks:
+      uniris-node:
+        ipv4_address: 172.16.1.11 
+
 
   node2:
-    image: uniris-dev:latest
-    depends_on:
-      - node1
-    environment:
-      - HOME=/opt/code/_build
+    image: uniris-node:latest
+    environment: 
       - UNIRIS_CRYPTO_SEED=node2
       - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-      - UNIRIS_STATIC_IP=172.16.1.102
+      - UNIRIS_STATIC_IP=172.16.1.20
+      - UNIRIS_P2P_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - UNIRIS_DB_HOST=scylladb2:9042
     volumes:
-      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-      - .:/opt/code:ro
-      - .devnet/data2:/opt/data
-      - .devnet/deps:/opt/code/deps:ro
-      - .devnet/_build:/opt/code/_build:ro
-      - .devnet/static:/opt/code/priv/static:ro
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-      - .devnet/node_modules:/opt/code/assets/node_modules:ro
-    user: '${UID}:${GID}'
-    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
-    stdin_open: true
-    tty: true
+      - ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
+      - ./data2:/opt/data
+    command: ["/wait-for-it.sh", "wget -q http://node1:4000/up", "./bin/uniris_node", "foreground"]
     networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.102
-
-  node3:
-    image: uniris-dev:latest
+      uniris-node:
+        ipv4_address: 172.16.1.20
+    links:
+      - scylladb2
     depends_on:
-      - node1
-    environment:
-      - HOME=/opt/code/_build
-      - UNIRIS_CRYPTO_SEED=node3
-      - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-      - UNIRIS_STATIC_IP=172.16.1.103
-    volumes:
-      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-      - .:/opt/code:ro
-      - .devnet/data3:/opt/data
-      - .devnet/deps:/opt/code/deps:ro
-      - .devnet/_build:/opt/code/_build:ro
-      - .devnet/static:/opt/code/priv/static:ro
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-      - .devnet/node_modules:/opt/code/assets/node_modules:ro
-    user: '${UID}:${GID}'
-    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
-    stdin_open: true
-    tty: true
-    networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.103
+      - scylladb2
 
-  node4:
-    image: uniris-dev:latest
-    depends_on:
-      - node1
-    environment:
-      - HOME=/opt/code/_build
-      - UNIRIS_CRYPTO_SEED=node4
-      - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-      - UNIRIS_STATIC_IP=172.16.1.104
+  scylladb2:
+    image: scylladb/scylla
     volumes:
-      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-      - .:/opt/code:ro
-      - .devnet/data4:/opt/data
-      - .devnet/deps:/opt/code/deps:ro
-      - .devnet/_build:/opt/code/_build:ro
-      - .devnet/static:/opt/code/priv/static:ro
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-      - .devnet/node_modules:/opt/code/assets/node_modules:ro
-    user: '${UID}:${GID}'
-    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
-    stdin_open: true
-    tty: true
+      - ./data2:/var/lib/scylla
     networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.104
+      uniris-node:
+        ipv4_address: 172.16.1.21 
 
-  node5:
-    image: uniris-dev:latest
-    depends_on:
-      - node1
-    environment:
-      - HOME=/opt/code/_build
-      - UNIRIS_CRYPTO_SEED=node5
-      - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-      - UNIRIS_STATIC_IP=172.16.1.105
-    volumes:
-      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-      - .:/opt/code:ro
-      - .devnet/data5:/opt/data
-      - .devnet/deps:/opt/code/deps:ro
-      - .devnet/_build:/opt/code/_build:ro
-      - .devnet/static:/opt/code/priv/static:ro
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-      - .devnet/node_modules:/opt/code/assets/node_modules:ro
-    user: '${UID}:${GID}'
-    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
-    stdin_open: true
-    tty: true
-    networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.105
-
-  collector:
-    image: prom/prometheus
-    volumes:
-      - .devnet/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.200
-
-  bench:
-    image: uniris-dev:latest
-    environment:
-      - HOME=/opt/code/_build
-      - UNIRIS_MUT_DIR=/opt/data
-    volumes:
-      - .:/opt/code:ro
-      - .devnet/validator:/opt/data
-      - .devnet/deps:/opt/code/deps
-      - .devnet/_build:/opt/code/_build
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-    user: '${UID}:${GID}'
-    command: ["mix", "uniris.testnet.validate", "--after", "node1", "node2", "node3", "node4", "node5"]
-    stdin_open: true
-    tty: true
-    profiles: ["validate"]
-    sysctls:
-      net.ipv4.tcp_tw_reuse: 1
-      net.ipv4.ip_local_port_range: 16000 60999
-
-    networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.201
-
-  validate:
-    image: uniris-dev:latest
-    environment:
-      - HOME=/opt/code/_build
-      - UNIRIS_MUT_DIR=/opt/data
-    volumes:
-      - .:/opt/code:ro
-      - .devnet/validator:/opt/data
-      - .devnet/deps:/opt/code/deps
-      - .devnet/_build:/opt/code/_build
-      - .devnet/c_dist:/opt/code/priv/c_dist:ro
-    user: '${UID}:${GID}'
-    command: ["mix", "uniris.testnet.validate", "--validate", "node1", "node2", "node3", "node4", "node5"]
-    stdin_open: true
-    tty: true
-    profiles: ["validate"]
-    networks:
-      uniris-dev:
-        ipv4_address: 172.16.1.202
+      #  node2:
+        #    image: uniris-node:latest
+        #    depends_on:
+        #      - node1
+        #    environment:
+        #      - UNIRIS_CRYPTO_SEED=node2
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - UNIRIS_STATIC_IP=172.16.1.102
+        #    volumes:
+        #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+        #      - ./data2:/opt/data
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    stdin_open: true
+        #    tty: true
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.102
+        #
+        #  node3:
+        #    image: uniris-node:latest
+        #    depends_on:
+        #      - node1
+        #    environment:
+        #      - UNIRIS_CRYPTO_SEED=node3
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - UNIRIS_STATIC_IP=172.16.1.103
+        #    volumes:
+        #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+        #      - ./data3:/opt/data
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    stdin_open: true
+        #    tty: true
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.103
+        #
+        #  node4:
+        #    image: uniris-node:latest
+        #    depends_on:
+        #      - node1
+        #    environment:
+        #      - UNIRIS_CRYPTO_SEED=node4
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - UNIRIS_STATIC_IP=172.16.1.104
+        #    volumes:
+        #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+        #      - ./data4:/opt/data
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    stdin_open: true
+        #    tty: true
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.104
+        #
+        #  node5:
+        #    image: uniris-node:latest
+        #    depends_on:
+        #      - node1
+        #    environment:
+        #      - UNIRIS_CRYPTO_SEED=node5
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - UNIRIS_STATIC_IP=172.16.1.105
+        #    volumes:
+        #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
+        #      - ./data5:/opt/data
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "elixir", "--sname", "u", "-S", "mix", "run", "--no-halt", "--no-compile"]
+        #    stdin_open: true
+        #    tty: true
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.105
+        #
+        #  collector:
+        #    image: prom/prometheus
+        #    volumes:
+        #      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.200
+        #
+        #  bench:
+        #    image: uniris-node:latest
+        #    environment:
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #    volumes:
+        #      - ./bench_data:/opt/data
+        #    command: ["mix", "uniris.testnet.validate", "--after", "node1", "node2", "node3", "node4", "node5"]
+        #    stdin_open: true
+        #    tty: true
+        #    profiles: ["validate"]
+        #    sysctls:
+        #      net.ipv4.tcp_tw_reuse: 1
+        #      net.ipv4.ip_local_port_range: 16000 60999
+        #
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.201
+        #
+        #  validate:
+        #    image: uniris-node:latest
+        #    environment:
+        #      - UNIRIS_MUT_DIR=/opt/data
+        #    volumes:
+        #      - ./validator_data:/opt/data
+        #    command: ["mix", "uniris.testnet.validate", "--validate", "node1", "node2", "node3", "node4", "node5"]
+        #    stdin_open: true
+        #    tty: true
+        #    profiles: ["validate"]
+        #    networks:
+        #      uniris-node:
+        #        ipv4_address: 172.16.1.202
 
 networks:
-  uniris-dev:
+  uniris-node:
     ipam:
       driver: default
       config:

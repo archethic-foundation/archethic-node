@@ -34,8 +34,10 @@ Current implemented features:
 - Transaction explorer
 - Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
 - NFT creation and transfers
+- Integrated Oracle Chain (UCO Price Feed)
+- Efficient transaction fee
+
 ## Next features to appear very soon:
-- Sampling P2P view on the Beacon chain
 - P2P messages encryption
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
@@ -72,25 +74,25 @@ To clean the data from the database
 mix uniris.clean_db
 ```
 
-To start multiple nodes, you can leverage: `docker-compose`
+<!-- To start multiple nodes, you can leverage: `docker-compose`
 
 ### Development with `docker-compose`
 
 Requires working `docker-compose`
 
 To start testnet:
-```
-UID=$(id -u) GID=$(id -g) docker-compose up
+```bash
+docker-compose up
 ```
 
 To run benchmarks:
-```
-UID=$(id -u) GID=$(id -g) docker-compose up bench
+```bash
+docker-compose up bench
 ```
 
 To validate testnet:
-```
-UID=$(id -u) GID=$(id -g) docker-compose up validate
+```bash
+docker-compose up validate
 ```
 
 ### Automation
@@ -105,6 +107,7 @@ mix uniris.testnet $(seq -f "seed%g" -s " " 5)
 The task will generate `docker-compose.json` (for 5 nodes with seeds: seed1, seed2, seed3, seed4, seed5), and run `docker-compose -f docker-compose.json up` which in turn will build `uniris-testnet` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.
 
 Run `mix help uniris.testnet` to see how to tweak the task.
+-->
 
 ## Contribution
 
