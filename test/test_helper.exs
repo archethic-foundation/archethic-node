@@ -6,13 +6,13 @@ ExUnit.start(
   max_failures: 1
 )
 
-Mox.defmock(MockClient, for: Uniris.P2P.ClientImpl)
+Mox.defmock(MockClient, for: Uniris.P2P.Client)
 Mox.defmock(MockTransport, for: Uniris.P2P.TransportImpl)
 
 Mox.defmock(MockCrypto,
-  for: [Uniris.Crypto.NodeKeystoreImpl, Uniris.Crypto.SharedSecretsKeystoreImpl]
+  for: [Uniris.Crypto.NodeKeystore, Uniris.Crypto.SharedSecretsKeystore]
 )
 
-Mox.defmock(MockDB, for: Uniris.DBImpl)
-Mox.defmock(MockGeoIP, for: Uniris.P2P.GeoPatch.GeoIPImpl)
+Mox.defmock(MockDB, for: Uniris.DB)
+Mox.defmock(MockGeoIP, for: Uniris.P2P.GeoPatch.GeoIP)
 Mox.defmock(MockUCOPriceProvider, for: Uniris.OracleChain.Services.UCOPrice.Providers.Impl)

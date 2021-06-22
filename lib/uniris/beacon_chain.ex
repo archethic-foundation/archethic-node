@@ -14,12 +14,9 @@ defmodule Uniris.BeaconChain do
   alias Uniris.BeaconChain.SlotTimer
   alias Uniris.BeaconChain.Subset
   alias Uniris.BeaconChain.Subset.P2PSampling
-  alias Uniris.BeaconChain.Summary
   alias Uniris.BeaconChain.SummaryTimer
 
   alias Uniris.Crypto
-
-  alias Uniris.DB
 
   alias Uniris.Election
 
@@ -159,9 +156,6 @@ defmodule Uniris.BeaconChain do
       timestamp: timestamp
     })
   end
-
-  @spec get_summary(binary(), DateTime.t()) :: {:ok, Summary.t()} | {:error, :not_found}
-  defdelegate get_summary(subset, date), to: DB, as: :get_beacon_summary
 
   @doc """
   Get the transaction address for a beacon chain daily summary based from a subset and date

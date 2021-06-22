@@ -15,7 +15,7 @@ defmodule Uniris.Governance.Supervisor do
 
   def init(_args) do
     children = [
-      Utils.impl(CICD),
+      CICD,
       MemTable,
       MemTableLoader
     ]

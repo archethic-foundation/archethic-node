@@ -5,8 +5,8 @@ defmodule Uniris.P2P.Client.DefaultImpl do
 
   alias Uniris.Crypto
 
+  alias Uniris.P2P.Client
   alias Uniris.P2P.Client.RemoteConnection
-  alias Uniris.P2P.ClientImpl
   alias Uniris.P2P.Connection
   alias Uniris.P2P.ConnectionRegistry
   alias Uniris.P2P.ConnectionSupervisor
@@ -14,12 +14,12 @@ defmodule Uniris.P2P.Client.DefaultImpl do
   alias Uniris.P2P.Node
   alias Uniris.P2P.Transport
 
-  @behaviour ClientImpl
+  @behaviour Client
 
   @doc """
   Create a new node client connection for a remote node
   """
-  @impl ClientImpl
+  @impl Client
   @spec new_connection(
           :inet.ip_address(),
           port :: :inet.port_number(),
@@ -41,7 +41,7 @@ defmodule Uniris.P2P.Client.DefaultImpl do
   @doc """
   Send a message to the given node using the right connection bearer
   """
-  @impl ClientImpl
+  @impl Client
   def send_message(%Node{first_public_key: first_public_key}, message) do
     if first_public_key == Crypto.first_node_public_key() do
       LocalConnection

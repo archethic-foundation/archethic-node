@@ -50,15 +50,15 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
   genesis_seeds:
     "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
 
-config :uniris, Uniris.Crypto.NodeKeystore,
-  impl:
-    (case System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE", "SOFTWARE") do
-       "SOFTWARE" ->
-         Uniris.Crypto.NodeKeystore.SoftwareImpl
+config :uniris,
+       Uniris.Crypto.NodeKeystore,
+       (case System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE", "SOFTWARE") do
+          "SOFTWARE" ->
+            Uniris.Crypto.NodeKeystore.SoftwareImpl
 
-       "TPM" ->
-         Uniris.Crypto.NodeKeystore.TPMImpl
-     end)
+          "TPM" ->
+            Uniris.Crypto.NodeKeystore.TPMImpl
+        end)
 
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
@@ -81,7 +81,7 @@ config :uniris, Uniris.OracleChain.Scheduler,
   # Aggregate chain at the 50th second
   summary_interval: "50 * * * * *"
 
-config :uniris, Uniris.Networking.IPLookup, impl: Uniris.Networking.IPLookup.Static
+config :uniris, Uniris.Networking.IPLookup, Uniris.Networking.IPLookup.Static
 
 config :uniris, Uniris.Networking.IPLookup.Static,
   hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")

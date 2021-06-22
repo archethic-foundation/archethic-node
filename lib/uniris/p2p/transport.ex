@@ -13,6 +13,8 @@ defmodule Uniris.P2P.Transport do
 
   alias Uniris.P2P.Transport.TCPImpl
 
+  @default_impl Application.compile_env(:uniris, __MODULE__)
+
   @doc """
   Open a connection to the given port
   """
@@ -22,14 +24,11 @@ defmodule Uniris.P2P.Transport do
           (:inet.socket() -> {:ok, pid()})
         ) ::
           {:ok, :inet.socket()} | {:error, reason :: :system_limit | :inet.posix()}
-  def listen(transport, port, handle_new_socket_fun) when port in 0..65_535,
-    do: do_listen(transport, port, handle_new_socket_fun)
-
-  defp do_listen(:tcp, port, handle_new_socket_fun),
-    do: TCPImpl.listen(port, handle_new_socket_fun)
-
-  defp do_listen(_, port, handle_new_socket_fun),
-    do: config_impl().listen(port, handle_new_socket_fun)
+  def listen(transport, port, handle_new_socket_fun) when port in 0..65_535 do
+    transport
+    |> delegate_to
+    |> apply(:listen, [port, handle_new_socket_fun])
+  end
 
   @doc """
   Establish a connection to a remote node
@@ -43,22 +42,21 @@ defmodule Uniris.P2P.Transport do
   def connect(transport, ip, port, timeout \\ :infinity)
       when port in 0..65_535 and
              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)) do
-    do_connect(transport, ip, port, timeout)
+    transport
+    |> delegate_to
+    |> apply(:connect, [ip, port, timeout])
   end
-
-  defp do_connect(:tcp, ip, port, timeout),
-    do: TCPImpl.connect(ip, port, timeout)
-
-  defp do_connect(_, ip, port, timeout),
-    do: config_impl().connect(ip, port, timeout)
 
   @doc """
   Send a message through a socket
   """
   @spec send_message(supported(), socket :: :inet.socket(), message :: binary()) ::
           :ok | {:error, :inet.posix()}
-  def send_message(:tcp, socket, message), do: TCPImpl.send_message(socket, message)
-  def send_message(_, socket, message), do: config_impl().send_message(socket, message)
+  def send_message(transport, socket, message) do
+    transport
+    |> delegate_to
+    |> apply(:send_message, [socket, message])
+  end
 
   @doc """
   Read data from a socket
@@ -72,25 +70,21 @@ defmodule Uniris.P2P.Transport do
   def read_from_socket(transport, socket, size \\ 0, timeout \\ :infinity)
       when is_integer(size) and size >= 0 and
              (timeout == :infinity or (is_integer(timeout) and timeout >= 0)) do
-    do_read_from_socket(transport, socket, size, timeout)
+    transport
+    |> delegate_to
+    |> apply(:read_from_socket, [socket, size, timeout])
   end
-
-  defp do_read_from_socket(:tcp, socket, size, timeout),
-    do: TCPImpl.read_from_socket(socket, size, timeout)
-
-  defp do_read_from_socket(_, socket, size, timeout),
-    do: config_impl().read_from_socket(socket, size, timeout)
 
   @doc """
   Close an opened socket
   """
   @spec close_socket(supported(), :inet.socket()) :: :ok
-  def close_socket(transport, socket), do: do_close_socket(transport, socket)
-
-  defp do_close_socket(:tcp, socket), do: TCPImpl.close_socket(socket)
-  defp do_close_socket(_, socket), do: config_impl().close_socket(socket)
-
-  defp config_impl do
-    Application.get_env(:uniris, __MODULE__)[:impl]
+  def close_socket(transport, socket) do
+    transport
+    |> delegate_to()
+    |> apply(:close_socket, [socket])
   end
+
+  defp delegate_to(:tcp), do: TCPImpl
+  defp delegate_to(_), do: @default_impl
 end

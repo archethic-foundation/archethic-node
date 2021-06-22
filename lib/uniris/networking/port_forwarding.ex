@@ -8,13 +8,15 @@ defmodule Uniris.Networking.PortForwarding do
 
   require Logger
 
+  @ip_lookup_provider Application.get_env(:uniris, IPLookup)
+
   @doc """
   Try to open a port using the port publication from UPnP or PmP otherwise fallback to either random or manual router configuration
   """
   @spec try_open_port(port_to_open :: :inet.port_number(), force? :: boolean()) ::
           :inet.port_number()
   def try_open_port(port, force?) when is_integer(port) and port >= 0 and is_boolean(force?) do
-    if required?() do
+    if required?(@ip_lookup_provider) do
       case do_try_open_port(port) do
         {:ok, port} ->
           port
@@ -30,15 +32,8 @@ defmodule Uniris.Networking.PortForwarding do
     end
   end
 
-  defp required? do
-    case Application.get_env(:uniris, IPLookup) |> Keyword.get(:impl) do
-      NAT ->
-        true
-
-      _ ->
-        false
-    end
-  end
+  defp required?(NAT), do: true
+  defp required?(_), do: false
 
   defp do_try_open_port(port), do: assign_port([:natupnp_v1, :natupnp_v2, :natpmp], port)
 

@@ -2,7 +2,7 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @moduledoc false
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.SharedSecretsKeystoreImpl
+  alias Uniris.Crypto.SharedSecretsKeystore
 
   alias Uniris.SharedSecrets
 
@@ -16,63 +16,63 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   require Logger
 
-  @behaviour SharedSecretsKeystoreImpl
+  @behaviour SharedSecretsKeystore
 
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec sign_with_node_shared_secrets_key(data :: binary()) :: binary()
   def sign_with_node_shared_secrets_key(data) do
     GenStateMachine.call(__MODULE__, {:sign_with_node_shared_key, data})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec sign_with_node_shared_secrets_key(data :: binary(), index :: non_neg_integer()) ::
           binary()
   def sign_with_node_shared_secrets_key(data, index) do
     GenStateMachine.call(__MODULE__, {:sign_with_node_shared_key, data, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec sign_with_network_pool_key(data :: binary()) :: binary()
   def sign_with_network_pool_key(data) do
     GenStateMachine.call(__MODULE__, {:sign_with_network_pool_key, data})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec sign_with_network_pool_key(data :: binary(), index :: non_neg_integer()) :: binary()
   def sign_with_network_pool_key(data, index) do
     GenStateMachine.call(__MODULE__, {:sign_with_network_pool_key, data, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec sign_with_daily_nonce_key(data :: binary(), DateTime.t()) :: binary()
   def sign_with_daily_nonce_key(data, index) do
     GenServer.call(__MODULE__, {:sign_with_daily_nonce_key, data, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec node_shared_secrets_public_key(index :: non_neg_integer()) :: Crypto.key()
   def node_shared_secrets_public_key(index) do
     GenStateMachine.call(__MODULE__, {:node_shared_secrets_public_key, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec network_pool_public_key(index :: non_neg_integer()) :: Crypto.key()
   def network_pool_public_key(index) do
     GenStateMachine.call(__MODULE__, {:network_pool_public_key, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec wrap_secrets(key :: binary()) ::
           {enc_transaction_seed :: binary(), enc_network_pool_seed :: binary()}
   def wrap_secrets(key) do
     GenStateMachine.call(__MODULE__, {:wrap_secrets, key})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec unwrap_secrets(encrypted_secrets :: binary(), encrypted_key :: binary(), DateTime.t()) ::
           :ok | :error
   def unwrap_secrets(
@@ -83,25 +83,25 @@ defmodule Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl do
     GenStateMachine.call(__MODULE__, {:unwrap_secrets, secrets, encrypted_secret_key, date})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec get_network_pool_key_index() :: non_neg_integer()
   def get_network_pool_key_index do
     GenStateMachine.call(__MODULE__, :get_network_pool_key_index)
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec set_network_pool_key_index(non_neg_integer()) :: :ok
   def set_network_pool_key_index(index) do
     GenStateMachine.cast(__MODULE__, {:set_network_pool_key_index, index})
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec get_node_shared_key_index() :: non_neg_integer()
   def get_node_shared_key_index do
     GenStateMachine.call(__MODULE__, :get_node_shared_key_index)
   end
 
-  @impl SharedSecretsKeystoreImpl
+  @impl SharedSecretsKeystore
   @spec set_node_shared_secrets_key_index(non_neg_integer()) :: :ok
   def set_node_shared_secrets_key_index(index) do
     GenStateMachine.cast(__MODULE__, {:set_node_shared_secrets_key_index, index})

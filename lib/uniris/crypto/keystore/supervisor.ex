@@ -13,10 +13,11 @@ defmodule Uniris.Crypto.KeystoreSupervisor do
   end
 
   def init(_) do
-    node_keystore_impl = Utils.impl(NodeKeystore)
+    node_keystore_impl = Application.get_env(:uniris, NodeKeystore)
+    node_keystore_conf = Application.get_env(:uniris, node_keystore_impl)
 
     children = [
-      {NodeKeystore, Application.get_env(:uniris, node_keystore_impl)},
+      {NodeKeystore, node_keystore_conf},
       SharedSecretsKeystore
     ]
 

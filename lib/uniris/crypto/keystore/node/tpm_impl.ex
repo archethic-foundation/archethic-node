@@ -3,13 +3,13 @@ defmodule Uniris.Crypto.NodeKeystore.TPMImpl do
 
   alias Uniris.Crypto
   alias Uniris.Crypto.ID
-  alias Uniris.Crypto.NodeKeystoreImpl
+  alias Uniris.Crypto.NodeKeystore
 
   alias Uniris.TransactionChain
 
   alias Uniris.Utils.PortHandler
 
-  @behaviour NodeKeystoreImpl
+  @behaviour NodeKeystore
 
   use GenServer
 
@@ -17,43 +17,55 @@ defmodule Uniris.Crypto.NodeKeystore.TPMImpl do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   @spec sign_with_first_key(data :: binary()) :: binary()
   def sign_with_first_key(data) when is_binary(data) do
     GenServer.call(__MODULE__, {:sign_with_first_key, data})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   @spec sign_with_last_key(data :: binary()) :: binary()
   def sign_with_last_key(data) when is_binary(data) do
     GenServer.call(__MODULE__, {:sign_with_last_key, data})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
+  @spec sign_with_previous_key(data :: binary()) :: binary()
+  def sign_with_previous_key(data) when is_binary(data) do
+    GenServer.call(__MODULE__, {:sign_with_previous_key, data})
+  end
+
+  @impl NodeKeystore
   @spec last_public_key() :: Crypto.key()
   def last_public_key do
     GenServer.call(__MODULE__, :get_last_public_key) |> ID.prepend_key(:secp256r1, :tpm)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   @spec first_public_key() :: Crypto.key()
   def first_public_key do
     GenServer.call(__MODULE__, :get_first_public_key) |> ID.prepend_key(:secp256r1, :tpm)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
+  @spec previous_public_key() :: Crypto.key()
+  def previous_public_key do
+    GenServer.call(__MODULE__, :get_previous_public_key) |> ID.prepend_key(:secp256r1, :tpm)
+  end
+
+  @impl NodeKeystore
   @spec next_public_key() :: Crypto.key()
   def next_public_key do
     GenServer.call(__MODULE__, :get_next_public_key) |> ID.prepend_key(:secp256r1, :tpm)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   @spec diffie_hellman(public_key :: Crypto.key()) :: binary()
   def diffie_hellman(public_key) when is_binary(public_key) do
     GenServer.call(__MODULE__, {:diffie_hellman, public_key})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   @spec persist_next_keypair() :: :ok
   def persist_next_keypair do
     GenServer.call(__MODULE__, :persist_next_keypair)
@@ -76,7 +88,16 @@ defmodule Uniris.Crypto.NodeKeystore.TPMImpl do
       |> TransactionChain.get_last_address()
       |> TransactionChain.size()
 
-    last_public_key = get_last_public_key(port_handler, nb_keys)
+    last_index =
+      if nb_keys > 0 do
+        nb_keys - 1
+      else
+        nb_keys
+      end
+
+    last_public_key = request_public_key(port_handler, last_index)
+
+    previous_public_key = request_public_key(port_handler, nb_keys)
 
     next_public_key = request_public_key(port_handler, nb_keys + 1)
     set_index(port_handler, nb_keys)
@@ -85,17 +106,14 @@ defmodule Uniris.Crypto.NodeKeystore.TPMImpl do
       state
       |> Map.put(:first_public_key, first_public_key)
       |> Map.put(:last_public_key, last_public_key)
+      |> Map.put(:previous_public_key, previous_public_key)
       |> Map.put(:next_public_key, next_public_key)
-      |> Map.put(:index, nb_keys)
+      |> Map.put(:next_index, nb_keys + 1)
+      |> Map.put(:last_index, last_index)
+      |> Map.put(:prev_index, nb_keys)
 
     {:noreply, new_state}
   end
-
-  defp get_last_public_key(port_handler, nb_keys) when nb_keys > 0 do
-    request_public_key(port_handler, nb_keys - 1)
-  end
-
-  defp get_last_public_key(port_handler, 0), do: request_public_key(port_handler, 0)
 
   @impl GenServer
   def handle_call({:sign_with_first_key, data}, _, state = %{port_handler: port_handler}) do
@@ -106,22 +124,35 @@ defmodule Uniris.Crypto.NodeKeystore.TPMImpl do
   def handle_call(
         {:sign_with_last_key, data},
         _,
-        state = %{port_handler: port_handler, index: index}
+        state = %{port_handler: port_handler, last_index: index}
       ) do
     sig = sign(port_handler, index, data)
     {:reply, sig, state}
   end
 
-  def handle_call(:get_last_public_key, _, state = %{last_public_key: last_public_key}) do
-    {:reply, last_public_key, state}
+  def handle_call(
+        {:sign_with_previous_key, data},
+        _,
+        state = %{port_handler: port_handler, prev_index: index}
+      ) do
+    sig = sign(port_handler, index, data)
+    {:reply, sig, state}
   end
 
-  def handle_call(:get_first_public_key, _, state = %{first_public_key: first_public_key}) do
-    {:reply, first_public_key, state}
+  def handle_call(:get_last_public_key, _, state = %{last_public_key: public_key}) do
+    {:reply, public_key, state}
   end
 
-  def handle_call(:get_next_public_key, _, state = %{next_public_key: next_public_key}) do
-    {:reply, next_public_key, state}
+  def handle_call(:get_first_public_key, _, state = %{first_public_key: public_key}) do
+    {:reply, public_key, state}
+  end
+
+  def handle_call(:get_previous_public_key, _, state = %{previous_public_key: public_key}) do
+    {:reply, public_key, state}
+  end
+
+  def handle_call(:get_next_public_key, _, state = %{next_public_key: public_key}) do
+    {:reply, public_key, state}
   end
 
   def handle_call(:persist_next_keypair, _, state = %{index: index, port_handler: port_handler}) do

@@ -29,7 +29,7 @@ defmodule Uniris.P2P.Node do
     availability_history: <<1::1>>,
     authorized?: false,
     authorization_date: nil,
-    transport: Application.get_env(:uniris, Transport, impl: :tcp) |> Keyword.fetch!(:impl)
+    transport: :tcp
   ]
 
   @doc ~S"""

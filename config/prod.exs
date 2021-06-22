@@ -34,8 +34,9 @@ config :uniris, Uniris.Crypto,
     System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
   ]
 
-config :uniris, Uniris.Crypto.NodeKeystore,
-  impl: case(System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
+config :uniris,
+       Uniris.Crypto.NodeKeystore,
+       case(System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
   "TPM" ->
     Uniris.Crypto.NodeKeystore.TPMImpl
 
@@ -44,8 +45,9 @@ config :uniris, Uniris.Crypto.NodeKeystore,
 end
 
 # TODO: to remove when the implementation will be detected
-config :uniris, Uniris.Crypto.SharedSecretsKeystore,
-  impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
+config :uniris,
+       Uniris.Crypto.SharedSecretsKeystore,
+       Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
 
 config :uniris, Uniris.DB.CassandraImpl, host: System.get_env("UNIRIS_DB_HOST", "127.0.0.1:9042")
 
@@ -58,8 +60,9 @@ config :uniris, Uniris.Governance.Pools,
     uniris: []
   ]
 
-config :uniris, Uniris.Networking.IPLookup,
-  impl: case(System.get_env("UNIRIS_NETWORKING_IMPL", "NAT")) do
+config :uniris,
+       Uniris.Networking.IPLookup,
+       case(System.get_env("UNIRIS_NETWORKING_IMPL", "NAT")) do
   "NAT" ->
     Uniris.Networking.IPLookup.NAT
 
@@ -82,8 +85,9 @@ config :uniris, Uniris.Reward.NetworkPoolScheduler,
   # Every month
   interval: System.get_env("UNIRIS_REWARD_SCHEDULER_INTERVAL", "0 0 0 1 * * *")
 
-config :uniris, Uniris.Crypto.SharedSecretsKeystore,
-  impl: Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
+config :uniris,
+       Uniris.Crypto.SharedSecretsKeystore,
+       Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
 
 config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
   # Every day at 23:50:00

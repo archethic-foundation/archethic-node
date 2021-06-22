@@ -5,6 +5,8 @@ defmodule Uniris.Networking.IPLookup do
 
   require Logger
 
+  @provider Application.compile_env(:uniris, __MODULE__)
+
   @doc """
   Get the node public ip with a fallback capability
 
@@ -12,7 +14,7 @@ defmodule Uniris.Networking.IPLookup do
   """
   @spec get_node_ip() :: :inet.ip_address()
   def get_node_ip do
-    {:ok, ip} = do_get_node_ip(provider())
+    {:ok, ip} = do_get_node_ip(@provider)
     Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
     ip
   end
@@ -46,11 +48,5 @@ defmodule Uniris.Networking.IPLookup do
   defp do_get_node_ip(Static) do
     Logger.info("Discovery the ip using the static IP")
     Static.get_node_ip()
-  end
-
-  defp provider do
-    :uniris
-    |> Application.get_env(__MODULE__)
-    |> Keyword.fetch!(:impl)
   end
 end

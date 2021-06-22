@@ -78,8 +78,13 @@ defmodule Uniris.Utils do
       nil ->
         true
 
-      conf ->
+      conf when is_list(conf) ->
         Keyword.get(conf, :enabled, true)
+
+      mod when is_atom(mod) ->
+        :uniris
+        |> Application.get_env(mod, [])
+        |> Keyword.get(:enabled, true)
     end
   end
 

@@ -57,7 +57,7 @@ config :uniris, Uniris.Crypto,
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("UNIRIS_CRYPTO_SEED")
 
-config :uniris, Uniris.DB, impl: Uniris.DB.CassandraImpl
+config :uniris, Uniris.DB, Uniris.DB.CassandraImpl
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_seed:
@@ -87,8 +87,6 @@ config :uniris, UnirisWeb.Endpoint,
     signing_salt: "3D6jYvx3",
     layout: {UnirisWeb.LayoutView, "live.html"}
   ]
-
-config :uniris, Uniris.Governance.Code.CICD, impl: Uniris.Governance.Code.CICD.Docker
 
 config :uniris, Uniris.Bootstrap.NetworkInit,
   genesis_pools: [

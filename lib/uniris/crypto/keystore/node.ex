@@ -2,55 +2,21 @@ defmodule Uniris.Crypto.NodeKeystore do
   @moduledoc false
 
   alias Uniris.Crypto
-  alias Uniris.Crypto.NodeKeystoreImpl
 
-  @behaviour NodeKeystoreImpl
+  use Knigge, otp_app: :uniris
 
-  def child_spec(opts), do: impl().child_spec(opts)
+  @callback child_spec(any) :: Supervisor.child_spec()
 
-  @impl NodeKeystoreImpl
-  @spec sign_with_first_key(data :: binary()) :: binary()
-  def sign_with_first_key(data) do
-    impl().sign_with_first_key(data)
-  end
+  @callback sign_with_first_key(data :: binary()) :: binary()
+  @callback sign_with_last_key(data :: binary()) :: binary()
+  @callback sign_with_previous_key(data :: binary()) :: binary()
 
-  @impl NodeKeystoreImpl
-  @spec sign_with_last_key(data :: binary()) :: binary()
-  def sign_with_last_key(data) do
-    impl().sign_with_last_key(data)
-  end
+  @callback last_public_key() :: Crypto.key()
+  @callback first_public_key() :: Crypto.key()
+  @callback next_public_key() :: Crypto.key()
+  @callback previous_public_key() :: Crypto.key()
 
-  @impl NodeKeystoreImpl
-  @spec last_public_key() :: Crypto.key()
-  def last_public_key do
-    impl().last_public_key()
-  end
+  @callback diffie_hellman(public_key :: Crypto.key()) :: binary()
 
-  @impl NodeKeystoreImpl
-  @spec first_public_key() :: Crypto.key()
-  def first_public_key do
-    impl().first_public_key()
-  end
-
-  @impl NodeKeystoreImpl
-  @spec next_public_key() :: Crypto.key()
-  def next_public_key do
-    impl().next_public_key()
-  end
-
-  @impl NodeKeystoreImpl
-  @spec diffie_hellman(public_key :: Crypto.key()) :: binary()
-  def diffie_hellman(public_key) do
-    impl().diffie_hellman(public_key)
-  end
-
-  @impl NodeKeystoreImpl
-  @spec persist_next_keypair() :: :ok
-  def persist_next_keypair do
-    impl().persist_next_keypair()
-  end
-
-  defp impl do
-    Application.get_env(:uniris, __MODULE__) |> Keyword.fetch!(:impl)
-  end
+  @callback persist_next_keypair() :: :ok
 end

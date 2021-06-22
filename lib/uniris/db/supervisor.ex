@@ -10,7 +10,7 @@ defmodule Uniris.DB.Supervisor do
   end
 
   def init(_args) do
-    db_impl = Application.get_env(:uniris, Uniris.DB)[:impl]
+    db_impl = Application.get_env(:uniris, Uniris.DB)
     db_opts = Application.get_env(:uniris, db_impl, [])
 
     optional_children = [{db_impl, db_opts}]

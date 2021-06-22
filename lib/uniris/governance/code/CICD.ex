@@ -40,10 +40,12 @@ defmodule Uniris.Governance.Code.CICD do
 
   alias Uniris.Governance.Code.Proposal
 
+  use Knigge, otp_app: :uniris, default: __MODULE__.Docker
+
   @doc """
   Start CICD
   """
-  @callback start_link(Keyword.t()) :: GenServer.on_start()
+  @callback child_spec(any()) :: Supervisor.child_spec()
 
   @doc """
   Execute the continuous integration of the code proposal

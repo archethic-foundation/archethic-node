@@ -40,8 +40,7 @@ defmodule Uniris.Governance.Code.CICD.Docker do
   @ci_conductor __MODULE__.CIConductor
   @cd_conductor __MODULE__.CDConductor
 
-  @impl CICD
-  def start_link(args) do
+  def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
   end
 

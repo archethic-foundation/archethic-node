@@ -81,7 +81,8 @@ defmodule Uniris.MixProject do
       {:poolboy, "~> 1.5.1"},
       {:ecto, "~> 3.5"},
       {:gen_state_machine, "~> 3.0"},
-      {:retry, "~> 0.14.1"}
+      {:retry, "~> 0.14.1"},
+      {:knigge, "~> 1.4"}
     ]
   end
 end

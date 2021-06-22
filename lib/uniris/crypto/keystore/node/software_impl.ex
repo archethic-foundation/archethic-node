@@ -6,49 +6,59 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
   alias Uniris.Crypto
   alias Uniris.Crypto.Ed25519
   alias Uniris.Crypto.ID
-  alias Uniris.Crypto.NodeKeystoreImpl
+  alias Uniris.Crypto.NodeKeystore
 
   alias Uniris.TransactionChain
 
   require Logger
 
-  @behaviour NodeKeystoreImpl
+  @behaviour NodeKeystore
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   def sign_with_first_key(data) do
     GenServer.call(__MODULE__, {:sign_with_first_key, data})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   def sign_with_last_key(data) do
     GenServer.call(__MODULE__, {:sign_with_last_key, data})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
+  def sign_with_previous_key(data) do
+    GenServer.call(__MODULE__, {:sign_with_previous_key, data})
+  end
+
+  @impl NodeKeystore
   def last_public_key do
     GenServer.call(__MODULE__, :last_public_key)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   def first_public_key do
     GenServer.call(__MODULE__, :first_public_key)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
+  def previous_public_key do
+    GenServer.call(__MODULE__, :previous_public_key)
+  end
+
+  @impl NodeKeystore
   def next_public_key do
     GenServer.call(__MODULE__, :next_public_key)
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   def diffie_hellman(public_key) do
     GenServer.call(__MODULE__, {:diffie_hellman, public_key})
   end
 
-  @impl NodeKeystoreImpl
+  @impl NodeKeystore
   def persist_next_keypair do
     GenServer.cast(__MODULE__, :persist_next_keypair)
   end
@@ -64,11 +74,13 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
       |> TransactionChain.get_last_address()
       |> TransactionChain.size()
 
-    last_keypair =
-      if nb_keys > 0 do
-        Crypto.derive_keypair(seed, nb_keys - 1)
+    last_keypair = Crypto.derive_keypair(seed, nb_keys)
+
+    previous_keypair =
+      if nb_keys == 0 do
+        first_keypair
       else
-        Crypto.derive_keypair(seed, 0)
+        Crypto.derive_keypair(seed, nb_keys - 1)
       end
 
     next_keypair = Crypto.derive_keypair(seed, nb_keys + 1)
@@ -76,6 +88,7 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
     {:ok,
      %{
        first_keypair: first_keypair,
+       previous_keypair: previous_keypair,
        last_keypair: last_keypair,
        next_keypair: next_keypair,
        index: nb_keys,
@@ -100,11 +113,19 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
     {:reply, Crypto.sign(data, pv), state}
   end
 
+  def handle_call({:sign_with_previous_key, data}, _, state = %{previous_keypair: {_, pv}}) do
+    {:reply, Crypto.sign(data, pv), state}
+  end
+
   def handle_call(:first_public_key, _, state = %{first_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 
   def handle_call(:last_public_key, _, state = %{last_keypair: {pub, _}}) do
+    {:reply, pub, state}
+  end
+
+  def handle_call(:previous_public_key, state, %{previous_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 
@@ -115,7 +136,7 @@ defmodule Uniris.Crypto.NodeKeystore.SoftwareImpl do
   def handle_call(
         {:diffie_hellman, public_key},
         _,
-        state = %{last_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
+        state = %{previous_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
       ) do
     shared_secret =
       case ID.to_curve(curve_id) do

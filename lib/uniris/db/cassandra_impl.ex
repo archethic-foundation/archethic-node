@@ -3,7 +3,7 @@ defmodule Uniris.DB.CassandraImpl do
 
   alias Uniris.Crypto
 
-  alias Uniris.DBImpl
+  alias Uniris.DB
 
   alias __MODULE__.CQL
   alias __MODULE__.Producer
@@ -15,11 +15,11 @@ defmodule Uniris.DB.CassandraImpl do
 
   alias Uniris.Utils
 
-  @behaviour DBImpl
+  @behaviour DB
 
   defdelegate child_spec(arg), to: CassandraSupervisor
 
-  @impl DBImpl
+  @impl DB
   def migrate do
     SchemaMigrator.run()
   end
@@ -27,7 +27,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   List the transactions
   """
-  @impl DBImpl
+  @impl DB
   @spec list_transactions(list()) :: Enumerable.t()
   def list_transactions(fields \\ []) when is_list(fields) do
     "SELECT #{CQL.list_to_cql(fields)} FROM uniris.transactions"
@@ -35,7 +35,7 @@ defmodule Uniris.DB.CassandraImpl do
     |> Enum.map(&format_result_to_transaction/1)
   end
 
-  @impl DBImpl
+  @impl DB
   @doc """
   Retrieve a transaction by address and project the requested fields
   """
@@ -57,7 +57,7 @@ defmodule Uniris.DB.CassandraImpl do
     end
   end
 
-  @impl DBImpl
+  @impl DB
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
@@ -73,7 +73,7 @@ defmodule Uniris.DB.CassandraImpl do
     |> Enum.flat_map(& &1)
   end
 
-  @impl DBImpl
+  @impl DB
   @doc """
   Store the transaction
   """
@@ -82,7 +82,7 @@ defmodule Uniris.DB.CassandraImpl do
     do_write_transaction(tx, address)
   end
 
-  @impl DBImpl
+  @impl DB
   @doc """
   Store the transaction into the given chain address
   """
@@ -144,7 +144,7 @@ defmodule Uniris.DB.CassandraImpl do
     |> Map.put("timestamp", timestamp)
   end
 
-  @impl DBImpl
+  @impl DB
   @doc """
   Store the transactions and store the chain links
   """
@@ -208,7 +208,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Reference a last address from a previous address
   """
-  @impl DBImpl
+  @impl DB
   @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   def add_last_transaction_address(tx_address, last_address, timestamp = %DateTime{}) do
     Producer.add_query(
@@ -222,7 +222,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   List the last transaction lookups
   """
-  @impl DBImpl
+  @impl DB
   @spec list_last_transaction_addresses() :: Enumerable.t()
   def list_last_transaction_addresses do
     "SELECT * FROM uniris.chain_lookup_by_last_address PER PARTITION LIMIT 1"
@@ -236,7 +236,7 @@ defmodule Uniris.DB.CassandraImpl do
     end)
   end
 
-  @impl DBImpl
+  @impl DB
   @spec chain_size(binary()) :: non_neg_integer()
   def chain_size(address) do
     "SELECT COUNT(*) as size FROM uniris.transactions WHERE chain_address=?"
@@ -245,7 +245,7 @@ defmodule Uniris.DB.CassandraImpl do
     |> Map.get("size", 0)
   end
 
-  @impl DBImpl
+  @impl DB
   @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
           Enumerable.t()
   def list_transactions_by_type(type, fields \\ []) do
@@ -260,7 +260,7 @@ defmodule Uniris.DB.CassandraImpl do
     |> Enum.into([], fn {:ok, res} -> res end)
   end
 
-  @impl DBImpl
+  @impl DB
   @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
   def count_transactions_by_type(type) do
     "SELECT COUNT(address) as nb FROM uniris.transaction_type_lookup WHERE type=?"
@@ -272,7 +272,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Get the last transaction address of a chain
   """
-  @impl DBImpl
+  @impl DB
   @spec get_last_chain_address(binary()) :: binary()
   def get_last_chain_address(address) do
     "SELECT last_transaction_address FROM uniris.chain_lookup_by_last_address WHERE transaction_address = ?"
@@ -284,7 +284,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Get the last transaction address of a chain before a given certain datetime
   """
-  @impl DBImpl
+  @impl DB
   @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
   def get_last_chain_address(address, datetime = %DateTime{}) do
     "SELECT last_transaction_address FROM uniris.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
@@ -296,7 +296,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Get the first transaction address for a chain
   """
-  @impl DBImpl
+  @impl DB
   @spec get_first_chain_address(binary()) :: binary()
   def get_first_chain_address(address) when is_binary(address) do
     "SELECT genesis_transaction_address FROM uniris.chain_lookup_by_first_address WHERE last_transaction_address=?"
@@ -308,7 +308,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Get the first public key of of transaction chain
   """
-  @impl DBImpl
+  @impl DB
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   def get_first_public_key(previous_public_key) when is_binary(previous_public_key) do
     "SELECT genesis_key FROM uniris.chain_lookup_by_first_key WHERE last_key=?"
@@ -320,7 +320,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Return the latest TPS record
   """
-  @impl DBImpl
+  @impl DB
   @spec get_latest_tps :: float()
   def get_latest_tps do
     "SELECT tps FROM uniris.network_stats_by_date"
@@ -332,7 +332,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Returns the number of transactions
   """
-  @impl DBImpl
+  @impl DB
   @spec get_nb_transactions() :: non_neg_integer()
   def get_nb_transactions do
     "SELECT nb_transactions FROM uniris.network_stats_by_date"
@@ -343,7 +343,7 @@ defmodule Uniris.DB.CassandraImpl do
   @doc """
   Register a new TPS for the given date
   """
-  @impl DBImpl
+  @impl DB
   @spec register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
   def register_tps(date = %DateTime{}, tps, nb_transactions)
       when is_float(tps) and tps >= 0.0 and is_integer(nb_transactions) and nb_transactions >= 0 do
@@ -353,5 +353,20 @@ defmodule Uniris.DB.CassandraImpl do
     )
 
     :ok
+  end
+
+  @doc """
+  Determines if the transaction address exists
+  """
+  @impl DB
+  @spec transaction_exists?(binary()) :: boolean()
+  def transaction_exists?(address) when is_binary(address) do
+    count =
+      "SELECT COUNT(address) as count FROM uniris.transactions WHERE chain_address=?"
+      |> Producer.add_query([address])
+      |> Enum.at(0, %{})
+      |> Map.get("count", 0)
+
+    count > 0
   end
 end

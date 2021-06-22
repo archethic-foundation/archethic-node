@@ -56,7 +56,7 @@ defmodule Uniris.Governance.Code do
   Deploy the proposal into a dedicated testnet
   """
   @spec deploy_proposal_testnet(Proposal.t()) :: :ok
-  defdelegate deploy_proposal_testnet(prop), to: Utils.impl(CICD), as: :run_testnet!
+  defdelegate deploy_proposal_testnet(prop), to: CICD, as: :run_testnet!
 
   @doc """
   Ensure the code proposal is valid according to the defined rules:
@@ -184,5 +184,5 @@ defmodule Uniris.Governance.Code do
   end
 
   @spec list_proposal_CI_logs(binary()) :: Enumerable.t()
-  defdelegate list_proposal_CI_logs(address), to: Utils.impl(CICD), as: :get_log
+  defdelegate list_proposal_CI_logs(address), to: CICD, as: :get_log
 end

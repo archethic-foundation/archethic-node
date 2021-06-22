@@ -41,18 +41,20 @@ config :uniris, Uniris.Crypto,
   ],
   software_root_ca_key: :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key") |> elem(1)
 
-config :uniris, Uniris.Crypto.NodeKeystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.NodeKeystore, MockCrypto
 config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl, seed: "fake seed"
-config :uniris, Uniris.Crypto.SharedSecretsKeystore, impl: MockCrypto, enabled: false
+config :uniris, Uniris.Crypto.SharedSecretsKeystore, MockCrypto
 config :uniris, Uniris.Crypto.KeystoreCounter, enabled: false
 config :uniris, Uniris.Crypto.KeystoreLoader, enabled: false
 
-config :uniris, Uniris.DB, impl: MockDB
+config :uniris, MockCrypto, enabled: false
+
+config :uniris, Uniris.DB, MockDB
 config :uniris, MockDB, enabled: false
 
 config :uniris, Uniris.Election.Constraints, enabled: false
 
-config :uniris, Uniris.Governance.Code.TestNet, impl: MockTestnet
+config :uniris, Uniris.Governance.Code.TestNet, MockTestnet
 
 config :uniris, Uniris.Governance.Pools,
   initial_members: [
@@ -75,14 +77,14 @@ config :uniris, Uniris.OracleChain.Scheduler,
 
 config :uniris, Uniris.OracleChain.Services.UCOPrice, provider: MockUCOPriceProvider
 
-config :uniris, Uniris.Networking.IPLookup, impl: MockIPLookup
-config :uniris, Uniris.Networking.PortForwarding, impl: MockPortForwarding
+config :uniris, Uniris.Networking.IPLookup, MockIPLookup
+config :uniris, Uniris.Networking.PortForwarding, MockPortForwarding
 
 config :uniris, Uniris.P2P.Endpoint.Listener, enabled: false
 config :uniris, Uniris.P2P.MemTableLoader, enabled: false
 config :uniris, Uniris.P2P.MemTable, enabled: false
-config :uniris, Uniris.P2P.Client, impl: MockClient
-config :uniris, Uniris.P2P.Transport, impl: MockTransport
+config :uniris, Uniris.P2P.Client, MockClient
+config :uniris, Uniris.P2P.Transport, MockTransport
 
 config :uniris, Uniris.P2P.BootstrappingSeeds, enabled: false
 

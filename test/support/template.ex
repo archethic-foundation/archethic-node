@@ -50,6 +50,7 @@ defmodule UnirisCase do
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
     |> stub(:list_transactions, fn _ -> [] end)
+    |> stub(:transaction_exists?, fn _ -> false end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
