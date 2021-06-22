@@ -1,4 +1,4 @@
-defmodule UnirisWeb.ConnCase do
+defmodule ArchEthicWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule UnirisWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use UnirisWeb.ConnCase, async: true`, although
+  by setting `use ArchEthicWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -25,10 +25,10 @@ defmodule UnirisWeb.ConnCase do
       import Plug.Conn
       import ConnTest
 
-      alias UnirisWeb.Router.Helpers, as: Routes
+      alias ArchEthicWeb.Router.Helpers, as: Routes
 
       # The default endpoint for testing
-      @endpoint UnirisWeb.Endpoint
+      @endpoint ArchEthicWeb.Endpoint
     end
   end
 

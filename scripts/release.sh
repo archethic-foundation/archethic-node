@@ -6,7 +6,7 @@ UPGRADE=0
 usage() {
   echo "Usage:"
   echo ""
-  echo " Release Uniris node binary"
+  echo " Release ArchEthic node binary"
   echo ""
   echo "  " release.sh [-d  dir] " Specify the installation dir"
   echo "  " release.sh -u "       Upgrade the release"
@@ -59,10 +59,10 @@ then
 
     echo "Copy upgraded release into ${INSTALL_DIR}/releases/${VERSION}"
 
-    cp "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" ${INSTALL_DIR}/releases/${VERSION}
+    cp "_build/prod/rel/archethic_node/releases/${VERSION}/archethic_node.tar.gz" ${INSTALL_DIR}/releases/${VERSION}
 
     echo "Run the upgrade"
-    ${INSTALL_DIR}/bin/uniris_node upgrade ${VERSION}
+    ${INSTALL_DIR}/bin/archethic_node upgrade ${VERSION}
 else
     # Build the releases
 
@@ -70,7 +70,7 @@ else
     MIX_ENV=prod mix distillery.release
 
     echo "Install  release"
-    tar zxvf "_build/prod/rel/uniris_node/releases/${VERSION}/uniris_node.tar.gz" -C ${INSTALL_DIR}
+    tar zxvf "_build/prod/rel/archethic_node/releases/${VERSION}/archethic_node.tar.gz" -C ${INSTALL_DIR}
 fi
 
 exit

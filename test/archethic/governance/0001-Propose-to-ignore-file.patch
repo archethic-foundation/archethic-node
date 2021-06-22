@@ -1,0 +1,21 @@
+From d22c859e694454833077a6c9c24da39575992ecf Mon Sep 17 00:00:00 2001
+From: archethic <dev@archethic.io>
+Date: Mon, 15 Feb 2021 17:14:58 +0200
+Subject: [PATCH] Propose to ignore file
+
+---
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index a9b5fed..dac4d21 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,3 +37,4 @@ log_*
+ /.idea/
+ archethic-node.iml
+ projectFilesBackup
++ignore-this-file
+-- 
+2.20.1
+

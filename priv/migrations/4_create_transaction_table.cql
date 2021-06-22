@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS uniris.transactions (
+CREATE TABLE IF NOT EXISTS archethic.transactions (
   chain_address blob,
   bucket int,
   timestamp timestamp,

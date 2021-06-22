@@ -1,6 +1,6 @@
 import Config
 
-config :uniris, :mut_dir, "data_#{System.get_env("UNIRIS_CRYPTO_SEED", "node1")}"
+config :archethic, :mut_dir, "data_#{System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")}"
 
 config :telemetry_poller, :default, period: 5_000
 
@@ -11,25 +11,25 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
-config :uniris, Uniris.BeaconChain.SlotTimer,
+config :archethic, ArchEthic.BeaconChain.SlotTimer,
   # Every 10 seconds
   interval: "*/10 * * * * *"
 
-config :uniris, Uniris.BeaconChain.SummaryTimer,
+config :archethic, ArchEthic.BeaconChain.SummaryTimer,
   # Every minute
   interval: "0 * * * * *"
 
-config :uniris, Uniris.Bootstrap,
+config :archethic, ArchEthic.Bootstrap,
   reward_address:
     System.get_env(
-      "UNIRIS_REWARD_ADDRESS",
+      "ARCHETHIC_REWARD_ADDRESS",
       Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>)
     )
     |> Base.decode16!(case: :mixed)
 
-config :uniris, Uniris.Bootstrap.Sync, out_of_sync_date_threshold: 60
+config :archethic, ArchEthic.Bootstrap.Sync, out_of_sync_date_threshold: 60
 
-config :uniris, Uniris.Crypto,
+config :archethic, ArchEthic.Crypto,
   root_ca_public_keys: [
     #  From `:crypto.generate_key(:ecdh, :secp256r1, "ca_root_key")`
     software:
@@ -45,66 +45,67 @@ config :uniris, Uniris.Crypto,
   ],
   software_root_ca_key: :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key") |> elem(1)
 
-config :uniris, Uniris.P2P.BootstrappingSeeds,
+config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   # First node crypto seed is "node1"
   genesis_seeds:
     "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
 
-config :uniris,
-       Uniris.Crypto.NodeKeystore,
-       (case System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE", "SOFTWARE") do
+config :archethic,
+       ArchEthic.Crypto.NodeKeystore,
+       (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE", "SOFTWARE") do
           "SOFTWARE" ->
-            Uniris.Crypto.NodeKeystore.SoftwareImpl
+            ArchEthic.Crypto.NodeKeystore.SoftwareImpl
 
           "TPM" ->
-            Uniris.Crypto.NodeKeystore.TPMImpl
+            ArchEthic.Crypto.NodeKeystore.TPMImpl
         end)
 
-config :uniris, Uniris.Crypto.NodeKeystore.SoftwareImpl,
-  seed: System.get_env("UNIRIS_CRYPTO_SEED", "node1")
+config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
+  seed: System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")
 
-config :uniris, Uniris.DB.CassandraImpl, host: System.get_env("UNIRIS_DB_HOST", "127.0.0.1:9042")
+config :archethic, ArchEthic.DB.CassandraImpl,
+  host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")
 
-config :uniris, Uniris.Governance.Pools,
+config :archethic, ArchEthic.Governance.Pools,
   initial_members: [
     technical_council: [
       {"00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}
     ],
     ethical_council: [],
     foundation: [],
-    uniris: []
+    archethic: []
   ]
 
-config :uniris, Uniris.OracleChain.Scheduler,
+config :archethic, ArchEthic.OracleChain.Scheduler,
   # Poll new changes every 10 seconds
   polling_interval: "*/10 * * * * *",
   # Aggregate chain at the 50th second
   summary_interval: "50 * * * * *"
 
-config :uniris, Uniris.Networking.IPLookup, Uniris.Networking.IPLookup.Static
+config :archethic, ArchEthic.Networking.IPLookup, ArchEthic.Networking.IPLookup.Static
 
-config :uniris, Uniris.Networking.IPLookup.Static,
-  hostname: System.get_env("UNIRIS_STATIC_IP", "127.0.0.1")
+config :archethic, ArchEthic.Networking.IPLookup.Static,
+  hostname: System.get_env("ARCHETHIC_STATIC_IP", "127.0.0.1")
 
-config :uniris, Uniris.Reward.NetworkPoolScheduler,
+config :archethic, ArchEthic.Reward.NetworkPoolScheduler,
   # At the 30th second
   interval: "30 * * * * *"
 
-config :uniris, Uniris.Reward.WithdrawScheduler,
+config :archethic, ArchEthic.Reward.WithdrawScheduler,
   # Every 10s
   interval: "*/10 * * * * *"
 
-config :uniris, Uniris.SelfRepair.Scheduler,
+config :archethic, ArchEthic.SelfRepair.Scheduler,
   # Every minute
   interval: "5 * * * * * *"
 
-config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
+config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
   # At 40th second
   interval: "40 * * * * * *",
   application_interval: "0 * * * * * *"
 
-config :uniris, Uniris.P2P.Endpoint,
-  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
+config :archethic, ArchEthic.P2P.Endpoint,
+  port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -112,8 +113,8 @@ config :uniris, Uniris.P2P.Endpoint,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we use it
 # with webpack to recompile .js and .css sources.
-config :uniris, UnirisWeb.Endpoint,
-  http: [port: System.get_env("UNIRIS_HTTP_PORT", "4000") |> String.to_integer()],
+config :archethic, ArchEthicWeb.Endpoint,
+  http: [port: System.get_env("ARCHETHIC_HTTP_PORT", "4000") |> String.to_integer()],
   server: true,
   debug_errors: true,
   check_origin: false,

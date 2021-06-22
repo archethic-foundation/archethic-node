@@ -1,0 +1,113 @@
+<%= if assigns[:error] != nil and @error == :invalid_address do %>
+    <h1 class="subtitle is-size-4 heading has-text-white">Code proposal - <small>Invalid address</small></h1>
+<% else %>
+    <h1 class="subtitle is-size-4 heading has-text-white">Code proposal - <small><%= Base.encode16(@address) %></small></h1>
+<% end %>
+
+<div class="box">
+
+    <%= cond do %>
+        <% assigns[:error] != nil and @error == :invalid_address -> %>
+            <p>The proposal address is invalid.</p>
+            <hr />
+            <div class="mt-4 box has-background-warning-light">
+                <small>Please check the transaction address validity.</small>
+            </div>
+        <% !@exists? -> %>
+            <p>The proposal does not exists yet. </p>
+            <hr />
+            <div class="mt-4 box has-background-warning-light">
+                <small>It may appears later. <br />Please retry when the proposal will be processed.</small>
+            </div>
+        <% true -> %>
+        <div class="columns">
+            <div class="column">
+            <p class="heading">Code proposal</h1>
+            <h1 class="subtitle text_wrap">
+                <%= Base.encode16(@address) %>
+            </h1>
+            </div>
+            <div class="column is-2-desktop">
+                <button class="button is-outlined is-primary is-fullwidth" type="button">Approve the proposal</button>
+            </div>
+        </div>
+
+        <div class="columns is-multiline">
+            <div class="column is-10-desktop">
+                <p class="heading">Description</p>
+                <div class="text_wrap">
+                    <%= raw(format_description(@description)) %>
+                </div>
+            </div>
+            <div class="column is-2-desktop">
+                <p class="heading">Version</p>
+                <%= version_tag(Version.parse!(@version)) %>
+                <small>(<%= @version %>)</small>
+            </div>
+        </div>
+
+        <div class="columns">
+            <div class="column">
+                <p class="heading">Changes</p>
+                <div id="diff_src" style="display: none" phx-hook="Diff"></div>
+                <div id="diff"></div>
+            </div>
+        </div>
+
+        <div class="columns">
+            <div class="column">
+                <p class="heading">Approvals (2)</p>
+                <%= for approval <- @approvals do %>
+                    <div class="columns">
+                        <div class="column">
+                            <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(approval)) do%>
+                                <span class="text_wrap"><%= Base.encode16(approval) %></span>
+                            <% end %>
+                        </div>
+                    </div>
+                <% end %>
+            </div>
+        </div>
+
+        <div class="box">
+            <%= live_render(@socket, ArchEthicWeb.CodeProposalChatLive, id: "chat", session: %{"proposal_address" => @address}) %>
+        </div>
+    <% end %>
+</div>
+
+
+<div class="modal is-clipped">
+    <div class="modal-background"></div>
+    <div class="modal-content">
+        <div class="box">
+            <div class="columns">
+                <div class="column">
+                    <p>Do you confirm the approval of this proposal ?</p>
+                </div>
+            </div>
+            <div class="columns">
+                <div class="column">
+                    <div class="field is-grouped">
+                        <p class="control">
+                            <button class="button is-primary is-light is-outlined">
+                            Yes
+                            </button>
+                        </p>
+                        <p class="control">
+                            <button class="button is-danger is-light is-outlined">
+                            No
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column">
+                    <%= live_component(@socket, ArchEthicWeb.TransactionBuilderLive, id: "tx_builder") %>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="modal-close is-large" aria-label="close"></button>
+</div>

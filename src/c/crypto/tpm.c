@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tss2/tss2_esys.h>
-#include "uniris-tpm.h"
+#include "archethic-tpm.h"
 
 #define ASN1_SEQ 0x30
 #define ASN1_INT 0x02

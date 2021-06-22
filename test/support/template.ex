@@ -1,28 +1,28 @@
-defmodule UnirisCase do
+defmodule ArchEthicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias Uniris.Account.MemTables.NFTLedger
-  alias Uniris.Account.MemTables.UCOLedger
+  alias ArchEthic.Account.MemTables.NFTLedger
+  alias ArchEthic.Account.MemTables.UCOLedger
 
-  alias Uniris.Crypto
-  alias Uniris.Crypto.ECDSA
+  alias ArchEthic.Crypto
+  alias ArchEthic.Crypto.ECDSA
 
-  alias Uniris.Election.Constraints
+  alias ArchEthic.Election.Constraints
 
-  alias Uniris.Governance.Pools.MemTable, as: PoolsMemTable
+  alias ArchEthic.Governance.Pools.MemTable, as: PoolsMemTable
 
-  alias Uniris.OracleChain.MemTable, as: OracleMemTable
+  alias ArchEthic.OracleChain.MemTable, as: OracleMemTable
 
-  alias Uniris.P2P.MemTable, as: P2PMemTable
+  alias ArchEthic.P2P.MemTable, as: P2PMemTable
 
-  alias Uniris.SharedSecrets.MemTables.NetworkLookup
-  alias Uniris.SharedSecrets.MemTables.OriginKeyLookup
+  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
 
-  alias Uniris.TransactionChain.MemTables.KOLedger
-  alias Uniris.TransactionChain.MemTables.PendingLedger
+  alias ArchEthic.TransactionChain.MemTables.KOLedger
+  alias ArchEthic.TransactionChain.MemTables.PendingLedger
 
-  alias Uniris.Utils
+  alias ArchEthic.Utils
 
   import Mox
 

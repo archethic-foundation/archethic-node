@@ -33,18 +33,18 @@ version: "3.9"
 services:
 
   node1:
-    image: uniris-node:latest
+    image: archethic-node:latest
     environment:
-      - UNIRIS_CRYPTO_SEED=node1
-      - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_STATIC_IP=172.16.1.10
-      - UNIRIS_DB_HOST=scylladb1:9042
+      - ARCHETHIC_CRYPTO_SEED=node1
+      - ARCHETHIC_MUT_DIR=/opt/data
+      - ARCHETHIC_STATIC_IP=172.16.1.10
+      - ARCHETHIC_DB_HOST=scylladb1:9042
     volumes:
       -  ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
       -  ./data1:/opt/data
-    command: ["/wait-for-it.sh", "sleep 60", "./bin/uniris_node", "foreground"]
+    command: ["/wait-for-it.sh", "sleep 60", "./bin/archethic_node", "foreground"]
     networks:
-      uniris-node:
+      archethic-node:
         ipv4_address: 172.16.1.10
     links:
       - scylladb1
@@ -56,24 +56,24 @@ services:
     volumes:
       - ./data1:/var/lib/scylla
     networks:
-      uniris-node:
+      archethic-node:
         ipv4_address: 172.16.1.11 
 
 
   node2:
-    image: uniris-node:latest
+    image: archethic-node:latest
     environment: 
-      - UNIRIS_CRYPTO_SEED=node2
-      - UNIRIS_MUT_DIR=/opt/data
-      - UNIRIS_STATIC_IP=172.16.1.20
-      - UNIRIS_P2P_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
-      - UNIRIS_DB_HOST=scylladb2:9042
+      - ARCHETHIC_CRYPTO_SEED=node2
+      - ARCHETHIC_MUT_DIR=/opt/data
+      - ARCHETHIC_STATIC_IP=172.16.1.20
+      - ARCHETHIC_P2P_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_DB_HOST=scylladb2:9042
     volumes:
       - ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
       - ./data2:/opt/data
-    command: ["/wait-for-it.sh", "wget -q http://node1:4000/up", "./bin/uniris_node", "foreground"]
+    command: ["/wait-for-it.sh", "wget -q http://node1:4000/up", "./bin/archethic_node", "foreground"]
     networks:
-      uniris-node:
+      archethic-node:
         ipv4_address: 172.16.1.20
     links:
       - scylladb2
@@ -85,75 +85,75 @@ services:
     volumes:
       - ./data2:/var/lib/scylla
     networks:
-      uniris-node:
+      archethic-node:
         ipv4_address: 172.16.1.21 
 
       #  node2:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    depends_on:
         #      - node1
         #    environment:
-        #      - UNIRIS_CRYPTO_SEED=node2
-        #      - UNIRIS_MUT_DIR=/opt/data
-        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-        #      - UNIRIS_STATIC_IP=172.16.1.102
+        #      - ARCHETHIC_CRYPTO_SEED=node2
+        #      - ARCHETHIC_MUT_DIR=/opt/data
+        #      - ARCHETHIC_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - ARCHETHIC_STATIC_IP=172.16.1.102
         #    volumes:
         #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
         #      - ./data2:/opt/data
-        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/archethic_node", "foreground"]
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.102
         #
         #  node3:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    depends_on:
         #      - node1
         #    environment:
-        #      - UNIRIS_CRYPTO_SEED=node3
-        #      - UNIRIS_MUT_DIR=/opt/data
-        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-        #      - UNIRIS_STATIC_IP=172.16.1.103
+        #      - ARCHETHIC_CRYPTO_SEED=node3
+        #      - ARCHETHIC_MUT_DIR=/opt/data
+        #      - ARCHETHIC_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - ARCHETHIC_STATIC_IP=172.16.1.103
         #    volumes:
         #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
         #      - ./data3:/opt/data
-        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/archethic_node", "foreground"]
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.103
         #
         #  node4:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    depends_on:
         #      - node1
         #    environment:
-        #      - UNIRIS_CRYPTO_SEED=node4
-        #      - UNIRIS_MUT_DIR=/opt/data
-        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-        #      - UNIRIS_STATIC_IP=172.16.1.104
+        #      - ARCHETHIC_CRYPTO_SEED=node4
+        #      - ARCHETHIC_MUT_DIR=/opt/data
+        #      - ARCHETHIC_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - ARCHETHIC_STATIC_IP=172.16.1.104
         #    volumes:
         #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
         #      - ./data4:/opt/data
-        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/uniris_node", "foreground"]
+        #    command: ["/wait-for-node.sh", "http://node1:4000/up", "./bin/archethic_node", "foreground"]
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.104
         #
         #  node5:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    depends_on:
         #      - node1
         #    environment:
-        #      - UNIRIS_CRYPTO_SEED=node5
-        #      - UNIRIS_MUT_DIR=/opt/data
-        #      - UNIRIS_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
-        #      - UNIRIS_STATIC_IP=172.16.1.105
+        #      - ARCHETHIC_CRYPTO_SEED=node5
+        #      - ARCHETHIC_MUT_DIR=/opt/data
+        #      - ARCHETHIC_P2P_SEEDS=172.16.1.101:3002:0008117DAD3A936B641106B53AF3B828940C3BC5A77F1C9BFB8AD214EF6897B000:tcp
+        #      - ARCHETHIC_STATIC_IP=172.16.1.105
         #    volumes:
         #      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
         #      - ./data5:/opt/data
@@ -161,7 +161,7 @@ services:
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.105
         #
         #  collector:
@@ -169,16 +169,16 @@ services:
         #    volumes:
         #      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.200
         #
         #  bench:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    environment:
-        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - ARCHETHIC_MUT_DIR=/opt/data
         #    volumes:
         #      - ./bench_data:/opt/data
-        #    command: ["mix", "uniris.testnet.validate", "--after", "node1", "node2", "node3", "node4", "node5"]
+        #    command: ["mix", "archethic.testnet.validate", "--after", "node1", "node2", "node3", "node4", "node5"]
         #    stdin_open: true
         #    tty: true
         #    profiles: ["validate"]
@@ -187,25 +187,25 @@ services:
         #      net.ipv4.ip_local_port_range: 16000 60999
         #
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.201
         #
         #  validate:
-        #    image: uniris-node:latest
+        #    image: archethic-node:latest
         #    environment:
-        #      - UNIRIS_MUT_DIR=/opt/data
+        #      - ARCHETHIC_MUT_DIR=/opt/data
         #    volumes:
         #      - ./validator_data:/opt/data
-        #    command: ["mix", "uniris.testnet.validate", "--validate", "node1", "node2", "node3", "node4", "node5"]
+        #    command: ["mix", "archethic.testnet.validate", "--validate", "node1", "node2", "node3", "node4", "node5"]
         #    stdin_open: true
         #    tty: true
         #    profiles: ["validate"]
         #    networks:
-        #      uniris-node:
+        #      archethic-node:
         #        ipv4_address: 172.16.1.202
 
 networks:
-  uniris-node:
+  archethic-node:
     ipam:
       driver: default
       config:

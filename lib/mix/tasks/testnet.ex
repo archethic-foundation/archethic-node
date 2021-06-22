@@ -1,7 +1,7 @@
-defmodule Mix.Tasks.Uniris.Testnet do
+defmodule Mix.Tasks.ArchEthic.Testnet do
   @shortdoc "Creates and runs several nodes in testnet"
   @subnet "172.16.16.0/24"
-  @image "uniris-testnet"
+  @image "archethic-testnet"
   @output "testnet"
   @persist false
   @detach false
@@ -26,14 +26,14 @@ defmodule Mix.Tasks.Uniris.Testnet do
   ## Example
 
   ```sh
-  mix uniris.testnet $(seq -f "seed%g" -s " " 5)
+  mix archethic.testnet $(seq -f "seed%g" -s " " 5)
   ```
 
   """
 
   use Mix.Task
 
-  alias Uniris.Testnet
+  alias ArchEthic.Testnet
 
   @impl Mix.Task
   def run(args) do

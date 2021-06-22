@@ -1,4 +1,4 @@
-FROM elixir:alpine AS uniris-ci
+FROM elixir:alpine AS archethic-ci
 
 ARG skip_tests=0
 ARG MIX_ENV=dev
@@ -42,9 +42,9 @@ RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
 
 COPY . .
 
-RUN git config user.name uniris \
- && git config user.email uniris@uniris.io \
- && git remote add origin https://github.com/UNIRIS/uniris-node
+RUN git config user.name archethic \
+ && git config user.email archethic@archethic.io \
+ && git remote add origin https://github.com/ARCHETHIC/archethic-node
 
 # build release
 RUN mix do phx.digest, distillery.release
@@ -55,12 +55,12 @@ RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
 # Install
 RUN mkdir /opt/app \
  && cd /opt/app \
- && tar zxf /opt/code/_build/${MIX_ENV}/rel/uniris_node/releases/*/uniris_node.tar.gz
-CMD /opt/app/bin/uniris_node foreground
+ && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz
+CMD /opt/app/bin/archethic_node foreground
 
 ################################################################################
 
-FROM uniris-ci as build
+FROM archethic-ci as build
 
 FROM alpine
 
@@ -73,4 +73,4 @@ WORKDIR /opt/code
 RUN git reset --hard
 
 WORKDIR /opt/app
-CMD /opt/app/bin/uniris_node foreground
+CMD /opt/app/bin/archethic_node foreground

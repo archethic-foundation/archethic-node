@@ -1,15 +1,15 @@
 IEx.configure(inspect: [limit: :infinity])
 
-alias Uniris.Crypto
-alias Uniris.DB
-alias Uniris.P2P
-alias Uniris.P2P.Node
-alias Uniris.SharedSecrets
-alias Uniris.Account
-alias Uniris.Election
-alias Uniris.Governance
-alias Uniris.Contracts
-alias Uniris.TransactionChain
-alias Uniris.TransactionChain.Transaction
-alias Uniris.TransactionChain.TransactionData
-alias Uniris.BeaconChain
+alias ArchEthic.Crypto
+alias ArchEthic.DB
+alias ArchEthic.P2P
+alias ArchEthic.P2P.Node
+alias ArchEthic.SharedSecrets
+alias ArchEthic.Account
+alias ArchEthic.Election
+alias ArchEthic.Governance
+alias ArchEthic.Contracts
+alias ArchEthic.TransactionChain
+alias ArchEthic.TransactionChain.Transaction
+alias ArchEthic.TransactionChain.TransactionData
+alias ArchEthic.BeaconChain

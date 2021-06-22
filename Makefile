@@ -17,7 +17,7 @@ clean:
 	rm -f priv/c_dist/libsodium
 	rm -f priv/c_dist/hypergeometric_distribution
 	rm -rf data*
-	mix uniris.clean_db
+	mix archethic.clean_db
 
 install_system_deps:
 	sh scripts/system_deps_install.sh
@@ -35,7 +35,7 @@ release:
 docker-clean: clean
 	-docker container stop $$(docker ps -a --filter=name=utn* -q)
 	-docker container rm   $$(docker ps -a --filter=name=utn* -q)
-	-docker container rm uniris-prop-313233
+	-docker container rm archethic-prop-313233
 	-docker network rm $$(docker network ls --filter=name=utn-* -q)
-	-docker image rm uniris-ci uniris-cd uniris-dev
+	-docker image rm archethic-ci archethic-cd archethic-dev
 	-rm -rf /tmp/utn-*

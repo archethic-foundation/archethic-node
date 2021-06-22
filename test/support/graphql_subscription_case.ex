@@ -1,4 +1,4 @@
-defmodule UnirisWeb.GraphQLSubscriptionCase do
+defmodule ArchEthicWeb.GraphQLSubscriptionCase do
   @moduledoc """
   This module defines the test case to be used by
   subscription tests.
@@ -10,12 +10,12 @@ defmodule UnirisWeb.GraphQLSubscriptionCase do
   using do
     quote do
       import PhoenixChannelTest
-      import UnirisWeb.GraphQLSubscriptionCase
+      import ArchEthicWeb.GraphQLSubscriptionCase
 
-      use Absinthe.Phoenix.SubscriptionTest, schema: UnirisWeb.GraphQLSchema
+      use Absinthe.Phoenix.SubscriptionTest, schema: ArchEthicWeb.GraphQLSchema
 
       defp get_socket do
-        {:ok, socket} = PhoenixChannelTest.connect(UnirisWeb.UserSocket, %{}, %{})
+        {:ok, socket} = PhoenixChannelTest.connect(ArchEthicWeb.UserSocket, %{}, %{})
         {:ok, socket} = SubscriptionTest.join_absinthe(socket)
         socket
       end

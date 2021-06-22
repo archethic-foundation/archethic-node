@@ -1,8 +1,8 @@
-# Uniris
+# ArchEthic
 
-Welcome to the Uniris Node source repository ! This software enables you to build the first transaction chain and next generation of blockchain focused on scalability and human oriented.
+Welcome to the ArchEthic Node source repository ! This software enables you to build the first transaction chain and next generation of blockchain focused on scalability and human oriented.
 
-Uniris features:
+ArchEthic features:
 - Fast transaction processing (> 1M tps)
 - Lower energy consumption than other blockchain
 - Designed with a high level of security (ARCH consensus supporting 90% of maliciousness)
@@ -71,7 +71,7 @@ iex -S mix
 
 To clean the data from the database
 ```bash
-mix uniris.clean_db
+mix archethic.clean_db
 ```
 
 <!-- To start multiple nodes, you can leverage: `docker-compose`
@@ -99,14 +99,14 @@ docker-compose up validate
 
 Requires working `docker-compose`
 
-To run few `uniris-node`s in testnet one could use mix task `uniris.testnet`:
+To run few `archethic-node`s in testnet one could use mix task `archethic.testnet`:
 ```bash
-mix uniris.testnet $(seq -f "seed%g" -s " " 5)
+mix archethic.testnet $(seq -f "seed%g" -s " " 5)
 ```
 
-The task will generate `docker-compose.json` (for 5 nodes with seeds: seed1, seed2, seed3, seed4, seed5), and run `docker-compose -f docker-compose.json up` which in turn will build `uniris-testnet` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.
+The task will generate `docker-compose.json` (for 5 nodes with seeds: seed1, seed2, seed3, seed4, seed5), and run `docker-compose -f docker-compose.json up` which in turn will build `archethic-testnet` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.
 
-Run `mix help uniris.testnet` to see how to tweak the task.
+Run `mix help archethic.testnet` to see how to tweak the task.
 -->
 
 ## Contribution

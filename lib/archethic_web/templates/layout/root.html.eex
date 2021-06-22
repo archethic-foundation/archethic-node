@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title><%= assigns[:page_title] || "ARCHETHIC" %></title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
+    <%= csrf_meta_tag() %>
+  </head>
+  <body>
+    <div class="container is-fluid">
+      <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
+            <img src="/images/logo.svg" alt="ArchEthic logo" title="ArchEthic">
+            </a>
+            <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            </a>
+        </div>
+
+        <div id="navbar" class="navbar-menu">
+            <div class="navbar-end">
+    <!-- 
+          TODO: implement the listing of transactions through BeaconChain
+
+              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
+                 Transactions
+              </a>
+  -->
+            <a class="navbar-item" href="<%= Routes.explorer_path(@conn, :chain) %>">
+                Chains
+            </a>
+            <a class="navbar-item" href="<%= Routes.node_path(@conn, :index) %>">
+                Nodes
+            </a>
+
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link">
+                Governance
+                </a>
+                <div class="navbar-dropdown is-boxed">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeViewerLive) %>">
+                    Code Viewer
+                </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeProposalsLive) %>">
+                    Code Proposals
+                </a>
+                </div>
+            </div>
+            </div>
+        </div>
+    </nav>
+    <main class="pt-6">
+      <%= @inner_content %>
+    </main>
+    </div>
+    <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+  </body>
+</html>

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS uniris.chain_lookup_by_last_address(
+CREATE TABLE IF NOT EXISTS archethic.chain_lookup_by_last_address(
   transaction_address blob,
   last_transaction_address blob,
   timestamp timestamp,

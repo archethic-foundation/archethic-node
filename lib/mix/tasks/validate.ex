@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Uniris.Testnet.Validate do
+defmodule Mix.Tasks.ArchEthic.Testnet.Validate do
   @shortdoc "Validates, benchmarks testnet"
   @bench_before false
   @upgrade false
@@ -19,14 +19,14 @@ defmodule Mix.Tasks.Uniris.Testnet.Validate do
   ## Example
 
   ```sh
-  mix uniris.testnet.validate
+  mix archethic.testnet.validate
   ```
 
   """
 
   use Mix.Task
 
-  alias Uniris.Governance.Code.Proposal.Validator
+  alias ArchEthic.Governance.Code.Proposal.Validator
 
   @impl Mix.Task
   def run(args) do

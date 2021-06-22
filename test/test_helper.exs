@@ -1,4 +1,4 @@
-File.rm_rf!(Uniris.Utils.mut_dir())
+File.rm_rf!(ArchEthic.Utils.mut_dir())
 
 ExUnit.start(
   exclude: [:infrastructure, :CI, :CD, :oracle_provider],
@@ -6,13 +6,13 @@ ExUnit.start(
   max_failures: 1
 )
 
-Mox.defmock(MockClient, for: Uniris.P2P.Client)
-Mox.defmock(MockTransport, for: Uniris.P2P.TransportImpl)
+Mox.defmock(MockClient, for: ArchEthic.P2P.Client)
+Mox.defmock(MockTransport, for: ArchEthic.P2P.TransportImpl)
 
 Mox.defmock(MockCrypto,
-  for: [Uniris.Crypto.NodeKeystore, Uniris.Crypto.SharedSecretsKeystore]
+  for: [ArchEthic.Crypto.NodeKeystore, ArchEthic.Crypto.SharedSecretsKeystore]
 )
 
-Mox.defmock(MockDB, for: Uniris.DB)
-Mox.defmock(MockGeoIP, for: Uniris.P2P.GeoPatch.GeoIP)
-Mox.defmock(MockUCOPriceProvider, for: Uniris.OracleChain.Services.UCOPrice.Providers.Impl)
+Mox.defmock(MockDB, for: ArchEthic.DB)
+Mox.defmock(MockGeoIP, for: ArchEthic.P2P.GeoPatch.GeoIP)
+Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl)

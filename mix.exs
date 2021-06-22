@@ -1,9 +1,9 @@
-defmodule Uniris.MixProject do
+defmodule ArchEthic.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :uniris,
+      app: :archethic,
       version: "0.10.0",
       build_path: "_build",
       config_path: "config/config.exs",
@@ -22,8 +22,8 @@ defmodule Uniris.MixProject do
 
   def escript do
     [
-      main_module: Uniris.Governance.Code.Proposal.Validator,
-      name: "uniris-proposal-validator",
+      main_module: ArchEthic.Governance.Code.Proposal.Validator,
+      name: "archethic-proposal-validator",
       app: nil
     ]
   end
@@ -32,7 +32,7 @@ defmodule Uniris.MixProject do
   def application do
     [
       extra_applications: [:logger, :inets, :os_mon, :runtime_tools, :xmerl],
-      mod: {Uniris.Application, []}
+      mod: {ArchEthic.Application, []}
     ]
   end
 

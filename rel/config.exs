@@ -42,12 +42,12 @@ end
 # when running `mix distillery.release`, the first release in the file
 # will be used by default
 
-release :uniris_node do
-  set version: current_version(:uniris)
+release :archetic_node do
+  set version: current_version(:archethic)
 
   set applications: [
         :runtime_tools,
         :observer_cli,
-        uniris: :permanent
+        archethic: :permanent
       ]
 end

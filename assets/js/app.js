@@ -10,7 +10,7 @@ import {} from './ui'
 import {Socket} from "phoenix"
 import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
-import { getTransactionIndex, newTransactionBuilder, derivateAddress } from "uniris"
+import { getTransactionIndex, newTransactionBuilder, derivateAddress } from "archethic"
 import hljs from "highlight.js"
 
 let Hooks = {}

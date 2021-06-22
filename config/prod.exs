@@ -1,113 +1,117 @@
 import Config
 
 # Do not print debug messages in production
-config :logger, level: System.get_env("UNIRIS_LOGGER_LEVEL", "info") |> String.to_atom()
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "info") |> String.to_atom()
 
-config :uniris, :mut_dir, System.get_env("UNIRIS_MUT_DIR", "/opt/data")
+config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "/opt/data")
 
-config :uniris, Uniris.Bootstrap,
-  reward_address: System.get_env("UNIRIS_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
+config :archethic, ArchEthic.Bootstrap,
+  reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
-config :uniris, Uniris.Bootstrap.Sync,
+config :archethic, ArchEthic.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold:
-    System.get_env("UNIRIS_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54_000") |> String.to_integer()
+    System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54_000") |> String.to_integer()
 
 # TODO: provide the true addresses for the genesis UCO distribution
-# config :uniris, Uniris.Bootstrap.NetworkInit, genesis_pools: []
+# config :archethic, ArchEthic.Bootstrap.NetworkInit, genesis_pools: []
 
-config :uniris, Uniris.BeaconChain.SlotTimer,
+config :archethic, ArchEthic.BeaconChain.SlotTimer,
   # Every 10 minutes
-  interval: System.get_env("UNIRIS_BEACON_CHAIN_SLOT_TIMER_INTERVAL", "0 */10 * * * * *")
+  interval: System.get_env("ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL", "0 */10 * * * * *")
 
-config :uniris, Uniris.BeaconChain.SummaryTimer,
+config :archethic, ArchEthic.BeaconChain.SummaryTimer,
   # Every day at midnight
-  interval: System.get_env("UNIRIS_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL", "0 0 0 * * * *")
+  interval: System.get_env("ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL", "0 0 0 * * * *")
 
-config :uniris, Uniris.Crypto,
+config :archethic, ArchEthic.Crypto,
   root_ca_public_keys: [
     software:
-      System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY", "") |> Base.decode16!(case: :mixed),
-    tpm: System.get_env("UNIRIS_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
+      System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY", "")
+      |> Base.decode16!(case: :mixed),
+    tpm: System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
   ],
   software_root_ca_key: [
-    System.get_env("UNIRIS_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
+    System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
   ]
 
-config :uniris,
-       Uniris.Crypto.NodeKeystore,
-       case(System.get_env("UNIRIS_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
+config :archethic,
+       ArchEthic.Crypto.NodeKeystore,
+       case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
   "TPM" ->
-    Uniris.Crypto.NodeKeystore.TPMImpl
+    ArchEthic.Crypto.NodeKeystore.TPMImpl
 
   "SOFTWARE" ->
-    Uniris.Crypto.NodeKeystore.SoftwareImpl
+    ArchEthic.Crypto.NodeKeystore.SoftwareImpl
 end
 
 # TODO: to remove when the implementation will be detected
-config :uniris,
-       Uniris.Crypto.SharedSecretsKeystore,
-       Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
+config :archethic,
+       ArchEthic.Crypto.SharedSecretsKeystore,
+       ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :uniris, Uniris.DB.CassandraImpl, host: System.get_env("UNIRIS_DB_HOST", "127.0.0.1:9042")
+config :archethic, ArchEthic.DB.CassandraImpl,
+  host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")
 
-config :uniris, Uniris.Governance.Pools,
+config :archethic, ArchEthic.Governance.Pools,
   # TODO: provide the true addresses of the members
   initial_members: [
     technical_council: [],
     ethical_council: [],
     foundation: [],
-    uniris: []
+    archethic: []
   ]
 
-config :uniris,
-       Uniris.Networking.IPLookup,
-       case(System.get_env("UNIRIS_NETWORKING_IMPL", "NAT")) do
+config :archethic,
+       ArchEthic.Networking.IPLookup,
+       case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
   "NAT" ->
-    Uniris.Networking.IPLookup.NAT
+    ArchEthic.Networking.IPLookup.NAT
 
   "STATIC" ->
-    Uniris.Networking.IPLookup.Static
+    ArchEthic.Networking.IPLookup.Static
 
   "IPFY" ->
-    Uniris.Networking.IPLookup.IPIFY
+    ArchEthic.Networking.IPLookup.IPIFY
 end
 
-config :uniris, Uniris.Networking.IPLookup.Static, hostname: System.get_env("UNIRIS_STATIC_IP")
+config :archethic, ArchEthic.Networking.IPLookup.Static,
+  hostname: System.get_env("ARCHETHIC_STATIC_IP")
 
-config :uniris, Uniris.OracleChain.Scheduler,
+config :archethic, ArchEthic.OracleChain.Scheduler,
   # Poll new changes every minute
-  polling_interval: System.get_env("UNIRIS_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
+  polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
   # Aggregate chain every day 10 minute before midnight
-  summary_interval: System.get_env("UNIRIS_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 50 0 * * * *")
+  summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 50 0 * * * *")
 
-config :uniris, Uniris.Reward.NetworkPoolScheduler,
+config :archethic, ArchEthic.Reward.NetworkPoolScheduler,
   # Every month
-  interval: System.get_env("UNIRIS_REWARD_SCHEDULER_INTERVAL", "0 0 0 1 * * *")
+  interval: System.get_env("ARCHETHIC_REWARD_SCHEDULER_INTERVAL", "0 0 0 1 * * *")
 
-config :uniris,
-       Uniris.Crypto.SharedSecretsKeystore,
-       Uniris.Crypto.SharedSecretsKeystore.SoftwareImpl
+config :archethic,
+       ArchEthic.Crypto.SharedSecretsKeystore,
+       ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :uniris, Uniris.SharedSecrets.NodeRenewalScheduler,
+config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
   # Every day at 23:50:00
-  interval: System.get_env("UNIRIS_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL", "0 50 0 * * * *"),
+  interval:
+    System.get_env("ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL", "0 50 0 * * * *"),
   # Every day at midnight
   application_interval:
-    System.get_env("UNIRIS_SHARED_SECRETS_APPLICATION_INTERVAL", "0 0 0 * * * *")
+    System.get_env("ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL", "0 0 0 * * * *")
 
-config :uniris, Uniris.SelfRepair.Scheduler,
+config :archethic, ArchEthic.SelfRepair.Scheduler,
   # Every day at 00:05:00
   # To give time for the beacon chain to produce summary
-  interval: System.get_env("UNIRIS_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
+  interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
 
-config :uniris, Uniris.P2P.Endpoint,
-  port: System.get_env("UNIRIS_P2P_PORT", "3002") |> String.to_integer()
+config :archethic, ArchEthic.P2P.Endpoint,
+  port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
-config :uniris, Uniris.P2P.BootstrappingSeeds,
-  backup_file: System.get_env("UNIRIS_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
+config :archethic, ArchEthic.P2P.BootstrappingSeeds,
+  backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
-  genesis_seeds: System.get_env("UNIRIS_P2P_SEEDS")
+  genesis_seeds: System.get_env("ARCHETHIC_P2P_SEEDS")
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
@@ -118,19 +122,19 @@ config :uniris, Uniris.P2P.BootstrappingSeeds,
 # manifest is generated by the `mix phx.digest` task,
 # which you should run after static files are built and
 # before starting your production server.
-config :uniris, UnirisWeb.Endpoint,
-  http: [:inet6, port: System.get_env("UNIRIS_HTTP_PORT", "80") |> String.to_integer()],
+config :archethic, ArchEthicWeb.Endpoint,
+  http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "80") |> String.to_integer()],
   url: [host: "*", port: 443],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
-  version: Application.spec(:uniris, :vsn),
+  version: Application.spec(:archethic, :vsn),
   check_origin: false,
   https: [
     port: 443,
     cipher_suite: :strong,
-    keyfile: System.get_env("UNIRIS_WEB_SSL_KEY_PATH", ""),
-    certfile: System.get_env("UNIRIS_WEB_SSL_CERT_PATH", ""),
+    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEY_PATH", ""),
+    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERT_PATH", ""),
     transport_options: [socket_opts: [:inet6]]
   ]
 

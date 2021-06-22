@@ -2,7 +2,7 @@
 
 rpc='\
   System.get_env() \
-  |> Enum.filter(&String.starts_with?(elem(&1,0), "UNIRIS_")) \
+  |> Enum.filter(&String.starts_with?(elem(&1,0), "ARCHETHIC_")) \
   |> Enum.map(&("#{elem(&1,0)}=#{elem(&1,1)}")) \
   |> Enum.join(";")'
 

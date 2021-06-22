@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS uniris.transaction_type_lookup(
+CREATE TABLE IF NOT EXISTS archethic.transaction_type_lookup(
   type varchar,
   address blob,
   timestamp timestamp,

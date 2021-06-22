@@ -1,20 +1,22 @@
-defmodule Uniris.TransactionFactory do
+defmodule ArchEthic.TransactionFactory do
   @moduledoc false
 
-  alias Uniris.Crypto
+  alias ArchEthic.Crypto
 
-  alias Uniris.Election
+  alias ArchEthic.Election
 
-  alias Uniris.Mining.Fee
+  alias ArchEthic.Mining.Fee
 
-  alias Uniris.TransactionChain
-  alias Uniris.TransactionChain.Transaction
-  alias Uniris.TransactionChain.Transaction.CrossValidationStamp
-  alias Uniris.TransactionChain.Transaction.ValidationStamp
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-  alias Uniris.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-  alias Uniris.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain
+  alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
+
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+
+  alias ArchEthic.TransactionChain.TransactionData
 
   def create_valid_transaction(
         %{
