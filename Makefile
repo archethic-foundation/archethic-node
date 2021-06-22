@@ -8,9 +8,10 @@ compile_c_programs:
 	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/ed25519.c -o priv/c_dist/libsodium -I src/c/crypto/stdio_helpers.h -lsodium
 	$(CC) src/c/hypergeometric_distribution.c -o priv/c_dist/hypergeometric_distribution -lgmp
 	
-ifeq ($(OS),Linux)
-	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm.c src/c/crypto/tpm_port.c -o priv/c_dist/tpm -I src/c/crypto/stdio_helpers.h src/c/crypto/tpm.h -ltss2-esys -c
-endif
+#ifeq ($(OS),Linux)
+#	# ldconfig -p | grep libtss2-esys
+#	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm.c src/c/crypto/tpm_port.c -o priv/c_dist/tpm -I src/c/crypto/stdio_helpers.h src/c/crypto/tpm.h -ltss2-esys
+#endif
 
 clean:
 	rm -f priv/c_dist/libsodium
