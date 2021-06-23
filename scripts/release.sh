@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INSTALL_DIR="/opt/build"
+INSTALL_DIR="~/archethic_build"
 UPGRADE=0
 
 usage() {

@@ -1,14 +1,18 @@
 #!/bin/bash
 
-NC='\033[0m'
-CYAN='\033[1;36m'
+echo "Install required system dependencies"
 
-function version_to_int {
-  echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
-}
+sudo apt-get update
 
-[[ $UID == 0 ]] || { echo "This script must be run as root."; exit 1;}
+sudo apt-get install -y \
+  wget \
+  gnupg2 \
+  build-essential \
+  locales \
+  git \
+  zlib1g-dev \
+  libgmp-dev \
+  nodejs \
+  npm
 
-
-
-
+sudo locale-gen en_US.UTF-8

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Install TPM Software Stack"
+
 sudo apt -y update
 sudo apt -y install \
   autoconf-archive \
@@ -22,8 +24,8 @@ sudo apt -y install \
   libcurl4-openssl-dev \
   acl
 
-git clone https://github.com/tpm2-software/tpm2-tss.git
-cd tpm2-tss
+git clone https://github.com/tpm2-software/tpm2-tss.git ~/tpm2-tss
+cd ~/tpm2-tss
 ./bootstrap
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
@@ -33,3 +35,5 @@ sudo sed -i "s/tss/$(whoami)/gi" /etc/udev/rules.d/tpm-udev.rules
 sudo udevadm control --reload-rules && sudo udevadm trigger
 sudo ldconfig
 sudo apt install tpm2-tools
+
+cd ~

@@ -1,7 +1,7 @@
 #include <err.h>
 #include <stdlib.h>
-#include "tpm.h"
-#include "stdio_helpers.h"
+#include "lib.h"
+#include "../stdio_helpers.h"
 #include <stdio.h>
 
 void write_error(unsigned char *buf, char *error_message, int error_message_len);

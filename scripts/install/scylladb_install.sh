@@ -13,15 +13,14 @@ sudo apt-get update
 sudo apt-get install -y openjdk-8-jre-headless
 sudo update-java-alternatives --jre-headless -s java-1.8.0-openjdk-amd64
 
-cat <<EOF
-disks:
-  - mountpoint: /
-      read_iops: 145539
-      read_bandwidth: 2460177920
-      write_iops: 84298
-      write_bandwidth: 500473280
->> 
+sudo scylla_setup --no-raid-setup --no-ec2-check --no-kernel-check --no-verify-package --no-sysconfig-setup --io-setup=1 --no-version-check --no-cpuscaling-setup --no-fstrim-setup --no-memory-setup --no-swap-setup
 
-scylla_setup --no-raid-setup --no-kernel-check --no-verify-package --no-io-setup --no-memory-setup
+sudo scylla_memory_setup --memory=8G
+sudo scylla_cpuset_setup --cpuset 2
+
+sudo systemctl start scylla-server
+nodetool status
+
+
 
 

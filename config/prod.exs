@@ -11,7 +11,7 @@ config :archethic, ArchEthic.Bootstrap,
 config :archethic, ArchEthic.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold:
-    System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54_000") |> String.to_integer()
+    System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54000") |> String.to_integer()
 
 # TODO: provide the true addresses for the genesis UCO distribution
 # config :archethic, ArchEthic.Bootstrap.NetworkInit, genesis_pools: []
@@ -37,13 +37,13 @@ config :archethic, ArchEthic.Crypto,
 
 config :archethic,
        ArchEthic.Crypto.NodeKeystore,
-       case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
-  "TPM" ->
-    ArchEthic.Crypto.NodeKeystore.TPMImpl
+       (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
+          "TPM" ->
+            ArchEthic.Crypto.NodeKeystore.TPMImpl
 
-  "SOFTWARE" ->
-    ArchEthic.Crypto.NodeKeystore.SoftwareImpl
-end
+          "SOFTWARE" ->
+            ArchEthic.Crypto.NodeKeystore.SoftwareImpl
+        end)
 
 # TODO: to remove when the implementation will be detected
 config :archethic,
@@ -64,16 +64,16 @@ config :archethic, ArchEthic.Governance.Pools,
 
 config :archethic,
        ArchEthic.Networking.IPLookup,
-       case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
-  "NAT" ->
-    ArchEthic.Networking.IPLookup.NAT
+       (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
+          "NAT" ->
+            ArchEthic.Networking.IPLookup.NAT
 
-  "STATIC" ->
-    ArchEthic.Networking.IPLookup.Static
+          "STATIC" ->
+            ArchEthic.Networking.IPLookup.Static
 
-  "IPFY" ->
-    ArchEthic.Networking.IPLookup.IPIFY
-end
+          "IPFY" ->
+            ArchEthic.Networking.IPLookup.IPIFY
+        end)
 
 config :archethic, ArchEthic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP")
@@ -123,7 +123,7 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
 # which you should run after static files are built and
 # before starting your production server.
 config :archethic, ArchEthicWeb.Endpoint,
-  http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "80") |> String.to_integer()],
+  http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "8080") |> String.to_integer()],
   url: [host: "*", port: 443],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,

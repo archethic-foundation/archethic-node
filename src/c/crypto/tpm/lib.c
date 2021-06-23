@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <tss2/tss2_esys.h>
-#include "archethic-tpm.h"
+#include "lib.h"
 
 #define ASN1_SEQ 0x30
 #define ASN1_INT 0x02

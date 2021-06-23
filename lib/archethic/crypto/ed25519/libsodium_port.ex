@@ -25,7 +25,7 @@ defmodule ArchEthic.Crypto.Ed25519.LibSodiumPort do
   end
 
   def init(_opts) do
-    libsodium = Application.app_dir(:archethic, "/priv/c_dist/libsodium")
+    libsodium = Application.app_dir(:archethic, "/priv/c_dist/libsodium_port")
 
     port =
       Port.open({:spawn_executable, libsodium}, [
