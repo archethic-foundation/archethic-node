@@ -73,7 +73,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def init(_) do
-    tpm_program = Application.app_dir(:archethic, "priv/c_dist/tpm")
+    tpm_program = Application.app_dir(:archethic, "priv/c_dist/tpm/port")
     {:ok, port_handler} = PortHandler.start_link(program: tpm_program)
     {:ok, %{index: 0, port_handler: port_handler}, {:continue, :initialize_tpm}}
   end
