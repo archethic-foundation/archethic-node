@@ -10,7 +10,6 @@ import {} from './ui'
 import {Socket} from "phoenix"
 import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
-import { getTransactionIndex, newTransactionBuilder, derivateAddress } from "archethic"
 import hljs from "highlight.js"
 
 let Hooks = {}
@@ -80,76 +79,5 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 window.diff2html = html
-
-window.openApprovalConfirmation = function() {
-  document.querySelector("#proposal_approval_modal").style.display = "block"
-}
-
-window.closeApprovalConfirmation = function() {
-  document.querySelector("#proposal_approval_modal").style.display = "none";
-  document.querySelector("#tx_json").value = ""
-  document.querySelector("#tx_index").value = 0
-  document.querySelector("#tx_seed").value = ""
-  document.querySelector("#form_sign_approval").style.display = "none";
-}
-
-window.confirmApproval = function() {
-  document.querySelector("#tx_form").style.display = "block";
-}
-
-const endpoint = window.location.origin
-
-window.show_form_sign_approval = function() {
-  document.querySelector("#form_sign_approval").style.display = "block";
-  document.querySelector("#confirmation").style.display = "none";
-}
-
-window.signProposalApprovalTransaction = function(e) {
-  e.preventDefault()
-
-  const proposalAddress = document.querySelector("#proposal_address").value
-  const seed = document.querySelector("#tx_seed").value
-  const index = document.querySelector("#tx_index").value
-
-  const txJSON = newTransactionBuilder("code_approval")
-    .addRecipient(proposalAddress)
-    .build(seed, parseInt(index))
-    .toJSON()
-
-    document.querySelector("#tx_viewer").innerText = JSON.stringify(JSON.parse(txJSON), 0, 2)
-    document.querySelector("#tx_viewer").style.display = "block"
-    document.querySelector("#tx_json").value = txJSON
-    document.querySelector("#btn_send_approval").style.display = "inline"
-    document.querySelector("#btn_sign_approval").style.display = "none"
-}
-
-window.fetchTransactionIndex = function() {
-  const seed = document.querySelector("#tx_seed").value
-  const firstAddress = derivateAddress(seed, 0)
-  getTransactionIndex(firstAddress, endpoint).then((index) => {
-    document.querySelector("#tx_index").value = index
-
-    const address = derivateAddress(seed, index + 1)
-    document.querySelector("#tx_address").innerText = address
-    document.querySelector("#tx_address_info").style.display = "block"
-    document.querySelector("#btn_sign_approval").style.display = "block"
-  })
-}
-
-window.sendApprovalTransaction = function()  {
-  const txJSON = document.querySelector("#tx_json").value
-  fetch(endpoint + "/api/transaction", {
-      method: "POST",
-      headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-      },
-      body: txJSON
-  })
-  .then(() => {
-    closeApprovalConfirmation()
-  })
-  .catch(console.error)
-}
 
 
