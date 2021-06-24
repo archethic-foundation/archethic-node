@@ -42,7 +42,7 @@ end
 # when running `mix distillery.release`, the first release in the file
 # will be used by default
 
-release :archetic_node do
+release :archethic_node do
   set version: current_version(:archethic)
 
   set applications: [

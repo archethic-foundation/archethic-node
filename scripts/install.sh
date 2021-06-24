@@ -9,4 +9,4 @@ sh $SCRIPT_DIR/install/libsodium_install.sh
 sh $SCRIPT_DIR/install/docker_install.sh
 sh $SCRIPT_DIR/install/scylldb_install.sh
 sh $SCRIPT_DIR/install/tpm_install.sh
-
+sh $SCRIPT_DIR/install/tpm_keygen.sh

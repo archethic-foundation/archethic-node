@@ -3,7 +3,7 @@ import Config
 # Do not print debug messages in production
 config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "info") |> String.to_atom()
 
-config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "/opt/data")
+config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "~/archethic_node_mut_data")
 
 config :archethic, ArchEthic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
