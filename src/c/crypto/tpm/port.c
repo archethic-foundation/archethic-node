@@ -33,7 +33,7 @@ void initialize_tpm(unsigned char *buf, int pos, int len)
         initializeTPM(index_int);
 
         int response_len = 5;
-        unsigned char *response = (unsigned char *)malloc(response_len);
+        unsigned char response[response_len];
 
         //Encoding of the request id
         for (int i = 0; i < 4; i++)
@@ -67,7 +67,8 @@ void get_public_key(unsigned char *buf, int pos, int len)
         INT publicKeySize = 0;
         asnkey = getPublicKey(index_int, &publicKeySize);
         int response_len = 5 + publicKeySize;
-        unsigned char *response = (unsigned char *)malloc(response_len);
+       
+	unsigned char response[response_len];
         for (int i = 0; i < 4; i++)
         {
             response[i] = buf[i];
@@ -116,7 +117,7 @@ void sign_ecdsa(unsigned char *buf, int pos, int len)
         eccSign = signECDSA(index_int, hash256, &signLen, false);
 
         int response_len = 5 + signLen;
-        unsigned char *response = (unsigned char *)malloc(response_len);
+        unsigned char response[response_len];
         for (int i = 0; i < 4; i++)
         {
             response[i] = buf[i];
@@ -139,7 +140,7 @@ void get_key_index(unsigned char *buf, int pos, int len)
     INT keyIndex = 0;
     keyIndex = getKeyIndex();
     int response_len = 5 + 2;
-    unsigned char *response = (unsigned char *)malloc(response_len);
+    unsigned char response[response_len];
     for (int i = 0; i < 4; i++)
     {
         response[i] = buf[i];
@@ -169,7 +170,7 @@ void set_key_index(unsigned char *buf, int pos, int len)
         setKeyIndex(index_int);
 
         int response_len = 5;
-        unsigned char *response = (unsigned char *)malloc(response_len);
+        unsigned char response[response_len];
 
         //Encoding of the request id
         for (int i = 0; i < 4; i++)

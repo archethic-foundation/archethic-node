@@ -73,13 +73,15 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def init(_) do
-    tpm_program = Application.app_dir(:archethic, "priv/c_dist/tpm/port")
+    tpm_program = Application.app_dir(:archethic, "priv/c_dist/tpm_port")
     {:ok, port_handler} = PortHandler.start_link(program: tpm_program)
     {:ok, %{index: 0, port_handler: port_handler}, {:continue, :initialize_tpm}}
   end
 
   @impl GenServer
   def handle_continue(:initialize_tpm, state = %{port_handler: port_handler}) do
+    initialize_tpm(port_handler, 0)
+
     first_public_key = request_public_key(port_handler, 0)
 
     nb_keys =
@@ -175,12 +177,16 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   defp set_index(port_handler, index) do
-    :ok = PortHandler.request(port_handler, 1, <<index::16>>)
+    :ok = PortHandler.request(port_handler, 5, <<index::16>>)
   end
 
   defp sign(port_handler, index, data) do
     hash = :crypto.hash(:sha256, data)
     {:ok, sig} = PortHandler.request(port_handler, 3, <<index::16, hash::binary>>)
     sig
+  end
+
+  defp initialize_tpm(port_handler, index) do
+    PortHandler.request(port_handler, 1, <<index::16>>)
   end
 end

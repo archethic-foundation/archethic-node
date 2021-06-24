@@ -64,6 +64,8 @@ defmodule ArchEthic.Utils.PortHandler do
           <<1::8, data::binary>> ->
             GenServer.reply(client, {:ok, data})
         end
+
+        {:noreply, state}
     end
   end
 
