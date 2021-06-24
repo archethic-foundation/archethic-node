@@ -9,9 +9,7 @@ defmodule ArchEthicWeb.LayoutHelpers do
         minute: minute,
         second: second
       }) do
-    "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{
-      zero_pad(second)
-    }"
+    "#{year}/#{zero_pad(month)}/#{zero_pad(day)} #{zero_pad(hour)}:#{zero_pad(minute)}:#{zero_pad(second)}"
   end
 
   def format_date(nil), do: ""

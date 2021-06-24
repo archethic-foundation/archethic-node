@@ -123,9 +123,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
     |> ArchEthic.send_new_transaction()
 
     Logger.info(
-      "Node shared secrets renewal transaction sent (#{
-        Crypto.number_of_node_shared_secrets_keys()
-      })"
+      "Node shared secrets renewal transaction sent (#{Crypto.number_of_node_shared_secrets_keys()})"
     )
   end
 

@@ -59,9 +59,7 @@ defmodule ArchEthicWeb.ExplorerView do
                                            timestamp: timestamp,
                                            type: type
                                          } ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{
-          format_transaction_type(type)
-        }"
+        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{format_transaction_type(type)}"
       end)
       |> Enum.join("\n")
 
@@ -98,9 +96,7 @@ defmodule ArchEthicWeb.ExplorerView do
                                            timestamp: timestamp,
                                            type: type
                                          } ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{
-          format_transaction_type(type)
-        }"
+        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{format_transaction_type(type)}"
       end)
       |> Enum.join("\n")
 
@@ -119,9 +115,7 @@ defmodule ArchEthicWeb.ExplorerView do
     New node synchronizations
     #{end_of_sync_stringified}
 
-    P2P node availabilites: #{
-      Utils.bitstring_to_integer_list(node_availabilities) |> Enum.join(",")
-    }
+    P2P node availabilites: #{Utils.bitstring_to_integer_list(node_availabilities) |> Enum.join(",")}
     """
   end
 
