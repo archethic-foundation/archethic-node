@@ -552,7 +552,12 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     })
   end
 
-  defp request_replication(context = %ValidationContext{transaction: tx}) do
+  defp request_replication(
+         context = %ValidationContext{
+           transaction: tx,
+           welcome_node: %Node{last_public_key: welcome_node_public_key}
+         }
+       ) do
     storage_nodes = ValidationContext.get_replication_nodes(context)
 
     worker_pid = self()
@@ -573,7 +578,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         message = %ReplicateTransaction{
           transaction: validated_tx,
           roles: roles,
-          ack_storage?: true
+          ack_storage?: true,
+          welcome_node_public_key: welcome_node_public_key
         }
 
         case P2P.send_message(node, message) do

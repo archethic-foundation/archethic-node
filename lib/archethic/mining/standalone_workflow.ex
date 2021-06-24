@@ -98,7 +98,8 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
         P2P.send_message(node, %ReplicateTransaction{
           transaction: validated_tx,
           roles: roles,
-          ack_storage?: true
+          ack_storage?: true,
+          welcome_node_public_key: Crypto.last_node_public_key()
         })
       end,
       on_timeout: :kill_task,

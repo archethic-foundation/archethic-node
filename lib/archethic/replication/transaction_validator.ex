@@ -22,9 +22,6 @@ defmodule ArchEthic.Replication.TransactionValidator do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionInput
 
@@ -142,8 +139,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
                ledger_operations:
                  ops = %LedgerOperations{
                    fee: fee,
-                   node_movements: node_movements,
-                   transaction_movements: transaction_movements
+                   node_movements: node_movements
                  },
                errors: errors
              },
@@ -154,8 +150,6 @@ defmodule ArchEthic.Replication.TransactionValidator do
       get_coordinator_node_public_key_from_node_movements(node_movements)
 
     cross_validation_node_public_keys = Enum.map(cross_stamps, & &1.node_public_key)
-
-    resolved_tx_movements = resolve_transaction_movements(tx)
 
     with {:pow, true} <- {:pow, Transaction.verify_origin_signature?(tx, pow)},
          {:poe, true} <-
@@ -169,7 +163,13 @@ defmodule ArchEthic.Replication.TransactionValidator do
            {:signature,
             ValidationStamp.valid_signature?(validation_stamp, coordinator_node_public_key)},
          {:fee, true} <- {:fee, fee == get_transaction_fee(tx)},
-         {:tx_movements, true} <- {:tx_movements, resolved_tx_movements == transaction_movements},
+         {:tx_movements, true} <-
+           {:tx_movements,
+            LedgerOperations.valid_transaction_movements?(
+              ops,
+              Transaction.get_movements(tx),
+              timestamp
+            )},
          {:node_movements_roles, true} <-
            {:node_movements_roles, LedgerOperations.valid_node_movements_roles?(ops)},
          {:node_movements_election, true} <-
@@ -305,28 +305,19 @@ defmodule ArchEthic.Replication.TransactionValidator do
     |> Enum.map(& &1.last_public_key)
   end
 
-  defp new_ledger_operations(tx, previous_unspent_outputs) do
+  defp new_ledger_operations(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         previous_unspent_outputs
+       ) do
     %LedgerOperations{
       fee: get_transaction_fee(tx),
-      transaction_movements: resolve_transaction_movements(tx)
+      transaction_movements:
+        tx
+        |> Transaction.get_movements()
+        |> LedgerOperations.resolve_transaction_movements(timestamp)
     }
     |> LedgerOperations.from_transaction(tx)
     |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
-  end
-
-  defp resolve_transaction_movements(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
-       ) do
-    tx
-    |> Transaction.get_movements()
-    |> Task.async_stream(
-      fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   defp valid_node_election?(

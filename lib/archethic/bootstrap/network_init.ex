@@ -134,7 +134,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
       |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.distribute_rewards(
         %Node{last_public_key: Crypto.last_node_public_key()},
-        %Node{last_public_key: Crypto.last_node_public_key()},
         [%Node{last_public_key: Crypto.last_node_public_key()}],
         []
       )

@@ -205,7 +205,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_signature(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -224,7 +223,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes
@@ -235,7 +233,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_proof_of_work(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -254,7 +251,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes
@@ -265,7 +261,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_transaction_fee(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -283,7 +278,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes
@@ -294,7 +288,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_transaction_movements(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -321,7 +314,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes
@@ -332,7 +324,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_unspent_outputs(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -356,7 +347,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           ]
         }
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes
@@ -367,7 +357,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_node_movements(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -383,7 +372,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx),
           node_movements: [
-            %NodeMovement{to: welcome_node.last_public_key, amount: 10.0, roles: [:welcome_node]},
             %NodeMovement{
               to: coordinator_node.last_public_key,
               amount: 20.0,
@@ -418,7 +406,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_errors(%ValidationContext{
          transaction: tx,
-         welcome_node: welcome_node,
          coordinator_node: coordinator_node,
          cross_validation_nodes: cross_validation_nodes,
          previous_storage_nodes: previous_storage_nodes,
@@ -436,7 +423,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
         |> LedgerOperations.distribute_rewards(
-          welcome_node,
           coordinator_node,
           cross_validation_nodes,
           previous_storage_nodes

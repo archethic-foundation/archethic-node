@@ -37,13 +37,8 @@ defmodule ArchEthic.Mining do
           welcome_node_public_key :: Crypto.key(),
           validation_node_public_keys :: list(Crypto.key())
         ) :: {:ok, pid()}
-  def start(tx = %Transaction{}, welcome_node_public_key, [_ | []]) do
-    StandaloneWorkflow.start_link(
-      transaction: tx,
-      welcome_node: welcome_node_public_key,
-      validation_nodes: [P2P.get_node_info()],
-      node_public_key: Crypto.last_node_public_key()
-    )
+  def start(tx = %Transaction{}, _welcome_node_public_key, [_ | []]) do
+    StandaloneWorkflow.start_link(transaction: tx)
   end
 
   def start(tx = %Transaction{}, welcome_node_public_key, validation_node_public_keys)

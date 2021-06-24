@@ -20,7 +20,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_valid_transaction(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -40,7 +39,6 @@ defmodule ArchEthic.TransactionFactory do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
         storage_nodes
@@ -77,7 +75,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_valid_transaction_with_inconsistencies(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -90,10 +87,9 @@ defmodule ArchEthic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
@@ -119,7 +115,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_transaction_with_invalid_proof_of_work(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -132,10 +127,9 @@ defmodule ArchEthic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
@@ -159,7 +153,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_transaction_with_invalid_validation_stamp_signature(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -172,10 +165,9 @@ defmodule ArchEthic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
@@ -199,7 +191,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_transaction_with_invalid_fee(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -212,10 +203,9 @@ defmodule ArchEthic.TransactionFactory do
         fee: 10
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
@@ -241,7 +231,6 @@ defmodule ArchEthic.TransactionFactory do
 
   def create_transaction_with_invalid_transaction_movements(
         %{
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           storage_nodes: storage_nodes
         },
@@ -255,10 +244,9 @@ defmodule ArchEthic.TransactionFactory do
         transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30, type: :UCO}]
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
-        [welcome_node, coordinator_node] ++ storage_nodes
+        [coordinator_node] ++ storage_nodes
       )
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
@@ -289,7 +277,6 @@ defmodule ArchEthic.TransactionFactory do
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07),
         node_movements: [
-          %NodeMovement{to: "key1", amount: 20, roles: [:welcome_node]},
           %NodeMovement{
             to: Crypto.last_node_public_key(),
             amount: 20,

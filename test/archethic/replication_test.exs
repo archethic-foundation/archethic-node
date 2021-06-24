@@ -265,7 +265,6 @@ defmodule ArchEthic.ReplicationTest do
 
   defp create_valid_transaction(
          %{
-           welcome_node: welcome_node,
            coordinator_node: coordinator_node,
            storage_nodes: storage_nodes
          },
@@ -278,7 +277,6 @@ defmodule ArchEthic.ReplicationTest do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.distribute_rewards(
-        welcome_node,
         coordinator_node,
         [coordinator_node],
         [coordinator_node] ++ storage_nodes

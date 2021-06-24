@@ -96,6 +96,11 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
+                   %TransactionMovement{
+                     to: <<0::8, 0::256>>,
+                     amount: 0.5000003000000001,
+                     type: :UCO
+                   },
                    %TransactionMovement{to: "@Alice2", amount: 5_000.0, type: :UCO}
                  ],
                  unspent_outputs: [

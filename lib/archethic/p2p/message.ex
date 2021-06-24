@@ -538,6 +538,11 @@ defmodule ArchEthic.P2P.Message do
      <<chain_role_bit::1, io_role_bit::1, beacon_role_bit::1, ack_storage_bit::1,
        rest::bitstring>>} = Transaction.deserialize(rest)
 
+    <<curve_id::8, origin_id::8, rest::bitstring>> = rest
+    welcome_key_size = Crypto.key_size(curve_id)
+    <<key::binary-size(welcome_key_size), rest::bitstring>> = rest
+    welcome_public_key = <<curve_id::8, origin_id::8, key::binary>>
+
     roles =
       [
         {:chain, chain_role_bit == 1 || false},
@@ -551,7 +556,8 @@ defmodule ArchEthic.P2P.Message do
     {%ReplicateTransaction{
        transaction: tx,
        roles: roles,
-       ack_storage?: ack_storage?
+       ack_storage?: ack_storage?,
+       welcome_node_public_key: welcome_public_key
      }, rest}
   end
 
@@ -982,7 +988,8 @@ defmodule ArchEthic.P2P.Message do
   def process(%ReplicateTransaction{
         transaction: tx = %Transaction{address: address, type: type},
         roles: roles,
-        ack_storage?: ack_storage?
+        ack_storage?: ack_storage?,
+        welcome_node_public_key: welcome_node_public_key
       }) do
     if TransactionChain.transaction_exists?(address) do
       Logger.debug("Transaction already exists",
@@ -995,7 +1002,10 @@ defmodule ArchEthic.P2P.Message do
         transaction: "#{type}@#{Base.encode16(address)}"
       )
 
-      case Replication.process_transaction(tx, roles, ack_storage?: ack_storage?) do
+      case Replication.process_transaction(tx, roles,
+             ack_storage?: ack_storage?,
+             welcome_node: P2P.get_node_info!(welcome_node_public_key)
+           ) do
         :ok ->
           %Ok{}
 

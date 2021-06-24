@@ -94,8 +94,8 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
   end
 
   defp gen_roles do
-    [:welcome_node, :coordinator_node, :cross_validation_node, :previous_storage_node]
+    [:coordinator_node, :cross_validation_node, :previous_storage_node]
     |> StreamData.one_of()
-    |> StreamData.uniq_list_of(min_length: 1, max_length: 4, max_tries: 100)
+    |> StreamData.uniq_list_of(min_length: 1, max_length: 3, max_tries: 100)
   end
 end

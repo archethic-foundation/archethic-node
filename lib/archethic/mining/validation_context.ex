@@ -60,8 +60,6 @@ defmodule ArchEthic.Mining.ValidationContext do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
 
@@ -779,7 +777,6 @@ defmodule ArchEthic.Mining.ValidationContext do
           transaction: tx,
           previous_transaction: prev_tx,
           unspent_outputs: unspent_outputs,
-          welcome_node: welcome_node,
           coordinator_node: coordinator_node,
           cross_validation_nodes: cross_validation_nodes,
           previous_storage_nodes: previous_storage_nodes,
@@ -797,7 +794,10 @@ defmodule ArchEthic.Mining.ValidationContext do
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
         ledger_operations:
           %LedgerOperations{
-            transaction_movements: resolve_transaction_movements(tx),
+            transaction_movements:
+              tx
+              |> Transaction.get_movements()
+              |> LedgerOperations.resolve_transaction_movements(DateTime.utc_now()),
             fee:
               Fee.calculate(
                 tx,
@@ -806,7 +806,6 @@ defmodule ArchEthic.Mining.ValidationContext do
           }
           |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.distribute_rewards(
-            welcome_node,
             coordinator_node,
             cross_validation_nodes,
             previous_storage_nodes
@@ -833,19 +832,6 @@ defmodule ArchEthic.Mining.ValidationContext do
   end
 
   defp chain_error(_, _), do: nil
-
-  defp resolve_transaction_movements(tx) do
-    tx
-    |> Transaction.get_movements()
-    |> Task.async_stream(
-      fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, DateTime.utc_now())}
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
-  end
 
   defp resolve_transaction_recipients(%Transaction{
          data: %TransactionData{recipients: recipients}
@@ -1061,10 +1047,14 @@ defmodule ArchEthic.Mining.ValidationContext do
        do: resolve_transaction_recipients(tx) == recipients
 
   defp valid_stamp_transaction_movements?(
-         %ValidationStamp{ledger_operations: %LedgerOperations{transaction_movements: movements}},
+         %ValidationStamp{
+           timestamp: timestamp,
+           ledger_operations: ops
+         },
          %__MODULE__{transaction: tx}
-       ),
-       do: resolve_transaction_movements(tx) == movements
+       ) do
+    LedgerOperations.valid_transaction_movements?(ops, Transaction.get_movements(tx), timestamp)
+  end
 
   defp valid_stamp_unspent_outputs?(
          %ValidationStamp{
@@ -1088,7 +1078,6 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp valid_stamp_node_movements?(%ValidationStamp{ledger_operations: ops}, %__MODULE__{
          transaction: tx,
-         welcome_node: %Node{last_public_key: welcome_node_public_key},
          coordinator_node: %Node{last_public_key: coordinator_node_public_key},
          cross_validation_nodes: cross_validation_nodes,
          unspent_outputs: unspent_outputs
@@ -1108,12 +1097,6 @@ defmodule ArchEthic.Mining.ValidationContext do
              Enum.map(previous_storage_nodes, & &1.last_public_key)
            ),
          true <- LedgerOperations.valid_reward_distribution?(ops),
-         true <-
-           LedgerOperations.has_node_movement_with_role?(
-             ops,
-             welcome_node_public_key,
-             :welcome_node
-           ),
          true <-
            LedgerOperations.has_node_movement_with_role?(
              ops,

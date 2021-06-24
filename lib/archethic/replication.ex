@@ -22,8 +22,7 @@ defmodule ArchEthic.Replication do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
-  alias ArchEthic.P2P.Message.Ok
-  # alias ArchEthic.P2P.Message.ReplicateTransaction
+  
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.OracleChain
@@ -74,7 +73,7 @@ defmodule ArchEthic.Replication do
   @spec process_transaction(
           validated_tx :: Transaction.t(),
           role_list :: list(role()),
-          options :: [ack_storage?: boolean(), self_repair?: boolean()]
+          options :: [ack_storage?: boolean(), welcome_node: Node.t(), self_repair?: boolean()]
         ) ::
           :ok | {:error, :invalid_transaction}
   def process_transaction(tx = %Transaction{}, roles, opts \\ [])
@@ -120,7 +119,8 @@ defmodule ArchEthic.Replication do
         end
 
         if ack_storage? do
-          :ok = acknowledge_storage(tx)
+          welcome_node = Keyword.fetch!(opts, :welcome_node)
+          :ok = acknowledge_storage(tx, welcome_node)
         else
           :ok
         end
@@ -244,34 +244,19 @@ defmodule ArchEthic.Replication do
   @doc """
   Send an acknowledgment of the replication of the transaction to the welcome node and the previous storage pool
   """
-  @spec acknowledge_storage(Transaction.t()) :: :ok
+  @spec acknowledge_storage(Transaction.t(), Node.t()) :: :ok
   def acknowledge_storage(
         tx = %Transaction{
           address: address,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
-        }
+        },
+        welcome_node = %Node{}
       ) do
-    Task.start(fn -> notify_welcome_node(tx) end)
+    Task.start(fn -> P2P.send_message!(welcome_node, %AcknowledgeStorage{address: address}) end)
 
     Task.start(fn ->
       acknowledge_previous_storage_nodes(address, Transaction.previous_address(tx), timestamp)
     end)
-
-    :ok
-  end
-
-  defp notify_welcome_node(%Transaction{
-         address: address,
-         validation_stamp: %ValidationStamp{
-           ledger_operations: %LedgerOperations{node_movements: node_movements}
-         }
-       }) do
-    %Ok{} =
-      node_movements
-      |> Enum.find(&(:welcome_node in &1.roles))
-      |> Map.get(:to)
-      |> P2P.get_node_info!()
-      |> P2P.send_message!(%AcknowledgeStorage{address: address})
 
     :ok
   end
