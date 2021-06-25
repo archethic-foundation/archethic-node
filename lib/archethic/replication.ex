@@ -22,7 +22,7 @@ defmodule ArchEthic.Replication do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
-  
+
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.OracleChain

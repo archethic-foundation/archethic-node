@@ -2,7 +2,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore do
   @moduledoc false
 
   alias ArchEthic.Crypto
-  alias __MODULE__.SoftwareImpl
+  alias ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
   use Knigge, otp_app: :archethic, default: SoftwareImpl
 

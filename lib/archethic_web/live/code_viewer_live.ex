@@ -3,9 +3,9 @@ defmodule ArchEthicWeb.CodeViewerLive do
   use ArchEthicWeb, :live_view
 
   alias ArchEthic.Governance
+  alias ArchEthicWeb.CodeView
 
   alias Phoenix.View
-  alias ArchEthicWeb.CodeView
 
   # @root_dir Application.compile_env(:archethic, :src_dir)
 

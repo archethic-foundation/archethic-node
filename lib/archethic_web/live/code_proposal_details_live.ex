@@ -3,7 +3,6 @@ defmodule ArchEthicWeb.CodeProposalDetailsLive do
   use ArchEthicWeb, :live_view
 
   alias Phoenix.View
-  alias ArchEthicWeb.CodeView
 
   alias ArchEthic.Crypto
 
@@ -11,6 +10,8 @@ defmodule ArchEthicWeb.CodeProposalDetailsLive do
   alias ArchEthic.Governance.Code.Proposal
 
   alias ArchEthic.PubSub
+
+  alias ArchEthicWeb.CodeView
 
   def mount(%{"address" => address}, _params, socket) do
     if connected?(socket) do
