@@ -57,6 +57,10 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
           extract_seeds(data)
 
         _ ->
+          if genesis_seeds == nil do
+            raise "Missing genesis seeds"
+          end
+
           extract_seeds(genesis_seeds)
       end
 

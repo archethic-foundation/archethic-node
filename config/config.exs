@@ -52,7 +52,7 @@ config :archethic, ArchEthic.Crypto,
   default_curve: :ed25519,
   default_hash: :sha256,
   storage_nonce_file: "crypto/storage_nonce",
-  key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "certs")
+  key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/key_certificates")
 
 config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
@@ -69,7 +69,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
-  genesis_seeds: System.get_env("ARCHETHIC_P2P_SEEDS")
+  genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
 config :archethic, ArchEthic.P2P.Endpoint,
   nb_acceptors: 100,

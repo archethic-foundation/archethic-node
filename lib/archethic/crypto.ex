@@ -250,6 +250,11 @@ defmodule ArchEthic.Crypto do
   defdelegate last_node_public_key, to: NodeKeystore, as: :last_public_key
 
   @doc """
+  Return the previous node public key
+  """
+  defdelegate previous_node_public_key, to: NodeKeystore, as: :previous_public_key
+
+  @doc """
   Return the first node public key
   """
   @spec first_node_public_key() :: key()
@@ -394,6 +399,16 @@ defmodule ArchEthic.Crypto do
     data
     |> Utils.wrap_binary()
     |> NodeKeystore.sign_with_last_key()
+  end
+
+  @doc """
+  Sign with the previous node key
+  """
+  @spec sign_with_previous_node_key(data :: iodata() | bitstring() | [bitstring]) :: binary()
+  def sign_with_previous_node_key(data) when is_bitstring(data) or is_list(data) do
+    data
+    |> Utils.wrap_binary()
+    |> NodeKeystore.sign_with_previous_key()
   end
 
   @doc """
@@ -950,7 +965,9 @@ defmodule ArchEthic.Crypto do
   defdelegate key_origin(origin), to: ID, as: :to_origin
 
   @spec get_key_certificate(key()) :: binary()
-  def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do
+  def get_key_certificate(fullkey = <<_::8, origin_id::8, key::binary>>) do
+    IO.inspect(Base.encode16(fullkey))
+
     origin_id
     |> ID.to_origin()
     |> do_get_key_certificate(key)
@@ -967,11 +984,14 @@ defmodule ArchEthic.Crypto do
   end
 
   defp do_get_key_certificate(:tpm, key) do
+    cert_filename = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)
+
     [
       Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:key_certificates_dir),
-      Base.encode16(key, case: :lower)
+      "#{cert_filename}.bin"
     ]
     |> Path.join()
+    |> Path.expand()
     |> File.read!()
   end
 

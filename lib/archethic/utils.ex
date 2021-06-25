@@ -516,11 +516,11 @@ defmodule ArchEthic.Utils do
   """
   @spec mut_dir(String.t() | nonempty_list(Path.t())) :: Path.t()
   def mut_dir(path) when is_binary(path) do
-    Path.join(Application.get_env(:archethic, :mut_dir), path)
+    Path.join(Application.get_env(:archethic, :mut_dir), path) |> Path.expand()
   end
 
   def mut_dir(path = [_]) when is_list(path) do
-    Path.join([Application.get_env(:archethic, :mut_dir) | path])
+    Path.join([Application.get_env(:archethic, :mut_dir) | path]) |> Path.expand()
   end
 
   def mut_dir, do: mut_dir("")

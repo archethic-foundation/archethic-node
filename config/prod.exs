@@ -3,7 +3,7 @@ import Config
 # Do not print debug messages in production
 config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "info") |> String.to_atom()
 
-config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "~/archethic_node_mut_data")
+config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "data")
 
 config :archethic, ArchEthic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
@@ -33,7 +33,8 @@ config :archethic, ArchEthic.Crypto,
   ],
   software_root_ca_key: [
     System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
-  ]
+  ],
+  key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/key_certificates")
 
 config :archethic,
        ArchEthic.Crypto.NodeKeystore,
@@ -111,7 +112,7 @@ config :archethic, ArchEthic.P2P.Endpoint,
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
-  genesis_seeds: System.get_env("ARCHETHIC_P2P_SEEDS")
+  genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
@@ -124,14 +125,14 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
 # before starting your production server.
 config :archethic, ArchEthicWeb.Endpoint,
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "8080") |> String.to_integer()],
-  url: [host: "*", port: 443],
+  url: [host: "*", port: System.get_env("ARCHETHIC_HTTP_PORT", "8080") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
   version: Application.spec(:archethic, :vsn),
   check_origin: false,
   https: [
-    port: 443,
+    port: System.get_env("ARCHETHIC_HTTPS_PORT", "4443") |> String.to_integer(),
     cipher_suite: :strong,
     keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEY_PATH", ""),
     certfile: System.get_env("ARCHETHIC_WEB_SSL_CERT_PATH", ""),

@@ -172,7 +172,9 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   defp request_public_key(port_handler, index) do
-    {:ok, <<_::16, public_key::binary>>} = PortHandler.request(port_handler, 2, <<index::16>>)
+    {:ok, <<_::binary-size(26), public_key::binary>>} =
+      PortHandler.request(port_handler, 2, <<index::16>>)
+
     public_key
   end
 

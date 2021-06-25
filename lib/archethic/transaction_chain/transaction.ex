@@ -177,7 +177,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
   end
 
   defp get_transaction_public_keys(_) do
-    previous_public_key = Crypto.last_node_public_key()
+    previous_public_key = Crypto.previous_node_public_key()
     next_public_key = Crypto.next_node_public_key()
     {previous_public_key, next_public_key}
   end
@@ -211,7 +211,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
       tx
       |> extract_for_previous_signature()
       |> serialize()
-      |> Crypto.sign_with_last_node_key()
+      |> Crypto.sign_with_previous_node_key()
 
     %{tx | previous_signature: previous_signature}
   end
