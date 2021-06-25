@@ -56,8 +56,8 @@ defmodule ArchEthic.Account.MemTables.UCOLedger do
       iex> { :ets.tab2list(:archethic_uco_ledger), :ets.tab2list(:archethic_uco_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Charlie10"}, 1.0, false, ~U[2021-03-05 13:41:34Z], false},
-          {{"@Alice2", "@Bob3"}, 3.0, false, ~U[2021-03-05 13:41:34Z], false}
+          {{"@Alice2", "@Bob3"}, 3.0, false, ~U[2021-03-05 13:41:34Z], false},
+          {{"@Alice2", "@Charlie10"}, 1.0, false, ~U[2021-03-05 13:41:34Z], false}
        ],
         [
           {"@Alice2", "@Bob3"},

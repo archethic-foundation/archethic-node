@@ -25,9 +25,6 @@ defmodule ArchEthic.JobCache do
       iex> #{__MODULE__}.get! cache
       :heavy
       iex>
-      iex> :persistent_term.get(:heavy)
-      ** (ArgumentError) argument error
-      iex>
       iex> #{__MODULE__}.clear cache
       :ok
       iex> #{__MODULE__}.get! cache
@@ -66,9 +63,6 @@ defmodule ArchEthic.JobCache do
       iex> :persistent_term.erase(:nil)
       iex> #{__MODULE__}.get! cache
       nil
-      iex>
-      iex> :persistent_term.get(:nil)
-      ** (ArgumentError) argument error
       iex>
       iex> #{__MODULE__}.clear cache
       :ok
