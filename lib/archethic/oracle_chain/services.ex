@@ -11,11 +11,13 @@ defmodule ArchEthic.OracleChain.Services do
   @spec fetch_new_data(map()) :: map()
   def fetch_new_data(previous_content \\ %{}) do
     Enum.map(services(), fn {service, handler} ->
-      Logger.debug("Fetch #{service} oracle data")
+      Logger.debug("Fetching #{service} oracle data...")
       {service, apply(handler, :fetch, [])}
     end)
     |> Enum.filter(fn
       {service, {:ok, data}} ->
+        Logger.debug("Oracle data for #{service}: #{inspect(data)}")
+
         previous_digest =
           previous_content
           |> Map.get(Atom.to_string(service))
@@ -29,8 +31,8 @@ defmodule ArchEthic.OracleChain.Services do
 
         new_digest != previous_digest
 
-      {service, _} ->
-        Logger.error("Cannot request the Oracle provider #{service}")
+      {service, reason} ->
+        Logger.error("Cannot request the Oracle provider #{service} - reason: #{inspect(reason)}")
         false
     end)
     |> Enum.into(%{}, fn {service, {:ok, data}} -> {service, data} end)
