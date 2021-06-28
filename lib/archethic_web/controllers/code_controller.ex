@@ -28,11 +28,18 @@ defmodule ArchEthicWeb.CodeController do
 
   def download(conn, _) do
     archive_file = Utils.mut_dir("priv/archethic_node.zip")
-    {_, 0} = System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir)
 
-    conn
-    |> put_resp_content_type("application/zip, application/octet-stream")
-    |> put_resp_header("Content-disposition", "attachment; filename=\"archethic_node.zip\"")
-    |> send_file(200, archive_file)
+    case System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir) do
+      {"", 0} ->
+        conn
+        |> put_resp_content_type("application/zip, application/octet-stream")
+        |> put_resp_header("Content-disposition", "attachment; filename=\"archethic_node.zip\"")
+        |> send_file(200, archive_file)
+
+      {reason, status} ->
+        conn
+        |> put_status(500)
+        |> json(%{status: status, message: reason})
+    end
   end
 end
