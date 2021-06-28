@@ -7,5 +7,5 @@ sh $SCRIPT_DIR/install/openssl_install.sh
 sh $SCRIPT_DIR/install/erlang_elixir_install.sh
 sh $SCRIPT_DIR/install/libsodium_install.sh
 sh $SCRIPT_DIR/install/docker_install.sh
-sh $SCRIPT_DIR/install/scylldb_install.sh
+sh $SCRIPT_DIR/install/scylladb_install.sh
 sh $SCRIPT_DIR/install/tpm_install.sh
