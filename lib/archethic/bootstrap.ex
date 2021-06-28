@@ -32,10 +32,24 @@ defmodule ArchEthic.Bootstrap do
     ip = Networking.get_node_ip()
     port = Keyword.get(args, :port)
     transport = Keyword.get(args, :transport)
-    reward_address = Keyword.get(args, :reward_address)
+
+    reward_address =
+      case Keyword.get(args, :reward_address) do
+        nil ->
+          Crypto.hash(Crypto.first_node_public_key())
+
+        "" ->
+          Crypto.hash(Crypto.first_node_public_key())
+
+        address ->
+          address
+      end
 
     last_sync_date = SelfRepair.last_sync_date()
     bootstrapping_seeds = P2P.list_bootstrapping_seeds()
+
+    Logger.info("Node bootstrapping...")
+    Logger.info("Rewards will be transfered to #{Base.encode16(reward_address)}")
 
     Task.start_link(__MODULE__, :run, [
       ip,
