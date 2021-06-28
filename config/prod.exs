@@ -26,13 +26,7 @@ config :archethic, ArchEthic.BeaconChain.SummaryTimer,
 
 config :archethic, ArchEthic.Crypto,
   root_ca_public_keys: [
-    software:
-      System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_PUBKEY", "")
-      |> Base.decode16!(case: :mixed),
     tpm: System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
-  ],
-  software_root_ca_key: [
-    System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_SOFTWARE_KEY", "") |> Base.decode16!(case: :mixed)
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/key_certificates")
 

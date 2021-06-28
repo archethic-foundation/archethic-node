@@ -125,7 +125,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
     {:reply, pub, state}
   end
 
-  def handle_call(:previous_public_key, state, %{previous_keypair: {pub, _}}) do
+  def handle_call(:previous_public_key, _, state = %{previous_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 

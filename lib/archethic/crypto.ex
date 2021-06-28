@@ -965,22 +965,14 @@ defmodule ArchEthic.Crypto do
   defdelegate key_origin(origin), to: ID, as: :to_origin
 
   @spec get_key_certificate(key()) :: binary()
-  def get_key_certificate(fullkey = <<_::8, origin_id::8, key::binary>>) do
-    IO.inspect(Base.encode16(fullkey))
-
+  def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do
     origin_id
     |> ID.to_origin()
     |> do_get_key_certificate(key)
   end
 
-  defp do_get_key_certificate(:software, key) do
-    case Application.get_env(:archethic, __MODULE__) |> Keyword.get(:software_root_ca_key) do
-      nil ->
-        ""
-
-      root_ca_key ->
-        :crypto.sign(:ecdsa, :sha256, key, [root_ca_key, :secp256r1])
-    end
+  defp do_get_key_certificate(:software, _) do
+    ""
   end
 
   defp do_get_key_certificate(:tpm, key) do
@@ -1030,7 +1022,7 @@ defmodule ArchEthic.Crypto do
         ECDSA.verify?(:secp256r1, root_ca_key, key, certificate)
 
       :software ->
-        ECDSA.verify?(:secp256r1, root_ca_key, key, certificate)
+        true
     end
   end
 end
