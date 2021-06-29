@@ -54,7 +54,7 @@ config :archethic, ArchEthic.Governance.Pools,
     technical_council: [],
     ethical_council: [],
     foundation: [],
-    archethic: []
+    uniris: []
   ]
 
 config :archethic,
@@ -106,7 +106,7 @@ config :archethic, ArchEthic.P2P.Endpoint,
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
-  genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
+  genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS") |> IO.inspect()
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information

@@ -60,7 +60,7 @@ config :archethic, ArchEthic.Governance.Pools,
     ],
     ethical_council: [],
     foundation: [],
-    archethic: []
+    uniris: []
   ]
 
 config :archethic, ArchEthic.OracleChain.Scheduler,
