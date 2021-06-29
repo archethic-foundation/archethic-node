@@ -976,15 +976,23 @@ defmodule ArchEthic.Crypto do
   end
 
   defp do_get_key_certificate(:tpm, key) do
-    cert_filename = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)
+    key_digest = :crypto.hash(:sha256, key) |> Base.encode16(case: :lower)
 
-    [
-      Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:key_certificates_dir),
-      "#{cert_filename}.bin"
-    ]
-    |> Path.join()
-    |> Path.expand()
-    |> File.read!()
+    cert_path =
+      [
+        Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:key_certificates_dir),
+        "#{key_digest}.bin"
+      ]
+      |> Path.join()
+      |> Path.expand()
+
+    case File.read(cert_path) do
+      {:ok, data} ->
+        data
+
+      _ ->
+        ""
+    end
   end
 
   @doc """
@@ -1015,6 +1023,8 @@ defmodule ArchEthic.Crypto do
       true
   """
   @spec verify_key_certificate?(key(), binary(), binary()) :: boolean()
+  def verify_key_certificate?(_, _, ""), do: true
+
   def verify_key_certificate?(<<_::8, origin_id::8, key::binary>>, certificate, root_ca_key)
       when is_binary(certificate) and is_binary(root_ca_key) do
     case ID.to_origin(origin_id) do
