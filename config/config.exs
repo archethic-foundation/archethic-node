@@ -52,7 +52,7 @@ config :archethic, ArchEthic.Crypto,
   default_curve: :ed25519,
   default_hash: :sha256,
   storage_nonce_file: "crypto/storage_nonce",
-  key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/key_certificates")
+  key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
 config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("ARCHETHIC_CRYPTO_SEED")

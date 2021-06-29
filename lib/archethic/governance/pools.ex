@@ -8,7 +8,7 @@ defmodule ArchEthic.Governance.Pools do
   - Foundation
   - Technical council
   - Ethical council
-  - ArchEthic 
+  - Uniris
   - Miners
   - Users
 
@@ -25,9 +25,9 @@ defmodule ArchEthic.Governance.Pools do
   alias ArchEthic.P2P
 
   @type pool ::
-          :foundation | :technical_council | :ethical_council | :archethic | :miners | :users
+          :foundation | :technical_council | :ethical_council | :uniris | :miners | :users
 
-  @pools [:foundation, :technical_council, :ethical_council, :archethic, :miners, :users]
+  @pools [:foundation, :technical_council, :ethical_council, :uniris, :miners, :users]
 
   def names do
     @pools

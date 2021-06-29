@@ -11,13 +11,13 @@ defmodule ArchEthic.Governance.Pools.MemTable do
 
       iex> {:ok, pid} = MemTable.start_link()
       iex> :sys.get_state(pid)
-      %{ technical_council: %{}, ethical_council: %{}, archethic: %{}, foundation: %{} }
+      %{ technical_council: %{}, ethical_council: %{}, uniris: %{}, foundation: %{} }
   """
   @spec start_link(list()) :: {:ok, pid()}
   def start_link(_args \\ []) do
     Agent.start_link(
       fn ->
-        %{technical_council: %{}, ethical_council: %{}, archethic: %{}, foundation: %{}}
+        %{technical_council: %{}, ethical_council: %{}, uniris: %{}, foundation: %{}}
       end,
       name: __MODULE__
     )
@@ -32,7 +32,7 @@ defmodule ArchEthic.Governance.Pools.MemTable do
       iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
       iex> MemTable.put_pool_member(:technical_council, "@Alice2", weighted?: true, weight_factor: 1)
       iex> :sys.get_state(pid)
-      %{ technical_council: %{ "@Alice2" => 2 }, ethical_council: %{}, archethic: %{}, foundation: %{}  }
+      %{ technical_council: %{ "@Alice2" => 2 }, ethical_council: %{}, uniris: %{}, foundation: %{}  }
   """
   @spec put_pool_member(pool_name :: Pools.pool(), address :: binary(), options :: Keyword.t()) ::
           :ok

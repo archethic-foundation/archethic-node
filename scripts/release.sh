@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INSTALL_DIR=~/archethic_build
+INSTALL_DIR=~/aebot/build
 UPGRADE=0
 
 usage() {
