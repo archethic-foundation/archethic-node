@@ -531,9 +531,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
          full_replication_tree: replication_tree
        }) do
     Logger.debug(
-      "Send validation stamp to #{
-        cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
-      }",
+      "Send validation stamp to #{cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
 
@@ -577,11 +575,9 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     worker_pid = self()
 
     Logger.debug(
-      "Send validated transaction to #{
-        storage_nodes
-        |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
-        |> Enum.join(",")
-      }",
+      "Send validated transaction to #{storage_nodes
+      |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
+      |> Enum.join(",")}",
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 

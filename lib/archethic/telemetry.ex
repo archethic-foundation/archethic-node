@@ -62,7 +62,9 @@ defmodule ArchEthic.Telemetry do
         unit: {:native, :millisecond}
       ),
       summary("archethic.contract.parsing.duration", unit: {:native, :millisecond}),
-      summary("archethic.transaction_end_to_end_validation.duration", unit: {:native, :millisecond}),
+      summary("archethic.transaction_end_to_end_validation.duration",
+        unit: {:native, :millisecond}
+      ),
       summary("archethic.p2p.send_message.duration", unit: {:native, :millisecond}),
       summary("archethic.crypto.tpm_sign.duration", unit: {:native, :millisecond})
     ]

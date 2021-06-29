@@ -1001,7 +1001,17 @@ defmodule ArchEthic.Crypto do
   @spec get_root_ca_public_key(key()) :: binary()
   def get_root_ca_public_key(<<_::8, origin_id::8, _::binary>>) do
     origin = ID.to_origin(origin_id)
-    Keyword.get(@certification_public_keys, origin, "")
+
+    case Keyword.get(@certification_public_keys, origin) do
+      nil ->
+        ""
+
+      "" ->
+        ""
+
+      <<_::binary-size(26), public_key::binary>> ->
+        public_key
+    end
   end
 
   @doc """

@@ -26,7 +26,7 @@ config :archethic, ArchEthic.BeaconChain.SummaryTimer,
 
 config :archethic, ArchEthic.Crypto,
   root_ca_public_keys: [
-    tpm: System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY", "")
+    tpm: System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
