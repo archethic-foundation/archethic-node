@@ -13,8 +13,8 @@
     <div class="container is-fluid">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-            <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
-            <img src="/images/logo.svg" alt="ArchEthic logo" title="ArchEthic">
+            <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
+              ArchEthic
             </a>
             <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
