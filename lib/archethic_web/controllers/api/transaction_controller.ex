@@ -14,11 +14,17 @@ defmodule ArchEthicWeb.API.TransactionController do
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
+        start = System.monotonic_time()
+
         res =
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.from_map()
           |> ArchEthic.send_new_transaction()
+
+        :telemetry.execute([:archethic, :transaction_end_to_end_validation], %{
+          duration: System.monotonic_time() - start
+        })
 
         case res do
           :ok ->

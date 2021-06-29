@@ -126,7 +126,9 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       {:next_event, :internal, :prior_validation}
     ]
 
-    {:ok, :idle, %{node_public_key: node_public_key, context: context}, next_events}
+    {:ok, :idle,
+     %{node_public_key: node_public_key, context: context, start_time: System.monotonic_time()},
+     next_events}
   end
 
   defp parse_opts(opts) do
@@ -220,6 +222,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 
+    start = System.monotonic_time()
+
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
      beacon_storage_nodes_view,
      validation_nodes_view} =
@@ -229,6 +233,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         Enum.map(beacon_storage_nodes, & &1.last_public_key),
         [coordinator_key | Enum.map(cross_validation_nodes, & &1.last_public_key)]
       )
+
+    :telemetry.execute([:archethic, :mining, :fetch_context], %{
+      duration: System.monotonic_time() - start
+    })
 
     new_context =
       ValidationContext.put_transaction_context(
@@ -457,12 +465,16 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :info,
         {:acknowledge_storage, replication_node_public_key, tree_types},
         :replication,
-        data = %{context: context = %ValidationContext{transaction: tx}}
+        data = %{context: context = %ValidationContext{transaction: tx}, start_time: start_time}
       ) do
     new_context =
       ValidationContext.confirm_replication(context, replication_node_public_key, tree_types)
 
     if ValidationContext.enough_replication_confirmations?(new_context) do
+      :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
+        duration: System.monotonic_time() - start_time
+      })
+
       Logger.info("Replication finished", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
       :stop
     else
@@ -519,7 +531,9 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
          full_replication_tree: replication_tree
        }) do
     Logger.debug(
-      "Send validation stamp to #{cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
+      "Send validation stamp to #{
+        cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")
+      }",
       transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
     )
 
@@ -563,9 +577,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     worker_pid = self()
 
     Logger.debug(
-      "Send validated transaction to #{storage_nodes
-      |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
-      |> Enum.join(",")}",
+      "Send validated transaction to #{
+        storage_nodes
+        |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
+        |> Enum.join(",")
+      }",
       transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
     )
 

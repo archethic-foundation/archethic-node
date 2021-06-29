@@ -186,7 +186,13 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   defp sign(port_handler, index, data) do
     hash = :crypto.hash(:sha256, data)
+    start = System.monotonic_time()
     {:ok, sig} = PortHandler.request(port_handler, 3, <<index::16, hash::binary>>)
+
+    :telemetry.execute([:archethic, :crypto, :tpm_sign], %{
+      duration: System.monotonic_time() - start
+    })
+
     sig
   end
 

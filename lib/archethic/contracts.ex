@@ -88,12 +88,18 @@ defmodule ArchEthic.Contracts do
   """
   @spec parse(binary()) :: {:ok, Contract.t()} | {:error, binary()}
   def parse(contract_code) when is_binary(contract_code) do
+    start = System.monotonic_time()
+
     case Interpreter.parse(contract_code) do
       {:ok,
        contract = %Contract{
          triggers: triggers,
          conditions: %{transaction: transaction_conditions, oracle: oracle_conditions}
        }} ->
+        :telemetry.execute([:archethic, :contract, :parsing], %{
+          duration: System.monotonic_time() - start
+        })
+
         cond do
           Enum.any?(triggers, &(&1.type == :transaction)) and
               Conditions.empty?(transaction_conditions) ->

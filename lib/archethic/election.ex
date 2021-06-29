@@ -129,22 +129,31 @@ defmodule ArchEthic.Election do
         } \\ ValidationConstraints.new()
       )
       when is_binary(sorting_seed) and is_list(authorized_nodes) and is_list(storage_nodes) do
+    start = System.monotonic_time()
+
     # Evaluate validation constraints
     nb_validations = validation_number_fun.(tx, length(authorized_nodes))
     min_geo_patch = min_geo_patch_fun.()
 
-    if length(authorized_nodes) <= nb_validations do
-      authorized_nodes
-    else
-      do_validation_node_election(
-        authorized_nodes,
-        tx,
-        sorting_seed,
-        nb_validations,
-        min_geo_patch,
-        storage_nodes
-      )
-    end
+    nodes =
+      if length(authorized_nodes) <= nb_validations do
+        authorized_nodes
+      else
+        do_validation_node_election(
+          authorized_nodes,
+          tx,
+          sorting_seed,
+          nb_validations,
+          min_geo_patch,
+          storage_nodes
+        )
+      end
+
+    :telemetry.execute([:archethic, :election, :validation_nodes], %{
+      duration: System.monotonic_time() - start
+    })
+
+    nodes
   end
 
   defp do_validation_node_election(
@@ -246,49 +255,59 @@ defmodule ArchEthic.Election do
         }
       )
       when is_binary(address) and is_list(nodes) do
+    start = System.monotonic_time()
+
     # Evaluate the storage election constraints
 
     nb_replicas = number_replicas_fun.(nodes)
     min_geo_patch_avg_availability = min_geo_patch_avg_availability_fun.()
     min_geo_patch = min_geo_patch_fun.()
 
-    nodes
-    |> sort_storage_nodes_by_key_rotation(address)
-    |> Enum.reduce_while(
-      %{nb_nodes: 0, zones: %{}, nodes: []},
-      fn node = %Node{
-           geo_patch: geo_patch,
-           average_availability: avg_availability
-         },
-         acc ->
-        if storage_constraints_satisfied?(
-             min_geo_patch,
-             min_geo_patch_avg_availability,
-             nb_replicas,
-             acc.nb_nodes,
-             acc.zones
-           ) do
-          {:halt, acc}
-        else
-          new_acc =
-            acc
-            |> Map.update!(:zones, fn zones ->
-              Map.update(
-                zones,
-                String.first(geo_patch),
-                avg_availability,
-                &(&1 + avg_availability)
-              )
-            end)
-            |> Map.update!(:nb_nodes, &(&1 + 1))
-            |> Map.update!(:nodes, &[node | &1])
+    storage_nodes =
+      nodes
+      |> sort_storage_nodes_by_key_rotation(address)
+      |> Enum.reduce_while(
+        %{nb_nodes: 0, zones: %{}, nodes: []},
+        fn node = %Node{
+             geo_patch: geo_patch,
+             average_availability: avg_availability
+           },
+           acc ->
+          if storage_constraints_satisfied?(
+               min_geo_patch,
+               min_geo_patch_avg_availability,
+               nb_replicas,
+               acc.nb_nodes,
+               acc.zones
+             ) do
+            {:halt, acc}
+          else
+            new_acc =
+              acc
+              |> Map.update!(:zones, fn zones ->
+                Map.update(
+                  zones,
+                  String.first(geo_patch),
+                  avg_availability,
+                  &(&1 + avg_availability)
+                )
+              end)
+              |> Map.update!(:nb_nodes, &(&1 + 1))
+              |> Map.update!(:nodes, &[node | &1])
 
-          {:cont, new_acc}
+            {:cont, new_acc}
+          end
         end
-      end
+      )
+      |> Map.get(:nodes)
+      |> Enum.reverse()
+
+    :telemetry.execute(
+      [:archethic, :election, :storage_nodes],
+      %{duration: System.monotonic_time() - start}
     )
-    |> Map.get(:nodes)
-    |> Enum.reverse()
+
+    storage_nodes
   end
 
   defp storage_constraints_satisfied?(

@@ -9,11 +9,11 @@ defmodule ArchEthic.Telemetry do
   end
 
   def init(_arg) do
-    [{TelemetryMetricsPrometheus.Core, [metrics: metrics() ++ more_metrics()]}]
+    [
+      {TelemetryMetricsPrometheus.Core, [metrics: metrics()]}
+    ]
     |> Supervisor.init(strategy: :one_for_one)
   end
-
-  @distr unit: {:native, :millisecond}, reporter_options: [buckets: [1, 2, 3]]
 
   def metrics do
     [
@@ -34,30 +34,37 @@ defmodule ArchEthic.Telemetry do
       #
       last_value("vm.total_run_queue_lengths.total"),
       last_value("vm.total_run_queue_lengths.cpu"),
-      last_value("vm.total_run_queue_lengths.io")
-    ]
-  end
-
-  def more_metrics do
-    [
+      last_value("vm.total_run_queue_lengths.io"),
       # Phoenix
-      distribution("phoenix.router_dispatch.stop.duration", @distr),
-      distribution("phoenix.router_dispatch.exception.duration", @distr),
-      distribution("phoenix.socket_connected.duration", @distr),
-      distribution("phoenix.channel_joined.duration", @distr),
-      distribution("phoenix.channel_handled_in.duration", @distr),
-      distribution("phoenix.error_rendered.duration", @distr),
+      summary("phoenix.router_dispatch.stop.duration", unit: {:native, :millisecond}),
+      summary("phoenix.router_dispatch.exception.duration", unit: {:native, :millisecond}),
+      summary("phoenix.socket_connected.duration", unit: {:native, :millisecond}),
+      summary("phoenix.channel_joined.duration", unit: {:native, :millisecond}),
+      summary("phoenix.channel_handled_in.duration", unit: {:native, :millisecond}),
+      summary("phoenix.error_rendered.duration", unit: {:native, :millisecond}),
       # Plug
-      distribution("plug_adapter.call.stop.duration", @distr),
-      distribution("plug_adapter.call.exception.duration", @distr),
+      summary("plug_adapter.call.stop.duration", unit: {:native, :millisecond}),
+      summary("plug_adapter.call.exception.duration", unit: {:native, :millisecond}),
       # Absinth
-      distribution("absinthe.middleware.batch.stop", @distr),
-      distribution("absinthe.resolve.field.stop", @distr),
-      distribution("absinthe.execute.operation.stop", @distr),
-      distribution("absinthe.subscription.publish.stop", @distr),
-      # Dataloader
-      distribution("dataloader.source.run.stop", @distr),
-      distribution("dataloader.source.batch.run.stop", @distr)
+      summary("absinthe.middleware.batch.stop", unit: {:native, :millisecond}),
+      summary("absinthe.resolve.field.stop", unit: {:native, :millisecond}),
+      summary("absinthe.execute.operation.stop", unit: {:native, :millisecond}),
+      summary("absinthe.subscription.publish.stop", unit: {:native, :millisecond}),
+      # ArchEthic
+      summary("archethic.election.validation_nodes.duration", unit: {:native, :millisecond}),
+      summary("archethic.election.storage_nodes.duration", unit: {:native, :millisecond}),
+      summary("archethic.mining.proof_of_work.duration", unit: {:native, :millisecond}),
+      summary("archethic.mining.pending_transaction_validation.duration",
+        unit: {:native, :millisecond}
+      ),
+      summary("archethic.mining.fetch_context.duration", unit: {:native, :millisecond}),
+      summary("archethic.mining.full_transaction_validation.duration",
+        unit: {:native, :millisecond}
+      ),
+      summary("archethic.contract.parsing.duration", unit: {:native, :millisecond}),
+      summary("archethic.transaction_end_to_end_validation.duration", unit: {:native, :millisecond}),
+      summary("archethic.p2p.send_message.duration", unit: {:native, :millisecond}),
+      summary("archethic.crypto.tpm_sign.duration", unit: {:native, :millisecond})
     ]
   end
 end

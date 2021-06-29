@@ -81,10 +81,23 @@ defmodule ArchEthic.Mining.ProofOfWork do
         tx = %Transaction{origin_signature: origin_signature}
       )
       when is_list(origin_public_keys) do
-    tx
-    |> Transaction.extract_for_origin_signature()
-    |> Transaction.serialize()
-    |> do_find_transaction_origin_public_key(origin_signature, origin_public_keys)
+    start = System.monotonic_time()
+
+    pow =
+      tx
+      |> Transaction.extract_for_origin_signature()
+      |> Transaction.serialize()
+      |> do_find_transaction_origin_public_key(origin_signature, origin_public_keys)
+
+    :telemetry.execute(
+      [:archethic, :mining, :proof_of_work],
+      %{
+        duration: System.monotonic_time() - start
+      },
+      %{nb_keys: length(origin_public_keys)}
+    )
+
+    pow
   end
 
   defp do_find_transaction_origin_public_key(data, sig, [public_key | rest]) do

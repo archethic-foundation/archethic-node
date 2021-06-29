@@ -183,8 +183,16 @@ defmodule ArchEthic.P2P do
   end
 
   def send_message(node = %Node{first_public_key: first_public_key}, message) do
+    start = System.monotonic_time()
+
     case Client.send_message(node, message) do
       {:ok, data} ->
+        :telemetry.execute(
+          [:archethic, :p2p, :send_message],
+          %{duration: System.monotonic_time() - start},
+          %{ message: message.__struct__ }
+        )
+
         MemTable.increase_node_availability(first_public_key)
         {:ok, data}
 

@@ -38,9 +38,19 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   """
   @spec validate(Transaction.t()) :: :ok | {:error, any()}
   def validate(tx = %Transaction{address: address, type: type}) do
+    start = System.monotonic_time()
+
     with true <- Transaction.verify_previous_signature?(tx),
          :ok <- validate_contract(tx) do
-      do_accept_transaction(tx)
+      res = do_accept_transaction(tx)
+
+      :telemetry.execute(
+        [:archethic, :mining, :pending_transaction_validation],
+        %{duration: System.monotonic_time() - start},
+        %{transaction_type: type}
+      )
+
+      res
     else
       false ->
         Logger.error("Invalid previous signature",
