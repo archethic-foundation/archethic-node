@@ -18,15 +18,6 @@ clean:
 	rm -rf data*
 	mix arch_ethic.clean_db
 
-install_deps: 
-	sh scripts/install.sh
-
-tpm_keygen:
-	sh scripts/install/tpm_keygen.sh
-
-release:
-	sh scripts/release.sh
-
 docker-clean: clean
 	docker container stop $$(docker ps -a --filter=name=utn* -q)
 	docker container rm   $$(docker ps -a --filter=name=utn* -q)
