@@ -10,4 +10,4 @@ BYTE *signECDSA(INT keyIndex, BYTE *hashToSign, INT *eccSignSize, bool increment
 INT getKeyIndex();
 void setKeyIndex(INT keyIndex);
 
-
+BYTE *getECDHPoint(INT keyIndex, BYTE *euphemeralKey);

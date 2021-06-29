@@ -12,7 +12,8 @@ enum
     GET_PUBLIC_KEY = 2,
     SIGN_ECDSA = 3,
     GET_KEY_INDEX = 4,
-    SET_KEY_INDEX = 5
+    SET_KEY_INDEX = 5,
+    GET_ECDH_POINT = 6
 };
 
 void initialize_tpm(unsigned char *buf, int pos, int len)
@@ -184,6 +185,54 @@ void set_key_index(unsigned char *buf, int pos, int len)
     }
 }
 
+void get_ecdh_point(unsigned char *buf, int pos, int len)
+{
+    BYTE ephemeral_key[65];
+
+    if (len < pos + 2)
+    {
+        write_error(buf, "missing index", 13);
+    }
+    else
+    {
+        BYTE index[2];
+        for (int i = 0; i < 2; i++)
+        {
+            index[i] = buf[pos + i];
+        }
+
+        pos += 2;
+
+        for (int i = 0; i < 65; i++)
+        {
+            ephemeral_key[i] = buf[pos + i];
+        }
+
+        INT index_int = index[1] | index[0] << 8;
+
+        BYTE *zPoint;
+
+        zPoint = getECDHPoint(index_int, ephemeral_key);
+
+        int response_len = 5 + 65;
+        unsigned char response[response_len]; 
+        for (int i = 0; i < 4; i++)
+        {
+            response[i] = buf[i];
+        }
+
+        // Encoding of success
+        response[4] = 1;
+
+        for (int i = 0; i < 65; i++)
+        {
+            response[5 + i] = zPoint[i];
+        }
+
+        write_response(response, response_len);
+    }
+}
+
 int main()
 {
     int len = get_length();
@@ -233,6 +282,9 @@ int main()
             break;
         case SET_KEY_INDEX:
             set_key_index(buf, pos, len);
+            break;
+        case GET_ECDH_POINT:
+            get_ecdh_point(buf, pos, len);
             break;
         }
 

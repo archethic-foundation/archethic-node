@@ -7,9 +7,9 @@ defmodule ArchEthic.Crypto.NodeKeystore do
 
   @callback child_spec(any) :: Supervisor.child_spec()
 
-  @callback sign_with_first_key(data :: binary()) :: binary()
-  @callback sign_with_last_key(data :: binary()) :: binary()
-  @callback sign_with_previous_key(data :: binary()) :: binary()
+  @callback sign_with_first_key(data :: iodata()) :: binary()
+  @callback sign_with_last_key(data :: iodata()) :: binary()
+  @callback sign_with_previous_key(data :: iodata()) :: binary()
 
   @callback last_public_key() :: Crypto.key()
   @callback first_public_key() :: Crypto.key()

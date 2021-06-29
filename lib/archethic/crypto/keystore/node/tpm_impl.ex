@@ -18,20 +18,20 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   @impl NodeKeystore
-  @spec sign_with_first_key(data :: binary()) :: binary()
-  def sign_with_first_key(data) when is_binary(data) do
+  @spec sign_with_first_key(data :: iodata()) :: binary()
+  def sign_with_first_key(data) do
     GenServer.call(__MODULE__, {:sign_with_first_key, data})
   end
 
   @impl NodeKeystore
-  @spec sign_with_last_key(data :: binary()) :: binary()
-  def sign_with_last_key(data) when is_binary(data) do
+  @spec sign_with_last_key(data :: iodata()) :: binary()
+  def sign_with_last_key(data) do
     GenServer.call(__MODULE__, {:sign_with_last_key, data})
   end
 
   @impl NodeKeystore
-  @spec sign_with_previous_key(data :: binary()) :: binary()
-  def sign_with_previous_key(data) when is_binary(data) do
+  @spec sign_with_previous_key(data :: iodata()) :: binary()
+  def sign_with_previous_key(data) do
     GenServer.call(__MODULE__, {:sign_with_previous_key, data})
   end
 
@@ -163,12 +163,14 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   def handle_call(
-        {:diffile_hellman, public_key},
+        {:diffie_hellman, public_key},
         _,
-        state = %{index: index, port_handler: port_handler}
+        state = %{last_index: index, port_handler: port_handler}
       ) do
-    {:ok, shared_key} = PortHandler.request(port_handler, 6, <<index::16, public_key::binary>>)
-    {:reply, shared_key, state}
+    {:ok, <<_header::binary-size(1), z_x::binary-size(32), _z_y::binary-size(32)>>} =
+      PortHandler.request(port_handler, 6, <<index::16, public_key::binary>>)
+
+    {:reply, z_x, state}
   end
 
   defp request_public_key(port_handler, index) do

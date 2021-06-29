@@ -36,6 +36,7 @@ static INT currentKeySizeASN;
 
 static BYTE tempKey[ANS1_MAX_KEY_SIZE];
 static BYTE sigEccASN[2 + 2 + PRIME_LEN + 2 + PRIME_LEN + 2];
+static BYTE zPoint[2 * PRIME_LEN + 1];
 
 void keyToASN()
 {
@@ -136,6 +137,7 @@ void generatePublicKey(INT keyIndex)
             .objectAttributes = (TPMA_OBJECT_USERWITHAUTH |
                                  TPMA_OBJECT_ADMINWITHPOLICY |
                                  TPMA_OBJECT_SIGN_ENCRYPT |
+                                 TPMA_OBJECT_DECRYPT |
                                  TPMA_OBJECT_FIXEDTPM |
                                  TPMA_OBJECT_FIXEDPARENT |
                                  TPMA_OBJECT_SENSITIVEDATAORIGIN),
@@ -150,7 +152,7 @@ void generatePublicKey(INT keyIndex)
                                          .keyBits.aes = 256,
                                          .mode.sym = TPM2_ALG_CFB,
                                      },
-                                     .scheme = {.scheme = TPM2_ALG_ECDSA, .details = {.ecdsa = {.hashAlg = TPM2_ALG_SHA256}}},
+                                     .scheme = {.scheme = TPM2_ALG_NULL, .details = {.ecdsa = {.hashAlg = TPM2_ALG_SHA256}}},
                                      .curveID = TPM2_ECC_NIST_P256,
                                      .kdf = {.scheme = TPM2_ALG_NULL, .details = {}}},
             .unique.ecc = {.x = {.size = 32, .buffer = {0}}, .y = {.size = 32, .buffer = {0}}},
@@ -322,7 +324,7 @@ BYTE *signECDSA(INT keyIndex, BYTE *hashToSign, INT *eccSignSize, bool increment
     TPM2B_DIGEST hashTPM = {.size = 32};
     memcpy(hashTPM.buffer, hashToSign, 32);
 
-    TPMT_SIG_SCHEME inScheme = {.scheme = TPM2_ALG_NULL};
+    TPMT_SIG_SCHEME inScheme = {.scheme = TPM2_ALG_ECDSA, .details = {.ecdsa = {.hashAlg = TPM2_ALG_SHA256}}};
 
     TPMT_TK_HASHCHECK hash_validation = {
         .tag = TPM2_ST_HASHCHECK,
@@ -361,4 +363,60 @@ BYTE *signECDSA(INT keyIndex, BYTE *hashToSign, INT *eccSignSize, bool increment
     memcpy(eccSignSize, &asnSignSize, sizeof(asnSignSize));
     Esys_Free(signature);
     return sigEccASN;
+}
+
+BYTE *getECDHPoint(INT keyIndex, BYTE *euphemeralKey)
+{
+    TPM2B_ECC_POINT *zPointTPM = NULL;
+    ESYS_TR ECDHKeyHandle = ESYS_TR_NONE;
+    TPM2B_ECC_POINT inPoint = {
+        .size = 0,
+        .point = {
+            .x = {
+                .size = 32,
+            },
+            .y = {
+                .size = 32,
+            }}};
+
+    if (keyIndex == previousKeyIndex)
+    {
+        ECDHKeyHandle = previousKeyHandle;
+    }
+
+    else if (keyIndex == nextKeyIndex)
+    {
+        ECDHKeyHandle = nextKeyHandle;
+    }
+
+    else if (keyIndex == 0)
+    {
+        ECDHKeyHandle = rootKeyHandle;
+    }
+
+    else
+    {
+        Esys_FlushContext(esys_context, rootKeyHandle);
+        generatePublicKey(keyIndex);
+        ECDHKeyHandle = currentKeyHandle;
+    }
+
+    memcpy(inPoint.point.x.buffer, euphemeralKey + 1, PRIME_LEN);
+    memcpy(inPoint.point.y.buffer, euphemeralKey + 1 + PRIME_LEN, PRIME_LEN);
+
+    Esys_ECDH_ZGen(esys_context, ECDHKeyHandle, ESYS_TR_PASSWORD, ESYS_TR_NONE,
+                   ESYS_TR_NONE, &inPoint, &zPointTPM);
+
+    zPoint[0] = 0x04;
+    memcpy(zPoint + 1, zPointTPM->point.x.buffer, PRIME_LEN);
+    memcpy(zPoint + 1 + PRIME_LEN, zPointTPM->point.y.buffer, PRIME_LEN);
+
+    if (currentKeyHandle != ESYS_TR_NONE)
+    {
+        Esys_FlushContext(esys_context, currentKeyHandle);
+        setRootKey();
+    }
+
+    Esys_Free(zPointTPM);
+    return zPoint;
 }
