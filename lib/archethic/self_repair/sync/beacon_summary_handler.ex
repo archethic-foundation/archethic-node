@@ -13,6 +13,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransaction
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
@@ -70,12 +71,24 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
       remote_nodes ->
         P2P.reply_atomic(remote_nodes, 3, %GetTransaction{address: beacon_address},
           patch: patch,
-          compare_fun: fn %Transaction{data: %TransactionData{content: content}} -> content end
+          compare_fun: fn
+            %Transaction{data: %TransactionData{content: content}} ->
+              content
+
+            %NotFound{} ->
+              :not_found
+          end
         )
     end
   end
 
-  defp handle_summary_transaction({:ok, tx}, subset, summary_time, nodes, _beacon_address) do
+  defp handle_summary_transaction(
+         {:ok, tx = %Transaction{}},
+         subset,
+         summary_time,
+         nodes,
+         _beacon_address
+       ) do
     beacon_storage_nodes =
       Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
 
@@ -85,6 +98,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end
 
     tx
+  end
+
+  defp handle_summary_transaction({:ok, %NotFound{}}, _, _, _, _) do
+    {:error, :transaction_not_exists}
   end
 
   defp handle_summary_transaction({:error, :transaction_not_exists}, _, _, _, _) do
