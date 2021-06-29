@@ -13,6 +13,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransaction
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
@@ -70,7 +71,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
       remote_nodes ->
         P2P.reply_atomic(remote_nodes, 3, %GetTransaction{address: beacon_address},
           patch: patch,
-          compare_fun: fn %Transaction{data: %TransactionData{content: content}} -> content end
+          compare_fun: fn
+            %Transaction{data: %TransactionData{content: content}} -> content
+            %NotFound{} -> :not_found
+          end
         )
     end
   end
