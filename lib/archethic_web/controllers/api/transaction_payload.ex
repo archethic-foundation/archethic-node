@@ -14,6 +14,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
   alias ArchEthicWeb.API.Types.TransactionType
 
   embedded_schema do
+    field(:version, :integer)
     field(:address, Hash)
     field(:type, TransactionType)
 
@@ -54,6 +55,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
   def changeset(params = %{}) do
     %__MODULE__{}
     |> cast(params, [
+      :version,
       :address,
       :type,
       :previousPublicKey,
@@ -61,6 +63,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
       :originSignature
     ])
     |> validate_required([
+      :version,
       :address,
       :type,
       :previousPublicKey,
