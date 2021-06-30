@@ -14,6 +14,7 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.SelfRepair.Scheduler
+  alias ArchEthic.SelfRepair.Sync
 
   import Mox
 
@@ -24,7 +25,7 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
     :ok
   end
 
-  test "start_scheduler/2 should start the self repair timer" do
+  test "start_scheduler/1 should start the self repair timer" do
     P2P.add_and_connect_node(%Node{
       first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
@@ -32,7 +33,8 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
     MockClient
@@ -41,7 +43,7 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
     end)
 
     {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
-    assert :ok = Scheduler.start_scheduler(pid, DateTime.utc_now())
+    assert :ok = Scheduler.start_scheduler(pid)
 
     :erlang.trace(pid, true, [:receive])
 
@@ -64,20 +66,18 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
       available?: true,
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
-      network_patch: "AAA"
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
     {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
 
-    first_last_sync_date = DateTime.utc_now()
-    Scheduler.start_scheduler(pid, first_last_sync_date)
+    first_last_sync_date = Sync.last_sync_date()
 
-    :erlang.trace(pid, true, [:receive])
+    send(pid, :sync)
 
-    assert_receive {:trace, ^pid, :receive, :sync}, 2_000
+    Process.sleep(100)
 
-    %{last_sync_date: next_last_sync_date} = :sys.get_state(pid)
-
-    assert DateTime.compare(next_last_sync_date, first_last_sync_date) == :gt
+    assert DateTime.compare(Sync.last_sync_date(), first_last_sync_date) == :gt
   end
 end

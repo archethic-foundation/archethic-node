@@ -15,9 +15,23 @@ defmodule ArchEthic.SelfRepair.Sync do
 
   @doc """
   Return the last synchronization date from the previous cycle of self repair
+
+  If there are not previous stored date: 
+   - Try to the first enrollment date of the listed nodes
+   - Otherwise take the current date
   """
-  @spec last_sync_date() :: DateTime.t() | nil
+  @spec last_sync_date() :: DateTime.t()
   def last_sync_date do
+    case last_sync_date_from_file() do
+      nil ->
+        default_last_sync_date()
+
+      date ->
+        date
+    end
+  end
+
+  defp last_sync_date_from_file do
     file = last_sync_file()
 
     if File.exists?(file) do
@@ -35,11 +49,7 @@ defmodule ArchEthic.SelfRepair.Sync do
     end
   end
 
-  @doc """
-  Return the default last sync date
-  """
-  @spec default_last_sync_date() :: DateTime.t()
-  def default_last_sync_date do
+  defp default_last_sync_date do
     case P2P.authorized_nodes() do
       [] ->
         DateTime.utc_now()
@@ -97,6 +107,10 @@ defmodule ArchEthic.SelfRepair.Sync do
         ) :: :ok
   def load_missed_transactions(last_sync_date = %DateTime{}, patch, bootstrap? \\ false)
       when is_binary(patch) and is_boolean(bootstrap?) do
+    Logger.info(
+      "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
+    )
+
     if bootstrap? do
       Stream.concat(
         missed_previous_slots(patch),

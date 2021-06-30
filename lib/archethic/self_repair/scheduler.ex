@@ -28,14 +28,14 @@ defmodule ArchEthic.SelfRepair.Scheduler do
   @doc """
   Start the self repair synchronization scheduler
   """
-  @spec start_scheduler(DateTime.t()) :: :ok
-  def start_scheduler(last_date_sync = %DateTime{}) do
-    GenServer.call(__MODULE__, {:start, last_date_sync})
+  @spec start_scheduler() :: :ok
+  def start_scheduler do
+    GenServer.call(__MODULE__, :start)
   end
 
   @doc false
-  def start_scheduler(pid, last_date_sync = %DateTime{}) when is_pid(pid) do
-    GenServer.call(pid, {:start, last_date_sync})
+  def start_scheduler(pid) when is_pid(pid) do
+    GenServer.call(pid, :start)
   end
 
   def init(opts) do
@@ -44,7 +44,7 @@ defmodule ArchEthic.SelfRepair.Scheduler do
     {:ok, %{interval: interval}}
   end
 
-  def handle_call({:start, last_sync_date}, _from, state = %{interval: interval}) do
+  def handle_call(:start, _from, state = %{interval: interval}) do
     Logger.info("Self-Repair scheduler is started")
 
     case Map.get(state, :timer) do
@@ -63,7 +63,6 @@ defmodule ArchEthic.SelfRepair.Scheduler do
 
     new_state =
       state
-      |> Map.put(:last_sync_date, last_sync_date)
       |> Map.put(:timer, timer)
 
     {:reply, :ok, new_state}
@@ -72,10 +71,11 @@ defmodule ArchEthic.SelfRepair.Scheduler do
   def handle_info(
         :sync,
         state = %{
-          interval: interval,
-          last_sync_date: last_sync_date
+          interval: interval
         }
       ) do
+    last_sync_date = Sync.last_sync_date()
+
     Logger.info(
       "Self-Repair synchronization started from #{last_sync_date_to_string(last_sync_date)}"
     )
@@ -87,9 +87,10 @@ defmodule ArchEthic.SelfRepair.Scheduler do
     timer = schedule_sync(interval)
     Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
+    update_last_sync_date()
+
     new_state =
       state
-      |> Map.put(:last_sync_date, update_last_sync_date())
       |> Map.put(:timer, timer)
 
     {:noreply, new_state, :hibernate}
@@ -113,7 +114,6 @@ defmodule ArchEthic.SelfRepair.Scheduler do
   defp update_last_sync_date do
     next_sync_date = Utils.truncate_datetime(DateTime.utc_now())
     :ok = Sync.store_last_sync_date(next_sync_date)
-    next_sync_date
   end
 
   defp schedule_sync(interval) do
