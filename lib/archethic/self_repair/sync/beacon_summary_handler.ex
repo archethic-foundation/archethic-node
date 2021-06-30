@@ -79,7 +79,13 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end
   end
 
-  defp handle_summary_transaction({:ok, tx}, subset, summary_time, nodes, _beacon_address) do
+  defp handle_summary_transaction(
+         {:ok, tx = %Transaction{}},
+         subset,
+         summary_time,
+         nodes,
+         _beacon_address
+       ) do
     beacon_storage_nodes =
       Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
 
@@ -89,6 +95,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end
 
     tx
+  end
+
+  defp handle_summary_transaction({:ok, %NotFound{}}, _, _, _, _) do
+    {:error, :transaction_not_exists}
   end
 
   defp handle_summary_transaction({:error, :transaction_not_exists}, _, _, _, _) do

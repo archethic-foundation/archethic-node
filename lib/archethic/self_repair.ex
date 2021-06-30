@@ -10,8 +10,8 @@ defmodule ArchEthic.SelfRepair do
   @doc """
   Start the self repair synchronization scheduler
   """
-  @spec start_scheduler(DateTime.t()) :: :ok
-  defdelegate start_scheduler(last_sync_date), to: Scheduler
+  @spec start_scheduler() :: :ok
+  defdelegate start_scheduler, to: Scheduler
 
   @doc """
   Start the bootstrap's synchronization process using the last synchronization date
@@ -27,12 +27,6 @@ defmodule ArchEthic.SelfRepair do
   """
   @spec last_sync_date() :: DateTime.t()
   defdelegate last_sync_date, to: Sync
-
-  @doc """
-  Return the default last sync date
-  """
-  @spec default_last_sync_date() :: DateTime.t()
-  defdelegate default_last_sync_date, to: Sync
 
   @doc """
   Set the next last synchronization date
