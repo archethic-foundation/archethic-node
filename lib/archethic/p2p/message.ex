@@ -221,7 +221,12 @@ defmodule ArchEthic.P2P.Message do
     <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
-  def encode(%ReplicateTransaction{transaction: tx, roles: roles, ack_storage?: ack_storage?}) do
+  def encode(%ReplicateTransaction{
+        transaction: tx,
+        roles: roles,
+        ack_storage?: ack_storage?,
+        welcome_node_public_key: welcome_node_public_key
+      }) do
     roles_bitstring =
       Enum.reduce(roles, <<0::1, 0::1, 0::1>>, fn
         :chain, acc ->
@@ -236,8 +241,8 @@ defmodule ArchEthic.P2P.Message do
 
     ack_storage_bit = if ack_storage?, do: 1, else: 0
 
-    <<11::8, Transaction.serialize(tx)::bitstring, roles_bitstring::bitstring,
-      ack_storage_bit::1>>
+    <<11::8, Transaction.serialize(tx)::bitstring, roles_bitstring::bitstring, ack_storage_bit::1,
+      welcome_node_public_key::binary>>
   end
 
   def encode(%AcknowledgeStorage{address: address}) do
