@@ -199,7 +199,8 @@ defmodule ArchEthic.BeaconChain.Subset do
     |> Slot.involved_nodes()
     |> Enum.reject(&(&1.first_public_key == node_public_key))
     |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: transaction
+      transaction: transaction,
+      welcome_node_public_key: Crypto.last_node_public_key()
     })
   end
 
