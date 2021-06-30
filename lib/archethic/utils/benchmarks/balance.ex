@@ -61,7 +61,7 @@ defmodule ArchEthic.Benchmark.Balance do
 
   @genesis Application.compile_env!(:archethic, ArchEthic.Bootstrap.NetworkInit)[:genesis_pools]
   @balance @genesis[:foundation][:amount]
-  @address @genesis[:foundation][:public_key] |> Base.decode16!() |> Crypto.hash()
+  @address @genesis[:foundation][:public_key] |> Base.decode16!(case: :mixed) |> Crypto.hash()
   @message %GetBalance{address: @address} |> Message.encode() |> Utils.wrap_binary()
   @msgdata <<byte_size(@message) + 4::32, 1::32, @message::binary>>
 

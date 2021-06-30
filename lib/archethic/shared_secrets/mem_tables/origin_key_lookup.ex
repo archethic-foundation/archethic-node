@@ -7,6 +7,8 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Bootstrap.NetworkInit
+
   alias ArchEthic.SharedSecrets
 
   require Logger
@@ -14,6 +16,10 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
   @origin_key_table :archethic_origin_keys
   @origin_key_by_type_table :archethic_origin_key_by_type
 
+  @genesis_origin_public_keys Application.compile_env!(
+                                :archethic,
+                                [NetworkInit, :genesis_origin_public_keys]
+                              )
   @doc """
   Initialize memory tables to index public information from the shared secrets
 
@@ -32,6 +38,11 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
 
     :ets.new(@origin_key_by_type_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@origin_key_table, [:set, :named_table, :public, read_concurrency: true])
+
+
+    Enum.map(@genesis_origin_public_keys, fn key ->
+       add_public_key(:software, key) 
+    end)
 
     {:ok, []}
   end

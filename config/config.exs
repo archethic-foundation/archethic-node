@@ -65,7 +65,11 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
       133, 242, 197, 73, 199, 53, 46, 127, 7, 223, 45, 246>>,
   genesis_daily_nonce_seed:
     <<190, 107, 211, 23, 6, 230, 228, 144, 253, 154, 200, 213, 66, 172, 229, 96, 5, 171, 134, 249,
-      80, 160, 149, 4, 106, 249, 155, 116, 186, 125, 77, 192>>
+      80, 160, 149, 4, 106, 249, 155, 116, 186, 125, 77, 192>>,
+  genesis_origin_public_keys: [
+    "010004AB41291F847A601055AEDD1AF24FF76FA970D6441E2DCA3818A8319B004C96B27B8FEB1DA31A044BA0A4800B4353359735719EBB3A05F98393A9CC599C3FAFD6"
+    |> Base.decode16!(case: :mixed)
+  ]
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
@@ -91,31 +95,38 @@ config :archethic, ArchEthicWeb.Endpoint,
 config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
     funding: [
-      public_key: "000004D1E769768AA6ABE40E9D04BD5AF5D5E0CACFB50C250455AD95222D54644721",
+      public_key:
+        "010004491dbeb3dbe9f327ef53e795416f7fdd7742ffd4fccd66f0dab1b113126440794786b3fdb46ecee0fac324b29de3d996d2a1bbc3b798440dbc4dd963eab92342",
       amount: 3.82e9
     ],
     deliverable: [
-      public_key: "0000D8F54BEDBBB3BAEC8A0680F816886E9B12C2000A382BADE92B2FD0E4474BBBF0",
+      public_key:
+        "010004133f933e55e0af85afb21f60f3f63bf5baa56da65f36646e8c8a7e190032a0d3628823aa552d7b8d8659c6ecdeeef453bfabcff65f2a84ea332b02335465505f",
       amount: 2.36e9
     ],
     enhancement: [
-      public_key: "0000E5225BBA00C651A55CFDBA3F1A39861FB57A3052477B465ABA8FFAD9E732577D",
+      public_key:
+        "01000426cf0a186023b7ad87f98f274d58ff20f3f8eb65fd649be5939e2bd1b30b724aafb59ac36abb148c508d1c607478b782ee4c5de88a9213aaa563651c476d9917",
       amount: 9.0e8
     ],
     team: [
-      public_key: "0000857C0A211D1D4186C9D639E3A2AE8A2F112118298ECF574BD346176537780B1B",
+      public_key:
+        "010004bfaa4157ce34f0960044e35ed6705e25bb020875e9e72e43f6b56dcd4284a40909c0932cb3dfb45027133196f50509db2b12ab06ae04038bb46adbb302c37e50",
       amount: 5.6e8
     ],
     exchange: [
-      public_key: "0000BDC880BCA2AF01FDDB12816D9410E1A429FD07D37ECBD24097334143D4BD144F",
+      public_key:
+        "01000428ba2913c5eccddeb744fccc927fc14fa428991edb5ad6ff5910b8f963cad4fa936c7ff82b2aeef1feaf3e98adab0aaed93329b129f29f17110239d1f4aeae07",
       amount: 3.4e8
     ],
     marketing: [
-      public_key: "0000BC759DBEE4972D169D7CD3C550C825DC38B0580572B9AAE8ABE44319FD995439",
+      public_key:
+        "010004ba4c68d3ddddf61fefb11c707c18a966c6b77a71c55aee22817e1839ad10f069eb713a375e466b05468a4aef12115cafefade9816b5195d09f41b1b87b54fe15",
       amount: 3.4e8
     ],
     foundation: [
-      public_key: "0000240B3822D15985542549EE697F3FF186807C13C01184D19C648C5725FC3F81F7",
+      public_key:
+        "01000480ee3cf265a170ef78defb2db50990800cafe30c7d006f55d55f2b8908a2855a710a46707800eb7dfaf64d9a014689e37c772fb2a4e9dd22ce9c11ce6b674a49",
       amount: 2.2e8
     ]
   ]

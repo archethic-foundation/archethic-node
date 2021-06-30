@@ -118,7 +118,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
                                    amount: amount
                                  ]} ->
       %Transfer{
-        to: public_key |> Base.decode16!() |> Crypto.hash(),
+        to: public_key |> Base.decode16!(case: :mixed) |> Crypto.hash(),
         amount: amount
       }
     end) ++
