@@ -302,6 +302,8 @@ defmodule ArchEthic.Utils do
       [ [<<1::1, 1::1, 1::1, 0::1, 0::1, 0::1, 0::1, 0::1>>, "abc"], "hello"]
   """
   @spec wrap_binary(iodata() | bitstring() | list(bitstring())) :: binary()
+  def wrap_binary(bits) when is_binary(bits), do: bits
+
   def wrap_binary(bits) when is_bitstring(bits) do
     size = bit_size(bits)
 
