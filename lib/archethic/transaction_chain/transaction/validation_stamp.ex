@@ -280,7 +280,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
         Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
-      errors: Map.get(stamp, :errors)
+      errors: Map.get(stamp, :errors, [])
     }
   end
 

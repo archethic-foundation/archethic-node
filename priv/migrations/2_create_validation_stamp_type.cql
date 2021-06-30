@@ -30,6 +30,8 @@ CREATE TYPE IF NOT EXISTS archethic.validation_stamp(
   timestamp timestamp,
   proof_of_work blob,
   proof_of_integrity blob,
+  proof_of_election blob,
   ledger_operations frozen<ledger_operations>,
+  recipients LIST<blob>,
   signature blob
 );
