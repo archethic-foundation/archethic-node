@@ -351,7 +351,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Node public key</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.node_path(@socket, :show, Base.encode16(movement.to)) do%>
+                                                  <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(movement.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -441,7 +441,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Node public key</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.node_path(@socket, :show, Base.encode16(cross_validation_stamp.node_public_key)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(cross_validation_stamp.node_public_key)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(cross_validation_stamp.node_public_key) %></span>
                                                     <% end %>
                                                 </div>

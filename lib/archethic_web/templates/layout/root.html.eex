@@ -35,7 +35,7 @@
             <a class="navbar-item" href="<%= Routes.explorer_path(@conn, :chain) %>">
                 Chains
             </a>
-            <a class="navbar-item" href="<%= Routes.node_path(@conn, :index) %>">
+            <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NodeListLive) %>">
                 Nodes
             </a>
 

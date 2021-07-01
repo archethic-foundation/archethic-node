@@ -5,7 +5,7 @@
         </div>
         <%= if assigns[:error] == nil do %>
             <div class="column is-2-desktop">
-                <%= link class: "button is-primary is-outl-ned is-fullwidth", to: Routes.explorer_path(@conn, :chain, address: Base.encode16(@node_address), last: "on") do%>
+                <%= link class: "button is-primary is-outl-ned is-fullwidth", to: Routes.explorer_path(@socket, :chain, address: Base.encode16(@node_address), last: "on") do%>
                     Explore node chain
                 <% end %>
             </div>
@@ -21,11 +21,13 @@
         <div class="columns">
             <div class="column">
                 <p class="heading">First public key</p>
-                <span class="text_wrap"><%= Base.encode16(@node.first_public_key) %></span>
+                <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(@node.first_public_key, 0, 30)) %>...</span>
+                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(@node.first_public_key, 0, 13)) %>...</span>
             </div>
             <div class="column">
                 <p class="heading">Last public key</p>
-                <span class="text_wrap"><%= Base.encode16(@node.last_public_key) %></span>
+                <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(@node.last_public_key, 0, 30)) %>...</span>
+                <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(@node.last_public_key, 0, 13)) %>...</span>
             </div>
         </div>
             <div class="columns">
@@ -71,8 +73,8 @@
                 <div>
                     <p class="heading">Reward address</p>
                     <span>
-                        <%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@reward_address)) do %>
-                            <%= Base.encode16(@reward_address) %>
+                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
+                            <%= Base.encode16(@node.reward_address) %>
                         <% end %>
                     </span>
                 </div>

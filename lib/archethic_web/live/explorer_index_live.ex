@@ -6,26 +6,21 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
   alias Phoenix.View
 
   alias ArchEthic.DB
-
-  alias ArchEthic.P2P
   alias ArchEthic.PubSub
 
   alias ArchEthicWeb.ExplorerView
 
   def mount(_params, _session, socket) do
-    nb_nodes = P2P.authorized_nodes() |> length()
     tps = DB.get_latest_tps()
     nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
       PubSub.register_to_new_tps()
       PubSub.register_to_new_transaction_number()
-      PubSub.register_to_node_update()
     end
 
     new_socket =
       socket
-      |> assign(:nb_nodes, nb_nodes)
       |> assign(:tps, tps)
       |> assign(:nb_transactions, nb_transactions)
 
@@ -42,11 +37,6 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
 
   def handle_info({:new_transaction_number, nb}, socket) do
     {:noreply, assign(socket, :nb_transactions, nb)}
-  end
-
-  def handle_info({:node_update, _}, socket) do
-    nb_nodes = P2P.authorized_nodes() |> length()
-    {:noreply, assign(socket, :nb_nodes, nb_nodes)}
   end
 
   def handle_event("search", %{"address" => address}, socket) do
