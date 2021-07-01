@@ -23,9 +23,7 @@ defmodule ArchEthic.Networking.IPLookup.NAT do
          {:ok, ip} <- :inet.parse_address(ip_chars) do
       {:ok, ip}
     else
-      {:error, :einval} -> discover(protocol_modules)
-      {:error, :no_nat} -> discover(protocol_modules)
-      {:error, :timeout} -> discover(protocol_modules)
+      {:error, _} -> discover(protocol_modules)
     end
   end
 end

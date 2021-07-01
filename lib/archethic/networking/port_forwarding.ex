@@ -43,10 +43,7 @@ defmodule ArchEthic.Networking.PortForwarding do
            protocol_module.add_port_mapping(router_ip, :tcp, port, port, 0) do
       {:ok, internal_port}
     else
-      {:error, {:http_error, _code, _reason}} -> assign_port(protocol_modules, port)
-      {:error, :einval} -> assign_port(protocol_modules, port)
-      {:error, :no_nat} -> assign_port(protocol_modules, port)
-      {:error, :timeout} -> assign_port(protocol_modules, port)
+      {:error, _} -> assign_port(protocol_modules, port)
     end
   end
 
@@ -59,11 +56,7 @@ defmodule ArchEthic.Networking.PortForwarding do
       {:error, _} ->
         Logger.error("Cannot publish the a random port #{port}")
 
-        Logger.info(
-          "Port from configuration is used but requires a manuel port forwarding setting on the router"
-        )
-
-        port
+        raise "Port from configuration is used but requires a manuel port forwarding setting on the router"
     end
   end
 
