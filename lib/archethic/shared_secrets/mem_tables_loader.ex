@@ -107,6 +107,8 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
       daily_nonce_public_key,
       NodeRenewalScheduler.next_application_date(timestamp)
     )
+
+    Logger.info("Load daily nonce public key: #{Base.encode16(daily_nonce_public_key)}")
   end
 
   def load_transaction(%Transaction{type: :node_rewards, address: address}) do
