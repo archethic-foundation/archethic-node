@@ -41,7 +41,6 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
 
   Options:
   - interval: Cron like interval when the node renewal will occur
-  - trigger_offset: How many seconds before the interval, the node renewal must be done and sent to all the nodes
   """
   @spec start_link(
           args :: [interval: binary()],
@@ -63,7 +62,8 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
         {:node_update, %Node{first_public_key: first_public_key, authorized?: true}},
         state = %{interval: interval}
       ) do
-    if Crypto.first_node_public_key() == first_public_key do
+    with ^first_public_key <- Crypto.first_node_public_key(),
+         nil <- Map.get(state, :timer) do
       Logger.info("Start node shared secrets scheduling")
       timer = schedule_renewal_message(interval)
 
@@ -71,9 +71,10 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
         "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
       )
 
-      {:noreply, Map.put(state, :timer, timer), :hibernate}
+      {:noreply, Map.put(state, :timer, timer)}
     else
-      {:noreply, state, :hibernate}
+      _ ->
+        {:noreply, state, :hibernate}
     end
   end
 
@@ -127,9 +128,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
     Task.Supervisor.start_child(TaskSupervisor, fn -> ArchEthic.send_new_transaction(tx) end)
 
     Logger.info(
-      "Node shared secrets renewal transaction sent (#{
-        Crypto.number_of_node_shared_secrets_keys()
-      })"
+      "Node shared secrets renewal transaction sent (#{Crypto.number_of_node_shared_secrets_keys()})"
     )
   end
 
