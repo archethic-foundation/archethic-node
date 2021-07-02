@@ -2,7 +2,7 @@ defmodule ArchEthic.SelfRepair.Sync do
   @moduledoc false
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
+  # alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
@@ -24,9 +24,12 @@ defmodule ArchEthic.SelfRepair.Sync do
   def last_sync_date do
     case last_sync_date_from_file() do
       nil ->
-        default_last_sync_date()
+       Logger.info("Not previous synchronization date")
+       Logger.info("We are using the default one") 
+       default_last_sync_date()
 
       date ->
+	Logger.info("Last synchronization date #{DateTime.to_string(date)}")
         date
     end
   end
@@ -52,7 +55,7 @@ defmodule ArchEthic.SelfRepair.Sync do
   defp default_last_sync_date do
     case P2P.authorized_nodes() do
       [] ->
-        DateTime.utc_now()
+	nil
 
       nodes ->
         %Node{enrollment_date: enrollment_date} =
@@ -61,6 +64,7 @@ defmodule ArchEthic.SelfRepair.Sync do
           |> Enum.sort_by(& &1.enrollment_date)
           |> Enum.at(0)
 
+	Logger.info("We are taking the first node's enrollment date - #{DateTime.to_string(enrollment_date)}")
         enrollment_date
     end
   end
@@ -111,14 +115,8 @@ defmodule ArchEthic.SelfRepair.Sync do
       "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
     )
 
-    if bootstrap? do
-      Stream.concat(
-        missed_previous_slots(patch),
-        missed_previous_summaries(last_sync_date, patch)
-      )
-    else
-      missed_previous_summaries(last_sync_date, patch)
-    end
+    last_sync_date
+    |> missed_previous_summaries(patch)
     |> BeaconSummaryHandler.handle_missing_summaries(patch)
   end
 
@@ -128,11 +126,11 @@ defmodule ArchEthic.SelfRepair.Sync do
     |> BeaconSummaryHandler.get_beacon_summaries(patch)
   end
 
-  defp missed_previous_slots(patch) do
-    DateTime.utc_now()
-    |> BeaconChain.previous_summary_time()
-    |> BeaconChain.get_slot_pools()
-    |> BeaconSummaryHandler.get_beacon_slots(patch)
-    |> Stream.map(&BeaconSummary.from_slot/1)
-  end
+ #  defp missed_previous_slots(patch) do
+ #    DateTime.utc_now()
+ #    |> BeaconChain.previous_summary_time()
+ #    |> BeaconChain.get_slot_pools()
+ #    |> BeaconSummaryHandler.get_beacon_slots(patch)
+ #    |> Stream.map(&BeaconSummary.from_slot/1)
+ #  end
 end

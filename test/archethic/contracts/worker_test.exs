@@ -109,7 +109,9 @@ defmodule ArchEthic.Contracts.WorkerTest do
         uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
       ]
 
-      actions triggered_by: datetime, at: #{DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()} do
+      actions triggered_by: datetime, at: #{
+        DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()
+      } do
         set_type transfer
         add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
       end

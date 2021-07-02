@@ -39,9 +39,8 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
     :ets.new(@origin_key_by_type_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@origin_key_table, [:set, :named_table, :public, read_concurrency: true])
 
-
     Enum.map(@genesis_origin_public_keys, fn key ->
-       add_public_key(:software, key) 
+      add_public_key(:software, key)
     end)
 
     {:ok, []}
@@ -62,12 +61,20 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
       {
           [
             {"key1", :software},
+            {<<1, 0, 4, 171, 65, 41, 31, 132, 122, 96, 16, 85, 174, 221, 26, 242, 79, 247,
+              111, 169, 112, 214, 68, 30, 45, 202, 56, 24, 168, 49, 155, 0, 76, 150, 178,
+              123, 143, 235, 29, 163, 26, 4, 75, 160, 164, 128, 11, 67, 83, 53, 151, 53,
+              113, 158, 187, 58, 5, 249, 131, 147, 169, 204, 89, 156, 63, 175, 214>>, :software},
             {"key3", :hardware},
             {"key2", :hardware}
           ],
           [
             {:hardware, "key2"},
             {:hardware, "key3"},
+            {:software, <<1, 0, 4, 171, 65, 41, 31, 132, 122, 96, 16, 85, 174, 221, 26, 242, 79, 247,
+              111, 169, 112, 214, 68, 30, 45, 202, 56, 24, 168, 49, 155, 0, 76, 150, 178,
+              123, 143, 235, 29, 163, 26, 4, 75, 160, 164, 128, 11, 67, 83, 53, 151, 53,
+              113, 158, 187, 58, 5, 249, 131, 147, 169, 204, 89, 156, 63, 175, 214>>},
             {:software, "key1"}
           ],
       }
@@ -110,7 +117,15 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
       iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key2")
       iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
       iex> OriginKeyLookup.list_public_keys()
-      ["key1", "key3", "key2"]
+      [
+        "key1", 
+        <<1, 0, 4, 171, 65, 41, 31, 132, 122, 96, 16, 85, 174, 221, 26, 242, 79, 247,
+        111, 169, 112, 214, 68, 30, 45, 202, 56, 24, 168, 49, 155, 0, 76, 150, 178,
+        123, 143, 235, 29, 163, 26, 4, 75, 160, 164, 128, 11, 67, 83, 53, 151, 53,
+        113, 158, 187, 58, 5, 249, 131, 147, 169, 204, 89, 156, 63, 175, 214>>, 
+        "key3",
+        "key2"
+      ]
   """
   @spec list_public_keys() :: list(Crypto.key())
   def list_public_keys do

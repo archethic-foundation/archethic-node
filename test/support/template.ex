@@ -64,6 +64,10 @@ defmodule ArchEthicCase do
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
     end)
+    |> stub(:sign_with_previous_key, fn data ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
     |> stub(:sign_with_node_shared_secrets_key, fn data ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
@@ -93,6 +97,10 @@ defmodule ArchEthicCase do
       pub
     end)
     |> stub(:first_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:previous_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)

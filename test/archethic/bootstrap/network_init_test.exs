@@ -256,7 +256,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     funding_address =
       Application.get_env(:archethic, NetworkInit)
       |> get_in([:genesis_pools, :funding, :public_key])
-      |> Base.decode16!()
+      |> Base.decode16!(case: :mixed)
       |> Crypto.hash()
 
     assert %{uco: 3.82e9} = Account.get_balance(funding_address)

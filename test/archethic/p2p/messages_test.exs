@@ -318,7 +318,8 @@ defmodule ArchEthic.P2P.MessageTest do
           ]
         },
         roles: [:chain, :beacon],
-        ack_storage?: true
+        ack_storage?: true,
+        welcome_node_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

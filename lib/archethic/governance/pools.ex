@@ -38,7 +38,7 @@ defmodule ArchEthic.Governance.Pools do
   """
   @spec members_of(pool()) :: list(Crypto.key())
   def members_of(pool)
-      when pool in [:foundation, :technical_council, :ethical_council, :archethic] do
+      when pool in [:foundation, :technical_council, :ethical_council, :uniris] do
     pool
     |> MemTable.list_pool_members()
     |> Enum.map(fn {key, _} -> key end)

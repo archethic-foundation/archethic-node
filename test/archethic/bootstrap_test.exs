@@ -231,7 +231,7 @@ defmodule ArchEthic.BootstrapTest do
           validated_tx = %{tx | validation_stamp: stamp}
           :ok = TransactionChain.write([validated_tx])
           :ok = Replication.ingest_transaction(validated_tx)
-          :ok = Replication.acknowledge_storage(validated_tx)
+          :ok = Replication.acknowledge_storage(validated_tx, P2P.get_node_info())
 
           {:ok, %Ok{}}
 

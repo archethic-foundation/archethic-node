@@ -11,6 +11,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                valid?: false,
                errors: [
                  data: {"can't be blank", [validation: :required]},
+                 version: {"can't be blank", [validation: :required]},
                  address: {"can't be blank", [validation: :required]},
                  type: {"can't be blank", [validation: :required]},
                  previousPublicKey: {"can't be blank", [validation: :required]},
@@ -31,6 +32,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                ]
              } =
                TransactionPayload.changeset(%{
+                 "version" => 1,
                  "address" => "abc",
                  "type" => "transfer",
                  "data" => %{
@@ -59,10 +61,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         changes: %{data: %{errors: errors}}
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{"content" => "hello"}
@@ -77,10 +81,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         changes: %{data: %{errors: errors}}
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{"code" => 123}
@@ -113,10 +119,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -151,10 +159,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -198,10 +208,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -246,10 +258,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -294,10 +308,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -332,10 +348,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -362,10 +380,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -392,10 +412,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -423,10 +445,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -434,7 +458,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
               "authorizedKeys" =>
                 Map.put(
                   %{},
-                  Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                  Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                   "hello"
                 )
             }
@@ -454,10 +478,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -476,10 +502,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         }
       } =
         TransactionPayload.changeset(%{
+          "version" => 1,
           "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "type" => "transfer",
           "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
-          "previousPublicKey" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
@@ -493,7 +521,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
 
   test "to_map/1 should return a map of the changeset" do
     address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    previous_public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    previous_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     previous_signature = :crypto.strong_rand_bytes(64)
     origin_signature = :crypto.strong_rand_bytes(64)
     recipient = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -505,6 +533,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
     encrypted_key = Crypto.ec_encrypt(aes_key, authorized_public_key)
 
     assert %{
+             version: 1,
              address: address,
              type: "transfer",
              previous_public_key: previous_public_key,
@@ -528,6 +557,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
              }
            } ==
              TransactionPayload.changeset(%{
+               "version" => 1,
                "address" => Base.encode16(address),
                "type" => "transfer",
                "previousPublicKey" => Base.encode16(previous_public_key),

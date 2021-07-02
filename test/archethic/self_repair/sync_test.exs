@@ -33,9 +33,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   import Mox
 
   describe "last_sync_date/0" do
-    test "should get current datetime if not last sync file and not prior nodes" do
-      assert Sync.last_sync_date() |> DateTime.truncate(:second) ==
-               DateTime.utc_now() |> DateTime.truncate(:second)
+    test "should get nil if not last sync file and not prior nodes" do
+      assert Sync.last_sync_date() == nil
     end
 
     test "should get the last sync date from the stored filed file" do

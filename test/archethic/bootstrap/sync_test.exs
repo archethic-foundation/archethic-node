@@ -267,7 +267,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       |> Enum.each(fn {key, amount} ->
         address =
           key
-          |> Base.decode16!()
+          |> Base.decode16!(case: :mixed)
           |> Crypto.hash()
 
         assert %{uco: amount, nft: %{}} == Account.get_balance(address)

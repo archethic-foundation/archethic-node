@@ -18,6 +18,11 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
   setup :verify_on_exit!
   setup :set_mox_global
 
+  @origin_genesis_public_keys Application.compile_env(:archethic, [
+                                NetworkInit,
+                                :genesis_origin_public_keys
+                              ])
+
   describe "load_transaction/1" do
     test "should load node transaction and first node public key as origin key" do
       first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -28,7 +33,8 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
       tx = %Transaction{previous_public_key: first_public_key, type: :node}
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      assert [first_public_key] == OriginKeyLookup.list_public_keys()
+      expected_keys = [first_public_key] ++ @origin_genesis_public_keys
+      assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
     end
 
     test "should load transaction but node add node public key as origin key (already existing)" do
@@ -44,7 +50,8 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
       tx = %Transaction{previous_public_key: second_public_key, type: :node}
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      assert [first_public_key] == OriginKeyLookup.list_public_keys()
+      expected_keys = [first_public_key] ++ @origin_genesis_public_keys
+      assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
     end
 
     test "should load origin shared secret transaction and load keys from content" do
@@ -61,12 +68,15 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
 
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      assert [
-               <<0, 0, 44, 109, 55, 248, 40, 227, 68, 248, 1, 34, 31, 172, 75, 3, 244, 11, 58,
-                 245, 170, 246, 70, 204, 242, 12, 14, 36, 248, 240, 71, 218, 245, 78>>,
-               <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213,
-                 140, 129, 186, 156, 39, 168, 129, 94, 161, 133, 2, 177, 176, 158, 246, 10>>
-             ] == OriginKeyLookup.list_public_keys()
+      expected_keys =
+        [
+          <<0, 0, 44, 109, 55, 248, 40, 227, 68, 248, 1, 34, 31, 172, 75, 3, 244, 11, 58, 245,
+            170, 246, 70, 204, 242, 12, 14, 36, 248, 240, 71, 218, 245, 78>>,
+          <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213, 140,
+            129, 186, 156, 39, 168, 129, 94, 161, 133, 2, 177, 176, 158, 246, 10>>
+        ] ++ @origin_genesis_public_keys
+
+      assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
 
       assert [
                <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213,
@@ -166,14 +176,17 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
 
       assert {:ok, _} = MemTablesLoader.start_link()
 
-      assert [
-               <<0, 0, 44, 109, 55, 248, 40, 227, 68, 248, 1, 34, 31, 172, 75, 3, 244, 11, 58,
-                 245, 170, 246, 70, 204, 242, 12, 14, 36, 248, 240, 71, 218, 245, 78>>,
-               <<0, 0, 174, 5, 254, 137, 242, 45, 117, 124, 241, 11, 154, 120, 62, 254, 137, 49,
-                 24, 186, 216, 182, 81, 64, 93, 92, 48, 231, 23, 124, 127, 140, 103, 105>>,
-               <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213,
-                 140, 129, 186, 156, 39, 168, 129, 94, 161, 133, 2, 177, 176, 158, 246, 10>>
-             ] == OriginKeyLookup.list_public_keys()
+      expected_keys =
+        [
+          <<0, 0, 44, 109, 55, 248, 40, 227, 68, 248, 1, 34, 31, 172, 75, 3, 244, 11, 58, 245,
+            170, 246, 70, 204, 242, 12, 14, 36, 248, 240, 71, 218, 245, 78>>,
+          <<0, 0, 174, 5, 254, 137, 242, 45, 117, 124, 241, 11, 154, 120, 62, 254, 137, 49, 24,
+            186, 216, 182, 81, 64, 93, 92, 48, 231, 23, 124, 127, 140, 103, 105>>,
+          <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213, 140,
+            129, 186, 156, 39, 168, 129, 94, 161, 133, 2, 177, 176, 158, 246, 10>>
+        ] ++ @origin_genesis_public_keys
+
+      assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
 
       genesis_daily_nonce_public_key =
         :archethic

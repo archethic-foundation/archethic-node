@@ -79,7 +79,7 @@ defmodule ArchEthic.Bootstrap do
           :inet.port_number(),
           Transport.supported(),
           list(Node.t()),
-          DateTime.t(),
+          DateTime.t() | nil,
           Crypto.versioned_hash()
         ) :: :ok
   def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date, reward_address)
@@ -105,7 +105,7 @@ defmodule ArchEthic.Bootstrap do
       )
     else
       P2P.set_node_globally_available(Crypto.first_node_public_key())
-      post_bootstrap(last_sync_date: last_sync_date, sync?: false)
+      post_bootstrap(sync?: false)
     end
   end
 
@@ -160,12 +160,12 @@ defmodule ArchEthic.Bootstrap do
           reward_address
         )
 
-        post_bootstrap(patch: network_patch, sync?: true, last_sync_date: last_sync_date)
+        post_bootstrap(patch: network_patch, sync?: true)
       else
         if Sync.require_update?(ip, port, transport, last_sync_date) do
           Logger.info("Update node chain...")
           update_node(ip, port, transport, network_patch, bootstrapping_seeds, reward_address)
-          post_bootstrap(patch: network_patch, sync?: true, last_sync_date: last_sync_date)
+          post_bootstrap(patch: network_patch, sync?: true)
         else
           post_bootstrap(patch: network_patch, sync?: false)
         end
@@ -178,10 +178,9 @@ defmodule ArchEthic.Bootstrap do
   defp post_bootstrap(opts) do
     if Keyword.get(opts, :sync?, true) do
       patch = Keyword.fetch!(opts, :patch)
-      last_sync_date = Keyword.fetch!(opts, :last_sync_date)
 
       Logger.info("Synchronization started")
-      :ok = SelfRepair.bootstrap_sync(last_sync_date, patch)
+      :ok = SelfRepair.bootstrap_sync(SelfRepair.last_sync_date(), patch)
       Logger.info("Synchronization finished")
     end
 
