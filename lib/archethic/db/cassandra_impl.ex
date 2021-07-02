@@ -42,6 +42,8 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_transaction(binary(), list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
+    start = System.monotonic_time()
+
     result =
       Producer.add_query(
         "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? PER PARTITION LIMIT 1",
@@ -53,6 +55,10 @@ defmodule ArchEthic.DB.CassandraImpl do
         {:error, :transaction_not_exists}
 
       tx ->
+        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+          query: "get_transaction"
+        })
+
         {:ok, format_result_to_transaction(tx)}
     end
   end
@@ -63,14 +69,23 @@ defmodule ArchEthic.DB.CassandraImpl do
   """
   @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
   def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
-    1..4
-    |> Task.async_stream(fn bucket ->
-      "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? and bucket=?"
-      |> Producer.add_query([address, bucket])
-      |> Enum.map(&format_result_to_transaction/1)
-    end)
-    |> Enum.into([], fn {:ok, res} -> res end)
-    |> Enum.flat_map(& &1)
+    start = System.monotonic_time()
+
+    chain =
+      1..4
+      |> Task.async_stream(fn bucket ->
+        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? and bucket=?"
+        |> Producer.add_query([address, bucket])
+        |> Enum.map(&format_result_to_transaction/1)
+      end)
+      |> Enum.into([], fn {:ok, res} -> res end)
+      |> Enum.flat_map(& &1)
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "get_transaction_chain"
+    })
+
+    chain
   end
 
   @impl DB
@@ -110,6 +125,8 @@ defmodule ArchEthic.DB.CassandraImpl do
       "cross_validation_stamps" => cross_validation_stamps
     } = encode_transaction_to_parameters(tx, chain_address)
 
+    start = System.monotonic_time()
+
     "INSERT INTO archethic.transactions (chain_address, bucket, timestamp, version, address, type, data, previous_public_key, previous_signature, origin_signature, validation_stamp, cross_validation_stamps) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     |> Producer.add_query([
       chain_address,
@@ -128,6 +145,10 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     "INSERT INTO archethic.transaction_type_lookup(type, address, timestamp) VALUES(?, ?, ?)"
     |> Producer.add_query([type, address, timestamp])
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_transaction"
+    })
 
     :ok
   end
@@ -154,6 +175,8 @@ defmodule ArchEthic.DB.CassandraImpl do
       address: chain_address,
       previous_public_key: chain_public_key
     } = Enum.at(chain, 0)
+
+    start = System.monotonic_time()
 
     chain
     |> Task.async_stream(
@@ -190,6 +213,10 @@ defmodule ArchEthic.DB.CassandraImpl do
       ordered: false
     )
     |> Stream.run()
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_transaction_chain"
+    })
 
     :ok
   end

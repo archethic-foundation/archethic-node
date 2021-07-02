@@ -190,7 +190,7 @@ defmodule ArchEthic.P2P do
         :telemetry.execute(
           [:archethic, :p2p, :send_message],
           %{duration: System.monotonic_time() - start},
-          %{message: message.__struct__}
+          %{message: message.__struct__ |> Module.split() |> List.last() |> Macro.underscore()}
         )
 
         MemTable.increase_node_availability(first_public_key)
