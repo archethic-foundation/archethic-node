@@ -1113,8 +1113,10 @@ defmodule ArchEthic.P2P.Message do
     case TransactionChain.get_transaction(address, [
            :address,
            :type,
-           :timestamp,
-           validation_stamp: [:node_movements, :transaction_movements]
+           validation_stamp: [
+             :timestamp,
+             ledger_operations: [:node_movements, :transaction_movements]
+           ]
          ]) do
       {:ok, tx} ->
         TransactionSummary.from_transaction(tx)
