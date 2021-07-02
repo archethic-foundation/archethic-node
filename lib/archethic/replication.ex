@@ -90,6 +90,8 @@ defmodule ArchEthic.Replication do
          roles,
          opts
        ) do
+    start = System.monotonic_time()
+
     ack_storage? = Keyword.get(opts, :ack_storage?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
 
@@ -129,6 +131,14 @@ defmodule ArchEthic.Replication do
         #   forward_replication(tx)
         # end
 
+        :telemetry.execute(
+          [:archethic, :replication, :validation],
+          %{
+            duration: System.monotonic_time() - start
+          },
+          %{roles: roles}
+        )
+
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
       {:error, reason} ->
@@ -146,6 +156,8 @@ defmodule ArchEthic.Replication do
        when is_list(roles) do
     Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
 
+    start = System.monotonic_time()
+
     case TransactionValidator.validate(tx) do
       :ok ->
         if :IO in roles do
@@ -156,6 +168,14 @@ defmodule ArchEthic.Replication do
         if :beacon in roles do
           BeaconChain.add_transaction_summary(tx)
         end
+
+        :telemetry.execute(
+          [:archethic, :replication, :validation],
+          %{
+            duration: System.monotonic_time() - start
+          },
+          %{roles: roles}
+        )
 
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 

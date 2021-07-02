@@ -36,37 +36,87 @@ defmodule ArchEthic.Telemetry do
       last_value("vm.total_run_queue_lengths.cpu"),
       last_value("vm.total_run_queue_lengths.io"),
       # Phoenix
-      summary("phoenix.router_dispatch.stop.duration", unit: {:native, :millisecond}),
-      summary("phoenix.router_dispatch.exception.duration", unit: {:native, :millisecond}),
-      summary("phoenix.socket_connected.duration", unit: {:native, :millisecond}),
-      summary("phoenix.channel_joined.duration", unit: {:native, :millisecond}),
-      summary("phoenix.channel_handled_in.duration", unit: {:native, :millisecond}),
-      summary("phoenix.error_rendered.duration", unit: {:native, :millisecond}),
+      distribution("phoenix.router_dispatch.stop.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("phoenix.router_dispatch.exception.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("phoenix.socket_connected.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("phoenix.channel_joined.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("phoenix.channel_handled_in.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("phoenix.error_rendered.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
       # Plug
-      summary("plug_adapter.call.stop.duration", unit: {:native, :millisecond}),
-      summary("plug_adapter.call.exception.duration", unit: {:native, :millisecond}),
-      # Absinth
-      summary("absinthe.middleware.batch.stop", unit: {:native, :millisecond}),
-      summary("absinthe.resolve.field.stop", unit: {:native, :millisecond}),
-      summary("absinthe.execute.operation.stop", unit: {:native, :millisecond}),
-      summary("absinthe.subscription.publish.stop", unit: {:native, :millisecond}),
+      distribution("plug_adapter.call.stop.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
+      distribution("plug_adapter.call.exception.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1.0, 1.5, 2.0]]
+      ),
       # ArchEthic
-      summary("archethic.election.validation_nodes.duration", unit: {:native, :millisecond}),
-      summary("archethic.election.storage_nodes.duration", unit: {:native, :millisecond}),
-      summary("archethic.mining.proof_of_work.duration", unit: {:native, :millisecond}),
-      summary("archethic.mining.pending_transaction_validation.duration",
-        unit: {:native, :millisecond}
+      distribution("archethic.election.validation_nodes.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
       ),
-      summary("archethic.mining.fetch_context.duration", unit: {:native, :millisecond}),
-      summary("archethic.mining.full_transaction_validation.duration",
-        unit: {:native, :millisecond}
+      distribution("archethic.election.storage_nodes.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
       ),
-      summary("archethic.contract.parsing.duration", unit: {:native, :millisecond}),
-      summary("archethic.transaction_end_to_end_validation.duration",
-        unit: {:native, :millisecond}
+      distribution("archethic.mining.proof_of_work.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
       ),
-      summary("archethic.p2p.send_message.duration", unit: {:native, :millisecond}),
-      summary("archethic.crypto.tpm_sign.duration", unit: {:native, :millisecond})
+      distribution(
+        "archethic.mining.pending_transaction_validation.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.025, 0.05, 0.1, 0.2, 0.5, 1]]
+      ),
+      distribution("archethic.mining.fetch_context.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.05, 0.1, 0.2, 0.5, 1]]
+      ),
+      distribution(
+        "archethic.mining.full_transaction_validation.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.1, 0.5, 0.8, 1, 1.2, 1.5, 2, 2.5, 3, 5, 10]]
+      ),
+      distribution("archethic.contract.parsing.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.01, 0.05, 0.1, 0.2, 0.5, 1]]
+      ),
+      distribution(
+        "archethic.transaction_end_to_end_validation.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.5, 0.8, 1, 1.5, 2, 2.5, 3.5, 5, 10]]
+      ),
+      distribution("archethic.p2p.send_message.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.1, 0.2, 0.5, 0.8, 1.0]]
+      ),
+      distribution("archethic.crypto.tpm_sign.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.1, 0.2, 0.3, 0.4, 0.5, 1]]
+      ),
+      distribution("archethic.replication.validation.duration",
+        unit: {:native, :millisecond},
+        reporter_options: [buckets: [0.1, 0.3, 0.5, 0.8, 1, 1.5]]
+      )
     ]
   end
 end
