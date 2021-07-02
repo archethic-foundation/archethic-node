@@ -91,7 +91,7 @@ defmodule ArchEthic.BeaconChain.Subset do
         state = %{current_slot: current_slot, subset: subset}
       ) do
     if Slot.has_transaction?(current_slot, address) do
-      {:reply, :ok, state}
+      {:noreply, state}
     else
       current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
 
