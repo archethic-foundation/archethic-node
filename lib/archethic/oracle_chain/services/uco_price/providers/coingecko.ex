@@ -22,6 +22,15 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko do
          {:ok, payload} <- Jason.decode(body),
          {:ok, prices} <- Map.fetch(payload, "uniris") do
       {:ok, prices}
+    else
+      {:ok, {{_, _, status}, _, _}} ->
+        {:error, status}
+
+      {:error, %Jason.DecodeError{}} ->
+        {:error, "invalid content"}
+
+      :error ->
+        {:error, "invalid content"}
     end
   end
 end
