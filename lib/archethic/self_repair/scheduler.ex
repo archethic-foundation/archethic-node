@@ -10,6 +10,8 @@ defmodule ArchEthic.SelfRepair.Scheduler do
 
   alias ArchEthic.SelfRepair.Sync
 
+  alias ArchEthic.TaskSupervisor
+
   alias ArchEthic.Utils
 
   require Logger
@@ -80,7 +82,7 @@ defmodule ArchEthic.SelfRepair.Scheduler do
       "Self-Repair synchronization started from #{last_sync_date_to_string(last_sync_date)}"
     )
 
-    Task.start(fn ->
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       Sync.load_missed_transactions(last_sync_date, get_node_patch())
     end)
 

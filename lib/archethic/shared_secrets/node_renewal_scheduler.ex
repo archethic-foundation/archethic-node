@@ -28,6 +28,8 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
 
   alias ArchEthic.SharedSecrets.NodeRenewal
 
+  alias ArchEthic.TaskSupervisor
+
   alias ArchEthic.Utils
 
   require Logger
@@ -115,15 +117,19 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
   end
 
   defp make_renewal do
-    NodeRenewal.next_authorized_node_public_keys()
-    |> NodeRenewal.new_node_shared_secrets_transaction(
-      :crypto.strong_rand_bytes(32),
-      :crypto.strong_rand_bytes(32)
-    )
-    |> ArchEthic.send_new_transaction()
+    tx =
+      NodeRenewal.next_authorized_node_public_keys()
+      |> NodeRenewal.new_node_shared_secrets_transaction(
+        :crypto.strong_rand_bytes(32),
+        :crypto.strong_rand_bytes(32)
+      )
+
+    Task.Supervisor.start_child(TaskSupervisor, fn -> ArchEthic.send_new_transaction(tx) end)
 
     Logger.info(
-      "Node shared secrets renewal transaction sent (#{Crypto.number_of_node_shared_secrets_keys()})"
+      "Node shared secrets renewal transaction sent (#{
+        Crypto.number_of_node_shared_secrets_keys()
+      })"
     )
   end
 

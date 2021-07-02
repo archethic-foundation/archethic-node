@@ -34,6 +34,8 @@ defmodule ArchEthic.Replication do
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionValidator
 
+  alias ArchEthic.TaskSupervisor
+
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
@@ -272,9 +274,11 @@ defmodule ArchEthic.Replication do
         },
         welcome_node = %Node{}
       ) do
-    Task.start(fn -> P2P.send_message!(welcome_node, %AcknowledgeStorage{address: address}) end)
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      P2P.send_message!(welcome_node, %AcknowledgeStorage{address: address})
+    end)
 
-    Task.start(fn ->
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
       acknowledge_previous_storage_nodes(address, Transaction.previous_address(tx), timestamp)
     end)
 

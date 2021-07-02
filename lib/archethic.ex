@@ -30,6 +30,8 @@ defmodule ArchEthic do
 
   alias __MODULE__.Replication
 
+  alias __MODULE__.TaskSupervisor
+
   alias __MODULE__.TransactionChain.Transaction
   alias __MODULE__.TransactionChain.TransactionInput
 
@@ -80,7 +82,7 @@ defmodule ArchEthic do
     }
 
     t =
-      Task.async(fn ->
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
         PubSub.register_to_new_transaction_by_address(tx.address)
 
         receive do
