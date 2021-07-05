@@ -39,19 +39,21 @@ defmodule ArchEthic.P2P.Client.RemoteConnection do
     transport = Keyword.fetch!(args, :transport)
     node_public_key = Keyword.fetch!(args, :node_public_key)
 
-    {:ok, %{ip: ip, port: port, transport: transport, node_public_key: node_public_key},
-     {:continue, :connect}}
+    %{socket: socket, connection_pid: connection_pid} =
+      connect(transport, ip, port, node_public_key)
+
+    {:ok,
+     %{
+       ip: ip,
+       port: port,
+       transport: transport,
+       node_public_key: node_public_key,
+       socket: socket,
+       connection_pid: connection_pid
+     }}
   end
 
-  def handle_continue(
-        :connect,
-        state = %{ip: ip, port: port, transport: transport, node_public_key: node_public_key}
-      ) do
-    new_state = Map.merge(state, do_connect(transport, ip, port, node_public_key))
-    {:noreply, new_state}
-  end
-
-  defp do_connect(transport, ip, port, node_public_key) do
+  defp connect(transport, ip, port, node_public_key) do
     retry_while with:
                   exponential_backoff()
                   |> randomize()
