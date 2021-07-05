@@ -40,8 +40,6 @@ defmodule ArchEthic.Replication do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
 
   alias ArchEthic.Utils
 
@@ -78,13 +76,30 @@ defmodule ArchEthic.Replication do
           options :: [ack_storage?: boolean(), welcome_node: Node.t(), self_repair?: boolean()]
         ) ::
           :ok | {:error, :invalid_transaction}
-  def process_transaction(tx = %Transaction{}, roles, opts \\ [])
+  def process_transaction(tx = %Transaction{address: address, type: type}, roles, opts \\ [])
       when is_list(roles) and is_list(opts) do
-    if :chain in roles do
-      do_process_transaction_as_chain_storage_node(tx, roles, opts)
-    else
-      do_process_transaction(tx, roles, opts)
-    end
+    start = System.monotonic_time()
+
+    Logger.info("Replication started as #{inspect(roles)}",
+      transaction: "#{type}@#{Base.encode16(address)}"
+    )
+
+    res =
+      if :chain in roles do
+        do_process_transaction_as_chain_storage_node(tx, roles, opts)
+      else
+        do_process_transaction(tx, roles, opts)
+      end
+
+    :telemetry.execute(
+      [:archethic, :replication, :validation],
+      %{
+        duration: System.monotonic_time() - start
+      },
+      %{roles: roles}
+    )
+
+    res
   end
 
   defp do_process_transaction_as_chain_storage_node(
@@ -92,12 +107,8 @@ defmodule ArchEthic.Replication do
          roles,
          opts
        ) do
-    start = System.monotonic_time()
-
     ack_storage? = Keyword.get(opts, :ack_storage?, false)
     self_repair? = Keyword.get(opts, :self_repair?, false)
-
-    Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
 
     Logger.debug("Retrieve chain and unspent outputs...",
       transaction: "#{type}@#{Base.encode16(address)}"
@@ -133,14 +144,6 @@ defmodule ArchEthic.Replication do
         #   forward_replication(tx)
         # end
 
-        :telemetry.execute(
-          [:archethic, :replication, :validation],
-          %{
-            duration: System.monotonic_time() - start
-          },
-          %{roles: roles}
-        )
-
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
       {:error, reason} ->
@@ -156,10 +159,6 @@ defmodule ArchEthic.Replication do
 
   defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, _opts)
        when is_list(roles) do
-    Logger.info("Replication started", transaction: "#{type}@#{Base.encode16(address)}")
-
-    start = System.monotonic_time()
-
     case TransactionValidator.validate(tx) do
       :ok ->
         if :IO in roles do
@@ -170,14 +169,6 @@ defmodule ArchEthic.Replication do
         if :beacon in roles do
           BeaconChain.add_transaction_summary(tx)
         end
-
-        :telemetry.execute(
-          [:archethic, :replication, :validation],
-          %{
-            duration: System.monotonic_time() - start
-          },
-          %{roles: roles}
-        )
 
         Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
 
@@ -515,7 +506,7 @@ defmodule ArchEthic.Replication do
           address,
           type,
           node_public_key,
-          P2P.available_nodes()
+          P2P.authorized_nodes()
         ),
       beacon:
         beacon_storage_node?(
@@ -524,7 +515,7 @@ defmodule ArchEthic.Replication do
           node_public_key,
           P2P.authorized_nodes()
         ),
-      IO: io_storage_node?(tx, node_public_key, P2P.available_nodes())
+      IO: io_storage_node?(tx, node_public_key, P2P.authorized_nodes())
     ]
     |> Utils.get_keys_from_value_match(true)
   end
@@ -599,28 +590,16 @@ defmodule ArchEthic.Replication do
   """
   @spec io_storage_nodes(Transaction.t(), list(Node.t())) :: list(Node.t())
   def io_storage_nodes(
-        tx = %Transaction{
+        %Transaction{
           validation_stamp: %ValidationStamp{ledger_operations: ops, recipients: recipients}
         },
         node_list \\ P2P.authorized_nodes()
       ) do
     operations_nodes = operation_storage_nodes(ops, node_list)
     recipients_nodes = Enum.map(recipients, &chain_storage_nodes(&1, node_list))
-    additional_nodes = additional_storage_nodes(tx)
 
-    P2P.distinct_nodes([operations_nodes, recipients_nodes, additional_nodes])
+    P2P.distinct_nodes([operations_nodes, recipients_nodes])
   end
-
-  defp additional_storage_nodes(%Transaction{
-         type: :node_shared_secrets,
-         data: %TransactionData{keys: keys}
-       }) do
-    keys
-    |> Keys.list_authorized_keys()
-    |> Enum.map(&P2P.get_node_info!/1)
-  end
-
-  defp additional_storage_nodes(_), do: []
 
   defp operation_storage_nodes(ops, node_list) do
     ops
