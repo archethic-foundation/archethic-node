@@ -2,7 +2,7 @@
 
 INSTALL_DIR=~/aebot
 SCRIPT_DIR=$(dirname $(readlink -f $0))
-
+mkdir -p $INSTALL_DIR
 echo "Install required system dependencies"
 
 sudo apt-get update
