@@ -253,13 +253,12 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     assert :ok = NetworkInit.init_genesis_wallets()
 
-    funding_address =
-      Application.get_env(:archethic, NetworkInit)
-      |> get_in([:genesis_pools, :funding, :public_key])
-      |> Base.decode16!(case: :mixed)
-      |> Crypto.hash()
+    genesis_pools = Application.get_env(:archethic, NetworkInit)[:genesis_pools]
 
-    assert %{uco: 3.82e9} = Account.get_balance(funding_address)
+    assert Enum.all?(genesis_pools, fn %{address: address, amount: amount} ->
+             match?(%{uco: ^amount}, Account.get_balance(address))
+           end)
+
     assert %{uco: 1.46e9} = Account.get_balance(SharedSecrets.get_network_pool_address())
   end
 end

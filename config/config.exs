@@ -94,41 +94,55 @@ config :archethic, ArchEthicWeb.Endpoint,
 
 config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
-    funding: [
-      public_key:
-        "010004491dbeb3dbe9f327ef53e795416f7fdd7742ffd4fccd66f0dab1b113126440794786b3fdb46ecee0fac324b29de3d996d2a1bbc3b798440dbc4dd963eab92342",
+    %{
+      address:
+        Base.decode16!("002CA95C90A4D75DEEC973D251F5B59CD8EBC787FEC265B9CAC1F6C56A8D9BFCCA",
+          case: :mixed
+        ),
       amount: 3.82e9
-    ],
-    deliverable: [
-      public_key:
-        "010004133f933e55e0af85afb21f60f3f63bf5baa56da65f36646e8c8a7e190032a0d3628823aa552d7b8d8659c6ecdeeef453bfabcff65f2a84ea332b02335465505f",
+    },
+    %{
+      address:
+        Base.decode16!("00AD6EEC49FED0A936FEF4BD3301FF933FFFE9BA63BE2F6E948DFEC4C2D4543917",
+          case: :mixed
+        ),
       amount: 2.36e9
-    ],
-    enhancement: [
-      public_key:
-        "01000426cf0a186023b7ad87f98f274d58ff20f3f8eb65fd649be5939e2bd1b30b724aafb59ac36abb148c508d1c607478b782ee4c5de88a9213aaa563651c476d9917",
+    },
+    %{
+      address:
+        Base.decode16!("00D23C33B9B75A272B1E8BCA6F252179A144E0A66A396CCF989C4A6D353CFF3849",
+          case: :mixed
+        ),
       amount: 9.0e8
-    ],
-    team: [
-      public_key:
-        "010004bfaa4157ce34f0960044e35ed6705e25bb020875e9e72e43f6b56dcd4284a40909c0932cb3dfb45027133196f50509db2b12ab06ae04038bb46adbb302c37e50",
+    },
+    %{
+      address:
+        Base.decode16!("006FDE9B6EDF98E682561634B814A5FA2127B327D50AF38428AB06B447A4CF8345",
+          case: :mixed
+        ),
       amount: 5.6e8
-    ],
-    exchange: [
-      public_key:
-        "01000428ba2913c5eccddeb744fccc927fc14fa428991edb5ad6ff5910b8f963cad4fa936c7ff82b2aeef1feaf3e98adab0aaed93329b129f29f17110239d1f4aeae07",
+    },
+    %{
+      address:
+        Base.decode16!("000F1DFC550CB0492C7BEA2DCFABC6F2E2378A5D1D8AA8B5058FC2F30B62DD5DDC",
+          case: :mixed
+        ),
       amount: 3.4e8
-    ],
-    marketing: [
-      public_key:
-        "010004ba4c68d3ddddf61fefb11c707c18a966c6b77a71c55aee22817e1839ad10f069eb713a375e466b05468a4aef12115cafefade9816b5195d09f41b1b87b54fe15",
+    },
+    %{
+      address:
+        Base.decode16!("006098E77BA4C675DA94F57091E73797BF2E11B3FAB20867101AB20FBE21ED862A",
+          case: :mixed
+        ),
       amount: 3.4e8
-    ],
-    foundation: [
-      public_key:
-        "01000480ee3cf265a170ef78defb2db50990800cafe30c7d006f55d55f2b8908a2855a710a46707800eb7dfaf64d9a014689e37c772fb2a4e9dd22ce9c11ce6b674a49",
+    },
+    %{
+      address:
+        Base.decode16!("009BD34BB544A9A71536806E52E9E9F4F41FF81751848FD0B1E0E465D2FB95C36C",
+          case: :mixed
+        ),
       amount: 2.2e8
-    ]
+    }
   ]
 
 config :archethic, ArchEthic.Mining, timeout: 3_000

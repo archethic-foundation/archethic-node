@@ -112,16 +112,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   end
 
   defp genesis_transfers(network_pool_address) do
-    Enum.map(@genesis_pools, fn {_,
-                                 [
-                                   public_key: public_key,
-                                   amount: amount
-                                 ]} ->
-      %Transfer{
-        to: public_key |> Base.decode16!(case: :mixed) |> Crypto.hash(),
-        amount: amount
-      }
-    end) ++
+    Enum.map(@genesis_pools, &%Transfer{to: &1.address, amount: &1.amount}) ++
       [%Transfer{to: network_pool_address, amount: 1.46e9}]
   end
 

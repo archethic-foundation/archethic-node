@@ -242,10 +242,6 @@ defmodule ArchEthic.Bootstrap do
   @spec genesis_allocation() :: float()
   def genesis_allocation do
     network_pool_amount = 1.46e9
-
-    Enum.reduce(@genesis_pools, network_pool_amount, fn {_, [public_key: _, amount: amount]},
-                                                        acc ->
-      acc + amount
-    end)
+    Enum.reduce(@genesis_pools, network_pool_amount, &(&1.amount + &2))
   end
 end
