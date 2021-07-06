@@ -157,8 +157,8 @@ sudo apt install tpm2-tools
 cd $SCRIPT_DIR/..
 make
 
-MAC=$(ip addr show | awk '/inet.*brd/{print $NF; exit}')
-FILENAME=`cat /sys/class/net/$MAC/address`
+IFACE=$(ip addr show | awk '/inet.*brd/{print $NF; exit}')
+FILENAME=`cat /sys/class/net/$IFACE/address`
 echo Generating Keys - It may take a while...
 ./priv/c_dist/tpm_keygen > $INSTALL_DIR/$FILENAME 
 echo Certified keys stored at $INSTALL_DIR/${FILENAME}
