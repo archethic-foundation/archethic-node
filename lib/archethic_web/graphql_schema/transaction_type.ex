@@ -3,8 +3,6 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
 
   use Absinthe.Schema.Notation
 
-  import_types(ArchEthicWeb.GraphQLSchema.DateTimeType)
-  import_types(ArchEthicWeb.GraphQLSchema.HexType)
   import_types(ArchEthicWeb.GraphQLSchema.ContentType)
   import_types(ArchEthicWeb.GraphQLSchema.AddressType)
 

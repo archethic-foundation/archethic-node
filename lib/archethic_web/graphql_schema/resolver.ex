@@ -5,6 +5,8 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.P2P
+
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionInput
@@ -75,5 +77,25 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
 
   def get_chain_length(address) do
     ArchEthic.get_transaction_chain_length(address)
+  end
+
+  def nodes do
+    Enum.map(
+      P2P.list_nodes(),
+      &%{
+        first_public_key: &1.first_public_key,
+        last_public_key: &1.last_public_key,
+        ip: :inet.ntoa(&1.ip),
+        port: &1.port,
+        geo_patch: &1.geo_patch,
+        network_patch: &1.network_patch,
+        reward_address: &1.reward_address,
+        authorized: &1.authorized?,
+        available: &1.available?,
+        enrollment_date: &1.enrollment_date,
+        authorization_date: &1.authorization_date,
+        average_availability: &1.average_availability
+      }
+    )
   end
 end

@@ -3,12 +3,18 @@ defmodule ArchEthicWeb.GraphQLSchema do
 
   use Absinthe.Schema
 
+  alias __MODULE__.DateTimeType
+  alias __MODULE__.HexType
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
+  alias __MODULE__.P2PType
 
+  import_types(HexType)
+  import_types(DateTimeType)
   import_types(TransactionType)
   import_types(SharedSecretsType)
+  import_types(P2PType)
 
   query do
     @desc """
@@ -83,6 +89,12 @@ defmodule ArchEthicWeb.GraphQLSchema do
     field :shared_secrets, :shared_secrets do
       resolve(fn _, _ ->
         {:ok, Resolver.shared_secrets()}
+      end)
+    end
+
+    field :nodes, list_of(:node) do
+      resolve(fn _, _ ->
+        {:ok, Resolver.nodes()}
       end)
     end
   end
