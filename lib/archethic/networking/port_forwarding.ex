@@ -14,24 +14,28 @@ defmodule ArchEthic.Networking.PortForwarding do
   @spec try_open_port(port_to_open :: :inet.port_number(), force? :: boolean()) ::
           :inet.port_number()
   def try_open_port(port, force?) when is_integer(port) and port >= 0 and is_boolean(force?) do
-    if required?(ip_lookup_provider()) do
-      case do_try_open_port(port) do
-        {:ok, port} ->
-          port
-
-        {:error, _} ->
-          Logger.error("Cannot publish the port #{port}")
-          fallback(port, force?)
-      end
-    else
-      Logger.info("Port forwarding is skipped - reason: IP lookup provider is not NAT")
-      Logger.info("Port must be open manually")
+    with true <- required?(ip_lookup_provider()),
+         true <- conf_overrides?(),
+         {:ok, port} <- do_try_open_port(port) do
       port
+    else
+      false ->
+        Logger.info("Port forwarding is skipped")
+        Logger.info("Port must be open manually")
+        port
+
+      {:error, _} ->
+        Logger.error("Cannot publish the port #{port}")
+        fallback(port, force?)
     end
   end
 
   defp required?(NAT), do: true
   defp required?(_), do: false
+
+  defp conf_overrides? do
+    Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:enabled, true)
+  end
 
   defp do_try_open_port(port), do: assign_port([:natupnp_v1, :natupnp_v2, :natpmp], port)
 

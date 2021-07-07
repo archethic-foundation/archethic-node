@@ -15,11 +15,10 @@ defmodule ArchEthicWeb.Supervisor do
   end
 
   def init(_) do
-    # Try to open the HTTP/HTTPS port
+    # Try to open the HTTPport
     endpoint_conf = Application.get_env(:archethic, ArchEthicWeb.Endpoint)
 
     try_open_port(Keyword.get(endpoint_conf, :http))
-    try_open_port(Keyword.get(endpoint_conf, :https))
 
     children = [
       {Phoenix.PubSub, [name: ArchEthicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},

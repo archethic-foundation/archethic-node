@@ -70,6 +70,16 @@ config :archethic,
             ArchEthic.Networking.IPLookup.IPIFY
         end)
 
+config :archethic, ArchEthic.Networking.PortForwarding,
+  enabled:
+    (case(System.get_env("ARCHETHIC_NETWORKING_PORT_FORWARDING", "true")) do
+       "true" ->
+         true
+
+       _ ->
+         false
+     end)
+
 config :archethic, ArchEthic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP")
 
@@ -101,7 +111,7 @@ config :archethic, ArchEthic.SelfRepair.Scheduler,
   interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
 
 config :archethic, ArchEthic.P2P.Endpoint,
-  port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
+  port: System.get_env("ARCHETHIC_P2P_PORT", "30002") |> String.to_integer()
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
@@ -118,19 +128,10 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
 # which you should run after static files are built and
 # before starting your production server.
 config :archethic, ArchEthicWeb.Endpoint,
-  http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "8080") |> String.to_integer()],
-  url: [host: "*", port: System.get_env("ARCHETHIC_HTTP_PORT", "8080") |> String.to_integer()],
+  http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
+  url: [host: "*", port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
   version: Application.spec(:archethic, :vsn),
-  check_origin: false,
-  https: [
-    port: System.get_env("ARCHETHIC_HTTPS_PORT", "4443") |> String.to_integer(),
-    cipher_suite: :strong,
-    keyfile: System.get_env("ARCHETHIC_WEB_SSL_KEY_PATH", ""),
-    certfile: System.get_env("ARCHETHIC_WEB_SSL_CERT_PATH", ""),
-    transport_options: [socket_opts: [:inet6]]
-  ]
-
-# force_ssl: [hsts: true]
+  check_origin: false
