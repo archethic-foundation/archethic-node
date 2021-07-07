@@ -131,8 +131,8 @@ sudo apt -y install \
 
 cd $INSTALL_DIR
 wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
-tar -xf tpm2-tss-3.1.0.tar.gz && rm tpm2-tss-3.1.0.tar.gz
-mv tpm2-tss-3.1.0 tpm2-tss && cd tpm2-tss
+tar -xf tpm2-tss-3.1.0.tar.gz --one-top-level=tpm2-tss --strip-components 1
+rm tpm2-tss-3.1.0.tar.gz && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
 
