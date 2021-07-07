@@ -17,6 +17,8 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
   alias ArchEthic.Replication
 
+  alias ArchEthic.TaskSupervisor
+
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
@@ -89,13 +91,13 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
   def handle_info(
         :poll,
-        state = %{polling_interval: polling_interval}
+        state = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
     timer = schedule_new_polling(polling_interval)
-
     date = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    if trigger_node?(date) do
+    with false <- summary?(summary_interval),
+         true <- trigger_node?(date) do
       Logger.debug("Trigger oracle data fetching")
 
       previous_date = Map.get(state, :last_poll_date) || date
@@ -107,7 +109,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
       next_data = Services.fetch_new_data(previous_data)
 
-      if Enum.empty?(previous_data) do
+      if Enum.empty?(next_data) do
         Logger.debug("Oracle transaction skipped - no new data")
         {:noreply, Map.put(state, :polling_timer, timer)}
       else
@@ -123,7 +125,8 @@ defmodule ArchEthic.OracleChain.Scheduler do
         {:noreply, new_state}
       end
     else
-      {:noreply, Map.put(state, :polling_timer, timer)}
+      _ ->
+        {:noreply, Map.put(state, :polling_timer, timer)}
     end
   end
 
@@ -282,6 +285,12 @@ defmodule ArchEthic.OracleChain.Scheduler do
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
     |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  defp summary?(interval) do
+    interval
+    |> CronParser.parse!(true)
+    |> Crontab.DateChecker.matches_date?(DateTime.utc_now() |> DateTime.to_naive())
   end
 
   def config_change(nil), do: :ok
