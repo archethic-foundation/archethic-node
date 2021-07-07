@@ -2,7 +2,7 @@
 
 INSTALL_DIR=~/aebot
 SCRIPT_DIR=$(dirname $(readlink -f $0))
-
+mkdir -p $INSTALL_DIR
 echo "Install required system dependencies"
 
 sudo apt-get update
@@ -145,7 +145,8 @@ sudo apt install tpm2-tools
 cd $SCRIPT_DIR/..
 make
 
-FILENAME=`cat /sys/class/net/eno1/address`
+IFACE=$(ip addr show | awk '/inet.*brd/{print $NF; exit}')
+FILENAME=`cat /sys/class/net/$IFACE/address`
 echo Generating Keys - It may take a while...
 ./priv/c_dist/tpm_keygen > $INSTALL_DIR/$FILENAME 
 echo Certified keys stored at $INSTALL_DIR/${FILENAME}
