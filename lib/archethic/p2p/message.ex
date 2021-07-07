@@ -973,11 +973,16 @@ defmodule ArchEthic.P2P.Message do
         transaction: tx = %Transaction{address: address, type: :beacon}
       }) do
     if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already exists", transaction: "beacon@#{Base.encode16(address)}")
+      Logger.debug("Transaction already exists",
+        transaction_address: Base.encode16(address),
+        transaction_type: "beacon"
+      )
+
       %Ok{}
     else
       Logger.info("Replicate new transaction",
-        transaction: "beacon@#{Base.encode16(address)}"
+        transaction_address: Base.encode16(address),
+        transaction_type: "beacon"
       )
 
       case BeaconChain.load_transaction(tx) do
@@ -998,13 +1003,15 @@ defmodule ArchEthic.P2P.Message do
       }) do
     if TransactionChain.transaction_exists?(address) do
       Logger.debug("Transaction already exists",
-        transaction: "#{type}@#{Base.encode16(address)}"
+        transaction_address: Base.encode16(address),
+        transaction_type: type
       )
 
       %Ok{}
     else
       Logger.info("Replicate new transaction",
-        transaction: "#{type}@#{Base.encode16(address)}"
+        transaction_address: Base.encode16(address),
+        transaction_type: type
       )
 
       case Replication.process_transaction(tx, roles,

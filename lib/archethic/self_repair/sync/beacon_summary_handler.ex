@@ -113,7 +113,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
          beacon_address
        ) do
     Logger.error("Cannot fetch during self repair from #{inspect(nodes)}",
-      transaction: "summary@#{Base.encode16(beacon_address)}"
+      transaction_address: Base.encode16(beacon_address),
+      transaction_type: "summary"
     )
 
     {:error, :network_issue}

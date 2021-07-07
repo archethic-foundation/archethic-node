@@ -25,13 +25,17 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
     [
       fn ->
         TransactionChain.list_transactions_by_type(:origin_shared_secrets, [
+          :address,
           :type,
           data: [:content]
         ])
       end,
-      fn -> TransactionChain.list_transactions_by_type(:node, [:type, :previous_public_key]) end,
+      fn ->
+        TransactionChain.list_transactions_by_type(:node, [:address, :type, :previous_public_key])
+      end,
       fn ->
         TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+          :address,
           :type,
           data: [:content],
           validation_stamp: [:timestamp]
@@ -54,7 +58,11 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
   Load the transaction into the memory table
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(%Transaction{type: :node, previous_public_key: previous_public_key}) do
+  def load_transaction(%Transaction{
+        address: address,
+        type: :node,
+        previous_public_key: previous_public_key
+      }) do
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
     unless OriginKeyLookup.has_public_key?(first_public_key) do
@@ -71,13 +79,17 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
 
       :ok = OriginKeyLookup.add_public_key(family, previous_public_key)
 
-      Logger.info("Load origin public key #{Base.encode16(previous_public_key)} - #{family}")
+      Logger.info("Load origin public key #{Base.encode16(previous_public_key)} - #{family}",
+        transaction_address: Base.encode16(address),
+        transaction_type: :node
+      )
     end
 
     :ok
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :origin_shared_secrets,
         data: %TransactionData{content: content}
       }) do
@@ -86,12 +98,17 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
     |> Enum.each(fn {family, keys} ->
       Enum.each(keys, fn key ->
         :ok = OriginKeyLookup.add_public_key(family, key)
-        Logger.info("Load origin public key #{Base.encode16(key)} - #{family}")
+
+        Logger.info("Load origin public key #{Base.encode16(key)} - #{family}",
+          transaction_address: Base.encode16(address),
+          transaction_type: :origin_shared_secrets
+        )
       end)
     end)
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :node_shared_secrets,
         data: %TransactionData{content: content},
         validation_stamp: %ValidationStamp{
@@ -108,7 +125,10 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
       NodeRenewalScheduler.next_application_date(timestamp)
     )
 
-    Logger.info("Load daily nonce public key: #{Base.encode16(daily_nonce_public_key)}")
+    Logger.info("Load daily nonce public key: #{Base.encode16(daily_nonce_public_key)}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :node_shared_secrets
+    )
   end
 
   def load_transaction(%Transaction{type: :node_rewards, address: address}) do

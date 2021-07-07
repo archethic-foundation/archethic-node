@@ -22,8 +22,15 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
   """
   @spec send_transaction(Transaction.t(), list(Node.t())) :: :ok | {:error, :network_issue}
   def send_transaction(tx = %Transaction{address: address}, nodes) do
-    Logger.info("Send node transaction...", transaction: "node@#{Base.encode16(address)}")
-    Logger.info("Waiting transaction replication", transaction: "node@#{Base.encode16(address)}")
+    Logger.info("Send node transaction...",
+      transaction_address: Base.encode16(address),
+      transaction_type: "node"
+    )
+
+    Logger.info("Waiting transaction replication",
+      transaction_address: Base.encode16(address),
+      transaction_type: "node"
+    )
 
     case P2P.reply_first(nodes, %NewTransaction{transaction: tx}) do
       {:ok, %Ok{}} ->

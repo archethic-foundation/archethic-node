@@ -106,7 +106,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
     Registry.register(WorkflowRegistry, tx.address, [])
 
-    Logger.info("Start mining", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    Logger.info("Start mining", transaction_address: Base.encode16(tx.address), type: tx.type)
 
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
@@ -142,7 +142,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   end
 
   def handle_event(:enter, :idle, :idle, _data = %{context: %ValidationContext{transaction: tx}}) do
-    Logger.debug("Validation started", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    Logger.debug("Validation started",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     :keep_state_and_data
   end
 
@@ -219,7 +223,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         }
       ) do
     Logger.debug("Retrieve transaction context",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     start = System.monotonic_time()
@@ -250,7 +255,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       )
 
     Logger.debug("Transaction context retrieved",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     {:keep_state, %{data | context: new_context}}
@@ -264,7 +270,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
           context: %ValidationContext{transaction: tx}
         }
       ) do
-    Logger.debug("Act as cross validator", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    Logger.debug("Act as cross validator",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     :keep_state_and_data
   end
 
@@ -282,7 +292,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :coordinator,
         _data = %{context: %ValidationContext{transaction: tx}}
       ) do
-    Logger.debug("Act as coordinator", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    Logger.debug("Act as coordinator",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     :keep_state_and_data
   end
 
@@ -302,7 +316,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         }
       ) do
     Logger.debug("Aggregate mining context",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     if ValidationContext.cross_validation_node?(context, from) do
@@ -318,7 +333,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
       if ValidationContext.enough_confirmations?(new_context) do
         Logger.debug("Create validation stamp",
-          transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
         )
 
         {:keep_state, Map.put(data, :context, new_context),
@@ -356,7 +372,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.debug("Cross validation", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+    Logger.debug("Cross validation",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
     new_context =
       context
@@ -383,7 +402,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.debug("Waiting cross validation stamps",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     :keep_state_and_data
@@ -398,7 +418,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         }
       ) do
     Logger.debug("Add cross validation stamp",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     new_context = ValidationContext.add_cross_validation_stamp(context, cross_validation_stamp)
@@ -421,7 +442,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         _data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Consensus not reached - Malicious Detection started",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     MaliciousDetection.start_link(context)
@@ -439,7 +461,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.info("Start replication", transaction: "#{type}@#{Base.encode16(tx_address)}")
+    Logger.info("Start replication",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: type
+    )
+
     request_replication(context)
     :keep_state_and_data
   end
@@ -456,7 +482,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.info("Start replication", transaction: "#{tx_type}@#{Base.encode16(tx_address)}")
+    Logger.info("Start replication",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
+    )
+
     request_replication(context)
     :keep_state_and_data
   end
@@ -475,7 +505,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         duration: System.monotonic_time() - start_time
       })
 
-      Logger.info("Replication finished", transaction: "#{tx.type}@#{Base.encode16(tx.address)}")
+      Logger.info("Replication finished",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
+      )
+
       :stop
     else
       {:keep_state, %{data | context: new_context}}
@@ -489,7 +523,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.warning("Timeout reached during mining",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      transaction_type: tx.type,
+      transaction_address: Base.encode16(tx.address)
     )
 
     :stop
@@ -511,7 +546,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
        ) do
     Logger.debug(
       "Send mining context to #{Node.endpoint(coordinator_node)}",
-      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+      transaction_type: tx_type,
+      transaction_address: Base.encode16(tx_address)
     )
 
     P2P.send_message(coordinator_node, %AddMiningContext{
@@ -532,7 +568,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
        }) do
     Logger.debug(
       "Send validation stamp to #{cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
-      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
     )
 
     P2P.broadcast_message(cross_validation_nodes, %CrossValidate{
@@ -555,7 +592,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
     Logger.debug(
       "Send cross validation stamps to #{nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}",
-      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
     )
 
     P2P.broadcast_message(nodes, %CrossValidationDone{
@@ -575,10 +613,9 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     worker_pid = self()
 
     Logger.debug(
-      "Send validated transaction to #{storage_nodes
-      |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
-      |> Enum.join(",")}",
-      transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+      "Send validated transaction to #{storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end) |> Enum.join(",")}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
 
     validated_tx = ValidationContext.get_validated_transaction(context)

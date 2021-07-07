@@ -2,7 +2,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
   use ArchEthicCase, async: false
 
   @moduletag capture_log: false
-  import ExUnit.CaptureLog
 
   alias ArchEthic.Crypto
 
@@ -168,24 +167,20 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       P2P.add_and_connect_node(welcome_node)
 
-      fun = fn ->
-        {:ok, pid} =
-          Workflow.start_link(
-            transaction: tx,
-            welcome_node: welcome_node,
-            validation_nodes: validation_nodes,
-            node_public_key: List.first(validation_nodes).last_public_key
-          )
+      {:ok, pid} =
+        Workflow.start_link(
+          transaction: tx,
+          welcome_node: welcome_node,
+          validation_nodes: validation_nodes,
+          node_public_key: List.first(validation_nodes).last_public_key
+        )
 
-        assert {:wait_cross_validation_stamps,
-                %{
-                  context: %ValidationContext{
-                    validation_stamp: %ValidationStamp{errors: [:pending_transaction]}
-                  }
-                }} = :sys.get_state(pid)
-      end
-
-      assert capture_log(fun) =~ "Invalid node transaction content"
+      assert {:wait_cross_validation_stamps,
+              %{
+                context: %ValidationContext{
+                  validation_stamp: %ValidationStamp{errors: [:pending_transaction]}
+                }
+              }} = :sys.get_state(pid)
     end
   end
 

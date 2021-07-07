@@ -29,7 +29,11 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
 
   def run(opts) do
     tx = Keyword.get(opts, :transaction)
-    Logger.info("Start mining", transaction: Base.encode16(tx.address))
+
+    Logger.info("Start mining",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
 
@@ -86,10 +90,9 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
     storage_nodes = ValidationContext.get_storage_nodes(context)
 
     Logger.debug(
-      "Send validated transaction to #{storage_nodes
-      |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)
-      |> Enum.join(",")}",
-      transaction: "#{validated_tx.type}@#{Base.encode16(validated_tx.address)}"
+      "Send validated transaction to #{storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end) |> Enum.join(",")}",
+      transaction_address: Base.encode16(validated_tx.address),
+      transaction_type: validated_tx.type
     )
 
     Task.async_stream(

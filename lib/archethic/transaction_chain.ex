@@ -110,13 +110,21 @@ defmodule ArchEthic.TransactionChain do
       ) do
     DB.write_transaction(tx)
     KOLedger.remove_transaction(address)
-    Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
+
+    Logger.info("Transaction stored",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
   end
 
   def write_transaction(tx = %Transaction{address: address, type: type}, chain_address) do
     DB.write_transaction(tx, chain_address)
     KOLedger.remove_transaction(address)
-    Logger.info("Transaction stored", transaction: "#{type}@#{Base.encode16(address)}")
+
+    Logger.info("Transaction stored",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
   end
 
   @doc """
@@ -135,7 +143,8 @@ defmodule ArchEthic.TransactionChain do
     KOLedger.remove_transaction(tx_address)
 
     Logger.info("Transaction Chain stored",
-      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
     )
   end
 
@@ -376,7 +385,8 @@ defmodule ArchEthic.TransactionChain do
       true
     else
       Logger.debug("Invalid proof of integrity",
-        transaction: "#{tx.type}@#{Base.encode16(tx.address)}"
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
       )
 
       false
@@ -399,21 +409,24 @@ defmodule ArchEthic.TransactionChain do
     cond do
       proof_of_integrity([Transaction.to_pending(last_tx), prev_tx]) != poi ->
         Logger.debug("Invalid proof of integrity",
-          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+          transaction_address: Base.encode16(last_tx.address),
+          transaction_type: last_tx.type
         )
 
         false
 
       Crypto.hash(previous_public_key) != previous_address ->
         Logger.debug("Invalid previous public key",
-          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+          transaction_type: last_tx.type,
+          transaction_address: Base.encode16(last_tx.address)
         )
 
         false
 
       DateTime.diff(timestamp, previous_timestamp) < 0 ->
         Logger.debug("Invalid timestamp",
-          transaction: "#{last_tx.type}@#{Base.encode16(last_tx.address)}"
+          transaction_type: last_tx.type,
+          transaction_address: Base.encode16(last_tx.address)
         )
 
         false

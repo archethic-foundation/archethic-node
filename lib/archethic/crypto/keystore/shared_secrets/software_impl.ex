@@ -110,16 +110,21 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @impl GenStateMachine
   def init(_) do
     node_shared_secrets_chain =
-      TransactionChain.list_transactions_by_type(:node_shared_secrets,
-        data: [:keys],
-        validation_stamp: [:timestamp]
+      TransactionChain.list_transactions_by_type(
+        :node_shared_secrets,
+        [
+          :address,
+          data: [:keys],
+          validation_stamp: [:timestamp]
+        ]
       )
 
     nb_node_shared_secrets_keys = Enum.count(node_shared_secrets_chain)
-    Logger.debug("#{nb_node_shared_secrets_keys} node shared keys loaded into the keystore")
+
+    Logger.info("Node shared secrets keys positioned at #{nb_node_shared_secrets_keys}")
 
     nb_network_pool_keys = TransactionChain.count_transactions_by_type(:node_rewards)
-    Logger.debug("#{nb_network_pool_keys} network pool keys loaded into the keystore")
+    Logger.info("Network pool keys positioned at #{nb_network_pool_keys}")
 
     {:ok, :idle,
      %{
@@ -135,6 +140,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         :keep_state_and_data
 
       %Transaction{
+        address: address,
         data: %TransactionData{keys: keys = %Keys{secret: secret}},
         validation_stamp: %ValidationStamp{timestamp: timestamp}
       } ->
@@ -145,6 +151,11 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
           {:ok, new_data} =
             do_unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date, data)
+
+          Logger.info("Node shared secrets loaded",
+            transaction_address: Base.encode16(address),
+            transaction_type: :node_shared_secrets
+          )
 
           {:next_state, :authorized, new_data}
         else

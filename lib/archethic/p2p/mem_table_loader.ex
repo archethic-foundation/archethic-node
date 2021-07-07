@@ -25,40 +25,36 @@ defmodule ArchEthic.P2P.MemTableLoader do
   end
 
   def init(_args) do
-    TransactionChain.list_transactions_by_type(:node, [
-      :address,
-      :type,
-      :previous_public_key,
-      data: [:content],
-      validation_stamp: [:timestamp]
-    ])
-    |> Stream.each(&load_transaction/1)
-    |> Stream.run()
+    nodes_transactions =
+      TransactionChain.list_transactions_by_type(:node, [
+        :address,
+        :type,
+        :previous_public_key,
+        data: [:content],
+        validation_stamp: [:timestamp]
+      ])
 
-    TransactionChain.list_transactions_by_type(
-      :beacon_summary,
-      [:type, data: [:content], validation_stamp: [:timestamp]]
-    )
-    |> Enum.sort_by(& &1.validation_stamp.timestamp)
-    |> Stream.each(&load_transaction/1)
-    |> Stream.run()
+    beacon_chain_transactions =
+      TransactionChain.list_transactions_by_type(
+        :beacon_summary,
+        [:address, :type, data: [:content], validation_stamp: [:timestamp]]
+      )
 
-    last_node_shared_secret_tx =
+    node_shared_secret_transactions =
       TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+        :address,
         :type,
         data: [:keys],
         validation_stamp: [:timestamp]
       ])
-      |> Enum.at(0)
 
-    case last_node_shared_secret_tx do
-      nil ->
-        {:ok, []}
+    nodes_transactions
+    |> Stream.concat(node_shared_secret_transactions)
+    |> Stream.concat(beacon_chain_transactions)
+    |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
+    |> Enum.each(&load_transaction/1)
 
-      tx ->
-        load_transaction(tx)
-        {:ok, []}
-    end
+    {:ok, %{}}
   end
 
   @doc """
@@ -74,6 +70,11 @@ defmodule ArchEthic.P2P.MemTableLoader do
           timestamp: timestamp
         }
       }) do
+    Logger.info("Loading transaction into P2P mem table",
+      transaction_address: Base.encode16(address),
+      transaction_type: "node"
+    )
+
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
     {:ok, ip, port, transport, reward_address, _} = Node.decode_transaction_content(content)
@@ -101,12 +102,18 @@ defmodule ArchEthic.P2P.MemTableLoader do
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :node_shared_secrets,
         data: %TransactionData{keys: keys},
         validation_stamp: %ValidationStamp{
           timestamp: timestamp
         }
       }) do
+    Logger.info("Loading transaction into P2P mem table",
+      transaction_address: Base.encode16(address),
+      transaction_type: "node_shared_secrets"
+    )
+
     new_authorized_keys = Keys.list_authorized_keys(keys)
     previous_authorized_keys = P2P.authorized_nodes() |> Enum.map(& &1.last_public_key)
 
@@ -121,9 +128,15 @@ defmodule ArchEthic.P2P.MemTableLoader do
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :beacon_summary,
         data: %TransactionData{content: content}
       }) do
+    Logger.info("Loading transaction into P2P mem table",
+      transaction_address: Base.encode16(address),
+      transaction_type: "beacon_summary"
+    )
+
     {summary = %BeaconSummary{
        end_of_node_synchronizations: end_of_node_sync
      }, _} = BeaconSummary.deserialize(content)

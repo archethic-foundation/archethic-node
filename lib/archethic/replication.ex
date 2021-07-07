@@ -80,8 +80,10 @@ defmodule ArchEthic.Replication do
       when is_list(roles) and is_list(opts) do
     start = System.monotonic_time()
 
-    Logger.info("Replication started as #{inspect(roles)}",
-      transaction: "#{type}@#{Base.encode16(address)}"
+    Logger.info("Replication started",
+      transaction_address: Base.encode16(address),
+      transaction_type: type,
+      replication_roles: roles
     )
 
     res =
@@ -111,13 +113,15 @@ defmodule ArchEthic.Replication do
     self_repair? = Keyword.get(opts, :self_repair?, false)
 
     Logger.debug("Retrieve chain and unspent outputs...",
-      transaction: "#{type}@#{Base.encode16(address)}"
+      transaction_address: Base.encode16(address),
+      transaction_type: type
     )
 
     {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
 
     Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
-      transaction: "#{type}@#{Base.encode16(address)}"
+      transaction_address: Base.encode16(address),
+      transaction_type: type
     )
 
     case TransactionValidator.validate(
@@ -144,13 +148,17 @@ defmodule ArchEthic.Replication do
         #   forward_replication(tx)
         # end
 
-        Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
+        Logger.info("Replication finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
       {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
         Logger.error("Invalid transaction for replication - #{inspect(reason)}",
-          transaction: "#{type}@#{Base.encode16(address)}"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
         {:error, :invalid_transaction}
@@ -170,7 +178,10 @@ defmodule ArchEthic.Replication do
           BeaconChain.add_transaction_summary(tx)
         end
 
-        Logger.info("Replication finished", transaction: "#{type}@#{Base.encode16(address)}")
+        Logger.info("Replication finished",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
 
         :ok
 
@@ -178,7 +189,8 @@ defmodule ArchEthic.Replication do
         :ok = TransactionChain.write_ko_transaction(tx)
 
         Logger.error("Invalid transaction for replication - #{inspect(reason)}",
-          transaction: "#{type}@#{Base.encode16(address)}"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
         {:error, :invalid_transaction}
@@ -200,7 +212,7 @@ defmodule ArchEthic.Replication do
 
   defp do_fetch_context_for_network_transaction(previous_address, timestamp, self_repair?) do
     Logger.debug("Try to fetch network previous transaction locally",
-      transaction: Base.encode16(previous_address)
+      transaction_address: Base.encode16(previous_address)
     )
 
     previous_chain = TransactionChain.get(previous_address)
@@ -211,7 +223,7 @@ defmodule ArchEthic.Replication do
       if Enum.empty?(previous_chain) do
         Logger.debug(
           "Try to fetch network previous transaction from remote nodes (possibility of an orphan state)",
-          transaction: Base.encode16(previous_address)
+          transaction_address: Base.encode16(previous_address)
         )
 
         TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
@@ -227,7 +239,7 @@ defmodule ArchEthic.Replication do
 
   defp fetch_context_for_regular_transaction(previous_address, timestamp, self_repair?) do
     Logger.debug("Fetch regular previous transaction",
-      transaction: Base.encode16(previous_address)
+      transaction_address: Base.encode16(previous_address)
     )
 
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
@@ -244,12 +256,14 @@ defmodule ArchEthic.Replication do
   end
 
   defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = true) do
-    Logger.debug("Fetch transaction inputs", transaction: Base.encode16(previous_address))
+    Logger.debug("Fetch transaction inputs", transaction_address: Base.encode16(previous_address))
     TransactionContext.fetch_transaction_inputs(previous_address, timestamp)
   end
 
   defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = false) do
-    Logger.debug("Fetch transaction unspent outputs", transaction: Base.encode16(previous_address))
+    Logger.debug("Fetch transaction unspent outputs",
+      transaction_address: Base.encode16(previous_address)
+    )
 
     TransactionContext.fetch_unspent_outputs(previous_address, timestamp)
   end

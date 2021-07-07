@@ -10,12 +10,15 @@ defmodule ArchEthic.OracleChain.MemTableLoader do
 
   use GenServer
 
+  require Logger
+
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)
   end
 
   def init(_) do
     TransactionChain.list_transactions_by_type(:oracle_summary, [
+      :address,
       :type,
       data: [:content],
       validation_stamp: [:timestamp]
@@ -28,10 +31,16 @@ defmodule ArchEthic.OracleChain.MemTableLoader do
 
   @spec load_transaction(Transaction.t()) :: :ok
   def load_transaction(%Transaction{
+        address: address,
         type: :oracle,
         data: %TransactionData{content: content},
         validation_stamp: %ValidationStamp{timestamp: timestamp}
       }) do
+    Logger.info("Load transaction into oracle chain mem table",
+      transaction_address: Base.encode16(address),
+      transaction_type: :oracle
+    )
+
     content
     |> Jason.decode!()
     |> Enum.each(fn {service, data} ->
@@ -40,9 +49,15 @@ defmodule ArchEthic.OracleChain.MemTableLoader do
   end
 
   def load_transaction(%Transaction{
+        address: address,
         type: :oracle_summary,
         data: %TransactionData{content: content}
       }) do
+    Logger.info("Load transaction into oracle chain mem table",
+      transaction_address: Base.encode16(address),
+      transaction_type: :oracle_summary
+    )
+
     content
     |> Jason.decode!()
     |> Enum.each(fn {timestamp, aggregated_data} ->

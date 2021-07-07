@@ -921,6 +921,11 @@ defmodule ArchEthic.Crypto do
     nb_transactions = TransactionChain.size(address)
     SharedSecretsKeystore.set_node_shared_secrets_key_index(nb_transactions)
 
+    Logger.info("Node shared key chain positioned at #{nb_transactions}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :node_shared_secrets
+    )
+
     if Keys.authorized_key?(keys, last_node_public_key()) do
       encrypted_secret_key = Keys.get_encrypted_key(keys, last_node_public_key())
 
@@ -935,10 +940,20 @@ defmodule ArchEthic.Crypto do
   def load_transaction(%Transaction{type: :node_rewards, address: address}) do
     nb_transactions = TransactionChain.size(address)
     SharedSecretsKeystore.set_network_pool_key_index(nb_transactions)
+
+    Logger.info("Network pool chain positioned at#{nb_transactions}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :node_rewards
+    )
   end
 
   def load_transaction(%Transaction{type: :node, address: address}) do
     if NodeKeystore.next_public_key() |> hash() == address do
+      Logger.debug("Node next keypair loaded",
+        transaction_address: Base.encode16(address),
+        transaction_type: :node
+      )
+
       NodeKeystore.persist_next_keypair()
     else
       :ok

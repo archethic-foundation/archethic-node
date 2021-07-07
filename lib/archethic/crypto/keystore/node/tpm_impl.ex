@@ -11,6 +11,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @behaviour NodeKeystore
 
+  require Logger
+
   use GenServer
 
   def start_link(args \\ []) do
@@ -89,6 +91,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
       |> Crypto.hash()
       |> TransactionChain.get_last_address()
       |> TransactionChain.size()
+
+    Logger.info("Start NodeKeystore at #{nb_keys}th key")
 
     last_index =
       if nb_keys > 0 do

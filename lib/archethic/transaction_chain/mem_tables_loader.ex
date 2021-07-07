@@ -53,8 +53,9 @@ defmodule ArchEthic.TransactionChain.MemTablesLoader do
     :ok = handle_pending_transaction(tx)
     :ok = handle_transaction_recipients(tx)
 
-    Logger.debug("Loaded into in memory chain tables",
-      transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+    Logger.info("Loaded into in memory transactionchain tables",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
     )
   end
 

@@ -60,11 +60,11 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
       iex> { :ets.tab2list(:archethic_origin_keys), :ets.tab2list(:archethic_origin_key_by_type) }
       {
           [
-            {"key1", :software},
             {<<1, 0, 4, 171, 65, 41, 31, 132, 122, 96, 16, 85, 174, 221, 26, 242, 79, 247,
               111, 169, 112, 214, 68, 30, 45, 202, 56, 24, 168, 49, 155, 0, 76, 150, 178,
               123, 143, 235, 29, 163, 26, 4, 75, 160, 164, 128, 11, 67, 83, 53, 151, 53,
               113, 158, 187, 58, 5, 249, 131, 147, 169, 204, 89, 156, 63, 175, 214>>, :software},
+            {"key1", :software},
             {"key3", :hardware},
             {"key2", :hardware}
           ],
@@ -118,11 +118,11 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
       iex> :ok = OriginKeyLookup.add_public_key(:hardware, "key3")
       iex> OriginKeyLookup.list_public_keys()
       [
-        "key1", 
         <<1, 0, 4, 171, 65, 41, 31, 132, 122, 96, 16, 85, 174, 221, 26, 242, 79, 247,
         111, 169, 112, 214, 68, 30, 45, 202, 56, 24, 168, 49, 155, 0, 76, 150, 178,
         123, 143, 235, 29, 163, 26, 4, 75, 160, 164, 128, 11, 67, 83, 53, 151, 53,
         113, 158, 187, 58, 5, 249, 131, 147, 169, 204, 89, 156, 63, 175, 214>>, 
+        "key1", 
         "key3",
         "key2"
       ]

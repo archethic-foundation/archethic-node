@@ -168,7 +168,7 @@ defmodule ArchEthic.Bootstrap.Sync do
     ready_date = DateTime.utc_now()
 
     message = %NotifyEndOfNodeSync{
-      node_public_key: Crypto.last_node_public_key(),
+      node_public_key: Crypto.first_node_public_key(),
       timestamp: ready_date
     }
 

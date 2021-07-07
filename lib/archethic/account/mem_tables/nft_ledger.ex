@@ -27,7 +27,7 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
   end
 
   def init(_) do
-    Logger.info("Initialize InMemory UCO Ledger...")
+    Logger.info("Initialize InMemory NFT Ledger...")
 
     :ets.new(@ledger_table, [:set, :named_table, :public, read_concurrency: true])
 

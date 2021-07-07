@@ -54,12 +54,14 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     else
       false ->
         Logger.error("Invalid previous signature",
-          transaction: "#{type}@#{Base.encode16(address)}"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
         {:error, "Invalid previous signature"}
 
       {:error, _} = e ->
+        Logger.error(e, transaction_address: Base.encode16(address), transaction_type: type)
         e
     end
   end
@@ -67,8 +69,6 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp validate_contract(%Transaction{
-         address: address,
-         type: type,
          data: %TransactionData{code: code, keys: keys}
        }) do
     case Contracts.parse(code) do
@@ -76,10 +76,6 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
         if Crypto.storage_nonce_public_key() in Keys.list_authorized_keys(keys) do
           :ok
         else
-          Logger.error("Require storage nonce public key as authorized keys",
-            transaction: "#{type}@#{Base.encode16(address)}"
-          )
-
           {:error, "Requires storage nonce public key as authorized keys"}
         end
 
@@ -87,16 +83,11 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
         :ok
 
       {:error, reason} ->
-        Logger.error("Smart contract invalid #{inspect(reason)}",
-          transaction: "#{type}@#{Base.encode16(address)}"
-        )
-
-        {:error, reason}
+        {:error, "Smart contract invalid #{inspect(reason)}"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :node_rewards,
          data: %TransactionData{
            ledger: %Ledger{
@@ -109,16 +100,11 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
         :ok
 
       _ ->
-        Logger.error("Invalid network pool transfers",
-          transaction: "node_rewards@#{Base.encode16(address)}"
-        )
-
         {:error, "Invalid network pool transfers"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :node,
          data: %TransactionData{
            content: content
@@ -136,23 +122,14 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       :ok
     else
       :error ->
-        Logger.error("Invalid node transaction content",
-          transaction: "node@#{Base.encode16(address)}"
-        )
-
-        {:error, "Invalid node transaction"}
+        {:error, "Invalid node transaction's content"}
 
       false ->
-        Logger.error("Invalid node key certificate",
-          transaction: "node@#{Base.encode16(address)}"
-        )
-
-        {:error, "Invalid node transaction"}
+        {:error, "Invalid node transaction with invalid key certificate"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :node_shared_secrets,
          data: %TransactionData{
            content: content,
@@ -167,18 +144,10 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       :ok
     else
       :error ->
-        Logger.error("Node shared secrets has invalid content",
-          transaction: "node_shared_secrets@#{Base.encode16(address)}"
-        )
-
-        {:error, "Invalid node shared secrets transaction"}
+        {:error, "Invalid node shared secrets transaction content"}
 
       false ->
-        Logger.error("Node shared secrets can only contains public node list",
-          transaction: "node_shared_secrets@#{Base.encode16(address)}"
-        )
-
-        {:error, "Invalid node shared secrets transaction"}
+        {:error, "Invalid node shared secrets transaction authorized nodes"}
     end
   end
 
@@ -188,7 +157,6 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(
          tx = %Transaction{
-           address: address,
            type: :code_proposal
          }
        ) do
@@ -197,17 +165,12 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       :ok
     else
       _ ->
-        Logger.error("Invalid code proposal",
-          transaction: "code_proposal@#{Base.encode16(address)}"
-        )
-
         {:error, "Invalid code proposal"}
     end
   end
 
   defp do_accept_transaction(
          tx = %Transaction{
-           address: address,
            type: :code_approval,
            data: %TransactionData{
              recipients: [proposal_address]
@@ -224,44 +187,28 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       :ok
     else
       {:member, false} ->
-        Logger.error("No technical council member",
-          transaction: "code_approval@#{Base.encode16(address)}"
-        )
-
         {:error, "No technical council member"}
 
       {:error, :not_found} ->
-        Logger.error("Code proposal does not exist",
-          transaction: "code_approval@#{Base.encode16(address)}"
-        )
-
         {:error, "Code proposal doest not exist"}
 
       {:signed, true} ->
-        Logger.error("Code proposal already signed",
-          transaction: "code_approval@#{Base.encode16(address)}"
-        )
-
         {:error, "Code proposal already signed"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :nft,
          data: %TransactionData{content: content}
        }) do
     if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
       :ok
     else
-      Logger.error("Invalid NFT transaction content", transaction: "nft@#{Base.encode16(address)}")
-
       {:error, "Invalid NFT content"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :oracle,
          data: %TransactionData{
            content: content
@@ -270,13 +217,11 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     if OracleChain.valid_services_content?(content) do
       :ok
     else
-      Logger.error("Invalid oracle transaction", transaction: "oracle@#{Base.encode16(address)}")
       {:error, "Invalid oracle transaction"}
     end
   end
 
   defp do_accept_transaction(%Transaction{
-         address: address,
          type: :oracle_summary,
          data: %TransactionData{
            content: content
@@ -290,10 +235,6 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       :ok
     else
       _ ->
-        Logger.error("Invalid oracle summary transaction",
-          transaction: "oracle_summary@#{Base.encode16(address)}"
-        )
-
         {:error, "Invalid oracle summary transaction"}
     end
   end

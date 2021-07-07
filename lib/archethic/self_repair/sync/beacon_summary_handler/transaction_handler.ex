@@ -55,7 +55,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         node_patch
       )
       when is_binary(node_patch) do
-    Logger.info("Synchronize missed transaction", transaction: "#{type}@#{Base.encode16(address)}")
+    Logger.info("Synchronize missed transaction",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
 
     storage_nodes =
       case P2P.authorized_nodes(timestamp) do
@@ -92,12 +95,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
       {:ok, %NotFound{}} ->
         Logger.error("Transaction not found from remote nodes during self repair",
-          transaction: "#{type}@#{Base.encode16(address)}"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
       {:error, :network_issue} ->
         Logger.error("Network issue during during self repair",
-          transaction: "#{type}@#{Base.encode16(address)}"
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
     end
   end

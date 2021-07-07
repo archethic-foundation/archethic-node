@@ -74,6 +74,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
       |> TransactionChain.get_last_address()
       |> TransactionChain.size()
 
+    Logger.info("Start NodeKeystore at #{nb_keys}th key")
+
     last_keypair = Crypto.derive_keypair(seed, nb_keys)
 
     previous_keypair =

@@ -64,7 +64,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
           extract_seeds(genesis_seeds)
       end
 
-    Logger.debug(
+    Logger.info(
       "Bootstrapping seeds initialize with #{seeds |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}"
     )
 
@@ -88,7 +88,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     |> nodes_to_seeds
     |> flush_seeds(file)
 
-    Logger.debug(
+    Logger.info(
       "Bootstrapping seeds list refreshed with #{seeds |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}"
     )
 
