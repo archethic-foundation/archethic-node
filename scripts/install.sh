@@ -84,19 +84,6 @@ sudo add-apt-repository \
 sudo apt-get update
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
-echo "Install docker"
-
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-
-sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
-
-sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
-
-
 echo "Install ScyllaDB"
 
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 5e08fbd8b5d6ec9c
@@ -142,9 +129,10 @@ sudo apt -y install \
   libcurl4-openssl-dev \
   acl
 
-git clone https://github.com/tpm2-software/tpm2-tss.git $INSTALL_DIR/tpm2-tss
-cd $INSTALL_DIR/tpm2-tss
-./bootstrap
+cd $INSTALL_DIR
+wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
+tar -xf tpm2-tss-3.1.0.tar.gz && rm tpm2-tss-3.1.0.tar.gz
+mv tpm2-tss-3.1.0 tpm2-tss && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d
 make -j$(nproc)
 
