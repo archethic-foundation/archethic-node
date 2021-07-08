@@ -95,10 +95,10 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
 
     last_index =
-      if nb_keys > 0 do
-        nb_keys - 1
+      if nb_keys == 0 do
+        0
       else
-        nb_keys
+        nb_keys - 1
       end
 
     last_public_key = request_public_key(port_handler, last_index)
@@ -163,7 +163,15 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   def handle_call(:persist_next_keypair, _, state = %{index: index, port_handler: port_handler}) do
     :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
-    {:reply, :ok, Map.update!(state, :index, &(&1 + 1))}
+
+    new_state =
+      state
+      |> Map.update!(:index, &(&1 + 1))
+      |> Map.put(:next_index, index + 2)
+      |> Map.put(:previous_index, index + 1)
+      |> Map.put(:last_index, index)
+
+    {:reply, :ok, new_state}
   end
 
   def handle_call(

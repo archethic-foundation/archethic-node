@@ -76,16 +76,20 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
 
-    last_keypair = Crypto.derive_keypair(seed, nb_keys)
-
-    previous_keypair =
+    last_keypair =
       if nb_keys == 0 do
         first_keypair
       else
         Crypto.derive_keypair(seed, nb_keys - 1)
       end
 
+    previous_keypair = Crypto.derive_keypair(seed, nb_keys)
+
     next_keypair = Crypto.derive_keypair(seed, nb_keys + 1)
+
+    Logger.info("Next public key will be #{Base.encode16(elem(next_keypair, 0))}")
+    Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
+    Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
 
     {:ok,
      %{
@@ -138,7 +142,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   def handle_call(
         {:diffie_hellman, public_key},
         _,
-        state = %{previous_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
+        state = %{last_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
       ) do
     shared_secret =
       case ID.to_curve(curve_id) do
@@ -155,7 +159,20 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
 
   @impl GenServer
   def handle_cast(:persist_next_keypair, state = %{index: index, seed: seed}) do
-    next_keypair = Crypto.derive_keypair(seed, index + 1)
-    {:noreply, Map.put(state, :next_keypair, next_keypair)}
+    next_keypair = Crypto.derive_keypair(seed, index + 2)
+    previous_keypair = Crypto.derive_keypair(seed, index + 1)
+    last_keypair = Crypto.derive_keypair(seed, index)
+
+    new_state =
+      state
+      |> Map.update!(:index, &(&1 + 1))
+      |> Map.put(:next_keypair, next_keypair)
+      |> Map.put(:previous_keypair, previous_keypair)
+      |> Map.put(:last_keypair, last_keypair)
+
+    Logger.info("Next public key will be #{Base.encode16(elem(next_keypair, 0))}")
+    Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
+    Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
+    {:noreply, new_state}
   end
 end

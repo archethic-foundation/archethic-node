@@ -31,12 +31,14 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
       {:ok, pid} = Keystore.start_link(seed: "fake seed")
 
       first_keypair = Crypto.derive_keypair("fake seed", 0)
-      last_keypair = Crypto.derive_keypair("fake seed", 3)
+      last_keypair = Crypto.derive_keypair("fake seed", 2)
+      previous_keypair = Crypto.derive_keypair("fake seed", 3)
       next_keypair = Crypto.derive_keypair("fake seed", 4)
 
       assert %{
                first_keypair: ^first_keypair,
                last_keypair: ^last_keypair,
+               previous_keypair: ^previous_keypair,
                next_keypair: ^next_keypair
              } = :sys.get_state(pid)
     end
