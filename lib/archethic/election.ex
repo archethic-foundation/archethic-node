@@ -149,9 +149,13 @@ defmodule ArchEthic.Election do
         )
       end
 
-    :telemetry.execute([:archethic, :election, :validation_nodes], %{
-      duration: System.monotonic_time() - start
-    })
+    :telemetry.execute(
+      [:archethic, :election, :validation_nodes],
+      %{
+        duration: System.monotonic_time() - start
+      },
+      %{nb_nodes: length(authorized_nodes)}
+    )
 
     nodes
   end
@@ -304,7 +308,8 @@ defmodule ArchEthic.Election do
 
     :telemetry.execute(
       [:archethic, :election, :storage_nodes],
-      %{duration: System.monotonic_time() - start}
+      %{duration: System.monotonic_time() - start},
+      %{nb_nodes: length(nodes)}
     )
 
     storage_nodes
