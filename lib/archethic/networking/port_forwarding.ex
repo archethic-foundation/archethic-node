@@ -14,6 +14,8 @@ defmodule ArchEthic.Networking.PortForwarding do
   @spec try_open_port(port_to_open :: :inet.port_number(), force? :: boolean()) ::
           :inet.port_number()
   def try_open_port(port, force?) when is_integer(port) and port >= 0 and is_boolean(force?) do
+    Logger.info("Try to open port #{port}")
+
     with true <- required?(ip_lookup_provider()),
          true <- conf_overrides?(),
          {:ok, port} <- do_try_open_port(port) do

@@ -36,7 +36,6 @@ defmodule ArchEthicWeb.Supervisor do
 
   defp try_open_port(conf) do
     port = Keyword.get(conf, :port)
-    Logger.info("Try to open the port #{port}")
     Networking.try_open_port(port, false)
   end
 end

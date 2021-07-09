@@ -79,6 +79,7 @@ config :archethic, ArchEthic.OracleChain.Services.UCOPrice, provider: MockUCOPri
 
 config :archethic, ArchEthic.Networking.IPLookup, MockIPLookup
 config :archethic, ArchEthic.Networking.PortForwarding, MockPortForwarding
+config :archethic, ArchEthic.Networking.Scheduler, enabled: false
 
 config :archethic, ArchEthic.P2P.Endpoint.Listener, enabled: false
 config :archethic, ArchEthic.P2P.MemTableLoader, enabled: false

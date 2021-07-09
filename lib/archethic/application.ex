@@ -23,6 +23,7 @@ defmodule ArchEthic.Application do
   alias ArchEthic.Mining.Supervisor, as: MiningSupervisor
 
   alias ArchEthic.Networking
+  alias ArchEthic.Networking.Supervisor, as: NetworkingSupervisor
 
   alias ArchEthic.P2P.Supervisor, as: P2PSupervisor
 
@@ -51,7 +52,6 @@ defmodule ArchEthic.Application do
     p2p_endpoint_conf = Application.get_env(:archethic, ArchEthic.P2P.Endpoint)
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
-    Logger.info("Try to open the port #{port}")
     port = Networking.try_open_port(port, true)
 
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
@@ -75,6 +75,7 @@ defmodule ArchEthic.Application do
       OracleChainSupervisor,
       RewardSupervisor,
       WebSupervisor,
+      NetworkingSupervisor,
       {Bootstrap,
        Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
          port: port,

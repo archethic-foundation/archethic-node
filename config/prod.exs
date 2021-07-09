@@ -83,6 +83,9 @@ config :archethic, ArchEthic.Networking.PortForwarding,
 config :archethic, ArchEthic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP")
 
+config :archethic, ArchEthic.Networking.Scheduler,
+  interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 0 * * * * *")
+
 config :archethic, ArchEthic.OracleChain.Scheduler,
   # Poll new changes every minute
   polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
