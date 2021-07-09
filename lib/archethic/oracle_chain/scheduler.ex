@@ -100,34 +100,23 @@ defmodule ArchEthic.OracleChain.Scheduler do
          true <- trigger_node?(date) do
       Logger.debug("Trigger oracle data fetching")
 
-      previous_date = Map.get(state, :last_poll_date) || date
+      last_polling_date = Map.get(state, :last_poll_date)
+      next_polling_date = next_date(polling_interval)
+      me = self()
 
-      previous_data =
-        previous_date
-        |> oracle_transaction_address()
-        |> get_oracle_data()
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        handle_polling(last_polling_date, next_polling_date, date, me)
+      end)
 
-      next_data = Services.fetch_new_data(previous_data)
-
-      if Enum.empty?(next_data) do
-        Logger.debug("Oracle transaction skipped - no new data")
-        {:noreply, Map.put(state, :polling_timer, timer)}
-      else
-        Logger.debug("Oracle transaction sending - new data")
-        next_polling_date = next_date(polling_interval)
-        send_tx(previous_date, next_polling_date, next_data)
-
-        new_state =
-          state
-          |> Map.put(:last_poll_date, next_polling_date)
-          |> Map.put(:polling_timer, timer)
-
-        {:noreply, new_state}
-      end
+      {:noreply, Map.put(state, :polling_timer, timer)}
     else
       _ ->
         {:noreply, Map.put(state, :polling_timer, timer)}
     end
+  end
+
+  def handle_info({:last_poll_date, date}, state) do
+    {:noreply, Map.put(state, :last_poll_date, date)}
   end
 
   def handle_info(:summary, state = %{summary_interval: interval, last_poll_date: last_poll_date}) do
@@ -221,44 +210,55 @@ defmodule ArchEthic.OracleChain.Scheduler do
     end
   end
 
-  defp send_tx(
-         previous_date = %DateTime{},
-         date = %DateTime{},
-         new_data
-       ) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(previous_date)
+  defp handle_polling(last_polling_date, next_polling_date, polling_date, pid) do
+    previous_date = last_polling_date || polling_date
 
-    {next_pub, _pv} = Crypto.derive_oracle_keypair(date)
+    previous_data =
+      previous_date
+      |> oracle_transaction_address()
+      |> get_oracle_data()
 
-    Transaction.new(
-      :oracle,
-      %TransactionData{
-        content: Jason.encode!(new_data),
-        code: ~S"""
-        condition inherit: [
-          # We need to ensure the type stays consistent
-          # So we can apply specific rules during the transaction validation
-          type: in?([oracle, oracle_summary]),
+    next_data = Services.fetch_new_data(previous_data)
 
-          # We discard the content and code verification
-          content: true,
-          
-          # We ensure the code stay the same
-          code: if type == oracle_summary do
-            regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
-          else
-            previous.code
-          end
-        ]
-        """
-      },
-      prev_pv,
-      prev_pub,
-      next_pub
-    )
-    |> ArchEthic.send_new_transaction()
+    if Enum.empty?(next_data) do
+      Logger.debug("Oracle transaction skipped - no new data")
+    else
+      Logger.debug("Oracle transaction sending - new data")
+      {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(previous_date)
 
-    Logger.debug("New data pushed to the oracle")
+      {next_pub, _pv} = Crypto.derive_oracle_keypair(polling_date)
+
+      Transaction.new(
+        :oracle,
+        %TransactionData{
+          content: Jason.encode!(next_data),
+          code: ~S"""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: in?([oracle, oracle_summary]),
+
+            # We discard the content and code verification
+            content: true,
+            
+            # We ensure the code stay the same
+            code: if type == oracle_summary do
+              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+            else
+              previous.code
+            end
+          ]
+          """
+        },
+        prev_pv,
+        prev_pub,
+        next_pub
+      )
+      |> ArchEthic.send_new_transaction()
+
+      Logger.debug("New data pushed to the oracle")
+      send(pid, {:last_poll_date, next_polling_date})
+    end
   end
 
   defp handle_new_summary(last_poll_date, date) do
