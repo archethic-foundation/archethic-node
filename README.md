@@ -44,7 +44,7 @@ Current implemented features:
 ## Installation
 
 Requirements:
-- Libsodium: for the ed25519 encryption and decryption.
+- Libsodium: for the ed25519 to Curve25519 conversion 
 - OpenSSL 1.11
 - OTP 23: generation of ed25519 key pairs
 - GMP (https://gmplib.org/)
@@ -53,7 +53,8 @@ Platforms supported:
 - Linux (Ubuntu 18.04)
 - Mac OS X
 
-Requires Cassandra/ScyllaDB installation to use for the backend storage
+Requires ScyllaDB/Cassandra installation to use for the backend storage
+(We recommand ScyllaDB as it's better in resource consumption and performances)
 
 ## Development
 
@@ -64,14 +65,19 @@ At first, get dependencies:
 mix deps.get
 ```
 
+Install the static assets
+```
+cd assets ; npm install; cd -
+```
+
 To start a single node:
 ```bash
 iex -S mix
 ```
 
-To clean the data from the database
+To clean the data
 ```bash
-mix archethic.clean_db
+make clean
 ```
 
 <!-- To start multiple nodes, you can leverage: `docker-compose`
