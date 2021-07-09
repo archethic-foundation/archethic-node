@@ -72,7 +72,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
       }) do
     Logger.info("Loading transaction into P2P mem table",
       transaction_address: Base.encode16(address),
-      transaction_type: "node"
+      transaction_type: :node
     )
 
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
@@ -98,7 +98,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
       MemTable.add_node(node)
     end
 
-    Logger.debug("Loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+    Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
   end
 
   def load_transaction(%Transaction{
@@ -111,7 +111,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
       }) do
     Logger.info("Loading transaction into P2P mem table",
       transaction_address: Base.encode16(address),
-      transaction_type: "node_shared_secrets"
+      transaction_type: :node_shared_secrets
     )
 
     new_authorized_keys = Keys.list_authorized_keys(keys)
@@ -134,7 +134,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
       }) do
     Logger.info("Loading transaction into P2P mem table",
       transaction_address: Base.encode16(address),
-      transaction_type: "beacon_summary"
+      transaction_type: :beacon_summary
     )
 
     {summary = %BeaconSummary{

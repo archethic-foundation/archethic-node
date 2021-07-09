@@ -384,7 +384,7 @@ defmodule ArchEthic.TransactionChain do
     if poi == proof_of_integrity([tx]) do
       true
     else
-      Logger.debug("Invalid proof of integrity",
+      Logger.error("Invalid proof of integrity",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
       )
@@ -408,7 +408,7 @@ defmodule ArchEthic.TransactionChain do
       ]) do
     cond do
       proof_of_integrity([Transaction.to_pending(last_tx), prev_tx]) != poi ->
-        Logger.debug("Invalid proof of integrity",
+        Logger.error("Invalid proof of integrity",
           transaction_address: Base.encode16(last_tx.address),
           transaction_type: last_tx.type
         )
@@ -416,7 +416,7 @@ defmodule ArchEthic.TransactionChain do
         false
 
       Crypto.hash(previous_public_key) != previous_address ->
-        Logger.debug("Invalid previous public key",
+        Logger.error("Invalid previous public key",
           transaction_type: last_tx.type,
           transaction_address: Base.encode16(last_tx.address)
         )
@@ -424,7 +424,7 @@ defmodule ArchEthic.TransactionChain do
         false
 
       DateTime.diff(timestamp, previous_timestamp) < 0 ->
-        Logger.debug("Invalid timestamp",
+        Logger.error("Invalid timestamp",
           transaction_type: last_tx.type,
           transaction_address: Base.encode16(last_tx.address)
         )

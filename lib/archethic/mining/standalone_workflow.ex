@@ -89,7 +89,7 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
 
     storage_nodes = ValidationContext.get_storage_nodes(context)
 
-    Logger.debug(
+    Logger.info(
       "Send validated transaction to #{storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end) |> Enum.join(",")}",
       transaction_address: Base.encode16(validated_tx.address),
       transaction_type: validated_tx.type

@@ -69,7 +69,10 @@ defmodule ArchEthic.Contracts.Loader do
               {Worker, Contract.from_transaction!(tx)}
             )
 
-          Logger.debug("Smart contract loaded", transaction: "#{type}@#{Base.encode16(address)}")
+          Logger.info("Smart contract loaded",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
         end
 
       _ ->
@@ -87,12 +90,18 @@ defmodule ArchEthic.Contracts.Loader do
       )
       when recipients != [] do
     Enum.each(recipients, fn contract_address ->
+      Logger.info("Execute transaction on contract #{Base.encode16(contract_address)}",
+        transaction_address: Base.encode16(tx_address),
+        transaction_type: tx_type
+      )
+
       case Worker.execute(contract_address, tx) do
         :ok ->
           TransactionLookup.add_contract_transaction(contract_address, tx_address, tx_timestamp)
 
-          Logger.debug("Transaction towards contract #{Base.encode16(contract_address)} ingested",
-            transaction: "#{tx_type}@#{Base.encode16(tx_address)}"
+          Logger.info("Transaction towards contract ingested",
+            transaction_address: Base.encode16(tx_address),
+            transaction_type: tx_type
           )
 
         _ ->
@@ -104,12 +113,18 @@ defmodule ArchEthic.Contracts.Loader do
   def load_transaction(
         %Transaction{
           address: address,
+          type: type,
           validation_stamp: %ValidationStamp{recipients: recipients, timestamp: timestamp}
         },
         true
       )
       when recipients != [] do
     Enum.each(recipients, &TransactionLookup.add_contract_transaction(&1, address, timestamp))
+
+    Logger.info("Transaction towards contract ingested",
+      transaction_address: Base.encode16(address),
+      transaction_type: type
+    )
   end
 
   def load_transaction(_tx, _), do: :ok
@@ -122,6 +137,7 @@ defmodule ArchEthic.Contracts.Loader do
     case Registry.lookup(ContractRegistry, address) do
       [{pid, _}] ->
         DynamicSupervisor.terminate_child(ContractSupervisor, pid)
+        Logger.info("Stop smart contract at #{Base.encode16(address)}")
 
       _ ->
         :ok
