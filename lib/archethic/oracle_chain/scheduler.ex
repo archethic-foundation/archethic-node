@@ -4,7 +4,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
+  # alias Crontab.Scheduler, as: CronScheduler
 
   alias ArchEthic.Crypto
 
@@ -101,11 +101,10 @@ defmodule ArchEthic.OracleChain.Scheduler do
       Logger.debug("Trigger oracle data fetching")
 
       last_polling_date = Map.get(state, :last_poll_date)
-      next_polling_date = next_date(polling_interval)
       me = self()
 
       Task.Supervisor.start_child(TaskSupervisor, fn ->
-        handle_polling(last_polling_date, next_polling_date, date, me)
+        handle_polling(last_polling_date, date, me)
       end)
 
       {:noreply, Map.put(state, :polling_timer, timer)}
@@ -170,6 +169,10 @@ defmodule ArchEthic.OracleChain.Scheduler do
     {:noreply, new_state}
   end
 
+  def handle_call(:summary_interval, _from, state = %{summary_interval: summary_interval}) do
+    {:reply, summary_interval, state}
+  end
+
   defp schedule_new_polling(interval) do
     seconds = Utils.time_offset(interval)
     Logger.info("Next oracle polling in #{seconds} seconds")
@@ -210,7 +213,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
     end
   end
 
-  defp handle_polling(last_polling_date, next_polling_date, polling_date, pid) do
+  defp handle_polling(last_polling_date, polling_date, pid) do
     previous_date = last_polling_date || polling_date
 
     previous_data =
@@ -257,7 +260,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
       |> ArchEthic.send_new_transaction()
 
       Logger.debug("New data pushed to the oracle")
-      send(pid, {:last_poll_date, next_polling_date})
+      send(pid, {:last_poll_date, polling_date})
     end
   end
 
@@ -280,12 +283,12 @@ defmodule ArchEthic.OracleChain.Scheduler do
     |> Crypto.hash()
   end
 
-  defp next_date(interval) do
-    interval
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
-    |> DateTime.from_naive!("Etc/UTC")
-  end
+  # defp next_date(interval) do
+  #   interval
+  #   |> CronParser.parse!(true)
+  #   |> CronScheduler.get_next_run_date!(DateTime.to_naive(DateTime.utc_now()))
+  #   |> DateTime.from_naive!("Etc/UTC")
+  # end
 
   defp summary?(interval) do
     interval
@@ -297,5 +300,9 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
   def config_change(conf) do
     GenServer.cast(__MODULE__, {:new_conf, conf})
+  end
+
+  def get_summary_interval do
+    GenServer.call(__MODULE__, :summary_interval)
   end
 end
