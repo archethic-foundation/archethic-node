@@ -16,6 +16,9 @@ defmodule ArchEthic.OracleChain do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   @doc """
   Determines if the oracle transaction is valid.
 
@@ -108,5 +111,18 @@ defmodule ArchEthic.OracleChain do
     changed_conf
     |> Keyword.get(Scheduler)
     |> Scheduler.config_change()
+  end
+
+  @spec summary_dates(DateTime.t()) :: Enumerable.t()
+  def summary_dates(date_from = %DateTime{}) do
+    Scheduler.get_summary_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_dates(DateTime.utc_now() |> DateTime.to_naive())
+    |> Stream.take_while(fn datetime ->
+      datetime
+      |> DateTime.from_naive!("Etc/UTC")
+      |> DateTime.compare(date_from) == :gt
+    end)
+    |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
   end
 end

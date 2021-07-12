@@ -32,11 +32,16 @@ defmodule ArchEthicWeb.Router do
     pipe_through(:browser)
 
     live("/", ExplorerIndexLive)
+
     live("/transactions", TransactionListLive)
     live("/transaction/:address", TransactionDetailsLive)
+
     get("/chain", ExplorerController, :chain)
+    live("/chain/oracle", OracleChainLive)
+
     live("/nodes", NodeListLive)
     live("/node/:public_key", NodeDetailsLive)
+
     live("/code/viewer", CodeViewerLive)
     live("/code/proposals", CodeProposalsLive)
     live("/code/proposal/:address", CodeProposalDetailsLive)
