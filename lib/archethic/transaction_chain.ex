@@ -305,7 +305,7 @@ defmodule ArchEthic.TransactionChain do
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
         tx = %Transaction{}
-        | [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: previous_poi}}]
+        | [%Transaction{validation_stamp: %ValidationStamp{proof_of_integrity: previous_poi}} | _]
       ]) do
     Crypto.hash([proof_of_integrity([tx]), previous_poi])
   end
