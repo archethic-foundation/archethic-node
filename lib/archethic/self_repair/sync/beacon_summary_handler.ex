@@ -211,7 +211,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     transactions_to_sync =
       transaction_summaries
       |> Enum.uniq_by(& &1.address)
-      |> Enum.sort_by(& &1.timestamp)
+      |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
       |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 

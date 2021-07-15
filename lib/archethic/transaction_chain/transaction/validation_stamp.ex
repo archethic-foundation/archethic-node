@@ -107,7 +107,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
       ...> |> ValidationStamp.serialize()
       <<
       # Timestamp
-      96, 149, 60, 119,
+      0, 0, 1, 121, 70, 244, 48, 216,
       # Proof of work
       0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
@@ -159,7 +159,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
         pow
       end
 
-    <<DateTime.to_unix(timestamp)::32, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring>>
@@ -183,7 +183,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
         pow
       end
 
-    <<DateTime.to_unix(timestamp)::32, pow::binary, poi::binary, poe::binary,
+    <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
       LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
@@ -194,7 +194,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
 
   ## Examples
 
-      iex> <<96, 149, 60, 119, 0, 0,  34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
+      iex> <<0, 0, 1, 121, 70, 244, 48, 216, 0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
       ...> 155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,
       ...> 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
       ...> 28, 156, 201, 30, 100, 75, 172, 95, 135, 167, 180, 242, 16, 74, 87, 170,
@@ -210,7 +210,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
       ...> |> ValidationStamp.deserialize()
       {
         %ValidationStamp{
-          timestamp: ~U[2021-05-07 13:11:19Z],
+          timestamp: ~U[2021-05-07 13:11:19.000Z],
           proof_of_work: <<0, 0, 34, 248, 200, 166, 69, 102, 246, 46, 84, 7, 6, 84, 66, 27, 8, 78, 103, 37,
             155, 114, 208, 205, 40, 44, 6, 159, 178, 5, 186, 168, 237, 206,>>,
           proof_of_integrity: << 0, 49, 174, 251, 208, 41, 135, 147, 199, 114, 232, 140, 254, 103, 186, 138, 175,
@@ -235,7 +235,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
         ""
       }
   """
-  def deserialize(<<timestamp::32, rest::bitstring>>) do
+  def deserialize(<<timestamp::64, rest::bitstring>>) do
     <<pow_curve_id::8, pow_origin_id::8, rest::bitstring>> = rest
     pow_key_size = Crypto.key_size(pow_curve_id)
     <<pow_key::binary-size(pow_key_size), rest::bitstring>> = rest
@@ -256,7 +256,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
 
     {
       %__MODULE__{
-        timestamp: DateTime.from_unix!(timestamp),
+        timestamp: DateTime.from_unix!(timestamp, :millisecond),
         proof_of_work: pow,
         proof_of_integrity: <<poi_hash_id::8, poi_hash::binary>>,
         proof_of_election: poe,
