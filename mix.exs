@@ -57,7 +57,7 @@ defmodule ArchEthic.MixProject do
       {:absinthe_phoenix, "~> 2.0"},
       {:cors_plug, "~> 1.5"},
       {:phoenix_live_dashboard, "~> 0.2.7"},
-      {:ex_doc, "~> 0.21.2"},
+      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:observer_cli, "~> 1.5"},
       {:distillery, github: "bitwalker/distillery", ref: "6700edb"},
       {:crontab, "~> 1.1"},
