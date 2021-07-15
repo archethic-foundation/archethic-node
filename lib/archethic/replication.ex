@@ -25,6 +25,8 @@ defmodule ArchEthic.Replication do
 
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.PubSub
+
   alias ArchEthic.OracleChain
 
   alias ArchEthic.Reward
@@ -105,7 +107,11 @@ defmodule ArchEthic.Replication do
   end
 
   defp do_process_transaction_as_chain_storage_node(
-         tx = %Transaction{address: address, type: type},
+         tx = %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
+         },
          roles,
          opts
        ) do
@@ -153,6 +159,8 @@ defmodule ArchEthic.Replication do
           transaction_type: type
         )
 
+        PubSub.notify_new_transaction(address, type, timestamp)
+
       {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
@@ -165,7 +173,15 @@ defmodule ArchEthic.Replication do
     end
   end
 
-  defp do_process_transaction(tx = %Transaction{address: address, type: type}, roles, _opts)
+  defp do_process_transaction(
+         tx = %Transaction{
+           address: address,
+           type: type,
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
+         },
+         roles,
+         _opts
+       )
        when is_list(roles) do
     case TransactionValidator.validate(tx) do
       :ok ->
@@ -183,6 +199,7 @@ defmodule ArchEthic.Replication do
           transaction_type: type
         )
 
+        PubSub.notify_new_transaction(address, type, timestamp)
         :ok
 
       {:error, reason} ->
