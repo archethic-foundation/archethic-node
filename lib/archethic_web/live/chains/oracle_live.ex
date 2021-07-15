@@ -92,10 +92,16 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        {:new_transaction, %Transaction{type: :oracle, data: %TransactionData{content: content}},
-         validation_stamp: %ValidationStamp{timestamp: timestamp}},
+        {:new_transaction, address, :oracle},
         socket
       ) do
+    {:ok,
+     %Transaction{
+       data: %TransactionData{content: content},
+       validation_stamp: %ValidationStamp{timestamp: timestamp}
+     }} =
+      TransactionChain.get_transaction(address, data: [:content], validation_stamp: [:timestamp])
+
     last_oracle_data = Jason.decode!(content)
 
     new_assign =
@@ -107,8 +113,8 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        {:new_transaction, %Transaction{type: :oracle_summary},
-         socket = %{assigns: %{current_date_page: page}}}
+        {:new_transaction, _address, :oracle_summary},
+        socket = %{assigns: %{current_date_page: page}}
       ) do
     dates = get_oracle_dates()
 
@@ -136,16 +142,10 @@ defmodule ArchEthicWeb.OracleChainLive do
 
   defp list_transactions_by_date(date = %DateTime{}) do
     date
-    |> oracle_chain_address()
+    |> Crypto.derive_oracle_address(0)
+    |> TransactionChain.get_last_address()
     |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
   end
 
   defp list_transactions_by_date(nil), do: []
-
-  defp oracle_chain_address(date = %DateTime{}) do
-    date
-    |> Crypto.derive_oracle_keypair()
-    |> elem(0)
-    |> Crypto.hash()
-  end
 end

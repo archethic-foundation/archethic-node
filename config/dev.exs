@@ -67,7 +67,7 @@ config :archethic, ArchEthic.OracleChain.Scheduler,
   # Poll new changes every 10 seconds
   polling_interval: "*/10 * * * * *",
   # Aggregate chain at the 50th second
-  summary_interval: "50 * * * * *"
+  summary_interval: "0 * * * * *"
 
 config :archethic, ArchEthic.Networking.IPLookup, ArchEthic.Networking.IPLookup.Static
 

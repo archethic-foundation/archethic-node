@@ -1,18 +1,14 @@
 defmodule ArchEthic.OracleChain.Summary do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
 
-  defstruct [:transactions, :previous_date, :date, :aggregated]
+  defstruct [:transactions, :aggregated]
 
   @type t :: %__MODULE__{
           transactions: list(Transaction.t()) | Enumerable.t(),
-          previous_date: DateTime.t() | nil,
-          date: DateTime.t() | nil,
           aggregated:
             %{
               DateTime.t() => map()
@@ -92,34 +88,16 @@ defmodule ArchEthic.OracleChain.Summary do
   end
 
   @doc """
-  Build a transaction from the oracle chain's summary
+  Format aggregated data into a JSON
   """
-  @spec to_transaction(t()) :: Transaction.t()
-  def to_transaction(%__MODULE__{
-        aggregated: aggregated_data,
-        previous_date: previous_date,
-        date: date
-      }) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(previous_date)
-    {next_pub, _} = Crypto.derive_oracle_keypair(date)
+  @spec aggregated_to_json(t()) :: binary()
 
-    Transaction.new(
-      :oracle_summary,
-      %TransactionData{
-        code: """
-          # We stop the inheritance of transaction by ensuring no other
-          # summary transaction will continue on this chain
-          condition inherit: [ content: "" ]
-        """,
-        content:
-          aggregated_data
-          |> Enum.map(&{DateTime.to_unix(elem(&1, 0)), elem(&1, 1)})
-          |> Enum.into(%{})
-          |> Jason.encode!()
-      },
-      prev_pv,
-      prev_pub,
-      next_pub
-    )
+  def aggregated_to_json(%__MODULE__{
+        aggregated: aggregated_data
+      }) do
+    aggregated_data
+    |> Enum.map(&{DateTime.to_unix(elem(&1, 0)), elem(&1, 1)})
+    |> Enum.into(%{})
+    |> Jason.encode!()
   end
 end

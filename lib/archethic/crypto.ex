@@ -1,10 +1,12 @@
 defmodule ArchEthic.Crypto do
-  @moduledoc ~S"""
+  @moduledoc """
   Provide cryptographic operations for ArchEthic network.
 
   An algorithm identification is produced by prepending keys and hashes.
   This identification helps to determine which algorithm/implementation to use in key generation and hashing.
 
+
+   ```
    Ed25519  Software  Public key
         |  /           |
         |  |   |-------|  
@@ -20,6 +22,8 @@ defmodule ArchEthic.Crypto do
        101, 222, 82, 108, 56, 71, 28, 192, 188, 104, 154, 182, 87, 11, 218, 58, 107,
       222, 154, 48, 222, 193, 176, 88, 174, 1, 6, 154, 72, 28, 217, 222, 147, 106,
       73, 150, 128, 209, 93, 99, 115, 17, 39, 96, 47, 203, 104, 34>>
+  ```
+
 
   Some functions rely on software implementations such as hashing, signature verification.
   Other can rely on hardware or software as a configuration choice to generate keys, sign or decrypt data.
@@ -178,19 +182,33 @@ defmodule ArchEthic.Crypto do
 
     derive_keypair(
       :persistent_term.get(:storage_nonce),
-      hash([subset, <<DateTime.to_unix(date)::32, summary_byte::8>>])
+      hash(["beacon", subset, <<DateTime.to_unix(date)::32, summary_byte::8>>])
     )
   end
 
   @doc """
-  Derive a keypair for oracle transactions based on a name and a datetime
+  Derive a keypair for oracle transaction based on a data and a chain size
   """
-  @spec derive_oracle_keypair(DateTime.t()) :: {key(), key()}
-  def derive_oracle_keypair(datetime = %DateTime{}) do
+  @spec derive_oracle_keypair(DateTime.t(), non_neg_integer()) :: {key(), key()}
+  def derive_oracle_keypair(date = %DateTime{}, size) when is_integer(size) and size >= 0 do
     derive_keypair(
-      :persistent_term.get(:storage_nonce),
-      hash([<<DateTime.to_unix(datetime)::32>>])
+      storage_nonce(),
+      hash([
+        "oracle",
+        <<DateTime.to_unix(date)::32, size::32>>
+      ])
     )
+  end
+
+  @doc """
+  Derive a oracle transaction address based on a subset and chain size
+  """
+  @spec derive_oracle_address(DateTime.t(), non_neg_integer()) :: versioned_hash()
+  def derive_oracle_address(date = %DateTime{}, size) when is_integer(size) and size >= 0 do
+    date
+    |> derive_oracle_keypair(size)
+    |> elem(0)
+    |> hash()
   end
 
   @doc """

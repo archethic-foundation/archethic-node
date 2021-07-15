@@ -89,8 +89,8 @@ config :archethic, ArchEthic.Networking.Scheduler,
 config :archethic, ArchEthic.OracleChain.Scheduler,
   # Poll new changes every minute
   polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
-  # Aggregate chain every day 10 minute before midnight
-  summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 50 0 * * * *")
+  # Aggregate chain every day at midnight
+  summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 0 0 * * * *")
 
 config :archethic, ArchEthic.Reward.NetworkPoolScheduler,
   # Every month

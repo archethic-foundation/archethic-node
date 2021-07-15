@@ -11,10 +11,7 @@ defmodule ArchEthic.OracleChain do
   alias __MODULE__.Services
   alias __MODULE__.Summary
 
-  alias ArchEthic.PubSub
-
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -78,9 +75,12 @@ defmodule ArchEthic.OracleChain do
   Load the transaction in the memtable
   """
   @spec load_transaction(Transaction.t()) :: :ok
-  def load_transaction(tx = %Transaction{type: :oracle, data: %TransactionData{content: content}}) do
+  def load_transaction(
+        tx = %Transaction{
+          type: :oracle
+        }
+      ) do
     MemTableLoader.load_transaction(tx)
-    PubSub.notify_new_oracle_data(content)
   end
 
   def load_transaction(tx = %Transaction{type: :oracle_summary}),
@@ -113,6 +113,9 @@ defmodule ArchEthic.OracleChain do
     |> Scheduler.config_change()
   end
 
+  @doc """
+  Return the list of OracleChain summary dates from a given date
+  """
   @spec summary_dates(DateTime.t()) :: Enumerable.t()
   def summary_dates(date_from = %DateTime{}) do
     Scheduler.get_summary_interval()

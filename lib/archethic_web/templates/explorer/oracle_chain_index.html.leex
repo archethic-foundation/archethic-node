@@ -16,30 +16,39 @@
   <div class="columns">
     <div class="column">
       <nav class="pagination is-right" role="navigation" aria-label="pagination">
-        <%= if @current_date_page > 0 do %>
+        <%= if @current_date_page > 1 do %>
         <a class="pagination-previous  is-outlined has-text-white" phx-value-page="<%= @current_date_page - 1 %>" phx-click="goto">Previous</a>
        <% end %>
 
-        <%= if @current_date_page + 1 < Enum.count(@dates) do %>
+        <%= if @current_date_page + 1 <= Enum.count(@dates) do %>
         <a class="pagination-next  is-outlined has-text-white" phx-value-page="<%= @current_date_page + 1 %>" phx-click="goto">Next page</a>
         <% end %>
        
         <ul class="pagination-list">
           
-          <%= if @current_date_page > 0 do %>
-            <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page 1" phx-value-page="0", phx-click="goto">1</a></li>
+          <%= if @current_date_page > 1 do %>
+            <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page 1" phx-value-page="1", phx-click="goto">1</a></li>
             <li><span class="pagination-ellipsis">&hellip;</span></li>
           <% end %>
           
-          <li><a class="pagination-link has-background-white is-outlined has-text-black" aria-label="Page <%= @current_date_page %>" aria-current="page"><%= @current_date_page %></a></li>
-          
-          <%= if @current_date_page + 1 < Enum.count(@dates) do %>
-            <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= @current_date_page + 1 %>" phx-value-page="<%= @current_date_page + 1 %>" phx-click="goto"><%= @current_date_page + 1 %></a></li>
-            <li><span class="pagination-ellipsis">&hellip;</span></li>
+          <%= if Enum.count(@dates) == @current_date_page and @current_date_page > 1 do %>
+            <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= @current_date_page - 1 %>" phx-value-page="<%= @current_date_page - 1 %>" phx-click="goto"><%= @current_date_page - 1 %></a></li>
+            <li><a class="pagination-link has-background-white is-outlined has-text-black" aria-label="Page <%= @current_date_page %>" aria-current="page"><%= @current_date_page %></a></li>
+          <% else %>
+            <li><a class="pagination-link has-background-white is-outlined has-text-black" aria-label="Page <%= @current_date_page %>" aria-current="page"><%= @current_date_page %></a></li>
+
           <% end %>
 
-          <%= if Enum.count(@dates) > 0 and @current_date_page != Enum.count(@dates) - 1 do %>
-          <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= Enum.count(@dates) %>" phx-value-page="<%= Enum.count(@dates) - 1 %>" phx-click="goto"><%= Enum.count(@dates) - 1 %></a></li>
+          <%= cond do %>
+            <% @current_date_page + 2 <= Enum.count(@dates) -> %>
+              <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= @current_date_page + 1 %>" phx-value-page="<%= @current_date_page + 1 %>" phx-click="goto"><%= @current_date_page + 1 %></a></li>
+              <li><span class="pagination-ellipsis">&hellip;</span></li>
+              <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= Enum.count(@dates) %>" phx-value-page="<%= Enum.count(@dates)%>" phx-click="goto"><%= Enum.count(@dates)%></a></li>
+            
+              <% @current_date_page + 1 == Enum.count(@dates) -> %>
+                <li><a class="pagination-link  is-outlined has-text-white" aria-label="Goto page <%= Enum.count(@dates) %>" phx-value-page="<%= Enum.count(@dates)%>" phx-click="goto"><%= Enum.count(@dates)%></a></li>
+              <% true -> %>
+                  
           <% end %>
         </ul>
       </nav>
@@ -49,7 +58,7 @@
   <div class="columns">
     <div class="column">
       <div class="box">
-        <p class="heading is-size-6">Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page)) %></p>
+        <p class="heading is-size-6">Transaction chain for <%= format_date(Enum.at(@dates, @current_date_page - 1)) %></p>
         <div class="columns mt-6">
           <div class="column">
         <%= for tx <- @transactions do %>
