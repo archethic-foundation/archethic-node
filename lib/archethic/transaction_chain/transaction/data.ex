@@ -25,7 +25,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
           content: binary()
         }
 
-  @doc ~S"""
+  @doc """
   Serialize transaction data into binary format
 
   ## Examples

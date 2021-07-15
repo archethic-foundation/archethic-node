@@ -6,8 +6,8 @@ defmodule ArchEthic.Networking.Scheduler do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Endpoint, as: P2PEndpoint
+  alias ArchEthic.P2P.Node
 
   alias ArchEthic.Networking.IPLookup
   alias ArchEthic.Networking.PortForwarding

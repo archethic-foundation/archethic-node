@@ -104,7 +104,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
     )
   end
 
-  @doc ~S"""
+  @doc """
   Set transaction data content
 
   ## Examples
@@ -122,7 +122,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
     put_in(contract, access_path([:next_transaction, :data, :content]), decode_binary(content))
   end
 
-  @doc ~S"""
+  @doc """
   Set transaction smart contract code
 
   ## Examples
@@ -178,7 +178,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
     )
   end
 
-  @doc ~S"""
+  @doc """
   Set the transaction encrypted secret
 
   ## Examples

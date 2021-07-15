@@ -39,7 +39,7 @@ defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
     :ets.new(@origin_key_by_type_table, [:bag, :named_table, :public, read_concurrency: true])
     :ets.new(@origin_key_table, [:set, :named_table, :public, read_concurrency: true])
 
-    Enum.map(@genesis_origin_public_keys, fn key ->
+    Enum.each(@genesis_origin_public_keys, fn key ->
       add_public_key(:software, key)
     end)
 

@@ -213,8 +213,10 @@ defmodule ArchEthic.Utils do
 
   # Walk the list and atomize the keys of
   # of any map members
+  def atomize_keys([head | []], _), do: [atomize_keys(head)]
+
   def atomize_keys([head | rest], _) do
-    [atomize_keys(head) | atomize_keys(rest)]
+    [atomize_keys(head)] ++ atomize_keys(rest)
   end
 
   def atomize_keys(not_a_map, _) do
@@ -260,8 +262,10 @@ defmodule ArchEthic.Utils do
 
   # Walk the list and stringify the keys of
   # of any map members
+  def stringify_keys([head | []]), do: [stringify_keys(head)]
+
   def stringify_keys([head | rest]) do
-    [stringify_keys(head) | stringify_keys(rest)]
+    [stringify_keys(head)] ++ stringify_keys(rest)
   end
 
   def stringify_keys(not_a_map) do
@@ -531,16 +535,13 @@ defmodule ArchEthic.Utils do
   Return the remaining seconds from timer
   """
   @spec remaining_seconds_from_timer(reference()) :: non_neg_integer()
-  def remaining_seconds_from_timer(timer) do
-    seconds =
-      case Process.read_timer(timer) do
-        false ->
-          0
+  def remaining_seconds_from_timer(timer) when is_reference(timer) do
+    case Process.read_timer(timer) do
+      false ->
+        0
 
-        milliseconds ->
-          div(milliseconds, 1000)
-      end
-
-    HumanizeTime.format_seconds(seconds)
+      milliseconds ->
+        div(milliseconds, 1000)
+    end
   end
 end

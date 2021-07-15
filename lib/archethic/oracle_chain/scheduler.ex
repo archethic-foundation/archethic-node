@@ -4,7 +4,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
-  # alias Crontab.Scheduler, as: CronScheduler
+  alias Crontab.DateChecker, as: CronDateChecker
 
   alias ArchEthic.Crypto
 
@@ -293,7 +293,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   defp summary?(interval) do
     interval
     |> CronParser.parse!(true)
-    |> Crontab.DateChecker.matches_date?(DateTime.utc_now() |> DateTime.to_naive())
+    |> CronDateChecker.matches_date?(DateTime.utc_now() |> DateTime.to_naive())
   end
 
   def config_change(nil), do: :ok

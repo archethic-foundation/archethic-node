@@ -52,7 +52,7 @@ defmodule ArchEthic.WebClient do
   @doc """
   Execute json request on a given `Mint.HTTP.t()` connection.
   """
-  @spec json(conn :: HTTP.t(), path :: String.t(), json :: Map.t()) ::
+  @spec json(conn :: HTTP.t(), path :: String.t(), json :: map() | nil) ::
           {:ok, HTTP.t(), term} | {:error, HTTP.t(), Types.error() | DecodeError.t()}
   def json(conn, path, json \\ nil)
 

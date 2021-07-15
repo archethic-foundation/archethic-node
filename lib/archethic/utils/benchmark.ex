@@ -8,5 +8,5 @@ defmodule ArchEthic.Benchmark do
   Given a list of nodes forming testnet and options return a tuple of benchmark
   scenario and options for it.
   """
-  @callback plan([String.t()], Keyword.t()) :: {Map.t(), Keyword.t()}
+  @callback plan([String.t()], Keyword.t()) :: {map(), Keyword.t()}
 end

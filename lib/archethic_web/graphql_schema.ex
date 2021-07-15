@@ -5,10 +5,10 @@ defmodule ArchEthicWeb.GraphQLSchema do
 
   alias __MODULE__.DateTimeType
   alias __MODULE__.HexType
+  alias __MODULE__.P2PType
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
-  alias __MODULE__.P2PType
 
   import_types(HexType)
   import_types(DateTimeType)

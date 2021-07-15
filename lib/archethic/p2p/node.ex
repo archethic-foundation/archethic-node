@@ -32,7 +32,7 @@ defmodule ArchEthic.P2P.Node do
     transport: :tcp
   ]
 
-  @doc ~S"""
+  @doc """
   Decode node information from transaction content
 
   ## Examples

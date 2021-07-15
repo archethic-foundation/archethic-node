@@ -109,14 +109,14 @@ defmodule ArchEthic.Testnet do
 
   alias ArchEthic.Crypto
 
-  @p2p_port Application.compile_env!(:archethic, ArchEthic.P2P.Endpoint)[:port]
-  @web_port Application.compile_env!(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+  defp p2p_port, do: Application.get_env(:archethic, ArchEthic.P2P.Endpoint)[:port]
+  defp web_port, do: Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
 
   @validator Mix.Project.config()[:escript][:name]
   @validator_ip 220
   @collector_ip 200
 
-  @type testnet :: [Path.t() | {Path.t(), String.t() | Map.t()}]
+  @type testnet :: [Path.t() | {Path.t(), String.t() | map()}]
 
   @doc """
   Given a list of seeds and options generates a list of folders and files
@@ -142,9 +142,9 @@ defmodule ArchEthic.Testnet do
         "- job_name: testnet\\n" <>
         "  static_configs:\\n" <>
         "  - targets:\\n" <>
-        "    - node1:#{@web_port}\\n" <>
-        "    - node2:#{@web_port}\\n" <>
-        "    - node3:#{@web_port}\\n\\n"},
+        "    - node1:#4002\\n" <>
+        "    - node2:#4002\\n" <>
+        "    - node3:#4002\\n\\n"},
       {"docker-compose.json", %{
         version: "3.9",
           networks: %{:net => %{ipam: %{config: [%{subnet: "1.2.3.0/24"}], driver: :default}}},
@@ -154,30 +154,30 @@ defmodule ArchEthic.Testnet do
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "seed1",
                 "ARCHETHIC_MUT_DIR" => "/opt/data",
-                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:#{@p2p_port}:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp",
+                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:3002:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.2"},
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.2"}},
               volumes: [".data1:/opt/data"]},
             "node2" => %{
-              command: ["/wait.sh", "http://node1:#{@web_port}/up", "./bin/archethic_node", "foreground"],
+              command: ["/wait.sh", "http://node1:4002/up", "./bin/archethic_node", "foreground"],
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "seed2",
                 "ARCHETHIC_MUT_DIR" => "/opt/data",
-                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:#{@p2p_port}:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp",
+                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:3002:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.3"},
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.3"}},
               volumes: [".data2:/opt/data", "c/scripts/wait-for-node.sh:/wait.sh:ro"]},
             "node3" => %{
-              command: ["/wait.sh", "http://node1:#{@web_port}/up", "./bin/archethic_node", "foreground"],
+              command: ["/wait.sh", "http://node1:4002/up", "./bin/archethic_node", "foreground"],
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "seed3",
                 "ARCHETHIC_MUT_DIR" => "/opt/data",
-                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:#{@p2p_port}:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp\\n" <>
-                                      "1.2.3.3:#{@p2p_port}:00FBB0C05A9315CFC636A5AF30A7842E4144D2472D1FED1CA2CE401EB5056AB095:tcp",
+                "ARCHETHIC_P2P_SEEDS" => "1.2.3.2:3002:009D421F8ACC11F7E25EC515732ECB7E3E38109118EC409701930D7A892E913428:tcp\\n" <>
+                                      "1.2.3.3:3002:00FBB0C05A9315CFC636A5AF30A7842E4144D2472D1FED1CA2CE401EB5056AB095:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.4"},
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.4"}},
@@ -267,7 +267,7 @@ defmodule ArchEthic.Testnet do
   end
 
   defp prometheus_config(nodes) do
-    targets = nodes |> Enum.map(&"    - #{&1}:#{@web_port}\n") |> Enum.join()
+    targets = nodes |> Enum.map(&"    - #{&1}:#{web_port()}\n") |> Enum.join()
 
     """
     global:
@@ -324,14 +324,19 @@ defmodule ArchEthic.Testnet do
        },
        networks: %{:net => %{ipv4_address: ip.(n + 1)}},
        volumes: ["#{src}/scripts/wait-for-node.sh:/wait.sh:ro"],
-       command: ["/wait.sh", "http://node1:#{@web_port}/up", "./bin/archethic_node", "foreground"]
+       command: [
+         "/wait.sh",
+         "http://node1:#{web_port()}/up",
+         "./bin/archethic_node",
+         "foreground"
+       ]
      }
      |> mount(persist?, n)}
   end
 
   defp pubkey(seed), do: seed |> Crypto.derive_keypair(0) |> elem(0) |> Base.encode16()
 
-  defp seeder(addr, seed), do: "#{addr}:#{@p2p_port}:#{pubkey(seed)}:tcp"
+  defp seeder(addr, seed), do: "#{addr}:#{p2p_port()}:#{pubkey(seed)}:tcp"
 
   defp mount(m, false, _), do: m
 

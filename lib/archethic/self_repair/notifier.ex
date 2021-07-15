@@ -91,7 +91,12 @@ defmodule ArchEthic.SelfRepair.Notifier do
           next_storage_nodes,
           fn node = %Node{first_public_key: node_key} ->
             roles = Replication.roles(tx, node_key)
-            P2P.send_message(node, %ReplicateTransaction{transaction: tx, roles: roles})
+
+            P2P.send_message(node, %ReplicateTransaction{
+              transaction: tx,
+              roles: roles,
+              welcome_node_public_key: current_node_public_key
+            })
           end,
           on_timeout: :kill_task,
           ordered: false
