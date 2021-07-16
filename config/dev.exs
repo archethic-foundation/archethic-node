@@ -72,7 +72,7 @@ config :archethic, ArchEthic.OracleChain.Scheduler,
 config :archethic, ArchEthic.Networking.IPLookup, ArchEthic.Networking.IPLookup.Static
 
 config :archethic, ArchEthic.Networking.IPLookup.Static,
-  hostname: System.get_env("ARCHETHIC_STATIC_IP", "127.0.0.1")
+  hostname: System.get_env("ARCHETHIC_STATIC_IP", "0.0.0.0")
 
 config :archethic, ArchEthic.Networking.Scheduler, interval: "0 * * * * * *"
 
