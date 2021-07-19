@@ -147,11 +147,12 @@ defmodule ArchEthic.BeaconChain do
   Add a node entry into the beacon chain subset
   """
   @spec add_end_of_node_sync(Crypto.key(), DateTime.t()) :: :ok
-  def add_end_of_node_sync(node_public_key, timestamp = %DateTime{})
+  def add_end_of_node_sync(
+        node_public_key = <<_::8, _::8, subset::binary-size(1), _::binary>>,
+        timestamp = %DateTime{}
+      )
       when is_binary(node_public_key) do
-    node_public_key
-    |> subset_from_address
-    |> Subset.add_end_of_node_sync(%EndOfNodeSync{
+    Subset.add_end_of_node_sync(subset, %EndOfNodeSync{
       public_key: node_public_key,
       timestamp: timestamp
     })

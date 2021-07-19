@@ -148,8 +148,10 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.first_node_public_key(),
+      first_public_key:
+        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+      last_public_key:
+        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,
@@ -160,8 +162,10 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
-      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      first_public_key:
+        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+      last_public_key:
+        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
       geo_patch: "AAA",
       network_patch: "AAA",
       available?: true,

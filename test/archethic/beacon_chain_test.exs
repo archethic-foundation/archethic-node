@@ -141,11 +141,11 @@ defmodule ArchEthic.BeaconChainTest do
   end
 
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
-    public_key = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     assert :ok = BeaconChain.add_end_of_node_sync(public_key, DateTime.utc_now())
 
-    subset = BeaconChain.subset_from_address(public_key)
+    <<_::8, _::8, subset::binary-size(1), _::binary>> = public_key
     [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
 
     %{

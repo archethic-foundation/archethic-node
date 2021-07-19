@@ -1,9 +1,12 @@
 defmodule ArchEthic.Bootstrap.Sync do
   @moduledoc false
 
+  alias ArchEthic.BeaconChain
   alias ArchEthic.Bootstrap.NetworkInit
 
   alias ArchEthic.Crypto
+
+  alias ArchEthic.Election
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.BootstrappingNodes
@@ -16,7 +19,7 @@ defmodule ArchEthic.Bootstrap.Sync do
   alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Transport
 
-  alias ArchEthic.Replication
+  alias ArchEthic.Election
 
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
@@ -172,8 +175,15 @@ defmodule ArchEthic.Bootstrap.Sync do
       timestamp: ready_date
     }
 
-    Crypto.first_node_public_key()
-    |> Replication.beacon_storage_nodes(ready_date)
+    <<_::8, _::8, subset::binary-size(1), _::binary>> = Crypto.first_node_public_key()
+
+
+    Election.beacon_storage_nodes(
+      subset,
+      BeaconChain.next_slot(ready_date),
+      P2P.authorized_nodes(),
+      Election.get_storage_constraints()
+    )
     |> P2P.broadcast_message(message)
   end
 end
