@@ -438,10 +438,15 @@ defmodule ArchEthic.P2P do
     end
   end
 
-  defp get_first_reply(nodes, message, node_ack?)
   defp get_first_reply([], _, _), do: {:error, :network_issue}
 
-  defp get_first_reply(
+  defp get_first_reply(nodes, message, node_ack?) do
+    nodes
+    |> Enum.filter(&Node.locally_available?/1)
+    |> do_get_first_reply(message, node_ack?)
+  end
+
+  defp do_get_first_reply(
          [node = %Node{first_public_key: first_public_key} | rest],
          message,
          node_ack?
@@ -484,6 +489,7 @@ defmodule ArchEthic.P2P do
       patch ->
         nearest_nodes(nodes, patch)
     end
+    |> Enum.filter(&Node.locally_available?/1)
     |> Enum.chunk_every(batch_size)
     |> do_reply_atomic(message, compare_fun)
   end
