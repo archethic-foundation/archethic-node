@@ -602,7 +602,7 @@ defmodule ArchEthic.Replication do
   def chain_storage_nodes_with_type(address, type, node_list \\ P2P.authorized_nodes())
       when is_binary(address) and is_atom(type) and is_list(node_list) do
     if Transaction.network_type?(type) do
-      node_list
+      P2P.available_nodes()
     else
       chain_storage_nodes(address, node_list)
     end
@@ -613,7 +613,11 @@ defmodule ArchEthic.Replication do
   """
   @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
   def chain_storage_nodes(address, node_list \\ P2P.authorized_nodes()) when is_binary(address) do
-    Election.storage_nodes(address, node_list, Election.get_storage_constraints())
+    Election.storage_nodes(
+      address,
+      node_list,
+      Election.get_storage_constraints()
+    )
   end
 
   @doc """
@@ -635,7 +639,10 @@ defmodule ArchEthic.Replication do
   defp operation_storage_nodes(ops, node_list) do
     ops
     |> LedgerOperations.movement_addresses()
-    |> Election.io_storage_nodes(node_list, Election.get_storage_constraints())
+    |> Election.io_storage_nodes(
+      node_list,
+      Election.get_storage_constraints()
+    )
   end
 
   @doc """
