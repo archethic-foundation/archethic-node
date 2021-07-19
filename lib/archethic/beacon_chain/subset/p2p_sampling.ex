@@ -14,7 +14,7 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSampling do
   @spec list_nodes_to_sample(binary()) :: list(Node.t())
   def list_nodes_to_sample(<<subset::8>>) do
     P2P.available_nodes()
-    |> Enum.filter(fn %Node{first_public_key: <<_::8, first_digit::8, _::binary>>} ->
+    |> Enum.filter(fn %Node{first_public_key: <<_::8, _::8, first_digit::8, _::binary>>} ->
       first_digit == subset
     end)
     |> Enum.sort_by(& &1.first_public_key)

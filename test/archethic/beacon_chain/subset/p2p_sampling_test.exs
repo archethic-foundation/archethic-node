@@ -15,21 +15,21 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSamplingTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3003,
-      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(31)::binary>>,
+      first_public_key: <<0::8, 0::8, 7::8, :crypto.strong_rand_bytes(31)::binary>>,
       available?: true
     })
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3004,
-      first_public_key: <<0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
+      first_public_key: <<0::8, 0::8, 1::8, :crypto.strong_rand_bytes(31)::binary>>,
       available?: true
     })
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3005,
-      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(31)::binary>>,
+      first_public_key: <<0::8, 0::8, 2::8, :crypto.strong_rand_bytes(31)::binary>>,
       available?: true
     })
 
