@@ -67,10 +67,15 @@ defmodule ArchEthic.Mining do
 
     constraints = Election.get_validation_constraints()
 
+    node_list =
+      timestamp
+      |> P2P.authorized_nodes()
+      |> Enum.filter(& &1.available?)
+
     Election.validation_nodes(
       tx,
       sorting_seed,
-      P2P.authorized_nodes(timestamp),
+      node_list,
       storage_nodes,
       constraints
     )

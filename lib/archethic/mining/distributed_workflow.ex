@@ -111,9 +111,19 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    chain_storage_nodes = Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+    chain_storage_nodes =
+      Replication.chain_storage_nodes_with_type(
+        tx.address,
+        tx.type,
+        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+      )
 
-    beacon_storage_nodes = Replication.beacon_storage_nodes(tx.address, DateTime.utc_now())
+    beacon_storage_nodes =
+      Replication.beacon_storage_nodes(
+        tx.address,
+        DateTime.utc_now(),
+        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+      )
 
     context =
       ValidationContext.new(
