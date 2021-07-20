@@ -3,20 +3,17 @@ defmodule ArchEthic.OracleChain.Scheduler do
   Manage the scheduling of the oracle transactions
   """
 
-  alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.Scheduler, as: CronScheduler
-  #  alias Crontab.DateChecker, as: CronDateChecker
-
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
+  alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
 
   alias ArchEthic.OracleChain.Services
   alias ArchEthic.OracleChain.Summary
-
-  alias ArchEthic.Replication
 
   alias ArchEthic.TaskSupervisor
 
@@ -25,6 +22,9 @@ defmodule ArchEthic.OracleChain.Scheduler do
   alias ArchEthic.TransactionChain.TransactionData
 
   alias ArchEthic.Utils
+
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
 
   use GenServer
   require Logger
@@ -191,7 +191,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
     storage_nodes =
       summary_date
       |> Crypto.derive_oracle_address(chain_size)
-      |> Replication.chain_storage_nodes()
+      |> Election.storage_nodes(P2P.authorized_nodes())
 
     node_public_key = Crypto.first_node_public_key()
 

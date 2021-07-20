@@ -13,8 +13,6 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.Replication
-
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Keys
@@ -32,7 +30,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   def initiator? do
     %Node{first_public_key: initiator_key} =
       next_address()
-      |> Replication.chain_storage_nodes()
+      |> Election.storage_nodes(P2P.authorized_nodes())
       |> List.first()
 
     initiator_key == Crypto.first_node_public_key()
