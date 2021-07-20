@@ -62,9 +62,15 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   @impl NodeKeystore
-  @spec diffie_hellman(public_key :: Crypto.key()) :: binary()
-  def diffie_hellman(public_key) when is_binary(public_key) do
+  @spec diffie_hellman_with_last_key(public_key :: Crypto.key()) :: binary()
+  def diffie_hellman_with_last_key(public_key) when is_binary(public_key) do
     GenServer.call(__MODULE__, {:diffie_hellman, public_key})
+  end
+
+  @impl NodeKeystore
+  @spec diffie_hellman_with_first_key(public_key :: Crypto.key()) :: binary()
+  def diffie_hellman_with_first_key(public_key) when is_binary(public_key) do
+    GenServer.call(__MODULE__, {:diffie_hellman_first, public_key})
   end
 
   @impl NodeKeystore
@@ -175,7 +181,18 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   end
 
   def handle_call(
-        {:diffie_hellman, public_key},
+        {:diffie_hellman_with_first, public_key},
+        _,
+        state = %{port_handler: port_handler}
+      ) do
+    {:ok, <<_header::binary-size(1), z_x::binary-size(32), _z_y::binary-size(32)>>} =
+      PortHandler.request(port_handler, 6, <<0::16, public_key::binary>>)
+
+    {:reply, z_x, state}
+  end
+
+  def handle_call(
+        {:diffie_hellman_with_last, public_key},
         _,
         state = %{last_index: index, port_handler: port_handler}
       ) do

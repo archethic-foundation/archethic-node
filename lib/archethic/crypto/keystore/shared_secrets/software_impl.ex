@@ -336,7 +336,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     <<enc_daily_nonce_seed::binary-size(60), enc_transaction_seed::binary-size(60),
       enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
 
-    with {:ok, aes_key} <- Crypto.ec_decrypt_with_node_key(encrypted_aes_key),
+    with {:ok, aes_key} <- Crypto.ec_decrypt_with_last_node_key(encrypted_aes_key),
          {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
          {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
          {:ok, network_pool_seed} <- Crypto.aes_decrypt(enc_network_pool_seed, aes_key) do

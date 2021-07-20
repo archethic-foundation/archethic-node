@@ -231,7 +231,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
           }
         ] ->
           encrypted_key = Map.get(keys, Crypto.last_node_public_key())
-          aes_key = Crypto.ec_decrypt_with_node_key!(encrypted_key)
+          aes_key = Crypto.ec_decrypt_with_last_node_key!(encrypted_key)
           <<encrypted_daily_nonce_seed::binary-size(60), _::binary>> = secret
           daily_nonce_seed = Crypto.aes_decrypt!(encrypted_daily_nonce_seed, aes_key)
 

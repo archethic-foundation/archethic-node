@@ -229,7 +229,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
-    storage_nonce = ec_decrypt_with_node_key!(encrypted_nonce)
+    storage_nonce = ec_decrypt_with_first_node_key!(encrypted_nonce)
     storage_nonce_path = storage_nonce_filepath()
     :ok = File.mkdir_p!(Path.dirname(storage_nonce_path))
     :ok = File.write(storage_nonce_path, storage_nonce, [:write])
@@ -691,11 +691,11 @@ defmodule ArchEthic.Crypto do
   end
 
   @doc """
-  Decrypt the cipher using last node private key
+  Decrypt the cipher using first node private key
   """
-  @spec ec_decrypt_with_node_key!(cipher :: binary()) :: term()
-  def ec_decrypt_with_node_key!(cipher) do
-    case ec_decrypt_with_node_key(cipher) do
+  @spec ec_decrypt_with_first_node_key!(cipher :: binary()) :: term()
+  def ec_decrypt_with_first_node_key!(cipher) do
+    case ec_decrypt_with_first_node_key(cipher) do
       {:ok, data} ->
         data
 
@@ -707,9 +707,23 @@ defmodule ArchEthic.Crypto do
   @doc """
   Decrypt the cipher using last node private key
   """
-  @spec ec_decrypt_with_node_key(cipher :: binary()) ::
+  @spec ec_decrypt_with_last_node_key!(cipher :: binary()) :: term()
+  def ec_decrypt_with_last_node_key!(cipher) do
+    case ec_decrypt_with_last_node_key(cipher) do
+      {:ok, data} ->
+        data
+
+      _ ->
+        raise "Decrypted failed"
+    end
+  end
+
+  @doc """
+  Decrypt the cipher using first node private key
+  """
+  @spec ec_decrypt_with_first_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
-  def ec_decrypt_with_node_key(encoded_cipher) when is_binary(encoded_cipher) do
+  def ec_decrypt_with_first_node_key(encoded_cipher) when is_binary(encoded_cipher) do
     <<curve_id::8, _::8, _::binary>> = NodeKeystore.last_public_key()
     key_size = key_size(curve_id)
 
@@ -717,7 +731,34 @@ defmodule ArchEthic.Crypto do
       encoded_cipher
 
     # Derivate shared key using ECDH with the given ephermal public key and the node's private key
-    shared_key = NodeKeystore.diffie_hellman(ephemeral_public_key)
+    shared_key = NodeKeystore.diffie_hellman_with_first_key(ephemeral_public_key)
+
+    # Generate keys for the AES authenticated decryption
+    {iv, aes_key} = derivate_secrets(shared_key)
+
+    case aes_auth_decrypt(iv, aes_key, cipher, tag) do
+      :error ->
+        {:error, :decryption_failed}
+
+      data ->
+        {:ok, data}
+    end
+  end
+
+  @doc """
+  Decrypt the cipher using last node private key
+  """
+  @spec ec_decrypt_with_last_node_key(cipher :: binary()) ::
+          {:ok, term()} | {:error, :decryption_failed}
+  def ec_decrypt_with_last_node_key(encoded_cipher) do
+    <<curve_id::8, _::8, _::binary>> = NodeKeystore.last_public_key()
+    key_size = key_size(curve_id)
+
+    <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
+      encoded_cipher
+
+    # Derivate shared key using ECDH with the given ephermal public key and the node's private key
+    shared_key = NodeKeystore.diffie_hellman_with_last_key(ephemeral_public_key)
 
     # Generate keys for the AES authenticated decryption
     {iv, aes_key} = derivate_secrets(shared_key)

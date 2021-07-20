@@ -54,8 +54,13 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl NodeKeystore
-  def diffie_hellman(public_key) do
-    GenServer.call(__MODULE__, {:diffie_hellman, public_key})
+  def diffie_hellman_with_first_key(public_key) do
+    GenServer.call(__MODULE__, {:diffie_hellman_first, public_key})
+  end
+
+  @impl NodeKeystore
+  def diffie_hellman_with_last_key(public_key) do
+    GenServer.call(__MODULE__, {:diffie_hellman_last, public_key})
   end
 
   @impl NodeKeystore
@@ -140,7 +145,25 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   def handle_call(
-        {:diffie_hellman, public_key},
+        {:diffie_hellman_first, public_key},
+        _,
+        state = %{first_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
+      ) do
+    shared_secret =
+      case ID.to_curve(curve_id) do
+        :ed25519 ->
+          x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
+          :crypto.compute_key(:ecdh, public_key, x25519_sk, :x25519)
+
+        curve ->
+          :crypto.compute_key(:ecdh, public_key, pv, curve)
+      end
+
+    {:reply, shared_secret, state}
+  end
+
+  def handle_call(
+        {:diffie_hellman_last, public_key},
         _,
         state = %{last_keypair: {_, <<curve_id::8, _::8, pv::binary>>}}
       ) do

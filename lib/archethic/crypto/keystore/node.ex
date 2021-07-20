@@ -16,7 +16,8 @@ defmodule ArchEthic.Crypto.NodeKeystore do
   @callback next_public_key() :: Crypto.key()
   @callback previous_public_key() :: Crypto.key()
 
-  @callback diffie_hellman(public_key :: Crypto.key()) :: binary()
+  @callback diffie_hellman_with_first_key(public_key :: Crypto.key()) :: binary()
+  @callback diffie_hellman_with_last_key(public_key :: Crypto.key()) :: binary()
 
   @callback persist_next_keypair() :: :ok
 end
