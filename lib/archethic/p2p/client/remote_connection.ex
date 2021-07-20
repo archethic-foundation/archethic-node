@@ -65,6 +65,7 @@ defmodule ArchEthic.P2P.Client.RemoteConnection do
               socket: socket,
               transport: transport,
               initiator?: true,
+              node_public_key: node_public_key,
               name: {:via, Registry, {ConnectionRegistry, {:bearer_conn, node_public_key}}}
             )
 
@@ -78,7 +79,8 @@ defmodule ArchEthic.P2P.Client.RemoteConnection do
           :stop
 
           Logger.warning(
-            "Error during node connection #{inspect(reason)} to #{:inet.ntoa(ip)}:#{port}"
+            "Error during node connection #{inspect(reason)} to #{:inet.ntoa(ip)}:#{port}",
+            node: Base.encode16(node_public_key)
           )
 
           {:cont, reason}

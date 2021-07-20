@@ -3,6 +3,7 @@ defmodule ArchEthic.P2P.Connection do
   Process acting as bearer of the P2P connection and used to send and receive message
   """
 
+  alias ArchEthic.Crypto
   alias ArchEthic.P2P.Message
   alias ArchEthic.P2P.Transport
 
@@ -24,13 +25,14 @@ defmodule ArchEthic.P2P.Connection do
   @spec send_message(pid(), Message.request()) ::
           {:ok, Message.response()} | {:error, :network_issue}
   def send_message(pid, msg) when is_pid(pid) and is_struct(msg) do
-    GenServer.call(pid, {:send_message, msg})
+    GenServer.call(pid, {:send_message, msg, Crypto.first_node_public_key()})
   end
 
   def init(args) do
     socket = Keyword.get(args, :socket)
     transport = Keyword.get(args, :transport)
     initiator? = Keyword.fetch!(args, :initiator?)
+    node_public_key = Keyword.get(args, :node_public_key)
 
     {:ok,
      %{
@@ -39,7 +41,8 @@ defmodule ArchEthic.P2P.Connection do
        initiator?: initiator?,
        clients: %{},
        message_id: 0,
-       tasks: %{}
+       tasks: %{},
+       node_public_key: node_public_key
      }, {:continue, :start_receiving_loop}}
   end
 
@@ -70,7 +73,7 @@ defmodule ArchEthic.P2P.Connection do
     end
   end
 
-  def handle_call({:send_message, msg}, from, state = %{socket: nil, message_id: message_id}) do
+  def handle_call({:send_message, msg, _}, from, state = %{socket: nil, message_id: message_id}) do
     %Task{ref: ref} = Task.Supervisor.async_nolink(TaskSupervisor, Message, :process, [msg])
 
     new_state =
@@ -83,19 +86,24 @@ defmodule ArchEthic.P2P.Connection do
   end
 
   def handle_call(
-        {:send_message, msg},
+        {:send_message, msg, sender_public_key},
         from,
-        state = %{socket: socket, transport: transport, initiator?: true, message_id: message_id}
+        state = %{
+          socket: socket,
+          transport: transport,
+          initiator?: true,
+          message_id: message_id,
+          node_public_key: recipient_public_key
+        }
       ) do
-    encoded_message = msg |> Message.encode() |> Utils.wrap_binary()
-
-    envelop_message = <<message_id::32, encoded_message::binary>>
+    message_envelop =
+      build_message_envelop(message_id, msg, sender_public_key, recipient_public_key)
 
     %Task{ref: ref} =
       Task.Supervisor.async_nolink(TaskSupervisor, Transport, :send_message, [
         transport,
         socket,
-        envelop_message
+        message_envelop
       ])
 
     new_state =
@@ -108,37 +116,49 @@ defmodule ArchEthic.P2P.Connection do
   end
 
   def handle_info(
-        {:data, <<message_id::32, data::binary>>},
-        state = %{initiator?: false, socket: socket, transport: transport}
+        {:data, message_envelop},
+        state = %{
+          initiator?: false,
+          socket: socket,
+          transport: transport,
+          node_public_key: recipient_public_key
+        }
       ) do
+    {message_id, data, sender_public_key} = decode_message_envelop(message_envelop)
+
+
     %Task{ref: ref} =
       Task.Supervisor.async_nolink(TaskSupervisor, fn ->
-        {msg, _} = Message.decode(data)
+        message_envelop =
+          build_message_envelop(
+            message_id,
+            Message.process(data),
+            Crypto.first_node_public_key(),
+            recipient_public_key
+          )
 
-        encoded_message =
-          msg
-          |> Message.process()
-          |> Message.encode()
-          |> Utils.wrap_binary()
-
-        Transport.send_message(transport, socket, <<message_id::32, encoded_message::binary>>)
+        Transport.send_message(transport, socket, message_envelop)
       end)
 
-    {:noreply, Map.update!(state, :tasks, &Map.put(&1, ref, message_id))}
+    new_state =
+      state
+      |> Map.put(:node_public_key, sender_public_key)
+      |> Map.update!(:tasks, &Map.put(&1, ref, message_id))
+
+    {:noreply, new_state}
   end
 
   def handle_info(
-        {:data, <<message_id::32, data::binary>>},
+        {:data, message_envelop},
         state = %{initiator?: true, clients: clients}
       ) do
+    {message_id, data, sender_public_key} = decode_message_envelop(message_envelop)
     case Map.get(clients, message_id) do
       nil ->
         {:noreply, state}
 
       from ->
-        {message, _} = Message.decode(data)
-
-        GenServer.reply(from, {:ok, message})
+        GenServer.reply(from, {:ok, data})
         {:noreply, Map.update!(state, :clients, &Map.delete(&1, message_id))}
     end
   end
@@ -175,7 +195,12 @@ defmodule ArchEthic.P2P.Connection do
 
   def handle_info(
         {task_ref, data},
-        state = %{transport: transport, socket: socket, tasks: tasks}
+        state = %{
+          transport: transport,
+          socket: socket,
+          tasks: tasks,
+          node_public_key: recipient_public_key
+        }
       )
       when is_reference(task_ref) do
     case Map.get(tasks, task_ref) do
@@ -183,17 +208,18 @@ defmodule ArchEthic.P2P.Connection do
         {:noreply, state}
 
       message_id ->
-        encoded_message =
-          data
-          |> Message.encode()
-          |> Utils.wrap_binary()
-
-        envelop_message = <<message_id::32, encoded_message::binary>>
+        message_envelop =
+          build_message_envelop(
+            message_id,
+            data,
+            Crypto.first_node_public_key(),
+            recipient_public_key
+          )
 
         Task.Supervisor.async_nolink(TaskSupervisor, Transport, :send_message, [
           transport,
           socket,
-          envelop_message
+          message_envelop
         ])
 
         {:noreply, Map.update!(state, :tasks, &Map.delete(&1, task_ref))}
@@ -202,5 +228,44 @@ defmodule ArchEthic.P2P.Connection do
 
   def handle_info(_, state) do
     {:noreply, state}
+  end
+
+  defp decode_message_envelop(<<message_id::32, 0::8, curve_id::8, origin_id::8, rest::binary>>) do
+    key_size = Crypto.key_size(curve_id)
+    <<public_key::binary-size(key_size), rest::binary>> = rest
+
+    {data, _} = Message.decode(rest)
+    sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
+    {message_id, data, sender_public_key}
+  end
+
+  defp decode_message_envelop(<<message_id::32, 1::8, curve_id::8, origin_id::8, rest::binary>>) do
+    key_size = Crypto.key_size(curve_id)
+    <<public_key::binary-size(key_size), encrypted_message::binary>> = rest
+    message = Crypto.ec_decrypt_with_first_node_key!(encrypted_message)
+
+    {data, _} = Message.decode(message)
+
+    sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
+    {message_id, data, sender_public_key}
+  end
+
+  defp build_message_envelop(message_id, message, sender_public_key, nil) do
+    encoded_message =
+      message
+      |> Message.encode()
+      |> Utils.wrap_binary()
+
+    <<message_id::32, 0::8, sender_public_key::binary, encoded_message::binary>>
+  end
+
+  defp build_message_envelop(message_id, message, sender_public_key, recipient_public_key) do
+    encrypted_message =
+      message
+      |> Message.encode()
+      |> Utils.wrap_binary()
+      |> Crypto.ec_encrypt(recipient_public_key)
+
+    <<message_id::32, 1::8, sender_public_key::binary, encrypted_message::binary>>
   end
 end

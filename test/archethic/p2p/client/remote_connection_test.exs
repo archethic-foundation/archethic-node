@@ -9,7 +9,8 @@ defmodule ArchEthic.P2P.Client.RemoteConnectionTest do
     MockTransport
     |> expect(:connect, fn _, _, _ -> {:ok, make_ref()} end)
     |> expect(:read_from_socket, fn _, _, _ ->
-      {:ok, <<0::32, 0::8>>}
+      public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      {:ok, <<0::32, 0::8, public_key::binary, 24::8>>}
     end)
     |> expect(:read_from_socket, fn _, _, _ -> {:error, :closed} end)
 

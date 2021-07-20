@@ -30,7 +30,7 @@ Current implemented features:
 - Beacon chain: Track new transactions and node readiness
 - Self-Repair: Self-healing mechanism allowing to resynchronize missing transactions
 - Node shared secrets renewal: Integration of authorized validation nodes using heuristic constraints
-- P2P transfers and genesis pools allocation
+- P2P transfers 
 - Transaction explorer
 - Custom Binary protocol leveraging Binary Pattern Matching and BitVectors
 - NFT creation and transfers
@@ -38,7 +38,6 @@ Current implemented features:
 - Efficient transaction fee
 
 ## Next features to appear very soon:
-- P2P messages encryption
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
 
 ## Installation
