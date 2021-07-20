@@ -116,37 +116,44 @@ defmodule ArchEthic.Mining.ProofOfWork do
   Smart contract code can defined which family to use (like security level)
   """
   @spec list_origin_public_keys_candidates(Transaction.t()) :: list(Crypto.key())
-  def list_origin_public_keys_candidates(%Transaction{data: %TransactionData{code: code}})
+  def list_origin_public_keys_candidates(tx = %Transaction{data: %TransactionData{code: code}})
       when code != "" do
     %Contract{conditions: %{inherit: %Conditions{origin_family: family}}} = Contracts.parse!(code)
 
     case family do
       :all ->
-        SharedSecrets.list_origin_public_keys()
+        do_list_origin_public_keys_candidates(tx)
 
       family ->
         SharedSecrets.list_origin_public_keys(family)
     end
   end
 
-  def list_origin_public_keys_candidates(%Transaction{
-        type: :node,
-        previous_public_key: previous_key
-      }) do
-    case TransactionChain.get_first_public_key(previous_key) do
-      ^previous_key ->
+  def list_origin_public_keys_candidates(tx = %Transaction{}),
+    do: do_list_origin_public_keys_candidates(tx)
+
+  defp do_list_origin_public_keys_candidates(
+         tx = %Transaction{
+           type: :node,
+           previous_public_key: previous_key
+         }
+       ) do
+    previous_address = Transaction.previous_address(tx)
+
+    case TransactionChain.get_transaction(previous_address, [:address]) do
+      {:error, :transaction_not_exists} ->
         [previous_key]
 
-      _ ->
-        P2P.list_authorized_public_keys()
+      {:ok, _} ->
+        P2P.list_node_first_public_keys()
     end
   end
 
-  def list_origin_public_keys_candidates(%Transaction{type: type})
-      when type in [:node_shared_secrets, :oracle] do
+  defp do_list_origin_public_keys_candidates(%Transaction{type: type})
+       when type in [:node_shared_secrets, :oracle] do
     P2P.list_authorized_public_keys()
   end
 
-  def list_origin_public_keys_candidates(%Transaction{}),
+  defp do_list_origin_public_keys_candidates(%Transaction{}),
     do: SharedSecrets.list_origin_public_keys()
 end
