@@ -34,4 +34,16 @@ defmodule ArchEthic.DB do
   @callback get_nb_transactions() :: non_neg_integer()
 
   @callback transaction_exists?(binary()) :: boolean()
+
+  @callback register_p2p_summary(
+              node_public_key :: Crypto.key(),
+              date :: DateTime.t(),
+              available? :: boolean(),
+              average_availability :: float()
+            ) :: :ok
+
+  @callback get_last_p2p_summaries() :: %{
+              (node_public_key :: Crypto.key()) =>
+                {available? :: boolean(), average_availability :: float()}
+            }
 end

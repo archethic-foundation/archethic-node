@@ -396,4 +396,52 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     count > 0
   end
+
+  @doc """
+  Register the P2P summary for the given node and date
+  """
+  @impl DB
+  @spec register_p2p_summary(
+          node_public_key :: Crypto.key(),
+          date :: DateTime.t(),
+          available? :: boolean(),
+          average_availability :: float()
+        ) :: :ok
+  def register_p2p_summary(
+        node_public_key,
+        date = %DateTime{},
+        available?,
+        avg_availability
+      ) do
+    Producer.add_query(
+      "INSERT INTO archethic.p2p_summary_by_node (node_public_key, date, available, average_availability) VALUES (?, ?, ?, ?)",
+      [
+        node_public_key,
+        date,
+        available?,
+        avg_availability
+      ]
+    )
+  end
+
+  @doc """
+  Get the last p2p summaries
+  """
+  @impl DB
+  @spec get_last_p2p_summaries() :: %{
+          (node_public_key :: Crypto.key()) =>
+            {available? :: boolean(), average_availability :: float()}
+        }
+  def get_last_p2p_summaries do
+    "SELECT node_public_key, available, average_availability FROM archethic.p2P_summary_by_node PER PARTITION LIMIT 1"
+    |> Producer.add_query([])
+    |> Enum.map(fn %{
+                     "node_public_key" => node_public_key,
+                     "available" => available?,
+                     "average_availability" => avg_availability
+                   } ->
+      {node_public_key, {available?, avg_availability}}
+    end)
+    |> Enum.into(%{})
+  end
 end

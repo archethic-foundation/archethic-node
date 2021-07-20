@@ -3,7 +3,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
 
   use GenServer
 
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
+  alias ArchEthic.DB
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.GeoPatch
@@ -26,7 +26,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
 
   def init(_args) do
     nodes_transactions =
-      TransactionChain.list_transactions_by_type(:node, [
+      DB.list_transactions_by_type(:node, [
         :address,
         :type,
         :previous_public_key,
@@ -34,25 +34,22 @@ defmodule ArchEthic.P2P.MemTableLoader do
         validation_stamp: [:timestamp]
       ])
 
-    beacon_chain_transactions =
-      TransactionChain.list_transactions_by_type(
-        :beacon_summary,
-        [:address, :type, data: [:content], validation_stamp: [:timestamp]]
-      )
-
     node_shared_secret_transactions =
-      TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+      DB.list_transactions_by_type(:node_shared_secrets, [
         :address,
         :type,
         data: [:keys],
         validation_stamp: [:timestamp]
       ])
+      |> Enum.at(0)
 
     nodes_transactions
-    |> Stream.concat(node_shared_secret_transactions)
-    |> Stream.concat(beacon_chain_transactions)
+    |> Stream.concat([node_shared_secret_transactions])
+    |> Stream.filter(& &1)
     |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Enum.each(&load_transaction/1)
+
+    Enum.map(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
 
     {:ok, %{}}
   end
@@ -127,35 +124,16 @@ defmodule ArchEthic.P2P.MemTableLoader do
     |> Enum.each(&MemTable.authorize_node(&1, SharedSecrets.next_application_date(timestamp)))
   end
 
-  def load_transaction(%Transaction{
-        address: address,
-        type: :beacon_summary,
-        data: %TransactionData{content: content}
-      }) do
-    Logger.info("Loading transaction into P2P mem table",
-      transaction_address: Base.encode16(address),
-      transaction_type: :beacon_summary
-    )
-
-    {summary = %BeaconSummary{
-       end_of_node_synchronizations: end_of_node_sync
-     }, _} = BeaconSummary.deserialize(content)
-
-    Enum.each(end_of_node_sync, &MemTable.set_node_available(&1.public_key))
-
-    summary
-    |> BeaconSummary.get_node_availabilities()
-    |> Enum.each(fn {%Node{first_public_key: key}, available?} ->
-      if available? do
-        MemTable.set_node_available(key)
-      else
-        MemTable.set_node_unavailable(key)
-      end
-    end)
-  end
-
   def load_transaction(_), do: :ok
 
   defp first_node_change?(first_key, previous_key) when first_key == previous_key, do: true
   defp first_node_change?(_, _), do: false
+
+  defp load_p2p_summary({node_public_key, {available?, avg_availability}}) do
+    if available? do
+      MemTable.set_node_available(node_public_key)
+    end
+
+    MemTable.update_node_average_availability(node_public_key, avg_availability)
+  end
 end
