@@ -4,6 +4,8 @@ defmodule ArchEthic.P2P.Connection do
   """
 
   alias ArchEthic.Crypto
+
+  alias ArchEthic.P2P.MemTable
   alias ArchEthic.P2P.Message
   alias ArchEthic.P2P.Transport
 
@@ -126,6 +128,7 @@ defmodule ArchEthic.P2P.Connection do
       ) do
     {message_id, data, sender_public_key} = decode_message_envelop(message_envelop)
 
+    MemTable.increase_node_availability(sender_public_key)
 
     %Task{ref: ref} =
       Task.Supervisor.async_nolink(TaskSupervisor, fn ->
@@ -153,6 +156,8 @@ defmodule ArchEthic.P2P.Connection do
         state = %{initiator?: true, clients: clients}
       ) do
     {message_id, data, sender_public_key} = decode_message_envelop(message_envelop)
+    MemTable.increase_node_availability(sender_public_key)
+
     case Map.get(clients, message_id) do
       nil ->
         {:noreply, state}
