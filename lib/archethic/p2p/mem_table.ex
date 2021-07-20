@@ -733,7 +733,10 @@ defmodule ArchEthic.P2P.MemTable do
   def update_node_average_availability(first_public_key, avg_availability)
       when is_binary(first_public_key) and is_float(avg_availability) do
     true =
-      :ets.update_element(@discovery_table, first_public_key, [{7, avg_availability}, {8, <<>>}])
+      :ets.update_element(@discovery_table, first_public_key, [
+        {7, avg_availability},
+        {8, <<1::1>>}
+      ])
 
     Logger.info("New average availability: #{avg_availability}}",
       node: Base.encode16(first_public_key)

@@ -17,7 +17,8 @@ defmodule ArchEthic.BeaconChain.Summary do
     :summary_time,
     transaction_summaries: [],
     end_of_node_synchronizations: [],
-    node_availabilities: <<>>
+    node_availabilities: <<>>,
+    node_average_availabilities: []
   ]
 
   @type t :: %__MODULE__{
@@ -25,7 +26,8 @@ defmodule ArchEthic.BeaconChain.Summary do
           summary_time: DateTime.t(),
           transaction_summaries: list(TransactionSummary.t()),
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
-          node_availabilities: bitstring()
+          node_availabilities: bitstring(),
+          node_average_availabilities: list(float())
         }
 
   @doc """
@@ -58,7 +60,8 @@ defmodule ArchEthic.BeaconChain.Summary do
                 timestamp: ~U[2020-06-25 15:11:53Z]
             }
           ],
-          node_availabilities: <<1::1, 1::1, 0::1>>
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        node_average_availabilities: [ 0.75, 0.75, 0.5]
       }
   """
   @spec aggregate_slots(t(), Enumerable.t() | list(Slot.t())) :: t()
@@ -92,33 +95,63 @@ defmodule ArchEthic.BeaconChain.Summary do
     %Slot{p2p_view: %{availabilities: availabilities}} = Enum.at(slots, 0)
     nb_nodes_sampled = bit_size(availabilities)
 
-    node_availabilities =
-      Enum.reduce(slots, %{}, fn %Slot{p2p_view: %{availabilities: availabilities}}, acc ->
-        availabilities
-        |> Utils.bitstring_to_integer_list()
-        |> Enum.with_index()
-        |> Enum.reduce(acc, fn
-          {1, index}, acc ->
-            Map.update(acc, index, 1, &(&1 + 1))
-
-          {0, _}, acc ->
-            acc
-        end)
-        |> Enum.into(%{})
-      end)
-      |> Enum.reduce(<<0::size(nb_nodes_sampled)>>, fn
+    %{
+      node_availabilities: node_availabilities,
+      node_average_availabilities: node_average_availabilities
+    } =
+      slots
+      |> count_available_times()
+      |> Enum.reduce(init_reduce_availabilities(nb_nodes_sampled), fn
         {_, 0}, acc ->
           acc
 
         {index, nb_times}, acc ->
-          if nb_times / nb_slots > 0.70 do
-            Utils.set_bitstring_bit(acc, index)
-          else
+          avg_availability = nb_times / nb_slots
+
+          if avg_availability > 0.70 do
             acc
+            |> Map.update!(:node_availabilities, &Utils.set_bitstring_bit(&1, index))
+            |> Map.update!(
+              :node_average_availabilities,
+              &List.replace_at(&1, index, avg_availability)
+            )
+          else
+            Map.update!(
+              acc,
+              :node_average_availabilities,
+              &List.replace_at(&1, index, avg_availability)
+            )
           end
       end)
 
-    %{summary | node_availabilities: node_availabilities}
+    %{
+      summary
+      | node_availabilities: node_availabilities,
+        node_average_availabilities: node_average_availabilities
+    }
+  end
+
+  defp init_reduce_availabilities(nb_nodes_sampled) do
+    %{
+      node_availabilities: <<0::size(nb_nodes_sampled)>>,
+      node_average_availabilities: Enum.map(1..nb_nodes_sampled, fn _ -> 1.0 end)
+    }
+  end
+
+  defp count_available_times(slots) do
+    Enum.reduce(slots, %{}, fn %Slot{p2p_view: %{availabilities: availabilities}}, acc ->
+      availabilities
+      |> Utils.bitstring_to_integer_list()
+      |> Enum.with_index()
+      |> Enum.reduce(acc, fn
+        {1, index}, acc ->
+          Map.update(acc, index, 1, &(&1 + 1))
+
+        {0, _}, acc ->
+          acc
+      end)
+      |> Enum.into(%{})
+    end)
   end
 
   @doc """
@@ -163,7 +196,8 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...>       timestamp: ~U[2020-06-25 15:11:53Z],
       ...>     }
       ...>   ],
-      ...>   node_availabilities: <<1::1, 1::1>>
+      ...>   node_availabilities: <<1::1, 1::1>>,
+      ...>   node_average_availabilities: [1.0, 1.0]
       ...> }
       ...> |> Summary.serialize()
       <<
@@ -177,7 +211,7 @@ defmodule ArchEthic.BeaconChain.Summary do
       0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
       # Timestamp
-      94, 244, 190, 185,
+      0, 0, 1, 114, 236, 9, 2, 168,
       # Type (transfer)
       253,
       # Nb movement addresses
@@ -192,7 +226,10 @@ defmodule ArchEthic.BeaconChain.Summary do
       # Nb Node availabilities
       0, 2,
       # Availabilities
-      1::1, 1::1
+      1::1, 1::1,
+      # Average availabilities
+      60, 0,
+      60, 0
       >>
   """
   @spec serialize(t()) :: bitstring()
@@ -201,7 +238,8 @@ defmodule ArchEthic.BeaconChain.Summary do
         summary_time: summary_time,
         transaction_summaries: transaction_summaries,
         end_of_node_synchronizations: end_of_node_synchronizations,
-        node_availabilities: node_availabilities
+        node_availabilities: node_availabilities,
+        node_average_availabilities: node_average_availabilities
       }) do
     transaction_summaries_bin =
       transaction_summaries
@@ -213,10 +251,14 @@ defmodule ArchEthic.BeaconChain.Summary do
       |> Enum.map(&EndOfNodeSync.serialize/1)
       |> :erlang.list_to_binary()
 
+    node_average_availabilities_bin =
+      Enum.map(node_average_availabilities, &<<&1::float-16>>)
+      |> :erlang.list_to_binary()
+
     <<subset::binary, DateTime.to_unix(summary_time)::32, length(transaction_summaries)::32,
       transaction_summaries_bin::binary, length(end_of_node_synchronizations)::16,
       end_of_node_synchronizations_bin::binary, bit_size(node_availabilities)::16,
-      node_availabilities::bitstring>>
+      node_availabilities::bitstring, node_average_availabilities_bin::binary>>
   end
 
   @doc """
@@ -226,10 +268,10 @@ defmodule ArchEthic.BeaconChain.Summary do
 
       iex> <<0, 96, 7, 114, 128, 0, 0, 0, 1, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...> 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
-      ...> 94, 244, 190, 185, 253, 0, 0, 0, 1,
+      ...> 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0, 0, 1,
       ...> 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...> 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
-      ...> 94, 244, 190, 185, 0, 2, 1::1, 1::1>>
+      ...> 94, 244, 190, 185, 0, 2, 1::1, 1::1, 60, 0, 60, 0>>
       ...> |> Summary.deserialize()
       {
       %Summary{
@@ -239,7 +281,7 @@ defmodule ArchEthic.BeaconChain.Summary do
             %TransactionSummary{
                 address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-                timestamp: ~U[2020-06-25 15:11:53Z],
+                timestamp: ~U[2020-06-25 15:11:53.000Z],
                 type: :transfer,
                 movements_addresses: []
             }
@@ -250,7 +292,8 @@ defmodule ArchEthic.BeaconChain.Summary do
             timestamp: ~U[2020-06-25 15:11:53Z]
             }
           ],
-          node_availabilities: <<1::1, 1::1>>
+          node_availabilities: <<1::1, 1::1>>,
+          node_average_availabilities: [1.0, 1.0]
       },
       ""
       }
@@ -269,12 +312,21 @@ defmodule ArchEthic.BeaconChain.Summary do
     <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
       rest
 
+    node_average_availabilities_size = nb_availabilities * 2
+
+    <<node_average_availabilities_bin::binary-size(node_average_availabilities_size),
+      rest::bitstring>> = rest
+
+    node_average_availabilities =
+      for <<avg::float-16 <- node_average_availabilities_bin>>, do: avg
+
     {%__MODULE__{
        subset: <<subset>>,
        summary_time: DateTime.from_unix!(summary_timestamp),
        transaction_summaries: transaction_summaries,
        end_of_node_synchronizations: end_of_node_synchronizations,
-       node_availabilities: availabilities
+       node_availabilities: availabilities,
+       node_average_availabilities: node_average_availabilities
      }, rest}
   end
 
@@ -308,9 +360,11 @@ defmodule ArchEthic.BeaconChain.Summary do
   @doc """
   Return the list node availabilites by identifying the nodes from the binary list
   """
-  @spec get_node_availabilities(t()) :: list({Node.t(), boolean()})
+  @spec get_node_availabilities(t()) ::
+          list({node :: Node.t(), available? :: boolean(), average_availability :: float()})
   def get_node_availabilities(%__MODULE__{
         node_availabilities: node_availabilities,
+        node_average_availabilities: node_average_availabilities,
         subset: subset
       }) do
     node_list = P2PSampling.list_nodes_to_sample(subset)
@@ -319,13 +373,14 @@ defmodule ArchEthic.BeaconChain.Summary do
     |> Enum.with_index()
     |> Enum.map(fn {available_bit, index} ->
       node = Enum.at(node_list, index)
+      avg_availability = Enum.at(node_average_availabilities, index)
 
       case available_bit do
         1 ->
-          {node, true}
+          {node, true, avg_availability}
 
         0 ->
-          {node, false}
+          {node, false, avg_availability}
       end
     end)
   end

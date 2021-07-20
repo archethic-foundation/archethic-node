@@ -3,6 +3,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
   alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot, as: BeaconSlot
+  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
   alias ArchEthic.Crypto
@@ -59,23 +60,29 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end)
   end
 
-  defp download_summary(beacon_address, nodes, patch) do
-    case Enum.reject(nodes, &(&1.first_public_key == Crypto.first_node_public_key())) do
-      [] ->
-        if Utils.key_in_node_list?(nodes, Crypto.first_node_public_key()) do
-          TransactionChain.get_transaction(beacon_address)
-        else
-          {:error, :network_issue}
-        end
+  defp download_summary(beacon_address, nodes, patch, prev_result \\ nil)
 
-      remote_nodes ->
-        P2P.reply_atomic(remote_nodes, 3, %GetTransaction{address: beacon_address},
-          patch: patch,
-          compare_fun: fn
-            %Transaction{data: %TransactionData{content: content}} -> content
-            %NotFound{} -> :not_found
-          end
-        )
+  defp download_summary(_beacon_address, [], _, %NotFound{}), do: {:ok, %NotFound{}}
+
+  defp download_summary(beacon_address, nodes, patch, prev_result) do
+    case P2P.reply_first(nodes, %GetTransaction{address: beacon_address},
+           patch: patch,
+           node_ack?: true
+         ) do
+      {:ok, %NotFound{}, node} ->
+        download_summary(beacon_address, nodes -- [node], patch, %NotFound{})
+
+      {:ok, tx = %Transaction{}, _node} ->
+        {:ok, tx}
+
+      {:error, :network_issue} ->
+        case prev_result do
+          nil ->
+            {:error, :network_issue}
+
+          _ ->
+            {:ok, prev_result}
+        end
     end
   end
 
@@ -98,10 +105,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   end
 
   defp handle_summary_transaction({:ok, %NotFound{}}, _, _, _, _) do
-    {:error, :transaction_not_exists}
-  end
-
-  defp handle_summary_transaction({:error, :transaction_not_exists}, _, _, _, _) do
     {:error, :transaction_not_exists}
   end
 
@@ -168,14 +171,25 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     synchronize_transactions(transactions, node_patch)
 
-    Enum.each(ends_of_sync, &P2P.set_node_globally_available(&1.public_key))
+    Enum.each(ends_of_sync, fn %EndOfNodeSync{
+                                 public_key: node_public_key,
+                                 timestamp: timestamp
+                               } ->
+      DB.register_p2p_summary(node_public_key, timestamp, true, 1.0)
+      P2P.set_node_globally_available(node_public_key)
+    end)
 
     Enum.each(p2p_availabilities, fn
-      {%Node{first_public_key: node_key}, true} ->
-        P2P.set_node_globally_available(node_key)
+      {%Node{first_public_key: node_key}, available?, avg_availability} ->
+        DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
 
-      {%Node{first_public_key: node_key}, false} ->
-        P2P.set_node_globally_unavailable(node_key)
+        if available? do
+          P2P.set_node_globally_available(node_key)
+        else
+          P2P.set_node_globally_unavailable(node_key)
+        end
+
+        P2P.set_node_average_availability(node_key, avg_availability)
     end)
 
     update_statistics(stats)

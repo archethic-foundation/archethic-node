@@ -75,6 +75,14 @@ defmodule ArchEthic.P2P do
     as: :set_node_unavailable
 
   @doc """
+  Set the node's average availability
+  """
+  @spec set_node_average_availability(first_public_key :: Crypto.key(), float()) :: :ok
+  defdelegate set_node_average_availability(first_public_key, avg_availability),
+    to: MemTable,
+    as: :update_node_average_availability
+
+  @doc """
   Add a node first public key to the list of authorized nodes
   """
   @spec authorize_node(first_public_key :: Crypto.key(), authorization_date :: DateTime.t()) ::
@@ -111,6 +119,7 @@ defmodule ArchEthic.P2P do
       MemTable.authorized_nodes(),
       &(DateTime.diff(&1.authorization_date, DateTime.truncate(date, :second)) <= 0)
     )
+    |> Enum.filter(& &1.available?)
   end
 
   @doc """
@@ -461,6 +470,8 @@ defmodule ArchEthic.P2P do
         (node_ack? && {:ok, data, node}) || {:ok, data}
     end
   end
+
+  defp do_get_first_reply([], _, _), do: {:error, :network_issue}
 
   @doc """
   Request data atomically from a list nodes chunked by batch.
