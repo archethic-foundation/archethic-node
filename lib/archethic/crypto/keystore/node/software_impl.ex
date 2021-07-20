@@ -8,7 +8,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   alias ArchEthic.Crypto.ID
   alias ArchEthic.Crypto.NodeKeystore
 
-  alias ArchEthic.TransactionChain
+  alias ArchEthic.Utils
 
   require Logger
 
@@ -71,13 +71,16 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   @impl GenServer
   def init(opts) do
     seed = Keyword.fetch!(opts, :seed)
-    first_keypair = {first_pub_key, _} = Crypto.derive_keypair(seed, 0)
+    first_keypair = Crypto.derive_keypair(seed, 0)
 
     nb_keys =
-      first_pub_key
-      |> Crypto.hash()
-      |> TransactionChain.get_last_address()
-      |> TransactionChain.size()
+      case File.read(Utils.mut_dir("crypto/index")) do
+        {:ok, index} ->
+          String.to_integer(index)
+
+        _ ->
+          0
+      end
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
 
@@ -196,6 +199,9 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
     Logger.info("Next public key will be #{Base.encode16(elem(next_keypair, 0))}")
     Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
     Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
+
+    File.write(Utils.mut_dir("crypto/index"), "#{index + 1}")
+
     {:noreply, new_state}
   end
 end

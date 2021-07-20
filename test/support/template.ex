@@ -121,7 +121,11 @@ defmodule ArchEthicCase do
       {encrypted_transaction_seed, encrypted_network_pool_seed}
     end)
     |> stub(:unwrap_secrets, fn _, _, _ -> :ok end)
-    |> stub(:diffie_hellman, fn pub ->
+    |> stub(:diffie_hellman_with_last_key, fn pub ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
+    end)
+    |> stub(:diffie_hellman_with_first_key, fn pub ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)

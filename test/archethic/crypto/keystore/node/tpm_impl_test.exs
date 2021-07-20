@@ -3,15 +3,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImplTest do
 
   alias ArchEthic.Crypto.NodeKeystore.TPMImpl
 
-  import Mox
-
-  setup do
-    MockDB
-    |> expect(:get_last_chain_address, fn address -> address end)
-    |> expect(:chain_size, fn _ -> 0 end)
-
-    :ok
-  end
 
   @tag :infrastructure
   test "first_public_key/0" do
@@ -62,10 +53,22 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImplTest do
   end
 
   @tag :infrastructure
-  test "diffie_hellman/1" do
+  test "diffie_hellman_with_first_key/1" do
     {:ok, _} = TPMImpl.start_link()
     {eph_public_key, eph_private_key} = :crypto.generate_key(:ecdh, :secp256r1)
-    shared_secret = TPMImpl.diffie_hellman(eph_public_key)
+    shared_secret = TPMImpl.diffie_hellman_with_first_key(eph_public_key)
+
+    <<_::8, _::8, public_key::binary>> = TPMImpl.first_public_key()
+
+    assert shared_secret ==
+             :crypto.compute_key(:ecdh, public_key, eph_private_key, :secp256r1)
+  end
+
+  @tag :infrastructure
+  test "diffie_hellman_with_last_key/1" do
+    {:ok, _} = TPMImpl.start_link()
+    {eph_public_key, eph_private_key} = :crypto.generate_key(:ecdh, :secp256r1)
+    shared_secret = TPMImpl.diffie_hellman_with_last_key(eph_public_key)
 
     <<_::8, _::8, public_key::binary>> = TPMImpl.last_public_key()
 

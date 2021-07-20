@@ -5,8 +5,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   alias ArchEthic.Crypto.ID
   alias ArchEthic.Crypto.NodeKeystore
 
-  alias ArchEthic.TransactionChain
-
   alias ArchEthic.Utils.PortHandler
 
   @behaviour NodeKeystore
@@ -88,15 +86,10 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def handle_continue(:initialize_tpm, state = %{port_handler: port_handler}) do
-    initialize_tpm(port_handler, 0)
+    nb_keys = PortHandler.request(port_handler, 4, <<>>)
+    initialize_tpm(port_handler, nb_keys)
 
     first_public_key = request_public_key(port_handler, 0)
-
-    nb_keys =
-      first_public_key
-      |> Crypto.hash()
-      |> TransactionChain.get_last_address()
-      |> TransactionChain.size()
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
 

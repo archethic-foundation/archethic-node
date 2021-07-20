@@ -5,6 +5,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
   alias ArchEthic.Crypto.Ed25519
   alias ArchEthic.Crypto.NodeKeystore.SoftwareImpl, as: Keystore
 
+  alias ArchEthic.Utils
+
   import Mox
 
   setup :set_mox_global
@@ -24,9 +26,9 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
     end
 
     test "should set the last keypair based on the previous transaction found" do
-      MockDB
-      |> expect(:get_last_chain_address, fn addr -> addr end)
-      |> expect(:chain_size, fn _ -> 3 end)
+      dump_file = Utils.mut_dir("crypto/index")
+      File.mkdir_p!(Path.dirname(dump_file))
+      File.write(dump_file, "#{3}")
 
       {:ok, pid} = Keystore.start_link(seed: "fake seed")
 
@@ -81,7 +83,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
     assert expected_sign == Keystore.sign_with_last_key("hello")
   end
 
-  test "diffie_helman/1 should perform a ecdh with the last node private key" do
+  test "diffie_helman_with_last_key/1 should perform a ecdh with the last node private key" do
     {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("fake seed", 0)
     {:ok, _pid} = Keystore.start_link(seed: "fake seed")
 
@@ -90,6 +92,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
     x25519_sk = Ed25519.convert_to_x25519_private_key(pv)
     ecdh = :crypto.compute_key(:ecdh, pub, x25519_sk, :x25519)
 
-    assert Keystore.diffie_hellman(pub) == ecdh
+    assert Keystore.diffie_hellman_with_last_key(pub) == ecdh
   end
 end
