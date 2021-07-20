@@ -12,7 +12,9 @@ defmodule ArchEthicWeb.NodeListLive do
 
   def mount(_params, _session, socket) do
     nodes = P2P.list_nodes()
-    authorized_nodes = Enum.filter(nodes, & &1.authorized?)
+    authorized_nodes = P2P.authorized_nodes()
+    pending_nodes = P2P.available_nodes() -- authorized_nodes
+    offline_nodes = Enum.reject(nodes, & &1.available?)
 
     if connected?(socket) do
       PubSub.register_to_node_update()
@@ -20,9 +22,10 @@ defmodule ArchEthicWeb.NodeListLive do
 
     new_socket =
       socket
-      |> assign(:non_authorized_nodes, nodes -- authorized_nodes)
+      |> assign(:pending_nodes, pending_nodes)
       |> assign(:authorized_nodes, authorized_nodes)
       |> assign(:nb_nodes, length(nodes))
+      |> assign(:offline_nodes, offline_nodes)
 
     {:ok, new_socket}
   end
@@ -33,12 +36,15 @@ defmodule ArchEthicWeb.NodeListLive do
 
   def handle_info({:node_update, _}, socket) do
     nodes = P2P.list_nodes()
-    authorized_nodes = Enum.filter(nodes, & &1.authorized?)
+    authorized_nodes = P2P.authorized_nodes()
+    pending_nodes = P2P.available_nodes() -- authorized_nodes
+    offline_nodes = Enum.reject(nodes, & &1.available?)
 
     new_socket =
       socket
-      |> assign(:non_authorized_nodes, nodes -- authorized_nodes)
+      |> assign(:pending_nodes, pending_nodes)
       |> assign(:authorized_nodes, authorized_nodes)
+      |> assign(:offline_nodes, offline_nodes)
       |> assign(:nb_nodes, length(nodes))
 
     {:noreply, new_socket}

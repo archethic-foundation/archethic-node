@@ -35,8 +35,40 @@
 <div class="columns">
   <div class="column">
     <div class="box">
-      <p class="heading">Pending nodes (<%= Enum.count(@non_authorized_nodes) %>)</p>
-        <%= for node <- @non_authorized_nodes do %>
+      <p class="heading">Pending nodes (<%= Enum.count(@pending_nodes) %>)</p>
+        <%= for node <- @pending_nodes do %>
+          <div class="box">
+            <div class="columns is-desktop">
+              <div class="column">
+                  <div>
+                      <p class="heading">Last public key</p>
+                      <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
+                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.last_public_key, 0, 30)) %>...</span>
+                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.last_public_key, 0, 13)) %>...</span>
+                      <% end %>
+                  </div>
+              </div>
+              <div class="column">
+                  <div>
+                      <p class="heading">First public key</p>
+                      <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
+                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
+                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...</span>
+                      <% end %>
+                  </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="columns">
+  <div class="column">
+    <div class="box">
+      <p class="heading">Unavailable nodes (<%= Enum.count(@offline_nodes) %>)</p>
+        <%= for node <- @offline_nodes do %>
           <div class="box">
             <div class="columns is-desktop">
               <div class="column">
