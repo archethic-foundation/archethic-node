@@ -58,7 +58,10 @@
                 </a>
                 </div>
             </div>
-            </div>
+            
+            <a class="navbar-item" href="<%= Routes.static_path(@conn, "/docs/index.html") %>">
+                Docs
+            </a>
         </div>
     </nav>
     <main class="pt-6">

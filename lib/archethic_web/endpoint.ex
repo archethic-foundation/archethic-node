@@ -27,8 +27,8 @@ defmodule ArchEthicWeb.Endpoint do
   plug(Plug.Static,
     at: "/",
     from: :archethic,
-    gzip: false,
-    only: ~w(css fonts images js favicon.ico robots.txt .well-known)
+    gzip: true,
+    only: ~w(css fonts images js favicon.ico robots.txt .well-known docs)
   )
 
   # Code reloading can be explicitly enabled under the
