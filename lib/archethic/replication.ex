@@ -597,14 +597,25 @@ defmodule ArchEthic.Replication do
   @doc """
   Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
   """
-  @spec chain_storage_nodes_with_type(binary(), Transaction.transaction_type(), list(Node.t())) ::
+  @spec chain_storage_nodes_with_type(
+          binary(),
+          Transaction.transaction_type(),
+          shard_node_list :: list(Node.t()),
+          network_node_list :: list(Node.t())
+        ) ::
           list(Node.t())
-  def chain_storage_nodes_with_type(address, type, node_list \\ P2P.authorized_nodes())
-      when is_binary(address) and is_atom(type) and is_list(node_list) do
+  def chain_storage_nodes_with_type(
+        address,
+        type,
+        shard_node_list \\ P2P.authorized_nodes(),
+        network_node_list \\ P2P.available_nodes()
+      )
+      when is_binary(address) and is_atom(type) and is_list(shard_node_list) and
+             is_list(network_node_list) do
     if Transaction.network_type?(type) do
-      P2P.available_nodes()
+      network_node_list
     else
-      chain_storage_nodes(address, node_list)
+      chain_storage_nodes(address, shard_node_list)
     end
   end
 

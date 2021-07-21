@@ -535,7 +535,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
           assert Enum.all?(chain_tree, &(bit_size(&1) == 3))
 
-          assert Enum.all?(io_tree, &(bit_size(&1) == 5))
+          assert Enum.all?(io_tree, &(bit_size(&1) == 3))
 
           assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
 

@@ -306,7 +306,7 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           ],
           unspent_outputs: [
             %UnspentOutput{
-              amount: 0.611416,
+              amount: 0.611423,
               from: tx.address,
               type: :UCO
             }

@@ -81,12 +81,13 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         roles =
           [
             chain:
-              Replication.chain_storage_node?(
+              Replication.chain_storage_nodes_with_type(
                 address,
                 type,
-                Crypto.last_node_public_key(),
+                node_list,
                 node_list
-              ),
+              )
+              |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
             IO: Replication.io_storage_node?(tx, Crypto.last_node_public_key(), node_list)
           ]
           |> Utils.get_keys_from_value_match(true)

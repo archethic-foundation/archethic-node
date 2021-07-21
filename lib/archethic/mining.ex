@@ -62,15 +62,11 @@ defmodule ArchEthic.Mining do
         timestamp = %DateTime{}
       )
       when is_binary(sorting_seed) do
-    storage_nodes =
-      Replication.chain_storage_nodes_with_type(address, type, P2P.authorized_nodes(timestamp))
+    node_list = P2P.authorized_nodes(timestamp)
+
+    storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
 
     constraints = Election.get_validation_constraints()
-
-    node_list =
-      timestamp
-      |> P2P.authorized_nodes()
-      |> Enum.filter(& &1.available?)
 
     Election.validation_nodes(
       tx,
