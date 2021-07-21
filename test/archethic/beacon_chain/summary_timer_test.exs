@@ -16,7 +16,7 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
 
   test "next_summary/2 should get the next summary time from a given date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
-    now = DateTime.utc_now()
+    now = ~U[2021-01-02 03:00:19Z]
     next_summary_time = SummaryTimer.next_summary(now)
     assert 1 == abs(now.minute - next_summary_time.minute)
   end

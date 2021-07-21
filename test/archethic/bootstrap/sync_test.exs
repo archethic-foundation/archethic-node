@@ -263,13 +263,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       assert 1 == Crypto.number_of_node_shared_secrets_keys()
 
       Application.get_env(:archethic, ArchEthic.Bootstrap.NetworkInit)[:genesis_pools]
-      |> Enum.map(fn {_, public_key: key, amount: amount} -> {key, amount} end)
-      |> Enum.each(fn {key, amount} ->
-        address =
-          key
-          |> Base.decode16!(case: :mixed)
-          |> Crypto.hash()
-
+      |> Enum.each(fn %{address: address, amount: amount} ->
         assert %{uco: amount, nft: %{}} == Account.get_balance(address)
       end)
     end

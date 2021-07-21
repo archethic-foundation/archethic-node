@@ -105,10 +105,10 @@ defmodule ArchEthic.Election do
       ...>     %ValidationConstraints{ validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end }
       ...> )
       [
-        %Node{last_public_key: "node3", geo_patch: "AA0"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
-        %Node{last_public_key: "node2", geo_patch: "DEF"},
         %Node{last_public_key: "node6", geo_patch: "ECA"},
+        %Node{last_public_key: "node5", geo_patch: "F10"},
+        %Node{last_public_key: "node1", geo_patch: "AAA"},
+        %Node{last_public_key: "node2", geo_patch: "DEF"},
       ]
   """
   @spec validation_nodes(
