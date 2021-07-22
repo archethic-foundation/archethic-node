@@ -19,8 +19,8 @@
   - [Core](/development/core/README.md)
   - Testnet
     - [Local](/development/testnet/local.md)
-    - [Faucet](/development/testnet/faucet.md)
+    - [Public](/development/testnet/public.md)
 
   - SDK
     - [Javascript](/development/sdk/js.md)
-    - [Flutter](/development/sdk/flutter.md)
+    - [Dart](/development/sdk/dart.md)

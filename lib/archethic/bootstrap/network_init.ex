@@ -32,8 +32,11 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
   require Logger
 
-  @genesis_pools Application.compile_env(:archethic, __MODULE__)[:genesis_pools]
   @genesis_seed Application.compile_env(:archethic, __MODULE__)[:genesis_seed]
+
+  defp get_genesis_pools do
+    Application.get_env(:archethic, __MODULE__) |> Keyword.get(:genesis_pools, [])
+  end
 
   @doc """
   Initialize the storage nonce and load it into the keystore
@@ -112,8 +115,9 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   end
 
   defp genesis_transfers(network_pool_address) do
-    Enum.map(@genesis_pools, &%Transfer{to: &1.address, amount: &1.amount}) ++
-      [%Transfer{to: network_pool_address, amount: 1.46e9}]
+    get_genesis_pools()
+    |> Enum.map(&%Transfer{to: &1.address, amount: &1.amount})
+    |> Enum.concat([%Transfer{to: network_pool_address, amount: 1.46e9}])
   end
 
   def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do

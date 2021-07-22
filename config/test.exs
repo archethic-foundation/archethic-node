@@ -23,6 +23,16 @@ config :archethic, ArchEthic.Bootstrap, enabled: false
 
 config :archethic, ArchEthic.Bootstrap.Sync, out_of_sync_date_threshold: 3
 
+config :archethic, ArchEthic.Bootstrap.NetworkInit,
+  genesis_pools: [
+    %{
+      address:
+        "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
+        |> Base.decode16!(case: :mixed),
+      amount: 10_000_000.0
+    }
+  ]
+
 config :archethic, ArchEthic.Contracts.Loader, enabled: false
 
 config :archethic, ArchEthic.Crypto,

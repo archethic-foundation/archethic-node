@@ -100,59 +100,6 @@ config :archethic, ArchEthicWeb.Endpoint,
     layout: {ArchEthicWeb.LayoutView, "live.html"}
   ]
 
-config :archethic, ArchEthic.Bootstrap.NetworkInit,
-  genesis_pools: [
-    %{
-      address:
-        Base.decode16!("002CA95C90A4D75DEEC973D251F5B59CD8EBC787FEC265B9CAC1F6C56A8D9BFCCA",
-          case: :mixed
-        ),
-      amount: 3.82e9
-    },
-    %{
-      address:
-        Base.decode16!("00AD6EEC49FED0A936FEF4BD3301FF933FFFE9BA63BE2F6E948DFEC4C2D4543917",
-          case: :mixed
-        ),
-      amount: 2.36e9
-    },
-    %{
-      address:
-        Base.decode16!("00D23C33B9B75A272B1E8BCA6F252179A144E0A66A396CCF989C4A6D353CFF3849",
-          case: :mixed
-        ),
-      amount: 9.0e8
-    },
-    %{
-      address:
-        Base.decode16!("006FDE9B6EDF98E682561634B814A5FA2127B327D50AF38428AB06B447A4CF8345",
-          case: :mixed
-        ),
-      amount: 5.6e8
-    },
-    %{
-      address:
-        Base.decode16!("000F1DFC550CB0492C7BEA2DCFABC6F2E2378A5D1D8AA8B5058FC2F30B62DD5DDC",
-          case: :mixed
-        ),
-      amount: 3.4e8
-    },
-    %{
-      address:
-        Base.decode16!("006098E77BA4C675DA94F57091E73797BF2E11B3FAB20867101AB20FBE21ED862A",
-          case: :mixed
-        ),
-      amount: 3.4e8
-    },
-    %{
-      address:
-        Base.decode16!("009BD34BB544A9A71536806E52E9E9F4F41FF81751848FD0B1E0E465D2FB95C36C",
-          case: :mixed
-        ),
-      amount: 2.2e8
-    }
-  ]
-
 config :archethic, ArchEthic.Mining, timeout: 3_000
 
 config :archethic, ArchEthic.OracleChain,

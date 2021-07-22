@@ -27,6 +27,20 @@ config :archethic, ArchEthic.Bootstrap,
     )
     |> Base.decode16!(case: :mixed)
 
+config :archethic, ArchEthic.Bootstrap.NetworkInit,
+  genesis_pools: [
+    %{
+      address:
+        System.get_env(
+          "ARCHETHIC_TESTNET_GENESIS_ADDRESS",
+          "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
+        )
+        |> Base.decode16!(case: :mixed),
+      amount:
+        System.get_env("ARCHETHIC_TESTNET_GENESIS_AMOUNT", "10000000") |> Float.parse() |> elem(0)
+    }
+  ]
+
 config :archethic, ArchEthic.Bootstrap.Sync, out_of_sync_date_threshold: 60
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,
