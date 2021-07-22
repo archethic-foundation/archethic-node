@@ -1,6 +1,6 @@
 # Javascript SDK
 
-ArchEthic Offical Javascript SDK is available on [Github](https://github.com/archethic-foundation/libjs)
+ArchEthic Blockchain Official Javascript SDK is available on [Github](https://github.com/archethic-foundation/libjs)
 
 ---
 
