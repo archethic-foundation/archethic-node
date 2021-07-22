@@ -177,7 +177,6 @@ defmodule ArchEthic.Bootstrap.Sync do
 
     <<_::8, _::8, subset::binary-size(1), _::binary>> = Crypto.first_node_public_key()
 
-
     Election.beacon_storage_nodes(
       subset,
       BeaconChain.next_slot(ready_date),

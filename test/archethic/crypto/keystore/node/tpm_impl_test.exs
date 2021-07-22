@@ -3,7 +3,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImplTest do
 
   alias ArchEthic.Crypto.NodeKeystore.TPMImpl
 
-
   @tag :infrastructure
   test "first_public_key/0" do
     {:ok, _} = TPMImpl.start_link()
