@@ -4,6 +4,11 @@
 
 ```
 # Send 1.0 each to the given address
+condition inherit: [
+  type: transfer,
+  uco_transfers: %{ "0D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC" => 1.0 }
+]
+
 actions triggered_by: interval, at: "0 0 0 * *" do
   set_type transfer
   add_uco_transfer to: "0D574D171A484F8DEAC2D61FC3F7CC984BEB52465D69B3B5F670090742CBF5CC", amount: 1.0
