@@ -5,6 +5,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   alias ArchEthic.Crypto.ID
   alias ArchEthic.Crypto.NodeKeystore
 
+  alias ArchEthic.Utils
   alias ArchEthic.Utils.PortHandler
 
   @behaviour NodeKeystore
@@ -87,7 +88,15 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def handle_continue(:initialize_tpm, state = %{port_handler: port_handler}) do
-    {:ok, <<nb_keys::16>>} = PortHandler.request(port_handler, 4, <<>>)
+    nb_keys =
+      case File.read(Utils.mut_dir("crypto/index")) do
+        {:ok, index} ->
+          String.to_integer(index)
+
+        _ ->
+          0
+      end
+     
     initialize_tpm(port_handler, nb_keys)
 
     first_public_key = request_public_key(port_handler, 0)
@@ -186,10 +195,12 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   @impl GenServer
   def handle_cast(:persist_next_keypair, state = %{index: index, port_handler: port_handler}) do
     :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
+    
+    File.write!(Utils.mut_dir("crypto/index"), "#{index + 1}")
 
-     next_public_key = request_public_key(port_handler, index + 2)
-     previous_public_key = request_public_key(port_handler, index + 1)
-     last_public_key = request_public_key(port_handler, index)
+    next_public_key = request_public_key(port_handler, index + 2)
+    previous_public_key = request_public_key(port_handler, index + 1)
+    last_public_key = request_public_key(port_handler, index)
 
     new_state =
       state

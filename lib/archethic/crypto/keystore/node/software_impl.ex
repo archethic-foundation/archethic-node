@@ -200,7 +200,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
     Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
     Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
 
-    File.write(Utils.mut_dir("crypto/index"), "#{index + 1}")
+    File.write!(Utils.mut_dir("crypto/index"), "#{index + 1}")
 
     {:noreply, new_state}
   end
