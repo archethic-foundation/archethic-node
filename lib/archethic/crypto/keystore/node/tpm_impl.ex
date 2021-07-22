@@ -62,19 +62,20 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   @impl NodeKeystore
   @spec diffie_hellman_with_last_key(public_key :: Crypto.key()) :: binary()
   def diffie_hellman_with_last_key(public_key) when is_binary(public_key) do
-    GenServer.call(__MODULE__, {:diffie_hellman, public_key})
+    GenServer.call(__MODULE__, {:diffie_hellman_with_last, public_key})
   end
 
   @impl NodeKeystore
   @spec diffie_hellman_with_first_key(public_key :: Crypto.key()) :: binary()
   def diffie_hellman_with_first_key(public_key) when is_binary(public_key) do
-    GenServer.call(__MODULE__, {:diffie_hellman_first, public_key})
+    GenServer.call(__MODULE__, {:diffie_hellman_with_first, public_key})
+
   end
 
   @impl NodeKeystore
   @spec persist_next_keypair() :: :ok
   def persist_next_keypair do
-    GenServer.call(__MODULE__, :persist_next_keypair)
+    GenServer.cast(__MODULE__, :persist_next_keypair)
   end
 
   @impl GenServer
@@ -86,7 +87,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def handle_continue(:initialize_tpm, state = %{port_handler: port_handler}) do
-    nb_keys = PortHandler.request(port_handler, 4, <<>>)
+    {:ok, <<nb_keys::16>>} = PortHandler.request(port_handler, 4, <<>>)
     initialize_tpm(port_handler, nb_keys)
 
     first_public_key = request_public_key(port_handler, 0)
@@ -115,7 +116,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
       |> Map.put(:next_public_key, next_public_key)
       |> Map.put(:next_index, nb_keys + 1)
       |> Map.put(:last_index, last_index)
-      |> Map.put(:prev_index, nb_keys)
+      |> Map.put(:previous_index, nb_keys)
 
     {:noreply, new_state}
   end
@@ -138,7 +139,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   def handle_call(
         {:sign_with_previous_key, data},
         _,
-        state = %{port_handler: port_handler, prev_index: index}
+        state = %{port_handler: port_handler, previous_index: index}
       ) do
     sig = sign(port_handler, index, data)
     {:reply, sig, state}
@@ -158,19 +159,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   def handle_call(:get_next_public_key, _, state = %{next_public_key: public_key}) do
     {:reply, public_key, state}
-  end
-
-  def handle_call(:persist_next_keypair, _, state = %{index: index, port_handler: port_handler}) do
-    :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
-
-    new_state =
-      state
-      |> Map.update!(:index, &(&1 + 1))
-      |> Map.put(:next_index, index + 2)
-      |> Map.put(:previous_index, index + 1)
-      |> Map.put(:last_index, index)
-
-    {:reply, :ok, new_state}
   end
 
   def handle_call(
@@ -193,6 +181,31 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
       PortHandler.request(port_handler, 6, <<index::16, public_key::binary>>)
 
     {:reply, z_x, state}
+  end
+
+  @impl GenServer
+  def handle_cast(:persist_next_keypair, state = %{index: index, port_handler: port_handler}) do
+    :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
+
+     next_public_key = request_public_key(port_handler, index + 2)
+     previous_public_key = request_public_key(port_handler, index + 1)
+     last_public_key = request_public_key(port_handler, index)
+
+    new_state =
+      state
+      |> Map.update!(:index, &(&1 + 1))
+      |> Map.put(:next_index, index + 2)
+      |> Map.put(:previous_index, index + 1)
+      |> Map.put(:last_index, index)
+      |> Map.put(:previous_public_key, previous_public_key)
+      |> Map.put(:last_public_key, last_public_key)
+      |> Map.put(:next_public_key, next_public_key)
+    
+    Logger.info("Next public key will be positied at #{new_state.next_index}")
+    Logger.info("Previous public key will be positioned at #{new_state.previous_index}")
+    Logger.info("Publication/Last public key will be positioned at #{new_state.last_index}")
+
+    {:noreply, new_state}
   end
 
   defp request_public_key(port_handler, index) do
