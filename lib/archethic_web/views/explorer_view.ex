@@ -59,13 +59,13 @@ defmodule ArchEthicWeb.ExplorerView do
                                            timestamp: timestamp,
                                            type: type
                                          } ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{format_transaction_type(type)}"
+        "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(address)} - #{type}"
       end)
       |> Enum.join("\n")
 
     end_of_sync_stringified =
       Enum.map(end_of_sync, fn %EndOfNodeSync{public_key: node_public_key, timestamp: timestamp} ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(node_public_key)}"
+        "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(node_public_key)}"
       end)
       |> Enum.join(",")
 
@@ -75,7 +75,7 @@ defmodule ArchEthicWeb.ExplorerView do
     Transactions:
     #{transaction_summaries_stringified}
 
-    New node synchronizations
+    New node synchronizations:
     #{end_of_sync_stringified}
 
     P2P node availabilites: #{Utils.bitstring_to_integer_list(availabilities) |> Enum.join(",")}
@@ -96,13 +96,13 @@ defmodule ArchEthicWeb.ExplorerView do
                                            timestamp: timestamp,
                                            type: type
                                          } ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(address)} - #{format_transaction_type(type)}"
+        "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(address)} - #{type}"
       end)
       |> Enum.join("\n")
 
     end_of_sync_stringified =
       Enum.map(end_of_sync, fn %EndOfNodeSync{public_key: node_public_key, timestamp: timestamp} ->
-        "#{DateTime.to_string(timestamp)} - #{Base.encode16(node_public_key)}"
+        "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(node_public_key)}"
       end)
       |> Enum.join(",")
 
