@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+trap 'echo "******* FAILED *******" 1>&2' ERR
+
 INSTALL_DIR=~/aebot
 SCRIPT_DIR=$(dirname $(readlink -f $0))
 mkdir -p $INSTALL_DIR

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+trap 'echo "******* FAILED *******" 1>&2' ERR
+
 INSTALL_DIR=~/aebot/build
 UPGRADE=0
 
