@@ -14,5 +14,7 @@ defmodule ArchEthicWeb.GraphQLSchema.P2PType do
     field(:geo_patch, :string)
     field(:network_patch, :string)
     field(:average_availability, :float)
+    field(:enrollment_date, :timestamp)
+    field(:authorization_date, :timestamp)
   end
 end
