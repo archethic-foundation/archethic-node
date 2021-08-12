@@ -38,7 +38,7 @@ defmodule ArchEthicWeb.Router do
 
     get("/chain", ExplorerController, :chain)
     live("/chain/oracle", OracleChainLive)
-
+    live("/chain/beacon", BeaconChainLive)
     live("/nodes", NodeListLive)
     live("/node/:public_key", NodeDetailsLive)
 

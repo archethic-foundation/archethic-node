@@ -60,11 +60,11 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end)
   end
 
-  defp download_summary(beacon_address, nodes, patch, prev_result \\ nil)
+  def download_summary(beacon_address, nodes, patch, prev_result \\ nil)
 
-  defp download_summary(_beacon_address, [], _, %NotFound{}), do: {:ok, %NotFound{}}
+  def download_summary(_beacon_address, [], _, %NotFound{}), do: {:ok, %NotFound{}}
 
-  defp download_summary(beacon_address, nodes, patch, prev_result) do
+  def download_summary(beacon_address, nodes, patch, prev_result) do
     case P2P.reply_first(nodes, %GetTransaction{address: beacon_address},
            patch: patch,
            node_ack?: true
