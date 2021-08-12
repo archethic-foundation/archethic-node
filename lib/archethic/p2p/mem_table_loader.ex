@@ -49,7 +49,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
     |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Enum.each(&load_transaction/1)
 
-    Enum.map(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
+    Enum.each(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
 
     {:ok, %{}}
   end
