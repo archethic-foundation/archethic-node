@@ -25,7 +25,11 @@
 
         <div id="navbar" class="navbar-menu">
             <div class="navbar-end">
-    <!-- 
+
+            <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
+                Faucet
+            </a>
+    <!--
           TODO: implement the listing of transactions through BeaconChain
 
               <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
@@ -58,13 +62,15 @@
                 </a>
                 </div>
             </div>
-            
+
             <a class="navbar-item" href="<%= Routes.static_path(@conn, "/docs/index.html") %>">
                 Docs
             </a>
         </div>
     </nav>
     <main class="pt-6">
+      <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
+      <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
       <%= @inner_content %>
     </main>
     </div>

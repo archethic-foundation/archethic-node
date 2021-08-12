@@ -1,5 +1,6 @@
 import Config
 
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 config :archethic, :mut_dir, "data_#{System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")}"
 
 config :telemetry_poller, :default, period: 5_000

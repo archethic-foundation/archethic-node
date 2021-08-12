@@ -101,12 +101,13 @@ sudo apt-get update
 sudo apt-get install -y openjdk-8-jre-headless
 sudo update-java-alternatives --jre-headless -s java-1.8.0-openjdk-amd64
 
-sudo scylla_setup --no-raid-setup --no-ec2-check --no-kernel-check --no-verify-package --no-sysconfig-setup --io-setup=1 --no-version-check --no-cpuscaling-setup --no-fstrim-setup --no-memory-setup --no-swap-setup
+sudo scylla_setup --no-raid-setup --no-ec2-check --no-kernel-check --no-verify-package --no-sysconfig-setup --io-setup=1 --no-version-check --no-cpuscaling-setup --no-fstrim-setup --no-memory-setup --no-swap-setup 2>/dev/null
 
 sudo scylla_memory_setup --memory=8G
 sudo scylla_cpuset_setup --cpuset 2
 
 sudo systemctl start scylla-server
+sleep 15
 nodetool status
 
 echo "Install TPM Software Stack"

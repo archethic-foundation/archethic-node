@@ -5,7 +5,7 @@ To test and build on top of ArchEthic network, we encourage people to test with 
 ## Installation
 
 - Clone the repository: 
-```
+```bash
 git clone https://github.com/archethic-foundation/archethic-node.git
 ```
 
@@ -17,17 +17,17 @@ git clone https://github.com/archethic-foundation/archethic-node.git
   - [Install ScyllaDB](https://www.scylladb.com/download/#server)
   
 - Fetch the dependencies
-```
+```bash
 mix deps.get
 ```
 
 - Build web assets
-```
+```bash
 cd assets ; npm install; cd -
 ``` 
 
 - Start instance
-```
+```bash
 iex -S mix
 ```
 
@@ -36,12 +36,13 @@ iex -S mix
 To be able to fund some addresses you can specify in the configuration which will be the addresses and the amount as genesis pool during the network initialization
 
 - Ensure a fresh start
-```
+```bash
 make clean
 ```
 
 - Restart the node with some configuration
-```
+```bash
+rm -rf ./_build
 ARCHETHIC_TESTNET_GENESIS_ADDRESS=YOUR_ADDRESS_IN_HEXADECIMAL ARCHETHIC_TESTNET_GENESIS_AMOUNT=AMOUNT_TO_ALLOCATE iex -S mix
 ```
 
