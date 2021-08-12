@@ -70,7 +70,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   @spec diffie_hellman_with_first_key(public_key :: Crypto.key()) :: binary()
   def diffie_hellman_with_first_key(public_key) when is_binary(public_key) do
     GenServer.call(__MODULE__, {:diffie_hellman_with_first, public_key})
-
   end
 
   @impl NodeKeystore
@@ -96,7 +95,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
         _ ->
           0
       end
-     
+
     initialize_tpm(port_handler, nb_keys)
 
     first_public_key = request_public_key(port_handler, 0)
@@ -195,7 +194,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   @impl GenServer
   def handle_cast(:persist_next_keypair, state = %{index: index, port_handler: port_handler}) do
     :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
-    
+
     File.write!(Utils.mut_dir("crypto/index"), "#{index + 1}")
 
     next_public_key = request_public_key(port_handler, index + 2)
@@ -211,7 +210,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
       |> Map.put(:previous_public_key, previous_public_key)
       |> Map.put(:last_public_key, last_public_key)
       |> Map.put(:next_public_key, next_public_key)
-    
+
     Logger.info("Next public key will be positied at #{new_state.next_index}")
     Logger.info("Previous public key will be positioned at #{new_state.previous_index}")
     Logger.info("Publication/Last public key will be positioned at #{new_state.last_index}")

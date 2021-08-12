@@ -42,6 +42,9 @@
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.OracleChainLive) %>">
                   Oracle
                 </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.BeaconChainLive) %>">
+                  Beacon
+                </a>
               </div>
             </div>
 
