@@ -17,7 +17,7 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    case transfer(address,:secp256r1) do
+    case transfer(address, :secp256r1) do
       :ok ->
         conn
         |> put_flash(:info, "Transferred successfully")
