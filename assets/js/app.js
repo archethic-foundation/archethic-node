@@ -12,6 +12,8 @@ import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
 import hljs from "highlight.js"
 
+// add a comment
+
 let Hooks = {}
 
 let scrollAt = () => {
@@ -27,7 +29,7 @@ Hooks.CodeViewer = {
     hljs.highlightBlock(this.el);
   },
 
-  updated(){ 
+  updated(){
     hljs.highlightBlock(this.el);
   }
 }
@@ -41,7 +43,7 @@ Hooks.InfiniteScroll = {
         this.pending = this.page() + 1
         this.pushEvent("load-more", {})
       }
-      
+
     })
   },
   reconnected(){ this.pending = this.page() },
@@ -79,5 +81,3 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 window.diff2html = html
-
-
