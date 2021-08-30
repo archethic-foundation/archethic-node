@@ -1,6 +1,8 @@
 defmodule ArchEthic.Contracts.Interpreter do
   @moduledoc false
 
+  require Logger
+
   alias Crontab.CronExpression.Parser, as: CronParser
 
   alias __MODULE__.Library
@@ -34,7 +36,7 @@ defmodule ArchEthic.Contracts.Interpreter do
     "nft_ledger",
     "uco_transfers",
     "nft_transfers",
-    "authorized_keys",
+    "authorized_public_keys",
     "secret",
     "recipients"
   ]
@@ -313,6 +315,12 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
 
+  # Allow variable as function argument
+  defp prewalk(node = {{:atom, _}, {{:atom, _varname}, _, _}}, acc = {:ok, %{scope: scope}})
+       when scope != :root do
+    {node, acc}
+  end
+
   # Whitelist the use of doted statement
   defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
        when scope != :root,
@@ -440,32 +448,24 @@ defmodule ArchEthic.Contracts.Interpreter do
        when field_name in @condition_fields,
        do: {node, acc}
 
+  # Whitelist the usage transaction fields
   defp prewalk(
          node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]},
-         acc = {:ok, %{scope: :condition}}
+         acc
        )
        when transaction_ref in ["next", "previous", "transaction", "contract"] and
               type in @transaction_fields do
     {node, acc}
   end
 
-  # Whitelist Access key based with brackets, ie. uco_transfers["Alice"]
   defp prewalk(
          node =
-           {{:., metadata, [Access, :get]}, _,
-            [{{:., [_], [{{:atom, subject}, [_], nil}, {:atom, field}]}, _, []}, key]},
-         acc = {:ok, scope: scope}
+           {{:atom, _}, {{:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]}, _, _}},
+         acc
        )
-       when scope != :root and
-              subject in [:contract, :prev, :next, :transaction] and
-              field in @transaction_fields and is_binary(key) do
-    case Base.decode16(key, case: :mixed) do
-      {:ok, _} ->
-        {node, acc}
-
-      _ ->
-        {node, {:error, {metadata, "unexpected token", ""}}}
-    end
+       when transaction_ref in ["next", "previous", "transaction", "contract"] and
+              type in @transaction_fields do
+    {node, acc}
   end
 
   # Whitelist the use of list
@@ -475,8 +475,19 @@ defmodule ArchEthic.Contracts.Interpreter do
   end
 
   # Whitelist access to map field
+  defp prewalk(
+         node = {{:., _, [Access, :get]}, _, _},
+         acc = {:ok, %{scope: scope}}
+       )
+       when scope != :root do
+    {node, acc}
+  end
+
   defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
+
+  defp prewalk(node = Access, acc), do: {node, acc}
+  defp prewalk(node = :get, acc), do: {node, acc}
 
   # Whitelist condition fields
 
@@ -513,23 +524,6 @@ defmodule ArchEthic.Contracts.Interpreter do
          acc = {:ok, %{scope: :condition}}
        )
        when field in @condition_fields do
-    {node, acc}
-  end
-
-  # Whitelist the use of transaction and contract fields in the actions
-  defp prewalk(
-         node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
-         acc = {:ok, %{scope: :actions}}
-       )
-       when key in ["contract", "transaction"] and field in @transaction_fields do
-    {node, acc}
-  end
-
-  defp prewalk(
-         node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
-         acc = {:ok, %{scope: :condition}}
-       )
-       when key in ["contract", "transaction"] and field in @transaction_fields do
     {node, acc}
   end
 
