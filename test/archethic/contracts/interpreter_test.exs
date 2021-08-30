@@ -533,4 +533,31 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                })
     end
   end
+
+  test "ICO contract parsing" do
+    {:ok, _} =
+      """
+      condition inherit: [
+      type: transfer,
+      uco_transfers: size() == 1
+      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs 
+      ]
+
+
+      actions triggered_by: transaction do
+        # Get the amount of uco send to this contract
+        amount_send = transaction.uco_transfers[contract.address]
+
+        if amount_send > 0 do
+          # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
+          token_to_credit = amount_send * 10000
+
+          # Send the new transaction
+          set_type transfer
+          add_nft_transfer to: transaction.address, nft: contract.address, amount: token_to_credit
+        end
+      end
+      """
+      |> Interpreter.parse()
+  end
 end
