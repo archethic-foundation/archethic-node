@@ -17,7 +17,6 @@ defmodule ArchEthic.Contracts do
   alias Crontab.DateChecker, as: CronDateChecker
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
 
   require Logger
@@ -139,13 +138,14 @@ defmodule ArchEthic.Contracts do
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: Loader
 
-  @spec accept_new_contract?(Transaction.t() | nil, Transaction.t()) :: boolean()
-  def accept_new_contract?(nil, _), do: true
-  def accept_new_contract?(%Transaction{data: %TransactionData{code: ""}}, _), do: true
+  @spec accept_new_contract?(Transaction.t() | nil, Transaction.t(), DateTime.t()) :: boolean()
+  def accept_new_contract?(nil, _, _), do: true
+  def accept_new_contract?(%Transaction{data: %TransactionData{code: ""}}, _, _), do: true
 
   def accept_new_contract?(
         prev_tx = %Transaction{data: %TransactionData{code: code}},
-        next_tx = %Transaction{}
+        next_tx = %Transaction{},
+        date = %DateTime{}
       ) do
     {:ok,
      %Contract{
@@ -160,7 +160,8 @@ defmodule ArchEthic.Contracts do
 
     with {:inherit, true} <-
            {:inherit, Interpreter.valid_conditions?(inherit_conditions, constants)},
-         {:origin, true} <- {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx))} do
+         {:origin, true} <-
+           {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx, date))} do
       true
     else
       {:inherit, false} ->
@@ -174,21 +175,27 @@ defmodule ArchEthic.Contracts do
     end
   end
 
-  defp valid_from_trigger?(%Trigger{type: :datetime, opts: [at: datetime]}, %Transaction{
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
-    DateTime.diff(timestamp, datetime) == 0
+  defp valid_from_trigger?(
+         %Trigger{type: :datetime, opts: [at: datetime]},
+         %Transaction{},
+         validation_date = %DateTime{}
+       ) do
+    # Accept time drifing for 10seconds
+    DateTime.diff(validation_date, datetime) >= 0 and
+      DateTime.diff(validation_date, datetime) < 10
   end
 
-  defp valid_from_trigger?(%Trigger{type: :interval, opts: [at: interval]}, %Transaction{
-         validation_stamp: %ValidationStamp{timestamp: timestamp}
-       }) do
+  defp valid_from_trigger?(
+         %Trigger{type: :interval, opts: [at: interval]},
+         %Transaction{},
+         validation_date = %DateTime{}
+       ) do
     interval
     |> CronParser.parse!(true)
-    |> CronDateChecker.matches_date?(DateTime.to_naive(timestamp))
+    |> CronDateChecker.matches_date?(DateTime.to_naive(validation_date))
   end
 
-  defp valid_from_trigger?(%Trigger{type: :transaction}, _), do: true
+  defp valid_from_trigger?(%Trigger{type: :transaction}, _, _), do: true
 
   @doc """
   List the address of the transaction which has contacted a smart contract

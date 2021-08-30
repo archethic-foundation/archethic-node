@@ -60,9 +60,13 @@ defmodule ArchEthic.Replication.TransactionValidator do
           inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t())
         ) ::
           :ok | {:error, error()}
-  def validate(tx = %Transaction{}, previous_transaction, inputs_outputs) do
+  def validate(
+        tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
+        previous_transaction,
+        inputs_outputs
+      ) do
     with :ok <- valid_transaction(tx, inputs_outputs, true),
-         true <- Contracts.accept_new_contract?(previous_transaction, tx),
+         true <- Contracts.accept_new_contract?(previous_transaction, tx, timestamp),
          true <- TransactionChain.valid?([tx, previous_transaction]) do
       :ok
     else
