@@ -65,7 +65,8 @@ defmodule ArchEthic.Contracts.WorkerTest do
       "secret" => secret,
       "content" => "",
       "uco_transferred" => 0.0,
-      "nft_transferred" => 0.0
+      "nft_transferred" => 0.0,
+      "previous_public_key" => transaction_seed |> Crypto.derive_keypair(0) |> elem(0)
     }
 
     expected_tx = %Transaction{

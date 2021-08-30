@@ -26,6 +26,11 @@ condition inherit: [
   # TODO: to provide more security, we should check the destination address is within the previous transaction inputs 
 ]
 
+# Define conditions to accept incoming transactions
+condition transaction: [
+  type: transfer, 
+  uco_transfers: size() > 0
+] 
 
 actions triggered_by: transaction do
   # Get the amount of uco send to this contract

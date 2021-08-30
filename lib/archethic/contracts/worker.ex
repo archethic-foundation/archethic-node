@@ -87,7 +87,7 @@ defmodule ArchEthic.Contracts.Worker do
       if Interpreter.valid_conditions?(transaction_condition, constants) do
         contract
         |> Interpreter.execute_actions(:transaction, constants)
-        |> chain_transaction()
+        |> chain_transaction(Constants.to_transaction(contract_constants))
         |> handle_new_transaction()
 
         {:reply, :ok, state}
@@ -113,9 +113,13 @@ defmodule ArchEthic.Contracts.Worker do
       contract: Base.encode16(Keyword.get(contract_constants, :address))
     )
 
+    constants = %{
+      "contract" => contract_constants
+    }
+
     contract
-    |> Interpreter.execute_actions(:datetime, contract_constants)
-    |> chain_transaction()
+    |> Interpreter.execute_actions(:datetime, constants)
+    |> chain_transaction(Constants.to_transaction(contract_constants))
     |> handle_new_transaction()
 
     Process.cancel_timer(timer)
@@ -127,7 +131,9 @@ defmodule ArchEthic.Contracts.Worker do
         state = %{
           contract:
             contract = %Contract{
-              constants: %Constants{contract: contract_constants}
+              constants: %Constants{
+                contract: contract_constants = %{"address" => address}
+              }
             }
         }
       ) do
@@ -138,9 +144,13 @@ defmodule ArchEthic.Contracts.Worker do
     # Schedule the next interval trigger
     interval_timer = schedule_trigger(trigger)
 
+    constants = %{
+      "contract" => contract_constants
+    }
+
     contract
-    |> Interpreter.execute_actions(:interval, contract_constants)
-    |> chain_transaction()
+    |> Interpreter.execute_actions(:interval, constants)
+    |> chain_transaction(Constants.to_transaction(contract_constants))
     |> handle_new_transaction()
 
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
@@ -170,7 +180,7 @@ defmodule ArchEthic.Contracts.Worker do
       if Conditions.empty?(oracle_condition) do
         contract
         |> Interpreter.execute_actions(:oracle, constants)
-        |> chain_transaction()
+        |> chain_transaction(Constants.to_transaction(constants))
         |> handle_new_transaction()
 
         {:noreply, state}
@@ -178,7 +188,7 @@ defmodule ArchEthic.Contracts.Worker do
         if Interpreter.valid_conditions?(oracle_condition, constants) do
           contract
           |> Interpreter.execute_actions(:oracle, constants)
-          |> chain_transaction()
+          |> chain_transaction(Constants.to_transaction(contract_constants))
           |> handle_new_transaction()
 
           {:noreply, state}
@@ -214,22 +224,18 @@ defmodule ArchEthic.Contracts.Worker do
     Logger.error("#{inspect(e)}")
   end
 
-  defp handle_new_transaction({:ok, contract}), do: dispatch_transaction(contract)
-
-  defp dispatch_transaction(%Contract{
-         next_transaction: next_tx,
-         constants: %Constants{contract: %{"address" => contract_address}}
-       }) do
-    [%Node{first_public_key: key} | _] = Replication.chain_storage_nodes(contract_address)
+  defp handle_new_transaction({:ok, next_transaction = %Transaction{}}) do
+    [%Node{first_public_key: key} | _] =
+      next_transaction
+      |> Transaction.previous_address()
+      |> Replication.chain_storage_nodes()
 
     # The first storage node of the contract initiate the sending of the new transaction
-    # The contract must contains in the data authorized keys
-    # the transaction seed encrypted with the storage nonce public key
     if key == Crypto.first_node_public_key() do
       validation_nodes = P2P.authorized_nodes()
 
       P2P.broadcast_message(validation_nodes, %StartMining{
-        transaction: next_tx,
+        transaction: next_transaction,
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
         welcome_node_public_key: Crypto.last_node_public_key()
       })
@@ -237,18 +243,15 @@ defmodule ArchEthic.Contracts.Worker do
   end
 
   defp chain_transaction(
-         contract = %Contract{
-           constants: %Constants{
-             contract: %{
-               "address" => address,
-               "authorized_keys" => authorized_keys,
-               "secret" => secret
-             }
-           }
+         next_tx,
+         prev_tx = %Transaction{
+           address: address,
+           data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys, secret: secret}},
+           previous_public_key: previous_public_key
          }
        ) do
-    %Contract{next_transaction: %Transaction{type: new_type, data: new_data}} =
-      contract
+    %{next_transaction: %Transaction{type: new_type, data: new_data}} =
+      %{next_transaction: next_tx, previous_transaction: prev_tx}
       |> chain_type()
       |> chain_code()
       |> chain_content()
@@ -261,87 +264,92 @@ defmodule ArchEthic.Contracts.Worker do
          {:ok, transaction_seed} <- Crypto.aes_decrypt(secret, aes_key),
          length <- TransactionChain.size(address) do
       {:ok,
-       %{
-         contract
-         | next_transaction: Transaction.new(new_type, new_data, transaction_seed, length)
-       }}
+       Transaction.new(
+         new_type,
+         new_data,
+         transaction_seed,
+         length,
+         Crypto.get_public_key_curve(previous_public_key)
+       )}
     end
   end
 
   defp chain_type(
-         contract = %Contract{
-           next_transaction: new_tx = %Transaction{type: nil},
-           constants: %Constants{contract: %{"type" => previous_type}}
+         acc = %{
+           next_transaction: %Transaction{type: nil},
+           previous_transaction: %Transaction{type: previous_type}
          }
        ) do
-    new_tx = %{new_tx | type: previous_type}
-    %{contract | next_transaction: new_tx}
+    put_in(acc, [:next_transaction, :type], previous_type)
   end
 
-  defp chain_type(contract), do: contract
+  defp chain_type(acc), do: acc
 
   defp chain_code(
-         contract = %Contract{
-           next_transaction: new_tx = %Transaction{data: %TransactionData{code: ""}},
-           constants: %Constants{contract: %{"code" => previous_code}}
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{code: ""}},
+           previous_transaction: %Transaction{data: %TransactionData{code: previous_code}}
          }
        ) do
-    new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:code)], previous_code)
-    %{contract | next_transaction: new_tx}
+    put_in(acc, [:next_transaction, Access.key(:data, %{}), Access.key(:code)], previous_code)
   end
 
-  defp chain_code(contract), do: contract
+  defp chain_code(acc), do: acc
 
   defp chain_content(
-         contract = %Contract{
-           next_transaction: new_tx = %Transaction{data: %TransactionData{content: ""}},
-           constants: %Constants{contract: %{"previous_content" => previous_content}}
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{content: ""}},
+           previous_transaction: %Transaction{data: %TransactionData{content: previous_content}}
          }
        ) do
-    new_tx = put_in(new_tx, [Access.key(:data, %{}), Access.key(:content)], previous_content)
-    %{contract | next_transaction: new_tx}
+    put_in(
+      acc,
+      [:next_transaction, Access.key(:data, %{}), Access.key(:content)],
+      previous_content
+    )
   end
 
-  defp chain_content(contract), do: contract
+  defp chain_content(acc), do: acc
 
   defp chain_secret(
-         contract = %Contract{
-           next_transaction:
-             new_tx = %Transaction{data: %TransactionData{keys: %Keys{secret: ""}}},
-           constants: %Constants{contract: %{"secret" => previous_secret}}
+         acc = %{
+           next_transaction: %Transaction{data: %TransactionData{keys: %Keys{secret: ""}}},
+           previous_transaction: %Transaction{
+             data: %TransactionData{keys: %Keys{secret: previous_secret}}
+           }
          }
        ) do
-    new_tx =
-      put_in(
-        new_tx,
-        [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secret)],
-        previous_secret
-      )
-
-    %{contract | next_transaction: new_tx}
+    put_in(
+      acc,
+      [:next_transaction, Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secret)],
+      previous_secret
+    )
   end
 
-  defp chain_secret(contract), do: contract
+  defp chain_secret(acc), do: acc
 
   defp chain_authorized_keys(
-         contract = %Contract{
-           next_transaction:
-             new_tx = %Transaction{
-               data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys}}
-             },
-           constants: %Constants{contract: %{"authorized_keys" => previous_authorized_keys}}
+         acc = %{
+           next_transaction: %Transaction{
+             data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys}}
+           },
+           previous_transaction: %Transaction{
+             data: %TransactionData{keys: %Keys{authorized_keys: previous_authorized_keys}}
+           }
          }
        )
        when map_size(authorized_keys) == 0 do
-    new_tx =
-      put_in(
-        new_tx,
-        [Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:authorized_keys)],
-        previous_authorized_keys
-      )
-
-    %{contract | next_transaction: new_tx}
+    put_in(
+      acc,
+      [
+        :next_transaction,
+        Access.key(:data, %{}),
+        Access.key(:keys, %{}),
+        Access.key(:authorized_keys)
+      ],
+      previous_authorized_keys
+    )
   end
 
-  defp chain_authorized_keys(contract), do: contract
+  defp chain_authorized_keys(acc), do: acc
 end

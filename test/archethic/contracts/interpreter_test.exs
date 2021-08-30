@@ -15,6 +15,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
 
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   doctest Interpreter
 
@@ -39,7 +40,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 2],
                               [
                                 {:scope, [line: 2], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {:&, [line: 2],
                                  [
                                    {{:., [line: 2],
@@ -66,7 +67,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 3],
                               [
                                 {:scope, [line: 3], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 3],
@@ -109,7 +110,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 4],
                               [
                                 {:scope, [line: 4], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 4],
@@ -156,7 +157,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 5],
                               [
                                 {:scope, [line: 5], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 5],
@@ -186,7 +187,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 6],
                               [
                                 {:scope, [line: 6], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 6],
@@ -216,7 +217,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 7],
                               [
                                 {:scope, [line: 7], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 7],
@@ -262,7 +263,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 8],
                               [
                                 {:scope, [line: 8], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 8],
@@ -388,7 +389,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "yes"}}} =
+      assert %Transaction{data: %TransactionData{content: "yes"}} =
                Interpreter.execute_actions(contract, :transaction, %{
                  "transaction" => %{"previous_public_key" => "abc"}
                })
@@ -404,7 +405,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "hello"}}} =
+      assert %Transaction{data: %TransactionData{content: "hello"}} =
                Interpreter.execute_actions(contract, :transaction)
     end
 
@@ -418,7 +419,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "hello 4"}}} =
+      assert %Transaction{data: %TransactionData{content: "hello 4"}} =
                Interpreter.execute_actions(contract, :transaction)
     end
 

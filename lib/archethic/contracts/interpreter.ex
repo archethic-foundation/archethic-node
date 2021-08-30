@@ -12,6 +12,7 @@ defmodule ArchEthic.Contracts.Interpreter do
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionData
 
   @library_functions_names Library.__info__(:functions)
                            |> Enum.map(&Atom.to_string(elem(&1, 0)))
@@ -152,7 +153,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 16],
                   [
                     {:scope, [line: 16], nil},
-                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["contract"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
+                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
                   ]
                 },
                 {
@@ -160,7 +161,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 17],
                   [
                     {:scope, [line: 17], nil},
-                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["contract"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
+                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
                   ]
                 },
                 {
@@ -168,7 +169,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 18],
                   [
                     {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["contract"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
                   ]
                 }
               ]},
@@ -180,7 +181,7 @@ defmodule ArchEthic.Contracts.Interpreter do
               [line: 22],
               [
                 {:scope, [line: 22], nil},
-                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["contract"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
+                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
               ]
            }, opts: [], type: :oracle}
          ]
@@ -1054,7 +1055,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:update_in, [line: 2],
       ...>             [
       ...>               {:scope, [line: 2], nil},
-      ...>               ["contract"],
+      ...>               ["next_transaction"],
       ...>               {:&, [line: 2],
       ...>                [
       ...>                  {{:., [line: 2],
@@ -1070,21 +1071,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>     }
       ...>   ]
       ...> }, :transaction)
-      %Contract{
-        triggers: [
-         %Trigger{actions: {
-            :=,
-            [{:line, 2}],
-            [
-              {:scope, [{:line, 2}], nil},
-              {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["contract"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 2], [{:&, [line: 2], [1]}, "transfer"]}]}]}
-            ]
-          },
-          opts: [],
-          type: :transaction}
-        ],
-        next_transaction: %Transaction{type: :transfer, data: %TransactionData{}}
-      }
+      %Transaction{type: :transfer, data: %TransactionData{}}
 
       iex> Interpreter.execute_actions(%Contract{
       ...>   triggers: [
@@ -1098,7 +1085,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:scope, [{:line, 2}], nil},
       ...>            {:update_in, [line: 2], [
       ...>              {:scope, [line: 2], nil},
-      ...>              ["contract"],
+      ...>              ["next_transaction"],
       ...>              {:&, [line: 2], [
       ...>                {{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]},
       ...>                [line: 2],
@@ -1114,7 +1101,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:scope, [line: 3], nil},
       ...>            {:update_in, [line: 3], [
       ...>              {:scope, [line: 3], nil},
-      ...>              ["contract"],
+      ...>              ["next_transaction"],
       ...>              {:&, [line: 3], [
       ...>                {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
       ...>                [line: 3], [{:&, [line: 3], [1]},
@@ -1125,69 +1112,32 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>        }
       ...>      ]},
       ...>  }]}, :transaction)
-      %Contract{
-        triggers: [
-          %Trigger{
-            actions: {:__block__, [], [
-              {
-                :=,
-                [{:line, 2}],
-                [
-                  {:scope, [{:line, 2}], nil},
-                  {:update_in, [line: 2], [
-                    {:scope, [line: 2], nil},
-                    ["contract"],
-                    {:&, [line: 2], [
-                      {{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]},
-                      [line: 2],
-                      [{:&, [line: 2], [1]}, "transfer"]}]
-                    }
-                  ]}
-                ]
-              },
-              {
-                :=,
-                [line: 3],
-                [
-                  {:scope, [line: 3], nil},
-                  {:update_in, [line: 3], [
-                    {:scope, [line: 3], nil},
-                    ["contract"],
-                    {:&, [line: 3], [
-                      {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
-                      [line: 3], [{:&, [line: 3], [1]},
-                      [{"to", {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.Library], [:Library]}, :hash]}, [line: 3], ["@Alice2"]}}, {"amount", 10.04}]]}
-                    ]}
-                  ]}
-                ]
-              }
-            ]},
-            opts: [],
-            type: :transaction
-          }
-        ],
-        next_transaction: %Transaction{
-          type: :transfer,
-          data: %TransactionData{
-              ledger: %Ledger{
-                uco: %UCOLedger{
-                  transfers: [
-                    %UCOLedger.Transfer{ to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
-                      49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>, amount: 10.04}
-                  ]
+      %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{
+                  to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
+                    49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>,
+                  amount: 10.04
                 }
-              }
+              ]
+            }
           }
         }
       }
   """
-  def execute_actions(contract = %Contract{triggers: triggers}, trigger_type, constants \\ %{}) do
+  def execute_actions(%Contract{triggers: triggers}, trigger_type, constants \\ %{}) do
     %Contract.Trigger{actions: quoted_code} = Enum.find(triggers, &(&1.type == trigger_type))
 
-    {%{"contract" => contract}, _} =
-      Code.eval_quoted(quoted_code, scope: Map.put(constants, "contract", contract))
+    {%{"next_transaction" => next_transaction}, _} =
+      Code.eval_quoted(quoted_code,
+        scope: Map.put(constants, "next_transaction", %Transaction{data: %TransactionData{}})
+      )
 
-    contract
+    next_transaction
   end
 
   @doc """
@@ -1283,7 +1233,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       {:update_in, metadata,
        [
          {:scope, metadata, nil},
-         ["contract"],
+         ["next_transaction"],
          {:&, metadata,
           [
             ast

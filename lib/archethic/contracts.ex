@@ -68,7 +68,7 @@ defmodule ArchEthic.Contracts do
                   [line: 7],
                   [
                     {:scope, [line: 7], nil},
-                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["contract"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
+                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
                   ]
                 },
                 {
@@ -76,7 +76,7 @@ defmodule ArchEthic.Contracts do
                   [line: 8],
                   [
                     {:scope, [line: 8], nil},
-                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["contract"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
+                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
                   ]
                 }
               ]},
