@@ -1,4 +1,4 @@
-defmodule ArchEthic.WebClient do
+defmodule ArchEthic.Utils.WebClient do
   @moduledoc """
   Functions to query `archethic-node` web api with `Mint`. For use in benchmarks
   and playbooks.

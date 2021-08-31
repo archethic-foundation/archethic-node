@@ -13,6 +13,7 @@ defmodule ArchEthic.P2P.Client.RemoteConnectionTest do
       {:ok, <<0::32, 0::8, public_key::binary, 24::8>>}
     end)
     |> expect(:read_from_socket, fn _, _, _ -> {:error, :closed} end)
+    |> expect(:close_socket, fn _ -> :ok end)
 
     {:ok, pid} =
       RemoteConnection.start_link(

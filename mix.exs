@@ -15,16 +15,7 @@ defmodule ArchEthic.MixProject do
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
-      escript: escript(),
       dialyzer: [plt_add_apps: [:mix]]
-    ]
-  end
-
-  def escript do
-    [
-      main_module: ArchEthic.Governance.Code.Proposal.Validator,
-      name: "archethic-proposal-validator",
-      app: nil
     ]
   end
 

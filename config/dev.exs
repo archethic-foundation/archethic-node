@@ -1,6 +1,11 @@
 import Config
 
-config :archethic, :mut_dir, "data_#{System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")}"
+config :archethic,
+       :mut_dir,
+       System.get_env(
+         "ARCHETHIC_MUT_DIR",
+         "data_#{System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")}"
+       )
 
 config :telemetry_poller, :default, period: 5_000
 
