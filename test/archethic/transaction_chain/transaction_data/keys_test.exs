@@ -13,16 +13,14 @@ defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
     {pub, pv} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
     {pub2, pv2} = Crypto.generate_deterministic_keypair("other_seed")
 
-    %Keys{authorized_keys: authorized_keys, secret: secret} =
-      Keys.new([pub, pub2], secret_key, secret)
+    %Keys{secrets: [secret]} = keys = Keys.add_secret(%Keys{}, secret, secret_key, [pub, pub2])
 
-    assert Map.has_key?(authorized_keys, pub)
-    encrypted_key = Map.get(authorized_keys, pub)
-
+    assert Keys.authorized_key?(keys, pub)
+    encrypted_key = Keys.get_encrypted_key_at(keys, 0, pub)
     secret_key = Crypto.ec_decrypt!(encrypted_key, pv)
     assert "important message" == Crypto.aes_decrypt!(secret, secret_key)
 
-    encrypted_key = Map.get(authorized_keys, pub2)
+    encrypted_key = Keys.get_encrypted_key_at(keys, 0, pub2)
 
     secret_key = Crypto.ec_decrypt!(encrypted_key, pv2)
     assert "important message" == Crypto.aes_decrypt!(secret, secret_key)
@@ -31,7 +29,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
   property "symmetric serialization/deserialization" do
     check all(
             secret <- StreamData.binary(min_length: 1),
-            seeds <- StreamData.list_of(StreamData.binary(length: 32)),
+            seeds <- StreamData.list_of(StreamData.binary(length: 32), min_length: 1),
             secret_key <- StreamData.binary(length: 32)
           ) do
       public_keys =
@@ -41,14 +39,14 @@ defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
         end)
 
       {keys, _} =
-        public_keys
-        |> Keys.new(secret_key, secret)
+        %Keys{}
+        |> Keys.add_secret(secret, secret_key, public_keys)
         |> Keys.serialize()
         |> Keys.deserialize()
 
-      assert keys.secret == secret
+      assert keys.secrets == [secret]
 
-      assert Enum.all?(Map.keys(keys.authorized_keys), &(&1 in public_keys))
+      assert Enum.all?(Keys.list_authorized_public_keys(keys), &(&1 in public_keys))
     end
   end
 end

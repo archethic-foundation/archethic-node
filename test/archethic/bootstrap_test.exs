@@ -99,7 +99,7 @@ defmodule ArchEthic.BootstrapTest do
         [
           %Transaction{
             type: :node_shared_secrets,
-            data: %TransactionData{keys: %Keys{authorized_keys: keys, secret: secret}}
+            data: %TransactionData{keys: %Keys{authorized_keys: [keys], secrets: [secret]}}
           }
         ] ->
           encrypted_key = Map.get(keys, Crypto.last_node_public_key())

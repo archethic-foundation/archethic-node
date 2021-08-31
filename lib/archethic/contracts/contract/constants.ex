@@ -30,10 +30,11 @@ defmodule ArchEthic.Contracts.Contract.Constants do
         data: %TransactionData{
           content: content,
           code: code,
-          keys: %Keys{
-            authorized_keys: authorized_keys,
-            secret: secret
-          },
+          keys:
+            keys = %Keys{
+              authorized_keys: authorized_keys,
+              secrets: secrets
+            },
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: uco_transfers
@@ -50,9 +51,9 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       "type" => Atom.to_string(type),
       "content" => content,
       "code" => code,
-      "authorized_public_keys" => Map.keys(authorized_keys),
+      "authorized_public_keys" => Keys.list_authorized_public_keys(keys),
       "authorized_keys" => authorized_keys,
-      "secret" => secret,
+      "secrets" => secrets,
       "previous_public_key" => previous_public_key,
       "recipients" => recipients,
       "uco_transfers" =>
@@ -84,8 +85,8 @@ defmodule ArchEthic.Contracts.Contract.Constants do
         code: Map.get(constants, "code", ""),
         content: Map.get(constants, "content", ""),
         keys: %Keys{
-          authorized_keys: Map.get(constants, "authorized_keys", %{}),
-          secret: Map.get(constants, "secret", "")
+          authorized_keys: Map.get(constants, "authorized_keys", []),
+          secrets: Map.get(constants, "secrets", [])
         },
         recipients: Map.get(constants, "recipients", []),
         ledger: %Ledger{

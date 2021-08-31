@@ -73,7 +73,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
        }) do
     case Contracts.parse(code) do
       {:ok, %Contract{triggers: [_ | _]}} ->
-        if Crypto.storage_nonce_public_key() in Keys.list_authorized_keys(keys) do
+        if Keys.authorized_key?(keys, Crypto.storage_nonce_public_key()) do
           :ok
         else
           {:error, "Requires storage nonce public key as authorized keys"}
@@ -133,7 +133,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          type: :node_shared_secrets,
          data: %TransactionData{
            content: content,
-           keys: %Keys{secret: secret, authorized_keys: authorized_keys}
+           keys: %Keys{secrets: [secret], authorized_keys: [authorized_keys]}
          }
        })
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do

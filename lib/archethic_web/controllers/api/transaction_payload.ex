@@ -11,6 +11,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
   alias ArchEthicWeb.API.Types.Hash
   alias ArchEthicWeb.API.Types.Hex
   alias ArchEthicWeb.API.Types.PublicKey
+  alias ArchEthicWeb.API.Types.SecretList
   alias ArchEthicWeb.API.Types.TransactionType
 
   embedded_schema do
@@ -40,7 +41,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
       end
 
       embeds_one :keys, Keys do
-        field(:secret, Hex)
+        field(:secrets, SecretList)
         field(:authorizedKeys, AuthorizedKeys)
       end
 
@@ -82,7 +83,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
 
   defp changeset_keys(changeset, params) do
     changeset
-    |> cast(params, [:secret, :authorizedKeys])
+    |> cast(params, [:secrets, :authorizedKeys])
   end
 
   defp changeset_ledger(changeset, params) do

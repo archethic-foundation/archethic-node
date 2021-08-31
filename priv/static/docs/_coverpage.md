@@ -1,4 +1,4 @@
-# ArchEthic Network <small>0.10</small>
+# ArchEthic Network <small>0.11</small>
 
 > A truly decentralized and unlimited P2P network
 

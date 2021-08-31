@@ -18,8 +18,8 @@ CREATE TYPE IF NOT EXISTS archethic.nft_ledger(
 );
 
 CREATE TYPE IF NOT EXISTS archethic.pending_transaction_data_keys(
-  authorized_keys map<blob, blob>,
-  secret blob
+  authorized_keys LIST<frozen<MAP<blob, blob>>>,
+  secrets LIST<blob>
 );
 
 CREATE TYPE IF NOT EXISTS archethic.pending_transaction_ledger(

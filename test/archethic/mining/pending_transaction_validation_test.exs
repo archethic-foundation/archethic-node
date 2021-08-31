@@ -80,11 +80,13 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
             ]
             """,
             keys: %Keys{
-              secret: :crypto.strong_rand_bytes(32),
-              authorized_keys: %{
-                "node_key1" => "",
-                "node_key2" => ""
-              }
+              secrets: [:crypto.strong_rand_bytes(32)],
+              authorized_keys: [
+                %{
+                  "node_key1" => "",
+                  "node_key2" => ""
+                }
+              ]
             }
           }
         )
@@ -181,11 +183,9 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
             end
             """,
             keys:
-              Keys.new(
-                [Crypto.storage_nonce_public_key()],
-                :crypto.strong_rand_bytes(32),
-                tx_seed
-              )
+              Keys.add_secret(%Keys{}, tx_seed, :crypto.strong_rand_bytes(32), [
+                Crypto.storage_nonce_public_key()
+              ])
           },
           tx_seed,
           0
