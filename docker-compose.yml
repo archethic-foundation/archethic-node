@@ -40,11 +40,11 @@ services:
       - ARCHETHIC_STATIC_IP=172.16.1.10
       - ARCHETHIC_DB_HOST=scylladb1:9042
     volumes:
-      -  ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
-      -  ./data1:/opt/data
-    command: ["/wait-for-it.sh", "sleep 60", "./bin/archethic_node", "foreground"]
+      - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
+      - ./data1:/opt/data
+    command: ["/wait-for-tcp.sh", "scylladb1:9042", "--timeout=0", "--strict", "--", "./bin/archethic_node", "foreground"]
     networks:
-      archethic-node:
+      archethic_net:
         ipv4_address: 172.16.1.10
     links:
       - scylladb1
@@ -56,8 +56,8 @@ services:
     volumes:
       - ./data1:/var/lib/scylla
     networks:
-      archethic-node:
-        ipv4_address: 172.16.1.11 
+      archethic_net:
+        ipv4_address: 172.16.1.20 
 
 
   node2:
@@ -65,16 +65,32 @@ services:
     environment: 
       - ARCHETHIC_CRYPTO_SEED=node2
       - ARCHETHIC_MUT_DIR=/opt/data
-      - ARCHETHIC_STATIC_IP=172.16.1.20
+      - ARCHETHIC_STATIC_IP=172.16.1.11
       - ARCHETHIC_P2P_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
       - ARCHETHIC_DB_HOST=scylladb2:9042
     volumes:
-      - ./scripts/docker_compose/wait-for-it.sh:/wait-for-it.sh:ro
+      - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
+      - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
       - ./data2:/opt/data
-    command: ["/wait-for-it.sh", "wget -q http://node1:4000/up", "./bin/archethic_node", "foreground"]
+    command: [
+      "/wait-for-tcp.sh", 
+      "scylladb2:9042", 
+      "--timeout=0", 
+      "--strict", 
+      "--", 
+      "/wait-for-tcp.sh", 
+      "node1:4000", 
+      "--timeout=0", 
+      "--strict", 
+      "--", 
+      "/wait-for-node.sh", 
+      "node1:4000/up", 
+      "./bin/archethic_node", 
+      "foreground"
+    ]
     networks:
-      archethic-node:
-        ipv4_address: 172.16.1.20
+      archethic_net:
+        ipv4_address: 172.16.1.11
     links:
       - scylladb2
     depends_on:
@@ -85,7 +101,7 @@ services:
     volumes:
       - ./data2:/var/lib/scylla
     networks:
-      archethic-node:
+      archethic_net:
         ipv4_address: 172.16.1.21 
 
       #  node2:
@@ -104,7 +120,7 @@ services:
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.102
         #
         #  node3:
@@ -123,7 +139,7 @@ services:
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.103
         #
         #  node4:
@@ -142,7 +158,7 @@ services:
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.104
         #
         #  node5:
@@ -161,7 +177,7 @@ services:
         #    stdin_open: true
         #    tty: true
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.105
         #
         #  collector:
@@ -169,7 +185,7 @@ services:
         #    volumes:
         #      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.200
         #
         #  bench:
@@ -187,7 +203,7 @@ services:
         #      net.ipv4.ip_local_port_range: 16000 60999
         #
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.201
         #
         #  validate:
@@ -201,11 +217,11 @@ services:
         #    tty: true
         #    profiles: ["validate"]
         #    networks:
-        #      archethic-node:
+        #      archethic_net:
         #        ipv4_address: 172.16.1.202
 
 networks:
-  archethic-node:
+  archethic_net:
     ipam:
       driver: default
       config:

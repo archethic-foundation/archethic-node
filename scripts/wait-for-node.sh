@@ -16,3 +16,4 @@ done
 
 >&2 echo "Node $node is up - executing command"
 exec $cmd
+
