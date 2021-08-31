@@ -1,9 +1,8 @@
 defmodule Mix.Tasks.ArchEthic.Testnet do
   @shortdoc "Creates and runs several nodes in testnet"
-  @subnet "172.16.16.0/24"
-  @image "archethic-testnet"
-  @output "testnet"
-  @persist false
+  @subnet "172.16.17.0/24"
+  @image "archethic-node"
+  @output ".devnet"
   @detach false
   @run true
 
@@ -15,7 +14,6 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
     * `-h`, `--help` - show this help
     * `-o`, `--output` - use output folder for testnet, default "#{@output}"
     * `-s`, `--subnet` - use subnet for the network, default "#{@subnet}"
-    * `-p`, `--persist` - mount data{n} to /opt/data, default "#{@persist}"
     * `-i`, `--image` - use image name for built container, default "#{@image}"
     * `-d`, `--detach` - run testnet in background, default "#{@detach}"
     * `--run/--no-run` - atuomatically run `docker-compose up`, default "#{@run}"
@@ -26,14 +24,14 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
   ## Example
 
   ```sh
-  mix archethic.testnet $(seq -f "seed%g" -s " " 5)
+  mix archethic.testnet 5
   ```
 
   """
 
   use Mix.Task
 
-  alias ArchEthic.Testnet
+  alias ArchEthic.Utils.Testnet
 
   @impl Mix.Task
   def run(args) do
@@ -41,7 +39,6 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
            strict: [
              help: :boolean,
              output: :string,
-             persist: :boolean,
              detach: :boolean,
              subnet: :string,
              image: :string,
@@ -50,7 +47,6 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
            aliases: [
              h: :help,
              o: :output,
-             p: :persist,
              d: :detach,
              s: :subnet,
              i: :image
@@ -59,31 +55,28 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
       {_, []} ->
         Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
 
-      {parsed, seeds} ->
+      {parsed, [nb_nodes]} ->
         if parsed[:help] do
           Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
         else
-          run(seeds, parsed)
+          run(String.to_integer(nb_nodes), parsed)
         end
     end
   end
 
-  defp run(seeds, opts) do
+  defp run(nb_nodes, opts) do
     dir = opts |> Keyword.get(:output, @output) |> Path.expand()
     detach = if Keyword.get(opts, :detach, @detach), do: "-d", else: ""
-
-    File.dir?(dir) && raise ArgumentError, message: "#{dir} exists"
 
     opts =
       opts
       |> Keyword.put(:src, File.cwd!())
       |> Keyword.put_new(:image, @image)
-      |> Keyword.put_new(:persist, @persist)
       |> Keyword.put_new(:subnet, @subnet)
 
-    Mix.shell().info("Generating `#{dir}` for #{length(seeds)} nodes")
+    Mix.shell().info("Generating `#{dir}` for #{nb_nodes} nodes")
 
-    :ok = seeds |> Testnet.from(opts) |> Testnet.create!(dir)
+    :ok = nb_nodes |> Testnet.from(opts) |> Testnet.create!(dir)
 
     if Keyword.get(opts, :run, @run) do
       Mix.shell().cmd("docker-compose -f #{dir}/docker-compose.json up #{detach}")

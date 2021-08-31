@@ -69,7 +69,12 @@ defmodule ArchEthic.P2P.Connection do
         __MODULE__.receiving_loop(transport, socket, connection_pid)
 
       {:error, reason} = e ->
-        Logger.info("Connection closed - #{inspect(reason)}")
+        Logger.info("Connection exited - #{inspect(reason)}")
+
+        # Ensure the socket is closed properly
+        Transport.close_socket(transport, socket)
+
+        # Terminate the connection process
         GenServer.stop(connection_pid)
         e
     end
@@ -127,7 +132,6 @@ defmodule ArchEthic.P2P.Connection do
         }
       ) do
     {message_id, data, sender_public_key} = decode_message_envelop(message_envelop)
-
     MemTable.increase_node_availability(sender_public_key)
 
     %Task{ref: ref} =

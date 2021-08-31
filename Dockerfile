@@ -1,4 +1,4 @@
-FROM elixir:alpine AS archethic-ci
+FROM elixir:1.12-alpine AS archethic-ci
 
 ARG skip_tests=0
 ARG MIX_ENV=dev
@@ -42,9 +42,9 @@ RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
 
 COPY . .
 
-RUN git config user.name archethic \
- && git config user.email archethic@archethic.io \
- && git remote add origin https://github.com/ARCHETHIC/archethic-node
+RUN git config user.name aebot \
+ && git config user.email aebot@archethic.net \
+ && git remote add origin https://github.com/archethic-foundation/archethic-node
 
 # build release
 RUN mix do phx.digest, distillery.release
@@ -53,7 +53,7 @@ RUN mix do phx.digest, distillery.release
 RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
 
 # Install
-RUN mkdir /opt/app \
+RUN mkdir -p /opt/app \
  && cd /opt/app \
  && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz
 CMD /opt/app/bin/archethic_node foreground
@@ -62,7 +62,7 @@ CMD /opt/app/bin/archethic_node foreground
 
 FROM archethic-ci as build
 
-FROM alpine
+FROM elixir:1.12-alpine
 
 RUN apk add --no-cache --update bash git openssl libsodium
 

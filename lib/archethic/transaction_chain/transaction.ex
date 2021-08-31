@@ -226,7 +226,11 @@ defmodule ArchEthic.TransactionChain.Transaction do
     %{tx | previous_signature: previous_signature}
   end
 
-  defp previous_sign_transaction(tx = %__MODULE__{}, private_key) do
+  @doc """
+  Sign a transaction with a previous private key
+  """
+  @spec previous_sign_transaction(t(), Crypto.key()) :: t()
+  def previous_sign_transaction(tx = %__MODULE__{}, private_key) when is_binary(private_key) do
     previous_signature =
       tx
       |> extract_for_previous_signature()
@@ -236,12 +240,26 @@ defmodule ArchEthic.TransactionChain.Transaction do
     %{tx | previous_signature: previous_signature}
   end
 
-  defp origin_sign_transaction(tx) do
+  @doc """
+  Sign a transaction with an origin private key
+  """
+  @spec origin_sign_transaction(t(), Crypto.key()) :: t()
+  def origin_sign_transaction(tx) do
     origin_sig =
       tx
       |> extract_for_origin_signature
       |> serialize()
       |> Crypto.sign_with_first_node_key()
+
+    %{tx | origin_signature: origin_sig}
+  end
+
+  def origin_sign_transaction(tx, origin_private_key) do
+    origin_sig =
+      tx
+      |> extract_for_origin_signature
+      |> serialize()
+      |> Crypto.sign(origin_private_key)
 
     %{tx | origin_signature: origin_sig}
   end

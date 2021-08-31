@@ -21,14 +21,13 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
 
   require Logger
 
-  alias ArchEthic.Testnet
-  alias ArchEthic.Testnet.Subnet
-
-  alias ArchEthic.JobCache
-  alias ArchEthic.JobConductor
-
   alias ArchEthic.Governance.Code.CICD
   alias ArchEthic.Governance.Code.Proposal
+
+  alias ArchEthic.Utils.JobCache
+  alias ArchEthic.Utils.JobConductor
+  alias ArchEthic.Utils.Testnet
+  alias ArchEthic.Utils.Testnet.Subnet
 
   import Supervisor, only: [child_spec: 2]
 
@@ -156,7 +155,6 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
     :ok
   end
 
-  @validator "/opt/code/archethic-proposal-validator"
   @releases "/opt/code/_build/dev/rel/archethic_node/releases"
   @release "archethic_node.tar.gz"
 
@@ -164,7 +162,6 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
     ci = container_name(address)
 
     with :ok <- File.mkdir_p!(dir),
-         {_, 0} <- docker(["cp", "#{ci}:#{@validator}", dir]),
          {_, 0} <- docker(["cp", "#{ci}:#{@releases}/#{version}/#{@release}", dir]) do
       :ok
     else
@@ -179,19 +176,18 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
     Logger.info("Running proposal", address: address_encoded)
 
     dir = temp_dir("utn-#{address_encoded}-")
-    seeds = 1..5 |> Enum.map(&"node#{&1}")
+    nb_nodes = 5
 
     compose_prefix = Path.basename(dir)
     validator_container = "#{compose_prefix}_validator_1"
     validator_continue = ["ash", "-c", "echo 'yes' > /proc/1/fd/0"]
 
-    # XXX use of internal knowledge about testnet
-    nodes = 1..length(seeds) |> Enum.map(&"#{compose_prefix}_node#{&1}_1")
+    nodes = 1..nb_nodes |> Enum.map(&"#{compose_prefix}_node#{&1}_1")
 
     with :ok <- Logger.info("#{dir} Prepare", address: address_encoded),
          :ok <- testnet_prepare(dir, address, version),
          :ok <- Logger.info("#{dir} Start", address: address_encoded),
-         {_, 0} <- testnet_start(dir, seeds),
+         {_, 0} <- testnet_start(dir, nb_nodes),
          # wait until the validator is ready for upgrade
          :ok <- Logger.info("#{dir} Part I", address: address_encoded),
          {:ok, _} <- wait_for_marker(validator_container, @marker),
@@ -246,14 +242,14 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
 
   @subnet "172.16.100.0/24"
 
-  defp testnet_start(dir, seeds) do
+  defp testnet_start(dir, nb_nodes) do
     compose = compose_file(dir)
     options = [image: "archethic-cd", dir: dir, src: @src_dir, persist: false]
 
     Stream.iterate(@subnet, &Subnet.next/1)
     |> Stream.take(123)
     |> Stream.map(fn subnet ->
-      testnet = Testnet.from(seeds, Keyword.put(options, :subnet, subnet))
+      testnet = Testnet.from(nb_nodes, Keyword.put(options, :subnet, subnet))
 
       with :ok <- Testnet.create!(testnet, dir) do
         System.cmd("docker-compose", ["-f", compose, "up", "-d"], @cmd_options)

@@ -1,4 +1,4 @@
-defmodule ArchEthic.Benchmark do
+defmodule ArchEthic.Utils.Regression.Benchmark do
   @moduledoc """
   Benchmark is executed on a testnet with [benchee](https://github.com/bencheeorg/benchee)
   to measure performance and stresstest archethic-node.
