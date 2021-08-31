@@ -38,8 +38,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
       on_timeout: :kill_task,
       max_concurrency: 256
     )
-    |> Enum.filter(&match?({:ok, {:ok, %Transaction{}}}, &1))
-    |> Enum.map(fn {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} ->
+    |> Stream.filter(&match?({:ok, {:ok, %Transaction{}}}, &1))
+    |> Stream.map(fn {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} ->
       {summary, _} = BeaconSummary.deserialize(content)
       %BeaconSummary{transaction_summaries: transaction_summaries} = summary
       transaction_summaries
@@ -52,15 +52,15 @@ defmodule ArchEthicWeb.BeaconChainLive do
       PubSub.register_to_new_transaction_by_type(:beacon_summary)
     end
 
-    beacon_dates = get_beacon_dates() |> Enum.to_list()
+    beacon_dates = get_beacon_dates()
     all_tx = fetch_txn_summaries(Enum.at(beacon_dates, 0))
 
     new_assign =
       socket
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
-      |> assign(:all_tx, fetch_txn_summaries(Enum.at(beacon_dates, 0)))
-      |> assign(:transactions, list_transactions_by_date(Enum.at(get_beacon_dates(), 0), all_tx))
+      |> assign(:all_tx, all_tx)
+      |> assign(:transactions, list_transactions_by_date(Enum.at(beacon_dates, 0), all_tx))
 
     {:ok, new_assign}
   end
@@ -107,11 +107,13 @@ defmodule ArchEthicWeb.BeaconChainLive do
   end
 
   def list_transactions_by_date(date = %DateTime{}, all_tx) do
-    rm_tx = :lists.delete([], all_tx)
+    # rm_tx = :lists.delete([], all_tx)
 
-    rm_tx
-    |> :lists.flatten()
-    |> Enum.filter(fn %ArchEthic.BeaconChain.Slot.TransactionSummary{
+    # rm_tx
+    # |> :lists.flatten()
+    all_tx
+    |> Stream.flat_map(& &1)
+    |> Stream.filter(fn %ArchEthic.BeaconChain.Slot.TransactionSummary{
                         address: _,
                         movements_addresses: _,
                         timestamp: timestamp,
