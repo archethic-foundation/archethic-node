@@ -13,13 +13,13 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Crypto
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
-  alias ArchEthic.PubSub
+  # alias ArchEthic.PubSub
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
   alias ArchEthicWeb.ExplorerView
   alias Phoenix.View
 
-  def fetch_txn_summaries(date = %DateTime{}) do
-    summary_pools = BeaconChain.get_summary_pools(date)
+  def fetch_txn_summaries(date1 = %DateTime{},date2 = %DateTime{}) do
+    summary_pools = BeaconChain.get_summary_pool(date1, date2)
 
     Enum.map(summary_pools, fn {subset, nodes_by_summary_time} ->
       Enum.map(nodes_by_summary_time, fn {summary_time, nodes} ->
@@ -45,23 +45,23 @@ defmodule ArchEthicWeb.BeaconChainLive do
       transaction_summaries
     end)
   end
-
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      PubSub.register_to_new_transaction_by_type(:beacon)
-      PubSub.register_to_new_transaction_by_type(:beacon_summary)
-    end
+    # Todo handle live transactions
+    # if connected?(socket) do
+    #   PubSub.register_to_new_transaction_by_type(:beacon)
+    #   PubSub.register_to_new_transaction_by_type(:beacon_summary)
+    # end
 
-    beacon_dates = get_beacon_dates() |> Enum.to_list()
-    all_tx = fetch_txn_summaries(Enum.at(beacon_dates, 0))
+    beacon_dates = get_beacon_dates()
 
     new_assign =
       socket
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
-      |> assign(:all_tx, fetch_txn_summaries(Enum.at(beacon_dates, 0)))
-      |> assign(:transactions, list_transactions_by_date(Enum.at(get_beacon_dates(), 0), all_tx))
-
+      |> assign(:transactions, list_transactions_by_date(
+        Enum.at(beacon_dates,0),
+        fetch_txn_summaries(Enum.at(beacon_dates, 0),Enum.at(beacon_dates,1))))
+      IO.inspect(new_assign)
     {:ok, new_assign}
   end
 
@@ -69,14 +69,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
     View.render(ExplorerView, "beacon_chain_index.html", assigns)
   end
 
-  def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates, all_tx: all_tx}}) do
+  def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
     case Integer.parse(page) do
       {number, ""} when number > 0 ->
         transactions =
-          dates
-          |> Enum.at(number - 1)
-          |> list_transactions_by_date(all_tx)
-
+          list_transactions_by_date( Enum.at(dates,number+1),fetch_txn_summaries(Enum.at(dates,number+1),Enum.at(dates,number+2)))
+          IO.inspect(transactions)
         new_assign =
           socket
           |> assign(:current_date_page, number)
@@ -107,16 +105,18 @@ defmodule ArchEthicWeb.BeaconChainLive do
   end
 
   def list_transactions_by_date(date = %DateTime{}, all_tx) do
-    rm_tx = :lists.delete([], all_tx)
+    # rm_tx = :lists.delete([], all_tx)
 
-    rm_tx
-    |> :lists.flatten()
+    # rm_tx
+    # |> :lists.flatten()
+    all_tx
+    |> Enum.flat_map(& &1)
     |> Enum.filter(fn %ArchEthic.BeaconChain.Slot.TransactionSummary{
-                        address: _,
-                        movements_addresses: _,
-                        timestamp: timestamp,
-                        type: _
-                      } ->
+                          address: _,
+                          movements_addresses: _,
+                          timestamp: timestamp,
+                          type: _
+                        } ->
       tmsp = DateTime.truncate(timestamp, :second)
       t1 = DateTime.add(date, 60, :second)
 
@@ -125,5 +125,5 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
   end
 
-  def list_transactions_by_date(nil, _all_tx), do: []
+#   def list_transactions_by_date(nil, _all_tx), do: []
 end

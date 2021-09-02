@@ -84,6 +84,31 @@ defmodule ArchEthic.BeaconChain do
     end)
   end
 
+    @doc """
+  Retrieve the beacon summaries storage nodes from two dates
+  """
+  @spec get_summary_pool(DateTime.t(),DateTime.t()) :: pools()
+  def get_summary_pool(
+        last_sync_date = %DateTime{},
+        date = %DateTime{},
+        node_list \\ P2P.authorized_nodes()
+      ) do
+    summary_times1 = SummaryTimer.previous_summaries(last_sync_date)
+    summary_times2 = SummaryTimer.previous_summaries(date)
+    summary_times = summary_times1 -- summary_times2
+    Enum.reduce(list_subsets(), [], fn subset, acc ->
+      nodes_by_summary_time =
+        Enum.map(summary_times, fn time ->
+          filter_nodes =
+            Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
+
+          {time, Election.beacon_storage_nodes(subset, time, filter_nodes)}
+        end)
+
+      [{subset, nodes_by_summary_time} | acc]
+    end)
+  end
+
   @doc """
   Get the next beacon summary time
   """
