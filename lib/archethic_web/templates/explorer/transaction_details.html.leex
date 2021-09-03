@@ -95,20 +95,8 @@
                                                     </li>
                                                 </ul>
                                             </li>
-                                            <p class="menu-label">Keys</p>
                                             <li>
-                                                <ul class="menu-list">
-                                                    <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="secret" class="<%= if @data_section == "secret", do: "is-active" %>">
-                                                            Secret
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="authorized_keys" class="<%= if @data_section == "authorized_keys", do: "is-active" %>">
-                                                            Authorized keys
-                                                        </a>
-                                                    </li>
-                                                </ul>
+                                               <a phx-click="switch_data" phx-value-data_section="keys" class="<%= if @data_section == "keys", do: "is-active" %>">Keys</a>
                                             </li>
                                             <li>
                                                 <a phx-click="switch_data" phx-value-data_section="recipients" class="<%= if @data_section == "recipients", do: "is-active" %>">
@@ -203,20 +191,27 @@
                                         <% end %>
                                     <% end %>
 
-                                    <%= if @data_section == "secret" do %>
-                                        <p class="heading mb-4">Keys secret</p>
-                                        <p class="text_wrap"><%= Base.encode16(@transaction.data.keys.secret) %></p>
-                                    <% end %>
-
-                                    <%= if @data_section == "authorized_keys" do %>
-                                        <p class="heading mb-4">Secret authorized keys</p>
-                                        <%= for { key, _enc_key} <- @transaction.data.keys.authorized_keys do %>
-                                        <div class="box">
+                                    <%= if @data_section == "keys" do %>
+                                        <p class="heading mb-4">Keys and Secrets</p>
+                                        <%= for { secret, index } <- Enum.with_index(@transaction.data.keys.secrets) do %>
+                                          <div class="box">
                                             <div class="columns">
-                                                <div class="column">
-                                                    <span class="text_wrap"><%= Base.encode16(key) %></span>
-                                                </div>
+                                              <div class="column">
+                                                <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
+                                              </div>
                                             </div>
+                                            <div class="columns">
+                                              <div class="column">
+                                                <p class="heading">Authorized keys</p>
+                                              </div>
+                                            </div>
+                                            <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
+                                              <div class="columns">
+                                                  <div class="column">
+                                                      <span class="text_wrap"><%= Base.encode16(key) %></span>
+                                                  </div>
+                                              </div>
+                                            <% end %>
                                         </div>
                                         <% end %>
                                     <% end %>

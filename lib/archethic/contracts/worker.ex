@@ -261,7 +261,6 @@ defmodule ArchEthic.Contracts.Worker do
          next_tx,
          prev_tx = %Transaction{
            address: address,
-           data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys, secret: secret}},
            previous_public_key: previous_public_key
          }
        ) do
@@ -273,19 +272,44 @@ defmodule ArchEthic.Contracts.Worker do
       |> chain_secret()
       |> chain_authorized_keys()
 
-    # TODO: improve transaction decryption and transaction signing to avoid the reveal of the transaction seed
-    with encrypted_key <- Map.get(authorized_keys, Crypto.storage_nonce_public_key()),
-         {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
-         {:ok, transaction_seed} <- Crypto.aes_decrypt(secret, aes_key),
-         length <- TransactionChain.size(address) do
-      {:ok,
-       Transaction.new(
-         new_type,
-         new_data,
-         transaction_seed,
-         length,
-         Crypto.get_public_key_curve(previous_public_key)
-       )}
+    case get_transaction_seed(prev_tx) do
+      {:ok, transaction_seed} ->
+        length = TransactionChain.size(address)
+
+        {:ok,
+         Transaction.new(
+           new_type,
+           new_data,
+           transaction_seed,
+           length,
+           Crypto.get_public_key_curve(previous_public_key)
+         )}
+
+      _ ->
+        Logger.error("Cannot decrypt the transaction seed", contract: Base.encode16(address))
+        {:error, :transaction_seed_decryption}
+    end
+  end
+
+  defp get_transaction_seed(%Transaction{
+         data: %TransactionData{keys: %Keys{secrets: secrets, authorized_keys: authorized_keys}}
+       }) do
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
+
+    secret_index =
+      Enum.find_index(authorized_keys, fn authorized_keys_by_secret ->
+        authorized_keys_by_secret
+        |> Map.keys()
+        |> Enum.any?(&(&1 == storage_nonce_public_key))
+      end)
+
+    encrypted_key = authorized_keys |> Enum.at(secret_index) |> Map.get(storage_nonce_public_key)
+
+    secret_for_node = Enum.at(secrets, secret_index)
+
+    with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
+         {:ok, transaction_seed} <- Crypto.aes_decrypt(secret_for_node, aes_key) do
+      {:ok, transaction_seed}
     end
   end
 
@@ -328,16 +352,16 @@ defmodule ArchEthic.Contracts.Worker do
 
   defp chain_secret(
          acc = %{
-           next_transaction: %Transaction{data: %TransactionData{keys: %Keys{secret: ""}}},
+           next_transaction: %Transaction{data: %TransactionData{keys: %Keys{secrets: []}}},
            previous_transaction: %Transaction{
-             data: %TransactionData{keys: %Keys{secret: previous_secret}}
+             data: %TransactionData{keys: %Keys{secrets: previous_secrets}}
            }
          }
        ) do
     put_in(
       acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secret)],
-      previous_secret
+      [:next_transaction, Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secrets)],
+      previous_secrets
     )
   end
 
@@ -346,14 +370,13 @@ defmodule ArchEthic.Contracts.Worker do
   defp chain_authorized_keys(
          acc = %{
            next_transaction: %Transaction{
-             data: %TransactionData{keys: %Keys{authorized_keys: authorized_keys}}
+             data: %TransactionData{keys: %Keys{authorized_keys: []}}
            },
            previous_transaction: %Transaction{
              data: %TransactionData{keys: %Keys{authorized_keys: previous_authorized_keys}}
            }
          }
-       )
-       when map_size(authorized_keys) == 0 do
+       ) do
     put_in(
       acc,
       [

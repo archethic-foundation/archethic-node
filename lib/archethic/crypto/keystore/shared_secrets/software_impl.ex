@@ -141,11 +141,11 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
       %Transaction{
         address: address,
-        data: %TransactionData{keys: keys = %Keys{secret: secret}},
+        data: %TransactionData{keys: keys = %Keys{secrets: [secret]}},
         validation_stamp: %ValidationStamp{timestamp: timestamp}
       } ->
         if Keys.authorized_key?(keys, Crypto.last_node_public_key()) do
-          encrypted_secret_key = Keys.get_encrypted_key(keys, Crypto.last_node_public_key())
+          encrypted_secret_key = Keys.get_encrypted_key_at(keys, 0, Crypto.last_node_public_key())
 
           daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 

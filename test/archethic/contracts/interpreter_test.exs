@@ -199,7 +199,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                            alias:
                                              ArchEthic.Contracts.Interpreter.TransactionStatements
                                          ], [:TransactionStatements]},
-                                        :set_secret
+                                        :add_secret
                                       ]}, [line: 6], [{:&, [line: 6], [1]}, "MyEncryptedSecret"]}
                                   ]
                                 }
@@ -243,7 +243,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                           {"encrypted_secret_key",
                                            <<71, 68, 42, 253, 51, 143, 131, 189, 220, 222, 156,
                                              242, 174, 221, 105, 176, 33, 62, 127, 149, 110, 32,
-                                             39, 105, 226, 144, 240, 226, 105, 94, 147, 81>>}
+                                             39, 105, 226, 144, 240, 226, 105, 94, 147, 81>>},
+                                          {"secret_index", 0}
                                         ]
                                       ]
                                     }
@@ -303,8 +304,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
                  add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 200.0, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
                  set_content \"Receipt\"
-                 set_secret \"MyEncryptedSecret\"
-                 add_authorized_key public_key: "70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A", encrypted_secret_key: \"47442AFD338F83BDDCDE9CF2AEDD69B0213E7F956E202769E290F0E2695E9351\"
+                 add_secret \"MyEncryptedSecret\"
+                 add_authorized_key public_key: "70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A", encrypted_secret_key: \"47442AFD338F83BDDCDE9CF2AEDD69B0213E7F956E202769E290F0E2695E9351\", secret_index: 0
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
                end
                """
@@ -426,7 +427,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
     test "should flatten comparison operators" do
       code = """
       condition inherit: [
-        secret: size() >= 10
+        content: size() >= 10
       ]
       """
 
@@ -434,7 +435,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
        %Contract{
          conditions: %{
            inherit: %Conditions{
-             secret:
+             content:
                {:>=, [line: 2],
                 [
                   {{:., [line: 2],
@@ -444,7 +445,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                       :size
                     ]}, [line: 2],
                    [
-                     {:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "secret"]]}
+                     {:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}
                    ]},
                   10
                 ]}

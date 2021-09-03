@@ -90,9 +90,11 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         type: :node_shared_secrets,
         data: %TransactionData{
           keys: %Keys{
-            authorized_keys: %{
-              @node_1_public_key => :crypto.strong_rand_bytes(32)
-            }
+            authorized_keys: [
+              %{
+                @node_1_public_key => :crypto.strong_rand_bytes(32)
+              }
+            ]
           }
         },
         validation_stamp: %ValidationStamp{
@@ -105,9 +107,11 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         type: :node_shared_secrets,
         data: %TransactionData{
           keys: %Keys{
-            authorized_keys: %{
-              @node_2_public_key => :crypto.strong_rand_bytes(32)
-            }
+            authorized_keys: [
+              %{
+                @node_2_public_key => :crypto.strong_rand_bytes(32)
+              }
+            ]
           }
         },
         validation_stamp: %ValidationStamp{
@@ -155,9 +159,11 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
       type: :node_shared_secrets,
       data: %TransactionData{
         keys: %Keys{
-          authorized_keys: %{
-            @node_1_public_key => :crypto.strong_rand_bytes(32)
-          }
+          authorized_keys: [
+            %{
+              @node_1_public_key => :crypto.strong_rand_bytes(32)
+            }
+          ]
         }
       },
       validation_stamp: %ValidationStamp{

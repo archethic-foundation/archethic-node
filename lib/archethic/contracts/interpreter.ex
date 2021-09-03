@@ -37,7 +37,7 @@ defmodule ArchEthic.Contracts.Interpreter do
     "uco_transfers",
     "nft_transfers",
     "authorized_public_keys",
-    "secret",
+    "secrets",
     "recipients"
   ]
 
@@ -238,6 +238,9 @@ defmodule ArchEthic.Contracts.Interpreter do
     {{:error, :unexpected_token}, {{:atom, key}, metadata, _}} ->
       {:error, format_error_reason({metadata, "unexpected_token", key})}
 
+    {{:error, :unexpected_token}, {{:atom, key}, _}} ->
+      {:error, format_error_reason({[], "unexpected_token", key})}
+
     {:error, reason = {_metadata, _message, _cause}} ->
       {:error, format_error_reason(reason)}
   end
@@ -251,34 +254,24 @@ defmodule ArchEthic.Contracts.Interpreter do
   end
 
   defp format_error_reason({metadata, message, cause}) do
-    message =
-      if message == "unexpected token: " do
-        "unexpected token"
-      else
-        message
-      end
+    message = prepare_message(message)
 
-    line = Keyword.get(metadata, :line)
-    column = Keyword.get(metadata, :column)
-
-    metadata_string = "L#{line}"
-
-    metadata_string =
-      if column == nil do
-        metadata_string
-      else
-        metadata_string <> ":C#{column}"
-      end
-
-    message =
-      if is_atom(message) do
-        message |> Atom.to_string() |> String.replace("_", " ")
-      else
-        message
-      end
-
-    "#{message} - #{cause} - #{metadata_string}"
+    [prepare_message(message), cause, metadata_to_string(metadata)]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" - ")
   end
+
+  defp prepare_message(message) when is_atom(message) do
+    message |> Atom.to_string() |> String.replace("_", " ")
+  end
+
+  defp prepare_message(message) when is_binary(message) do
+    String.trim_trailing(message, ":")
+  end
+
+  defp metadata_to_string(line: line, column: column), do: "L#{line}:C#{column}"
+  defp metadata_to_string(line: line), do: "L#{line}"
+  defp metadata_to_string(_), do: ""
 
   # Whitelist operators
   defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
@@ -675,7 +668,8 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp prewalk(
          node = [
            {{:atom, "public_key"}, _public_key},
-           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key}
+           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key},
+           {{:atom, "secret_index"}, _secret_index}
          ],
          acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
        ) do
@@ -686,7 +680,7 @@ defmodule ArchEthic.Contracts.Interpreter do
          node = {{:atom, arg}, _},
          acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
        )
-       when arg in ["public_key", "encrypted_secret_key"],
+       when arg in ["public_key", "encrypted_secret_key", "secret_index"],
        do: {node, acc}
 
   # Whitelist generics
