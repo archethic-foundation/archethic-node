@@ -239,7 +239,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
       {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
 
-      Transaction.new(
+      Transaction.new_with_keys(
         :oracle,
         %TransactionData{
           content: Jason.encode!(next_data),
@@ -283,7 +283,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, chain_size)
     {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
 
-    Transaction.new(
+    Transaction.new_with_keys(
       :oracle_summary,
       %TransactionData{
         code: """

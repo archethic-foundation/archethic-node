@@ -130,10 +130,10 @@ defmodule ArchEthic.TransactionChain.Transaction do
           seed :: binary(),
           index :: non_neg_integer()
         ) :: t()
-  def new(type, data = %TransactionData{}, seed, index)
+  def new(type, data = %TransactionData{}, seed, index, curve \\ Crypto.default_curve())
       when type in @transaction_types and is_binary(seed) and is_integer(index) and index >= 0 do
-    {previous_public_key, previous_private_key} = Crypto.derive_keypair(seed, index)
-    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1)
+    {previous_public_key, previous_private_key} = Crypto.derive_keypair(seed, index, curve)
+    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1, curve)
 
     %__MODULE__{
       address: Crypto.hash(next_public_key),
@@ -145,7 +145,17 @@ defmodule ArchEthic.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
-  def new(
+  @doc """
+  Create transaction with the direct use of private and public keys
+  """
+  @spec new_with_keys(
+          transaction_type(),
+          TransactionData.t(),
+          Crypto.key(),
+          Crypto.key(),
+          Crypto.key()
+        ) :: t()
+  def new_with_keys(
         type,
         data = %TransactionData{},
         previous_private_key,

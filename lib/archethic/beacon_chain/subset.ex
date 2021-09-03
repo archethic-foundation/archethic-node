@@ -265,7 +265,7 @@ defmodule ArchEthic.BeaconChain.Subset do
     {next_pub, _} = Crypto.derive_beacon_keypair(subset, slot_time)
 
     tx =
-      Transaction.new(
+      Transaction.new_with_keys(
         :beacon,
         %TransactionData{content: Slot.serialize(slot) |> Utils.wrap_binary()},
         prev_pv,
@@ -307,7 +307,7 @@ defmodule ArchEthic.BeaconChain.Subset do
       |> Summary.serialize()
 
     tx =
-      Transaction.new(
+      Transaction.new_with_keys(
         :beacon_summary,
         %TransactionData{content: tx_content |> Utils.wrap_binary()},
         prev_pv,

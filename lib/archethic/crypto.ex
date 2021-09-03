@@ -1119,4 +1119,18 @@ defmodule ArchEthic.Crypto do
         true
     end
   end
+
+  @doc """
+  Get the public key elliptic curve
+  """
+  @spec get_public_key_curve(key()) :: supported_curve()
+  def get_public_key_curve(<<curve_id::8, _::binary>>) do
+    ID.to_curve(curve_id)
+  end
+
+  @doc """
+  Get the default elliptic curve
+  """
+  @spec default_curve() :: supported_curve()
+  def default_curve, do: Application.get_env(:archethic, __MODULE__)[:default_curve]
 end
