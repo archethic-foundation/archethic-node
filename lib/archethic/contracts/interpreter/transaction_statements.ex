@@ -40,8 +40,8 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
       }
   """
   @spec add_uco_transfer(Transaction.t(), list()) :: Transaction.t()
-  def add_uco_transfer(tx = %Transaction{}, [{"to", to}, {"amount", amount}])
-      when is_binary(to) and is_float(amount) do
+  def add_uco_transfer(tx = %Transaction{}, args) when is_list(args) do
+    %{"to" => to, "amount" => amount} = Enum.into(args, %{})
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:uco), Access.key(:transfers)],
@@ -78,8 +78,9 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
       }
   """
   @spec add_nft_transfer(Transaction.t(), list()) :: Transaction.t()
-  def add_nft_transfer(tx = %Transaction{}, [{"to", to}, {"amount", amount}, {"nft", nft}])
-      when is_binary(to) and is_binary(nft) and is_float(amount) do
+  def add_nft_transfer(tx = %Transaction{}, args) when is_list(args) do
+    %{"to" => to, "amount" => amount, "nft" => nft} = Enum.into(args, %{})
+
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:nft), Access.key(:transfers)],
@@ -144,14 +145,11 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
         }
       }
   """
-  @spec add_authorized_key(Transaction.t(), list()) :: map()
-  def add_authorized_key(tx = %Transaction{}, [
-        {"secret_index", secret_index},
-        {"public_key", public_key},
-        {"encrypted_secret_key", encrypted_secret_key}
-      ])
-      when is_integer(secret_index) and secret_index >= 0 and is_binary(public_key) and
-             is_binary(encrypted_secret_key) do
+  @spec add_authorized_key(Transaction.t(), list()) :: Transaction.t()
+  def add_authorized_key(tx = %Transaction{}, args) when is_list(args) do
+
+    %{ "secret_index" => secret_index, "public_key" => public_key, "encrypted_secret_key" => encrypted_secret_key } = Enum.into(args, %{})
+
     update_in(
       tx,
       [Access.key(:data), Access.key(:keys), Access.key(:authorized_keys)],
