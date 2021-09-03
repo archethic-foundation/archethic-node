@@ -1336,7 +1336,19 @@ defmodule ArchEthic.Contracts.Interpreter do
     result =
       conditions
       |> Map.from_struct()
-      |> Enum.all?(&match?({_, true}, validate_condition(&1, constants)))
+      |> Enum.all?(fn {field, condition} ->
+        case validate_condition({field, condition}, constants) do
+          {_, true} ->
+            true
+
+          {_, false} ->
+            Logger.debug(
+              "Invalid condition for #{field} with the given value: #{inspect(constants)}"
+            )
+
+            false
+        end
+      end)
 
     if result do
       result

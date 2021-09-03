@@ -68,14 +68,17 @@ defmodule ArchEthic.Contracts.Worker do
           contract:
             contract = %Contract{
               triggers: triggers,
-              constants: %Constants{contract: contract_constants},
+              constants: %Constants{
+                contract: contract_constants = %{"address" => contract_address}
+              },
               conditions: %{transaction: transaction_condition}
             }
         }
       ) do
     Logger.info("Execute contract transaction actions",
-      transaction: "#{incoming_tx.type}@#{Base.encode16(incoming_tx.address)}",
-      contract: Base.encode16(Keyword.get(contract_constants, :address))
+      transaction_address: Base.encode16(incoming_tx.address),
+      transaction_type: incoming_tx.type,
+      contract: Base.encode16(contract_address)
     )
 
     if Enum.any?(triggers, &(&1.type == :transaction)) do
@@ -92,9 +95,21 @@ defmodule ArchEthic.Contracts.Worker do
 
         {:reply, :ok, state}
       else
+        Logger.debug("Incoming transaction didn't match the condition",
+          transaction_address: Base.encode16(incoming_tx.address),
+          transaction_type: incoming_tx.type,
+          contract: Base.encode16(contract_address)
+        )
+
         {:reply, {:error, :invalid_condition}, state}
       end
     else
+      Logger.debug("No transaction trigger",
+        transaction_address: Base.encode16(incoming_tx.address),
+        transaction_type: incoming_tx.type,
+        contract: Base.encode16(contract_address)
+      )
+
       {:reply, {:error, :no_transaction_trigger}, state}
     end
   end
@@ -104,13 +119,13 @@ defmodule ArchEthic.Contracts.Worker do
         state = %{
           contract:
             contract = %Contract{
-              constants: %Constants{contract: contract_constants}
+              constants: %Constants{contract: contract_constants = %{"address" => address}}
             },
           timers: %{datetime: timer}
         }
       ) do
     Logger.info("Execute contract datetime trigger actions",
-      contract: Base.encode16(Keyword.get(contract_constants, :address))
+      contract: Base.encode16(address)
     )
 
     constants = %{
@@ -138,7 +153,7 @@ defmodule ArchEthic.Contracts.Worker do
         }
       ) do
     Logger.info("Execute contract interval trigger actions",
-      contract: Base.encode16(Keyword.get(contract_constants, :address))
+      contract: Base.encode16(address)
     )
 
     # Schedule the next interval trigger
