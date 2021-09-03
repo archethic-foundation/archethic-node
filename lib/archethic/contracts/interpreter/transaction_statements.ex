@@ -42,6 +42,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
   @spec add_uco_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_uco_transfer(tx = %Transaction{}, args) when is_list(args) do
     %{"to" => to, "amount" => amount} = Enum.into(args, %{})
+
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:uco), Access.key(:transfers)],
@@ -147,8 +148,11 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
   """
   @spec add_authorized_key(Transaction.t(), list()) :: Transaction.t()
   def add_authorized_key(tx = %Transaction{}, args) when is_list(args) do
-
-    %{ "secret_index" => secret_index, "public_key" => public_key, "encrypted_secret_key" => encrypted_secret_key } = Enum.into(args, %{})
+    %{
+      "secret_index" => secret_index,
+      "public_key" => public_key,
+      "encrypted_secret_key" => encrypted_secret_key
+    } = Enum.into(args, %{})
 
     update_in(
       tx,
