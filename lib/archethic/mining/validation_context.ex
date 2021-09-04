@@ -823,10 +823,20 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp chain_error(
          prev_tx = %Transaction{data: %TransactionData{code: prev_code}},
-         tx = %Transaction{}
+         tx = %Transaction{validation_stamp: nil}
        )
        when prev_code != "" do
-    unless Contracts.accept_new_contract?(prev_tx, tx) do
+    unless Contracts.accept_new_contract?(prev_tx, tx, DateTime.utc_now()) do
+      :contract_validation
+    end
+  end
+
+  defp chain_error(
+         prev_tx = %Transaction{data: %TransactionData{code: prev_code}},
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}}
+       )
+       when prev_code != "" do
+    unless Contracts.accept_new_contract?(prev_tx, tx, timestamp) do
       :contract_validation
     end
   end
@@ -1032,13 +1042,15 @@ defmodule ArchEthic.Mining.ValidationContext do
     ) == fee
   end
 
-  defp valid_stamp_errors?(%ValidationStamp{errors: errors}, %__MODULE__{
+  defp valid_stamp_errors?(stamp = %ValidationStamp{errors: errors}, %__MODULE__{
          transaction: tx,
          previous_transaction: prev_tx,
          valid_pending_transaction?: valid_pending_transaction?
        }) do
     initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
-    [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1) == errors
+
+    [initial_error, chain_error(prev_tx, %{tx | validation_stamp: stamp})] |> Enum.filter(& &1) ==
+      errors
   end
 
   defp valid_stamp_recipients?(%ValidationStamp{recipients: recipients}, %__MODULE__{

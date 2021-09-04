@@ -15,6 +15,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
 
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   doctest Interpreter
 
@@ -39,7 +40,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 2],
                               [
                                 {:scope, [line: 2], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {:&, [line: 2],
                                  [
                                    {{:., [line: 2],
@@ -66,7 +67,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 3],
                               [
                                 {:scope, [line: 3], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 3],
@@ -109,7 +110,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 4],
                               [
                                 {:scope, [line: 4], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 4],
@@ -156,7 +157,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 5],
                               [
                                 {:scope, [line: 5], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 5],
@@ -186,7 +187,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 6],
                               [
                                 {:scope, [line: 6], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 6],
@@ -198,7 +199,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                            alias:
                                              ArchEthic.Contracts.Interpreter.TransactionStatements
                                          ], [:TransactionStatements]},
-                                        :set_secret
+                                        :add_secret
                                       ]}, [line: 6], [{:&, [line: 6], [1]}, "MyEncryptedSecret"]}
                                   ]
                                 }
@@ -216,7 +217,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 7],
                               [
                                 {:scope, [line: 7], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 7],
@@ -242,7 +243,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                           {"encrypted_secret_key",
                                            <<71, 68, 42, 253, 51, 143, 131, 189, 220, 222, 156,
                                              242, 174, 221, 105, 176, 33, 62, 127, 149, 110, 32,
-                                             39, 105, 226, 144, 240, 226, 105, 94, 147, 81>>}
+                                             39, 105, 226, 144, 240, 226, 105, 94, 147, 81>>},
+                                          {"secret_index", 0}
                                         ]
                                       ]
                                     }
@@ -262,7 +264,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                               [line: 8],
                               [
                                 {:scope, [line: 8], nil},
-                                ["contract"],
+                                ["next_transaction"],
                                 {
                                   :&,
                                   [line: 8],
@@ -302,8 +304,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
                  add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 200.0, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
                  set_content \"Receipt\"
-                 set_secret \"MyEncryptedSecret\"
-                 add_authorized_key public_key: "70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A", encrypted_secret_key: \"47442AFD338F83BDDCDE9CF2AEDD69B0213E7F956E202769E290F0E2695E9351\"
+                 add_secret \"MyEncryptedSecret\"
+                 add_authorized_key public_key: "70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A", encrypted_secret_key: \"47442AFD338F83BDDCDE9CF2AEDD69B0213E7F956E202769E290F0E2695E9351\", secret_index: 0
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
                end
                """
@@ -388,7 +390,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "yes"}}} =
+      assert %Transaction{data: %TransactionData{content: "yes"}} =
                Interpreter.execute_actions(contract, :transaction, %{
                  "transaction" => %{"previous_public_key" => "abc"}
                })
@@ -404,7 +406,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "hello"}}} =
+      assert %Transaction{data: %TransactionData{content: "hello"}} =
                Interpreter.execute_actions(contract, :transaction)
     end
 
@@ -418,14 +420,14 @@ defmodule ArchEthic.Contracts.InterpreterTest do
         """
         |> Interpreter.parse()
 
-      assert %Contract{next_transaction: %Transaction{data: %TransactionData{content: "hello 4"}}} =
+      assert %Transaction{data: %TransactionData{content: "hello 4"}} =
                Interpreter.execute_actions(contract, :transaction)
     end
 
     test "should flatten comparison operators" do
       code = """
       condition inherit: [
-        secret: size() >= 10
+        content: size() >= 10
       ]
       """
 
@@ -433,7 +435,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
        %Contract{
          conditions: %{
            inherit: %Conditions{
-             secret:
+             content:
                {:>=, [line: 2],
                 [
                   {{:., [line: 2],
@@ -443,7 +445,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                       :size
                     ]}, [line: 2],
                    [
-                     {:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "secret"]]}
+                     {:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}
                    ]},
                   10
                 ]}
@@ -532,5 +534,32 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                  "contract" => %{"code" => code}
                })
     end
+  end
+
+  test "ICO contract parsing" do
+    {:ok, _} =
+      """
+      condition inherit: [
+      type: transfer,
+      uco_transfers: size() == 1
+      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs 
+      ]
+
+
+      actions triggered_by: transaction do
+        # Get the amount of uco send to this contract
+        amount_send = transaction.uco_transfers[contract.address]
+
+        if amount_send > 0 do
+          # Convert UCO to the number of tokens to credit. Each UCO worth 10000 token
+          token_to_credit = amount_send * 10000
+
+          # Send the new transaction
+          set_type transfer
+          add_nft_transfer to: transaction.address, nft: contract.address, amount: token_to_credit
+        end
+      end
+      """
+      |> Interpreter.parse()
   end
 end

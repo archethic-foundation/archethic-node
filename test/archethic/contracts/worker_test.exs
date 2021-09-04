@@ -58,14 +58,17 @@ defmodule ArchEthic.Contracts.WorkerTest do
 
     constants = %{
       "address" => "@SC1",
-      "authorized_keys" => %{
-        Crypto.storage_nonce_public_key() =>
-          Crypto.ec_encrypt(aes_key, Crypto.storage_nonce_public_key())
-      },
-      "secret" => secret,
+      "authorized_keys" => [
+        %{
+          Crypto.storage_nonce_public_key() =>
+            Crypto.ec_encrypt(aes_key, Crypto.storage_nonce_public_key())
+        }
+      ],
+      "secrets" => [secret],
       "content" => "",
       "uco_transferred" => 0.0,
-      "nft_transferred" => 0.0
+      "nft_transferred" => 0.0,
+      "previous_public_key" => transaction_seed |> Crypto.derive_keypair(0) |> elem(0)
     }
 
     expected_tx = %Transaction{

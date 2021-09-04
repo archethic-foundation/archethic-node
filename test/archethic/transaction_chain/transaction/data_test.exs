@@ -16,8 +16,9 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
     check all(
             code <- StreamData.binary(),
             content <- StreamData.binary(),
-            secret <- StreamData.binary(),
-            authorized_key_seeds <- StreamData.list_of(StreamData.binary(length: 32)),
+            secret <- StreamData.binary(min_length: 1),
+            authorized_key_seeds <-
+              StreamData.list_of(StreamData.binary(length: 32), min_length: 1),
             transfers <-
               StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0)),
             recipients <- list_of(StreamData.binary(length: 32))
@@ -39,7 +40,13 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
         %TransactionData{
           code: code,
           content: content,
-          keys: Keys.new(authorized_public_keys, :crypto.strong_rand_bytes(32), secret),
+          keys:
+            Keys.add_secret(
+              %Keys{},
+              secret,
+              :crypto.strong_rand_bytes(32),
+              authorized_public_keys
+            ),
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: transfers
@@ -52,8 +59,13 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
 
       assert tx_data.code == code
       assert tx_data.content == content
-      assert tx_data.keys.secret == secret
-      assert Enum.all?(Map.keys(tx_data.keys.authorized_keys), &(&1 in authorized_public_keys))
+      assert tx_data.keys.secrets == [secret]
+
+      assert Enum.all?(
+               Keys.list_authorized_public_keys(tx_data.keys),
+               &(&1 in authorized_public_keys)
+             )
+
       assert tx_data.recipients == recipients_addresses
       assert tx_data.ledger.uco.transfers == transfers
     end

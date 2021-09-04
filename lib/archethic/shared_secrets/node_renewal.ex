@@ -101,11 +101,11 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
           # We discard the content, authorized_key and secret verification
           content: true,
           authorized_keys: true,
-          secret: true
+          secrets: true
         ]
         """,
         content: <<daily_nonce_public_key::binary, network_pool_address::binary>>,
-        keys: Keys.new(authorized_node_public_keys, secret_key, secret)
+        keys: Keys.add_secret(%Keys{}, secret, secret_key, authorized_node_public_keys)
       }
     )
   end

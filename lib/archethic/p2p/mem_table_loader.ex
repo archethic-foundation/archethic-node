@@ -49,7 +49,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
     |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Enum.each(&load_transaction/1)
 
-    Enum.map(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
+    Enum.each(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
 
     {:ok, %{}}
   end
@@ -111,15 +111,14 @@ defmodule ArchEthic.P2P.MemTableLoader do
       transaction_type: :node_shared_secrets
     )
 
-    new_authorized_keys = Keys.list_authorized_keys(keys)
+    new_authorized_keys = Keys.list_authorized_public_keys_at(keys, 0)
     previous_authorized_keys = P2P.authorized_nodes() |> Enum.map(& &1.last_public_key)
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
 
     Enum.each(unauthorized_keys, &MemTable.unauthorize_node/1)
 
-    keys
-    |> Keys.list_authorized_keys()
+    new_authorized_keys
     |> Enum.map(&MemTable.get_first_node_key/1)
     |> Enum.each(&MemTable.authorize_node(&1, SharedSecrets.next_application_date(timestamp)))
   end

@@ -85,19 +85,31 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:nft_transfer))
   end
 
-  @desc "[Keys] represents a block to set secret and authorized public keys able to read the secret"
+  @desc "[Keys] represents a block to set secrets and authorized public keys able to read the secrets"
   object :keys do
-    field(:secret, :hex)
-    field(:authorized_keys, list_of(:authorized_key))
+    field(:secrets, list_of(:hex))
+
+    field(:authorized_keys, list_of(list_of(:authorized_key))) do
+      resolve(fn _, %{source: %{authorized_keys: authorized_keys}} ->
+        formatted_authorized_keys =
+          Enum.map(authorized_keys, fn authorized_keys_by_secret ->
+            Enum.map(authorized_keys_by_secret, fn {public_key, encrypted_secret_key} ->
+              %{public_key: public_key, encrypted_secret_key: encrypted_secret_key}
+            end)
+          end)
+
+        {:ok, formatted_authorized_keys}
+      end)
+    end
   end
 
   @desc """
-  [AuthorizedKey] represents list of public keys with the encrypted secret for this given key.
-  By decrypting this secret keys, the authorized public keys will be able to decrypt the secret
+  [AuthorizedKey] represents a authorized public key with the encrypted secret key for this given key.
+  By decrypting this secret key, the authorized public key will be able to decrypt its related secret
   """
   object :authorized_key do
     field(:public_key, :hex)
-    field(:encrypted_key, :hex)
+    field(:encrypted_secret_key, :hex)
   end
 
   @desc """
