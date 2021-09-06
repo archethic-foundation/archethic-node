@@ -34,7 +34,7 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
         [
           %Transaction{
             data: %TransactionData{
-              keys: Keys.new([Crypto.last_node_public_key()], aes_key, secrets)
+              keys: Keys.add_secret(%Keys{}, secrets, aes_key, [Crypto.last_node_public_key()])
             },
             validation_stamp: %ValidationStamp{
               timestamp: timestamp

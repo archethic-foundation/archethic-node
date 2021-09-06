@@ -9,7 +9,7 @@ config :git_hooks,
         "mix clean",
         "mix format --check-formatted",
         "mix compile --warnings-as-errors",
-        "mix credo --strict",
+        "mix credo",
         "mix test --trace",
         "mix dialyzer"
       ]

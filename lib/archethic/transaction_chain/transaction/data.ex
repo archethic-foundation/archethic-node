@@ -34,8 +34,8 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       ...>    code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
       ...>    content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
       ...>    keys: %Keys{
-      ...>      secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
-      ...>      authorized_keys: %{}
+      ...>      secrets: [<<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>],
+      ...>      authorized_keys: [%{}]
       ...>    },
       ...>    ledger: %Ledger{},
       ...>    recipients: [
@@ -53,6 +53,8 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       0, 0, 0, 54,
       # Content
       "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
+      # Nb secrets,
+      1,
       # Secret size
       0, 0, 0, 10,
       # Secret
@@ -92,9 +94,16 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       ...> "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
       ...> 0, 0, 0, 54,
       ...> "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-      ...> 0, 0, 0, 10,
+      ...> 1, 0, 0, 0, 10,
       ...> 225, 11, 213, 74, 41, 54, 189, 139, 179, 79,
-      ...> 0,
+      ...> 1,
+      ...> 0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
+      ...> 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9,
+      ...> 139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
+      ...> 177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,
+      ...> 233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
+      ...> 212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
+      ...> 224, 214, 225, 146, 44, 83, 111, 34, 239, 99,
       ...> 0,
       ...> 0,
       ...> 1,
@@ -107,8 +116,16 @@ defmodule ArchEthic.TransactionChain.TransactionData do
           code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
           content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
           keys: %Keys{
-            secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
-            authorized_keys: %{}
+            secrets: [<<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>],
+            authorized_keys: [%{
+              <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
+              83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>> => 
+              <<139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
+              177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,
+              233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
+              212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
+              224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
+            }]
           },
           ledger: %Ledger{
             uco: %UCOLedger{}

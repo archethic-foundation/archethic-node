@@ -972,7 +972,7 @@ defmodule ArchEthic.Crypto do
   def load_transaction(%Transaction{
         address: address,
         type: :node_shared_secrets,
-        data: %TransactionData{keys: keys = %Keys{secret: secret}},
+        data: %TransactionData{keys: keys = %Keys{secrets: [secret]}},
         validation_stamp: %ValidationStamp{
           timestamp: timestamp
         }
@@ -986,7 +986,7 @@ defmodule ArchEthic.Crypto do
     )
 
     if Keys.authorized_key?(keys, last_node_public_key()) do
-      encrypted_secret_key = Keys.get_encrypted_key(keys, last_node_public_key())
+      encrypted_secret_key = Keys.get_encrypted_key_at(keys, 0, last_node_public_key())
 
       daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 
@@ -1119,4 +1119,18 @@ defmodule ArchEthic.Crypto do
         true
     end
   end
+
+  @doc """
+  Get the public key elliptic curve
+  """
+  @spec get_public_key_curve(key()) :: supported_curve()
+  def get_public_key_curve(<<curve_id::8, _::binary>>) do
+    ID.to_curve(curve_id)
+  end
+
+  @doc """
+  Get the default elliptic curve
+  """
+  @spec default_curve() :: supported_curve()
+  def default_curve, do: Application.get_env(:archethic, __MODULE__)[:default_curve]
 end

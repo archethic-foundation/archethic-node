@@ -106,9 +106,9 @@ defmodule ArchEthic.Election do
       ...> )
       [
         %Node{last_public_key: "node6", geo_patch: "ECA"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
-        %Node{last_public_key: "node1", geo_patch: "AAA"},
         %Node{last_public_key: "node2", geo_patch: "DEF"},
+        %Node{last_public_key: "node3", geo_patch: "AA0"},
+        %Node{last_public_key: "node5", geo_patch: "F10"},
       ]
   """
   @spec validation_nodes(

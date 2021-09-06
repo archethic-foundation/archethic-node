@@ -130,10 +130,10 @@ defmodule ArchEthic.TransactionChain.Transaction do
           seed :: binary(),
           index :: non_neg_integer()
         ) :: t()
-  def new(type, data = %TransactionData{}, seed, index)
+  def new(type, data = %TransactionData{}, seed, index, curve \\ Crypto.default_curve())
       when type in @transaction_types and is_binary(seed) and is_integer(index) and index >= 0 do
-    {previous_public_key, previous_private_key} = Crypto.derive_keypair(seed, index)
-    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1)
+    {previous_public_key, previous_private_key} = Crypto.derive_keypair(seed, index, curve)
+    {next_public_key, _} = Crypto.derive_keypair(seed, index + 1, curve)
 
     %__MODULE__{
       address: Crypto.hash(next_public_key),
@@ -145,7 +145,17 @@ defmodule ArchEthic.TransactionChain.Transaction do
     |> origin_sign_transaction()
   end
 
-  def new(
+  @doc """
+  Create transaction with the direct use of private and public keys
+  """
+  @spec new_with_keys(
+          transaction_type(),
+          TransactionData.t(),
+          Crypto.key(),
+          Crypto.key(),
+          Crypto.key()
+        ) :: t()
+  def new_with_keys(
         type,
         data = %TransactionData{},
         previous_private_key,
@@ -517,9 +527,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
       0, 0, 0, 0,
       # Content size
       0, 0, 0, 0,
-      # Secret size
-      0, 0, 0, 0,
-      # Nb authorized keys
+      # Nb secrets,
       0,
       # Nb UCO transfers
       0,
@@ -669,7 +677,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
 
       iex> <<0, 0, 0, 1, 0, 62, 198, 74, 197, 246, 83, 6, 174, 95, 223, 107, 92, 12, 36, 93, 197, 197,
       ...> 196, 186, 34, 34, 134, 184, 95, 181, 113, 255, 93, 134, 197, 243, 85, 253,
-      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
+      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 61, 250, 128, 151, 100, 231, 128, 158, 139,
       ...> 88, 128, 68, 236, 240, 238, 116, 186, 164, 87, 3, 60, 198, 21, 248, 64, 207, 58, 221, 192,
       ...> 131, 180, 213, 64, 65, 66, 248, 246, 119, 69, 36, 103, 249, 201, 252, 154, 69, 24, 48, 18, 63,
       ...> 65, 5, 10, 248, 37, 245, 101, 19, 118, 235, 82, 161, 165, 62, 43, 249, 237,
