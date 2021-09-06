@@ -36,7 +36,7 @@ defmodule ArchEthicWeb.FaucetController do
 
   def transfer(
         address,
-        curve \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_curve]
+        curve \\ Crypto.default_curve()
       )
       when is_bitstring(address) do
     gen_seed =
@@ -61,10 +61,6 @@ defmodule ArchEthicWeb.FaucetController do
 
     last_index = ArchEthic.get_transaction_chain_length(last_address)
 
-    {prev_pub, prev_priv} = Crypto.derive_keypair(gen_seed, last_index, curve)
-
-    {next_pub, _} = Crypto.derive_keypair(gen_seed, last_index + 1, curve)
-
     Transaction.new(
       :transfer,
       %TransactionData{
@@ -79,20 +75,28 @@ defmodule ArchEthicWeb.FaucetController do
           }
         }
       },
-      prev_priv,
-      prev_pub,
-      next_pub
+      gen_seed,
+      last_index,
+      curve
     )
     |> ArchEthic.send_new_transaction()
   end
 end
 
-#   def send(address) when is_bitstring(address) do
-#     seed = "testnet"
+#   def transfer(
+#         address,
+#         curve \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_curve]
+#       )
+#       when is_bitstring(address) do
+#     gen_seed =
+#       System.get_env(
+#         "ARCHETHIC_TESTNET_GENESIS_SEED",
+#         "testnet"
+#       )
 
-#     {pub, _} = Crypto.derive_keypair(seed, 0, :secp256r1)
+#     {gen_pub, _} = Crypto.derive_keypair(gen_seed, 0, :secp256r1)
 
-#     pool_gen_address = Crypto.hash(pub)
+#     pool_gen_address = Crypto.hash(gen_pub)
 
 #     last_address =
 #       case ArchEthic.get_last_transaction(pool_gen_address) do
@@ -105,6 +109,10 @@ end
 #       end
 
 #     last_index = ArchEthic.get_transaction_chain_length(last_address)
+
+#     {prev_pub, prev_priv} = Crypto.derive_keypair(gen_seed, last_index, curve)
+
+#     {next_pub, _} = Crypto.derive_keypair(gen_seed, last_index + 1, curve)
 
 #     Transaction.new(
 #       :transfer,
@@ -120,8 +128,9 @@ end
 #           }
 #         }
 #       },
-#       seed,
-#       last_index
+#       prev_priv,
+#       prev_pub,
+#       next_pub
 #     )
 #     |> ArchEthic.send_new_transaction()
 #   end
