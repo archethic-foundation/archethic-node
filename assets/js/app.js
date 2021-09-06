@@ -12,6 +12,11 @@ import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
 import hljs from "highlight.js"
 
+// add alpinejs
+import Alpine from "alpinejs";
+window.Alpine = Alpine;
+Alpine.start();
+
 let Hooks = {}
 
 let scrollAt = () => {
@@ -27,7 +32,7 @@ Hooks.CodeViewer = {
     hljs.highlightBlock(this.el);
   },
 
-  updated(){ 
+  updated(){
     hljs.highlightBlock(this.el);
   }
 }
@@ -41,7 +46,7 @@ Hooks.InfiniteScroll = {
         this.pending = this.page() + 1
         this.pushEvent("load-more", {})
       }
-      
+
     })
   },
   reconnected(){ this.pending = this.page() },
@@ -68,7 +73,17 @@ Hooks.Logs = {
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, {hooks: Hooks, params: {_csrf_token: csrfToken}});
+let liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  params: { _csrf_token: csrfToken },
+  dom: {
+    onBeforeElUpdated(from, to){
+      if(from._x_dataStack){
+        window.Alpine.clone(from, to);
+      }
+    }
+  },
+});
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()
@@ -79,5 +94,3 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 window.diff2html = html
-
-
