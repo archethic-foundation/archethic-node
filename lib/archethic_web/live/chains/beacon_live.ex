@@ -18,7 +18,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthicWeb.ExplorerView
   alias Phoenix.View
 
-  def fetch_txn_summaries(date1 = %DateTime{},date2 = %DateTime{}) do
+  def fetch_txn_summaries(date1 = %DateTime{}, date2 = %DateTime{}) do
     summary_pools = BeaconChain.get_summary_pool(date1, date2)
 
     Enum.map(summary_pools, fn {subset, nodes_by_summary_time} ->
@@ -45,6 +45,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       transaction_summaries
     end)
   end
+
   def mount(_params, _session, socket) do
     # Todo handle live transactions
     # if connected?(socket) do
@@ -58,10 +59,14 @@ defmodule ArchEthicWeb.BeaconChainLive do
       socket
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
-      |> assign(:transactions, list_transactions_by_date(
-        Enum.at(beacon_dates,0),
-        fetch_txn_summaries(Enum.at(beacon_dates, 0),Enum.at(beacon_dates,1))))
-      IO.inspect(new_assign)
+      |> assign(
+        :transactions,
+        list_transactions_by_date(
+          Enum.at(beacon_dates, 0),
+          fetch_txn_summaries(Enum.at(beacon_dates, 0), Enum.at(beacon_dates, 1))
+        )
+      )
+
     {:ok, new_assign}
   end
 
@@ -73,8 +78,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
     case Integer.parse(page) do
       {number, ""} when number > 0 ->
         transactions =
-          list_transactions_by_date( Enum.at(dates,number+1),fetch_txn_summaries(Enum.at(dates,number+1),Enum.at(dates,number+2)))
-          IO.inspect(transactions)
+          list_transactions_by_date(
+            Enum.at(dates, number + 1),
+            fetch_txn_summaries(Enum.at(dates, number + 1), Enum.at(dates, number + 2))
+          )
+
         new_assign =
           socket
           |> assign(:current_date_page, number)
@@ -112,11 +120,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
     all_tx
     |> Enum.flat_map(& &1)
     |> Enum.filter(fn %ArchEthic.BeaconChain.Slot.TransactionSummary{
-                          address: _,
-                          movements_addresses: _,
-                          timestamp: timestamp,
-                          type: _
-                        } ->
+                        address: _,
+                        movements_addresses: _,
+                        timestamp: timestamp,
+                        type: _
+                      } ->
       tmsp = DateTime.truncate(timestamp, :second)
       t1 = DateTime.add(date, 60, :second)
 
@@ -125,5 +133,5 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
   end
 
-#   def list_transactions_by_date(nil, _all_tx), do: []
+  #   def list_transactions_by_date(nil, _all_tx), do: []
 end
