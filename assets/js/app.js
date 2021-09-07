@@ -12,7 +12,10 @@ import LiveSocket from "phoenix_live_view"
 import { html } from "diff2html"
 import hljs from "highlight.js"
 
-// add a comment
+// add alpinejs
+import Alpine from "alpinejs";
+window.Alpine = Alpine;
+Alpine.start();
 
 let Hooks = {}
 
@@ -70,7 +73,17 @@ Hooks.Logs = {
 }
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
-let liveSocket = new LiveSocket("/live", Socket, {hooks: Hooks, params: {_csrf_token: csrfToken}});
+let liveSocket = new LiveSocket("/live", Socket, {
+  hooks: Hooks,
+  params: { _csrf_token: csrfToken },
+  dom: {
+    onBeforeElUpdated(from, to){
+      if(from._x_dataStack){
+        window.Alpine.clone(from, to);
+      }
+    }
+  },
+});
 
 // connect if there are any LiveViews on the page
 liveSocket.connect()
