@@ -3,9 +3,7 @@ defmodule ArchEthic.BootstrapTest do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias ArchEthic.Bootstrap
@@ -58,7 +56,6 @@ defmodule ArchEthic.BootstrapTest do
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
-    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
