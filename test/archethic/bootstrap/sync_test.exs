@@ -3,9 +3,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
   alias ArchEthic.Account
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
 
   alias ArchEthic.Bootstrap.Sync
 
@@ -194,7 +192,6 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   describe "initialize_network/2" do
     setup do
       start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
-      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
       start_supervised!({NodeRenewalScheduler, interval: "0 * * * * *"})
 
       P2P.add_and_connect_node(%Node{

@@ -1,10 +1,8 @@
 defmodule ArchEthic.SelfRepair.SyncTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
@@ -63,7 +61,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
-      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+      # Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       welcome_node = %Node{
         first_public_key: "key1",

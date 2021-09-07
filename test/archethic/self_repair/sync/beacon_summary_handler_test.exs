@@ -1,11 +1,9 @@
 defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
@@ -411,7 +409,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     end
 
     test "should synchronize transactions when the node is in the storage node pools" do
-      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       node = %Node{
         ip: {127, 0, 0, 1},

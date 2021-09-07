@@ -140,10 +140,7 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
 
     Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
 
-    Enum.each(BeaconChain.list_subsets(), fn subset ->
-      [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
-      send(pid, {:create_slot, slot_time})
-    end)
+    Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
@@ -157,6 +154,20 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
         :ets.insert(:archethic_slot_timer, {:interval, new_interval})
         {:noreply, Map.put(state, :interval, new_interval)}
     end
+  end
+
+  defp list_subset_processes do
+    BeaconChain.list_subsets()
+    |> Enum.map(fn subset ->
+      case Registry.lookup(SubsetRegistry, subset) do
+        [{pid, _}] ->
+          pid
+
+        _ ->
+          nil
+      end
+    end)
+    |> Enum.filter(& &1)
   end
 
   defp schedule_new_slot(interval) do
