@@ -9,6 +9,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
@@ -140,25 +141,31 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         send(me, :storage)
         :ok
       end)
+      |> stub(:write_transaction, fn _, _ -> :ok end)
+
+      summary = %BeaconSummary{
+        subset: <<0>>,
+        summary_time: DateTime.utc_now(),
+        transaction_summaries: [
+          %TransactionSummary{
+            address: tx.address,
+            type: :transfer,
+            timestamp: DateTime.utc_now()
+          }
+        ]
+      }
 
       MockClient
       |> stub(:send_message, fn
+        _, %GetBeaconSummary{address: _address} ->
+          {:ok, summary}
+
         _, %GetTransaction{address: address} ->
           if address == tx.address do
             {:ok, tx}
           else
             tx_content =
-              %BeaconSummary{
-                subset: <<0>>,
-                summary_time: DateTime.utc_now(),
-                transaction_summaries: [
-                  %TransactionSummary{
-                    address: tx.address,
-                    type: :transfer,
-                    timestamp: DateTime.utc_now()
-                  }
-                ]
-              }
+              summary
               |> BeaconSummary.serialize()
               |> Utils.wrap_binary()
 

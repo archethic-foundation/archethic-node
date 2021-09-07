@@ -10,6 +10,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
@@ -122,128 +123,156 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     addr4 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     addr5 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
+    beacon_summary_address_d = Crypto.derive_beacon_chain_address("D", summary_time, true)
+    beacon_summary_address_e = Crypto.derive_beacon_chain_address("E", summary_time, true)
+    beacon_summary_address_f = Crypto.derive_beacon_chain_address("F", summary_time, true)
+    beacon_summary_address_a = Crypto.derive_beacon_chain_address("A", summary_time, true)
+    beacon_summary_address_b = Crypto.derive_beacon_chain_address("B", summary_time, true)
+
+    beacon_summaries = %{
+      "D" => %BeaconSummary{
+        subset: "D",
+        summary_time: summary_time,
+        transaction_summaries: [
+          %TransactionSummary{
+            address: addr1,
+            timestamp: DateTime.utc_now(),
+            type: :transfer
+          }
+        ]
+      },
+      "B" => %BeaconSummary{
+        subset: "B",
+        summary_time: summary_time,
+        transaction_summaries: [
+          %TransactionSummary{
+            address: addr2,
+            timestamp: DateTime.utc_now(),
+            type: :transfer
+          }
+        ]
+      },
+      "A" => %BeaconSummary{
+        subset: "A",
+        summary_time: summary_time,
+        transaction_summaries: [
+          %TransactionSummary{
+            address: addr3,
+            timestamp: DateTime.utc_now(),
+            type: :transfer
+          }
+        ]
+      },
+      "F" => %BeaconSummary{
+        subset: "F",
+        summary_time: summary_time,
+        transaction_summaries: [
+          %TransactionSummary{
+            address: addr4,
+            timestamp: DateTime.utc_now(),
+            type: :transfer
+          }
+        ]
+      },
+      "E" => %BeaconSummary{
+        subset: "E",
+        summary_time: summary_time,
+        transaction_summaries: [
+          %TransactionSummary{
+            address: addr5,
+            timestamp: DateTime.utc_now(),
+            type: :transfer
+          }
+        ]
+      }
+    }
+
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{address: address} ->
-        cond do
-          address == Crypto.derive_beacon_chain_address("D", summary_time, true) ->
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   %BeaconSummary{
-                     subset: "D",
-                     summary_time: summary_time,
-                     transaction_summaries: [
-                       %TransactionSummary{
-                         address: addr1,
-                         timestamp: DateTime.utc_now(),
-                         type: :transfer
-                       }
-                     ]
-                   }
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
+      _, %GetBeaconSummary{address: ^beacon_summary_address_d} ->
+        {:ok, Map.get(beacon_summaries, "D")}
 
-          address == Crypto.derive_beacon_chain_address("B", summary_time, true) ->
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   %BeaconSummary{
-                     subset: "B",
-                     summary_time: summary_time,
-                     transaction_summaries: [
-                       %TransactionSummary{
-                         address: addr2,
-                         timestamp: DateTime.utc_now(),
-                         type: :transfer
-                       }
-                     ]
-                   }
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
+      _, %GetBeaconSummary{address: ^beacon_summary_address_e} ->
+        {:ok, Map.get(beacon_summaries, "E")}
 
-          address == Crypto.derive_beacon_chain_address("A", summary_time, true) ->
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   %BeaconSummary{
-                     subset: "A",
-                     summary_time: summary_time,
-                     transaction_summaries: [
-                       %TransactionSummary{
-                         address: addr3,
-                         timestamp: DateTime.utc_now(),
-                         type: :transfer
-                       }
-                     ]
-                   }
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
+      _, %GetBeaconSummary{address: ^beacon_summary_address_f} ->
+        {:ok, Map.get(beacon_summaries, "F")}
 
-          address == Crypto.derive_beacon_chain_address("F", summary_time, true) ->
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   %BeaconSummary{
-                     subset: "F",
-                     summary_time: summary_time,
-                     transaction_summaries: [
-                       %TransactionSummary{
-                         address: addr4,
-                         timestamp: DateTime.utc_now(),
-                         type: :transfer
-                       }
-                     ]
-                   }
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
+      _, %GetBeaconSummary{address: ^beacon_summary_address_a} ->
+        {:ok, Map.get(beacon_summaries, "A")}
 
-          address == Crypto.derive_beacon_chain_address("E", summary_time, true) ->
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   %BeaconSummary{
-                     subset: "E",
-                     summary_time: summary_time,
-                     transaction_summaries: [
-                       %TransactionSummary{
-                         address: addr5,
-                         timestamp: DateTime.utc_now(),
-                         type: :transfer
-                       }
-                     ]
-                   }
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
+      _, %GetBeaconSummary{address: ^beacon_summary_address_b} ->
+        {:ok, Map.get(beacon_summaries, "B")}
 
-          true ->
-            raise "Error"
-        end
+      _, %GetTransaction{address: ^beacon_summary_address_d} ->
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("D")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
+
+      _, %GetTransaction{address: ^beacon_summary_address_e} ->
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_e,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("E")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
+
+      _, %GetTransaction{address: ^beacon_summary_address_f} ->
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_f,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("F")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
+
+      _, %GetTransaction{address: ^beacon_summary_address_a} ->
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_a,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("A")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
+
+      _, %GetTransaction{address: ^beacon_summary_address_b} ->
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_b,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("B")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
     end)
 
     expected_addresses = [
@@ -409,7 +438,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     end
 
     test "should synchronize transactions when the node is in the storage node pools" do
-
       node = %Node{
         ip: {127, 0, 0, 1},
         port: 3000,

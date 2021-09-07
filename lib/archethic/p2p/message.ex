@@ -26,6 +26,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.Error
   alias __MODULE__.FirstPublicKey
   alias __MODULE__.GetBalance
+  alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
   alias __MODULE__.GetLastTransaction
@@ -98,6 +99,7 @@ defmodule ArchEthic.P2P.Message do
           | NotifyLastTransactionAddress.t()
           | NodeAvailability.t()
           | Ping.t()
+          | GetBeaconSummary.t()
 
   @type response ::
           Ok.t()
@@ -117,6 +119,7 @@ defmodule ArchEthic.P2P.Message do
           | TransactionChainLength.t()
           | TransactionInputList.t()
           | Error.t()
+          | Summary.t()
 
   @mining_timeout Application.compile_env!(:archethic, [ArchEthic.Mining, :timeout])
 
@@ -298,6 +301,8 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def encode(%Ping{}), do: <<24::8>>
+
+  def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
 
   def encode(%Error{reason: reason}), do: <<239::8, Error.serialize_reason(reason)::8>>
 
@@ -651,6 +656,15 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<24::8, rest::binary>>), do: {%Ping{}, rest}
+
+  def decode(<<25::8, rest::binary>>) do
+    {address, rest} = deserialize_hash(rest)
+
+    {
+      %GetBeaconSummary{address: address},
+      rest
+    }
+  end
 
   def decode(<<239::8, reason::8, rest::bitstring>>) do
     {%Error{reason: Error.deserialize_reason(reason)}, rest}
@@ -1139,4 +1153,14 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%Ping{}), do: %Ok{}
+
+  def process(%GetBeaconSummary{address: address}) do
+    case BeaconChain.get_summary(address) do
+      {:ok, summary} ->
+        summary
+
+      {:error, :not_found} ->
+        %NotFound{}
+    end
+  end
 end

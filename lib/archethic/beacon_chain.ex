@@ -14,6 +14,7 @@ defmodule ArchEthic.BeaconChain do
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.Subset.P2PSampling
+  alias ArchEthic.BeaconChain.Summary
   alias ArchEthic.BeaconChain.SummaryTimer
 
   alias ArchEthic.Crypto
@@ -240,5 +241,20 @@ defmodule ArchEthic.BeaconChain do
     changed_conf
     |> Keyword.get(SlotTimer)
     |> SlotTimer.config_change()
+  end
+
+  @doc """
+  Get a beacon chain summary representation by loading from the database the transaction
+  """
+  @spec get_summary(binary()) :: {:ok, Summary.t()} | {:error, :not_found}
+  def get_summary(address) when is_binary(address) do
+    case TransactionChain.get_transaction(address, data: [:content]) do
+      {:ok, %Transaction{data: %TransactionData{content: content}}} ->
+        {summary, _} = Summary.deserialize(content)
+        {:ok, summary}
+
+      _ ->
+        {:error, :not_found}
+    end
   end
 end

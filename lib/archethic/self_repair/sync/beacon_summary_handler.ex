@@ -2,7 +2,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   @moduledoc false
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot, as: BeaconSlot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
@@ -13,6 +12,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
@@ -22,8 +22,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   alias __MODULE__.TransactionHandler
 
   alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
 
   alias ArchEthic.Utils
 
@@ -48,16 +46,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
         beacon_address
         |> download_summary(nodes, patch)
-        |> handle_summary_transaction(subset, summary_time, nodes, beacon_address)
+        |> handle_summary_transaction(nodes, beacon_address)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
-    |> Stream.filter(&match?({:ok, %Transaction{}}, &1))
-    |> Stream.map(fn {:ok, %Transaction{data: %TransactionData{content: content}}} ->
-      {summary, _} = BeaconSummary.deserialize(content)
-      summary
-    end)
+    |> Enum.to_list()
+    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
+    |> Stream.map(fn {:ok, {:ok, summary}} -> summary end)
   end
 
   defp download_summary(beacon_address, nodes, patch, prev_result \\ nil)
@@ -65,15 +61,15 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   defp download_summary(_beacon_address, [], _, %NotFound{}), do: {:ok, %NotFound{}}
 
   defp download_summary(beacon_address, nodes, patch, prev_result) do
-    case P2P.reply_first(nodes, %GetTransaction{address: beacon_address},
+    case P2P.reply_first(nodes, %GetBeaconSummary{address: beacon_address},
            patch: patch,
            node_ack?: true
          ) do
       {:ok, %NotFound{}, node} ->
         download_summary(beacon_address, nodes -- [node], patch, %NotFound{})
 
-      {:ok, tx = %Transaction{}, _node} ->
-        {:ok, tx}
+      {:ok, summary = %BeaconSummary{}, _node} ->
+        {:ok, summary}
 
       {:error, :network_issue} ->
         case prev_result do
@@ -87,31 +83,22 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   end
 
   defp handle_summary_transaction(
-         {:ok, tx = %Transaction{}},
-         subset,
-         summary_time,
+         {:ok, summary = %BeaconSummary{}},
          nodes,
-         _beacon_address
+         beacon_address
        ) do
-    beacon_storage_nodes =
-      Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
+    # Load the beacon chain summary transaction if needed in background
+    store_transaction_from_summary(beacon_address, summary, nodes)
 
-    with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
-         false <- TransactionChain.transaction_exists?(tx.address) do
-      TransactionChain.write_transaction(tx)
-    end
-
-    tx
+    {:ok, summary}
   end
 
-  defp handle_summary_transaction({:ok, %NotFound{}}, _, _, _, _) do
-    {:error, :transaction_not_exists}
+  defp handle_summary_transaction({:ok, %NotFound{}}, _, _) do
+    {:error, :not_exists}
   end
 
   defp handle_summary_transaction(
          {:error, :network_issue},
-         _subset,
-         _summary_time,
          nodes,
          beacon_address
        ) do
@@ -123,32 +110,19 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     {:error, :network_issue}
   end
 
-  @doc """
-  Retrieve the list of missed beacon summaries slots a given date.
+  defp store_transaction_from_summary(
+         address,
+         %BeaconSummary{subset: subset, summary_time: summary_time},
+         nodes
+       ) do
+    beacon_storage_nodes =
+      Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
 
-  It request every subsets to find out the missing ones by querying beacon pool nodes.
-  """
-  @spec get_beacon_slots(BeaconChain.pools(), binary()) :: Enumerable.t()
-  def get_beacon_slots(slot_pools, patch) do
-    Enum.map(slot_pools, fn {subset, nodes_by_slot_time} ->
-      Enum.map(nodes_by_slot_time, fn {slot_time, nodes} ->
-        {nodes, subset, slot_time}
-      end)
-    end)
-    |> :lists.flatten()
-    |> Task.async_stream(
-      fn {nodes, subset, slot_time} ->
-        beacon_address = Crypto.derive_beacon_chain_address(subset, slot_time)
-        P2P.reply_atomic(nodes, 3, %GetTransaction{address: beacon_address}, patch: patch)
-      end,
-      on_timeout: :kill_task,
-      max_concurrency: 256
-    )
-    |> Stream.filter(&match?({:ok, {:ok, %Transaction{}}}, &1))
-    |> Stream.map(fn {:ok, {:ok, %Transaction{data: %TransactionData{content: content}}}} ->
-      {slot, _} = BeaconSlot.deserialize(content)
-      slot
-    end)
+    with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
+         false <- TransactionChain.transaction_exists?(address) do
+      {:ok, tx} = P2P.reply_first(nodes, %GetTransaction{address: address})
+      TransactionChain.write_transaction(tx)
+    end
   end
 
   @doc """
