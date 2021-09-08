@@ -90,8 +90,8 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   object :keys do
     field(:secrets, list_of(:hex))
 
-    field(:authorized_keys, list_of(list_of(:authorized_key))) do
-      resolve(fn _, %{source: %{authorized_keys: authorized_keys}} ->
+    field(:authorized_public_keys, list_of(list_of(:authorized_public_key))) do
+      resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
         formatted_authorized_keys =
           Enum.map(authorized_keys, fn authorized_keys_by_secret ->
             Enum.map(authorized_keys_by_secret, fn {public_key, encrypted_secret_key} ->
@@ -105,10 +105,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   end
 
   @desc """
-  [AuthorizedKey] represents a authorized public key with the encrypted secret key for this given key.
+  [AuthorizedPublicKey] represents a authorized public key with the encrypted secret key for this given key.
   By decrypting this secret key, the authorized public key will be able to decrypt its related secret
   """
-  object :authorized_key do
+  object :authorized_public_key do
     field(:public_key, :hex)
     field(:encrypted_secret_key, :hex)
   end

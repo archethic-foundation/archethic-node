@@ -2,6 +2,8 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
   @moduledoc false
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Key
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
@@ -128,56 +130,50 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_authorized_key(%Transaction{data: %TransactionData{}}, [
-      ...>   {"secret_index", 0},
+      iex> TransactionStatements.add_authorized_key(%Transaction{data: %TransactionData{
+      ...>   keys: [
+      ...>     %Key{ secret: <<0, 0, 0, 0, 0, 0, 0>>, authorized_keys: %{}},
+      ...>   ]
+      ...> }}, [
+      ...>   {"key_index", 1},
       ...>   {"public_key", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
       ...>   {"encrypted_secret_key", "FB49F76933689ECC9D260D57C2BEF9489234FE72DD2ED1C77E2E8B4E94D9137F"}
       ...> ])
       %Transaction{
         data: %TransactionData{
-          keys: %Keys{
-            authorized_keys: [%{
+          keys: [%Key{
+            secret: <<0, 0, 0, 0, 0, 0, 0>>,
+            authorized_keys: %{
               <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
               103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>> =>
               <<251, 73, 247, 105, 51, 104, 158, 204, 157, 38, 13, 87, 194, 190, 249, 72, 146,
               52, 254, 114, 221, 46, 209, 199, 126, 46, 139, 78, 148, 217, 19, 127>>
-            }]
-          }
+            }
+          }]
         }
       }
   """
   @spec add_authorized_key(Transaction.t(), list()) :: Transaction.t()
-  def add_authorized_key(tx = %Transaction{}, args) when is_list(args) do
+  def add_authorized_key(tx = %Transaction{data: %TransactionData{keys: keys}}, args)
+      when is_list(args) do
     %{
-      "secret_index" => secret_index,
+      "key_index" => key_index,
       "public_key" => public_key,
       "encrypted_secret_key" => encrypted_secret_key
     } = Enum.into(args, %{})
 
-    update_in(
-      tx,
-      [Access.key(:data), Access.key(:keys), Access.key(:authorized_keys)],
-      fn authorized_keys ->
-        case length(authorized_keys) do
-          0 ->
-            [%{decode_binary(public_key) => decode_binary(encrypted_secret_key)}]
-
-          length when secret_index < length ->
-            List.update_at(
-              authorized_keys,
-              secret_index,
-              &Map.put(&1, decode_binary(public_key), decode_binary(encrypted_secret_key))
-            )
-
-          length ->
-            List.update_at(
-              authorized_keys,
-              length - 1,
-              &Map.put(&1, decode_binary(public_key), decode_binary(encrypted_secret_key))
-            )
-        end
-      end
-    )
+    if key_index <= length(keys) do
+        new_keys = List.update_at(keys, key_index - 1, fn key ->
+          Map.update!(
+            key,
+            :authorized_keys,
+            &Map.put(&1, decode_binary(public_key), decode_binary(encrypted_secret_key))
+          )
+        end)
+        put_in(tx, [Access.key(:data, %{}), Access.key(:keys, [])], new_keys)
+    else
+      tx
+    end
   end
 
   @doc """
@@ -185,21 +181,21 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_secret(%Transaction{data: %TransactionData{}}, "mysecret")
-      %Transaction{
-        data: %TransactionData{
-          keys: %Keys{
-            secrets: ["mysecret"]
-          }
-        }
-      }
+  iex> TransactionStatements.add_secret(%Transaction{data: %TransactionData{}}, "mysecret")
+  %Transaction{
+    data: %TransactionData{
+      keys: [%Key{
+        secret: "mysecret"
+      }]
+    }
+  }
   """
   @spec add_secret(Transaction.t(), binary()) :: Transaction.t()
   def add_secret(tx = %Transaction{}, secret) when is_binary(secret) do
     update_in(
       tx,
-      [Access.key(:data), Access.key(:keys), Access.key(:secrets)],
-      &(&1 ++ [decode_binary(secret)])
+      [Access.key(:data), Access.key(:keys)],
+      &(&1 ++ [%Key{secret: decode_binary(secret)}])
     )
   end
 

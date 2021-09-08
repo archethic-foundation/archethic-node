@@ -8,7 +8,7 @@ defmodule CryptoTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   import Mox
 
@@ -101,7 +101,7 @@ defmodule CryptoTest do
       tx = %Transaction{
         address: "@NodeSharedSecrets1",
         type: :node_shared_secrets,
-        data: %TransactionData{keys: %Keys{secrets: [:crypto.strong_rand_bytes(32)]}},
+        data: %TransactionData{keys: [%Key{secret: :crypto.strong_rand_bytes(32)}]},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
@@ -133,7 +133,7 @@ defmodule CryptoTest do
       secret =
         <<enc_daily_nonce_seed::binary, enc_transaction_seed::binary, enc_network_seed::binary>>
 
-      tx_keys = Keys.add_secret(%Keys{}, secret, secret_key, [Crypto.last_node_public_key()])
+      key = Key.new(secret, secret_key, [Crypto.last_node_public_key()])
 
       MockDB
       |> expect(:chain_size, fn _ -> 0 end)
@@ -141,7 +141,7 @@ defmodule CryptoTest do
       tx = %Transaction{
         address: :crypto.strong_rand_bytes(32),
         type: :node_shared_secrets,
-        data: %TransactionData{keys: tx_keys},
+        data: %TransactionData{keys: [key]},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 

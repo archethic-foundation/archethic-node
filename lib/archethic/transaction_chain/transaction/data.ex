@@ -4,24 +4,24 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   """
   alias ArchEthic.Crypto
 
-  alias __MODULE__.Keys
+  alias __MODULE__.Key
   alias __MODULE__.Ledger
 
-  defstruct recipients: [], ledger: %Ledger{}, code: "", keys: %Keys{}, content: ""
+  defstruct recipients: [], ledger: %Ledger{}, code: "", keys: [], content: ""
 
   @typedoc """
   Transaction data is composed from:
   - Recipients: list of address recipients for smart contract interactions
   - Ledger: Movement operations on UCO, NFT or Stock ledger
   - Code: Contains the smart contract code including triggers, conditions and actions
-  - Keys: Map of key owners and delegations
+  - Keys: List of the key owners and delegations
   - Content: Free content to store any data as binary
   """
   @type t :: %__MODULE__{
           recipients: list(binary()),
           ledger: Ledger.t(),
           code: binary(),
-          keys: Keys.t(),
+          keys: list(Key.t()),
           content: binary()
         }
 
@@ -33,10 +33,10 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       iex> %TransactionData{
       ...>    code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
       ...>    content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-      ...>    keys: %Keys{
-      ...>      secrets: [<<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>],
-      ...>      authorized_keys: [%{}]
-      ...>    },
+      ...>    keys: [%Key{
+      ...>      secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
+      ...>      authorized_keys: %{}
+      ...>    }],
       ...>    ledger: %Ledger{},
       ...>    recipients: [
       ...>      <<0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
@@ -53,7 +53,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       0, 0, 0, 54,
       # Content
       "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-      # Nb secrets,
+      # Nb keys,
       1,
       # Secret size
       0, 0, 0, 10,
@@ -79,8 +79,10 @@ defmodule ArchEthic.TransactionChain.TransactionData do
         ledger: ledger,
         recipients: recipients
       }) do
-    <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
-      Keys.serialize(keys)::binary, Ledger.serialize(ledger)::binary, length(recipients)::8,
+    keys_bin = Enum.map(keys, &Key.serialize/1) |> :erlang.list_to_binary()
+
+    <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary, length(keys)::8,
+      keys_bin::binary, Ledger.serialize(ledger)::binary, length(recipients)::8,
       :erlang.list_to_binary(recipients)::binary>>
   end
 
@@ -115,9 +117,9 @@ defmodule ArchEthic.TransactionChain.TransactionData do
         %TransactionData{
           code: "actions do new_transaction(:transfer) |> add_uco_transfer(to: 892B5257A038BBB14F0DD8734FA09A50F4F55E8856B72F96F2A6014EEB8A2EAB72, amount: 10.5) end",
           content: "Lorem ipsum dolor sit amet, consectetur adipiscing eli",
-          keys: %Keys{
-            secrets: [<<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>],
-            authorized_keys: [%{
+          keys: [%Key{
+            secret: <<225, 11, 213, 74, 41, 54, 189, 139, 179, 79>>,
+            authorized_keys: %{
               <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
               83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>> => 
               <<139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
@@ -125,8 +127,8 @@ defmodule ArchEthic.TransactionChain.TransactionData do
               233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
               212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
               224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
-            }]
-          },
+            }
+          }],
           ledger: %Ledger{
             uco: %UCOLedger{}
           },
@@ -140,9 +142,9 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   """
   def deserialize(
         <<code_size::32, code::binary-size(code_size), content_size::32,
-          content::binary-size(content_size), rest::bitstring>>
+          content::binary-size(content_size), nb_keys::8, rest::bitstring>>
       ) do
-    {keys, rest} = Keys.deserialize(rest)
+    {keys, rest} = reduce_keys(rest, nb_keys, [])
     {ledger, rest} = Ledger.deserialize(rest)
     <<nb_recipients::8, rest::bitstring>> = rest
     {recipients, rest} = reduce_recipients(rest, nb_recipients, [])
@@ -157,6 +159,14 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       },
       rest
     }
+  end
+
+  defp reduce_keys(rest, 0, _acc), do: {[], rest}
+  defp reduce_keys(rest, nb_keys, acc) when nb_keys == length(acc), do: {Enum.reverse(acc), rest}
+
+  defp reduce_keys(rest, nb_keys, acc) do
+    {key, rest} = Key.deserialize(rest)
+    reduce_keys(rest, nb_keys, [key | acc])
   end
 
   defp reduce_recipients(rest, 0, _acc), do: {[], rest}
@@ -176,7 +186,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       content: Map.get(data, :content, ""),
       code: Map.get(data, :code, ""),
       ledger: Map.get(data, :ledger, %Ledger{}) |> Ledger.from_map(),
-      keys: Map.get(data, :keys, %Keys{}) |> Keys.from_map(),
+      keys: Map.get(data, :keys, []) |> Enum.map(&Key.from_map/1),
       recipients: Map.get(data, :recipients, [])
     }
   end
@@ -187,7 +197,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       content: "",
       code: "",
       ledger: Ledger.to_map(nil),
-      keys: Keys.to_map(nil),
+      keys: [],
       recipients: []
     }
   end
@@ -197,8 +207,16 @@ defmodule ArchEthic.TransactionChain.TransactionData do
       content: Map.get(data, :content, ""),
       code: Map.get(data, :code, ""),
       ledger: data |> Map.get(:ledger) |> Ledger.to_map(),
-      keys: data |> Map.get(:keys) |> Keys.to_map(),
-      recipients: Map.get(data, :recipients, [])
+      keys: data |> Map.get(:keys, []),
+      recipients: Map.get(data, :recipients, []) |> Enum.map(&Key.to_map/1)
     }
+  end
+
+  @doc """
+  Determines if a public key is an authorized public key
+  """
+  @spec authorized_public_key?(t(), Crypto.key()) :: boolean()
+  def authorized_public_key?(%__MODULE__{keys: keys}, public_key) when is_binary(public_key) do
+    Enum.any?(keys, &Key.authorized_public_key?(&1, public_key))
   end
 end

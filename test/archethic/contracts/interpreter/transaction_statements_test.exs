@@ -5,7 +5,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatementsTest do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer

@@ -1,11 +1,11 @@
-defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
+defmodule ArchEthic.TransactionChain.TransactionData.KeyTest do
   use ExUnit.Case
   use ExUnitProperties
 
   alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
-  doctest Keys
+  doctest Key
 
   test "new/3 create new transaction data keys and encrypt secret key with authorized public keys" do
     secret_key = :crypto.strong_rand_bytes(32)
@@ -13,14 +13,14 @@ defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
     {pub, pv} = Crypto.generate_deterministic_keypair("seed", :secp256r1)
     {pub2, pv2} = Crypto.generate_deterministic_keypair("other_seed")
 
-    %Keys{secrets: [secret]} = keys = Keys.add_secret(%Keys{}, secret, secret_key, [pub, pub2])
+    %Key{secret: secret} = key = Key.new(secret, secret_key, [pub, pub2])
 
-    assert Keys.authorized_key?(keys, pub)
-    encrypted_key = Keys.get_encrypted_key_at(keys, 0, pub)
+    assert Key.authorized_public_key?(key, pub)
+    encrypted_key = Key.get_encrypted_key(key, pub)
     secret_key = Crypto.ec_decrypt!(encrypted_key, pv)
     assert "important message" == Crypto.aes_decrypt!(secret, secret_key)
 
-    encrypted_key = Keys.get_encrypted_key_at(keys, 0, pub2)
+    encrypted_key = Key.get_encrypted_key(key, pub2)
 
     secret_key = Crypto.ec_decrypt!(encrypted_key, pv2)
     assert "important message" == Crypto.aes_decrypt!(secret, secret_key)
@@ -38,15 +38,14 @@ defmodule ArchEthic.TransactionChain.TransactionData.KeysTest do
           pub
         end)
 
-      {keys, _} =
-        %Keys{}
-        |> Keys.add_secret(secret, secret_key, public_keys)
-        |> Keys.serialize()
-        |> Keys.deserialize()
+      {key, _} =
+        Key.new(secret, secret_key, public_keys)
+        |> Key.serialize()
+        |> Key.deserialize()
 
-      assert keys.secrets == [secret]
+      assert key.secret == secret
 
-      assert Enum.all?(Keys.list_authorized_public_keys(keys), &(&1 in public_keys))
+      assert Enum.all?(Key.list_authorized_public_keys(key), &(&1 in public_keys))
     end
   end
 end

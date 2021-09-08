@@ -11,7 +11,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   alias ArchEthic.SharedSecrets.NodeRenewal
 
@@ -23,7 +23,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
     %Transaction{
       type: :node_shared_secrets,
       data: %TransactionData{
-        keys: keys = %Keys{},
+        keys: [key = %Key{}],
         content: content
       }
     } =
@@ -33,7 +33,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
         aes_key
       )
 
-    assert Keys.authorized_key?(keys, Crypto.last_node_public_key())
+    assert Key.authorized_public_key?(key, Crypto.last_node_public_key())
 
     assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end

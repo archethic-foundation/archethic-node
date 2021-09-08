@@ -15,7 +15,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   @type t :: %__MODULE__{
           authorized_nodes: list(Crypto.key()),
@@ -105,7 +105,9 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
         ]
         """,
         content: <<daily_nonce_public_key::binary, network_pool_address::binary>>,
-        keys: Keys.add_secret(%Keys{}, secret, secret_key, authorized_node_public_keys)
+        keys: [
+          Key.new(secret, secret_key, authorized_node_public_keys)
+        ]
       }
     )
   end

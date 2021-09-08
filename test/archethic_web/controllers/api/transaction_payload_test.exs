@@ -5,6 +5,8 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
 
   alias ArchEthicWeb.API.TransactionPayload
 
+  alias Ecto.Changeset
+
   describe "changeset/1" do
     test "should return errors if there are missing fields in the transaction schema" do
       assert %Ecto.Changeset{
@@ -46,7 +48,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                        "transfers" => []
                      }
                    },
-                   "keys" => %{},
+                   "keys" => [],
                    "recipients" => []
                  },
                  "previousPublicKey" => "abc",
@@ -271,13 +273,14 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => %{
-              "secrets" => ["abc"]
-            }
+            "keys" => [
+              %{"secret" => "abc"}
+            ]
           }
         })
 
-      assert ["must be hexadecimal"] = changeset |> get_errors |> get_in([:data, :keys, :secrets])
+      assert [%{secret: ["must be hexadecimal"]}] =
+               changeset |> get_errors |> get_in([:data, :keys])
     end
 
     test "should return an error if the public key in the authorized keys is not valid" do
@@ -295,18 +298,29 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => %{
-              "authorizedKeys" => [
-                %{
-                  "key" => "hello"
-                }
-              ]
-            }
+            "keys" => [
+              %{
+                "authorizedKeys" => [
+                  %{
+                    "publicKey" => "key",
+                    "encryptedSecretKey" => "hello"
+                  }
+                ]
+              }
+            ]
           }
         })
 
-      assert ["public key must be hexadecimal"] =
-               changeset |> get_errors |> get_in([:data, :keys, :authorizedKeys])
+      assert [
+               %{
+                 authorizedKeys: [
+                   %{
+                     publicKey: ["must be hexadecimal"],
+                     encryptedSecretKey: ["must be hexadecimal"]
+                   }
+                 ]
+               }
+             ] = changeset |> get_errors |> get_in([:data, :keys])
 
       changeset =
         %Ecto.Changeset{
@@ -322,16 +336,26 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => %{
-              "authorizedKeys" => [
-                Map.put(%{}, Base.encode16(:crypto.strong_rand_bytes(32)), "hello")
-              ]
-            }
+            "keys" => [
+              %{
+                "authorizedKeys" => [
+                  %{
+                    "publicKey" => Base.encode16(:crypto.strong_rand_bytes(32)),
+                    "encryptedSecretKey" => "hello"
+                  }
+                ]
+              }
+            ]
           }
         })
 
-      assert ["public key is invalid"] =
-               changeset |> get_errors |> get_in([:data, :keys, :authorizedKeys])
+      assert [
+               %{
+                 authorizedKeys: [
+                   %{publicKey: ["invalid key size"], encryptedSecretKey: ["must be hexadecimal"]}
+                 ]
+               }
+             ] = changeset |> get_errors |> get_in([:data, :keys])
     end
 
     test "should return an error if the encrypted key in the authorized keys is not valid" do
@@ -349,20 +373,22 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => %{
-              "authorizedKeys" => [
-                Map.put(
-                  %{},
-                  Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                  "hello"
-                )
-              ]
-            }
+            "keys" => [
+              %{
+                "authorizedKeys" => [
+                  %{
+                    "publicKey" =>
+                      Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                    "encryptedSecretKey" => "hello"
+                  }
+                ]
+              }
+            ]
           }
         })
 
-      assert ["encrypted key must be hexadecimal"] =
-               changeset |> get_errors |> get_in([:data, :keys, :authorizedKeys])
+      assert [%{authorizedKeys: [%{encryptedSecretKey: ["must be hexadecimal"]}]}] =
+               changeset |> get_errors |> get_in([:data, :keys])
     end
 
     test "should return an error if the recipients are invalid" do
@@ -437,14 +463,17 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                    ]
                  }
                },
-               keys: %{
-                 secrets: [secret],
-                 authorized_keys: [
-                   %{
-                     authorized_public_key => encrypted_key
-                   }
-                 ]
-               }
+               keys: [
+                 %{
+                   secret: secret,
+                   authorized_keys: [
+                     %{
+                       public_key: authorized_public_key,
+                       encrypted_secret_key: encrypted_key
+                     }
+                   ]
+                 }
+               ]
              }
            } ==
              TransactionPayload.changeset(%{
@@ -462,16 +491,17 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                      ]
                    }
                  },
-                 "keys" => %{
-                   "secrets" => [Base.encode16(secret)],
-                   "authorizedKeys" => [
-                     Map.put(
-                       %{},
-                       Base.encode16(authorized_public_key),
-                       Base.encode16(encrypted_key)
-                     )
-                   ]
-                 },
+                 "keys" => [
+                   %{
+                     "secret" => Base.encode16(secret),
+                     "authorizedKeys" => [
+                       %{
+                         "publicKey" => Base.encode16(authorized_public_key),
+                         "encryptedSecretKey" => Base.encode16(encrypted_key)
+                       }
+                     ]
+                   }
+                 ],
                  "recipients" => [Base.encode16(recipient)]
                }
              })
@@ -479,7 +509,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
   end
 
   defp get_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, _} ->
+    Changeset.traverse_errors(changeset, fn {msg, _} ->
       msg
     end)
   end

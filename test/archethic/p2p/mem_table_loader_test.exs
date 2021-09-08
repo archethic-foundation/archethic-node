@@ -8,7 +8,7 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   import Mox
 
@@ -89,13 +89,13 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         address: "@NodeSharedSecrets1",
         type: :node_shared_secrets,
         data: %TransactionData{
-          keys: %Keys{
-            authorized_keys: [
-              %{
+          keys: [
+            %Key{
+              authorized_keys: %{
                 @node_1_public_key => :crypto.strong_rand_bytes(32)
               }
-            ]
-          }
+            }
+          ]
         },
         validation_stamp: %ValidationStamp{
           timestamp: DateTime.utc_now()
@@ -106,13 +106,13 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         address: "@NodeSharedSecrets2",
         type: :node_shared_secrets,
         data: %TransactionData{
-          keys: %Keys{
-            authorized_keys: [
-              %{
+          keys: [
+            %Key{
+              authorized_keys: %{
                 @node_2_public_key => :crypto.strong_rand_bytes(32)
               }
-            ]
-          }
+            }
+          ]
         },
         validation_stamp: %ValidationStamp{
           timestamp: DateTime.utc_now() |> DateTime.add(10)
@@ -158,13 +158,13 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
       address: "@NodeSharedSecrets1",
       type: :node_shared_secrets,
       data: %TransactionData{
-        keys: %Keys{
-          authorized_keys: [
-            %{
+        keys: [
+          %Key{
+            authorized_keys: %{
               @node_1_public_key => :crypto.strong_rand_bytes(32)
             }
-          ]
-        }
+          }
+        ]
       },
       validation_stamp: %ValidationStamp{
         timestamp: ~U[2020-10-22 23:57:27.634295Z]

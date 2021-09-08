@@ -32,7 +32,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   doctest Sync
 
@@ -224,7 +224,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
         [
           %Transaction{
             type: :node_shared_secrets,
-            data: %TransactionData{keys: %Keys{authorized_keys: [keys], secrets: [secret]}}
+            data: %TransactionData{keys: [%Key{authorized_keys: [keys], secret: secret}]}
           }
         ] ->
           encrypted_key = Map.get(keys, Crypto.last_node_public_key())

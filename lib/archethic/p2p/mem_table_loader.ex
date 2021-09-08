@@ -16,7 +16,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Key
 
   require Logger
 
@@ -101,7 +101,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node_shared_secrets,
-        data: %TransactionData{keys: keys},
+        data: %TransactionData{keys: [key = %Key{}]},
         validation_stamp: %ValidationStamp{
           timestamp: timestamp
         }
@@ -111,7 +111,7 @@ defmodule ArchEthic.P2P.MemTableLoader do
       transaction_type: :node_shared_secrets
     )
 
-    new_authorized_keys = Keys.list_authorized_public_keys_at(keys, 0)
+    new_authorized_keys = Key.list_authorized_public_keys(key)
     previous_authorized_keys = P2P.authorized_nodes() |> Enum.map(& &1.last_public_key)
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
