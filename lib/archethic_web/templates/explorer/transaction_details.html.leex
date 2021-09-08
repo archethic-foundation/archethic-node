@@ -33,18 +33,24 @@
 
             <% end %>
 
-            <div class="is-2">
+            <div class="is-2" x-data="{tab_panel: 'tx'}">
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
 
-                <div class="tabs is-fullwidth">
+                <div class="tabs is-fullwidth"  >
                     <ul>
+                        <li :class="{}" ><a>Overview</a></li>
+                        <li :class="{}"><a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
+                        <li class="{}"><a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
+                        <!--
                         <li class="<%= if @tab_panel == "tx", do: "is-active" %>" phx-value-tab_panel="tx" phx-click="switch_tab"><a>Overview</a></li>
                         <li class="<%= if @tab_panel == "inputs", do: "is-active" %>" phx-value-tab_panel="inputs" phx-click="switch_tab"><a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
                         <li class="<%= if @tab_panel == "calls", do: "is-active" %>" phx-value-tab_panel="calls" phx-click="switch_tab"><a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
+                        -->
                     </ul>
                 </div>
 
                 <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>">
+                <!-- <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>"> -->
 
                     <%= if assigns[:error] != nil and @error == :not_exists do %>
                         <p>The transaction does not exists yet. </p>
@@ -457,8 +463,9 @@
                 </div>
 
                 <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
+                <!-- <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>"> -->
                     <%= if Enum.count(@inputs) > 0 do %>
-                        
+
                       <%= for input <- @inputs do %>
                                 <div class="box">
                                   <div class="columns">
@@ -483,7 +490,7 @@
                                       <div class="columns">
                                          <div class="column"><%= format_date(input.timestamp) %></div>
                                       </div>
-                                    </div>	 
+                                    </div>
                                     <div class="column">
                                       <div class="columns">
                                          <div class="column heading">From</div>
@@ -544,6 +551,7 @@
                 </div>
 
                  <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>">
+                 <!-- <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>"> -->
                     <%= if Enum.count(@calls) > 0 do %>
                         <%= for call <- @calls do %>
                           <div class="box">
