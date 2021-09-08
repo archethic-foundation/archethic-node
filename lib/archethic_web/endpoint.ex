@@ -28,7 +28,7 @@ defmodule ArchEthicWeb.Endpoint do
     at: "/",
     from: :archethic,
     gzip: true,
-    only: ~w(css fonts images js favicon.ico robots.txt .well-known docs)
+    only: ~w(css fonts images js favicon.ico robots.txt .well-known)
   )
 
   # Code reloading can be explicitly enabled under the
