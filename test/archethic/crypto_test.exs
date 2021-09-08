@@ -101,7 +101,7 @@ defmodule CryptoTest do
       tx = %Transaction{
         address: "@NodeSharedSecrets1",
         type: :node_shared_secrets,
-        data: %TransactionData{},
+        data: %TransactionData{keys: %Keys{secrets: [:crypto.strong_rand_bytes(32)]}},
         validation_stamp: %ValidationStamp{timestamp: DateTime.utc_now()}
       }
 
@@ -133,7 +133,7 @@ defmodule CryptoTest do
       secret =
         <<enc_daily_nonce_seed::binary, enc_transaction_seed::binary, enc_network_seed::binary>>
 
-      tx_keys = Keys.new([Crypto.last_node_public_key()], secret_key, secret)
+      tx_keys = Keys.add_secret(%Keys{}, secret, secret_key, [Crypto.last_node_public_key()])
 
       MockDB
       |> expect(:chain_size, fn _ -> 0 end)

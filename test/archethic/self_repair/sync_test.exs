@@ -1,16 +1,15 @@
 defmodule ArchEthic.SelfRepair.SyncTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
@@ -63,7 +62,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
-      Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+      # Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       welcome_node = %Node{
         first_public_key: "key1",
@@ -142,25 +141,31 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         send(me, :storage)
         :ok
       end)
+      |> stub(:write_transaction, fn _, _ -> :ok end)
+
+      summary = %BeaconSummary{
+        subset: <<0>>,
+        summary_time: DateTime.utc_now(),
+        transaction_summaries: [
+          %TransactionSummary{
+            address: tx.address,
+            type: :transfer,
+            timestamp: DateTime.utc_now()
+          }
+        ]
+      }
 
       MockClient
       |> stub(:send_message, fn
+        _, %GetBeaconSummary{address: _address} ->
+          {:ok, summary}
+
         _, %GetTransaction{address: address} ->
           if address == tx.address do
             {:ok, tx}
           else
             tx_content =
-              %BeaconSummary{
-                subset: <<0>>,
-                summary_time: DateTime.utc_now(),
-                transaction_summaries: [
-                  %TransactionSummary{
-                    address: tx.address,
-                    type: :transfer,
-                    timestamp: DateTime.utc_now()
-                  }
-                ]
-              }
+              summary
               |> BeaconSummary.serialize()
               |> Utils.wrap_binary()
 

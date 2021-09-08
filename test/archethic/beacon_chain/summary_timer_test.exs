@@ -2,17 +2,7 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.SubsetRegistry
   alias ArchEthic.BeaconChain.SummaryTimer
-
-  setup do
-    Enum.each(BeaconChain.list_subsets(), fn subset ->
-      Registry.register(SubsetRegistry, subset, [])
-    end)
-
-    :ok
-  end
 
   test "next_summary/2 should get the next summary time from a given date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])

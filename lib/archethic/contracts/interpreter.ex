@@ -1,6 +1,8 @@
 defmodule ArchEthic.Contracts.Interpreter do
   @moduledoc false
 
+  require Logger
+
   alias Crontab.CronExpression.Parser, as: CronParser
 
   alias __MODULE__.Library
@@ -12,6 +14,7 @@ defmodule ArchEthic.Contracts.Interpreter do
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionData
 
   @library_functions_names Library.__info__(:functions)
                            |> Enum.map(&Atom.to_string(elem(&1, 0)))
@@ -33,8 +36,8 @@ defmodule ArchEthic.Contracts.Interpreter do
     "nft_ledger",
     "uco_transfers",
     "nft_transfers",
-    "authorized_keys",
-    "secret",
+    "authorized_public_keys",
+    "secrets",
     "recipients"
   ]
 
@@ -152,7 +155,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 16],
                   [
                     {:scope, [line: 16], nil},
-                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["contract"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
+                    {:update_in, [line: 16], [{:scope, [line: 16], nil}, ["next_transaction"], {:&, [line: 16], [{{:., [line: 16], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 16], [{:&, [line: 16], [1]}, "transfer"]}]}]}
                   ]
                 },
                 {
@@ -160,7 +163,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 17],
                   [
                     {:scope, [line: 17], nil},
-                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["contract"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
+                    {:update_in, [line: 17], [{:scope, [line: 17], nil}, ["next_transaction"], {:&, [line: 17], [{{:., [line: 17], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 17], [{:&, [line: 17], [1]}, {:get_in, [line: 17], [{:scope, [line: 17], nil}, ["new_content"]]}]}]}]}
                   ]
                 },
                 {
@@ -168,7 +171,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 18],
                   [
                     {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["contract"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
                   ]
                 }
               ]},
@@ -180,7 +183,7 @@ defmodule ArchEthic.Contracts.Interpreter do
               [line: 22],
               [
                 {:scope, [line: 22], nil},
-                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["contract"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
+                {:update_in, [line: 22], [{:scope, [line: 22], nil}, ["next_transaction"], {:&, [line: 22], [{{:., [line: 22], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 22], [{:&, [line: 22], [1]}, "uco price changed"]}]}]}
               ]
            }, opts: [], type: :oracle}
          ]
@@ -235,6 +238,9 @@ defmodule ArchEthic.Contracts.Interpreter do
     {{:error, :unexpected_token}, {{:atom, key}, metadata, _}} ->
       {:error, format_error_reason({metadata, "unexpected_token", key})}
 
+    {{:error, :unexpected_token}, {{:atom, key}, _}} ->
+      {:error, format_error_reason({[], "unexpected_token", key})}
+
     {:error, reason = {_metadata, _message, _cause}} ->
       {:error, format_error_reason(reason)}
   end
@@ -248,34 +254,24 @@ defmodule ArchEthic.Contracts.Interpreter do
   end
 
   defp format_error_reason({metadata, message, cause}) do
-    message =
-      if message == "unexpected token: " do
-        "unexpected token"
-      else
-        message
-      end
+    message = prepare_message(message)
 
-    line = Keyword.get(metadata, :line)
-    column = Keyword.get(metadata, :column)
-
-    metadata_string = "L#{line}"
-
-    metadata_string =
-      if column == nil do
-        metadata_string
-      else
-        metadata_string <> ":C#{column}"
-      end
-
-    message =
-      if is_atom(message) do
-        message |> Atom.to_string() |> String.replace("_", " ")
-      else
-        message
-      end
-
-    "#{message} - #{cause} - #{metadata_string}"
+    [prepare_message(message), cause, metadata_to_string(metadata)]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" - ")
   end
+
+  defp prepare_message(message) when is_atom(message) do
+    message |> Atom.to_string() |> String.replace("_", " ")
+  end
+
+  defp prepare_message(message) when is_binary(message) do
+    String.trim_trailing(message, ":")
+  end
+
+  defp metadata_to_string(line: line, column: column), do: "L#{line}:C#{column}"
+  defp metadata_to_string(line: line), do: "L#{line}"
+  defp metadata_to_string(_), do: ""
 
   # Whitelist operators
   defp prewalk(node = {:+, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
@@ -311,6 +307,12 @@ defmodule ArchEthic.Contracts.Interpreter do
   # Allow variable assignation inside the actions
   defp prewalk(node = {:=, _, _}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
+
+  # Allow variable as function argument
+  defp prewalk(node = {{:atom, _}, {{:atom, _varname}, _, _}}, acc = {:ok, %{scope: scope}})
+       when scope != :root do
+    {node, acc}
+  end
 
   # Whitelist the use of doted statement
   defp prewalk(node = {{:., _, [{_, _, _}, _]}, _, []}, acc = {:ok, %{scope: scope}})
@@ -439,32 +441,24 @@ defmodule ArchEthic.Contracts.Interpreter do
        when field_name in @condition_fields,
        do: {node, acc}
 
+  # Whitelist the usage transaction fields
   defp prewalk(
          node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]},
-         acc = {:ok, %{scope: :condition}}
+         acc
        )
        when transaction_ref in ["next", "previous", "transaction", "contract"] and
               type in @transaction_fields do
     {node, acc}
   end
 
-  # Whitelist Access key based with brackets, ie. uco_transfers["Alice"]
   defp prewalk(
          node =
-           {{:., metadata, [Access, :get]}, _,
-            [{{:., [_], [{{:atom, subject}, [_], nil}, {:atom, field}]}, _, []}, key]},
-         acc = {:ok, scope: scope}
+           {{:atom, _}, {{:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]}, _, _}},
+         acc
        )
-       when scope != :root and
-              subject in [:contract, :prev, :next, :transaction] and
-              field in @transaction_fields and is_binary(key) do
-    case Base.decode16(key, case: :mixed) do
-      {:ok, _} ->
-        {node, acc}
-
-      _ ->
-        {node, {:error, {metadata, "unexpected token", ""}}}
-    end
+       when transaction_ref in ["next", "previous", "transaction", "contract"] and
+              type in @transaction_fields do
+    {node, acc}
   end
 
   # Whitelist the use of list
@@ -474,8 +468,19 @@ defmodule ArchEthic.Contracts.Interpreter do
   end
 
   # Whitelist access to map field
+  defp prewalk(
+         node = {{:., _, [Access, :get]}, _, _},
+         acc = {:ok, %{scope: scope}}
+       )
+       when scope != :root do
+    {node, acc}
+  end
+
   defp prewalk(node = {:., _, [Access, :get]}, acc = {:ok, %{scope: scope}}) when scope != :root,
     do: {node, acc}
+
+  defp prewalk(node = Access, acc), do: {node, acc}
+  defp prewalk(node = :get, acc), do: {node, acc}
 
   # Whitelist condition fields
 
@@ -512,23 +517,6 @@ defmodule ArchEthic.Contracts.Interpreter do
          acc = {:ok, %{scope: :condition}}
        )
        when field in @condition_fields do
-    {node, acc}
-  end
-
-  # Whitelist the use of transaction and contract fields in the actions
-  defp prewalk(
-         node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
-         acc = {:ok, %{scope: :actions}}
-       )
-       when key in ["contract", "transaction"] and field in @transaction_fields do
-    {node, acc}
-  end
-
-  defp prewalk(
-         node = {:., _, [{{:atom, key}, _, _}, {:atom, field}]},
-         acc = {:ok, %{scope: :condition}}
-       )
-       when key in ["contract", "transaction"] and field in @transaction_fields do
     {node, acc}
   end
 
@@ -680,7 +668,8 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp prewalk(
          node = [
            {{:atom, "public_key"}, _public_key},
-           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key}
+           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key},
+           {{:atom, "secret_index"}, _secret_index}
          ],
          acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
        ) do
@@ -691,7 +680,7 @@ defmodule ArchEthic.Contracts.Interpreter do
          node = {{:atom, arg}, _},
          acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
        )
-       when arg in ["public_key", "encrypted_secret_key"],
+       when arg in ["public_key", "encrypted_secret_key", "secret_index"],
        do: {node, acc}
 
   # Whitelist generics
@@ -1054,7 +1043,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:update_in, [line: 2],
       ...>             [
       ...>               {:scope, [line: 2], nil},
-      ...>               ["contract"],
+      ...>               ["next_transaction"],
       ...>               {:&, [line: 2],
       ...>                [
       ...>                  {{:., [line: 2],
@@ -1070,21 +1059,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>     }
       ...>   ]
       ...> }, :transaction)
-      %Contract{
-        triggers: [
-         %Trigger{actions: {
-            :=,
-            [{:line, 2}],
-            [
-              {:scope, [{:line, 2}], nil},
-              {:update_in, [line: 2], [{:scope, [line: 2], nil}, ["contract"], {:&, [line: 2], [{{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 2], [{:&, [line: 2], [1]}, "transfer"]}]}]}
-            ]
-          },
-          opts: [],
-          type: :transaction}
-        ],
-        next_transaction: %Transaction{type: :transfer, data: %TransactionData{}}
-      }
+      %Transaction{type: :transfer, data: %TransactionData{}}
 
       iex> Interpreter.execute_actions(%Contract{
       ...>   triggers: [
@@ -1098,7 +1073,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:scope, [{:line, 2}], nil},
       ...>            {:update_in, [line: 2], [
       ...>              {:scope, [line: 2], nil},
-      ...>              ["contract"],
+      ...>              ["next_transaction"],
       ...>              {:&, [line: 2], [
       ...>                {{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]},
       ...>                [line: 2],
@@ -1114,7 +1089,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>            {:scope, [line: 3], nil},
       ...>            {:update_in, [line: 3], [
       ...>              {:scope, [line: 3], nil},
-      ...>              ["contract"],
+      ...>              ["next_transaction"],
       ...>              {:&, [line: 3], [
       ...>                {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
       ...>                [line: 3], [{:&, [line: 3], [1]},
@@ -1125,69 +1100,32 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>        }
       ...>      ]},
       ...>  }]}, :transaction)
-      %Contract{
-        triggers: [
-          %Trigger{
-            actions: {:__block__, [], [
-              {
-                :=,
-                [{:line, 2}],
-                [
-                  {:scope, [{:line, 2}], nil},
-                  {:update_in, [line: 2], [
-                    {:scope, [line: 2], nil},
-                    ["contract"],
-                    {:&, [line: 2], [
-                      {{:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]},
-                      [line: 2],
-                      [{:&, [line: 2], [1]}, "transfer"]}]
-                    }
-                  ]}
-                ]
-              },
-              {
-                :=,
-                [line: 3],
-                [
-                  {:scope, [line: 3], nil},
-                  {:update_in, [line: 3], [
-                    {:scope, [line: 3], nil},
-                    ["contract"],
-                    {:&, [line: 3], [
-                      {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]},
-                      [line: 3], [{:&, [line: 3], [1]},
-                      [{"to", {{:., [line: 3], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.Library], [:Library]}, :hash]}, [line: 3], ["@Alice2"]}}, {"amount", 10.04}]]}
-                    ]}
-                  ]}
-                ]
-              }
-            ]},
-            opts: [],
-            type: :transaction
-          }
-        ],
-        next_transaction: %Transaction{
-          type: :transfer,
-          data: %TransactionData{
-              ledger: %Ledger{
-                uco: %UCOLedger{
-                  transfers: [
-                    %UCOLedger.Transfer{ to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
-                      49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>, amount: 10.04}
-                  ]
+      %Transaction{
+        type: :transfer,
+        data: %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOTransfer{
+                  to: <<0, 252, 103, 8, 52, 151, 127, 195, 65, 104, 171, 247, 238, 227, 111, 140, 89,
+                    49, 204, 58, 141, 215, 66, 253, 40, 183, 165, 117, 120, 80, 100, 232, 95>>,
+                  amount: 10.04
                 }
-              }
+              ]
+            }
           }
         }
       }
   """
-  def execute_actions(contract = %Contract{triggers: triggers}, trigger_type, constants \\ %{}) do
+  def execute_actions(%Contract{triggers: triggers}, trigger_type, constants \\ %{}) do
     %Contract.Trigger{actions: quoted_code} = Enum.find(triggers, &(&1.type == trigger_type))
 
-    {%{"contract" => contract}, _} =
-      Code.eval_quoted(quoted_code, scope: Map.put(constants, "contract", contract))
+    {%{"next_transaction" => next_transaction}, _} =
+      Code.eval_quoted(quoted_code,
+        scope: Map.put(constants, "next_transaction", %Transaction{data: %TransactionData{}})
+      )
 
-    contract
+    next_transaction
   end
 
   @doc """
@@ -1283,7 +1221,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       {:update_in, metadata,
        [
          {:scope, metadata, nil},
-         ["contract"],
+         ["next_transaction"],
          {:&, metadata,
           [
             ast
@@ -1392,7 +1330,19 @@ defmodule ArchEthic.Contracts.Interpreter do
     result =
       conditions
       |> Map.from_struct()
-      |> Enum.all?(&match?({_, true}, validate_condition(&1, constants)))
+      |> Enum.all?(fn {field, condition} ->
+        case validate_condition({field, condition}, constants) do
+          {_, true} ->
+            true
+
+          {_, false} ->
+            Logger.debug(
+              "Invalid condition for #{field} with the given value: #{inspect(constants)}"
+            )
+
+            false
+        end
+      end)
 
     if result do
       result

@@ -1,9 +1,7 @@
 defmodule ArchEthic.SelfRepair.SchedulerTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias ArchEthic.Crypto
@@ -21,7 +19,6 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
     start_supervised!({BeaconSlotTimer, interval: "0 0 * * * * *"})
-    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     :ok
   end
 

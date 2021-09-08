@@ -1,3 +1,0 @@
-# Public Testnet
-
-Coming Soon...

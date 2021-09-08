@@ -93,11 +93,11 @@ defmodule ArchEthic.Playbook.UCO do
     #   "timestamp" => System.os_time(:millisecond),
     #   "data" => %{
     #     "keys" => %{
-    #       "authorizedKeys" => %{
+    #       "authorizedKeys" => [%{
     #         "0038E847194E94769B2E185A5BA8F17F038D3E1E9D32BDEB844B4544753B42BF5F" =>
     #           "C1884136D4E29D5037445F6A9BF1432BD69581498C4E43FE25C491C6A3FA9350"
-    #       },
-    #       "secret" => "D3D01CA5B390928269189ACDE0A6826F98E73484987FD48DB8D4339D4FA00F51"
+    #       }],
+    #       "secrets" => ["D3D01CA5B390928269189ACDE0A6826F98E73484987FD48DB8D4339D4FA00F51"]
     #     },
     #     "ledger" => %{
     #       "uco" => %{

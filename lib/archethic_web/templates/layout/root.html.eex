@@ -59,7 +59,7 @@
                 </div>
             </div>
             
-            <a class="navbar-item" href="<%= Routes.static_path(@conn, "/docs/index.html") %>">
+            <a class="navbar-item" href="https://archethic-foundation.github.io/archethic-docs/" target="_blank">
                 Docs
             </a>
         </div>

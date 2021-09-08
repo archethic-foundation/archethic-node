@@ -9,7 +9,6 @@ defmodule ArchEthic.ContractsTest do
   alias ArchEthic.Contracts.Contract.Trigger
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
@@ -19,7 +18,7 @@ defmodule ArchEthic.ContractsTest do
 
   doctest Contracts
 
-  describe "accept_new_contract?/2" do
+  describe "accept_new_contract?/3" do
     test "should return false when the inherit constraints literal values are not respected" do
       code = """
       condition inherit: [
@@ -56,7 +55,7 @@ defmodule ArchEthic.ContractsTest do
         }
       }
 
-      assert false == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert false == Contracts.accept_new_contract?(previous_tx, next_tx, DateTime.utc_now())
     end
 
     test "should return false when the inherit constraints execution return false" do
@@ -83,7 +82,7 @@ defmodule ArchEthic.ContractsTest do
         }
       }
 
-      assert false == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert false == Contracts.accept_new_contract?(previous_tx, next_tx, DateTime.utc_now())
     end
 
     test "should return true when the inherit constraints matches the next transaction" do
@@ -129,7 +128,7 @@ defmodule ArchEthic.ContractsTest do
         }
       }
 
-      assert true == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert true == Contracts.accept_new_contract?(previous_tx, next_tx, DateTime.utc_now())
     end
 
     test "should return false when the transaction have been triggered by datetime but timestamp doesn't match " do
@@ -166,13 +165,15 @@ defmodule ArchEthic.ContractsTest do
               ]
             }
           }
-        },
-        validation_stamp: %ValidationStamp{
-          timestamp: DateTime.utc_now() |> DateTime.add(10)
         }
       }
 
-      assert false == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert false ==
+               Contracts.accept_new_contract?(
+                 previous_tx,
+                 next_tx,
+                 DateTime.utc_now() |> DateTime.add(10)
+               )
     end
 
     test "should return true when the transaction have been triggered by datetime and the timestamp does match " do
@@ -209,13 +210,10 @@ defmodule ArchEthic.ContractsTest do
               ]
             }
           }
-        },
-        validation_stamp: %ValidationStamp{
-          timestamp: ref_time
         }
       }
 
-      assert true == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert true == Contracts.accept_new_contract?(previous_tx, next_tx, ref_time)
     end
 
     test "should return false when the transaction have been triggered by interval but timestamp doesn't match " do
@@ -252,13 +250,10 @@ defmodule ArchEthic.ContractsTest do
               ]
             }
           }
-        },
-        validation_stamp: %ValidationStamp{
-          timestamp: time
         }
       }
 
-      assert false == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert false == Contracts.accept_new_contract?(previous_tx, next_tx, time)
     end
 
     test "should return false when the transaction have been triggered by interval and the timestamp does match " do
@@ -295,13 +290,10 @@ defmodule ArchEthic.ContractsTest do
               ]
             }
           }
-        },
-        validation_stamp: %ValidationStamp{
-          timestamp: time
         }
       }
 
-      assert true == Contracts.accept_new_contract?(previous_tx, next_tx)
+      assert true == Contracts.accept_new_contract?(previous_tx, next_tx, time)
     end
   end
 end
