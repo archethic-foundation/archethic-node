@@ -25,7 +25,7 @@
 
         <div id="navbar" class="navbar-menu">
             <div class="navbar-end">
-    <!-- 
+    <!--
           TODO: implement the listing of transactions through BeaconChain
 
               <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
@@ -37,6 +37,9 @@
               <div class="navbar-dropdown is-boxed">
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.OracleChainLive) %>">
                   Oracle
+                </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.BeaconChainLive) %>">
+                  Beacon
                 </a>
               </div>
             </div>
@@ -58,7 +61,7 @@
                 </a>
                 </div>
             </div>
-            
+
             <a class="navbar-item" href="https://archethic-foundation.github.io/archethic-docs/" target="_blank">
                 Docs
             </a>
