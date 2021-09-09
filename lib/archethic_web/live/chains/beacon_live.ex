@@ -35,6 +35,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
   end
 
+  defp list_transaction_by_date(nil), do: []
+
   def mount(_params, _session, socket) do
     # Todo handle live transactions
     # if connected?(socket) do
