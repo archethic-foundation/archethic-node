@@ -1,4 +1,5 @@
 defmodule ArchEthicWeb.BeaconChainLive do
+  @moduledoc false
   use ArchEthicWeb, :live_view
 
   alias ArchEthic.BeaconChain
@@ -12,28 +13,27 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthicWeb.ExplorerView
   alias Phoenix.View
 
-  defp f2(date = %DateTime{}) do
+  defp list_transaction_by_date(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
-        b_address = Crypto.derive_beacon_chain_address(subset,date,True)
-        node_list = P2P.authorized_nodes()
-        nodes = Election.beacon_storage_nodes(subset,date,node_list)
-        %Node{network_patch: patch} = P2P.get_node_info()
+      b_address = Crypto.derive_beacon_chain_address(subset, date, True)
+      node_list = P2P.authorized_nodes()
+      nodes = Election.beacon_storage_nodes(subset, date, node_list)
+      %Node{network_patch: patch} = P2P.get_node_info()
 
-          {b_address, nodes, patch}
-      end)
-      |> :lists.flatten()
-      |> Task.async_stream(
-        fn {address, nodes, patch} ->
-          BeaconSummaryHandler.download_summary(address, nodes, patch)
-        end,
-        on_timeout: :kill_task,
-        max_concurrency: 256
-      )
-      |> Enum.to_list()
-      |>:lists.flatten()
-      |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-      |> Enum.map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} -> transaction_summaries end)
-      |>:lists.flatten()
+      {b_address, nodes, patch}
+    end)
+    |> Task.async_stream(
+      fn {address, nodes, patch} ->
+        BeaconSummaryHandler.download_summary(address, nodes, patch)
+      end,
+      on_timeout: :kill_task,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
+    |> Enum.map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
+      transaction_summaries
+    end)
+    |> :lists.flatten()
   end
 
   def mount(_params, _session, socket) do
@@ -51,9 +51,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
       |> assign(:current_date_page, 1)
       |> assign(
         :transactions,
-          f2(Enum.at(beacon_dates, 0))
-        )
-
+        list_transaction_by_date(Enum.at(beacon_dates, 0))
+      )
 
     {:ok, new_assign}
   end
@@ -65,9 +64,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
     case Integer.parse(page) do
       {number, ""} when number > 0 ->
-        transactions =
-            f2(Enum.at(dates, number - 1))
-
+        transactions = list_transaction_by_date(Enum.at(dates, number - 1))
 
         new_assign =
           socket
@@ -89,7 +86,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
-
   defp get_beacon_dates do
     %Node{enrollment_date: enrollment_date} =
       P2P.list_nodes() |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime}) |> Enum.at(0)
@@ -98,5 +94,4 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> SummaryTimer.previous_summaries()
     |> Enum.sort({:asc, DateTime})
   end
-
 end
