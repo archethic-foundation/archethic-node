@@ -206,6 +206,7 @@ defmodule ArchEthic.P2P do
         {:ok, data}
 
       {:error, :network_issue} ->
+        Logger.error("Cannot send message #{message.__struct__} to #{Node.endpoint(node)}")
         MemTable.decrease_node_availability(first_public_key)
         {:error, :network_issue}
     end
