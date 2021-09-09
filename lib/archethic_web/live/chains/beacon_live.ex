@@ -44,18 +44,24 @@ defmodule ArchEthicWeb.BeaconChainLive do
     #   PubSub.register_to_new_transaction_by_type(:beacon_summary)
     # end
 
-    beacon_dates = get_beacon_dates()
+    dates = get_beacon_dates()
 
-    new_assign =
-      socket
-      |> assign(:dates, beacon_dates)
-      |> assign(:current_date_page, 1)
-      |> assign(
-        :transactions,
-        list_transaction_by_date(Enum.at(beacon_dates, 0))
-      )
+    beacon_dates =  if Enum.empty?(dates) do
+                       [BeaconChain.next_summary_date(DateTime.utc_now())]
+                    else
+                      dates
+                    end
+          new_assign =
+          socket
+          |> assign(:dates, beacon_dates)
+          |> assign(:current_date_page, 1)
+          |> assign(
+            :transactions,
+            list_transaction_by_date(Enum.at(beacon_dates, 0))
+          )
 
-    {:ok, new_assign}
+        {:ok, new_assign}
+
   end
 
   def render(assigns) do
