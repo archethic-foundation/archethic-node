@@ -30,10 +30,9 @@ defmodule ArchEthicWeb.BeaconChainLive do
       max_concurrency: 256
     )
     |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-    |> Enum.map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
+    |> Stream.flat_map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
       transaction_summaries
     end)
-    |> :lists.flatten()
   end
 
   def mount(_params, _session, socket) do
