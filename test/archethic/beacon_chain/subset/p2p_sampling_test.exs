@@ -9,6 +9,8 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSamplingTest do
   alias ArchEthic.P2P.Message.Ping
   alias ArchEthic.P2P.Node
 
+  @moduletag capture_log: true
+
   import Mox
 
   test "list_nodes_to_sample/1 filter available nodes based on the subset given" do

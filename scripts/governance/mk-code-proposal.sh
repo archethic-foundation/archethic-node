@@ -26,7 +26,7 @@ git checkout master
 git merge --squash $feature_branch
 
 if (echo -e "$summary" |\
-  git commit --author="archethic <dev@archethic.io>" --no-gpg-sign --edit -F-)
+  git commit --author="archethic <dev@archethic.net>" --no-gpg-sign --edit -F-)
 then
   git format-patch --stdout master^ > code-proposal.patch
   git reset --hard master^

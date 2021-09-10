@@ -1,4 +1,4 @@
-defmodule ArchEthic.Playbook do
+defmodule ArchEthic.Utils.Regression.Playbook do
   @moduledoc """
   Playbook is executed on a testnet to verify correctness of the testnet.
   """

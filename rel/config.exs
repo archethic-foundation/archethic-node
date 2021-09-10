@@ -29,12 +29,16 @@ environment Mix.env() do
   set pre_configure_hooks: "rel/pre_configure"
 
   set config_providers: [
-        {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
-      ]
+    {Distillery.Releases.Config.Providers.Elixir, ["${REL_DIR}/runtime_config.exs"]}
+  ]
 
   set overlays: [
-        {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"}
-      ]
+    {:copy, "config/#{Mix.env()}.exs", "releases/<%= release_version %>/runtime_config.exs"}
+  ]
+
+  set commands: [
+    regression_test: "rel/commands/regression_test"
+  ]
 end
 
 # You may define one or more releases in this file.
@@ -46,8 +50,8 @@ release :archethic_node do
   set version: current_version(:archethic)
 
   set applications: [
-        :runtime_tools,
-        :observer_cli,
-        archethic: :permanent
-      ]
+    :runtime_tools,
+    :observer_cli,
+    archethic: :permanent
+  ]
 end

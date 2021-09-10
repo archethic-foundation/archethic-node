@@ -43,7 +43,7 @@ RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
 COPY . .
 
 RUN git config user.name aebot \
- && git config user.email aebot@archethic.com \
+ && git config user.email aebot@archethic.net \
  && git remote add origin https://github.com/archethic-foundation/archethic-node
 
 # build release
