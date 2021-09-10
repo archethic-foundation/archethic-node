@@ -88,8 +88,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
          nodes,
          beacon_address
        ) do
+    node_public_key = Crypto.first_node_public_key()
+
     # Load the beacon chain summary transaction if needed in background
-    store_transaction_from_summary(beacon_address, summary, nodes)
+    store_transaction_from_summary(
+      beacon_address,
+      summary,
+      Enum.reject(nodes, &(&1.first_public_key == node_public_key))
+    )
 
     {:ok, summary}
   end
