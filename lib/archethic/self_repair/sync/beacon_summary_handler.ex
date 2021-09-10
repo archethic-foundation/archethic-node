@@ -22,6 +22,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   alias __MODULE__.TransactionHandler
 
   alias ArchEthic.TransactionChain
+  alias ArchEthic.TransactionChain.Transaction
 
   alias ArchEthic.Utils
 
@@ -120,7 +121,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
          false <- TransactionChain.transaction_exists?(address) do
-      {:ok, tx} = P2P.reply_first(nodes, %GetTransaction{address: address})
+      {:ok, tx = %Transaction{}} = P2P.reply_first(nodes, %GetTransaction{address: address})
       TransactionChain.write_transaction(tx)
     end
   end
