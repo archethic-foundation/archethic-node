@@ -99,6 +99,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
     enrollment_date
     |> SummaryTimer.previous_summaries()
-    |> Enum.sort({:asc, DateTime})
+    |> Enum.sort({:desc, DateTime})
   end
 end
