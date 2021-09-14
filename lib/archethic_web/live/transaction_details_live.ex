@@ -57,13 +57,13 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
     {:noreply, assign(socket, :operation_section, operation_section)}
   end
 
-  def handle_event("hide_content", _value, socket = %{assigns: %{hide_content: false}}) do
-    {:noreply, assign(socket, :hide_content, true)}
-  end
+  # def handle_event("hide_content", _value, socket = %{assigns: %{hide_content: false}}) do
+  #   {:noreply, assign(socket, :hide_content, true)}
+  # end
 
-  def handle_event("show_content", _value, socket = %{assigns: %{hide_content: true}}) do
-    {:noreply, assign(socket, :hide_content, false)}
-  end
+  # def handle_event("show_content", _value, socket = %{assigns: %{hide_content: true}}) do
+  #   {:noreply, assign(socket, :hide_content, false)}
+  # end
 
   def handle_info({:new_transaction, address}, socket) do
     {:ok, tx} = get_transaction(address, %{})

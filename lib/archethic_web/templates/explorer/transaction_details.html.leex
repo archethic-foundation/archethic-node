@@ -8,11 +8,7 @@
             <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
     <% end %>
 
-    <div class="box" x-data="{
-        tab_panel: 'tx',
-        show_content: true,
-        }"
-        x-model="show_content">
+    <div class="box">
         <%= if  assigns[:error] != nil and @error == :invalid_address do %>
             <p>The transaction address is invalid.</p>
             <div class="mt-4 box has-background-warning-light">
@@ -37,15 +33,21 @@
 
             <% end %>
 
-            <div class="is-2" >
+            <div class="is-2" x-data="{
+                                tab_panel: 'tx',
+                                show_content: true,
+                                data_code: 'code',
+                                data_content: ''
+
+                                }" >
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
 
                 <div class="tabs is-fullwidth"  >
                     <ul>
                         <!--
-                        <li><a :class="{tab_panel: 'tx' == 'tx' ? 'is-active' : ''}" @click="tab_panel='tx' alert('overview clicked') console.log('overview clicked')"  >Overview</a></li>
-                        <li><a :class="{tab_panel: 'inputs' == 'inputs' ? 'is-active' : ''}" @click="tab_panel='inputs'" x-init="alert('ledger clicked')" >Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
-                        <li><a :class="{tab_panel: 'calls' == 'calls' ? 'is-active' : ''}" @click="tab_panel='calls'" x-init="alert('contrcat clicked')" >Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
+                        <li><a :class="{tab_panel == 'tx' ? 'is-active' : ''}" @click="tab_panel='tx'; alert('overview clicked'); console.log('overview clicked')"  >Overview</a></li>
+                        <li><a :class="{tab_panel == 'inputs' ? 'is-active' : ''}" @click="tab_panel='inputs'" x-init="alert('ledger clicked')" >Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
+                        <li><a :class="{tab_panel == 'calls' ? 'is-active' : ''}" @click="tab_panel='calls'" x-init="alert('contrcat clicked')" >Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
                         -->
                         <li class="<%= if @tab_panel == "tx", do: "is-active" %>"
                         phx-value-tab_panel="tx"
@@ -83,80 +85,111 @@
                                 </div>
                             </div>
 
-                            <div class="columns mt-4">
+                            <div class="columns mt-4" >
                                 <div class="column is-2-desktop">
                                     <div class="menu">
                                         <p class="menu-label">Data</p>
                                         <ul class="menu-list">
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="code" class="<%= if @data_section == "code", do: "is-active" %>">
+                                            <!--
+                                                <a phx-click="switch_data"
+                                                phx-value-data_section="code"
+
+                                                class="<%= if @data_section == "code", do: "is-active" %>">
                                                     Code
-                                                </a>
+                                                </a> -->
+
+
+                                                <a :class="data_code == 'code' ? is-active : '' " @click="data_code='code'; data_content='' ">
+                                                Code</a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="content" class="<%= if @data_section == "content", do: "is-active" %>">
+                                                <!--
+
+                                                <a phx-click="switch_data"
+                                                phx-value-data_section="content"
+                                                @click=""
+                                                class="<%= if @data_section == "content", do: "is-active" %>">
                                                     Content
+                                                </a>
+                                                -->
+                                                <a :class="data_content == 'content' ? is-active : '' " @click="data_content='content'; data_code='' ">
+                                                Content
                                                 </a>
                                             </li>
                                             <p class="menu-label">Ledger</p>
                                             <li>
                                                 <ul class="menu-list">
                                                     <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="uco_ledger" class="<%= if @data_section == "uco_ledger", do: "is-active" %>">
+                                                        <a phx-click="switch_data"
+                                                        phx-value-data_section="uco_ledger"
+                                                        class="<%= if @data_section == "uco_ledger", do: "is-active" %>">
                                                             UCO
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="nft_ledger" class="<%= if @data_section == "nft_ledger", do: "is-active" %>">
+                                                        <a phx-click="switch_data"
+                                                        phx-value-data_section="nft_ledger"
+                                                        class="<%= if @data_section == "nft_ledger", do: "is-active" %>">
                                                             NFT
                                                         </a>
                                                     </li>
                                                 </ul>
                                             </li>
                                             <li>
-                                               <a phx-click="switch_data" phx-value-data_section="keys" class="<%= if @data_section == "keys", do: "is-active" %>">Keys</a>
+                                               <a phx-click="switch_data"
+                                               phx-value-data_section="keys"
+                                               class="<%= if @data_section == "keys", do: "is-active" %>">
+                                                Keys
+                                               </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="recipients" class="<%= if @data_section == "recipients", do: "is-active" %>">
+                                                <a phx-click="switch_data"
+                                                phx-value-data_section="recipients"
+                                                class="<%= if @data_section == "recipients", do: "is-active" %>">
                                                     Contract recipients
                                                 </a>
                                             </li>
                                         </ul>
                                     </div>
                                 </div>
-                                <div class="column is-10-desktop" x-model="show_content">
-                                    <%= if @data_section == "code" do %>
-                                        <p class="heading">Smart Contract code</p>
-                                        <%= if byte_size(@transaction.data.code) == 0 do %>
-                                            N/A
-                                        <% else %>
-                                            <pre><%= @transaction.data.code %></pre>
-                                        <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "content" do %>
-                                        <p class="heading" >Content
-                                            <span class="tag is-info is-light">
-                                                <%= format_bytes(byte_size(@transaction.data.content)) %>
-                                            </span>
-                                            <!--<%= if @hide_content do %>
-                                                <a phx-click="show_content" >Show</a>
+                                <div class="column is-10-desktop" >
+                                    <div x-show="data_code=='code' ">
+                                        <!-- <%= if @data_section == "code" do %> -->
+                                            <p class="heading">Smart Contract code</p>
+                                            <%= if byte_size(@transaction.data.code) == 0 do %>
+                                                N/A
                                             <% else %>
-                                                <a phx-click="hide_content">Hide</a>
-                                            <% end %>-->
-                                                <a @click="show_content = !show_content" x-text="show_content ? 'Hide' : 'Show'"></a>
+                                                <pre><%= @transaction.data.code %></pre>
+                                            <% end %>
+                                        <!-- <% end %> -->
+                                    </div>
+                                    <div x-show="data_content=='content' ">
 
-                                        </p>
-                                        <%= if byte_size(@transaction.data.content) == 0 do %>
-                                            N/A
-                                        <% end %>
-                                        <div x-show="show_content">
-                                            <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
-                                        </div>
-                                        <!--<%= unless @hide_content do %>
-                                            <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
-                                        <% end %>-->
-                                    <% end %>
+                                        <!-- <%= if @data_section == "content" do %> -->
+                                            <p class="heading" >Content
+                                                <span class="tag is-info is-light">
+                                                    <%= format_bytes(byte_size(@transaction.data.content)) %>
+                                                </span>
+                                                <!--<%= if @hide_content do %>
+                                                    <a phx-click="show_content" >Show</a>
+                                                <% else %>
+                                                    <a phx-click="hide_content">Hide</a>
+                                                <% end %>-->
+                                                    <a @click="show_content = !show_content" x-text="show_content ? 'Hide' : 'Show'"></a>
+
+                                            </p>
+                                            <%= if byte_size(@transaction.data.content) == 0 do %>
+                                                N/A
+                                            <% end %>
+                                            <div x-show="show_content">
+                                                <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                            </div>
+                                            <!--<%= unless @hide_content do %>
+                                                <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                            <% end %>-->
+                                        <!-- <% end %> -->
+                                    </div>
 
                                     <%= if @data_section == "uco_ledger" do %>
                                         <p class="heading mb-4">UCO Ledger</p>
