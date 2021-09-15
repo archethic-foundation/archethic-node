@@ -1,10 +1,11 @@
 <h1 class="subtitle is-size-4 heading has-text-white">Beacon chain</h2>
 
+<p class="heading is-size-7 has-text-white">Next Beacon Summary Time <span><%= format_date(@next_summary_time) %></span></p>
 
   <div class="columns">
     <div class="column">
       <nav class="pagination is-right" role="navigation" aria-label="pagination">
-        <%= if @current_date_page > 1 do %>
+        <%= if @current_date_page  > 1  do %>
         <a class="pagination-previous  is-outlined has-text-white" phx-value-page="<%= @current_date_page - 1 %>" phx-click="goto">Previous</a>
        <% end %>
 

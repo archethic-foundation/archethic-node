@@ -8,6 +8,7 @@ defmodule ArchEthic.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
+  alias ArchEthic.BeaconChain
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSubRegistry
@@ -65,6 +66,14 @@ defmodule ArchEthic.PubSub do
   @spec notify_new_oracle_data(binary()) :: :ok
   def notify_new_oracle_data(data) do
     dispatch(:new_oracle_data, {:new_oracle_data, data})
+  end
+
+  @doc """
+  Notify next summary time beacon chain to the subscribers
+  """
+  def notify_next_summary_time(date = %DateTime{}) do
+    next_summary_time = BeaconChain.next_summary_date(date)
+    dispatch(:next_summary_time, {:next_summary_time, next_summary_time})
   end
 
   @doc """
@@ -129,6 +138,14 @@ defmodule ArchEthic.PubSub do
   @spec register_to_new_transaction_number :: {:ok, pid()}
   def register_to_new_transaction_number do
     Registry.register(PubSubRegistry, :new_transaction_number, [])
+  end
+
+  @doc """
+  Register a process to sent next summary time of beacon summary
+  """
+  @spec register_to_next_summary_time :: {:ok, pid()}
+  def register_to_next_summary_time do
+    Registry.register(PubSubRegistry, :next_summary_time, [])
   end
 
   @doc """
