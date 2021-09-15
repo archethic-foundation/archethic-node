@@ -21,9 +21,6 @@ defmodule ArchEthic.Bootstrap do
 
   use Task
 
-  @genesis_seed Application.compile_env(:archethic, [NetworkInit, :genesis_seed])
-  @genesis_pools Application.compile_env(:archethic, [NetworkInit, :genesis_pools])
-
   @doc """
   Start the bootstrapping as a task
   """
@@ -223,8 +220,10 @@ defmodule ArchEthic.Bootstrap do
   """
   @spec genesis_address() :: binary()
   def genesis_address do
-    {pub, _} = Crypto.derive_keypair(@genesis_seed, 1)
-    Crypto.hash(pub)
+    get_genesis_seed()
+    |> Crypto.derive_keypair(1)
+    |> elem(0)
+    |> Crypto.hash()
   end
 
   @doc """
@@ -232,8 +231,10 @@ defmodule ArchEthic.Bootstrap do
   """
   @spec genesis_unspent_output_address() :: binary()
   def genesis_unspent_output_address do
-    {pub, _} = Crypto.derive_keypair(@genesis_seed, 0)
-    Crypto.hash(pub)
+    get_genesis_seed()
+    |> Crypto.derive_keypair(0)
+    |> elem(0)
+    |> Crypto.hash()
   end
 
   @doc """
@@ -242,6 +243,18 @@ defmodule ArchEthic.Bootstrap do
   @spec genesis_allocation() :: float()
   def genesis_allocation do
     network_pool_amount = 1.46e9
-    Enum.reduce(@genesis_pools, network_pool_amount, &(&1.amount + &2))
+
+    genesis_pools =
+      :archethic
+      |> Application.get_env(NetworkInit)
+      |> Keyword.fetch!(:genesis_pools)
+
+    Enum.reduce(genesis_pools, network_pool_amount, &(&1.amount + &2))
+  end
+
+  defp get_genesis_seed do
+    :archethic
+    |> Application.get_env(NetworkInit)
+    |> Keyword.fetch!(:genesis_seed)
   end
 end

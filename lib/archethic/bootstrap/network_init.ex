@@ -32,7 +32,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
   require Logger
 
-  @genesis_seed Application.compile_env(:archethic, __MODULE__)[:genesis_seed]
+  @genesis_seed Application.compile_env(:archethic, [__MODULE__, :genesis_seed])
 
   defp get_genesis_pools do
     Application.get_env(:archethic, __MODULE__) |> Keyword.get(:genesis_pools, [])
