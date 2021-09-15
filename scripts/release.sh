@@ -3,7 +3,8 @@
 set -e
 trap 'echo "******* FAILED *******" 1>&2' ERR
 
-INSTALL_DIR=~/aebot/build
+USER=$(whoami)
+INSTALL_DIR=/home/$USER/aebot/build
 UPGRADE=0
 
 usage() {
@@ -71,7 +72,7 @@ then
     echo "Run the upgrade"
     $INSTALL_DIR/bin/archethic_node upgrade ${VERSION}
 else
-    # Build the releases
+    # Build and install the releases
 
     echo "Generate release"
     MIX_ENV=prod mix distillery.release
@@ -79,6 +80,46 @@ else
     echo "Install release"
     tar zxvf _build/prod/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz -C $INSTALL_DIR
     echo "Release has been installed on ${INSTALL_DIR}"
+
+    echo "Creating service file"
+    sudo bash -c 'cat > /etc/systemd/system/archethic.service' << EOF
+
+    [Unit]
+    Description=ARCHEthic service
+    After=local-fs.target network.target
+    
+    [Service]
+    Type=simple
+    User=$USER
+    Group=$USER
+    
+    WorkingDirectory=$INSTALL_DIR
+    
+    ExecStart=$INSTALL_DIR/bin/archethic_node foreground
+    ExecStop=$INSTALL_DIR/bin/archethic_node stop
+    
+    EnvironmentFile=/etc/default/archethic.env
+    Environment=LANG=en_US.utf8
+    Environment=MIX_ENV=prod
+    
+    Restart=on-failure
+    RemainAfterExit=yes
+    RestartSec=5
+    
+    LimitNOFILE=65535
+    UMask=0027
+    SyslogIdentifier=archethic
+    
+    [Install]
+    WantedBy=multi-user.target
+EOF
+
+    # restart daemon, enable and start service
+    echo "Reloading daemon and enabling service"
+    sudo systemctl daemon-reload 
+    sudo systemctl enable archethic
+    sudo systemctl start archethic
+    echo "Service Started"
 fi
 
 exit
