@@ -79,7 +79,12 @@ config :archethic, ArchEthic.BeaconChain.SummaryTimer,
 
 config :archethic, ArchEthic.Crypto,
   root_ca_public_keys: [
-    tpm: System.get_env("ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY", "") |> Base.decode16!(case: :mixed)
+    tpm:
+      System.get_env(
+        "ARCHETHIC_CRYPTO_ROOT_CA_TPM_PUBKEY",
+        "3059301306072a8648ce3d020106082a8648ce3d03010703420004f0fe701a03ce375a6e57adbe0255808812036571c1424db2779c77e8b4a9ba80a15b118e8e7465ee2e94094e59c4b3f7177e99063af1b19bfcc4d7e1ac3f89dd"
+      )
+      |> Base.decode16!(case: :mixed)
   ],
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
