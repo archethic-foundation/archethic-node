@@ -1,0 +1,130 @@
+START
+handle_params: : #Phoenix.LiveView.Socket<
+  assigns: %{
+    address: <<0, 224, 173, 92, 249, 200, 72, 74, 137, 231, 166, 183, 88, 160,
+      44, 133, 64, 18, 93, 41, 211, 21, 42, 162, 25, 200, 85, 113, 127, 125, 45,
+      179, 244>>,
+    balance: %{nft: %{}, uco: 0.0},
+    calls: [],
+    data_section: "code",
+    exists: false,
+    flash: %{},
+    hide_content: false,
+    inputs: [],
+    live_action: nil,
+    live_module: ArchEthicWeb.TransactionDetailsLive,
+    operation_section: "transaction_movements",
+    previous_address: <<0, 148, 155, 58, 233, 39, 17, 138, 140, 78, 236, 199,
+      171, 101, 77, 87, 149, 142, 174, 68, 39, 88, 98, 217, 5, 50, 219, 48, 49,
+      206, 58, 250, 99>>,
+    tab_panel: "tx",
+    transaction: %ArchEthic.TransactionChain.Transaction{
+      address: <<0, 224, 173, 92, 249, 200, 72, 74, 137, 231, 166, 183, 88, 160,
+        44, 133, 64, 18, 93, 41, 211, 21, 42, 162, 25, 200, 85, 113, 127, 125,
+        45, 179, 244>>,
+      cross_validation_stamps: [
+        %ArchEthic.TransactionChain.Transaction.CrossValidationStamp{
+          inconsistencies: [],
+          node_public_key: <<0, 0, 29, 150, 125, 113, 178, 225, 53, 200, 66, 6,
+            221, 209, 8, 181, 146, 90, 44, 217, 156, 142, 188, 90, 181, 216,
+            253, 46, 201, 64, ...>>,
+          signature: <<215, 153, 124, 96, 90, 173, 170, 24, 92, 239, 193, 74,
+            87, 230, 94, 99, 174, 98, 57, 131, 188, 151, 38, 146, 162, 63, 127,
+            242, 114, ...>>
+        }
+      ],
+      data: %ArchEthic.TransactionChain.TransactionData{
+        code: "condition inherit: [\n  # We need to ensure the type stays consistent\n  # So we can apply specific rules during the transaction validation\n  type: in?([oracle, oracle_summary]),\n\n  # We discard the content and code verification\n  content: true,\n  \n  # We ensure the code stay the same\n  code: if type == oracle_summary do\n    regex_match?(\"condition inherit: \\\\[[\\\\s].*content: \\\\\\\"\\\\\\\"[\\\\s].*]\")\n  else\n    previous.code\n  end\n]\n",
+        content: "{\"uco\":{\"eur\":0.12744,\"usd\":0.150687}}",
+        keys: %ArchEthic.TransactionChain.TransactionData.Keys{
+          authorized_keys: [],
+          secrets: []
+        },
+        ledger: %ArchEthic.TransactionChain.TransactionData.Ledger{
+          nft: %ArchEthic.TransactionChain.TransactionData.NFTLedger{
+            transfers: []
+          },
+          uco: %ArchEthic.TransactionChain.TransactionData.UCOLedger{
+            transfers: []
+          }
+        },
+        recipients: []
+      },
+      origin_signature: <<66, 9, 42, 5, 75, 59, 12, 119, 255, 182, 165, 169,
+        126, 212, 6, 40, 183, 173, 61, 204, 71, 213, 225, 22, 10, 182, 0, 41,
+        99, 138, 190, ...>>,
+      previous_public_key: <<0, 0, 187, 67, 56, 145, 226, 203, 81, 110, 93, 87,
+        131, 151, 96, 136, 13, 153, 5, 250, 227, 247, 128, 4, 226, 208, 190, 26,
+        33, 126, ...>>,
+      previous_signature: <<245, 14, 108, 152, 113, 92, 143, 239, 196, 50, 51,
+        52, 230, 14, 211, 182, 131, 113, 69, 193, 212, 208, 247, 237, 61, 134,
+        97, 206, 61, ...>>,
+      type: :oracle,
+      validation_stamp: %ArchEthic.TransactionChain.Transaction.ValidationStamp{
+        errors: [],
+        ledger_operations: %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
+          fee: 0.0,
+          node_movements: [
+            %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement{
+              amount: 0.0,
+              roles: [:coordinator_node, :cross_validation_node,
+               :previous_storage_node],
+              to: <<0, 0, 29, 150, 125, 113, 178, 225, 53, 200, 66, 6, 221, 209,
+                8, 181, 146, 90, 44, ...>>
+            }
+          ],
+          transaction_movements: [
+            %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement{
+              amount: 0.0,
+              to: <<0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ...>>,
+              type: :UCO
+            }
+          ],
+          unspent_outputs: [
+            %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput{
+              amount: 0.0,
+              from: <<0, 224, 173, 92, 249, 200, 72, 74, 137, 231, 166, 183, 88,
+                160, 44, 133, 64, 18, ...>>,
+              reward?: false,
+              timestamp: nil,
+              type: :UCO
+            }
+          ]
+        },
+        proof_of_election: <<210, 236, 229, 8, 101, 16, 33, 212, 136, 38, 1,
+          233, 33, 185, 114, 208, 191, 96, 136, 31, 116, 223, 38, 224, ...>>,
+        proof_of_integrity: <<0, 173, 75, 62, 195, 199, 238, 13, 11, 12, 236,
+          188, 12, 239, 232, 21, 66, 187, 68, 184, 76, 217, 99, ...>>,
+        proof_of_work: <<0, 0, 29, 150, 125, 113, 178, 225, 53, 200, 66, 6, 221,
+          209, 8, 181, 146, 90, 44, 217, 156, 142, ...>>,
+        recipients: [],
+        signature: <<80, 76, 235, 48, 161, 82, 36, 209, 47, 173, 214, 128, 146,
+          1, 151, 171, 108, 50, 222, 173, ...>>,
+        timestamp: ~U[2021-09-15 12:22:00.381Z]
+      },
+      version: 1
+    }
+  },
+  changed: %{
+    address: true,
+    balance: true,
+    calls: true,
+    data_section: true,
+    exists: true,
+    hide_content: true,
+    inputs: true,
+    operation_section: true,
+    previous_address: true,
+    tab_panel: true,
+    transaction: true
+  },
+  endpoint: ArchEthicWeb.Endpoint,
+  id: "phx-FqT-RUmQ9zPH1hxE",
+  parent_pid: nil,
+  root_pid: #PID<0.2648.0>,
+  router: ArchEthicWeb.Router,
+  view: ArchEthicWeb.TransactionDetailsLive,
+  ...
+>
+END
