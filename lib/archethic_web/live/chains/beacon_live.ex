@@ -16,7 +16,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
-      b_address = Crypto.derive_beacon_chain_address(subset, date, True)
+      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
       node_list = P2P.authorized_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
       %Node{network_patch: patch} = P2P.get_node_info()
@@ -41,22 +41,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
-    # Todo handle live transactions
 
     if connected?(socket) do
-      # next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
-      # send(self(), {next_summary_time})
       PubSub.register_to_next_summary_time()
-      # we want streaming channels bw closet nodes for all subsets
     end
 
-    dates = get_beacon_dates()
-
-    # if Enum.empty?(dates) do
-    # [BeaconChain.next_summary_date(DateTime.utc_now())]
-    # else
-    beacon_dates = dates
-    # end
+    beacon_dates = get_beacon_dates()
 
     new_assign =
       socket
@@ -106,11 +96,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
         {:next_summary_time, next_summary_date},
         socket = %{assigns: %{current_date_page: page, dates: dates}}
       ) do
-    # if current_summary_time === next_summary_date do
-    #   dates
-    #  else
     new_dates = [next_summary_date | dates]
-    #  end
+
     transactions =
       new_dates
       |> Enum.at(page - 1)

@@ -8,7 +8,6 @@ defmodule ArchEthic.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSubRegistry
@@ -72,8 +71,7 @@ defmodule ArchEthic.PubSub do
   Notify next summary time beacon chain to the subscribers
   """
   def notify_next_summary_time(date = %DateTime{}) do
-    next_summary_time = BeaconChain.next_summary_date(date)
-    dispatch(:next_summary_time, {:next_summary_time, next_summary_time})
+    dispatch(:next_summary_time, {:next_summary_time, date})
   end
 
   @doc """
