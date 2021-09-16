@@ -105,11 +105,11 @@ defmodule ArchEthicWeb.OracleChainLive do
         socket
       ) do
     {:ok,
-     %Transaction{
+     tx = %Transaction{
        data: %TransactionData{content: content},
        validation_stamp: %ValidationStamp{timestamp: timestamp}
      }} =
-      TransactionChain.get_transaction(address, data: [:content], validation_stamp: [:timestamp])
+      TransactionChain.get_transaction(address, [:address, :type, data: [:content], validation_stamp: [:timestamp]])
 
     last_oracle_data = Jason.decode!(content)
 
@@ -117,6 +117,7 @@ defmodule ArchEthicWeb.OracleChainLive do
       socket
       |> assign(:last_oracle_data, last_oracle_data)
       |> assign(:update_time, timestamp)
+      |> update(:transactions, &[tx | &1])
 
     {:noreply, new_assign}
   end
