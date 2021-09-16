@@ -121,7 +121,7 @@
                                             <span class="tag is-info is-light">
                                                 <%= format_bytes(byte_size(@transaction.data.content)) %>
                                             </span>
-                                            <a @click="show_content = !show_content" x-text="show_content ? 'Hide' : 'Show'"></a>>
+                                            <a @click="show_content = !show_content" x-text="show_content ? 'Hide' : 'Show'"></a>
                                         </p>
                                         <%= if byte_size(@transaction.data.content) == 0 do %>
                                             N/A
