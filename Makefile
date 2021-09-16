@@ -1,5 +1,6 @@
 CC = /usr/bin/gcc
 OS := $(shell uname)
+TPM_INSTALLED := $(shell gcc -ltss2-esys 2> /dev/null; echo $$)
 
 all: compile_c_programs
 
@@ -8,10 +9,11 @@ compile_c_programs:
 	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/ed25519.c -o priv/c_dist/libsodium_port -I src/c/crypto/stdio_helpers.h -lsodium
 	$(CC) src/c/hypergeometric_distribution.c -o priv/c_dist/hypergeometric_distribution -lgmp
 
-ifeq ($(OS),Linux) 
+ifeq ($(TPM_INSTALLED),1)
 	$(CC) src/c/crypto/stdio_helpers.c src/c/crypto/tpm/lib.c src/c/crypto/tpm/port.c -o priv/c_dist/tpm_port -I src/c/crypto/stdio_helpers.h -I src/c/crypto/tpm/lib.h -ltss2-esys
 	$(CC) src/c/crypto/tpm/keygen.c src/c/crypto/tpm/lib.c -o priv/c_dist/tpm_keygen -I src/c/crypto/tpm/lib.h -ltss2-esys -lcrypto
 endif
+
 
 clean:
 	rm -f priv/c_dist/*

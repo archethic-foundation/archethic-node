@@ -34,7 +34,7 @@ defmodule ArchEthicWeb.API.TransactionController do
 
           _ ->
             conn
-            |> put_status(403)
+            |> put_status(422)
             |> json(%{status: "error - transaction may be invalid"})
         end
 

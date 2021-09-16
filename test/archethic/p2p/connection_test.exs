@@ -24,6 +24,7 @@ defmodule ArchEthic.P2P.ConnectionTest do
         send(Reader, :msg)
         :ok
       end)
+      |> expect(:close_socket, fn _ -> :ok end)
 
       {:ok, pid} =
         Connection.start_link(socket: make_ref(), transport: MockTransport, initiator?: true)

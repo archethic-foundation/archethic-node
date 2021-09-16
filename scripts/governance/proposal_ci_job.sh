@@ -19,6 +19,3 @@ mix git_hooks.run pre_push
 
 echo "=== Create upgrade"
 mix distillery.release --upgrade
-
-echo "=== Create validator"
-mix escript.build

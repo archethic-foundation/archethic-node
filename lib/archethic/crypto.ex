@@ -229,7 +229,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
-    storage_nonce = ec_decrypt_with_first_node_key!(encrypted_nonce)
+    storage_nonce = ec_decrypt_with_last_node_key!(encrypted_nonce)
     storage_nonce_path = storage_nonce_filepath()
     :ok = File.mkdir_p!(Path.dirname(storage_nonce_path))
     :ok = File.write(storage_nonce_path, storage_nonce, [:write])

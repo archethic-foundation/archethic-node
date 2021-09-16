@@ -1,4 +1,4 @@
-defmodule ArchEthic.JobConductor do
+defmodule ArchEthic.Utils.JobConductor do
   @moduledoc ~S"""
   Conducts heavy computations in a restrictive way by limiting the number of
   concurrently running computations, by default to 1.
@@ -12,13 +12,13 @@ defmodule ArchEthic.JobConductor do
       iex>   :done
       iex> end
       iex>
-      iex> {:ok, _} = ArchEthic.JobConductor.start_link [name: ArchEthic.JobConductor]
+      iex> {:ok, _} = JobConductor.start_link [name: JobConductor]
       iex>
-      iex> spawn(fn -> ArchEthic.JobConductor.conduct f, [1] end)
-      iex> spawn(fn -> ArchEthic.JobConductor.conduct f, [2] end)
+      iex> spawn(fn -> JobConductor.conduct f, [1] end)
+      iex> spawn(fn -> JobConductor.conduct f, [2] end)
       iex> Process.sleep(5) # let spawned calls some time to spawn
       iex>
-      iex> ArchEthic.JobConductor.conduct f, [3]
+      iex> JobConductor.conduct f, [3]
       {:ok, :done}
       iex>
       iex> e1 = :persistent_term.get("e_1")
@@ -44,15 +44,15 @@ defmodule ArchEthic.JobConductor do
 
   ## Example
 
-      iex> {:ok, c} = ArchEthic.JobConductor.start_link []
+      iex> {:ok, c} = JobConductor.start_link []
       iex>
-      iex> ArchEthic.JobConductor.conduct(fn -> :done end, [], c)
+      iex> JobConductor.conduct(fn -> :done end, [], c)
       {:ok, :done}
       iex>
-      iex> ArchEthic.JobConductor.conduct(fn -> raise "exception" end, [], c)
+      iex> JobConductor.conduct(fn -> raise "exception" end, [], c)
       {:rescued, %RuntimeError{message: "exception"}}
       iex>
-      iex> ArchEthic.JobConductor.conduct(fn -> throw :garbage end, [], c)
+      iex> JobConductor.conduct(fn -> throw :garbage end, [], c)
       {:caught, :garbage}
   """
   @spec conduct(function, [any], GenServer.server(), timeout) :: conduct
