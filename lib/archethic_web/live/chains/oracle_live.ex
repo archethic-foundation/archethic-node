@@ -27,6 +27,8 @@ defmodule ArchEthicWeb.OracleChainLive do
       PubSub.register_to_new_transaction_by_type(:oracle_summary)
     end
 
+    next_summary_date = OracleChain.next_summary_date(DateTime.utc_now())
+
     last_tx =
       TransactionChain.list_transactions_by_type(:oracle,
         data: [:content],
@@ -46,12 +48,19 @@ defmodule ArchEthicWeb.OracleChainLive do
           {Jason.decode!(content), timestamp}
       end
 
-    oracle_dates = get_oracle_dates() |> Enum.to_list()
+    oracle_dates =
+      case get_oracle_dates() |> Enum.to_list() do
+        [] ->
+          [next_summary_date]
+
+        dates ->
+          dates
+      end
 
     new_assign =
       socket
       |> assign(:last_oracle_data, last_oracle_data)
-      |> assign(:update_time, update_time)
+      |> assign(:update_time, update_time || next_summary_date)
       |> assign(:dates, oracle_dates)
       |> assign(:current_date_page, 1)
       |> assign(:transactions, list_transactions_by_date(Enum.at(oracle_dates, 0)))
