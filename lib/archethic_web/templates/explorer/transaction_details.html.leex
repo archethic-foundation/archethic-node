@@ -33,7 +33,7 @@
 
             <% end %>
 
-            <div class="is-2">
+            <div class="is-2" x-data="{show_content: true}">
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
 
                 <div class="tabs is-fullwidth">
@@ -121,18 +121,16 @@
                                             <span class="tag is-info is-light">
                                                 <%= format_bytes(byte_size(@transaction.data.content)) %>
                                             </span>
-                                            <%= if @hide_content do %>
-                                                <a phx-click="show_content">Show</a>
-                                            <% else %>
-                                                <a phx-click="hide_content">Hide</a>
-                                            <% end %>
+                                            <a @click="show_content = !show_content" x-text="show_content ? 'Hide' : 'Show'"></a>>
                                         </p>
                                         <%= if byte_size(@transaction.data.content) == 0 do %>
                                             N/A
                                         <% end %>
-                                        <%= unless @hide_content do %>
-                                            <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
-                                        <% end %>
+                                        <div >
+                                            <template x-if="show_content">
+                                                <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                            </template>
+                                        </div>
                                     <% end %>
 
                                     <%= if @data_section == "uco_ledger" do %>
@@ -458,7 +456,7 @@
 
                 <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
                     <%= if Enum.count(@inputs) > 0 do %>
-                        
+
                       <%= for input <- @inputs do %>
                                 <div class="box">
                                   <div class="columns">
@@ -483,7 +481,7 @@
                                       <div class="columns">
                                          <div class="column"><%= format_date(input.timestamp) %></div>
                                       </div>
-                                    </div>	 
+                                    </div>
                                     <div class="column">
                                       <div class="columns">
                                          <div class="column heading">From</div>
