@@ -27,7 +27,7 @@ defmodule ArchEthicWeb.OracleChainLive do
       PubSub.register_to_new_transaction_by_type(:oracle_summary)
     end
 
-    next_summary_date = OracleChain.next_summary_date(DateTime.utc_now()) 
+    next_summary_date = OracleChain.next_summary_date(DateTime.utc_now())
 
     last_tx =
       TransactionChain.list_transactions_by_type(:oracle,
@@ -54,7 +54,7 @@ defmodule ArchEthicWeb.OracleChainLive do
           [next_summary_date]
 
         dates ->
-          [ next_summary_date | dates]
+          [next_summary_date | dates]
       end
 
     new_assign =
@@ -102,7 +102,7 @@ defmodule ArchEthicWeb.OracleChainLive do
 
   def handle_info(
         {:new_transaction, address, :oracle, timestamp},
-        socket = %{assigns: assigns}
+        socket = %{assigns: assigns = %{current_date_page: current_page}}
       ) do
     {:ok, %Transaction{data: %TransactionData{content: content}}} =
       TransactionChain.get_transaction(address, data: [:content])
@@ -114,18 +114,27 @@ defmodule ArchEthicWeb.OracleChainLive do
       |> assign(:last_oracle_data, last_oracle_data)
       |> assign(:update_time, timestamp)
 
-    new_assign =
-      case Map.get(assigns, :summary_passed?) do
-        true ->
-          new_assign
-          |> assign(:transactions, [%{ address: address, type: :oracle, timestamp: timestamp}])
-          |> assign(:summary_passed?, false)
+    if current_page == 1 do
+      # Only update the transaction listed when you are on the first page
+      new_assign =
+        case Map.get(assigns, :summary_passed?) do
+          true ->
+            new_assign
+            |> assign(:transactions, [%{address: address, type: :oracle, timestamp: timestamp}])
+            |> assign(:summary_passed?, false)
 
-        _ ->
-          update(new_assign, :transactions, &[%{address: address, type: :oracle, timestamp: timestamp} | &1])
-      end 
+          _ ->
+            update(
+              new_assign,
+              :transactions,
+              &[%{address: address, type: :oracle, timestamp: timestamp} | &1]
+            )
+        end
 
-    {:noreply, new_assign}
+      {:noreply, new_assign}
+    else
+      {:noreply, new_assign}
+    end
   end
 
   def handle_info(
@@ -135,9 +144,12 @@ defmodule ArchEthicWeb.OracleChainLive do
     new_assign =
       socket
       |> update(:dates, &[OracleChain.next_summary_date(timestamp) | &1])
-      |> update(:transactions, &[
-        %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
-      ])
+      |> update(
+        :transactions,
+        &[
+          %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
+        ]
+      )
       |> assign(:summary_passed?, true)
 
     {:noreply, new_assign}
@@ -157,8 +169,12 @@ defmodule ArchEthicWeb.OracleChainLive do
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
     |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
-    |> Stream.map(fn %Transaction{address: address, type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}} ->
-      %{ address: address, type: type, timestamp: timestamp }
+    |> Stream.map(fn %Transaction{
+                       address: address,
+                       type: type,
+                       validation_stamp: %ValidationStamp{timestamp: timestamp}
+                     } ->
+      %{address: address, type: type, timestamp: timestamp}
     end)
     |> Enum.to_list()
   end
