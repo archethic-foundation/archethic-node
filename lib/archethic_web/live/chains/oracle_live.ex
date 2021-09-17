@@ -97,7 +97,7 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_event("goto", %{"page" => page}, socket) do
-    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+    {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
   def handle_info(
