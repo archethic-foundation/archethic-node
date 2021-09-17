@@ -21,8 +21,8 @@ defmodule ArchEthic.PubSub do
   def notify_new_transaction(address, type, timestamp = %DateTime{})
       when is_binary(address) and is_atom(type) do
     dispatch(:new_transaction, {:new_transaction, address, type, timestamp})
-    dispatch({:new_transaction, address}, {:new_transaction, address})
-    dispatch({:new_transaction, type}, {:new_transaction, address, type})
+    dispatch({:new_transaction, address}, {:new_transaction, address, type, timestamp})
+    dispatch({:new_transaction, type}, {:new_transaction, address, type, timestamp})
   end
 
   def notify_new_transaction(address) when is_binary(address) do
