@@ -101,8 +101,8 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        {:new_transaction, address, :oracle},
         socket
+        {:new_transaction, address, :oracle, timestamp},
       ) do
     {:ok,
      tx = %Transaction{
@@ -123,8 +123,8 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        {:new_transaction, _address, :oracle_summary},
         socket = %{assigns: %{current_date_page: page}}
+        {:new_transaction, address, :oracle_summary, timestamp},
       ) do
     dates = get_oracle_dates()
 
