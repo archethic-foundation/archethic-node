@@ -56,7 +56,7 @@ defmodule ArchEthic.PubSubTest do
       timestamp = DateTime.utc_now()
       assert :ok = PubSub.notify_new_transaction("@Alice2", :transfer, timestamp)
 
-      assert_receive {:new_transaction, "@Alice2"}
+      assert_receive {:new_transaction, "@Alice2", :transfer, ^timestamp}
     end
 
     test "should  notify subscribers for a given type" do
@@ -64,7 +64,7 @@ defmodule ArchEthic.PubSubTest do
       timestamp = DateTime.utc_now()
       assert :ok = PubSub.notify_new_transaction("@Alice2", :transfer, timestamp)
 
-      assert_receive {:new_transaction, "@Alice2", :transfer}
+      assert_receive {:new_transaction, "@Alice2", :transfer, ^timestamp}
     end
   end
 
