@@ -21,7 +21,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
        transaction: nil,
        hide_content: true,
        tab_panel: "tx",
-       data_section: "code",
+      #  data_section: "code",
        operation_section: "transaction_movements"
      })}
   end

@@ -15,9 +15,7 @@
                 <small>Please check the transaction address validity.</small>
             </div>
         <% else %>
-
             <%= if assigns[:error] == nil do %>
-
                 <div class="columns">
                     <div class="column is-2-desktop">
                         <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
@@ -30,24 +28,15 @@
                         <% end %>
                     </div>
                 </div>
-
             <% end %>
-
             <div class="is-2" x-data="{
                                 tab_panel: 'tx',
                                 show_content: true,
                                 data_section: 'code',
-
                                 }" >
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
-
                 <div class="tabs is-fullwidth"  >
                     <ul>
-                        <!--
-                        <li><a :class="tab_panel == 'tx' ? 'is-active' : '' " @click="tab_panel='tx'; alert('overview clicked')"  >Overview</a></li>
-                        <li><a :class="tab_panel == 'inputs' ? 'is-active' : '' " @click="tab_panel='inputs'" x-init="alert('ledger clicked')" >Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
-                        <li><a :class="tab_panel == 'calls' ? 'is-active' : '' " @click="tab_panel='calls'" x-init="alert('contrcat clicked')" >Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
-                        -->
                         <li class="<%= if @tab_panel == "tx", do: "is-active" %>"
                         phx-value-tab_panel="tx"
                         phx-click="switch_tab"><a>Overview</a></li>
@@ -61,8 +50,6 @@
                         phx-click="switch_tab"><a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
                     </ul>
                 </div>
-
-              <!--  <div :class="tab_panel == 'tx' ? 'is-hidden' : ''"> -->
                 <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>">
 
                     <%= if assigns[:error] != nil and @error == :not_exists do %>
@@ -83,7 +70,6 @@
                                     <%= format_date(@transaction.validation_stamp.timestamp) %>
                                 </div>
                             </div>
-
                             <div class="columns mt-4" >
                                 <div class="column is-2-desktop">
                                     <div class="menu">
@@ -133,138 +119,123 @@
                                     </div>
                                 </div>
                                 <div class="column is-10-desktop" >
-                                    <div >
-                                        <template x-if="data_section=='code' ">
-                                            <p class="heading">Smart Contract code</p>
-                                            <%= if byte_size(@transaction.data.code) == 0 do %>
-                                                N/A
-                                            <% else %>
-                                                <pre><%= @transaction.data.code %></pre>
-                                            <% end %>
-                                        </template>
+                                    <div x-show="data_section=='code' ">
+                                        <p class="heading">Smart Contract code</p>
+                                        <%= if byte_size(@transaction.data.code) == 0 do %>
+                                            N/A
+                                        <% else %>
+                                            <pre><%= @transaction.data.code %></pre>
+                                        <% end %>
                                     </div>
-                                    <div >
-                                        <template x-if="data_section=='content' ">
-                                            <p class="heading" >Content
-                                                <span class="tag is-info is-light">
-                                                    <%= format_bytes(byte_size(@transaction.data.content)) %>
-                                                </span>
-                                                <a @click="show_content = !show_content"
-                                                x-text="show_content ? 'Hide' : 'Show'"></a>
-                                            </p>
-                                            <%= if byte_size(@transaction.data.content) == 0 do %>
-                                                N/A
-                                            <% end %>
-                                            <div >
-                                                <template x-if="show_content">
-                                                <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
-                                                </template>
+                                    <div x-show="data_section=='content' ">
+                                        <p class="heading" >Content
+                                            <span class="tag is-info is-light">
+                                                <%= format_bytes(byte_size(@transaction.data.content)) %>
+                                            </span>
+                                            <a @click="show_content = !show_content"
+                                            x-text="show_content ? 'Hide' : 'Show'"></a>
+                                        </p>
+                                        <%= if byte_size(@transaction.data.content) == 0 do %>
+                                            N/A
+                                        <% end %>
+                                        <div x-show="show_content">
+                                            <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
+                                        </div>
+                                    </div>
+                                    <div x-show=" data_section=='uco_ledger' ">
+                                        <p class="heading mb-4">UCO Ledger</p>
+                                        <%= if Enum.count(@transaction.data.ledger.uco.transfers) == 0 do %>
+                                            N/A
+                                        <% end %>
+                                        <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
+                                        <div class="box">
+                                            <div class="columns">
+                                                <div class="column is-1 heading">To</div>
+                                                <div class="column">
+                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                        <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
+                                                    <% end %>
+                                                </div>
                                             </div>
-                                        </template>
+                                            <div class="columns">
+                                                <div class="column is-1 heading">Amount</div>
+                                                <div class="column">
+                                                    <%= format_float(transfer.amount) %> UCO
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <% end %>
                                     </div>
-
-                                    <div >
-                                        <template x-if=" data_section=='uco_ledger' ">
-                                            <p class="heading mb-4">UCO Ledger</p>
-                                            <%= if Enum.count(@transaction.data.ledger.uco.transfers) == 0 do %>
-                                                N/A
-                                            <% end %>
-                                            <%= for transfer <- @transaction.data.ledger.uco.transfers do %>
+                                    <div x-show="data_section=='nft_ledger' ">
+                                        <p class="heading mb-4">NFT Ledger</p>
+                                        <%= if Enum.count(@transaction.data.ledger.nft.transfers) == 0 do %>
+                                            N/A
+                                        <% end %>
+                                        <%= for transfer <- @transaction.data.ledger.nft.transfers do %>
+                                        <div class="box">
+                                            <div class="columns">
+                                                <div class="column is-1 heading">To</div>
+                                                <div class="column">
+                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                        <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
+                                                    <% end %>
+                                                </div>
+                                            </div>
+                                            <div class="columns">
+                                                <div class="column is-1 heading">Amount</div>
+                                                <div class="column"><%= format_float(transfer.amount) %></div>
+                                            </div>
+                                            <div class="columns">
+                                                <div class="column is-1 heading">NFT</div>
+                                                <div class="column">
+                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.nft)) do%>
+                                                    <span class="text_wrap"><%= Base.encode16(transfer.nft) %></span>
+                                                <% end %>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <% end %>
+                                    </div>
+                                    <div x-show="data_section=='keys' ">
+                                        <p class="heading mb-4">Keys and Secrets</p>
+                                        <%= for { secret, index } <- Enum.with_index(@transaction.data.keys.secrets) do %>
                                             <div class="box">
                                                 <div class="columns">
-                                                    <div class="column is-1 heading">To</div>
+                                                <div class="column">
+                                                    <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
+                                                </div>
+                                                </div>
+                                                <div class="columns">
+                                                <div class="column">
+                                                    <p class="heading">Authorized keys</p>
+                                                </div>
+                                                </div>
+                                                <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
+                                                <div class="columns">
                                                     <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
-                                                            <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
+                                                        <span class="text_wrap"><%= Base.encode16(key) %></span>
+                                                    </div>
+                                                </div>
+                                                <% end %>
+                                            </div>
+                                        <% end %>
+                                    </div>
+                                    <div x-show="data_section=='recipients' ">
+                                        <p class="heading">Recipients addresses</p>
+                                        <%= if Enum.count(@transaction.data.recipients) == 0 do %>
+                                            N/A
+                                        <% end %>
+                                        <%= for address <- @transaction.data.recipients do %>
+                                            <div class="box">
+                                                <div class="columns">
+                                                    <div class="column">
+                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(address)) do%>
+                                                        <span class="text_wrap"><%= Base.encode16(address) %></span>
                                                         <% end %>
                                                     </div>
                                                 </div>
-                                                <div class="columns">
-                                                    <div class="column is-1 heading">Amount</div>
-                                                    <div class="column">
-                                                        <%= format_float(transfer.amount) %> UCO
-                                                    </div>
-                                                </div>
                                             </div>
-                                            <% end %>
-                                        </template>
-                                    </div>
-                                    <div >
-                                        <template x-if="data_section=='nft_ledger' ">
-                                            <p class="heading mb-4">NFT Ledger</p>
-                                            <%= if Enum.count(@transaction.data.ledger.nft.transfers) == 0 do %>
-                                                N/A
-                                            <% end %>
-                                            <%= for transfer <- @transaction.data.ledger.nft.transfers do %>
-                                            <div class="box">
-                                                <div class="columns">
-                                                    <div class="column is-1 heading">To</div>
-                                                    <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
-                                                            <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
-                                                        <% end %>
-                                                    </div>
-                                                </div>
-                                                <div class="columns">
-                                                    <div class="column is-1 heading">Amount</div>
-                                                    <div class="column"><%= format_float(transfer.amount) %></div>
-                                                </div>
-                                                <div class="columns">
-                                                    <div class="column is-1 heading">NFT</div>
-                                                    <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.nft)) do%>
-                                                        <span class="text_wrap"><%= Base.encode16(transfer.nft) %></span>
-                                                    <% end %>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <% end %>
-                                        </template>
-                                    </div>
-                                    <div >
-                                        <template x-if="data_section=='keys' ">
-                                            <p class="heading mb-4">Keys and Secrets</p>
-                                            <%= for { secret, index } <- Enum.with_index(@transaction.data.keys.secrets) do %>
-                                                <div class="box">
-                                                    <div class="columns">
-                                                    <div class="column">
-                                                        <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
-                                                    </div>
-                                                    </div>
-                                                    <div class="columns">
-                                                    <div class="column">
-                                                        <p class="heading">Authorized keys</p>
-                                                    </div>
-                                                    </div>
-                                                    <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
-                                                    <div class="columns">
-                                                        <div class="column">
-                                                            <span class="text_wrap"><%= Base.encode16(key) %></span>
-                                                        </div>
-                                                    </div>
-                                                    <% end %>
-                                                </div>
-                                            <% end %>
-                                        </template>
-                                    </div>
-                                    <div >
-                                        <template x-if="data_section=='recipients' ">
-                                            <p class="heading">Recipients addresses</p>
-                                            <%= if Enum.count(@transaction.data.recipients) == 0 do %>
-                                                N/A
-                                            <% end %>
-                                            <%= for address <- @transaction.data.recipients do %>
-                                                <div class="box">
-                                                    <div class="columns">
-                                                        <div class="column">
-                                                            <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(address)) do%>
-                                                            <span class="text_wrap"><%= Base.encode16(address) %></span>
-                                                            <% end %>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            <% end %>
-                                        </template>
+                                        <% end %>
                                     </div>
                                 </div>
                             </div>
