@@ -123,20 +123,18 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        socket = %{assigns: %{current_date_page: page}}
         {:new_transaction, address, :oracle_summary, timestamp},
+        socket
       ) do
     dates = get_oracle_dates()
 
-    transactions =
-      dates
-      |> Enum.at(page - 1)
-      |> list_transactions_by_date()
 
     new_assign =
       socket
       |> assign(:dates, dates)
-      |> assign(:transactions, transactions)
+      |> update(:transactions, &[
+        %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
+      ])
 
     {:noreply, new_assign}
   end
@@ -155,6 +153,10 @@ defmodule ArchEthicWeb.OracleChainLive do
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
     |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
+    |> Stream.map(fn %Transaction{address: address, type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}} ->
+      %{ address: address, type: type, timestamp: timestamp }
+    end)
+    |> Enum.to_list()
   end
 
   defp list_transactions_by_date(nil), do: []
