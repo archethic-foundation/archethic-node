@@ -75,17 +75,22 @@ defmodule ArchEthicWeb.OracleChainLive do
   def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
     case Integer.parse(page) do
       {number, ""} when number > 0 ->
-        transactions =
-          dates
-          |> Enum.at(number - 1)
-          |> list_transactions_by_date()
+        if number > length(dates) do
+          {:noreply,
+           push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
+        else
+          transactions =
+            dates
+            |> Enum.at(number - 1)
+            |> list_transactions_by_date()
 
-        new_assign =
-          socket
-          |> assign(:current_date_page, number)
-          |> assign(:transactions, transactions)
+          new_assign =
+            socket
+            |> assign(:current_date_page, number)
+            |> assign(:transactions, transactions)
 
-        {:noreply, new_assign}
+          {:noreply, new_assign}
+        end
 
       _ ->
         {:noreply, socket}
