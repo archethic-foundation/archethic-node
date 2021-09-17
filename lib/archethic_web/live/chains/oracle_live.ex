@@ -101,15 +101,11 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   def handle_info(
-        socket
         {:new_transaction, address, :oracle, timestamp},
+        socket = %{assigns: assigns}
       ) do
-    {:ok,
-     tx = %Transaction{
-       data: %TransactionData{content: content},
-       validation_stamp: %ValidationStamp{timestamp: timestamp}
-     }} =
-      TransactionChain.get_transaction(address, [:address, :type, data: [:content], validation_stamp: [:timestamp]])
+    {:ok, %Transaction{data: %TransactionData{content: content}}} =
+      TransactionChain.get_transaction(address, data: [:content])
 
     last_oracle_data = Jason.decode!(content)
 
@@ -117,7 +113,17 @@ defmodule ArchEthicWeb.OracleChainLive do
       socket
       |> assign(:last_oracle_data, last_oracle_data)
       |> assign(:update_time, timestamp)
-      |> update(:transactions, &[tx | &1])
+
+    new_assign =
+      case Map.get(assigns, :summary_passed?) do
+        true ->
+          new_assign
+          |> assign(:transactions, [%{ address: address, type: :oracle, timestamp: timestamp}])
+          |> assign(:summary_passed?, false)
+
+        _ ->
+          update(new_assign, :transactions, &[%{address: address, type: :oracle, timestamp: timestamp} | &1])
+      end 
 
     {:noreply, new_assign}
   end
@@ -126,15 +132,13 @@ defmodule ArchEthicWeb.OracleChainLive do
         {:new_transaction, address, :oracle_summary, timestamp},
         socket
       ) do
-    dates = get_oracle_dates()
-
-
     new_assign =
       socket
-      |> assign(:dates, dates)
+      |> update(:dates, &[OracleChain.next_summary_date(timestamp) | &1])
       |> update(:transactions, &[
         %{address: address, type: :oracle_summary, timestamp: timestamp} | &1
       ])
+      |> assign(:summary_passed?, true)
 
     {:noreply, new_assign}
   end
