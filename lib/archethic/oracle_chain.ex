@@ -128,4 +128,15 @@ defmodule ArchEthic.OracleChain do
     end)
     |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
   end
+
+  @doc """
+  Return the next oracle summary date
+  """
+  @spec next_summary_date(DateTime.t()) :: DateTime.t()
+  def next_summary_date(date_from = %DateTime{}) do
+    Scheduler.get_summary_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
+  end
 end
