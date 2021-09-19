@@ -30,28 +30,28 @@
                 </div>
             <% end %>
             <div class="is-2" x-data="{
-                                tab_panel: 'tx',
+                                tab_panel: '<%= @tab_panel %>',
                                 show_content: true,
                                 data_section: 'code',
+                                operation_section: 'transaction_movements'
                                 }" >
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
                 <div class="tabs is-fullwidth"  >
                     <ul>
-                        <li class="<%= if @tab_panel == "tx", do: "is-active" %>"
-                        phx-value-tab_panel="tx"
-                        phx-click="switch_tab"><a>Overview</a></li>
+                        <li @click="tab_panel='tx' "
+                        :class="tab_panel == 'tx' ? 'is-active' : '' "><a>Overview</a></li>
 
-                        <li class="<%= if @tab_panel == "inputs", do: "is-active" %>"
-                        phx-value-tab_panel="inputs"
-                        phx-click="switch_tab"><a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
+                        <li @click="tab_panel='inputs' "
+                        :class="tab_panel == 'inputs' ? 'is-active' : '' ">
+                        <a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
 
-                        <li class="<%= if @tab_panel == "calls", do: "is-active" %>"
-                        phx-value-tab_panel="calls"
-                        phx-click="switch_tab"><a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
+                        <li @click="tab_panel='calls' "
+                        :class="tab_panel == 'calls' ? 'is-active' : '' ">
+                        <a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
                     </ul>
                 </div>
-                <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>">
 
+                <div :class=" tab_panel == 'tx' ? '' : 'is-hidden' ">
                     <%= if assigns[:error] != nil and @error == :not_exists do %>
                         <p>The transaction does not exists yet. </p>
                         <hr />
@@ -284,22 +284,26 @@
                                         <p class="menu-label">Ledger Operations</p>
                                         <ul class="menu-list">
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_movements" class="<%= if @operation_section == "transaction_movements", do: "is-active" %>">
+                                                <a @click="operation_section = 'transaction_movements' "
+                                                :class="operation_section == 'transaction_movements' ? 'is-active' : '' ">
                                                     Transaction movements
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="node_movements" class="<%= if @operation_section == "node_movements", do: "is-active" %>">
+                                               <a @click="operation_section = 'node_movements' "
+                                                :class="operation_section == 'node_movements' ? 'is-active' : '' ">
                                                     Node movements
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="unspent_outputs" class="<%= if @operation_section == "unspent_outputs", do: "is-active" %>">
+                                                <a @click="operation_section = 'unspent_outputs' "
+                                                :class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
                                                     Unspent outputs
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_fee" class="<%= if @operation_section == "transaction_fee", do: "is-active" %>">
+                                                <a @click="operation_section = 'transaction_fee' "
+                                                :class="operation_section == 'transaction_fee' ? 'is-active' : '' ">
                                                     Transaction fee
                                                 </a>
                                             </li>
@@ -307,7 +311,7 @@
                                     </div>
                                 </div>
                                 <div class="column is-10-desktop">
-                                    <%= if @operation_section == "transaction_movements" do %>
+                                    <div x-show="operation_section == 'transaction_movements' ">
                                         <p class="heading mb-4">Transaction movements (resolved addresses)</p>
                                         <%= if Enum.count(@transaction.validation_stamp.ledger_operations.transaction_movements) == 0 do %>
                                             N/A
@@ -341,9 +345,9 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "node_movements" do %>
+                                    <div x-show="operation_section == 'node_movements' ">
                                         <p class="heading mb-4">Node movements</p>
                                         <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
                                         <div class="box">
@@ -364,9 +368,9 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "unspent_outputs" do %>
+                                   <div x-show="operation_section == 'unspent_outputs' ">
                                         <p class="heading mb-4">Unspent outputs</p>
                                         <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
                                         <div class="box">
@@ -396,15 +400,15 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "transaction_fee" do %>
+                                    <div x-show="operation_section == 'transaction_fee' ">
                                         <p class="heading mb-4">Transaction fee</p>
                                         <p>
                                             <%= @transaction.validation_stamp.ledger_operations.fee %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                         </p>
-                                    <% end %>
+                                    </div>
                                 </div>
                             </div>
 
@@ -460,8 +464,7 @@
 
                 </div>
 
-            <!--    <div :class=" tab_panel == 'inputs' ? 'is-hidden' : '' "> -->
-                 <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
+                <div :class=" tab_panel == 'inputs' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@inputs) > 0 do %>
 
                       <%= for input <- @inputs do %>
@@ -524,7 +527,7 @@
                                                 <% end %>
                                              <% {:NFT, nft_address} -> %>
                                                 <div class="columns">
-                                                  <div class="column is-2-desktop"><span class="tag" is-success is-light">NFT</span></div>
+                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                                   <div class="column is-4-desktop">
                                                     <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                         <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
@@ -548,8 +551,7 @@
                     <% end %>
                 </div>
 
-                <!-- <div :class=" tab_panel == 'calls' ? 'is-hidden' : '' "> -->
-                 <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>"
+                <div :class=" tab_panel == 'calls' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@calls) > 0 do %>
                         <%= for call <- @calls do %>
                           <div class="box">

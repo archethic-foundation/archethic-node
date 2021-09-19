@@ -19,9 +19,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
        exists: false,
        previous_address: nil,
        transaction: nil,
-       hide_content: true,
        tab_panel: "tx",
-      #  data_section: "code",
        operation_section: "transaction_movements"
      })}
   end
@@ -44,26 +42,6 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
   def handle_event("switch_tab", %{"tab_panel" => tab_panel}, socket) do
     {:noreply, assign(socket, :tab_panel, tab_panel)}
   end
-
-  def handle_event("switch_data", %{"data_section" => data_section}, socket) do
-    {:noreply, assign(socket, :data_section, data_section)}
-  end
-
-  def handle_event(
-        "switch_ledger_operations",
-        %{"operation_section" => operation_section},
-        socket
-      ) do
-    {:noreply, assign(socket, :operation_section, operation_section)}
-  end
-
-  # def handle_event("hide_content", _value, socket = %{assigns: %{hide_content: false}}) do
-  #   {:noreply, assign(socket, :hide_content, true)}
-  # end
-
-  # def handle_event("show_content", _value, socket = %{assigns: %{hide_content: true}}) do
-  #   {:noreply, assign(socket, :hide_content, false)}
-  # end
 
   def handle_info({:new_transaction, address}, socket) do
     {:ok, tx} = get_transaction(address, %{})
