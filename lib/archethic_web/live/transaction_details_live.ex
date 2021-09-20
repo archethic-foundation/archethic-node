@@ -18,9 +18,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
      assign(socket, %{
        exists: false,
        previous_address: nil,
-       transaction: nil,
-       tab_panel: "tx",
-       operation_section: "transaction_movements"
+       transaction: nil
      })}
   end
 
@@ -72,7 +70,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
 
   defp handle_transaction(
          socket,
-         tx = %Transaction{address: address, data: %TransactionData{content: content}}
+         tx = %Transaction{address: address, data: %TransactionData{content: _content}}
        ) do
     balance = ArchEthic.get_balance(address)
     previous_address = Transaction.previous_address(tx)
@@ -88,7 +86,6 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
     |> assign(:inputs, ledger_inputs)
     |> assign(:calls, contract_inputs)
     |> assign(:address, address)
-    |> assign(:hide_content, byte_size(content) > 1000)
   end
 
   def handle_not_existing_transaction(socket, address) do
