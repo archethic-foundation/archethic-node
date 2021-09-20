@@ -39,10 +39,6 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
     end
   end
 
-  def handle_event("switch_tab", %{"tab_panel" => tab_panel}, socket) do
-    {:noreply, assign(socket, :tab_panel, tab_panel)}
-  end
-
   def handle_info({:new_transaction, address}, socket) do
     {:ok, tx} = get_transaction(address, %{})
 
