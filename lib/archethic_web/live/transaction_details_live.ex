@@ -9,7 +9,6 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
   alias ArchEthic.PubSub
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
 
   alias ArchEthicWeb.ExplorerView
 
@@ -70,7 +69,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
 
   defp handle_transaction(
          socket,
-         tx = %Transaction{address: address, data: %TransactionData{content: _content}}
+         tx = %Transaction{address: address}
        ) do
     balance = ArchEthic.get_balance(address)
     previous_address = Transaction.previous_address(tx)
