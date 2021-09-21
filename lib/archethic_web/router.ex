@@ -26,6 +26,11 @@ defmodule ArchEthicWeb.Router do
     get("/up", UpController, :up)
     get("/metrics", MetricsController, :index)
     live_dashboard("/dashboard", metrics: ArchEthic.Telemetry)
+
+    if Mix.env() in [:dev, :test] or System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do
+      get("/faucet", FaucetController, :index)
+      post("/faucet", FaucetController, :create_transfer)
+    end
   end
 
   scope "/explorer", ArchEthicWeb do

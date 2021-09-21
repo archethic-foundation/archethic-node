@@ -13,25 +13,29 @@
     <div class="container is-fluid">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-            <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
-              ArchEthic
-            </a>
-            <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
+          <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
+            ArchEthic
+          </a>
+          <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
             <span aria-hidden="true"></span>
-            </a>
+          </a>
         </div>
-
         <div id="navbar" class="navbar-menu">
             <div class="navbar-end">
-    <!--
-          TODO: implement the listing of transactions through BeaconChain
-
-              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
-                 Transactions
+            <%= if Mix.env() in [:dev, :test] or System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do %>
+              <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
+                Faucet
               </a>
-  -->
+            <% end %>
+            <!--
+              TODO: implement the listing of transactions through BeaconChain
+
+                  <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
+                     Transactions
+                  </a>
+              -->
             <div class="navbar-item has-dropdown is-hoverable" >
               <a class="navbar-link" href="<%= Routes.explorer_path(@conn, :chain) %>">Chains</a>
               <div class="navbar-dropdown is-boxed">
@@ -43,33 +47,33 @@
                 </a>
               </div>
             </div>
-
             <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NodeListLive) %>">
-                Nodes
+              Nodes
             </a>
-
             <div class="navbar-item has-dropdown is-hoverable">
-                <a class="navbar-link">
+              <a class="navbar-link">
                 Governance
-                </a>
-                <div class="navbar-dropdown is-boxed">
+              </a>
+              <div class="navbar-dropdown is-boxed">
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeViewerLive) %>">
-                    Code Viewer
+                  Code Viewer
                 </a>
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeProposalsLive) %>">
-                    Code Proposals
+                  Code Proposals
                 </a>
-                </div>
+              </div>
             </div>
-
             <a class="navbar-item" href="https://archethic-foundation.github.io/archethic-docs/" target="_blank">
-                Docs
+              Docs
             </a>
+          </div>
         </div>
-    </nav>
-    <main class="pt-6">
-      <%= @inner_content %>
-    </main>
+      </nav>
+      <main class="pt-6">
+        <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
+        <p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
+        <%= @inner_content %>
+      </main>
     </div>
     <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </body>

@@ -58,8 +58,17 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
           case: :mixed
         ),
       amount: 2.2e8
-    }
-  ]
+    },
+    if(System.get_env("ARCHETHIC_NETWORK_TYPE", "mainnet") == "testnet",
+        do: %{
+          address:
+            "00EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
+            |> Base.decode16!(case: :mixed),
+          amount: 1.0e7
+        }
+      )
+    ]
+    |> Enum.filter(& &1)
 
 config :archethic, ArchEthic.Bootstrap.Sync,
   # 15 days

@@ -1,5 +1,6 @@
 import Config
 
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 config :archethic,
        :mut_dir,
        System.get_env(
@@ -36,13 +37,9 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
     %{
       address:
-        System.get_env(
-          "ARCHETHIC_TESTNET_GENESIS_ADDRESS",
-          "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
-        )
+        "00EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
         |> Base.decode16!(case: :mixed),
-      amount:
-        System.get_env("ARCHETHIC_TESTNET_GENESIS_AMOUNT", "10000000") |> Float.parse() |> elem(0)
+      amount: "10000000" |> Float.parse() |> elem(0)
     }
   ]
 
