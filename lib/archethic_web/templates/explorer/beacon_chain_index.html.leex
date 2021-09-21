@@ -26,7 +26,11 @@
     <div class="column">
       <div class="box">
       <%= if Enum.count(@dates)!= 0  do %>
-        <p class="heading is-size-6">Transactions for <%=  format_date(Enum.at(@dates, @current_date_page - 1)) %></p>
+        <p class="heading is-size-6">Transaction chain for <%=  format_date(Enum.at(@dates, @current_date_page - 1)) %></p>
+        <%else %>
+          <p class="heading is-size-6">Transaction chain for <%=  format_date(@next_summary_time) %></p>
+
+          <p> There is no transaction yet</p>
       <% end %>
         <div class="columns mt-6">
           <div class="column">
