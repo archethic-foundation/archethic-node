@@ -110,11 +110,6 @@ config :archethic, ArchEthic.OracleChain,
 config :archethic, ArchEthic.OracleChain.Services.UCOPrice,
   provider: ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko
 
-config :archethic, ArchEthicWeb.FaucetController,
-  seed:
-    "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
-    |> Base.decode16!(case: :mixed)
-
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{Mix.env()}.exs"
