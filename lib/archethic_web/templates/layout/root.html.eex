@@ -24,7 +24,7 @@
         </div>
         <div id="navbar" class="navbar-menu">
           <div class="navbar-end">
-            <%= if Mix.env() in [:dev, :test] or System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do %>
+            <%= if faucet?() do %>
               <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
                 Faucet
               </a>

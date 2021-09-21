@@ -1,5 +1,6 @@
 defmodule ArchEthicWeb.FaucetController do
   @moduledoc false
+  @pool_seed Application.get_env(:archethic, __MODULE__)[:seed]
 
   alias ArchEthic.TransactionChain.{
     Transaction,
@@ -21,27 +22,31 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    case transfer(address, Crypto.default_curve()) do
-      :ok ->
-        conn
-        |> put_flash(:info, "Transferred successfully")
-        |> redirect(to: "/faucet")
-
+    with {:ok, address} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_hash?(address),
+         :ok <- transfer(address) do
+      conn
+      |> put_flash(:info, "Transferred successfully")
+      |> redirect(to: "/faucet")
+    else
       {:error, _} ->
         conn
         |> put_flash(:error, "Unable to transfer")
+        |> render("index.html", address: address)
+
+      _ ->
+        conn
+        |> put_flash(:error, "Malformed address")
         |> render("index.html", address: address)
     end
   end
 
   defp transfer(
          address,
-         curve
+         curve \\ Crypto.default_curve()
        )
        when is_bitstring(address) do
-    gen_seed = Application.get_env(:archethic, __MODULE__)[:seed]
-
-    {gen_pub, _} = Crypto.derive_keypair(gen_seed, 0, curve)
+    {gen_pub, _} = Crypto.derive_keypair(@pool_seed, 0, curve)
 
     pool_gen_address = Crypto.hash(gen_pub)
 
@@ -64,14 +69,14 @@ defmodule ArchEthicWeb.FaucetController do
           uco: %UCOLedger{
             transfers: [
               %UCOLedger.Transfer{
-                to: Base.decode16!(address, case: :mixed),
+                to: address,
                 amount: 100.0
               }
             ]
           }
         }
       },
-      gen_seed,
+      @pool_seed,
       last_index,
       curve
     )

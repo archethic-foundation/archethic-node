@@ -50,7 +50,7 @@
                         <p>The transaction does not exists yet. </p>
                         <hr />
                         <div class="mt-4 box has-background-warning-light">
-                            <small>It may appears later. <br />Please retry when the transaction will be processed.</small>
+                            <small>It may appear later. <br />Please retry when the transaction will be processed.</small>
                         </div>
                     <% else %>
                         <div>
@@ -458,7 +458,7 @@
 
                 <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
                     <%= if Enum.count(@inputs) > 0 do %>
-                        
+
                       <%= for input <- @inputs do %>
                                 <div class="box">
                                   <div class="columns">
@@ -483,7 +483,7 @@
                                       <div class="columns">
                                          <div class="column"><%= format_date(input.timestamp) %></div>
                                       </div>
-                                    </div>	 
+                                    </div>
                                     <div class="column">
                                       <div class="columns">
                                          <div class="column heading">From</div>

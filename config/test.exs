@@ -125,6 +125,8 @@ config :archethic, ArchEthic.TransactionChain.MemTables.PendingLedger, enabled: 
 config :archethic, ArchEthic.TransactionChain.MemTables.KOLedger, enabled: false
 config :archethic, ArchEthic.TransactionChain.MemTablesLoader, enabled: false
 
+config :archethic, faucet: true
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :archethic, ArchEthicWeb.Endpoint,
