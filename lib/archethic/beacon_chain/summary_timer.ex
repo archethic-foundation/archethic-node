@@ -4,10 +4,11 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
   """
 
   use GenServer
-
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker
   alias Crontab.Scheduler, as: CronScheduler
+  alias ArchEthic.PubSub
+  alias ArchEthic.Utils
 
   @doc """
   Create a new summary timer
@@ -78,7 +79,7 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
     interval = Keyword.get(opts, :interval)
     :ets.new(:archethic_summary_timer, [:named_table, :public, read_concurrency: true])
     :ets.insert(:archethic_summary_timer, {:interval, interval})
-
+    schedule_next_summary_time(interval)
     {:ok, %{interval: interval}, :hibernate}
   end
 
@@ -96,6 +97,24 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
         :ets.insert(:archethic_summary_timer, {:interval, new_interval})
         {:noreply, Map.put(state, :interval, new_interval)}
     end
+  end
+
+  def handle_info(
+        :next_summary_time,
+        state = %{
+          interval: interval
+        }
+      ) do
+    timer = schedule_next_summary_time(interval)
+
+    slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
+
+    PubSub.notify_next_summary_time(next_summary(slot_time))
+    {:noreply, Map.put(state, :timer, timer), :hibernate}
+  end
+
+  defp schedule_next_summary_time(interval) do
+    Process.send_after(self(), :next_summary_time, Utils.time_offset(interval) * 1000)
   end
 
   def config_change(nil), do: :ok

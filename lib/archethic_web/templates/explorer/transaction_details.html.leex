@@ -15,9 +15,7 @@
                 <small>Please check the transaction address validity.</small>
             </div>
         <% else %>
-
             <%= if assigns[:error] == nil do %>
-
                 <div class="columns">
                     <div class="column is-2-desktop">
                         <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
@@ -30,22 +28,30 @@
                         <% end %>
                     </div>
                 </div>
-
             <% end %>
-
-            <div class="is-2">
+            <div class="is-2" x-data="{
+                                tab_panel: 'tx',
+                                show_content: true,
+                                data_section: 'code',
+                                operation_section: 'transaction_movements'
+                                }" >
                 <h1 class="subtitle is-size-4 heading has-text-white">Transaction - <small><%= Base.encode16(@address) %></small></h1>
-
-                <div class="tabs is-fullwidth">
+                <div class="tabs is-fullwidth"  >
                     <ul>
-                        <li class="<%= if @tab_panel == "tx", do: "is-active" %>" phx-value-tab_panel="tx" phx-click="switch_tab"><a>Overview</a></li>
-                        <li class="<%= if @tab_panel == "inputs", do: "is-active" %>" phx-value-tab_panel="inputs" phx-click="switch_tab"><a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
-                        <li class="<%= if @tab_panel == "calls", do: "is-active" %>" phx-value-tab_panel="calls" phx-click="switch_tab"><a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
+                        <li @click="tab_panel='tx' "
+                        :class="tab_panel == 'tx' ? 'is-active' : '' "><a>Overview</a></li>
+
+                        <li @click="tab_panel='inputs' "
+                        :class="tab_panel == 'inputs' ? 'is-active' : '' ">
+                        <a>Ledger Inputs (<%= Enum.count(@inputs) %>)</a></li>
+
+                        <li @click="tab_panel='calls' "
+                        :class="tab_panel == 'calls' ? 'is-active' : '' ">
+                        <a>Contract Inputs (<%= Enum.count(@calls) %>)</a></li>
                     </ul>
                 </div>
 
-                <div class="<%= unless @tab_panel == "tx", do: "is-hidden" %>">
-
+                <div :class=" tab_panel == 'tx' ? '' : 'is-hidden' ">
                     <%= if assigns[:error] != nil and @error == :not_exists do %>
                         <p>The transaction does not exists yet. </p>
                         <hr />
@@ -64,78 +70,79 @@
                                     <%= format_date(@transaction.validation_stamp.timestamp) %>
                                 </div>
                             </div>
-
-                            <div class="columns mt-4">
+                            <div class="columns mt-4" >
                                 <div class="column is-2-desktop">
                                     <div class="menu">
                                         <p class="menu-label">Data</p>
                                         <ul class="menu-list">
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="code" class="<%= if @data_section == "code", do: "is-active" %>">
-                                                    Code
-                                                </a>
+                                                <a :class="data_section == 'code' ? 'is-active' : '' "
+                                                @click="data_section='code' ">
+                                                Code</a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="content" class="<%= if @data_section == "content", do: "is-active" %>">
-                                                    Content
+                                                <a :class="data_section == 'content' ? 'is-active' : '' "
+                                                @click="data_section='content'">
+                                                Content
                                                 </a>
                                             </li>
                                             <p class="menu-label">Ledger</p>
                                             <li>
                                                 <ul class="menu-list">
                                                     <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="uco_ledger" class="<%= if @data_section == "uco_ledger", do: "is-active" %>">
+                                                        <a @click="data_section='uco_ledger'"
+                                                        :class="data_section == 'uco_ledger' ? 'is-active' : '' ">
                                                             UCO
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a phx-click="switch_data" phx-value-data_section="nft_ledger" class="<%= if @data_section == "nft_ledger", do: "is-active" %>">
+                                                        <a @click="data_section='nft_ledger'"
+                                                        :class="data_section == 'nft_ledger' ? 'is-active' : '' ">
                                                             NFT
                                                         </a>
                                                     </li>
                                                 </ul>
                                             </li>
                                             <li>
-                                               <a phx-click="switch_data" phx-value-data_section="keys" class="<%= if @data_section == "keys", do: "is-active" %>">Keys</a>
+                                                <a @click="data_section='keys'"
+                                                :class="data_section == 'keys' ? 'is-active' : '' ">
+                                                    Keys
+                                                </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_data" phx-value-data_section="recipients" class="<%= if @data_section == "recipients", do: "is-active" %>">
+                                                <a @click="data_section='recipients'"
+                                                :class="data_section == 'recipients' ? 'is-active' : '' ">
                                                     Contract recipients
                                                 </a>
                                             </li>
                                         </ul>
                                     </div>
                                 </div>
-                                <div class="column is-10-desktop">
-                                    <%= if @data_section == "code" do %>
+                                <div class="column is-10-desktop" >
+                                    <div x-show="data_section=='code' ">
                                         <p class="heading">Smart Contract code</p>
                                         <%= if byte_size(@transaction.data.code) == 0 do %>
                                             N/A
                                         <% else %>
                                             <pre><%= @transaction.data.code %></pre>
                                         <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "content" do %>
-                                        <p class="heading">Content
+                                    </div>
+                                    <div x-show="data_section=='content' ">
+                                        <p class="heading" >Content
                                             <span class="tag is-info is-light">
                                                 <%= format_bytes(byte_size(@transaction.data.content)) %>
                                             </span>
-                                            <%= if @hide_content do %>
-                                                <a phx-click="show_content">Show</a>
-                                            <% else %>
-                                                <a phx-click="hide_content">Hide</a>
-                                            <% end %>
+                                            <a @click="show_content = !show_content"
+                                            x-text="show_content ? 'Hide' : 'Show'"></a>
                                         </p>
                                         <%= if byte_size(@transaction.data.content) == 0 do %>
                                             N/A
                                         <% end %>
-                                        <%= unless @hide_content do %>
+                                        <div x-show="show_content">
                                             <pre><%= format_transaction_content(@transaction.type, @transaction.data.content) %></pre>
-                                        <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "uco_ledger" do %>
+                                        </div>
+                                    </div>
+                                    <div x-show=" data_section=='uco_ledger' ">
                                         <p class="heading mb-4">UCO Ledger</p>
                                         <%= if Enum.count(@transaction.data.ledger.uco.transfers) == 0 do %>
                                             N/A
@@ -158,9 +165,8 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "nft_ledger" do %>
+                                    </div>
+                                    <div x-show="data_section=='nft_ledger' ">
                                         <p class="heading mb-4">NFT Ledger</p>
                                         <%= if Enum.count(@transaction.data.ledger.nft.transfers) == 0 do %>
                                             N/A
@@ -189,34 +195,32 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "keys" do %>
+                                    </div>
+                                    <div x-show="data_section=='keys' ">
                                         <p class="heading mb-4">Keys and Secrets</p>
                                         <%= for { secret, index } <- Enum.with_index(@transaction.data.keys.secrets) do %>
-                                          <div class="box">
-                                            <div class="columns">
-                                              <div class="column">
-                                                <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
-                                              </div>
+                                            <div class="box">
+                                                <div class="columns">
+                                                <div class="column">
+                                                    <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
+                                                </div>
+                                                </div>
+                                                <div class="columns">
+                                                <div class="column">
+                                                    <p class="heading">Authorized keys</p>
+                                                </div>
+                                                </div>
+                                                <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
+                                                <div class="columns">
+                                                    <div class="column">
+                                                        <span class="text_wrap"><%= Base.encode16(key) %></span>
+                                                    </div>
+                                                </div>
+                                                <% end %>
                                             </div>
-                                            <div class="columns">
-                                              <div class="column">
-                                                <p class="heading">Authorized keys</p>
-                                              </div>
-                                            </div>
-                                            <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
-                                              <div class="columns">
-                                                  <div class="column">
-                                                      <span class="text_wrap"><%= Base.encode16(key) %></span>
-                                                  </div>
-                                              </div>
-                                            <% end %>
-                                        </div>
                                         <% end %>
-                                    <% end %>
-
-                                    <%= if @data_section == "recipients" do %>
+                                    </div>
+                                    <div x-show="data_section=='recipients' ">
                                         <p class="heading">Recipients addresses</p>
                                         <%= if Enum.count(@transaction.data.recipients) == 0 do %>
                                             N/A
@@ -232,7 +236,7 @@
                                                 </div>
                                             </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
                                 </div>
                             </div>
 
@@ -280,22 +284,26 @@
                                         <p class="menu-label">Ledger Operations</p>
                                         <ul class="menu-list">
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_movements" class="<%= if @operation_section == "transaction_movements", do: "is-active" %>">
+                                                <a @click="operation_section = 'transaction_movements' "
+                                                :class="operation_section == 'transaction_movements' ? 'is-active' : '' ">
                                                     Transaction movements
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="node_movements" class="<%= if @operation_section == "node_movements", do: "is-active" %>">
+                                               <a @click="operation_section = 'node_movements' "
+                                                :class="operation_section == 'node_movements' ? 'is-active' : '' ">
                                                     Node movements
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="unspent_outputs" class="<%= if @operation_section == "unspent_outputs", do: "is-active" %>">
+                                                <a @click="operation_section = 'unspent_outputs' "
+                                                :class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
                                                     Unspent outputs
                                                 </a>
                                             </li>
                                             <li>
-                                                <a phx-click="switch_ledger_operations" phx-value-operation_section="transaction_fee" class="<%= if @operation_section == "transaction_fee", do: "is-active" %>">
+                                                <a @click="operation_section = 'transaction_fee' "
+                                                :class="operation_section == 'transaction_fee' ? 'is-active' : '' ">
                                                     Transaction fee
                                                 </a>
                                             </li>
@@ -303,7 +311,7 @@
                                     </div>
                                 </div>
                                 <div class="column is-10-desktop">
-                                    <%= if @operation_section == "transaction_movements" do %>
+                                    <div x-show="operation_section == 'transaction_movements' ">
                                         <p class="heading mb-4">Transaction movements (resolved addresses)</p>
                                         <%= if Enum.count(@transaction.validation_stamp.ledger_operations.transaction_movements) == 0 do %>
                                             N/A
@@ -337,9 +345,9 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "node_movements" do %>
+                                    <div x-show="operation_section == 'node_movements' ">
                                         <p class="heading mb-4">Node movements</p>
                                         <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
                                         <div class="box">
@@ -360,9 +368,9 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "unspent_outputs" do %>
+                                   <div x-show="operation_section == 'unspent_outputs' ">
                                         <p class="heading mb-4">Unspent outputs</p>
                                         <%= for unspent_output <- @transaction.validation_stamp.ledger_operations.unspent_outputs do %>
                                         <div class="box">
@@ -392,15 +400,15 @@
                                             </div>
                                         </div>
                                         <% end %>
-                                    <% end %>
+                                    </div>
 
-                                    <%= if @operation_section == "transaction_fee" do %>
+                                    <div x-show="operation_section == 'transaction_fee' ">
                                         <p class="heading mb-4">Transaction fee</p>
                                         <p>
                                             <%= @transaction.validation_stamp.ledger_operations.fee %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                         </p>
-                                    <% end %>
+                                    </div>
                                 </div>
                             </div>
 
@@ -456,7 +464,7 @@
 
                 </div>
 
-                <div class="<%= unless @tab_panel == "inputs", do: "is-hidden" %>">
+                <div :class=" tab_panel == 'inputs' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@inputs) > 0 do %>
 
                       <%= for input <- @inputs do %>
@@ -519,7 +527,7 @@
                                                 <% end %>
                                              <% {:NFT, nft_address} -> %>
                                                 <div class="columns">
-                                                  <div class="column is-2-desktop"><span class="tag" is-success is-light">NFT</span></div>
+                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                                   <div class="column is-4-desktop">
                                                     <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                         <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
@@ -543,7 +551,7 @@
                     <% end %>
                 </div>
 
-                 <div class="<%= unless @tab_panel == "calls", do: "is-hidden" %>">
+                <div :class=" tab_panel == 'calls' ? '' : 'is-hidden' ">
                     <%= if Enum.count(@calls) > 0 do %>
                         <%= for call <- @calls do %>
                           <div class="box">
