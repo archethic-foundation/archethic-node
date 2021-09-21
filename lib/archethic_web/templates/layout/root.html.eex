@@ -23,7 +23,7 @@
           </a>
         </div>
         <div id="navbar" class="navbar-menu">
-          <div class="navbar-end">
+            <div class="navbar-end">
             <%= if Mix.env() in [:dev, :test] or System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet" do %>
               <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
                 Faucet
@@ -41,6 +41,9 @@
               <div class="navbar-dropdown is-boxed">
                 <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.OracleChainLive) %>">
                   Oracle
+                </a>
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.BeaconChainLive) %>">
+                  Beacon
                 </a>
               </div>
             </div>

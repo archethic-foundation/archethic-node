@@ -68,6 +68,13 @@ defmodule ArchEthic.PubSub do
   end
 
   @doc """
+  Notify next summary time beacon chain to the subscribers
+  """
+  def notify_next_summary_time(date = %DateTime{}) do
+    dispatch(:next_summary_time, {:next_summary_time, date})
+  end
+
+  @doc """
   Register a process to a new transaction publication by type
   """
   @spec register_to_new_transaction_by_type(Transaction.transaction_type()) :: {:ok, pid()}
@@ -129,6 +136,14 @@ defmodule ArchEthic.PubSub do
   @spec register_to_new_transaction_number :: {:ok, pid()}
   def register_to_new_transaction_number do
     Registry.register(PubSubRegistry, :new_transaction_number, [])
+  end
+
+  @doc """
+  Register a process to sent next summary time of beacon summary
+  """
+  @spec register_to_next_summary_time :: {:ok, pid()}
+  def register_to_next_summary_time do
+    Registry.register(PubSubRegistry, :next_summary_time, [])
   end
 
   @doc """
