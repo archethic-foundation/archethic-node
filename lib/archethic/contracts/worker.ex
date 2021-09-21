@@ -172,7 +172,7 @@ defmodule ArchEthic.Contracts.Worker do
   end
 
   def handle_info(
-        {:new_transaction, tx_address, :oracle},
+        {:new_transaction, tx_address, :oracle, _timestamp},
         state = %{
           contract:
             contract = %Contract{

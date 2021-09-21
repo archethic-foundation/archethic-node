@@ -68,14 +68,22 @@ defmodule ArchEthicWeb.BeaconChainLive do
   def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
     case Integer.parse(page) do
       {number, ""} when number > 0 and is_list(dates) ->
-        transactions = list_transaction_by_date(Enum.at(dates, number - 1))
+        if number > length(dates) do
+          {:noreply,
+           push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
+        else
+          transactions =
+            dates
+            |> Enum.at(number - 1)
+            |> list_transaction_by_date()
 
-        new_assign =
-          socket
-          |> assign(:current_date_page, number)
-          |> assign(:transactions, transactions)
+          new_assign =
+            socket
+            |> assign(:current_date_page, number)
+            |> assign(:transactions, transactions)
 
-        {:noreply, new_assign}
+          {:noreply, new_assign}
+        end
 
       _ ->
         {:noreply, socket}
@@ -89,7 +97,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   @spec handle_event(<<_::32>>, map, Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("goto", %{"page" => page}, socket) do
-    {:noreply, push_patch(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+    {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
   def handle_info(
