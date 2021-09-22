@@ -7,7 +7,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.NotFound
 
   alias ArchEthic.Replication
 
@@ -51,7 +50,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   @spec download_transaction(TransactionSummary.t(), patch :: binary()) ::
           :ok | {:error, :invalid_transaction}
   def download_transaction(
-        %TransactionSummary{address: address, type: type, timestamp: timestamp},
+        %TransactionSummary{address: address, type: type, timestamp: _timestamp},
         node_patch
       )
       when is_binary(node_patch) do
@@ -61,20 +60,12 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
     )
 
     storage_nodes =
-      case P2P.authorized_nodes(timestamp) do
-        [] ->
-          Replication.chain_storage_nodes_with_type(address, type)
-
-        nodes ->
-          Replication.chain_storage_nodes_with_type(address, type, nodes)
-      end
-
-    response =
-      storage_nodes
+      address
+      |> Replication.chain_storage_nodes_with_type(type)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-      |> P2P.reply_first(%GetTransaction{address: address})
+      |> P2P.nearest_nodes()
 
-    case response do
+    case fetch_transaction(storage_nodes, address) do
       {:ok, tx = %Transaction{}} ->
         node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
 
@@ -94,17 +85,25 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
         Replication.process_transaction(tx, roles, self_repair?: true)
 
-      {:ok, %NotFound{}} ->
-        Logger.error("Transaction not found from remote nodes during self repair",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
       {:error, :network_issue} ->
         Logger.error("Network issue during during self repair",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
     end
+  end
+
+  defp fetch_transaction([node | rest], address) do
+    case P2P.send_message(node, %GetTransaction{address: address}) do
+      {:ok, tx = %Transaction{}} ->
+        {:ok, tx}
+
+      _ ->
+        fetch_transaction(rest, address)
+    end
+  end
+
+  defp fetch_transaction([], _) do
+    {:error, :network_issue}
   end
 end
