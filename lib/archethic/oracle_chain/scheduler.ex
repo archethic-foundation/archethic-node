@@ -55,7 +55,8 @@ defmodule ArchEthic.OracleChain.Scheduler do
         state = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
     with ^first_public_key <- Crypto.first_node_public_key(),
-         nil <- Map.get(state, :polling_timer) do
+         nil <- Map.get(state, :polling_timer),
+         nil <- Map.get(state, :summary_timer) do
       polling_timer = schedule_new_polling(polling_interval)
       summary_timer = schedule_new_summary(summary_interval)
 
