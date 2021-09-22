@@ -33,10 +33,6 @@ defmodule ArchEthic.OracleChain.Scheduler do
     GenServer.start_link(__MODULE__, args, opts)
   end
 
-  def start_scheduling do
-    GenServer.cast(__MODULE__, :start_scheduling)
-  end
-
   def init(args) do
     polling_interval = Keyword.fetch!(args, :polling_interval)
     summary_interval = Keyword.fetch!(args, :summary_interval)
@@ -122,7 +118,14 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
     date = DateTime.utc_now() |> DateTime.truncate(:second)
 
-    if trigger_node?(date) do
+    # Because the time to schedule the transaction can variate in milliseconds,
+    # a node could have stored an OracleSummary transaction but still
+    # receiving a message to create a new summary transaction.
+    # And this would be valid because the second didn't finished yet.
+    # So to prevent an new oracle summary, we are fetching the last transaction on the chain.
+    # If it's not a oracle_summary, then we can propose the summary transaction
+    with true <- last_transaction_not_summary?(date),
+         true <- trigger_node?(date) do
       Task.Supervisor.start_child(TaskSupervisor, fn ->
         handle_new_summary(date)
       end)
@@ -210,6 +213,21 @@ defmodule ArchEthic.OracleChain.Scheduler do
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
     |> TransactionChain.size()
+  end
+
+  defp last_transaction_not_summary?(date = %DateTime{}) do
+    last_tx_address =
+      date
+      |> Crypto.derive_oracle_address(0)
+      |> TransactionChain.get_last_address()
+
+    case TransactionChain.get_transaction(last_tx_address, [:type]) do
+      {:ok, %Transaction{type: :oracle_summary}} ->
+        false
+
+      _ ->
+        true
+    end
   end
 
   defp get_oracle_data(address) do
