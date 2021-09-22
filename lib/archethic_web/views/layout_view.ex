@@ -3,6 +3,7 @@ defmodule ArchEthicWeb.LayoutView do
   use ArchEthicWeb, :view
 
   def faucet?() do
-    Application.get_env(:archethic, :faucet)
+    Application.get_env(:archethic, ArchEthicWeb.FaucetController)
+    |> Keyword.get(:enabled, false)
   end
 end

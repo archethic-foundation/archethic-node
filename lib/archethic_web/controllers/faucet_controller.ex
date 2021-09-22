@@ -1,6 +1,7 @@
 defmodule ArchEthicWeb.FaucetController do
   @moduledoc false
-  @pool_seed Application.get_env(:archethic, __MODULE__)[:seed]
+
+  use ArchEthicWeb, :controller
 
   alias ArchEthic.TransactionChain.{
     Transaction,
@@ -11,7 +12,7 @@ defmodule ArchEthicWeb.FaucetController do
 
   alias ArchEthic.Crypto
 
-  use ArchEthicWeb, :controller
+  @pool_seed Application.compile_env(:archethic, __MODULE__)[:seed]
 
   def index(conn, __params) do
     conn
@@ -27,7 +28,7 @@ defmodule ArchEthicWeb.FaucetController do
          :ok <- transfer(address) do
       conn
       |> put_flash(:info, "Transferred successfully")
-      |> redirect(to: "/faucet")
+      |> redirect(to: Routes.faucet_path(conn, :index))
     else
       {:error, _} ->
         conn

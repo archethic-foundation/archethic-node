@@ -113,7 +113,7 @@ config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
 config :archethic, ArchEthic.P2P.Endpoint,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
-config :archethic, faucet: true
+config :archethic, ArchEthicWeb.FaucetController, enabled: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

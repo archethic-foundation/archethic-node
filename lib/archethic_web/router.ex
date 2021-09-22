@@ -27,7 +27,8 @@ defmodule ArchEthicWeb.Router do
     get("/metrics", MetricsController, :index)
     live_dashboard("/dashboard", metrics: ArchEthic.Telemetry)
 
-    if Application.get_env(:archethic, :faucet) do
+    if Application.get_env(:archethic, ArchEthicWeb.FaucetController)
+       |> Keyword.get(:enabled, false) do
       get("/faucet", FaucetController, :index)
       post("/faucet", FaucetController, :create_transfer)
     end
