@@ -1,0 +1,25 @@
+<div class="hero is-medium is-bold is-large explorer-main">
+<div class="hero-body">
+  <div class="container">
+
+    <h1 class="title main_title">ArchEthic Faucet</h1>
+    <h2 class="subtitle main_subtitle">
+      <div class="columns">
+        <div class="column">
+          Discover the most decentralized and unlimited P2P network
+        </div>
+      </div>
+      <form class="columns" action="<%= Routes.faucet_path(@conn, :create_transfer) %>" method="post">
+        <input type="hidden" name="_csrf_token" value="<%= Plug.CSRFProtection.get_csrf_token() %>">
+        <div class="column is-half-desktop">
+          <input class="input main_input" type="text" placeholder="Enter address" name="address" value="<%= @address %>" required>
+        </div>
+        <div class="column is-2-desktop">
+          <button type="submit" class="button is-fullwidth is-light is-outlined">
+            Transfer fund
+          </button>
+        </div>
+      </form>
+    </h2>
+  </div>
+</div>

@@ -9,57 +9,67 @@ config :archethic, ArchEthic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
 config :archethic, ArchEthic.Bootstrap.NetworkInit,
-  genesis_pools: [
-    %{
-      address:
-        Base.decode16!("002CA95C90A4D75DEEC973D251F5B59CD8EBC787FEC265B9CAC1F6C56A8D9BFCCA",
-          case: :mixed
-        ),
-      amount: 3.82e9
-    },
-    %{
-      address:
-        Base.decode16!("00AD6EEC49FED0A936FEF4BD3301FF933FFFE9BA63BE2F6E948DFEC4C2D4543917",
-          case: :mixed
-        ),
-      amount: 2.36e9
-    },
-    %{
-      address:
-        Base.decode16!("00D23C33B9B75A272B1E8BCA6F252179A144E0A66A396CCF989C4A6D353CFF3849",
-          case: :mixed
-        ),
-      amount: 9.0e8
-    },
-    %{
-      address:
-        Base.decode16!("006FDE9B6EDF98E682561634B814A5FA2127B327D50AF38428AB06B447A4CF8345",
-          case: :mixed
-        ),
-      amount: 5.6e8
-    },
-    %{
-      address:
-        Base.decode16!("000F1DFC550CB0492C7BEA2DCFABC6F2E2378A5D1D8AA8B5058FC2F30B62DD5DDC",
-          case: :mixed
-        ),
-      amount: 3.4e8
-    },
-    %{
-      address:
-        Base.decode16!("006098E77BA4C675DA94F57091E73797BF2E11B3FAB20867101AB20FBE21ED862A",
-          case: :mixed
-        ),
-      amount: 3.4e8
-    },
-    %{
-      address:
-        Base.decode16!("009BD34BB544A9A71536806E52E9E9F4F41FF81751848FD0B1E0E465D2FB95C36C",
-          case: :mixed
-        ),
-      amount: 2.2e8
-    }
-  ]
+  genesis_pools:
+    [
+      %{
+        address:
+          Base.decode16!("002CA95C90A4D75DEEC973D251F5B59CD8EBC787FEC265B9CAC1F6C56A8D9BFCCA",
+            case: :mixed
+          ),
+        amount: 3.82e9
+      },
+      %{
+        address:
+          Base.decode16!("00AD6EEC49FED0A936FEF4BD3301FF933FFFE9BA63BE2F6E948DFEC4C2D4543917",
+            case: :mixed
+          ),
+        amount: 2.36e9
+      },
+      %{
+        address:
+          Base.decode16!("00D23C33B9B75A272B1E8BCA6F252179A144E0A66A396CCF989C4A6D353CFF3849",
+            case: :mixed
+          ),
+        amount: 9.0e8
+      },
+      %{
+        address:
+          Base.decode16!("006FDE9B6EDF98E682561634B814A5FA2127B327D50AF38428AB06B447A4CF8345",
+            case: :mixed
+          ),
+        amount: 5.6e8
+      },
+      %{
+        address:
+          Base.decode16!("000F1DFC550CB0492C7BEA2DCFABC6F2E2378A5D1D8AA8B5058FC2F30B62DD5DDC",
+            case: :mixed
+          ),
+        amount: 3.4e8
+      },
+      %{
+        address:
+          Base.decode16!("006098E77BA4C675DA94F57091E73797BF2E11B3FAB20867101AB20FBE21ED862A",
+            case: :mixed
+          ),
+        amount: 3.4e8
+      },
+      %{
+        address:
+          Base.decode16!("009BD34BB544A9A71536806E52E9E9F4F41FF81751848FD0B1E0E465D2FB95C36C",
+            case: :mixed
+          ),
+        amount: 2.2e8
+      },
+      if(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet",
+        do: %{
+          address:
+            "00EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
+            |> Base.decode16!(case: :mixed),
+          amount: 1.0e7
+        }
+      )
+    ]
+    |> Enum.filter(& &1)
 
 config :archethic, ArchEthic.Bootstrap.Sync,
   # 15 days
@@ -178,6 +188,9 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
+
+config :archethic, ArchEthicWeb.FaucetController,
+  enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
