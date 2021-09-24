@@ -433,7 +433,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                ledger: %{
                  uco: %{
                    transfers: [
-                     %{to: uco_to, amount: 10.2}
+                     %{to: uco_to, amount: 1_020_000_000}
                    ]
                  }
                },
@@ -458,7 +458,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                  "ledger" => %{
                    "uco" => %{
                      "transfers" => [
-                       %{"to" => Base.encode16(uco_to), "amount" => 10.2}
+                       %{"to" => Base.encode16(uco_to), "amount" => 1_020_000_000}
                      ]
                    }
                  },

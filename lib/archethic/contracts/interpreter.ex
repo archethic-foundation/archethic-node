@@ -71,10 +71,10 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>    ]
       ...>
       ...>    actions triggered_by: datetime, at: 1603270603 do
-      ...>      new_content = \"Sent #{10.04}\"
+      ...>      new_content = \"Sent #{1_040_000_000}\"
       ...>      set_type transfer
       ...>      set_content new_content
-      ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 10.04
+      ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 1_040_000_000
       ...>    end
       ...>
       ...>    actions triggered_by: oracle do
@@ -149,7 +149,7 @@ defmodule ArchEthic.Contracts.Interpreter do
            %Trigger{
              actions: {:__block__, [],
               [
-                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 10.04"]}]},
+                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 1040000000"]}]},
                 {
                   :=,
                   [line: 16],
@@ -171,7 +171,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 18],
                   [
                     {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 1040000000}]]}]}]}
                   ]
                 }
               ]},

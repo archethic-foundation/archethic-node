@@ -80,7 +80,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: [
-                %Transfer{to: "@Alice2", amount: 5_000.0}
+                %Transfer{to: "@Alice2", amount: 500_000_000_000}
               ]
             }
           }
@@ -89,8 +89,12 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
         0
       )
 
-    unspent_outputs = [%UnspentOutput{amount: 10_000, from: tx.address, type: :UCO}]
+    unspent_outputs = [%UnspentOutput{amount: 1_000_000_000_000, from: tx.address, type: :UCO}]
     tx = NetworkInit.self_validation(tx, unspent_outputs)
+
+    tx_fee = tx.validation_stamp.ledger_operations.fee
+    network_pool_burn = LedgerOperations.get_network_pool_reward(tx_fee)
+    unspent_output = 1_000_000_000_000 - (tx_fee + 500_000_000_000)
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
@@ -98,13 +102,17 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
                  transaction_movements: [
                    %TransactionMovement{
                      to: <<0::8, 0::256>>,
-                     amount: 0.5000003000000001,
+                     amount: ^network_pool_burn,
                      type: :UCO
                    },
-                   %TransactionMovement{to: "@Alice2", amount: 5_000.0, type: :UCO}
+                   %TransactionMovement{to: "@Alice2", amount: 500_000_000_000, type: :UCO}
                  ],
                  unspent_outputs: [
-                   %UnspentOutput{amount: 4994.999997, from: _, type: :UCO}
+                   %UnspentOutput{
+                     amount: ^unspent_output,
+                     from: _,
+                     type: :UCO
+                   }
                  ]
                }
              }
@@ -113,7 +121,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
     inputs = [
-      %UnspentOutput{amount: 4999.99, from: "genesis", type: :UCO}
+      %UnspentOutput{amount: 499_999_000_000, from: "genesis", type: :UCO}
     ]
 
     MockClient
@@ -259,6 +267,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
              match?(%{uco: ^amount}, Account.get_balance(address))
            end)
 
-    assert %{uco: 1.46e9} = Account.get_balance(SharedSecrets.get_network_pool_address())
+    assert %{uco: 146_000_000_000_000_000} =
+             Account.get_balance(SharedSecrets.get_network_pool_address())
   end
 end

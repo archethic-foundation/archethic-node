@@ -11,7 +11,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
 
   @type t() :: %__MODULE__{
           from: Crypto.versioned_hash(),
-          amount: float(),
+          amount: pos_integer(),
           spent?: boolean(),
           type: TransactionMovementType.t() | :call,
           timestamp: DateTime.t(),
@@ -26,7 +26,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       iex> %TransactionInput{
       ...>    from:  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       ...>       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
-      ...>    amount: 10.5,
+      ...>    amount: 1_050_000_000,
       ...>    type: :UCO,
       ...>    spent?: true,
       ...>    timestamp: ~U[2021-03-05 11:17:20Z]
@@ -43,7 +43,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       # Reward
       0::1,
       # Amount
-      64, 37, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 62, 149, 186, 128,
       # Input type (UCO)
       0,
       # timestamp
@@ -67,7 +67,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
         spend_bit = if spent?, do: 1, else: 0
         reward_bit = if reward?, do: 1, else: 0
 
-        <<from::binary, 1::1, spend_bit::1, reward_bit::1, amount::float,
+        <<from::binary, 1::1, spend_bit::1, reward_bit::1, amount::64,
           TransactionMovementType.serialize(type)::binary, DateTime.to_unix(timestamp)::32>>
     end
   end
@@ -80,7 +80,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       iex>  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       ...>  166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
       ...>  1::1, 1::1, 0::1,
-      ...>  64, 37, 0, 0, 0, 0, 0, 0,
+      ...>  0, 0, 0, 0, 62, 149, 186, 128,
       ...>  0,
       ...>  96, 66, 19, 64>>
       ...> |> TransactionInput.deserialize()
@@ -88,7 +88,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
         %TransactionInput{
           from:  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
             166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
-          amount: 10.5,
+          amount: 1_050_000_000,
           type: :UCO,
           spent?: true,
           reward?: false,
@@ -121,7 +121,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
         }
 
       1 ->
-        <<reward_bit::1, amount::float, rest::bitstring>> = rest
+        <<reward_bit::1, amount::64, rest::bitstring>> = rest
         reward? = if reward_bit == 1, do: true, else: false
 
         {movement_type, <<timestamp::32, rest::bitstring>>} =

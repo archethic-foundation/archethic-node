@@ -191,14 +191,14 @@ defmodule ArchEthic.P2P.MessageTest do
               244, 132, 44, 255, 222, 98, 76, 247, 125, 45, 170, 95, 51, 46, 229, 21, 32, 226, 99,
               16, 5, 107, 207, 32, 240, 23, 85, 219, 247>>,
           ledger_operations: %LedgerOperations{
-            fee: 0.01,
+            fee: 1_000_000,
             transaction_movements: [],
             node_movements: [
               %NodeMovement{
                 to:
                   <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99, 217,
                     105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-                amount: 0.01,
+                amount: 1_000_000,
                 roles: [:coordinator_node]
               }
             ],
@@ -284,14 +284,14 @@ defmodule ArchEthic.P2P.MessageTest do
                 114, 244, 132, 44, 255, 222, 98, 76, 247, 125, 45, 170, 95, 51, 46, 229, 21, 32,
                 226, 99, 16, 5, 107, 207, 32, 240, 23, 85, 219, 247>>,
             ledger_operations: %LedgerOperations{
-              fee: 0.01,
+              fee: 1_000_000,
               transaction_movements: [],
               node_movements: [
                 %NodeMovement{
                   to:
                     <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99,
                       217, 105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-                  amount: 0.01,
+                  amount: 1_000_000,
                   roles: [:coordinator_node]
                 }
               ],
@@ -454,7 +454,7 @@ defmodule ArchEthic.P2P.MessageTest do
                 <<0, 63, 70, 80, 109, 148, 124, 179, 105, 198, 92, 39, 212, 240, 48, 96, 69, 244,
                   213, 246, 75, 82, 83, 170, 121, 42, 105, 30, 23, 3, 231, 178, 153>>,
               ledger_operations: %LedgerOperations{
-                fee: 0.01,
+                fee: 1_000_000,
                 transaction_movements: [],
                 node_movements: [
                   %NodeMovement{
@@ -462,7 +462,7 @@ defmodule ArchEthic.P2P.MessageTest do
                       <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99,
                         217, 105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79,
                         88>>,
-                    amount: 0.01,
+                    amount: 1_000_000,
                     roles: [:coordinator_node]
                   }
                 ],
@@ -506,7 +506,7 @@ defmodule ArchEthic.P2P.MessageTest do
             from:
               <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
                 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-            amount: 10.5,
+            amount: 1_050_000_000,
             type: :UCO
           }
         ]
@@ -558,15 +558,15 @@ defmodule ArchEthic.P2P.MessageTest do
       nft_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       assert %Balance{
-               uco: 10.5,
+               uco: 1_050_000_000,
                nft: %{
-                 nft_address => 10.0
+                 nft_address => 1_000_000_000
                }
              } ==
                %Balance{
-                 uco: 10.5,
+                 uco: 1_050_000_000,
                  nft: %{
-                   nft_address => 10.0
+                   nft_address => 1_000_000_000
                  }
                }
                |> Message.encode()
@@ -682,7 +682,7 @@ defmodule ArchEthic.P2P.MessageTest do
             from:
               <<0, 147, 31, 74, 190, 86, 56, 43, 83, 35, 166, 128, 254, 235, 43, 129, 108, 57, 44,
                 182, 107, 61, 17, 190, 54, 143, 148, 85, 204, 22, 168, 139, 206>>,
-            amount: 10.5,
+            amount: 1_050_000_000,
             spent?: true,
             type: :UCO,
             timestamp: DateTime.utc_now() |> DateTime.truncate(:second)

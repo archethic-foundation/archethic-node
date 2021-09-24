@@ -5,6 +5,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
 
   import_types(ArchEthicWeb.GraphQLSchema.ContentType)
   import_types(ArchEthicWeb.GraphQLSchema.AddressType)
+  import_types(ArchEthicWeb.GraphQLSchema.AmountType)
 
   alias ArchEthicWeb.GraphQLSchema.Resolver
 
@@ -65,13 +66,13 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   @desc "[UCOTransfer] represents the an asset transfer"
   object :uco_transfer do
     field(:to, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
   end
 
   @desc "[NFTTransfer] represents the an asset transfer"
   object :nft_transfer do
     field(:to, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
     field(:nft, :hex)
   end
 
@@ -140,7 +141,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:transaction_movements, list_of(:transaction_movement))
     field(:node_movements, list_of(:node_movement))
     field(:unspent_outputs, list_of(:unspent_output))
-    field(:fee, :float)
+    field(:fee, :amount)
   end
 
   @desc """
@@ -153,7 +154,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :unspent_output do
     field(:from, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :hex)
   end
@@ -170,7 +171,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :transaction_input do
     field(:from, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :hex)
     field(:spent, :boolean)
@@ -187,7 +188,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :transaction_movement do
     field(:to, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :hex)
   end
@@ -200,7 +201,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :node_movement do
     field(:to, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
   end
 
   @desc """
@@ -221,7 +222,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - NFT: NFT balances
   """
   object :balance do
-    field(:uco, :float)
+    field(:uco, :amount)
     field(:nft, list_of(:nft_balance))
   end
 
@@ -233,6 +234,6 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :nft_balance do
     field(:address, :hex)
-    field(:amount, :float)
+    field(:amount, :amount)
   end
 end

@@ -12,7 +12,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @type t() :: %__MODULE__{
           to: Crypto.key(),
-          amount: float(),
+          amount: non_neg_integer(),
           roles: list(role())
         }
 
@@ -24,7 +24,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> %NodeMovement{
       ...>    to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...>    amount: 0.30,
+      ...>    amount: 30_000_000,
       ...>    roles: [:coordinator_node, :previous_storage_node]
       ...>  }
       ...>  |> NodeMovement.serialize()
@@ -33,7 +33,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
-      63, 211, 51, 51, 51, 51, 51, 51,
+      0, 0, 0, 0, 1, 201, 195, 128,
       # Nb roles
       2,
       # Coordinator and previous storage node roles
@@ -43,7 +43,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec serialize(t()) :: <<_::64, _::_*8>>
   def serialize(%__MODULE__{to: to, amount: amount, roles: roles}) do
     roles_bin = Enum.map(roles, &role_to_bin/1) |> :erlang.list_to_binary()
-    <<to::binary, amount::float, length(roles)::8, roles_bin::binary>>
+    <<to::binary, amount::64, length(roles)::8, roles_bin::binary>>
   end
 
   defp role_to_bin(:coordinator_node), do: <<0>>
@@ -57,14 +57,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 63, 211, 51, 51, 51, 51, 51, 51, 2, 0, 2
+      ...> 0, 0, 0, 0, 1, 201, 195, 128, 2, 0, 2
       ...> >>
       ...> |> NodeMovement.deserialize()
       {
         %NodeMovement{
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-          amount: 0.30,
+          amount: 30_000_000,
           roles: [:coordinator_node, :previous_storage_node]
         },
         ""
@@ -74,7 +74,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
 
-    <<key::binary-size(key_size), amount::float, nb_roles::8, bin_roles::binary-size(nb_roles),
+    <<key::binary-size(key_size), amount::64, nb_roles::8, bin_roles::binary-size(nb_roles),
       rest::bitstring>> = rest
 
     {

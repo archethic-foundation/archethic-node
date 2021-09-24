@@ -89,7 +89,9 @@ defmodule ArchEthic.Account.MemTablesLoader do
   end
 
   defp set_transaction_movements(address, transaction_movements, timestamp) do
-    Enum.each(transaction_movements, fn
+    transaction_movements
+    |> Enum.filter(&(&1.amount > 0))
+    |> Enum.each(fn
       %TransactionMovement{to: to, amount: amount, type: :UCO} ->
         UCOLedger.add_unspent_output(
           to,
@@ -112,7 +114,7 @@ defmodule ArchEthic.Account.MemTablesLoader do
 
   defp set_unspent_outputs(address, unspent_outputs, timestamp) do
     unspent_outputs
-    |> Enum.filter(&(&1.amount > 0.0))
+    |> Enum.filter(&(&1.amount > 0))
     |> Enum.each(fn
       unspent_output = %UnspentOutput{type: :UCO} ->
         UCOLedger.add_unspent_output(address, unspent_output, timestamp)
@@ -124,7 +126,7 @@ defmodule ArchEthic.Account.MemTablesLoader do
 
   defp set_node_rewards(address, node_movements, timestamp) do
     node_movements
-    |> Enum.filter(&(&1.amount > 0.0))
+    |> Enum.filter(&(&1.amount > 0))
     |> Enum.each(fn %NodeMovement{to: to, amount: amount} ->
       %Node{reward_address: reward_address} = P2P.get_node_info!(to)
 

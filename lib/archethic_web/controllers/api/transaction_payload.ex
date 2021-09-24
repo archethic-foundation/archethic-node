@@ -27,14 +27,14 @@ defmodule ArchEthicWeb.API.TransactionPayload do
         embeds_one :uco, UCOLedger do
           embeds_many :transfers, Transfer do
             field(:to, Hash)
-            field(:amount, :float)
+            field(:amount, :integer)
           end
         end
 
         embeds_one :nft, NFT do
           embeds_many :transfers, Transfer do
             field(:to, Hash)
-            field(:amount, :float)
+            field(:amount, :integer)
             field(:nft, Hash)
           end
         end

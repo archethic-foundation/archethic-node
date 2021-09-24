@@ -20,7 +20,7 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
             authorized_key_seeds <-
               StreamData.list_of(StreamData.binary(length: 32), min_length: 1),
             transfers <-
-              StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0)),
+              StreamData.map_of(StreamData.binary(length: 32), StreamData.positive_integer()),
             recipients <- list_of(StreamData.binary(length: 32))
           ) do
       authorized_public_keys =

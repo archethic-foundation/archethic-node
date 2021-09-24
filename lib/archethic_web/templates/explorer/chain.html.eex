@@ -82,7 +82,7 @@
                 <div class="level-item has-text-centered">
                     <div>
                         <p class="heading">UCO Balance</p>
-                        <p class="title"><%= format_float(@uco_balance) %> UCO</p>
+                        <p class="title"><%= to_float(@uco_balance) %> UCO</p>
                     </div>
                 </div>
             </nav>

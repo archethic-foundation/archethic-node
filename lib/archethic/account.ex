@@ -12,8 +12,8 @@ defmodule ArchEthic.Account do
   alias ArchEthic.TransactionChain.TransactionInput
 
   @type balance :: %{
-          uco: amount :: float(),
-          nft: %{(address :: binary()) => amount :: float()}
+          uco: amount :: pos_integer(),
+          nft: %{(address :: binary()) => amount :: pos_integer()}
         }
 
   @doc """
@@ -23,12 +23,12 @@ defmodule ArchEthic.Account do
   def get_balance(address) when is_binary(address) do
     address
     |> get_unspent_outputs()
-    |> Enum.reduce(%{uco: 0.0, nft: %{}}, fn
+    |> Enum.reduce(%{uco: 0, nft: %{}}, fn
       %UnspentOutput{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
       %UnspentOutput{type: {:NFT, nft_address}, amount: amount}, acc ->
-        update_in(acc, [:nft, Access.key(nft_address, 0.0)], &(&1 + amount))
+        update_in(acc, [:nft, Access.key(nft_address, 0)], &(&1 + amount))
     end)
   end
 
