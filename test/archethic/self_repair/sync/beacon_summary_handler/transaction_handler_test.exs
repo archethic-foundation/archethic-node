@@ -96,7 +96,12 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
     me = self()
 
     inputs = [
-      %TransactionInput{from: "@Alice2", amount: 10.0, type: :UCO, timestamp: DateTime.utc_now()}
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
     ]
 
     tx = TransactionFactory.create_valid_transaction(context, inputs)

@@ -160,7 +160,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
-                                                    <%= format_float(transfer.amount) %> UCO
+                                                    <%= to_float(transfer.amount) %> UCO
                                                 </div>
                                             </div>
                                         </div>
@@ -183,7 +183,7 @@
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
-                                                <div class="column"><%= format_float(transfer.amount) %></div>
+                                                <div class="column"><%= to_float(transfer.amount) %></div>
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">NFT</div>
@@ -331,10 +331,10 @@
                                                 <div class="column">
                                                     <%= case movement.type do %>
                                                         <% :UCO -> %>
-                                                            <%= format_float(movement.amount) %>
+                                                            <%= to_float(movement.amount) %>
                                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                                         <% {:NFT, nft_address} -> %>
-                                                            <%= format_float(movement.amount) %>
+                                                            <%= to_float(movement.amount) %>
                                                             <span class="tag is-success is-light ml-2">NFT</span>
                                                             <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                                 <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
@@ -362,7 +362,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Reward</div>
                                                 <div class="column">
-                                                    <%= format_float(movement.amount) %>
+                                                    <%= to_float(movement.amount) %>
                                                     <span class="tag is-primary is-light ml-2">UCO</span>
                                                 </div>
                                             </div>
@@ -387,10 +387,10 @@
                                                 <div class="column">
                                                     <%= case unspent_output.type do %>
                                                     <% :UCO -> %>
-                                                        <%= format_float(unspent_output.amount) %>
+                                                        <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-primary is-light ml-2">UCO</span>
                                                     <% {:NFT, nft_address} -> %>
-                                                        <%= format_float(unspent_output.amount) %>
+                                                        <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-success is-light ml-2">NFT</span>
                                                         <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                             <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
@@ -510,7 +510,7 @@
                                         <div class="column heading">Amount</div>
                                       </div>
                                       <div class="columns">
-                                          <div class="column"><%= format_float(input.amount) %></div>
+                                          <div class="column"><%= to_float(input.amount) %></div>
                                       </div>
                                     </div>
                                     <div class="column">

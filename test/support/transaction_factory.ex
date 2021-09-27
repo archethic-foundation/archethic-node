@@ -200,7 +200,7 @@ defmodule ArchEthic.TransactionFactory do
 
     ledger_operations =
       %LedgerOperations{
-        fee: 10
+        fee: 1_000_000_000
       }
       |> LedgerOperations.distribute_rewards(
         coordinator_node,
@@ -241,7 +241,9 @@ defmodule ArchEthic.TransactionFactory do
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07),
-        transaction_movements: [%TransactionMovement{to: "@Bob4", amount: 303.30, type: :UCO}]
+        transaction_movements: [
+          %TransactionMovement{to: "@Bob4", amount: 30_330_000_000, type: :UCO}
+        ]
       }
       |> LedgerOperations.distribute_rewards(
         coordinator_node,
@@ -279,11 +281,11 @@ defmodule ArchEthic.TransactionFactory do
         node_movements: [
           %NodeMovement{
             to: Crypto.last_node_public_key(),
-            amount: 20,
+            amount: 2_000_000_000,
             roles: [:coordinator_node]
           },
-          %NodeMovement{to: "key3", amount: 20, roles: [:cross_validation_node]},
-          %NodeMovement{to: "key4", amount: 20, roles: [:previous_storage_node]}
+          %NodeMovement{to: "key3", amount: 2_000_000_000, roles: [:cross_validation_node]},
+          %NodeMovement{to: "key4", amount: 2_000_000_000, roles: [:previous_storage_node]}
         ]
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs)

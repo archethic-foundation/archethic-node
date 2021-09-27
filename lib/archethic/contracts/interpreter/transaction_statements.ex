@@ -23,7 +23,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 10.04}])
+      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1_040_000_000}])
       %Transaction{
         data: %TransactionData{
           ledger: %Ledger{
@@ -31,7 +31,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
               transfers: [
                 %UCOTransfer{
                   to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
-                  amount: 10.04
+                  amount: 1_040_000_000
                 }
               ]
             }
@@ -57,7 +57,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
       iex> TransactionStatements.add_nft_transfer(%Transaction{data: %TransactionData{}}, [
       ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
-      ...>   {"amount", 10.0},
+      ...>   {"amount", 1_000_000_000},
       ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"}
       ...> ])
       %Transaction{
@@ -68,7 +68,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
                 %NFTTransfer{
                     to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
                       103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
-                    amount: 10.0,
+                    amount: 1_000_000_000,
                     nft: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
                       189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>
                 }

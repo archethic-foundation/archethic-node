@@ -7,15 +7,21 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   - transaction fee
   """
 
-  @storage_node_rate 0.5
-  @cross_validation_node_rate 0.4
-  @coordinator_rate 0.1
-  @network_pool_rate 0.1
+  @unit_uco 100_000_000
+
+  # 0.5%
+  @storage_node_rate 50_000_000
+  # 0.4%
+  @cross_validation_node_rate 40_000_000
+  # 0.1%
+  @coordinator_rate 10_000_000
+  # 0.1%
+  @network_pool_rate 10_000_000
 
   defstruct transaction_movements: [],
             node_movements: [],
             unspent_outputs: [],
-            fee: 0.0
+            fee: 0
 
   alias ArchEthic.Crypto
 
@@ -42,7 +48,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           transaction_movements: list(TransactionMovement.t()),
           node_movements: list(NodeMovement.t()),
           unspent_outputs: list(UnspentOutput.t()),
-          fee: float()
+          fee: non_neg_integer()
         }
 
   @burning_address <<0::8, 0::256>>
@@ -60,7 +66,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   }
       ...> )
       %LedgerOperations{
-          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 1_000.0, type: {:NFT, "@NFT2"}}]
+          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 100_000_000_000, type: {:NFT, "@NFT2"}}]
       }
   """
   @spec from_transaction(t(), Transaction.t()) :: t()
@@ -75,12 +81,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       match
       |> String.trim()
       |> String.replace(" ", "")
-      |> Float.parse()
+      |> Integer.parse()
 
     %{
       ops
       | unspent_outputs: [
-          %UnspentOutput{from: address, amount: initial_supply, type: {:NFT, address}}
+          %UnspentOutput{from: address, amount: initial_supply * @unit_uco, type: {:NFT, address}}
         ]
     }
   end
@@ -95,7 +101,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> %LedgerOperations{ fee: 0.5}
+      iex> %LedgerOperations{ fee: 50_000_000} # 0.5 UCO
       ...> |> LedgerOperations.distribute_rewards(
       ...>    %Node{last_public_key: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD"},
       ...>    [
@@ -109,22 +115,22 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    ]
       ...>  )
       %LedgerOperations{
-         fee: 0.5,
-         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 0.05, type: :UCO} ],
+         fee: 50_000_000,
+         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
          node_movements: [
-            %NodeMovement{to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1", amount: 0.1, roles: [:cross_validation_node] },
-            %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-            %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 0.1, roles: [:cross_validation_node]},
-            %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-            %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-            %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 0.05, roles: [:coordinator_node]},
+            %NodeMovement{to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1", amount: 10_000_000, roles: [:cross_validation_node] },
+            %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]},
+            %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 10_000_000, roles: [:cross_validation_node]},
+            %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 8_333_333, roles: [:previous_storage_node]},
+            %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 8_333_333, roles: [:previous_storage_node]},
+            %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 5_000_000, roles: [:coordinator_node]},
          ]
       }
 
     When some nodes has several roles (present in the network bootstrapping phase),
     a mapping per node and per role is perform to ensure the right amount of rewards.
 
-      iex> %LedgerOperations{ fee: 0.5}
+      iex> %LedgerOperations{ fee: 50_000_000}
       ...> |> LedgerOperations.distribute_rewards(
       ...>    %Node{last_public_key: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23"},
       ...>    [
@@ -138,12 +144,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    ]
       ...>  )
       %LedgerOperations{
-         fee: 0.5,
-         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 0.05, type: :UCO} ],
+         fee: 50_000_000,
+         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
          node_movements: [
-            %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-            %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 0.23333333333333334, roles: [:coordinator_node, :cross_validation_node, :previous_storage_node] },
-            %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 0.08333333333333333, roles: [:previous_storage_node] }
+            %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]},
+            %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 23_333_333, roles: [:coordinator_node, :cross_validation_node, :previous_storage_node] },
+            %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 8_333_333, roles: [:previous_storage_node] }
          ]
       }
   """
@@ -198,7 +204,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp sum_rewards(_, _, acc \\ %{})
 
   defp sum_rewards([{public_key, roles} | tail], rewards_by_role, acc) do
-    sum_node_rewards = Enum.reduce(roles, 0.0, &(&2 + Map.get(rewards_by_role, &1)))
+    sum_node_rewards = Enum.reduce(roles, 0, &(&2 + Map.get(rewards_by_role, &1)))
     sum_rewards(tail, rewards_by_role, Map.put(acc, public_key, {roles, sum_node_rewards}))
   end
 
@@ -223,11 +229,11 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> LedgerOperations.get_network_pool_reward(1)
-      0.1
+      iex> LedgerOperations.get_network_pool_reward(100_000_000)
+      10_000_000
   """
-  @spec get_network_pool_reward(fee :: float()) :: float()
-  def get_network_pool_reward(fee), do: fee * @network_pool_rate
+  @spec get_network_pool_reward(fee :: non_neg_integer()) :: non_neg_integer()
+  def get_network_pool_reward(fee), do: div(fee * @network_pool_rate, @unit_uco)
 
   @doc """
   Return the reward for the coordinator node based on the fee and its rate
@@ -236,11 +242,11 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> LedgerOperations.get_coordinator_node_reward(1)
-      0.1
+      iex> LedgerOperations.get_coordinator_node_reward(100_000_000)
+      10_000_000
   """
-  @spec get_coordinator_node_reward(fee :: float()) :: float()
-  def get_coordinator_node_reward(fee), do: fee * @coordinator_rate
+  @spec get_coordinator_node_reward(fee :: non_neg_integer()) :: non_neg_integer()
+  def get_coordinator_node_reward(fee), do: div(fee * @coordinator_rate, @unit_uco)
 
   @doc """
   Return the reward for each cross validation node based on the fee, the rate and the number of cross validation nodes
@@ -249,15 +255,17 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> LedgerOperations.get_cross_validation_node_reward(1, 2)
-      0.2
+      iex> LedgerOperations.get_cross_validation_node_reward(100_000_000, 2)
+      20_000_000
   """
   @spec get_cross_validation_node_reward(
-          fee :: float(),
+          fee :: non_neg_integer(),
           nb_cross_validation_nodes :: non_neg_integer()
-        ) :: float()
+        ) :: non_neg_integer()
   def get_cross_validation_node_reward(fee, nb_cross_validation_nodes) do
-    fee * @cross_validation_node_rate / nb_cross_validation_nodes
+    (fee * @cross_validation_node_rate)
+    |> div(@unit_uco)
+    |> div(nb_cross_validation_nodes)
   end
 
   @doc """
@@ -267,20 +275,22 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> LedgerOperations.get_previous_storage_reward(1, 5)
-      0.1
+      iex> LedgerOperations.get_previous_storage_reward(100_000_000, 5)
+      10_000_000
 
-      iex> LedgerOperations.get_previous_storage_reward(1, 0)
-      0.0
+      iex> LedgerOperations.get_previous_storage_reward(100_000_000, 0)
+      0
   """
   @spec get_previous_storage_reward(
-          fee :: float(),
+          fee :: non_neg_integer(),
           nb_previous_storage_nodes :: non_neg_integer()
-        ) :: float()
-  def get_previous_storage_reward(_fee, 0), do: 0.0
+        ) :: non_neg_integer()
+  def get_previous_storage_reward(_fee, 0), do: 0
 
   def get_previous_storage_reward(fee, nb_previous_storage_nodes) do
-    fee * @storage_node_rate / nb_previous_storage_nodes
+    (fee * @storage_node_rate)
+    |> div(@unit_uco)
+    |> div(nb_previous_storage_nodes)
   end
 
   @doc """
@@ -290,29 +300,32 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 200.0, type: {:NFT, "@TomNFT"}},
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2_000_000_000, type: {:NFT, "@TomNFT"}},
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.total_to_spend()
-      %{ uco: 12.97, nft: %{ "@TomNFT" => 200.0 } }
+      %{ uco: 1_297_000_000, nft: %{ "@TomNFT" => 2_000_000_000 } }
   """
-  @spec total_to_spend(t()) :: %{:uco => float(), :nft => %{binary() => float()}}
+  @spec total_to_spend(t()) :: %{
+          :uco => non_neg_integer(),
+          :nft => %{binary() => non_neg_integer()}
+        }
   def total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
     transaction_movements
     |> Enum.reject(&(&1.to == @burning_address))
     |> ledger_balances(%{uco: fee, nft: %{}})
   end
 
-  defp ledger_balances(movements, acc \\ %{uco: 0.0, nft: %{}}) do
+  defp ledger_balances(movements, acc \\ %{uco: 0, nft: %{}}) do
     Enum.reduce(movements, acc, fn
       %{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
       %{type: {:NFT, nft_address}, amount: amount}, acc ->
-        update_in(acc, [:nft, Access.key(nft_address, 0.0)], &(&1 + amount))
+        update_in(acc, [:nft, Access.key(nft_address, 0)], &(&1 + amount))
 
       %{type: :call}, acc ->
         acc
@@ -326,36 +339,36 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 5, type: {:NFT, "@BobNFT"}}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT"}}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.sufficient_funds?([])
       false
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 5, type: {:NFT, "@BobNFT"}}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT"}}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.sufficient_funds?([
-      ...>     %UnspentOutput{from: "@Charlie5", amount: 30, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
+      ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
+      ...>     %UnspentOutput{from: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@BobNFT"}}
       ...> ])
       true
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.sufficient_funds?([
-      ...>     %UnspentOutput{from: "@Charlie5", amount: 30, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 10, type: {:NFT, "@BobNFT"}}
+      ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
+      ...>     %UnspentOutput{from: "@Bob4", amount: 10_000_000_000, type: {:NFT, "@BobNFT"}}
       ...> ])
       true
   """
@@ -395,23 +408,23 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Bob3", amount: 20, type: :UCO}
+      ...>    %UnspentOutput{from: "@Bob3", amount: 2_000_000_000, type: :UCO}
       ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-            %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
+            %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+            %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
           ],
-          fee: 0.40,
+          fee: 40_000_000,
           node_movements: [],
           unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 7.029999999999999, type: :UCO}
+            %UnspentOutput{from: "@Alice2", amount: 703_000_000, type: :UCO}
           ]
       }
 
@@ -419,26 +432,26 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Bob3", amount: 5, type: :UCO},
-      ...>    %UnspentOutput{from: "@Tom4", amount: 7, type: :UCO},
-      ...>    %UnspentOutput{from: "@Christina", amount: 4, type: :UCO},
-      ...>    %UnspentOutput{from: "@Hugo", amount: 8, type: :UCO}
+      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: :UCO},
+      ...>    %UnspentOutput{from: "@Tom4", amount: 700_000_000, type: :UCO},
+      ...>    %UnspentOutput{from: "@Christina", amount: 400_000_000, type: :UCO},
+      ...>    %UnspentOutput{from: "@Hugo", amount: 800_000_000, type: :UCO}
       ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 10.4, type: :UCO},
-            %TransactionMovement{to: "@Charlie2", amount: 2.17, type: :UCO},
+            %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
+            %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
           ],
-          fee: 0.40,
+          fee: 40_000_000,
           node_movements: [],
           unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 11.0299999999999994, type: :UCO},
+            %UnspentOutput{from: "@Alice2", amount: 1_103_000_000, type: :UCO},
           ]
       }
 
@@ -446,23 +459,23 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Charlie1", amount: 2.0, type: :UCO},
-      ...>    %UnspentOutput{from: "@Bob3", amount: 12, type: {:NFT, "@CharlieNFT"}}
+      ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+      ...>    %UnspentOutput{from: "@Bob3", amount: 1_200_000_000, type: {:NFT, "@CharlieNFT"}}
       ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
           ],
-          fee: 0.40,
+          fee: 40_000_000,
           node_movements: [],
           unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 1.60, type: :UCO},
-            %UnspentOutput{from: "@Alice2", amount: 2.0, type: {:NFT, "@CharlieNFT"}}
+            %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
+            %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: {:NFT, "@CharlieNFT"}}
           ]
       }
 
@@ -470,25 +483,25 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
       ...>    ],
-      ...>    fee: 0.40
+      ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Charlie1", amount: 2.0, type: :UCO},
-      ...>    %UnspentOutput{from: "@Bob3", amount: 5, type: {:NFT, "@CharlieNFT"}},
-      ...>    %UnspentOutput{from: "@Hugo5", amount: 7, type: {:NFT, "@CharlieNFT"}},
-      ...>    %UnspentOutput{from: "@Tom1", amount: 7, type: {:NFT, "@CharlieNFT"}}
+      ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: {:NFT, "@CharlieNFT"}},
+      ...>    %UnspentOutput{from: "@Hugo5", amount: 700_000_000, type: {:NFT, "@CharlieNFT"}},
+      ...>    %UnspentOutput{from: "@Tom1", amount: 700_000_000, type: {:NFT, "@CharlieNFT"}}
       ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 10, type: {:NFT, "@CharlieNFT"}}
+            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
           ],
-          fee: 0.40,
+          fee: 40_000_000,
           node_movements: [],
           unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 1.60, type: :UCO},
-            %UnspentOutput{from: "@Alice2", amount: 9.0, type: {:NFT, "@CharlieNFT"}}
+            %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
+            %UnspentOutput{from: "@Alice2", amount: 900_000_000, type: {:NFT, "@CharlieNFT"}}
           ]
       }
   """
@@ -565,21 +578,21 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %LedgerOperations{
-      ...>   fee: 0.1,
+      ...>   fee: 10_000_000,
       ...>   transaction_movements: [
       ...>     %TransactionMovement{
       ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 10.2,
+      ...>       amount: 102_000_000,
       ...>       type: :UCO
       ...>     },
-      ...>     %TransactionMovement{to: <<0::8, 0::256>> , amount: 0.01, type: :UCO}
+      ...>     %TransactionMovement{to: <<0::8, 0::256>> , amount: 1_000_000, type: :UCO}
       ...>   ],
       ...>   node_movements: [
       ...>     %NodeMovement{
       ...>       to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 0.09,
+      ...>       amount: 9_000_000,
       ...>       roles: [:coordinator_node, :cross_validation_node, :previous_storage_node]
       ...>     },
       ...>   ],
@@ -587,28 +600,28 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>     %UnspentOutput{
       ...>       from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-      ...>       amount: 2.0,
+      ...>       amount: 200_000_000,
       ...>       type: :UCO
       ...>     }
       ...>   ]
       ...> }
       ...> |> LedgerOperations.serialize()
       <<
-      # Fee
-      63, 185, 153, 153, 153, 153, 153, 154,
+      # Fee (0.1 UCO)
+      0, 0, 0, 0, 0, 152, 150, 128,
       # Nb of transaction movements
       2,
       # Transaction movement recipient
       0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      # Transaction movement amount
-      "@$ffffff",
+      # Transaction movement amount (1.2 UCO)
+      0, 0, 0, 0, 6, 20, 101, 128,
       # Transaction movement type (UCO)
       0,
       # Network pool burning address
       0::8, 0::256,
-      # Amount of fee burnt
-      63, 132, 122, 225, 71, 174, 20, 123,
+      # Amount of fee burnt (0.01)
+      0, 0, 0, 0, 0, 15, 66, 64,
       # Type of movement
       0,
       # Nb of node movements
@@ -616,8 +629,8 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Node public key
       0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      # Node reward
-      63, 183, 10, 61, 112, 163, 215, 10,
+      # Node reward (0.09 UCO)
+      0, 0, 0, 0, 0, 137, 84, 64,
       # Nb roles
       3,
       # Roles
@@ -627,8 +640,8 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Unspent output origin
       0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      # Unspent output amount
-      64, 0, 0, 0, 0, 0, 0, 0,
+      # Unspent output amount (2 UCO)
+      0, 0, 0, 0, 11, 235, 194, 0,
       # Unspent output type (UCO)
       0,
       # Unspent output reward?
@@ -652,7 +665,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     bin_unspent_outputs =
       unspent_outputs |> Enum.map(&UnspentOutput.serialize/1) |> :erlang.list_to_binary()
 
-    <<fee::float, length(transaction_movements)::8, bin_transaction_movements::binary,
+    <<fee::64, length(transaction_movements)::8, bin_transaction_movements::binary,
       length(node_movements)::8, bin_node_movements::binary, length(unspent_outputs)::8,
       bin_unspent_outputs::binary>>
   end
@@ -662,30 +675,31 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> <<63, 185, 153, 153, 153, 153, 153, 154, 2, 
+      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 2, 
       ...> 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 
-      ...> "@$ffffff", 0,
-      ...> 0, 0::256, 63, 132, 122, 225, 71, 174, 20, 123, 0,
+      ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
+      ...> 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
       ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
-      ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 63, 183, 10, 61, 112, 163, 215, 10, 
+      ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 
+      ...> 0, 0, 0, 0, 0, 137, 84, 64,
       ...> 3, 0, 1, 2, 
       ...> 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 64, 0, 0, 0, 0, 0, 0, 0, 0, 0>>
+      ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0>>
       ...> |> LedgerOperations.deserialize()
       {
         %LedgerOperations{
-          fee: 0.1,
+          fee: 10_000_000,
           transaction_movements: [
             %TransactionMovement{
               to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 10.2,
+              amount: 1_020_000_000,
               type: :UCO
             },
             %TransactionMovement {
               to: <<0::8, 0::256>>,
-              amount: 0.01,
+              amount: 1_000_000,
               type: :UCO
             }
           ],
@@ -693,7 +707,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             %NodeMovement{
               to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 0.09,
+              amount: 9_000_000,
               roles: [:coordinator_node, :cross_validation_node, :previous_storage_node]
             }
           ],
@@ -701,7 +715,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             %UnspentOutput{
               from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
-              amount: 2.0,
+              amount: 200_000_000,
               type: :UCO,
               reward?: false
             }
@@ -710,7 +724,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ""
       }
   """
-  def deserialize(<<fee::float, nb_transaction_movements::8, rest::bitstring>>) do
+  def deserialize(<<fee::64, nb_transaction_movements::8, rest::bitstring>>) do
     {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
     <<nb_node_movements::8, rest::bitstring>> = rest
     {node_movements, rest} = reduce_node_movements(rest, nb_node_movements, [])
@@ -798,15 +812,15 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> %LedgerOperations{
-      ...>    fee: 0.5,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 0.05, type: :UCO}],  
+      ...>    fee: 50_000_000,
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],  
       ...>    node_movements: [
-      ...>       %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 0.05, roles: [:coordinator_node]},
-      ...>       %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 0.1, roles: [:cross_validation_node]},
-      ...>       %NodeMovement{to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1", amount: 0.1, roles: [:cross_validation_node]},
-      ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-      ...>       %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-      ...>       %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 0.08333333333333333, roles: [:previous_storage_node]}
+      ...>       %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 5_000_000, roles: [:coordinator_node]},
+      ...>       %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 10_000_000, roles: [:cross_validation_node]},
+      ...>       %NodeMovement{to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1", amount: 10_000_000, roles: [:cross_validation_node]},
+      ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 8_333_333, roles: [:previous_storage_node]},
+      ...>       %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 8_333_333, roles: [:previous_storage_node]},
+      ...>       %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]}
       ...>    ]
       ...> }
       ...> |> LedgerOperations.valid_reward_distribution?()
@@ -816,13 +830,13 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
    a mapping per node and per role is perform to ensure the right amount of rewards.
 
       iex> %LedgerOperations{
-      ...>    fee: 0.5,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 0.05, type: :UCO}],  
+      ...>    fee: 50_000_000,
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],  
       ...>    node_movements: [
-      ...>       %NodeMovement{to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D", amount: 0.25, roles: [:coordinator_node, :cross_validation_node]},
-      ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-      ...>       %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 0.08333333333333333, roles: [:previous_storage_node]},
-      ...>       %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 0.08333333333333333, roles: [:previous_storage_node]}
+      ...>       %NodeMovement{to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D", amount: 25_000_000, roles: [:coordinator_node, :cross_validation_node]},
+      ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 8_333_333, roles: [:previous_storage_node]},
+      ...>       %NodeMovement{to: "AFC6C2DF93A524F3EE569745EE6F22131BB3F380E5121DDF730982DC7C1AD9AE", amount: 8_333_333, roles: [:previous_storage_node]},
+      ...>       %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]}
       ...>    ]
       ...> }
       ...> |> LedgerOperations.valid_reward_distribution?()
@@ -847,7 +861,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
     valid_node_movements? =
       Enum.all?(node_movements, fn %NodeMovement{roles: roles, amount: amount} ->
-        total_rewards = Enum.reduce(roles, 0.0, &(&2 + Map.get(rewards_matrix, &1)))
+        total_rewards = Enum.reduce(roles, 0, &(&2 + Map.get(rewards_matrix, &1)))
         amount == total_rewards
       end)
 
@@ -878,19 +892,19 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key1", amount: 0.23, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key2", amount: 0.04, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.01, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key1", amount: 23_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key2", amount: 4_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key3", amount: 1_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> } |> LedgerOperations.valid_node_movements_roles?()
       true
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key1", amount: 0.23, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key1", amount: 0.23, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key2", amount: 0.04, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.01, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key1", amount: 23_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key1", amount: 23_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key2", amount: 4_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key3", amount: 1_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> } |> LedgerOperations.valid_node_movements_roles?()
       false
@@ -918,8 +932,8 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.30, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.15, roles: [:cross_validation_node]}
+      ...>     %NodeMovement{to: "key2", amount: 30_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 15_000_000, roles: [:cross_validation_node]}
       ...>   ]
       ...> } |> LedgerOperations.valid_node_movements_cross_validation_nodes?(["key3"])
       true
@@ -941,19 +955,19 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.30, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.15, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key4", amount: 0.80, roles: [:previous_storage_nodes]}
+      ...>     %NodeMovement{to: "key2", amount: 30_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 10_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key4", amount: 80_000_000, roles: [:previous_storage_nodes]}
       ...>   ]
       ...> } |> LedgerOperations.valid_node_movements_previous_storage_nodes?(["key10", "key4", "key8"])
       true
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.30, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.15, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key4", amount: 0.80, roles: [:previous_storage_nodes]},
-      ...>     %NodeMovement{to: "key22", amount: 0.80, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key2", amount: 30_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 15_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key4", amount: 80_000_000, roles: [:previous_storage_nodes]},
+      ...>     %NodeMovement{to: "key22", amount: 80_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> } |> LedgerOperations.valid_node_movements_previous_storage_nodes?(["key10", "key4", "key8"])
       false
@@ -975,9 +989,9 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.43, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.2, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key4", amount: 0.1, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key2", amount: 43_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 20_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key4", amount: 10_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> }
       ...> |> LedgerOperations.has_node_movement_with_role?("key2", :coordinator_node)
@@ -985,9 +999,9 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.43, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.2, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key4", amount: 0.1, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key2", amount: 43_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 20_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key4", amount: 10_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> }
       ...> |> LedgerOperations.has_node_movement_with_role?("other node", :coordinator_node)
@@ -995,9 +1009,9 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>   node_movements: [
-      ...>     %NodeMovement{to: "key2", amount: 0.43, roles: [:coordinator_node]},
-      ...>     %NodeMovement{to: "key3", amount: 0.2, roles: [:cross_validation_node]},
-      ...>     %NodeMovement{to: "key4", amount: 0.1, roles: [:previous_storage_node]}
+      ...>     %NodeMovement{to: "key2", amount: 43_000_000, roles: [:coordinator_node]},
+      ...>     %NodeMovement{to: "key3", amount: 20_000_000, roles: [:cross_validation_node]},
+      ...>     %NodeMovement{to: "key4", amount: 10_000_000, roles: [:previous_storage_node]}
       ...>   ]
       ...> }
       ...> |> LedgerOperations.has_node_movement_with_role?("key1", :coordinator_node)

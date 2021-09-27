@@ -28,7 +28,7 @@ defmodule ArchEthicWeb.LayoutHelpers do
     HumanizeTime.format_seconds(seconds)
   end
 
-  def format_float(float) when is_float(float) do
-    :erlang.float_to_binary(float, [:compact, decimals: 8])
+  def to_float(number) when is_number(number) do
+    :erlang.float_to_binary(number / 100_000_000, [:compact, decimals: 8])
   end
 end

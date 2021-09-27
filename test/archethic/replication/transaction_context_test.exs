@@ -47,7 +47,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
       "@Alice1",
       %UnspentOutput{
         from: "@Bob3",
-        amount: 0.193,
+        amount: 19_300_000,
         type: :UCO
       },
       ~U[2021-03-05 13:41:34Z]
@@ -57,7 +57,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
       {:ok,
        %UnspentOutputList{
-         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
+         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}]
        }}
     end)
 
@@ -73,7 +73,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
+    assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
              TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
              |> Enum.to_list()
   end
@@ -83,7 +83,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
       "@Alice1",
       %UnspentOutput{
         from: "@Bob3",
-        amount: 0.193,
+        amount: 19_300_000,
         type: :UCO
       },
       ~U[2021-03-05 13:41:34Z]
@@ -93,7 +93,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
       {:ok,
        %UnspentOutputList{
-         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}]
+         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}]
        }}
     end)
 
@@ -109,7 +109,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
       authorization_date: DateTime.utc_now()
     })
 
-    assert [%UnspentOutput{from: "@Bob3", amount: 0.193, type: :UCO}] =
+    assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
              TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
              |> Enum.to_list()
   end

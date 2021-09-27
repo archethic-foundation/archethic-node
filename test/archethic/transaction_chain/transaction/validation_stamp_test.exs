@@ -41,7 +41,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
 
   defp gen_ledger_operations do
     gen all(
-          fee <- StreamData.float(min: 0.0, max: 3.0),
+          fee <- StreamData.positive_integer(),
           node_movements <- StreamData.list_of(gen_node_movement()),
           transaction_movements <- StreamData.list_of(gen_transaction_movement()),
           unspent_outputs <- StreamData.list_of(gen_unspent_outputs())
@@ -58,7 +58,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
   defp gen_node_movement do
     gen all(
           to <- StreamData.binary(length: 33),
-          amount <- StreamData.float(min: 0.001, max: 1.0),
+          amount <- StreamData.positive_integer(),
           roles <- gen_roles()
         ) do
       %NodeMovement{to: to, amount: amount, roles: Enum.take(roles, 1)}
@@ -68,7 +68,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
   defp gen_transaction_movement do
     gen all(
           to <- StreamData.binary(length: 33),
-          amount <- StreamData.float(min: 0.0, max: 10.0),
+          amount <- StreamData.positive_integer(),
           type <-
             StreamData.one_of([
               StreamData.constant(:UCO),
@@ -82,7 +82,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
   defp gen_unspent_outputs do
     gen all(
           from <- StreamData.binary(length: 33),
-          amount <- StreamData.float(min: 0.0, max: 10.0),
+          amount <- StreamData.positive_integer(),
           type <-
             StreamData.one_of([
               StreamData.constant(:UCO),

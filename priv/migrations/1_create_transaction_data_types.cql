@@ -1,6 +1,6 @@
 CREATE TYPE IF NOT EXISTS archethic.uco_transfer(
   "to" blob,
-  amount double
+  amount bigint
 );
 
 CREATE TYPE IF NOT EXISTS archethic.uco_ledger(
@@ -9,7 +9,7 @@ CREATE TYPE IF NOT EXISTS archethic.uco_ledger(
 
 CREATE TYPE IF NOT EXISTS archethic.nft_transfer(
   "to" blob,
-  amount double,
+  amount bigint,
   nft blob
 );
 

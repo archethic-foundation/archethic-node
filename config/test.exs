@@ -29,7 +29,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
       address:
         "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
         |> Base.decode16!(case: :mixed),
-      amount: 10_000_000.0
+      amount: 1_000_000_000_000_000
     }
   ]
 

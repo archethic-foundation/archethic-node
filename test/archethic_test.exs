@@ -283,11 +283,11 @@ defmodule ArchEthicTest do
       :ok =
         UCOLedger.add_unspent_output(
           "@Alice2",
-          %UnspentOutput{from: "@Bob3", amount: 10.0},
+          %UnspentOutput{from: "@Bob3", amount: 1_000_000_000},
           DateTime.utc_now()
         )
 
-      assert %{uco: 10.0} = ArchEthic.get_balance("@Alice2")
+      assert %{uco: 1_000_000_000} = ArchEthic.get_balance("@Alice2")
     end
 
     test "should request storage nodes if the current node is not a storage node and return the balance" do
@@ -314,10 +314,10 @@ defmodule ArchEthicTest do
 
       MockClient
       |> expect(:send_message, fn _, %GetBalance{} ->
-        {:ok, %Balance{uco: 10.0}}
+        {:ok, %Balance{uco: 1_000_000_000}}
       end)
 
-      assert %{uco: 10.0} = ArchEthic.get_balance("@Alice2")
+      assert %{uco: 1_000_000_000} = ArchEthic.get_balance("@Alice2")
     end
   end
 
@@ -340,13 +340,13 @@ defmodule ArchEthicTest do
           "@Alice2",
           %UnspentOutput{
             from: "@Bob3",
-            amount: 10.0,
+            amount: 1_000_000_000,
             type: :UCO
           },
           DateTime.utc_now()
         )
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
+      assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
                ArchEthic.get_transaction_inputs("@Alice2")
     end
 
@@ -379,7 +379,7 @@ defmodule ArchEthicTest do
            inputs: [
              %TransactionInput{
                from: "@Bob3",
-               amount: 10.0,
+               amount: 1_000_000_000,
                spent?: false,
                type: :UCO,
                timestamp: DateTime.utc_now()
@@ -388,7 +388,7 @@ defmodule ArchEthicTest do
          }}
       end)
 
-      assert [%TransactionInput{from: "@Bob3", amount: 10.0, spent?: false, type: :UCO}] =
+      assert [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}] =
                ArchEthic.get_transaction_inputs("@Alice2")
     end
   end

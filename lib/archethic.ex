@@ -151,7 +151,7 @@ defmodule ArchEthic do
     %{uco: uco_balance, nft: nft_balances}
   end
 
-  defp handle_balance_result(_), do: %{uco: 0.0, nft: %{}}
+  defp handle_balance_result(_), do: %{uco: 0, nft: %{}}
 
   @doc """
   Request to fetch the inputs for a transaction address

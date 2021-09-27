@@ -11,12 +11,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @typedoc """
   TransactionMovement is composed from:
   - to: receiver address of the movement
-  - amount: specify the number assets to transfer to the recipients
+  - amount: specify the number assets to transfer to the recipients (smallest unit of uco 10^-8)
   - type: asset type (ie. UCO or NFT)
   """
   @type t() :: %__MODULE__{
           to: Crypto.versioned_hash(),
-          amount: float(),
+          amount: non_neg_integer(),
           type: Type.t()
         }
 
@@ -28,7 +28,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> %TransactionMovement{
       ...>    to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...>    amount: 0.30,
+      ...>    amount: 30_000_000,
       ...>    type: :UCO
       ...>  }
       ...>  |> TransactionMovement.serialize()
@@ -37,7 +37,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
-      63, 211, 51, 51, 51, 51, 51, 51,
+      0, 0, 0, 0, 1, 201, 195, 128,
       # UCO type
       0
       >>
@@ -45,7 +45,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> %TransactionMovement{
       ...>    to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-      ...>    amount: 0.30,
+      ...>    amount: 30_000_000,
       ...>    type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
       ...>  }
@@ -55,7 +55,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
-      63, 211, 51, 51, 51, 51, 51, 51,
+      0, 0, 0, 0, 1, 201, 195, 128,
       # NFT type
       1,
       # NFT address
@@ -65,7 +65,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
   @spec serialize(t()) :: <<_::64, _::_*8>>
   def serialize(%__MODULE__{to: to, amount: amount, type: type}) do
-    <<to::binary, amount::float, Type.serialize(type)::binary>>
+    <<to::binary, amount::64, Type.serialize(type)::binary>>
   end
 
   @doc """
@@ -75,14 +75,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 63, 211, 51, 51, 51, 51, 51, 51, 0
+      ...> 0, 0, 0, 0, 1, 201, 195, 128, 0
       ...> >>
       ...> |> TransactionMovement.deserialize()
       {
         %TransactionMovement{
           to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-          amount: 0.30,
+          amount: 30_000_000,
           type: :UCO
         },
         ""
@@ -90,7 +90,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 63, 211, 51, 51, 51, 51, 51, 51, 1, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
       ...> >>
       ...> |> TransactionMovement.deserialize()
@@ -98,7 +98,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         %TransactionMovement{
           to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
-          amount: 0.30,
+          amount: 30_000_000,
           type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
                         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
         },
@@ -108,12 +108,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), amount::float, rest::bitstring>> = rest
+    <<address::binary-size(hash_size), amount::64, rest::bitstring>> = rest
     {type, rest} = Type.deserialize(rest)
 
     {
       %__MODULE__{
-        to: <<hash_id::8>> <> address,
+        to: <<hash_id::8, address::binary>>,
         amount: amount,
         type: type
       },

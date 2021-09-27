@@ -20,17 +20,19 @@ defmodule ArchEthic.Reward do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
+  @unit_uco 100_000_000
+
   @doc """
   Get the minimum rewards for validation nodes
   """
-  @spec min_validation_nodes_reward() :: float()
+  @spec min_validation_nodes_reward() :: pos_integer()
   def min_validation_nodes_reward do
     uco_eur_price =
       DateTime.utc_now()
       |> OracleChain.get_uco_price()
       |> Keyword.get(:eur)
 
-    uco_eur_price * 50
+    trunc(uco_eur_price * 50) * @unit_uco
   end
 
   @doc """

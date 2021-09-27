@@ -10,7 +10,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedgerTest do
   property "symmetric serialization/deserialization of uco ledger" do
     check all(
             transfers <-
-              StreamData.map_of(StreamData.binary(length: 32), StreamData.float(min: 0.0))
+              StreamData.map_of(StreamData.binary(length: 32), StreamData.positive_integer())
           ) do
       transfers =
         Enum.map(transfers, fn {to, amount} ->

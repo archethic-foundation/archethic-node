@@ -71,7 +71,7 @@ defmodule ArchEthicWeb.FaucetController do
             transfers: [
               %UCOLedger.Transfer{
                 to: address,
-                amount: 100.0
+                amount: 10_000_000_000
               }
             ]
           }

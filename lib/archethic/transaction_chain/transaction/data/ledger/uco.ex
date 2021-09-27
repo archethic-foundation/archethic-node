@@ -23,7 +23,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
       ...>   %Transfer{
       ...>     to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-      ...>     amount: 10.5
+      ...>     amount: 1_050_000_000
       ...>   }
       ...> ]}
       ...> |> UCOLedger.serialize()
@@ -34,7 +34,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
         0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
         # UCO amount
-        64, 37, 0, 0, 0, 0, 0, 0
+        0, 0, 0, 0, 62, 149, 186, 128
       >>
   """
   @spec serialize(t()) :: binary()
@@ -49,7 +49,8 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
   ## Examples
 
       iex> <<1, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
-      ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53, 64, 37, 0, 0, 0, 0, 0, 0>>
+      ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53, 
+      ...> 0, 0, 0, 0, 62, 149, 186, 128>>
       ...> |> UCOLedger.deserialize()
       {
         %UCOLedger{
@@ -57,7 +58,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
             %Transfer{
               to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
                     165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-              amount: 10.5
+              amount: 1_050_000_000
             }
           ]
         },
@@ -119,19 +120,19 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
       ...>   %Transfer{
       ...>     to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-      ...>     amount: 10.5
+      ...>     amount: 1_050_000_000
       ...>   },
       ...>   %Transfer{
       ...>     to: <<0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
       ...>         221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>,
-      ...>     amount: 22.9
+      ...>     amount: 2_290_000_000
       ...>   }
       ...> ]}
       ...> |> UCOLedger.total_amount()
-      33.4
+      3_340_000_000
   """
-  @spec total_amount(t()) :: float()
+  @spec total_amount(t()) :: non_neg_integer()
   def total_amount(%__MODULE__{transfers: transfers}) do
-    Enum.reduce(transfers, 0.0, &(&2 + &1.amount))
+    Enum.reduce(transfers, 0, &(&2 + &1.amount))
   end
 end

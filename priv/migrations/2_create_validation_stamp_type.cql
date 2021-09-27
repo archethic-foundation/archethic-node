@@ -1,26 +1,26 @@
 CREATE TYPE IF NOT EXISTS archethic.ledger_operations_node_movement(
   "to" blob,
-  amount double,
+  amount bigint,
   roles list<text>
 );
 
 CREATE TYPE IF NOT EXISTS archethic.ledger_operations_transaction_movement(
   "to" blob,
-  amount double,
+  amount bigint,
   type varchar,
   nft_address blob
 );
 
 CREATE TYPE IF NOT EXISTS archethic.ledger_operations_unspent_output(
   "from" blob,
-  amount double,
+  amount bigint,
   type varchar,
   nft_address blob,
   reward boolean
 );
 
 CREATE TYPE IF NOT EXISTS archethic.ledger_operations(
-  fee float,
+  fee bigint,
   transaction_movements LIST<frozen<ledger_operations_transaction_movement>>,
   node_movements LIST<frozen<ledger_operations_node_movement>>,
   unspent_outputs LIST<frozen<ledger_operations_unspent_output>>

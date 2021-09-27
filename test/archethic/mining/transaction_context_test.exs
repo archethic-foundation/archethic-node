@@ -41,7 +41,7 @@ defmodule ArchEthic.Mining.TransactionContextTest do
         validation_stamp: %ValidationStamp{
           ledger_operations: %LedgerOperations{
             transaction_movements: [
-              %TransactionMovement{to: "@Alice1", amount: 10.0, type: :UCO}
+              %TransactionMovement{to: "@Alice1", amount: 1_000_000_000, type: :UCO}
             ]
           }
         }
@@ -61,7 +61,7 @@ defmodule ArchEthic.Mining.TransactionContextTest do
         _, %GetUnspentOutputs{address: "@Alice1"} ->
           {:ok,
            %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 10.0, type: :UCO}]
+             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 1_000_000_000, type: :UCO}]
            }}
       end)
 
