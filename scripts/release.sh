@@ -71,11 +71,11 @@ then
     MIX_ENV=prod mix distillery.release --upgrade
 
     echo "Copy upgraded release into ${INSTALL_DIR}/releases/${VERSION}"
-
-    cp _build/prod/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz $INSTALL_DIR/releases/$VERSION
+    mkdir -p $INSTALL_DIR/releases/$VERSION
+    cp _build/prod/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz $INSTALL_DIR/releases/$VERSION/archethic_node.tar.gz
 
     echo "Run the upgrade"
-    $INSTALL_DIR/bin/archethic_node upgrade ${VERSION}
+    $INSTALL_DIR/bin/archethic_node upgrade $VERSION
 else
     # Build and install the releases
 
