@@ -59,6 +59,11 @@ echo "Installation dir: ${INSTALL_DIR}"
 
 mkdir -p $INSTALL_DIR
 
+# Generate a cookie for the distribution if not exists
+if [[ -z "${ERLANG_COOKIE}" ]]; then
+    export ERLANG_COOKIE=$(openssl rand -hex 32)
+fi
+
 if [ $UPGRADE == 1 ]
 then
     # Build upgrade releases
@@ -101,6 +106,7 @@ else
     EnvironmentFile=/etc/default/archethic.env
     Environment=LANG=en_US.utf8
     Environment=MIX_ENV=prod
+    Environment=ERLANG_COOKIE=$ERLANG_COOKIE
     
     Restart=on-failure
     RemainAfterExit=yes
