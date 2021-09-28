@@ -12,7 +12,22 @@ defmodule ArchEthicWeb.FaucetController do
 
   alias ArchEthic.Crypto
 
-  @pool_seed Application.compile_env(:archethic, __MODULE__)[:seed]
+  @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
+
+  plug(:enabled)
+
+  defp enabled(conn, _) do
+    if Application.get_env(:archethic, __MODULE__)
+       |> Keyword.get(:enabled, false) do
+      conn
+    else
+      conn
+      |> put_status(:not_found)
+      |> put_view(ArchEthicWeb.ErrorView)
+      |> render("404.html")
+      |> halt()
+    end
+  end
 
   def index(conn, __params) do
     conn
