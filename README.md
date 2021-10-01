@@ -85,6 +85,11 @@ To start multiple nodes, you can leverage: `docker-compose`
 
 Requires working `docker-compose`
 
+Build the image:
+```bash
+docker build -t archethic-node .
+```
+
 To start testnet:
 ```bash
 docker-compose up
@@ -95,7 +100,7 @@ To run benchmarks:
 docker-compose up bench
 ```
 
-To validate testnet:
+To run the playbooks to validate non regression:
 ```bash
 docker-compose up validate
 ```
