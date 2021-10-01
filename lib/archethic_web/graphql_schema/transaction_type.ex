@@ -46,14 +46,14 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - Ledger: asset transfers
   - Code: smart contract code (hexadecimal),
   - Content: free zone for data hosting (string or hexadecimal)
-  - Keys: Secrets and authorized public keys to decrypt the secret
+  - Ownership: authorization/delegations containing list of secrets and their authorized public keys to proof the ownership
   - Recipients: For non asset transfers, the list of recipients of the transaction (e.g Smart contract interactions)
   """
   object :data do
     field(:ledger, :ledger)
     field(:code, :string)
     field(:content, :content)
-    field(:keys, :keys)
+    field(:ownerships, list_of(:ownership))
     field(:recipients, list_of(:hex))
   end
 
@@ -86,11 +86,11 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:nft_transfer))
   end
 
-  @desc "[Keys] represents a block to set secrets and authorized public keys able to read the secrets"
-  object :keys do
+  @desc "[Ownership] represents a block to set secrets and authorized public keys able to read the secrets"
+  object :ownership do
     field(:secrets, list_of(:hex))
 
-    field(:authorized_public_keys, list_of(list_of(:authorized_public_key))) do
+    field(:authorized_public_keys, list_of(list_of(:authorized_key))) do
       resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
         formatted_authorized_keys =
           Enum.map(authorized_keys, fn authorized_keys_by_secret ->
@@ -105,10 +105,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   end
 
   @desc """
-  [AuthorizedPublicKey] represents a authorized public key with the encrypted secret key for this given key.
+  [AuthorizedKey] represents a authorized public key with the encrypted secret key for this given key.
   By decrypting this secret key, the authorized public key will be able to decrypt its related secret
   """
-  object :authorized_public_key do
+  object :authorized_key do
     field(:public_key, :hex)
     field(:encrypted_secret_key, :hex)
   end

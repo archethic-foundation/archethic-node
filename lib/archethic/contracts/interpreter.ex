@@ -664,23 +664,23 @@ defmodule ArchEthic.Contracts.Interpreter do
        when arg in ["to", "amount", "nft"],
        do: {node, acc}
 
-  # Whitelist the add_authorized_key argument list
+  # Whitelist the add_ownership argument list
   defp prewalk(
          node = [
-           {{:atom, "public_key"}, _public_key},
-           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key},
-           {{:atom, "secret_index"}, _secret_index}
+           {{:atom, "secret"}, _secret},
+           {{:atom, "secret_key"}, _secret_key},
+           {{:atom, "authorized_public_keys"}, _authorized_public_keys}
          ],
-         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_ownership", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
          node = {{:atom, arg}, _},
-         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_ownership", :actions}}}
        )
-       when arg in ["public_key", "encrypted_secret_key", "secret_index"],
+       when arg in ["secret", "secret_key", "authorized_public_keys"],
        do: {node, acc}
 
   # Whitelist generics

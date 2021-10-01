@@ -42,7 +42,7 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Key
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   alias ArchEthic.PubSub
 
@@ -96,7 +96,9 @@ defmodule ArchEthic.BootstrapTest do
         [
           %Transaction{
             type: :node_shared_secrets,
-            data: %TransactionData{keys: [%Key{authorized_keys: keys, secret: secret}]}
+            data: %TransactionData{
+              ownerships: [%Ownership{authorized_keys: keys, secret: secret}]
+            }
           }
         ] ->
           encrypted_key = Map.get(keys, Crypto.last_node_public_key())

@@ -1,7 +1,7 @@
-defmodule ArchEthic.TransactionChain.TransactionData.Key do
+defmodule ArchEthic.TransactionChain.TransactionData.Ownership do
   @moduledoc """
-  Represents section in the transaction data to store a secret and the authorized public keys to
-  read the encrypted secret.
+  Represents an ownership of a secret and the authorized public keys able to
+  read the encrypted secret
   """
   defstruct authorized_keys: %{}, secret: ""
 
@@ -13,14 +13,14 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
         }
 
   @doc """
-  Add a secret with its authorized keys
+  Create a new ownership by passing its secret with its authorized keys
 
   ## Examples
 
       iex> secret_key = :crypto.strong_rand_bytes(32)
       iex> secret = "important message"
       iex> {pub, _pv} = Crypto.generate_deterministic_keypair("seed")
-      iex> %Key{authorized_keys: authorized_keys} = Key.new(secret, secret_key, [pub])
+      iex> %Ownership{authorized_keys: authorized_keys} = Ownership.new(secret, secret_key, [pub])
       iex> Map.keys(authorized_keys)
       [
         <<0, 0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96, 203, 174, 116, 191, 211, 
@@ -45,11 +45,11 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
   end
 
   @doc """
-  Serialize the transaction data keys
+  Serialize an ownership
 
   ## Examples
 
-      iex> %Key{
+      iex> %Ownership{
       ...>   secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
       ...>   authorized_keys: %{
       ...>      <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -61,7 +61,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
       ...>   }
       ...> }
-      ...> |> Key.serialize()
+      ...> |> Ownership.serialize()
       <<
         # Secret size
         0, 0, 0, 16,
@@ -92,7 +92,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
   end
 
   @doc """
-  Deserialize a transaction data keys encoded
+  Deserialize an encoded ownership
 
   ## Examples
 
@@ -104,9 +104,9 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
       ...> 233, 227, 98, 209, 211, 97, 117, 68, 101, 59, 121, 214, 105, 225, 218, 91, 92,
       ...> 212, 162, 48, 18, 15, 181, 70, 103, 32, 141, 4, 64, 107, 93, 117, 188, 244, 7,
       ...> 224, 214, 225, 146, 44, 83, 111, 34, 239, 99>>
-      ...> |> Key.deserialize()
+      ...> |> Ownership.deserialize()
       {
-        %Key{
+        %Ownership{
           secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
           authorized_keys: %{
             <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -167,10 +167,10 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
   end
 
   @spec from_map(map()) :: t()
-  def from_map(key = %{}) do
+  def from_map(ownership = %{}) do
     %__MODULE__{
-      secret: Map.get(key, :secret, <<>>),
-      authorized_keys: Map.get(key, :authorized_keys, %{})
+      secret: Map.get(ownership, :secret, <<>>),
+      authorized_keys: Map.get(ownership, :authorized_keys, %{})
     }
   end
 
@@ -179,10 +179,10 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
     %{secret: <<>>, authorized_keys: []}
   end
 
-  def to_map(key = %__MODULE__{}) do
+  def to_map(ownership = %__MODULE__{}) do
     %{
-      secret: Map.get(key, :secret, <<>>),
-      authorized_keys: Map.get(key, :authorized_keys, %{})
+      secret: Map.get(ownership, :secret, <<>>),
+      authorized_keys: Map.get(ownership, :authorized_keys, %{})
     }
   end
 
@@ -191,7 +191,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
 
   ## Examples
 
-      iex> %Key{
+      iex> %Ownership{
       ...>   secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
       ...>   authorized_keys: %{
       ...>      <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -203,7 +203,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99, 1, 126, 241, 246>>
       ...>   }
       ...> }
-      ...> |> Key.authorized_public_key?(<<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
+      ...> |> Ownership.authorized_public_key?(<<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
       ...> 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>>)
       true
   """
@@ -218,7 +218,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
 
   ## Examples
 
-      iex> %Key{
+      iex> %Ownership{
       ...>   secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
       ...>   authorized_keys: %{
       ...>      <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -230,7 +230,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99, 1, 126, 241, 246>>
       ...>   }
       ...> }
-      ...> |> Key.list_authorized_public_keys()
+      ...> |> Ownership.list_authorized_public_keys()
       [
         <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
           83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>>
@@ -246,7 +246,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
 
   ## Examples
 
-      iex> %Key{
+      iex> %Ownership{
       ...>   secret: <<205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202>>,
       ...>   authorized_keys: %{
       ...>      <<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
@@ -258,7 +258,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Key do
       ...>        224, 214, 225, 146, 44, 83, 111, 34, 239, 99, 1, 126, 241, 246>>
       ...>   }
       ...> }
-      ...> |> Key.get_encrypted_key(<<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
+      ...> |> Ownership.get_encrypted_key(<<0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
       ...> 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9>>)
       <<139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
         177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,

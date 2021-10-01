@@ -12,10 +12,10 @@ defmodule ArchEthic.Contracts.Contract.Constants do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Key
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
@@ -30,7 +30,7 @@ defmodule ArchEthic.Contracts.Contract.Constants do
         data: %TransactionData{
           content: content,
           code: code,
-          keys: keys,
+          ownerships: ownerships,
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: uco_transfers
@@ -47,9 +47,13 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       "type" => Atom.to_string(type),
       "content" => content,
       "code" => code,
-      "authorized_keys" => Enum.flat_map(keys, & &1.authorized_keys),
-      "authorized_public_keys" => Enum.flat_map(keys, &Key.list_authorized_public_keys(&1)),
-      "secrets" => Enum.map(keys, & &1.secret),
+      "authorized_keys" =>
+        ownerships
+        |> Enum.map(& &1.authorized_keys)
+        |> Enum.flat_map(& &1),
+      "authorized_public_keys" =>
+        Enum.flat_map(ownerships, &Ownership.list_authorized_public_keys(&1)),
+      "secrets" => Enum.map(ownerships, & &1.secret),
       "previous_public_key" => previous_public_key,
       "recipients" => recipients,
       "uco_transfers" =>
@@ -80,13 +84,20 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       data: %TransactionData{
         code: Map.get(constants, "code", ""),
         content: Map.get(constants, "content", ""),
-        keys:
+        ownerships:
           constants
           |> Map.get("secrets", [])
           |> Enum.with_index()
           |> Enum.map(fn {secret, index} ->
-            authorized_keys = Enum.at(Map.get(constants, :authorized_keys, []), index)
-            %Key{secret: secret, authorized_keys: authorized_keys}
+            authorized_keys =
+              constants
+              |> Map.get("authorized_keys", [])
+              |> Enum.map(fn {public_key, encrypted_secret_key} ->
+                %{public_key => encrypted_secret_key}
+              end)
+              |> Enum.at(index)
+
+            %Ownership{secret: secret, authorized_keys: authorized_keys}
           end),
         recipients: Map.get(constants, "recipients", []),
         ledger: %Ledger{

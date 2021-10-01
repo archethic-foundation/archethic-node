@@ -4,8 +4,8 @@ defmodule ArchEthicWeb.API.Schema.TransactionData do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Schema.Keys
   alias ArchEthicWeb.API.Schema.Ledger
+  alias ArchEthicWeb.API.Schema.Ownership
   alias ArchEthicWeb.API.Types.AddressList
   alias ArchEthicWeb.API.Types.Hex
 
@@ -13,7 +13,7 @@ defmodule ArchEthicWeb.API.Schema.TransactionData do
     field(:code, :string)
     field(:content, Hex)
     embeds_one(:ledger, Ledger)
-    embeds_many(:keys, Keys)
+    embeds_many(:ownerships, Ownership)
     field(:recipients, AddressList)
   end
 
@@ -21,6 +21,6 @@ defmodule ArchEthicWeb.API.Schema.TransactionData do
     changeset
     |> cast(params, [:code, :content, :recipients])
     |> cast_embed(:ledger)
-    |> cast_embed(:keys)
+    |> cast_embed(:ownerships)
   end
 end

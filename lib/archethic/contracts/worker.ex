@@ -23,7 +23,7 @@ defmodule ArchEthic.Contracts.Worker do
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Key
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   alias ArchEthic.Utils
 
@@ -269,7 +269,7 @@ defmodule ArchEthic.Contracts.Worker do
       |> chain_type()
       |> chain_code()
       |> chain_content()
-      |> chain_keys()
+      |> chain_ownerships()
 
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
@@ -291,12 +291,12 @@ defmodule ArchEthic.Contracts.Worker do
   end
 
   defp get_transaction_seed(%Transaction{
-         data: %TransactionData{keys: keys}
+         data: %TransactionData{ownerships: ownerships}
        }) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    %Key{secret: secret, authorized_keys: authorized_keys} =
-      Enum.find(keys, &Key.authorized_public_key?(&1, storage_nonce_public_key))
+    %Ownership{secret: secret, authorized_keys: authorized_keys} =
+      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
 
     encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
 
@@ -343,20 +343,20 @@ defmodule ArchEthic.Contracts.Worker do
 
   defp chain_content(acc), do: acc
 
-  defp chain_keys(
+  defp chain_ownerships(
          acc = %{
-           next_transaction: %Transaction{data: %TransactionData{keys: []}},
+           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
            previous_transaction: %Transaction{
-             data: %TransactionData{keys: previous_keys}
+             data: %TransactionData{ownerships: previous_ownerships}
            }
          }
        ) do
     put_in(
       acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:keys)],
-      previous_keys
+      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
+      previous_ownerships
     )
   end
 
-  defp chain_keys(acc), do: acc
+  defp chain_ownerships(acc), do: acc
 end

@@ -48,7 +48,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                        "transfers" => []
                      }
                    },
-                   "keys" => [],
+                   "ownerships" => [],
                    "recipients" => []
                  },
                  "previousPublicKey" => "abc",
@@ -273,14 +273,14 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => [
+            "ownerships" => [
               %{"secret" => "abc"}
             ]
           }
         })
 
       assert [%{secret: ["must be hexadecimal"]}] =
-               changeset |> get_errors |> get_in([:data, :keys])
+               changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
     test "should return an error if the public key in the authorized keys is not valid" do
@@ -298,7 +298,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => [
+            "ownerships" => [
               %{
                 "authorizedKeys" => [
                   %{
@@ -320,7 +320,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                    }
                  ]
                }
-             ] = changeset |> get_errors |> get_in([:data, :keys])
+             ] = changeset |> get_errors |> get_in([:data, :ownerships])
 
       changeset =
         %Ecto.Changeset{
@@ -336,7 +336,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => [
+            "ownerships" => [
               %{
                 "authorizedKeys" => [
                   %{
@@ -355,7 +355,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                    %{publicKey: ["invalid key size"], encryptedSecretKey: ["must be hexadecimal"]}
                  ]
                }
-             ] = changeset |> get_errors |> get_in([:data, :keys])
+             ] = changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
     test "should return an error if the encrypted key in the authorized keys is not valid" do
@@ -373,7 +373,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
-            "keys" => [
+            "ownerships" => [
               %{
                 "authorizedKeys" => [
                   %{
@@ -388,7 +388,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
         })
 
       assert [%{authorizedKeys: [%{encryptedSecretKey: ["must be hexadecimal"]}]}] =
-               changeset |> get_errors |> get_in([:data, :keys])
+               changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
     test "should return an error if the recipients are invalid" do
@@ -463,15 +463,12 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                    ]
                  }
                },
-               keys: [
+               ownerships: [
                  %{
                    secret: secret,
-                   authorized_keys: [
-                     %{
-                       public_key: authorized_public_key,
-                       encrypted_secret_key: encrypted_key
-                     }
-                   ]
+                   authorized_keys: %{
+                     authorized_public_key => encrypted_key
+                   }
                  }
                ]
              }
@@ -491,7 +488,7 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
                      ]
                    }
                  },
-                 "keys" => [
+                 "ownerships" => [
                    %{
                      "secret" => Base.encode16(secret),
                      "authorizedKeys" => [

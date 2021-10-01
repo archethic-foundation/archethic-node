@@ -20,6 +20,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
@@ -55,21 +56,28 @@ defmodule ArchEthic.Contracts.WorkerTest do
     next_address = Crypto.hash(pub)
 
     secret = Crypto.aes_encrypt(transaction_seed, aes_key)
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    constants = %{
-      "address" => "@SC1",
-      "authorized_keys" => [
-        %{
-          Crypto.storage_nonce_public_key() =>
-            Crypto.ec_encrypt(aes_key, Crypto.storage_nonce_public_key())
-        }
-      ],
-      "secrets" => [secret],
-      "content" => "",
-      "uco_transferred" => 0,
-      "nft_transferred" => 0,
-      "previous_public_key" => transaction_seed |> Crypto.derive_keypair(0) |> elem(0)
-    }
+    constants =
+      %Transaction{
+        address: "@SC1",
+        data: %TransactionData{
+          content: "",
+          ownerships: [
+            %Ownership{
+              secret: secret,
+              authorized_keys: %{
+                storage_nonce_public_key => Crypto.ec_encrypt(aes_key, storage_nonce_public_key)
+              }
+            }
+          ]
+        },
+        previous_public_key:
+          transaction_seed
+          |> Crypto.derive_keypair(0)
+          |> elem(0)
+      }
+      |> Constants.from_transaction()
 
     expected_tx = %Transaction{
       address: next_address,

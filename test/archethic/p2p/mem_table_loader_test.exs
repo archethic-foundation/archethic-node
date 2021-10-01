@@ -8,7 +8,7 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Key
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   import Mox
 
@@ -89,8 +89,8 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         address: "@NodeSharedSecrets1",
         type: :node_shared_secrets,
         data: %TransactionData{
-          keys: [
-            %Key{
+          ownerships: [
+            %Ownership{
               authorized_keys: %{
                 @node_1_public_key => :crypto.strong_rand_bytes(32)
               }
@@ -106,8 +106,8 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
         address: "@NodeSharedSecrets2",
         type: :node_shared_secrets,
         data: %TransactionData{
-          keys: [
-            %Key{
+          ownerships: [
+            %Ownership{
               authorized_keys: %{
                 @node_2_public_key => :crypto.strong_rand_bytes(32)
               }
@@ -158,8 +158,8 @@ defmodule ArchEthic.P2P.MemTableLoaderTest do
       address: "@NodeSharedSecrets1",
       type: :node_shared_secrets,
       data: %TransactionData{
-        keys: [
-          %Key{
+        ownerships: [
+          %Ownership{
             authorized_keys: %{
               @node_1_public_key => :crypto.strong_rand_bytes(32)
             }

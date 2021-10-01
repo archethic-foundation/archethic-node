@@ -25,8 +25,8 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Key
   alias ArchEthic.TransactionChain.TransactionData.Ledger
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
 
   alias ArchEthic.Utils
@@ -69,11 +69,14 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   defp validate_contract(%Transaction{data: %TransactionData{code: ""}}), do: :ok
 
   defp validate_contract(%Transaction{
-         data: data = %TransactionData{code: code}
+         data: %TransactionData{code: code, ownerships: ownerships}
        }) do
     case Contracts.parse(code) do
       {:ok, %Contract{triggers: [_ | _]}} ->
-        if TransactionData.authorized_public_key?(data, Crypto.storage_nonce_public_key()) do
+        if Enum.any?(
+             ownerships,
+             &Ownership.authorized_public_key?(&1, Crypto.storage_nonce_public_key())
+           ) do
           :ok
         else
           {:error, "Requires storage nonce public key as authorized public keys"}
@@ -133,7 +136,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          type: :node_shared_secrets,
          data: %TransactionData{
            content: content,
-           keys: [%Key{secret: secret, authorized_keys: authorized_keys}]
+           ownerships: [%Ownership{secret: secret, authorized_keys: authorized_keys}]
          }
        })
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do

@@ -192,15 +192,31 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                   :&,
                                   [line: 6],
                                   [
-                                    {{:., [line: 6],
+                                    {
+                                      {:., [line: 6],
+                                       [
+                                         {:__aliases__,
+                                          [
+                                            alias:
+                                              ArchEthic.Contracts.Interpreter.TransactionStatements
+                                          ], [:TransactionStatements]},
+                                         :add_ownership
+                                       ]},
+                                      [line: 6],
                                       [
-                                        {:__aliases__,
-                                         [
-                                           alias:
-                                             ArchEthic.Contracts.Interpreter.TransactionStatements
-                                         ], [:TransactionStatements]},
-                                        :add_secret
-                                      ]}, [line: 6], [{:&, [line: 6], [1]}, "MyEncryptedSecret"]}
+                                        {:&, [line: 6], [1]},
+                                        [
+                                          {"secret", "MyEncryptedSecret"},
+                                          {"secret_key", "MySecretKey"},
+                                          {"authorized_public_keys",
+                                           [
+                                             <<112, 194, 69, 229, 217, 112, 181, 157, 246, 86, 56,
+                                               189, 213, 217, 99, 238, 34, 230, 216, 146, 234, 34,
+                                               77, 136, 9, 208, 251, 117, 208, 177, 144, 122>>
+                                           ]}
+                                        ]
+                                      ]
+                                    }
                                   ]
                                 }
                               ]
@@ -230,58 +246,11 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                             alias:
                                               ArchEthic.Contracts.Interpreter.TransactionStatements
                                           ], [:TransactionStatements]},
-                                         :add_authorized_key
+                                         :add_recipient
                                        ]},
                                       [line: 7],
                                       [
                                         {:&, [line: 7], [1]},
-                                        [
-                                          {"public_key",
-                                           <<112, 194, 69, 229, 217, 112, 181, 157, 246, 86, 56,
-                                             189, 213, 217, 99, 238, 34, 230, 216, 146, 234, 34,
-                                             77, 136, 9, 208, 251, 117, 208, 177, 144, 122>>},
-                                          {"encrypted_secret_key",
-                                           <<71, 68, 42, 253, 51, 143, 131, 189, 220, 222, 156,
-                                             242, 174, 221, 105, 176, 33, 62, 127, 149, 110, 32,
-                                             39, 105, 226, 144, 240, 226, 105, 94, 147, 81>>},
-                                          {"secret_index", 0}
-                                        ]
-                                      ]
-                                    }
-                                  ]
-                                }
-                              ]
-                            }
-                          ]
-                        },
-                        {
-                          :=,
-                          [line: 8],
-                          [
-                            {:scope, [line: 8], nil},
-                            {
-                              :update_in,
-                              [line: 8],
-                              [
-                                {:scope, [line: 8], nil},
-                                ["next_transaction"],
-                                {
-                                  :&,
-                                  [line: 8],
-                                  [
-                                    {
-                                      {:., [line: 8],
-                                       [
-                                         {:__aliases__,
-                                          [
-                                            alias:
-                                              ArchEthic.Contracts.Interpreter.TransactionStatements
-                                          ], [:TransactionStatements]},
-                                         :add_recipient
-                                       ]},
-                                      [line: 8],
-                                      [
-                                        {:&, [line: 8], [1]},
                                         <<120, 39, 60, 92, 188, 235, 134, 23, 245, 67, 128, 204,
                                           47, 23, 61, 242, 64, 77, 182, 118, 201, 241, 13, 84,
                                           107, 111, 57, 94, 111, 59, 221, 238>>
@@ -304,8 +273,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
                  add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 200.0, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
                  set_content \"Receipt\"
-                 add_secret \"MyEncryptedSecret\"
-                 add_authorized_key public_key: "70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A", encrypted_secret_key: \"47442AFD338F83BDDCDE9CF2AEDD69B0213E7F956E202769E290F0E2695E9351\", secret_index: 0
+                 add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"] 
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
                end
                """
@@ -323,9 +291,11 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                          {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
                          {:%{}, _,
                           [
-                            {<<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                            {"to",
+                             <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
                                189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
-                               37, 132, 112, 179>>, 10.04}
+                               37, 132, 112, 179>>},
+                            {"amount", 10.04}
                           ]}
                        ]}
                   }
@@ -333,7 +303,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
               }} =
                """
                condition inherit: [
-                 uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04 }
+                 uco_transfers: %{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04 }
                ]
 
                actions triggered_by: datetime, at: 1102190390 do
@@ -355,9 +325,11 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                          {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
                          {:%{}, _,
                           [
-                            {<<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                            {"to",
+                             <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
                                189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
-                               37, 132, 112, 179>>, 10.04}
+                               37, 132, 112, 179>>},
+                            {"amount", 10.04}
                           ]}
                        ]},
                     content:
@@ -367,7 +339,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
               }} =
                """
                  condition inherit: [
-                   uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04 },
+                   uco_transfers: %{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04 },
                    content: "hello"
                  ]
 
