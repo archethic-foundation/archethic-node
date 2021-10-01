@@ -44,7 +44,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           address: "",
           last_checked?: true,
-          error: :invalid_address
+          error: :invalid_address,
+          uco_balance: 0
         )
 
       false ->
@@ -53,7 +54,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           address: "",
           last_checked?: true,
-          error: :invalid_address
+          error: :invalid_address,
+          uco_balance: 0
         )
 
       _ ->
@@ -61,7 +63,8 @@ defmodule ArchEthicWeb.ExplorerController do
           transaction_chain: [],
           chain_size: 0,
           address: Base.decode16!(address, case: :mixed),
-          last_checked?: true
+          last_checked?: true,
+          uco_balance: 0
         )
     end
   end
