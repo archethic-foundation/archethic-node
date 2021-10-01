@@ -405,7 +405,7 @@
                                     <div x-show="operation_section == 'transaction_fee' ">
                                         <p class="heading mb-4">Transaction fee</p>
                                         <p>
-                                            <%= @transaction.validation_stamp.ledger_operations.fee %>
+                                            <%= to_float(@transaction.validation_stamp.ledger_operations.fee) %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                         </p>
                                     </div>
