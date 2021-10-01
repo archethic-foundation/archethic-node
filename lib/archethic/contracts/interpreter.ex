@@ -1314,7 +1314,7 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp do_postwalk_execution(node, acc), do: {parse_value(node), acc}
 
   defp parse_value(val) when is_binary(val) do
-    case Base.decode16(val) do
+    case Base.decode16(val, case: :mixed) do
       {:ok, bin} ->
         bin
 
@@ -1337,7 +1337,7 @@ defmodule ArchEthic.Contracts.Interpreter do
 
           {_, false} ->
             Logger.debug(
-              "Invalid condition for #{field} with the given value: #{inspect(constants)}"
+              "Invalid condition for #{field} with the given value: #{get_in(constants, ["next", field])} - expected: #{inspect(condition)}"
             )
 
             false
