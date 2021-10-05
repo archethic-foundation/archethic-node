@@ -145,10 +145,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
       d2
     )
 
-    assert [{"@Alice1", "@Alice4", timestamp}] =
-             Cassandra.list_last_transaction_addresses() |> Enum.to_list()
-
-    assert Utils.truncate_datetime(timestamp) == d2
+    assert ["@Alice4"] = Cassandra.list_last_transaction_addresses() |> Enum.to_list()
   end
 
   @tag infrastructure: true

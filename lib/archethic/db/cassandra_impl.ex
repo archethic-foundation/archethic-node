@@ -247,15 +247,10 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec list_last_transaction_addresses() :: Enumerable.t()
   def list_last_transaction_addresses do
-    "SELECT * FROM archethic.chain_lookup_by_last_address PER PARTITION LIMIT 1"
+    "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address PER PARTITION LIMIT 1"
     |> QueryProducer.add_query([], true)
-    |> Stream.map(fn %{
-                       "transaction_address" => address,
-                       "last_transaction_address" => last_address,
-                       "timestamp" => timestamp
-                     } ->
-      {address, last_address, timestamp}
-    end)
+    |> Stream.map(&Map.get(&1, "last_transaction_address"))
+    |> Stream.uniq()
   end
 
   @impl DB

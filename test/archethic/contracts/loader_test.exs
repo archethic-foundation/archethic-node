@@ -114,28 +114,30 @@ defmodule ArchEthic.Contracts.LoaderTest do
 
   test "start_link/1 should load smart contract from DB" do
     MockDB
-    |> stub(:list_transactions, fn _ ->
-      [
-        %Transaction{
-          address: "@SC2",
-          data: %TransactionData{
-            code: """
-            condition transaction: [
-              content: "hello"
-            ]
+    |> stub(:list_last_transaction_addresses, fn ->
+      ["@SC2"]
+    end)
+    |> stub(:get_transaction, fn "@SC2", _ ->
+      {:ok,
+       %Transaction{
+         address: "@SC2",
+         data: %TransactionData{
+           code: """
+           condition transaction: [
+             content: "hello"
+           ]
 
-            condition inherit: [
-              content: "hi"
-            ]
+           condition inherit: [
+             content: "hi"
+           ]
 
-            actions triggered_by: transaction do
-              set_content "hi"
-            end
-            """
-          },
-          previous_public_key: ""
-        }
-      ]
+           actions triggered_by: transaction do
+             set_content "hi"
+           end
+           """
+         },
+         previous_public_key: ""
+       }}
     end)
 
     assert {:ok, _} = Loader.start_link()

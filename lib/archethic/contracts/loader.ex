@@ -9,9 +9,8 @@ defmodule ArchEthic.Contracts.Loader do
   alias ArchEthic.Contracts.TransactionLookup
   alias ArchEthic.Contracts.Worker
 
-  alias ArchEthic.Crypto
+  alias ArchEthic.DB
 
-  alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
@@ -25,12 +24,18 @@ defmodule ArchEthic.Contracts.Loader do
   end
 
   def init(_opts) do
-    TransactionChain.list_all([
-      :address,
-      :previous_public_key,
-      data: [:code],
-      validation_stamp: [:timestamp]
-    ])
+    DB.list_last_transaction_addresses()
+    |> Stream.map(fn address ->
+      {:ok, tx} =
+        DB.get_transaction(address, [
+          :address,
+          :previous_public_key,
+          :data,
+          validation_stamp: [:timestamp]
+        ])
+
+      tx
+    end)
     |> Stream.filter(&(&1.data.code != ""))
     |> Stream.each(&load_transaction(&1, true))
     |> Stream.run()
@@ -48,13 +53,12 @@ defmodule ArchEthic.Contracts.Loader do
         tx = %Transaction{
           address: address,
           type: type,
-          data: %TransactionData{code: code},
-          previous_public_key: previous_public_key
+          data: %TransactionData{code: code}
         },
         _from_db
       )
       when code != "" do
-    stop_contract(Crypto.hash(previous_public_key))
+    stop_contract(Transaction.previous_address(tx))
 
     case Contracts.parse!(code) do
       # Only load smart contract which are expecting interactions
