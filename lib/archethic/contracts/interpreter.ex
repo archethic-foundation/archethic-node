@@ -441,6 +441,18 @@ defmodule ArchEthic.Contracts.Interpreter do
        when field_name in @condition_fields,
        do: {node, acc}
 
+  # Whitelist the usage of map in the conditions
+  # Example:
+  #
+  # ```
+  # condition inehrit: [
+  #   uco_transfers: [%{ to: "address", amount: 1000000 }]
+  # ]
+  # ```
+  defp prewalk(node = {{:atom, _key}, _val}, acc = {:ok, %{scope: :condition}}) do
+    {node, acc}
+  end
+
   # Whitelist the usage transaction fields
   defp prewalk(
          node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]},
@@ -962,23 +974,37 @@ defmodule ArchEthic.Contracts.Interpreter do
 
   defp aggregate_conditions(conditions, subject_scope) do
     Enum.reduce(conditions, %Conditions{}, fn {subject, condition}, acc ->
-      condition =
-        if subject == "origin_family" do
-          String.to_existing_atom(condition)
-        else
-          if is_binary(condition) or is_number(condition) do
-            {:==, [],
-             [
-               {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
-               condition
-             ]}
-          else
-            Macro.postwalk(condition, &to_boolean_expression(&1, subject_scope, subject))
-          end
-        end
-
+      condition = do_aggregate_condition(condition, subject_scope, subject)
       Map.put(acc, String.to_existing_atom(subject), condition)
     end)
+  end
+
+  defp do_aggregate_condition(condition, _, "origin_family"),
+    do: String.to_existing_atom(condition)
+
+  defp do_aggregate_condition(condition, subject_scope, subject)
+       when is_binary(condition) or is_number(condition) do
+    {:==, [],
+     [
+       {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
+       condition
+     ]}
+  end
+
+  defp do_aggregate_condition(condition, subject_scope, subject) when is_list(condition) do
+    {:==, [],
+     [
+       {:get_in, [],
+        [
+          {:scope, [], nil},
+          [subject_scope, subject]
+        ]},
+       condition
+     ]}
+  end
+
+  defp do_aggregate_condition(condition, subject_scope, subject) do
+    Macro.postwalk(condition, &to_boolean_expression(&1, subject_scope, subject))
   end
 
   defp to_boolean_expression(

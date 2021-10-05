@@ -90,7 +90,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                            <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239,
                                              148, 125, 1, 189, 220, 144, 198, 95, 9, 238, 130,
                                              139, 218, 222, 46, 62, 212, 37, 132, 112, 179>>},
-                                          {"amount", 10.04}
+                                          {"amount", 1_040_000_000}
                                         ]
                                       ]
                                     }
@@ -133,7 +133,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                            <<48, 103, 4, 85, 113, 62, 44, 190, 207, 148, 89, 18,
                                              38, 169, 3, 101, 30, 216, 98, 86, 53, 24, 29, 218,
                                              35, 111, 236, 194, 33, 209, 231, 228>>},
-                                          {"amount", 200.0},
+                                          {"amount", 20_000_000_000},
                                           {"nft",
                                            <<174, 180, 166, 245, 171, 109, 130, 190, 34, 60, 88,
                                              103, 235, 165, 254, 97, 111, 82, 244, 16, 220, 248,
@@ -270,8 +270,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                """
                actions triggered_by: transaction do
                  set_type transfer
-                 add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
-                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 200.0, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
+                 add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
+                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
                  set_content \"Receipt\"
                  add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"] 
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
@@ -288,27 +288,33 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                     uco_transfers:
                       {:==, _,
                        [
-                         {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
-                         {:%{}, _,
+                         {:get_in, _,
                           [
-                            {"to",
-                             <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
-                               189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
-                               37, 132, 112, 179>>},
-                            {"amount", 10.04}
-                          ]}
+                            {:scope, _, nil},
+                            ["next", "uco_transfers"]
+                          ]},
+                         [
+                           {:%{}, _,
+                            [
+                              {"to",
+                               <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                                 189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
+                                 37, 132, 112, 179>>},
+                              {"amount", 1_040_000_000}
+                            ]}
+                         ]
                        ]}
                   }
                 }
               }} =
                """
                condition inherit: [
-                 uco_transfers: %{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04 }
+                 uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }]
                ]
 
                actions triggered_by: datetime, at: 1102190390 do
                  set_type transfer
-                 add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
+                 add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
                end
                """
                |> Interpreter.parse()
@@ -323,14 +329,16 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                       {:==, _,
                        [
                          {:get_in, _, [{:scope, _, nil}, ["next", "uco_transfers"]]},
-                         {:%{}, _,
-                          [
-                            {"to",
-                             <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
-                               189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
-                               37, 132, 112, 179>>},
-                            {"amount", 10.04}
-                          ]}
+                         [
+                           {:%{}, _,
+                            [
+                              {"to",
+                               <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1,
+                                 189, 220, 144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212,
+                                 37, 132, 112, 179>>},
+                              {"amount", 1_040_000_000}
+                            ]}
+                         ]
                        ]},
                     content:
                       {:==, _, [{:get_in, _, [{:scope, _, nil}, ["next", "content"]]}, "hello"]}
@@ -339,7 +347,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
               }} =
                """
                  condition inherit: [
-                   uco_transfers: %{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04 },
+                   uco_transfers: [%{ to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1040000000 }],
                    content: "hello"
                  ]
 

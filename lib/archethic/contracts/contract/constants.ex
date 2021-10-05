@@ -58,8 +58,9 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       "recipients" => recipients,
       "uco_transfers" =>
         uco_transfers
-        |> Enum.map(fn %UCOTransfer{to: to, amount: amount} -> {to, amount} end)
-        |> Enum.into(%{}),
+        |> Enum.map(fn %UCOTransfer{to: to, amount: amount} ->
+          %{"to" => to, "amount" => amount}
+        end),
       "nft_transfers" =>
         nft_transfers
         |> Enum.map(fn %NFTTransfer{
@@ -67,9 +68,8 @@ defmodule ArchEthic.Contracts.Contract.Constants do
                          amount: amount,
                          nft: nft_address
                        } ->
-          {to, %{"amount" => amount, "nft" => nft_address}}
+          %{"to" => to, "amount" => amount, "nft" => nft_address}
         end)
-        |> Enum.into(%{})
     }
   end
 
