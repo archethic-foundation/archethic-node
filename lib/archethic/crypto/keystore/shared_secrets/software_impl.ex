@@ -10,7 +10,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   use GenStateMachine, callback_mode: :handle_event_function
 
@@ -114,7 +114,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         :node_shared_secrets,
         [
           :address,
-          data: [:keys],
+          data: [:ownerships],
           validation_stamp: [:timestamp]
         ]
       )
@@ -141,11 +141,12 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
       %Transaction{
         address: address,
-        data: %TransactionData{keys: keys = %Keys{secrets: [secret]}},
+        data: %TransactionData{ownerships: [ownership = %Ownership{secret: secret}]},
         validation_stamp: %ValidationStamp{timestamp: timestamp}
       } ->
-        if Keys.authorized_key?(keys, Crypto.last_node_public_key()) do
-          encrypted_secret_key = Keys.get_encrypted_key_at(keys, 0, Crypto.last_node_public_key())
+        if Ownership.authorized_public_key?(ownership, Crypto.last_node_public_key()) do
+          encrypted_secret_key =
+            Ownership.get_encrypted_key(ownership, Crypto.last_node_public_key())
 
           daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 

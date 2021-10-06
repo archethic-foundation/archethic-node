@@ -545,7 +545,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
       0, 0, 0, 0,
       # Content size
       0, 0, 0, 0,
-      # Nb secrets,
+      # Nb keys,
       0,
       # Nb UCO transfers
       0,

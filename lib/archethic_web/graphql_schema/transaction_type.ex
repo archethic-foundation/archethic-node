@@ -46,14 +46,14 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - Ledger: asset transfers
   - Code: smart contract code (hexadecimal),
   - Content: free zone for data hosting (string or hexadecimal)
-  - Keys: Secrets and authorized public keys to decrypt the secret
+  - Ownership: authorization/delegations containing list of secrets and their authorized public keys to proof the ownership
   - Recipients: For non asset transfers, the list of recipients of the transaction (e.g Smart contract interactions)
   """
   object :data do
     field(:ledger, :ledger)
     field(:code, :string)
     field(:content, :content)
-    field(:keys, :keys)
+    field(:ownerships, list_of(:ownership))
     field(:recipients, list_of(:hex))
   end
 
@@ -86,12 +86,12 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:nft_transfer))
   end
 
-  @desc "[Keys] represents a block to set secrets and authorized public keys able to read the secrets"
-  object :keys do
+  @desc "[Ownership] represents a block to set secrets and authorized public keys able to read the secrets"
+  object :ownership do
     field(:secrets, list_of(:hex))
 
-    field(:authorized_keys, list_of(list_of(:authorized_key))) do
-      resolve(fn _, %{source: %{authorized_keys: authorized_keys}} ->
+    field(:authorized_public_keys, list_of(list_of(:authorized_key))) do
+      resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
         formatted_authorized_keys =
           Enum.map(authorized_keys, fn authorized_keys_by_secret ->
             Enum.map(authorized_keys_by_secret, fn {public_key, encrypted_secret_key} ->

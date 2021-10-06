@@ -12,10 +12,10 @@ defmodule ArchEthic.Contracts.Contract.Constants do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
@@ -30,11 +30,7 @@ defmodule ArchEthic.Contracts.Contract.Constants do
         data: %TransactionData{
           content: content,
           code: code,
-          keys:
-            keys = %Keys{
-              authorized_keys: authorized_keys,
-              secrets: secrets
-            },
+          ownerships: ownerships,
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: uco_transfers
@@ -51,15 +47,20 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       "type" => Atom.to_string(type),
       "content" => content,
       "code" => code,
-      "authorized_public_keys" => Keys.list_authorized_public_keys(keys),
-      "authorized_keys" => authorized_keys,
-      "secrets" => secrets,
+      "authorized_keys" =>
+        ownerships
+        |> Enum.map(& &1.authorized_keys)
+        |> Enum.flat_map(& &1),
+      "authorized_public_keys" =>
+        Enum.flat_map(ownerships, &Ownership.list_authorized_public_keys(&1)),
+      "secrets" => Enum.map(ownerships, & &1.secret),
       "previous_public_key" => previous_public_key,
       "recipients" => recipients,
       "uco_transfers" =>
         uco_transfers
-        |> Enum.map(fn %UCOTransfer{to: to, amount: amount} -> {to, amount} end)
-        |> Enum.into(%{}),
+        |> Enum.map(fn %UCOTransfer{to: to, amount: amount} ->
+          %{"to" => to, "amount" => amount}
+        end),
       "nft_transfers" =>
         nft_transfers
         |> Enum.map(fn %NFTTransfer{
@@ -67,9 +68,8 @@ defmodule ArchEthic.Contracts.Contract.Constants do
                          amount: amount,
                          nft: nft_address
                        } ->
-          {to, %{"amount" => amount, "nft" => nft_address}}
+          %{"to" => to, "amount" => amount, "nft" => nft_address}
         end)
-        |> Enum.into(%{})
     }
   end
 
@@ -84,10 +84,21 @@ defmodule ArchEthic.Contracts.Contract.Constants do
       data: %TransactionData{
         code: Map.get(constants, "code", ""),
         content: Map.get(constants, "content", ""),
-        keys: %Keys{
-          authorized_keys: Map.get(constants, "authorized_keys", []),
-          secrets: Map.get(constants, "secrets", [])
-        },
+        ownerships:
+          constants
+          |> Map.get("secrets", [])
+          |> Enum.with_index()
+          |> Enum.map(fn {secret, index} ->
+            authorized_keys =
+              constants
+              |> Map.get("authorized_keys", [])
+              |> Enum.map(fn {public_key, encrypted_secret_key} ->
+                %{public_key => encrypted_secret_key}
+              end)
+              |> Enum.at(index)
+
+            %Ownership{secret: secret, authorized_keys: authorized_keys}
+          end),
         recipients: Map.get(constants, "recipients", []),
         ledger: %Ledger{
           uco: %UCOLedger{

@@ -23,7 +23,7 @@ defmodule ArchEthic.Contracts.Worker do
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   alias ArchEthic.Utils
 
@@ -269,8 +269,7 @@ defmodule ArchEthic.Contracts.Worker do
       |> chain_type()
       |> chain_code()
       |> chain_content()
-      |> chain_secret()
-      |> chain_authorized_keys()
+      |> chain_ownerships()
 
     case get_transaction_seed(prev_tx) do
       {:ok, transaction_seed} ->
@@ -292,23 +291,17 @@ defmodule ArchEthic.Contracts.Worker do
   end
 
   defp get_transaction_seed(%Transaction{
-         data: %TransactionData{keys: %Keys{secrets: secrets, authorized_keys: authorized_keys}}
+         data: %TransactionData{ownerships: ownerships}
        }) do
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    secret_index =
-      Enum.find_index(authorized_keys, fn authorized_keys_by_secret ->
-        authorized_keys_by_secret
-        |> Map.keys()
-        |> Enum.any?(&(&1 == storage_nonce_public_key))
-      end)
+    %Ownership{secret: secret, authorized_keys: authorized_keys} =
+      Enum.find(ownerships, &Ownership.authorized_public_key?(&1, storage_nonce_public_key))
 
-    encrypted_key = authorized_keys |> Enum.at(secret_index) |> Map.get(storage_nonce_public_key)
-
-    secret_for_node = Enum.at(secrets, secret_index)
+    encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
 
     with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
-         {:ok, transaction_seed} <- Crypto.aes_decrypt(secret_for_node, aes_key) do
+         {:ok, transaction_seed} <- Crypto.aes_decrypt(secret, aes_key) do
       {:ok, transaction_seed}
     end
   end
@@ -350,44 +343,20 @@ defmodule ArchEthic.Contracts.Worker do
 
   defp chain_content(acc), do: acc
 
-  defp chain_secret(
+  defp chain_ownerships(
          acc = %{
-           next_transaction: %Transaction{data: %TransactionData{keys: %Keys{secrets: []}}},
+           next_transaction: %Transaction{data: %TransactionData{ownerships: []}},
            previous_transaction: %Transaction{
-             data: %TransactionData{keys: %Keys{secrets: previous_secrets}}
+             data: %TransactionData{ownerships: previous_ownerships}
            }
          }
        ) do
     put_in(
       acc,
-      [:next_transaction, Access.key(:data, %{}), Access.key(:keys, %{}), Access.key(:secrets)],
-      previous_secrets
+      [:next_transaction, Access.key(:data, %{}), Access.key(:ownerships)],
+      previous_ownerships
     )
   end
 
-  defp chain_secret(acc), do: acc
-
-  defp chain_authorized_keys(
-         acc = %{
-           next_transaction: %Transaction{
-             data: %TransactionData{keys: %Keys{authorized_keys: []}}
-           },
-           previous_transaction: %Transaction{
-             data: %TransactionData{keys: %Keys{authorized_keys: previous_authorized_keys}}
-           }
-         }
-       ) do
-    put_in(
-      acc,
-      [
-        :next_transaction,
-        Access.key(:data, %{}),
-        Access.key(:keys, %{}),
-        Access.key(:authorized_keys)
-      ],
-      previous_authorized_keys
-    )
-  end
-
-  defp chain_authorized_keys(acc), do: acc
+  defp chain_ownerships(acc), do: acc
 end

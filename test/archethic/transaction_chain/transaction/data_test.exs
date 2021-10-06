@@ -5,8 +5,8 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
   alias ArchEthic.TransactionChain.TransactionData.Ledger
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
@@ -40,13 +40,13 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
         %TransactionData{
           code: code,
           content: content,
-          keys:
-            Keys.add_secret(
-              %Keys{},
+          ownerships: [
+            Ownership.new(
               secret,
               :crypto.strong_rand_bytes(32),
               authorized_public_keys
-            ),
+            )
+          ],
           ledger: %Ledger{
             uco: %UCOLedger{
               transfers: transfers
@@ -59,10 +59,10 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
 
       assert tx_data.code == code
       assert tx_data.content == content
-      assert tx_data.keys.secrets == [secret]
+      assert List.first(tx_data.ownerships).secret == secret
 
       assert Enum.all?(
-               Keys.list_authorized_public_keys(tx_data.keys),
+               Ownership.list_authorized_public_keys(List.first(tx_data.ownerships)),
                &(&1 in authorized_public_keys)
              )
 
