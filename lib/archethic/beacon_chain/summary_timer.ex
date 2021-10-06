@@ -107,9 +107,9 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
       ) do
     timer = schedule_next_summary_time(interval)
 
-    slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
+    current_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
-    PubSub.notify_next_summary_time(next_summary(slot_time))
+    PubSub.notify_next_summary_time(next_summary(current_time))
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 

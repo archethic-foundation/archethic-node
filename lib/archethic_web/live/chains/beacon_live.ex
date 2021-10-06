@@ -9,6 +9,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Election
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
+  alias ArchEthic.P2P.Message.RegisterBeaconUpdates
   alias ArchEthic.PubSub
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
   alias ArchEthicWeb.ExplorerView
@@ -44,6 +45,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
+      register_to_beacon_pool_updates()
+      PubSub.register_to_added_new_transaction_summary()
     end
 
     beacon_dates = get_beacon_dates()
@@ -134,5 +137,21 @@ defmodule ArchEthicWeb.BeaconChainLive do
     enrollment_date
     |> SummaryTimer.previous_summaries()
     |> Enum.sort({:desc, DateTime})
+  end
+
+  defp register_to_beacon_pool_updates do
+    #  fn responsible foreach 10 min -or slot_timer event msg register
+
+    date = BeaconChain.next_summary_date(DateTime.utc_now())
+
+    Enum.map(BeaconChain.list_subsets(), fn subset ->
+      # how to get nb nodes by subset & send them msg
+      list_of_nodes_for_this_subset = Election.beacon_storage_nodes(subset, date ,P2P.authorized_nodes())
+      P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
+        nodePublicKey: Crypto.first_node_public_key(),
+        subset: subset,
+        date: date
+      })
+    end)
   end
 end

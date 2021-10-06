@@ -126,10 +126,29 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
       Election.beacon_storage_nodes(subset, summary_time, [P2P.get_node_info() | nodes])
 
     with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
-         false <- TransactionChain.transaction_exists?(address) do
-      {:ok, tx = %Transaction{}} = P2P.reply_first(nodes, %GetTransaction{address: address})
+         false <- TransactionChain.transaction_exists?(address),
+         {:ok, tx} <- fetch_transaction(nodes, address) do
       TransactionChain.write_transaction(tx)
     end
+  end
+
+  defp fetch_transaction([node | rest], address) do
+    case P2P.send_message(node, %GetTransaction{address: address}) do
+      {:ok, tx = %Transaction{}} ->
+        {:ok, tx}
+
+      _ ->
+        fetch_transaction(rest, address)
+    end
+  end
+
+  defp fetch_transaction([], address) do
+    Logger.error("Cannot fetch beacon summary transaction to store",
+      transaction_address: Base.encode16(address),
+      type: :beacon_summary
+    )
+
+    {:error, :network_issue}
   end
 
   @doc """

@@ -8,6 +8,7 @@ defmodule ArchEthic.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
+  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSubRegistry
@@ -72,6 +73,20 @@ defmodule ArchEthic.PubSub do
   """
   def notify_next_summary_time(date = %DateTime{}) do
     dispatch(:next_summary_time, {:next_summary_time, date})
+  end
+
+  @doc """
+  Notify added new transaction summary in subset to the subscribers
+  """
+  def notify_added_new_transaction_summary(tx_summary = %TransactionSummary{}) do
+    dispatch(:added_new_transaction_summary, {:added_new_transaction_summary, tx_summary})
+  end
+
+  @doc """
+  Register a process to added new transaction summary to beacon chain slot
+  """
+  def register_to_added_new_transaction_summary() do
+    Registry.register(PubSubRegistry, :added_new_transaction_summary, [])
   end
 
   @doc """

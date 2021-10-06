@@ -56,6 +56,8 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
+  alias __MODULE__.RegisterBeaconUpdates
+  alias __MODULE__.BeaconUpdate
 
   alias ArchEthic.P2P.Node
 
@@ -100,6 +102,8 @@ defmodule ArchEthic.P2P.Message do
           | NodeAvailability.t()
           | Ping.t()
           | GetBeaconSummary.t()
+          | RegisterBeaconUpdates.t()
+          | BeaconUpdate.t()
 
   @type response ::
           Ok.t()
@@ -303,6 +307,10 @@ defmodule ArchEthic.P2P.Message do
   def encode(%Ping{}), do: <<24::8>>
 
   def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
+
+  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey,subset: subset, date: date}) do
+    <<26::8, nodePublicKey::binary, subset::binary, DateTime.to_unix(date)::32>>
+  end
 
   def encode(%Error{reason: reason}), do: <<239::8, Error.serialize_reason(reason)::8>>
 
@@ -1162,5 +1170,13 @@ defmodule ArchEthic.P2P.Message do
       {:error, :not_found} ->
         %NotFound{}
     end
+  end
+
+  def process(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset, date: date}) do
+    BeaconChain.Subset.subscribe_for_beacon_updates(nodePublicKey, subset, date)
+  end
+
+  def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do
+    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
 end
