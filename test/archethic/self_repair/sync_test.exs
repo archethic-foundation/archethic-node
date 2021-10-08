@@ -60,7 +60,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
   describe "load_missed_transactions/2" do
     setup do
-      start_supervised!({BeaconSummaryTimer, interval: "* * * * * *"})
+      start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
       # Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
@@ -73,7 +73,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         reward_address: :crypto.strong_rand_bytes(32),
         enrollment_date: DateTime.utc_now(),
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10)
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
       }
 
       coordinator_node = %Node{
@@ -81,7 +81,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
         available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365)),
         geo_patch: "AAA",
         network_patch: "AAA",
         reward_address: :crypto.strong_rand_bytes(32),
@@ -100,7 +100,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           reward_address: :crypto.strong_rand_bytes(32),
           enrollment_date: DateTime.utc_now(),
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-10)
+          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
         }
       ]
 
@@ -187,7 +187,11 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       MockDB
       |> stub(:register_tps, fn _, _, _ -> :ok end)
 
-      assert :ok = Sync.load_missed_transactions(DateTime.utc_now() |> DateTime.add(-1), "AAA")
+      assert :ok =
+               Sync.load_missed_transactions(
+                 DateTime.utc_now() |> DateTime.add(-86_400 * 364),
+                 "AAA"
+               )
 
       assert_receive :storage
     end
