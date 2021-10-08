@@ -9,7 +9,7 @@ defmodule ArchEthicWeb.API.Schema.NFTLedger do
   embedded_schema do
     embeds_many :transfers, Transfer do
       field(:to, Hash)
-      field(:amount, :float)
+      field(:amount, :integer)
       field(:nft, Hash)
     end
   end
@@ -24,5 +24,6 @@ defmodule ArchEthicWeb.API.Schema.NFTLedger do
     changeset
     |> cast(params, [:to, :amount, :nft])
     |> validate_required([:to, :amount, :nft])
+    |> validate_number(:to, greater_than: 0)
   end
 end
