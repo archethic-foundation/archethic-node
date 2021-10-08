@@ -86,9 +86,9 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:nft_transfer))
   end
 
-  @desc "[Ownership] represents a block to set secrets and authorized public keys able to read the secrets"
+  @desc "[Ownership] represents a block to set a secret and the authorized public keys able to decrypt the secret"
   object :ownership do
-    field(:secrets, list_of(:hex))
+    field(:secret, :hex)
 
     field(:authorized_public_keys, list_of(list_of(:authorized_key))) do
       resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
