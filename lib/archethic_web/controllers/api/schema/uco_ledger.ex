@@ -9,7 +9,7 @@ defmodule ArchEthicWeb.API.Schema.UCOLedger do
   embedded_schema do
     embeds_many :transfers, Transfer do
       field(:to, Hash)
-      field(:amount, :float)
+      field(:amount, :integer)
     end
   end
 
@@ -23,5 +23,6 @@ defmodule ArchEthicWeb.API.Schema.UCOLedger do
     changeset
     |> cast(params, [:to, :amount])
     |> validate_required([:to, :amount])
+    |> validate_number(:amount, greater_than: 0)
   end
 end
