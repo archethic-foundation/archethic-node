@@ -3,6 +3,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   use ArchEthicWeb, :live_view
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer
   alias ArchEthic.Crypto
@@ -49,8 +50,14 @@ defmodule ArchEthicWeb.BeaconChainLive do
       PubSub.register_to_added_new_transaction_summary()
     end
 
-    beacon_dates = get_beacon_dates()
+    beacon_dates =
+        case get_beacon_dates() |> Enum.to_list() do
+          [] ->
+            [next_summary_time]
 
+          dates ->
+            [next_summary_time | dates]
+        end
     new_assign =
       socket
       |> assign(:next_summary_time, next_summary_time)
@@ -103,6 +110,30 @@ defmodule ArchEthicWeb.BeaconChainLive do
     {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
 
+  def handle_info({:added_new_transaction_summary, tx_summary = %TransactionSummary{}},
+    socket = %{assigns: %{current_date_page: page,
+    transactions: transactions,
+    next_summary_time: next_summary_time,
+    dates: dates}}
+  ) do
+    new_transactions =
+       if page == 1 do
+          [ tx_summary | transactions |> Enum.to_list() ]
+      else
+        transactions
+      end
+    new_dates =
+      if Enum.at(dates,0) == next_summary_time do
+        dates
+      else
+        [ next_summary_time | dates]
+      end
+      new_assign =
+        socket
+        |> assign(:dates, new_dates)
+        |> assign(:transactions, new_transactions)
+      {:noreply, new_assign}
+  end
   def handle_info(
         {:next_summary_time, next_summary_date},
         socket = %{assigns: %{current_date_page: page, dates: dates}}
@@ -140,17 +171,15 @@ defmodule ArchEthicWeb.BeaconChainLive do
   end
 
   defp register_to_beacon_pool_updates do
-    #  fn responsible foreach 10 min -or slot_timer event msg register
 
     date = BeaconChain.next_summary_date(DateTime.utc_now())
 
     Enum.map(BeaconChain.list_subsets(), fn subset ->
-      # how to get nb nodes by subset & send them msg
       list_of_nodes_for_this_subset = Election.beacon_storage_nodes(subset, date ,P2P.authorized_nodes())
+
       P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
         nodePublicKey: Crypto.first_node_public_key(),
-        subset: subset,
-        date: date
+        subset: subset
       })
     end)
   end

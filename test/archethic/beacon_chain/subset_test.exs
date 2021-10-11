@@ -216,4 +216,19 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
     Process.sleep(500)
   end
+
+  test "subscribed nodes are being getting subscribed & added to beacon pool", %{
+    subset: subset,
+    pid: pid
+   } do
+    public_key1 = :crypto.strong_rand_bytes(32)
+    Subset.subscribe_for_beacon_updates(public_key1,subset)
+    assert %{ subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
+    assert [^public_key1] = Map.get(:sys.get_state(pid),:subscribed_nodes)
+
+    public_key2 = :crypto.strong_rand_bytes(32)
+    Subset.subscribe_for_beacon_updates(public_key2,subset)
+
+    assert %{ subscribed_nodes: [^public_key2,^public_key1]} = :sys.get_state(pid)
+  end
 end

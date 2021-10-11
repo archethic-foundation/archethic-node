@@ -31,7 +31,7 @@ defmodule ArchEthic.BeaconChain do
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-
+  alias ArchEthic.Utils
   require Logger
 
   @type pools ::
@@ -255,6 +255,18 @@ defmodule ArchEthic.BeaconChain do
 
       _ ->
         {:error, :not_found}
+    end
+  end
+
+  @doc """
+  register for nodes subscribed to beacon updates
+  """
+  def subscribe_for_beacon_updates(nodePublicKey, subset) do
+
+  # check node list and subscribe to subset if exist
+    if Utils.key_in_node_list?( P2P.authorized_nodes(), nodePublicKey) do
+      Subset.subscribe_for_beacon_updates(nodePublicKey,subset)
+      Logger.debug("Added Node Public key as subscriber for subset in BeaconChain")
     end
   end
 end

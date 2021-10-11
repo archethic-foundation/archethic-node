@@ -11,7 +11,7 @@ defmodule ArchEthic.P2P do
   alias __MODULE__.MemTableLoader
   alias __MODULE__.Message
   alias __MODULE__.Node
-
+  
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
 
@@ -409,6 +409,7 @@ defmodule ArchEthic.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
   def broadcast_message(nodes, message) do
+    Logger.debug("Broadcasting msg to received nodes")
     nodes
     |> Task.async_stream(&send_message(&1, message), ordered: false, on_timeout: :kill_task)
     |> Stream.run()

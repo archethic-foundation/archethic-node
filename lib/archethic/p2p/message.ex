@@ -104,6 +104,7 @@ defmodule ArchEthic.P2P.Message do
           | GetBeaconSummary.t()
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
+          | TransactionSummary.t()
 
   @type response ::
           Ok.t()
@@ -308,8 +309,8 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
 
-  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey,subset: subset, date: date}) do
-    <<26::8, nodePublicKey::binary, subset::binary, DateTime.to_unix(date)::32>>
+  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey,subset: subset}) do
+    <<26::8, nodePublicKey::binary, subset::binary>>
   end
 
   def encode(%Error{reason: reason}), do: <<239::8, Error.serialize_reason(reason)::8>>
@@ -1172,11 +1173,17 @@ defmodule ArchEthic.P2P.Message do
     end
   end
 
-  def process(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset, date: date}) do
-    BeaconChain.Subset.subscribe_for_beacon_updates(nodePublicKey, subset, date)
+  def process(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset}) do
+    Logger.debug("Processing recevied Register Beacon Update msg ")
+    BeaconChain.subscribe_for_beacon_updates(nodePublicKey, subset)
+    %Ok{}
   end
 
   def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do
+    Logger.debug("Processing recevied  Beacon Update msg ")
+    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
+  end
+  def process(tx_summary = %TransactionSummary{}) do
     :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
 end
