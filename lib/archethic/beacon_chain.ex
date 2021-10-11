@@ -261,10 +261,10 @@ defmodule ArchEthic.BeaconChain do
   @doc """
   register for nodes subscribed to beacon updates
   """
-  def subscribe_for_beacon_updates(nodePublicKey, subset) do
+  def subscribe_for_beacon_updates(node_public_key, subset) do
     # check node list and subscribe to subset if exist
-    if Utils.key_in_node_list?(P2P.authorized_nodes(), nodePublicKey) do
-      Subset.subscribe_for_beacon_updates(nodePublicKey, subset)
+    if Utils.key_in_node_list?(P2P.authorized_nodes(), node_public_key) do
+      Subset.subscribe_for_beacon_updates(node_public_key, subset)
       Logger.debug("Added Node Public key as subscriber for subset in BeaconChain")
     end
   end
