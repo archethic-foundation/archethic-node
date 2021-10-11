@@ -101,10 +101,9 @@ defmodule ArchEthic.BeaconChain.Subset do
       )
 
       if !Enum.empty?(subscribed_nodes) do
-         P2P.get_nodes_info(subscribed_nodes)
-         |> P2P.broadcast_message( tx_summary)
+        P2P.get_nodes_info(subscribed_nodes)
+        |> P2P.broadcast_message(tx_summary)
       end
-
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds
       case Map.get(state, :sampling_time) do
@@ -135,8 +134,8 @@ defmodule ArchEthic.BeaconChain.Subset do
         {:subscribe_node_to_beacon_updates, nodePublicKey},
         state = %{subscribed_nodes: current_list_of_subscribed_nodes}
       ) do
-        updated_list_of_subscribed_nodes = [nodePublicKey | current_list_of_subscribed_nodes]
-     {:noreply, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
+    updated_list_of_subscribed_nodes = [nodePublicKey | current_list_of_subscribed_nodes]
+    {:noreply, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
   end
 
   def handle_cast(
@@ -166,7 +165,6 @@ defmodule ArchEthic.BeaconChain.Subset do
 
     {:noreply, next_state(state, time)}
   end
-
 
   defp handle_slot(
          time,
@@ -209,6 +207,7 @@ defmodule ArchEthic.BeaconChain.Subset do
         :current_slot,
         %Slot{subset: subset, slot_time: next_time}
       )
+
     Map.put(
       new_state,
       :subscribed_nodes,
@@ -357,9 +356,9 @@ defmodule ArchEthic.BeaconChain.Subset do
     # register for beacon updates i.e add to subscribed list
 
     # if Utils.key_in_node_list?( P2P.authorized_nodes(),nodePublicKey) do
-      GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, nodePublicKey})
+    GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, nodePublicKey})
 
-      Logger.debug("Added Node Public key as subscriber for subset in Subset ")
+    Logger.debug("Added Node Public key as subscriber for subset in Subset ")
     # end
   end
 end

@@ -220,15 +220,15 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
   test "subscribed nodes are being getting subscribed & added to beacon pool", %{
     subset: subset,
     pid: pid
-   } do
+  } do
     public_key1 = :crypto.strong_rand_bytes(32)
-    Subset.subscribe_for_beacon_updates(public_key1,subset)
-    assert %{ subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
-    assert [^public_key1] = Map.get(:sys.get_state(pid),:subscribed_nodes)
+    Subset.subscribe_for_beacon_updates(public_key1, subset)
+    assert %{subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
+    assert [^public_key1] = Map.get(:sys.get_state(pid), :subscribed_nodes)
 
     public_key2 = :crypto.strong_rand_bytes(32)
-    Subset.subscribe_for_beacon_updates(public_key2,subset)
+    Subset.subscribe_for_beacon_updates(public_key2, subset)
 
-    assert %{ subscribed_nodes: [^public_key2,^public_key1]} = :sys.get_state(pid)
+    assert %{subscribed_nodes: [^public_key2, ^public_key1]} = :sys.get_state(pid)
   end
 end

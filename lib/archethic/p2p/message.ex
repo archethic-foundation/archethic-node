@@ -309,7 +309,7 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
 
-  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey,subset: subset}) do
+  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset}) do
     <<26::8, nodePublicKey::binary, subset::binary>>
   end
 
@@ -1183,6 +1183,7 @@ defmodule ArchEthic.P2P.Message do
     Logger.debug("Processing recevied  Beacon Update msg ")
     :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
+
   def process(tx_summary = %TransactionSummary{}) do
     :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
