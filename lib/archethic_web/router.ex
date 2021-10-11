@@ -26,6 +26,8 @@ defmodule ArchEthicWeb.Router do
     get("/up", UpController, :up)
     get("/metrics", MetricsController, :index)
     live_dashboard("/dashboard", metrics: ArchEthic.Telemetry)
+    get("/faucet", FaucetController, :index)
+    post("/faucet", FaucetController, :create_transfer)
   end
 
   scope "/explorer", ArchEthicWeb do

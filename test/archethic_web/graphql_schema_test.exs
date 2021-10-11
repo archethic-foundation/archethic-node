@@ -254,7 +254,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 0.202
+          amount: 20_200_000
         },
         DateTime.utc_now()
       )
@@ -263,7 +263,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 0.518
+          amount: 51_800_000
         },
         DateTime.utc_now()
       )
@@ -272,7 +272,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 1.46
+          amount: 146_000_000
         },
         DateTime.utc_now()
       )
@@ -292,7 +292,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 2.0,
+          amount: 200_000_000,
           type: {:NFT, :crypto.strong_rand_bytes(32)}
         },
         DateTime.utc_now()
@@ -302,7 +302,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 5.0,
+          amount: 500_000_000,
           type: {:NFT, :crypto.strong_rand_bytes(32)}
         },
         DateTime.utc_now()
@@ -312,7 +312,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 10.0,
+          amount: 1_000_000_000,
           type: {:NFT, :crypto.strong_rand_bytes(32)}
         },
         DateTime.utc_now()
@@ -341,7 +341,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
         addr,
         %UnspentOutput{
           from: :crypto.strong_rand_bytes(32),
-          amount: 0.202
+          amount: 20_200_000
         },
         ~U[2021-03-05 13:41:34Z]
       )

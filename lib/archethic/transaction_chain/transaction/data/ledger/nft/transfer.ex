@@ -10,13 +10,13 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
   Transfer is composed from:
   - nft: NFT address
   - to: receiver address of the asset
-  - amount: specify the number of NFT to transfer to the recipients
+  - amount: specify the number of NFT to transfer to the recipients (in the smallest unit 10^-8)
   - conditions: specify to which address the NFT can be used
   """
   @type t :: %__MODULE__{
           nft: binary(),
           to: binary(),
-          amount: float(),
+          amount: non_neg_integer(),
           conditions: list(binary())
         }
 
@@ -30,7 +30,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
       ...>    197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>   to: <<0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...>    85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
-      ...>   amount: 10.5
+      ...>   amount: 1_050_000_000
       ...> }
       ...> |> Transfer.serialize()
       <<
@@ -41,11 +41,11 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
         0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
         85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
         # Transfer amount
-        64, 37, 0, 0, 0, 0, 0, 0
+        0, 0, 0, 0, 62, 149, 186, 128
       >>
   """
   def serialize(%__MODULE__{nft: nft, to: to, amount: amount}) do
-    <<nft::binary, to::binary, amount::float>>
+    <<nft::binary, to::binary, amount::64>>
   end
 
   @doc """
@@ -58,7 +58,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
       ...> 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
-      ...> 64, 37, 0, 0, 0, 0, 0, 0>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128>>
       ...> |> Transfer.deserialize()
       {
         %Transfer{
@@ -66,7 +66,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
             197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
           to: <<0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
             85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
-          amount: 10.5
+          amount: 1_050_000_000
         },
         ""
       }
@@ -78,7 +78,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
     <<nft_address::binary-size(nft_hash_size), to_hash_id::8, rest::bitstring>> = rest
 
     to_hash_size = Crypto.hash_size(to_hash_id)
-    <<to_address::binary-size(to_hash_size), amount::float, rest::bitstring>> = rest
+    <<to_address::binary-size(to_hash_size), amount::64, rest::bitstring>> = rest
 
     {
       %__MODULE__{

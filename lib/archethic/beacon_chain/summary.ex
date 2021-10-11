@@ -61,7 +61,7 @@ defmodule ArchEthic.BeaconChain.Summary do
             }
           ],
         node_availabilities: <<1::1, 1::1, 0::1>>,
-        node_average_availabilities: [ 0.75, 0.75, 0.5]
+        node_average_availabilities: [0.75, 0.75, 0.50]
       }
   """
   @spec aggregate_slots(t(), Enumerable.t() | list(Slot.t())) :: t()
@@ -108,7 +108,7 @@ defmodule ArchEthic.BeaconChain.Summary do
         {index, nb_times}, acc ->
           avg_availability = nb_times / nb_slots
 
-          if avg_availability > 0.70 do
+          if avg_availability > 0.7 do
             acc
             |> Map.update!(:node_availabilities, &Utils.set_bitstring_bit(&1, index))
             |> Map.update!(
@@ -228,8 +228,8 @@ defmodule ArchEthic.BeaconChain.Summary do
       # Availabilities
       1::1, 1::1,
       # Average availabilities
-      60, 0,
-      60, 0
+      100,
+      100
       >>
   """
   @spec serialize(t()) :: bitstring()
@@ -252,7 +252,10 @@ defmodule ArchEthic.BeaconChain.Summary do
       |> :erlang.list_to_binary()
 
     node_average_availabilities_bin =
-      Enum.map(node_average_availabilities, &<<&1::float-16>>)
+      node_average_availabilities
+      |> Enum.map(fn avg ->
+        <<trunc(avg * 100)::8>>
+      end)
       |> :erlang.list_to_binary()
 
     <<subset::binary, DateTime.to_unix(summary_time)::32, length(transaction_summaries)::32,
@@ -271,7 +274,7 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...> 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0, 0, 1,
       ...> 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...> 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
-      ...> 94, 244, 190, 185, 0, 2, 1::1, 1::1, 60, 0, 60, 0>>
+      ...> 94, 244, 190, 185, 0, 2, 1::1, 1::1, 100, 100>>
       ...> |> Summary.deserialize()
       {
       %Summary{
@@ -312,13 +315,9 @@ defmodule ArchEthic.BeaconChain.Summary do
     <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
       rest
 
-    node_average_availabilities_size = nb_availabilities * 2
+    <<node_average_availabilities_bin::binary-size(nb_availabilities), rest::bitstring>> = rest
 
-    <<node_average_availabilities_bin::binary-size(node_average_availabilities_size),
-      rest::bitstring>> = rest
-
-    node_average_availabilities =
-      for <<avg::float-16 <- node_average_availabilities_bin>>, do: avg
+    node_average_availabilities = for <<avg::8 <- node_average_availabilities_bin>>, do: avg / 100
 
     {%__MODULE__{
        subset: <<subset>>,

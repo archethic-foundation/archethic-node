@@ -7,7 +7,7 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   import Mox
 
@@ -34,7 +34,7 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
         [
           %Transaction{
             data: %TransactionData{
-              keys: Keys.add_secret(%Keys{}, secrets, aes_key, [Crypto.last_node_public_key()])
+              ownerships: [Ownership.new(secrets, aes_key, [Crypto.last_node_public_key()])]
             },
             validation_stamp: %ValidationStamp{
               timestamp: timestamp

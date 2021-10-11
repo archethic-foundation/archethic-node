@@ -14,7 +14,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   import Mox
 
@@ -79,15 +79,15 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
               type: node_shared_secrets
             ]
             """,
-            keys: %Keys{
-              secrets: [:crypto.strong_rand_bytes(32)],
-              authorized_keys: [
-                %{
+            ownerships: [
+              %Ownership{
+                secret: :crypto.strong_rand_bytes(32),
+                authorized_keys: %{
                   "node_key1" => "",
                   "node_key2" => ""
                 }
-              ]
-            }
+              }
+            ]
           }
         )
 
@@ -182,10 +182,11 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
               set_content "hello"
             end
             """,
-            keys:
-              Keys.add_secret(%Keys{}, tx_seed, :crypto.strong_rand_bytes(32), [
+            ownerships: [
+              Ownership.new(tx_seed, :crypto.strong_rand_bytes(32), [
                 Crypto.storage_nonce_public_key()
               ])
+            ]
           },
           tx_seed,
           0

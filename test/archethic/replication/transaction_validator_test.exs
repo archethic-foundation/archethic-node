@@ -67,7 +67,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
   describe "validate/2" do
     test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached",
          context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert {:error, :invalid_atomic_commitment} =
                context
@@ -113,7 +113,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
 
     test "should return {:error, ::invalid_cross_validation_nodes_movements} when the node movements are invalid",
          context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert {:error, :invalid_cross_validation_nodes_movements} =
                context
@@ -125,7 +125,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
 
     test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies",
          context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert {:error, :invalid_transaction_with_inconsistencies} =
                context
@@ -136,7 +136,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
     end
 
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert :ok =
                context
@@ -147,7 +147,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
 
   describe "validate/3" do
     test "should return :ok when the transaction is valid", context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert :ok =
                context

@@ -3,6 +3,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   @doc """
@@ -23,7 +24,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
   ## Examples
 
-      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 10.04}])
+      iex> TransactionStatements.add_uco_transfer(%Transaction{data: %TransactionData{}}, [{"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"}, {"amount", 1_040_000_000}])
       %Transaction{
         data: %TransactionData{
           ledger: %Ledger{
@@ -31,7 +32,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
               transfers: [
                 %UCOTransfer{
                   to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
-                  amount: 10.04
+                  amount: 1_040_000_000
                 }
               ]
             }
@@ -57,7 +58,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
 
       iex> TransactionStatements.add_nft_transfer(%Transaction{data: %TransactionData{}}, [
       ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
-      ...>   {"amount", 10.0},
+      ...>   {"amount", 1_000_000_000},
       ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"}
       ...> ])
       %Transaction{
@@ -68,7 +69,7 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
                 %NFTTransfer{
                     to: <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
                       103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
-                    amount: 10.0,
+                    amount: 1_000_000_000,
                     nft: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
                       189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>
                 }
@@ -124,82 +125,44 @@ defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
   end
 
   @doc """
-  Add an authorized public key to read the secret with an encrypted key
+  Add an ownership to add a secret with its authorized public keys
 
   ## Examples
 
-      iex> TransactionStatements.add_authorized_key(%Transaction{data: %TransactionData{}}, [
-      ...>   {"secret_index", 0},
-      ...>   {"public_key", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
-      ...>   {"encrypted_secret_key", "FB49F76933689ECC9D260D57C2BEF9489234FE72DD2ED1C77E2E8B4E94D9137F"}
+      iex> %Transaction{data: %TransactionData{ownerships: [%Ownership{authorized_keys: authorized_keys}]}} = TransactionStatements.add_ownership(%Transaction{data: %TransactionData{}}, [
+      ...>   {"secret", "mysecret"},
+      ...>   {"secret_key", "62FE599BB217FC608D29E28C3FC4D825EA7989471261E43326FAB1A20A3C71B0"},
+      ...>   {"authorized_public_keys", [
+      ...>     "01000416A31DADE19AB4D9E7F22A4FA934694F265D0F20CB9D86B0B0B8FD28505CB6F9EF4D803AB5D2C49944DB0C24A12373F90A4406DBEF4577A9A59669DCAD10EBB6"
+      ...>   ]}
       ...> ])
-      %Transaction{
-        data: %TransactionData{
-          keys: %Keys{
-            authorized_keys: [%{
-              <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140,
-              103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>> =>
-              <<251, 73, 247, 105, 51, 104, 158, 204, 157, 38, 13, 87, 194, 190, 249, 72, 146,
-              52, 254, 114, 221, 46, 209, 199, 126, 46, 139, 78, 148, 217, 19, 127>>
-            }]
-          }
-        }
-      }
+      iex> Map.keys(authorized_keys)
+      [
+        <<1, 0, 4, 22, 163, 29, 173, 225, 154, 180, 217, 231, 242, 42, 79, 169, 52, 105,
+        79, 38, 93, 15, 32, 203, 157, 134, 176, 176, 184, 253, 40, 80, 92, 182, 249,
+        239, 77, 128, 58, 181, 210, 196, 153, 68, 219, 12, 36, 161, 35, 115, 249, 10,
+        68, 6, 219, 239, 69, 119, 169, 165, 150, 105, 220, 173, 16, 235, 182>>
+      ]
   """
-  @spec add_authorized_key(Transaction.t(), list()) :: Transaction.t()
-  def add_authorized_key(tx = %Transaction{}, args) when is_list(args) do
+  @spec add_ownership(Transaction.t(), list()) :: Transaction.t()
+  def add_ownership(tx = %Transaction{}, args) when is_list(args) do
     %{
-      "secret_index" => secret_index,
-      "public_key" => public_key,
-      "encrypted_secret_key" => encrypted_secret_key
+      "secret" => secret,
+      "secret_key" => secret_key,
+      "authorized_public_keys" => authorized_public_keys
     } = Enum.into(args, %{})
 
+    ownership =
+      Ownership.new(
+        secret,
+        secret_key,
+        Enum.map(authorized_public_keys, &Base.decode16!(&1, case: :mixed))
+      )
+
     update_in(
       tx,
-      [Access.key(:data), Access.key(:keys), Access.key(:authorized_keys)],
-      fn authorized_keys ->
-        case length(authorized_keys) do
-          0 ->
-            [%{decode_binary(public_key) => decode_binary(encrypted_secret_key)}]
-
-          length when secret_index < length ->
-            List.update_at(
-              authorized_keys,
-              secret_index,
-              &Map.put(&1, decode_binary(public_key), decode_binary(encrypted_secret_key))
-            )
-
-          length ->
-            List.update_at(
-              authorized_keys,
-              length - 1,
-              &Map.put(&1, decode_binary(public_key), decode_binary(encrypted_secret_key))
-            )
-        end
-      end
-    )
-  end
-
-  @doc """
-  Add a transaction encrypted secret
-
-  ## Examples
-
-      iex> TransactionStatements.add_secret(%Transaction{data: %TransactionData{}}, "mysecret")
-      %Transaction{
-        data: %TransactionData{
-          keys: %Keys{
-            secrets: ["mysecret"]
-          }
-        }
-      }
-  """
-  @spec add_secret(Transaction.t(), binary()) :: Transaction.t()
-  def add_secret(tx = %Transaction{}, secret) when is_binary(secret) do
-    update_in(
-      tx,
-      [Access.key(:data), Access.key(:keys), Access.key(:secrets)],
-      &(&1 ++ [decode_binary(secret)])
+      [Access.key(:data, %{}), Access.key(:ownerships, [])],
+      &[ownership | &1]
     )
   end
 

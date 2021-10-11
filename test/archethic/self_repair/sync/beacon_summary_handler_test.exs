@@ -363,7 +363,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       inputs = [
         %TransactionInput{
           from: "@Alice2",
-          amount: 10.0,
+          amount: 1_000_000_000,
           type: :UCO,
           timestamp: DateTime.utc_now()
         }
@@ -457,7 +457,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       inputs = [
         %TransactionInput{
           from: "@Alice2",
-          amount: 10.0,
+          amount: 1_000_000_000,
           type: :UCO,
           timestamp: DateTime.utc_now()
         }
@@ -471,7 +471,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       inputs = [
         %TransactionInput{
           from: "@Alice2",
-          amount: 10.0,
+          amount: 1_000_000_000,
           type: :UCO,
           timestamp: DateTime.utc_now()
         }

@@ -13,16 +13,18 @@ defmodule ArchEthic.Mining.Fee do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
 
   @min_tx_fee_in_usd 0.1
+  @unit_uco 100_000_000
 
   @doc """
   Determine the fee to paid for the given transaction
 
   The fee will differ according to the transaction type and complexity
   Genesis, network and wallet transaction cost nothing.
+
   """
-  @spec calculate(transaction :: Transaction.t(), uco_usd_price :: float()) :: fee :: float()
-  def calculate(%Transaction{type: :keychain}, _), do: 0.0
-  def calculate(%Transaction{type: :access_keychain}, _), do: 0.0
+  @spec calculate(transaction :: Transaction.t(), uco_usd_price :: float()) :: non_neg_integer()
+  def calculate(%Transaction{type: :keychain}, _), do: 0
+  def calculate(%Transaction{type: :access_keychain}, _), do: 0
 
   def calculate(
         tx = %Transaction{
@@ -33,32 +35,33 @@ defmodule ArchEthic.Mining.Fee do
       ) do
     cond do
       address == Bootstrap.genesis_address() ->
-        0.0
+        0
 
       true == Transaction.network_type?(type) ->
-        0.0
+        0
 
       true ->
-        transaction_value = get_transaction_value(tx)
+        transaction_value = get_transaction_value(tx) / @unit_uco
         nb_recipients = get_number_recipients(tx)
         nb_bytes = get_transaction_size(tx)
         nb_storage_nodes = get_number_replicas(tx)
 
-        do_calculate(
-          uco_price_in_usd,
-          transaction_value,
-          nb_bytes,
-          nb_storage_nodes,
-          nb_recipients
+        trunc(
+          do_calculate(
+            uco_price_in_usd,
+            transaction_value,
+            nb_bytes,
+            nb_storage_nodes,
+            nb_recipients
+          ) * @unit_uco
         )
-        |> Float.floor(6)
     end
   end
 
   defp get_transaction_value(%Transaction{
          data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: uco_transfers}}}
        }) do
-    Enum.reduce(uco_transfers, 0.0, &(&1.amount + &2))
+    Enum.reduce(uco_transfers, 0, &(&1.amount + &2))
   end
 
   defp get_transaction_size(tx = %Transaction{}) do
@@ -82,6 +85,7 @@ defmodule ArchEthic.Mining.Fee do
   end
 
   defp get_number_replicas(%Transaction{address: address}) do
+    # TODO: take the nodes at the time of the transaction's timestamp
     address
     |> Replication.chain_storage_nodes()
     |> length()
@@ -95,14 +99,19 @@ defmodule ArchEthic.Mining.Fee do
          nb_recipients
        ) do
     # TODO: determine the fee for smart contract execution
-    #
-    fee_for_value(uco_price_in_usd, transaction_value) +
+
+    value_cost = fee_for_value(uco_price_in_usd, transaction_value)
+
+    storage_cost =
       fee_for_storage(
         uco_price_in_usd,
         nb_bytes,
         nb_storage_nodes
-      ) +
-      cost_per_recipients(nb_recipients, uco_price_in_usd)
+      )
+
+    replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
+
+    value_cost + storage_cost + replication_cost
   end
 
   # if transaction value less than minimum transaction value => txn fee is minimum txn fee
@@ -122,13 +131,13 @@ defmodule ArchEthic.Mining.Fee do
   end
 
   defp fee_for_storage(uco_price_in_usd, nb_bytes, nb_storage_nodes) do
-    price_per_byte = 1.0e-9 / uco_price_in_usd
+    price_per_byte = 1.0e-8 / uco_price_in_usd
     price_per_storage_node = price_per_byte * nb_bytes
     price_per_storage_node * nb_storage_nodes
   end
 
   # Send transaction to a single recipient does not include an additional cost
-  defp cost_per_recipients(1, _), do: 0.0
+  defp cost_per_recipients(1, _), do: 0
 
   # Send transaction to multiple recipients (for bulk transfers) will generate an additional cost
   # As more storage pools are required to send the transaction

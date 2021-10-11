@@ -177,7 +177,7 @@ defmodule ArchEthic.ReplicationTest do
 
     me = self()
 
-    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 10.0, type: :UCO}]
+    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
     tx = create_valid_transaction(transaction_context(), unspent_outputs)
 
     MockDB
