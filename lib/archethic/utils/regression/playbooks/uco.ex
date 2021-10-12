@@ -21,7 +21,9 @@ defmodule ArchEthic.Utils.Playbook.UCO do
   @behaviour Playbook
 
   @genesis_origin_private_key "01009280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
-                              |> Base.decode16!()
+  |> Base.decode16!()
+
+  @faucet_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
 
   def play!(nodes, opts) do
     Logger.info("Play UCO transactions on #{inspect(nodes)} with #{inspect(opts)}")
@@ -38,40 +40,37 @@ defmodule ArchEthic.Utils.Playbook.UCO do
   end
 
   defp single_recipient_transfer(host, port) do
-    # TODO: define the seed from configuration (for the genesis pool allocation)
-    from_seed = "testnet"
-
     recipient_address = Crypto.derive_keypair("recipient_1", 0) |> elem(0) |> Crypto.hash()
 
     Logger.info(
-      "Genesis pool allocation owner is sending 10.0 UCO to #{Base.encode16(recipient_address)}"
+      "Genesis pool allocation owner is sending 10 UCO to #{Base.encode16(recipient_address)}"
     )
 
     {:ok, address} =
       send_transfer_transaction(
-        from_seed,
-        [%{to: recipient_address, amount: 10.0}],
+        @faucet_seed,
+        [%{to: recipient_address, amount: 10 * 100_000_000}],
         host,
         port,
-        :secp256r1
+        :ed25519
       )
 
     Logger.info("Transaction #{Base.encode16(address)} submitted")
 
     # Ensure the recipient got the 10.0 UCO 
     10.0 = get_uco_balance(recipient_address, host, port)
-    Logger.info("#{Base.encode16(recipient_address)} received 10.0 UCO")
+    Logger.info("#{Base.encode16(recipient_address)} received 10 UCO")
 
     new_recipient_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     Logger.info(
-      "#{Base.encode16(recipient_address)} is sending 5.0 UCO to #{Base.encode16(new_recipient_address)}"
+      "#{Base.encode16(recipient_address)} is sending 5 UCO to #{Base.encode16(new_recipient_address)}"
     )
 
     {:ok, address} =
       send_transfer_transaction(
         "recipient_1",
-        [%{to: new_recipient_address, amount: 5.0}],
+        [%{to: new_recipient_address, amount: 5 * 100_000_000}],
         host,
         port,
         :ed25519
@@ -97,7 +96,7 @@ defmodule ArchEthic.Utils.Playbook.UCO do
     :error =
       send_transfer_transaction(
         from_seed,
-        [%{to: recipient_address, amount: 10.0}],
+        [%{to: recipient_address, amount: 10 * 100_000_000}],
         host,
         port,
         :secp256r1
@@ -188,7 +187,7 @@ defmodule ArchEthic.Utils.Playbook.UCO do
         uco
 
       _ ->
-        0.0
+        0
     end
   end
 end
