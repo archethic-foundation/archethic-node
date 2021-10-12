@@ -1,9 +1,12 @@
 defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
   @moduledoc """
-  Benchmark balance
+  Benchmark some P2P messages to ensure consistent latency
+  and avoiding exhausting of the system (nb of process should remain constant)
   """
 
   require Logger
+
+  alias ArchEthic.Bootstrap.NetworkInit
 
   alias ArchEthic.Crypto
 

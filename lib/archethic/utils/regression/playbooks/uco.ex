@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.Playbook.UCO do
+defmodule ArchEthic.Utils.Regression.Playbook.UCO do
   @moduledoc """
   Play and verify UCO ledger.
 
@@ -21,7 +21,7 @@ defmodule ArchEthic.Utils.Playbook.UCO do
   @behaviour Playbook
 
   @genesis_origin_private_key "01009280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
-  |> Base.decode16!()
+                              |> Base.decode16!()
 
   @faucet_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
 

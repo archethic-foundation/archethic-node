@@ -5,8 +5,8 @@ defmodule ArchEthic.Utils.Regression do
   require Logger
 
   alias ArchEthic.Utils
-  alias ArchEthic.Utils.Benchmark.P2PMessage
-  alias ArchEthic.Utils.Playbook.UCO
+  alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
+  alias ArchEthic.Utils.Regression.Playbook.UCO
   alias ArchEthic.Utils.WebClient
 
   @playbooks [UCO]
