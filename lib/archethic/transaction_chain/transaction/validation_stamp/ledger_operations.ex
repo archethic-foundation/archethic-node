@@ -54,6 +54,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @burning_address <<0::8, 0::256>>
 
   @doc """
+  Return the address used for the burning
+  """
+  @spec burning_address() :: Crypto.versioned_hash()
+  def burning_address, do: @burning_address
+
+  @doc """
   Build some ledger operations from a specific transaction
 
   ## Examples

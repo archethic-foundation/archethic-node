@@ -91,6 +91,7 @@ defmodule ArchEthic.Account.MemTablesLoader do
   defp set_transaction_movements(address, transaction_movements, timestamp) do
     transaction_movements
     |> Enum.filter(&(&1.amount > 0))
+    |> Enum.reject(&(&1.to == LedgerOperations.burning_address()))
     |> Enum.each(fn
       %TransactionMovement{to: to, amount: amount, type: :UCO} ->
         UCOLedger.add_unspent_output(
