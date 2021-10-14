@@ -129,6 +129,7 @@ defmodule ArchEthic.SelfRepair.Sync do
 
   defp missed_previous_summaries(last_sync_date, patch) do
     last_sync_date
+    |> BeaconChain.previous_summary_dates()
     |> BeaconChain.get_summary_pools()
     |> BeaconSummaryHandler.get_beacon_summaries(patch)
   end
