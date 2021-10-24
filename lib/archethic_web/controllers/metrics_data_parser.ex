@@ -51,21 +51,7 @@ defmodule ArchethicWeb.MetricsDataParser do
   defp parse_metric(acc = %{content: content, current: %{name: metric_name}}) do
     case Regex.run(~r/^#{metric_name}_(.*){(.*)} (.*)$/, content) do
       [_, key, labels, value] ->
-        %{labels: labels, quantiles: quantiles} = extract_labels(labels, value)
-
-        update_in(
-          acc,
-          [:current, Access.key(:metrics, %{}), Access.key(labels, %{})],
-          fn label_metric ->
-            case key do
-              "bucket" ->
-                update_sub_metric(label_metric, key, quantiles)
-
-              _ ->
-                update_sub_metric(label_metric, key, value)
-            end
-          end
-        )
+        bucket_extract_update(acc, key, labels, value)
 
       nil ->
         case Regex.run(~r/^#{metric_name} (.*)$/, content) do
@@ -76,6 +62,24 @@ defmodule ArchethicWeb.MetricsDataParser do
             acc
         end
     end
+  end
+
+  def bucket_extract_update(acc, key, labels, value) do
+    %{labels: labels, quantiles: quantiles} = extract_labels(labels, value)
+
+    update_in(
+      acc,
+      [:current, Access.key(:metrics, %{}), Access.key(labels, %{})],
+      fn label_metric ->
+        case key do
+          "bucket" ->
+            update_sub_metric(label_metric, key, quantiles)
+
+          _ ->
+            update_sub_metric(label_metric, key, value)
+        end
+      end
+    )
   end
 
   def extract_labels(labels, value) do
