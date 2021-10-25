@@ -22,8 +22,6 @@ defmodule ArchEthic.BeaconChain do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
