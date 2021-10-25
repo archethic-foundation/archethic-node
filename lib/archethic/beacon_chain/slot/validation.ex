@@ -23,6 +23,7 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
       ordered: false,
       on_timeout: :kill_task
     )
+    |> Enum.filter(&match?({:ok, _}, &1))
     |> Enum.into([], fn {:ok, res} -> res end)
     |> Enum.all?(&match?(true, &1))
   end

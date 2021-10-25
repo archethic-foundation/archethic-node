@@ -20,7 +20,7 @@ defmodule ArchEthic.BeaconChain.Subset do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.ReplicateTransaction
+  alias ArchEthic.P2P.Message.NewBeaconTransaction
 
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
@@ -194,14 +194,10 @@ defmodule ArchEthic.BeaconChain.Subset do
     )
   end
 
-  defp broadcast_beacon_transaction(subset, next_time, transaction, node_public_key) do
-    %Slot{subset: subset, slot_time: next_time}
-    |> Slot.involved_nodes()
-    |> Enum.reject(&(&1.first_public_key == node_public_key))
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: transaction,
-      welcome_node_public_key: Crypto.last_node_public_key()
-    })
+  defp broadcast_beacon_transaction(subset, next_time, transaction, _node_public_key) do
+    subset
+    |> Election.beacon_storage_nodes(next_time, P2P.authorized_nodes())
+    |> P2P.broadcast_message(%NewBeaconTransaction{transaction: transaction})
   end
 
   defp handle_summary(time, subset) do

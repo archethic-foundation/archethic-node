@@ -41,6 +41,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.GetUnspentOutputs
   alias __MODULE__.LastTransactionAddress
   alias __MODULE__.ListNodes
+  alias __MODULE__.NewBeaconTransaction
   alias __MODULE__.NewTransaction
   alias __MODULE__.NodeAvailability
   alias __MODULE__.NodeList
@@ -102,6 +103,7 @@ defmodule ArchEthic.P2P.Message do
           | NodeAvailability.t()
           | Ping.t()
           | GetBeaconSummary.t()
+          | NewBeaconTransaction.t()
 
   @type response ::
           Ok.t()
@@ -313,6 +315,9 @@ defmodule ArchEthic.P2P.Message do
   def encode(%Ping{}), do: <<24::8>>
 
   def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
+
+  def encode(%NewBeaconTransaction{transaction: tx}),
+    do: <<26::8, Transaction.serialize(tx)::bitstring>>
 
   def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
@@ -680,6 +685,15 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
+  def decode(<<26::8, rest::bitstring>>) do
+    {tx = %Transaction{}, rest} = Transaction.deserialize(rest)
+
+    {
+      %NewBeaconTransaction{transaction: tx},
+      rest
+    }
+  end
+
   def decode(<<238::8, reason::8, rest::bitstring>>) do
     {%Error{reason: Error.deserialize_reason(reason)}, rest}
   end
@@ -989,32 +1003,6 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%ReplicateTransaction{
-        transaction: tx = %Transaction{address: address, type: :beacon}
-      }) do
-    if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already exists",
-        transaction_address: Base.encode16(address),
-        transaction_type: "beacon"
-      )
-
-      %Ok{}
-    else
-      Logger.info("Replicate new transaction",
-        transaction_address: Base.encode16(address),
-        transaction_type: "beacon"
-      )
-
-      case BeaconChain.load_transaction(tx) do
-        :ok ->
-          %Ok{}
-
-        :error ->
-          %Error{reason: :invalid_transaction}
-      end
-    end
-  end
-
-  def process(%ReplicateTransaction{
         transaction: tx = %Transaction{address: address, type: type},
         roles: roles,
         ack_storage?: ack_storage?,
@@ -1166,6 +1154,16 @@ defmodule ArchEthic.P2P.Message do
 
       {:error, :not_found} ->
         %NotFound{}
+    end
+  end
+
+  def process(%NewBeaconTransaction{transaction: tx}) do
+    case BeaconChain.load_transaction(tx) do
+      :ok ->
+        %Ok{}
+
+      :error ->
+        %Error{reason: :invalid_transaction}
     end
   end
 end
