@@ -16,7 +16,7 @@ defmodule ArchEthic.SelfRepair.Sync do
   @doc """
   Return the last synchronization date from the previous cycle of self repair
 
-  If there are not previous stored date: 
+  If there are not previous stored date:
    - Try to the first enrollment date of the listed nodes
    - Otherwise take the current date
   """
