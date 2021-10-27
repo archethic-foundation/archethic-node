@@ -27,7 +27,7 @@ defmodule ArchEthic.BeaconChain.Summary do
           transaction_summaries: list(TransactionSummary.t()),
           end_of_node_synchronizations: list(EndOfNodeSync.t()),
           node_availabilities: bitstring(),
-          node_average_availabilities: list(float())
+          node_average_availabilities: list(non_neg_integer())
         }
 
   @doc """
@@ -61,7 +61,7 @@ defmodule ArchEthic.BeaconChain.Summary do
             }
           ],
         node_availabilities: <<1::1, 1::1, 0::1>>,
-        node_average_availabilities: [0.75, 0.75, 0.50]
+        node_average_availabilities: [75, 75, 50]
       }
   """
   @spec aggregate_slots(t(), Enumerable.t() | list(Slot.t())) :: t()
@@ -91,50 +91,55 @@ defmodule ArchEthic.BeaconChain.Summary do
   end
 
   defp aggregate_availabilities(summary = %__MODULE__{}, slots) do
-    nb_slots = Enum.count(slots)
-    %Slot{p2p_view: %{availabilities: availabilities}} = Enum.at(slots, 0)
-    nb_nodes_sampled = bit_size(availabilities)
-
-    %{
-      node_availabilities: node_availabilities,
-      node_average_availabilities: node_average_availabilities
-    } =
-      slots
-      |> count_available_times()
-      |> Enum.reduce(init_reduce_availabilities(nb_nodes_sampled), fn
-        {_, 0}, acc ->
-          acc
-
-        {index, nb_times}, acc ->
-          avg_availability = nb_times / nb_slots
-
-          if avg_availability > 0.7 do
-            acc
-            |> Map.update!(:node_availabilities, &Utils.set_bitstring_bit(&1, index))
-            |> Map.update!(
-              :node_average_availabilities,
-              &List.replace_at(&1, index, avg_availability)
-            )
-          else
-            Map.update!(
-              acc,
-              :node_average_availabilities,
-              &List.replace_at(&1, index, avg_availability)
-            )
-          end
-      end)
+    res = do_aggregate_availabilities(slots)
 
     %{
       summary
-      | node_availabilities: node_availabilities,
-        node_average_availabilities: node_average_availabilities
+      | node_availabilities: Map.get(res, :node_availabilities, <<>>),
+        node_average_availabilities: Map.get(res, :node_average_availabilities, [])
     }
+  end
+
+  defp do_aggregate_availabilities([]), do: %{}
+
+  defp do_aggregate_availabilities(slots) do
+    %Slot{p2p_view: %{availabilities: availabilities}} = Enum.at(slots, 0)
+    nb_nodes_sampled = bit_size(availabilities)
+
+    nb_slots = Enum.count(slots)
+
+    slots
+    |> count_available_times()
+    |> Enum.reduce(init_reduce_availabilities(nb_nodes_sampled), fn
+      {_, 0}, acc ->
+        acc
+
+      {index, nb_times}, acc ->
+        avg_availability = (nb_times / nb_slots * 100) |> trunc
+
+        # If the average availability is more than 70%
+        # We flag the node available
+        if avg_availability > 70 do
+          acc
+          |> Map.update!(:node_availabilities, &Utils.set_bitstring_bit(&1, index))
+          |> Map.update!(
+            :node_average_availabilities,
+            &List.replace_at(&1, index, avg_availability)
+          )
+        else
+          Map.update!(
+            acc,
+            :node_average_availabilities,
+            &List.replace_at(&1, index, avg_availability)
+          )
+        end
+    end)
   end
 
   defp init_reduce_availabilities(nb_nodes_sampled) do
     %{
       node_availabilities: <<0::size(nb_nodes_sampled)>>,
-      node_average_availabilities: Enum.map(1..nb_nodes_sampled, fn _ -> 1.0 end)
+      node_average_availabilities: Enum.map(1..nb_nodes_sampled, fn _ -> 1 end)
     }
   end
 
@@ -197,7 +202,7 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...>     }
       ...>   ],
       ...>   node_availabilities: <<1::1, 1::1>>,
-      ...>   node_average_availabilities: [1.0, 1.0]
+      ...>   node_average_availabilities: [100, 100]
       ...> }
       ...> |> Summary.serialize()
       <<
@@ -251,12 +256,7 @@ defmodule ArchEthic.BeaconChain.Summary do
       |> Enum.map(&EndOfNodeSync.serialize/1)
       |> :erlang.list_to_binary()
 
-    node_average_availabilities_bin =
-      node_average_availabilities
-      |> Enum.map(fn avg ->
-        <<trunc(avg * 100)::8>>
-      end)
-      |> :erlang.list_to_binary()
+    node_average_availabilities_bin = :erlang.list_to_binary(node_average_availabilities)
 
     <<subset::binary, DateTime.to_unix(summary_time)::32, length(transaction_summaries)::32,
       transaction_summaries_bin::binary, length(end_of_node_synchronizations)::16,
@@ -296,7 +296,7 @@ defmodule ArchEthic.BeaconChain.Summary do
             }
           ],
           node_availabilities: <<1::1, 1::1>>,
-          node_average_availabilities: [1.0, 1.0]
+          node_average_availabilities: [100, 100]
       },
       ""
       }
@@ -317,7 +317,7 @@ defmodule ArchEthic.BeaconChain.Summary do
 
     <<node_average_availabilities_bin::binary-size(nb_availabilities), rest::bitstring>> = rest
 
-    node_average_availabilities = for <<avg::8 <- node_average_availabilities_bin>>, do: avg / 100
+    node_average_availabilities = for <<avg::8 <- node_average_availabilities_bin>>, do: avg
 
     {%__MODULE__{
        subset: <<subset>>,

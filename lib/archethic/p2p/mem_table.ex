@@ -723,18 +723,18 @@ defmodule ArchEthic.P2P.MemTable do
       ...>   average_availability: 0.4
       ...> }
       iex> MemTable.add_node(node)
-      iex> :ok = MemTable.update_node_average_availability("key1", 0.8)
+      iex> :ok = MemTable.update_node_average_availability("key1", 80)
       iex> {:ok, %Node{average_availability: 0.8}} = MemTable.get_node("key1")
   """
   @spec update_node_average_availability(
           first_public_key :: Crypto.key(),
-          average_availability :: float()
+          average_availability :: non_neg_integer()
         ) :: :ok
   def update_node_average_availability(first_public_key, avg_availability)
-      when is_binary(first_public_key) and is_float(avg_availability) do
+      when is_binary(first_public_key) and is_integer(avg_availability) do
     true =
       :ets.update_element(@discovery_table, first_public_key, [
-        {7, avg_availability},
+        {7, avg_availability / 100},
         {8, <<1::1>>}
       ])
 

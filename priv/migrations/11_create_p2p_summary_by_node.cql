@@ -2,6 +2,6 @@ CREATE TABLE IF NOT EXISTS archethic.p2p_summary_by_node(
   node_public_key blob,
   date timestamp,
   available boolean,
-  average_availability float,
+  average_availability smallint,
   PRIMARY KEY(node_public_key, date)
 ) WITH CLUSTERING ORDER BY (date DESC);

@@ -77,7 +77,7 @@ defmodule ArchEthic.P2P do
   @doc """
   Set the node's average availability
   """
-  @spec set_node_average_availability(first_public_key :: Crypto.key(), float()) :: :ok
+  @spec set_node_average_availability(first_public_key :: Crypto.key(), non_neg_integer()) :: :ok
   defdelegate set_node_average_availability(first_public_key, avg_availability),
     to: MemTable,
     as: :update_node_average_availability

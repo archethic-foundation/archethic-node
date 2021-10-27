@@ -53,6 +53,7 @@ defmodule ArchEthicCase do
     |> stub(:transaction_exists?, fn _ -> false end)
     |> stub(:register_p2p_summary, fn _, _, _, _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
+    |> stub(:get_latest_tps, fn -> 0.0 end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)

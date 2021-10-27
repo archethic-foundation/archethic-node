@@ -237,7 +237,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   end
 
   defp handle_end_of_node_sync(%EndOfNodeSync{public_key: node_public_key, timestamp: timestamp}) do
-    DB.register_p2p_summary(node_public_key, timestamp, true, 1.0)
+    DB.register_p2p_summary(node_public_key, timestamp, true, 100)
     P2P.set_node_globally_available(node_public_key)
   end
 

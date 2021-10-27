@@ -133,6 +133,6 @@ defmodule ArchEthic.P2P.MemTableLoader do
       MemTable.set_node_available(node_public_key)
     end
 
-    MemTable.update_node_average_availability(node_public_key, avg_availability)
+    MemTable.update_node_average_availability(node_public_key, avg_availability / 100)
   end
 end

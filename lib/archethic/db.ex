@@ -39,7 +39,7 @@ defmodule ArchEthic.DB do
               node_public_key :: Crypto.key(),
               date :: DateTime.t(),
               available? :: boolean(),
-              average_availability :: float()
+              average_availability :: non_neg_integer()
             ) :: :ok
 
   @callback get_last_p2p_summaries() :: Enumerable.t()

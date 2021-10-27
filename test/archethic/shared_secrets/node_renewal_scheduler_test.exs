@@ -31,7 +31,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalSchedulerTest do
         available?: true,
         authorized?: true,
         authorization_date: DateTime.utc_now(),
-        average_availability: 1.0
+        average_availability: 100
       })
 
       me = self()
