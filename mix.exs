@@ -35,7 +35,7 @@ defmodule ArchEthic.MixProject do
     [
       {:mint, "~> 1.0"},
       {:benchee, "~> 1.0"},
-      {:xandra, "~> 0.11"},
+      {:cqerl, "~> 2.1"},
       {:phoenix, ">= 1.5.4"},
       {:phoenix_pubsub, "~> 2.0"},
       {:phoenix_html, "~> 2.14"},

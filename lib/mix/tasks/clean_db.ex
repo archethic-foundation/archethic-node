@@ -13,9 +13,11 @@ defmodule Mix.Tasks.ArchEthic.CleanDb do
           host
       end
 
-    {:ok, _started} = Application.ensure_all_started(:xandra)
-    {:ok, conn} = Xandra.start_link(nodes: [host])
-    Xandra.execute!(conn, "DROP KEYSPACE IF EXISTS archethic;")
+    Application.ensure_all_started(:cqerl)
+    :cqerl_cluster.add_nodes([host])
+
+    {:ok, client} = :cqerl.get_client()
+    {:ok, _} = :cqerl.run_query(client, "DROP KEYSPACE IF EXISTS archethic;")
     IO.puts("Database #{host} dropped")
   end
 end

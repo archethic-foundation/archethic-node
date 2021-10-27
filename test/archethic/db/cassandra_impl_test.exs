@@ -6,7 +6,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.DB.CassandraImpl, as: Cassandra
-  alias ArchEthic.DB.CassandraImpl.Supervisor, as: CassandraSupervisor
+  alias ArchEthic.DB.CassandraImpl.SchemaMigrator
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
@@ -18,21 +18,23 @@ defmodule ArchEthic.DB.CassandraImplTest do
   alias ArchEthic.Utils
 
   setup_all do
-    {:ok, conn} = Xandra.start_link()
-    Xandra.execute!(conn, "DROP KEYSPACE IF EXISTS archethic")
-    start_supervised!(CassandraSupervisor)
+    :cqerl_cluster.add_nodes(["127.0.0.1:9042"])
+
+    {:ok, client} = :cqerl.get_client()
+    {:ok, _} = :cqerl.run_query(client, "DROP KEYSPACE IF EXISTS archethic")
+    SchemaMigrator.run(client)
+
     :ok
   end
 
   setup do
-    Xandra.run(:xandra_conn, fn conn ->
-      Xandra.execute!(conn, "TRUNCATE archethic.transactions")
-      Xandra.execute!(conn, "TRUNCATE archethic.transaction_type_lookup")
-      Xandra.execute!(conn, "TRUNCATE archethic.chain_lookup_by_first_address")
-      Xandra.execute!(conn, "TRUNCATE archethic.chain_lookup_by_first_key")
-      Xandra.execute!(conn, "TRUNCATE archethic.chain_lookup_by_last_address")
-      Xandra.execute!(conn, "TRUNCATE archethic.network_stats_by_date")
-    end)
+    {:ok, client} = :cqerl.get_client()
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.transactions")
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.transaction_type_lookup")
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.chain_lookup_by_first_address")
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.chain_lookup_by_first_key")
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.chain_lookup_by_last_address")
+    {:ok, _} = :cqerl.run_query(client, "TRUNCATE archethic.network_stats_by_date")
 
     :ok
   end
@@ -42,40 +44,34 @@ defmodule ArchEthic.DB.CassandraImplTest do
     tx = create_transaction()
     assert :ok = Cassandra.write_transaction(tx)
 
-    prepared_tx_query =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT address, type FROM archethic.transactions WHERE chain_address = ?"
+    {:ok, client} = :cqerl.get_client()
+
+    {:ok, result} =
+      :cqerl.run_query(
+        client,
+        "SELECT address, type FROM archethic.transactions WHERE chain_address = 0x#{Base.encode16(tx.address)}"
       )
 
-    tx_address = tx.address
-
-    assert %{"address" => ^tx_address, "type" => "transfer"} =
-             Xandra.execute!(:xandra_conn, prepared_tx_query, [tx_address]) |> Enum.at(0)
+    assert [address: tx.address, type: "transfer"] == :cqerl.head(result)
   end
 
   @tag infrastructure: true
   test "write_transaction_chain/1 should persist the transaction chain" do
-    tx1 = create_transaction(index: 0)
-    Process.sleep(100)
-    tx2 = create_transaction(index: 1)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
-    chain_prepared_query =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT * FROM archethic.transactions WHERE chain_address = ?"
+    {:ok, client} = :cqerl.get_client()
+
+    {:ok, result} =
+      :cqerl.run_query(
+        client,
+        "SELECT * FROM archethic.transactions WHERE chain_address = 0x#{Base.encode16(tx2.address)}"
       )
 
-    chain =
-      Xandra.execute!(:xandra_conn, chain_prepared_query, [
-        List.first(chain).address
-      ])
-      |> Enum.to_list()
-
-    assert length(chain) == 2
+    assert 2 == :cqerl.size(result)
   end
 
   @tag infrastructure: true
@@ -87,7 +83,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
     transactions = Cassandra.list_transactions([:address, :type])
     assert 500 == Enum.count(transactions)
-
     assert Enum.all?(transactions, &([:address, :type] not in empty_keys(&1)))
   end
 
@@ -114,9 +109,17 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_transaction_chain/2 should retrieve the transaction chain with the requested fields" do
-    chain = [create_transaction(index: 1), create_transaction(index: 0)]
-    assert :ok = Cassandra.write_transaction_chain(chain)
-    chain = Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
+    transactions =
+      for i <- 1..5,
+          do:
+            create_transaction(
+              index: i,
+              timestamp: DateTime.add(DateTime.utc_now(), i * 86_400 * 15, :second)
+            )
+
+    assert :ok = Cassandra.write_transaction_chain(transactions)
+
+    chain = Cassandra.get_transaction_chain(List.first(transactions).address, [:address, :type])
     assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
   end
 
@@ -164,8 +167,12 @@ defmodule ArchEthic.DB.CassandraImplTest do
   @tag infrastructure: true
   test "list_transactions_by_type/1 should return the list of transaction by the given type" do
     chain = [
-      create_transaction(index: 1, type: :transfer),
-      create_transaction(index: 0, type: :hosting)
+      create_transaction(
+        index: 1,
+        type: :transfer,
+        timestamp: DateTime.utc_now() |> DateTime.add(5_000)
+      ),
+      create_transaction(index: 0, type: :hosting, timestamp: DateTime.utc_now())
     ]
 
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -182,8 +189,12 @@ defmodule ArchEthic.DB.CassandraImplTest do
   @tag infrastructure: true
   test "count_transactions_by_type/1 should return the number of transactions for a given type" do
     chain = [
-      create_transaction(index: 1, type: :transfer),
-      create_transaction(index: 0, type: :hosting)
+      create_transaction(
+        index: 1,
+        type: :transfer,
+        timestamp: DateTime.utc_now() |> DateTime.add(5_000)
+      ),
+      create_transaction(index: 0, type: :hosting, timestamp: DateTime.utc_now())
     ]
 
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -195,9 +206,9 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_last_chain_address/1 should return the last transaction address of a chain" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -210,9 +221,9 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -227,46 +238,125 @@ defmodule ArchEthic.DB.CassandraImplTest do
              Cassandra.get_last_chain_address(tx2.address, tx1.validation_stamp.timestamp)
 
     assert tx1.address ==
-             Cassandra.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
+             Cassandra.get_last_chain_address(
+               tx1.address,
+               tx1.validation_stamp.timestamp |> DateTime.add(-1)
+             )
   end
 
   @tag infrastructure: true
   test "get_first_chain_address/1 should return the first transaction address of a chain" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
     assert tx1.address == Cassandra.get_first_chain_address(tx3.address)
-    assert tx1.address == Cassandra.get_first_chain_address(tx2.address)
-    assert tx1.address == Cassandra.get_first_chain_address(tx1.address)
   end
 
   @tag infrastructure: true
   test "get_first_public_key/1 should return the first public key from a transaction address of a chain" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx3.previous_public_key)
-    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx2.previous_public_key)
-    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx1.previous_public_key)
   end
 
   @tag infrastructure: true
   test "register_tps/3 should insert the tps and the nb transactions for a given date" do
-    :ok = Cassandra.register_tps(DateTime.utc_now(), 10, 10_000)
+    :ok = Cassandra.register_tps(DateTime.utc_now(), 10.0, 10_000)
 
-    assert 10 =
-             :xandra_conn
-             |> Xandra.execute!("SELECT * FROM archethic.network_stats_by_date")
-             |> Enum.at(0)
-             |> Map.get("tps")
+    {:ok, client} = :cqerl.get_client()
+    {:ok, result} = :cqerl.run_query(client, "SELECT * FROM archethic.network_stats_by_date")
+    assert [{:date, _}, {:nb_transactions, 10_000}, {:tps, 10.0}] = :cqerl.head(result)
+  end
+
+  @tag infrastructure: true
+  test "transaction_exists?/1 should determine if the transaction exists" do
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
+
+    chain = [tx3, tx2, tx1]
+    assert :ok = Cassandra.write_transaction_chain(chain)
+
+    assert true = Cassandra.transaction_exists?(tx3.address)
+    assert true = Cassandra.transaction_exists?(tx2.address)
+    assert true = Cassandra.transaction_exists?(tx1.address)
+  end
+
+  @tag infrastructure: true
+  test "register_p2p_summary/4 should register new P2P availability" do
+    node_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+    Cassandra.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 1)
+
+    Cassandra.register_p2p_summary(
+      node_public_key,
+      DateTime.utc_now() |> DateTime.add(86_400),
+      true,
+      7
+    )
+
+    Cassandra.register_p2p_summary(
+      node_public_key,
+      DateTime.utc_now() |> DateTime.add(86_400 * 2),
+      false,
+      2
+    )
+
+    {:ok, client} = :cqerl.get_client()
+    {:ok, result} = :cqerl.run_query(client, "SELECT * FROM archethic.p2p_summary_by_node")
+
+    assert [
+             [
+               {:node_public_key, ^node_public_key},
+               {:date, _},
+               {:available, false},
+               {:average_availability, 2}
+             ],
+             [
+               {:node_public_key, ^node_public_key},
+               {:date, _},
+               {:available, true},
+               {:average_availability, 7}
+             ],
+             [
+               {:node_public_key, ^node_public_key},
+               {:date, _},
+               {:available, true},
+               {:average_availability, 1}
+             ]
+           ] = :cqerl.all_rows(result)
+  end
+
+  test "get_last_p2p_summaries/0 shoud list all the p2p summaries by node" do
+    node_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+    Cassandra.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 1)
+
+    Cassandra.register_p2p_summary(
+      node_public_key,
+      DateTime.utc_now() |> DateTime.add(86_400),
+      true,
+      7
+    )
+
+    Cassandra.register_p2p_summary(
+      node_public_key,
+      DateTime.utc_now() |> DateTime.add(86_400 * 2),
+      false,
+      2
+    )
+
+    assert %{^node_public_key => {false, 2}} =
+             Cassandra.get_last_p2p_summaries() |> Enum.into(%{})
   end
 
   defp create_transaction(opts \\ []) do

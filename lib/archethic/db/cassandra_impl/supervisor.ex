@@ -3,8 +3,6 @@ defmodule ArchEthic.DB.CassandraImpl.Supervisor do
 
   use Supervisor
 
-  alias ArchEthic.DB.CassandraImpl.Consumer
-  alias ArchEthic.DB.CassandraImpl.Producer
   alias ArchEthic.DB.CassandraImpl.SchemaMigrator
 
   require Logger
@@ -18,10 +16,9 @@ defmodule ArchEthic.DB.CassandraImpl.Supervisor do
 
     Logger.info("Start Cassandra connection at #{host}")
 
+    :cqerl_cluster.add_nodes([host])
+
     children = [
-      {Xandra, name: :xandra_conn, pool_size: 10, nodes: [host]},
-      Producer,
-      Consumer,
       SchemaMigrator
     ]
 

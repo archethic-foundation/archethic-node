@@ -40,7 +40,7 @@ defmodule ArchEthic.OracleChain do
 
   This operation will check the data from the previous oracle transactions
   """
-  @spec valid_summary?(binary(), list(Transaction.t())) :: boolean()
+  @spec valid_summary?(binary(), Enumerable.t() | list(Transaction.t())) :: boolean()
   def valid_summary?(content, oracle_chain) when is_binary(content) do
     with {:ok, data} <- Jason.decode(content),
          true <-

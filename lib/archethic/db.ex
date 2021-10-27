@@ -42,8 +42,5 @@ defmodule ArchEthic.DB do
               average_availability :: float()
             ) :: :ok
 
-  @callback get_last_p2p_summaries() :: %{
-              (node_public_key :: Crypto.key()) =>
-                {available? :: boolean(), average_availability :: float()}
-            }
+  @callback get_last_p2p_summaries() :: Enumerable.t()
 end

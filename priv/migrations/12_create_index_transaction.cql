@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS transaction_index ON archethic.transactions(address);
