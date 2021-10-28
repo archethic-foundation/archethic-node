@@ -62,7 +62,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       1,
       # NFT address
       0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 
+      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
       # Reward?
       0
       >>
