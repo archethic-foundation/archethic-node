@@ -46,7 +46,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 30_000_000,
-      ...>    type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 
+      ...>    type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
       ...>  }
       ...>  |> TransactionMovement.serialize()
@@ -59,7 +59,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # NFT type
       1,
       # NFT address
-      0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 
+      0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
       >>
   """
@@ -128,16 +128,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       amount: Map.get(movement, :amount)
     }
 
-    if Map.has_key?(movement, :type) do
-      case Map.get(movement, :nft_address) do
-        nil ->
-          %{res | type: :UCO}
+    case Map.get(movement, :type) do
+      "UCO" ->
+        %{res | type: :UCO}
 
-        nft_address ->
-          %{res | type: {:NFT, nft_address}}
-      end
-    else
-      res
+      "NFT" ->
+        %{res | type: {:NFT, Map.get(movement, :nft_address)}}
     end
   end
 
