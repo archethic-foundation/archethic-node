@@ -121,21 +121,23 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          previous_public_key: previous_public_key
        }) do
     with {:ok, ip, port, _, _, key_certificate} <- Node.decode_transaction_content(content),
+         true <-
+           Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins()),
          root_ca_public_key <- Crypto.get_root_ca_public_key(previous_public_key),
-         true <- valid_connection?(@validate_connection, ip, port, previous_public_key),
          true <-
            Crypto.verify_key_certificate?(
              previous_public_key,
              key_certificate,
              root_ca_public_key
-           ) do
+           ),
+         true <- valid_connection?(@validate_connection, ip, port, previous_public_key) do
       :ok
     else
       :error ->
         {:error, "Invalid node transaction's content"}
 
       false ->
-        {:error, "Invalid node transaction with invalid key certificate"}
+        {:error, "Invalid node transaction with invalid key / certificate"}
     end
   end
 
@@ -250,6 +252,12 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(_), do: :ok
+
+  defp get_allowed_node_key_origins do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:allowed_node_key_origins, [])
+  end
 
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
     previous_address = Transaction.previous_address(tx)

@@ -9,7 +9,7 @@ defmodule ArchEthic.Crypto do
    ```
    Ed25519  Software  Public key
         |  /           |
-        |  |   |-------|  
+        |  |   |-------|
         |  |   |
       <<0, 0, 106, 58, 193, 73, 144, 121, 104, 101, 53, 140, 125, 240, 52, 222, 35, 181,
       13, 81, 241, 114, 227, 205, 51, 167, 139, 100, 176, 111, 68, 234, 206, 72>>
@@ -1070,7 +1070,7 @@ defmodule ArchEthic.Crypto do
   end
 
   @doc """
-  Return the Root CA public key for the given versioned public key 
+  Return the Root CA public key for the given versioned public key
   """
   @spec get_root_ca_public_key(key()) :: binary()
   def get_root_ca_public_key(<<_::8, origin_id::8, _::binary>>) do
@@ -1133,4 +1133,29 @@ defmodule ArchEthic.Crypto do
   """
   @spec default_curve() :: supported_curve()
   def default_curve, do: Application.get_env(:archethic, __MODULE__)[:default_curve]
+
+  @doc """
+  Determine if the origin of the key is allowed
+
+  This prevent software keys to be used in prod, as we want secure element to prevent malicious nodes
+
+  ## Examples
+
+      iex> Crypto.authorized_key_origin?(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>, [:tpm])
+      false
+
+      iex> Crypto.authorized_key_origin?(<<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>, [:tpm])
+      true
+
+      iex> Crypto.authorized_key_origin?(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>, [])
+      true
+  """
+  @spec authorized_key_origin?(key(), list(supported_origin())) :: boolean()
+  def authorized_key_origin?(<<_::8, origin_id::8, _::binary>>, allowed_key_origins = [_ | _]) do
+    ID.to_origin(origin_id) in allowed_key_origins
+  end
+
+  def authorized_key_origin?(<<_::8, _::8, _::binary>>, []) do
+    true
+  end
 end
