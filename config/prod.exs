@@ -125,6 +125,12 @@ config :archethic, ArchEthic.Governance.Pools,
     uniris: []
   ]
 
+config :archethic, ArchEthic.Mining.PendingTransactionValidation,
+  allowed_node_key_origins:
+    System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm")
+    |> String.split(";", trim: true)
+    |> Enum.map(&String.to_existing_atom/1)
+
 config :archethic,
        ArchEthic.Networking.IPLookup,
        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
