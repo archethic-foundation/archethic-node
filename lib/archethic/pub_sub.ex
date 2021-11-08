@@ -83,9 +83,23 @@ defmodule ArchEthic.PubSub do
   end
 
   @doc """
+  Notify next epoch of slot time
+  """
+  def notify_next_epoch_of_slot_timer(date = %DateTime{}) do
+    dispatch(:next_epoch_of_slot_timer, {:next_epoch_of_slot_timer, date})
+  end
+
+  @doc """
+  Notify next epoch of slot time
+  """
+  def notify_current_epoch_of_slot_timer(date = %DateTime{}) do
+    dispatch(:current_epoch_of_slot_timer, {:current_epoch_of_slot_timer, date})
+  end
+
+  @doc """
   Register a process to added new transaction summary to beacon chain slot
   """
-  def register_to_added_new_transaction_summary() do
+  def register_to_added_new_transaction_summary do
     Registry.register(PubSubRegistry, :added_new_transaction_summary, [])
   end
 
@@ -159,6 +173,22 @@ defmodule ArchEthic.PubSub do
   @spec register_to_next_summary_time :: {:ok, pid()}
   def register_to_next_summary_time do
     Registry.register(PubSubRegistry, :next_summary_time, [])
+  end
+
+  @doc """
+  Register a process to sent next epoch of slot time
+  """
+  @spec register_to_next_epoch_of_slot_time :: {:ok, pid()}
+  def register_to_next_epoch_of_slot_time do
+    Registry.register(PubSubRegistry, :next_epoch_of_slot_time, [])
+  end
+
+  @doc """
+  Register a process to sent current epoch of slot time
+  """
+  @spec register_to_current_epoch_of_slot_time :: {:ok, pid()}
+  def register_to_current_epoch_of_slot_time do
+    Registry.register(PubSubRegistry, :current_epoch_of_slot_time, [])
   end
 
   @doc """

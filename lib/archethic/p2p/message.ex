@@ -5,6 +5,7 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.Account
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary
 
@@ -19,6 +20,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.AcknowledgeStorage
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
+  alias __MODULE__.BeaconUpdate
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
@@ -50,15 +52,13 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
   alias __MODULE__.Ping
+  alias __MODULE__.RegisterBeaconUpdates
   alias __MODULE__.ReplicateTransaction
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
-  alias __MODULE__.RegisterBeaconUpdates
-  alias __MODULE__.BeaconUpdate
-
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
@@ -309,8 +309,8 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
 
-  def encode(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset}) do
-    <<26::8, nodePublicKey::binary, subset::binary>>
+  def encode(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
+    <<26::8, node_public_key::binary, subset::binary>>
   end
 
   def encode(%Error{reason: reason}), do: <<239::8, Error.serialize_reason(reason)::8>>
@@ -672,6 +672,17 @@ defmodule ArchEthic.P2P.Message do
     {
       %GetBeaconSummary{address: address},
       rest
+    }
+  end
+
+  def decode(<<26::8, rest::binary>>) do
+    {public_key, rest} = deserialize_public_key(rest)
+
+    {
+      %RegisterBeaconUpdates{
+        subset: rest,
+        node_public_key: public_key
+      }
     }
   end
 
@@ -1173,10 +1184,11 @@ defmodule ArchEthic.P2P.Message do
     end
   end
 
-  def process(%RegisterBeaconUpdates{nodePublicKey: nodePublicKey, subset: subset}) do
+  def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
     Logger.debug("Processing recevied Register Beacon Update msg ")
-    BeaconChain.subscribe_for_beacon_updates(nodePublicKey, subset)
-    %Ok{}
+    current_slot = BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
+    %Slot{transaction_summaries: transaction_summaries} = current_slot
+    transaction_summaries
   end
 
   def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do

@@ -1,5 +1,5 @@
 import Config
-
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "error") |> String.to_atom()
 config :archethic,
        :mut_dir,
        System.get_env(

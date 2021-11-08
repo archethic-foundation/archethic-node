@@ -9,8 +9,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Crypto
   alias ArchEthic.Election
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Message.RegisterBeaconUpdates
+  alias ArchEthic.P2P.Node
   alias ArchEthic.PubSub
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
   alias ArchEthicWeb.ExplorerView
@@ -44,10 +44,13 @@ defmodule ArchEthicWeb.BeaconChainLive do
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
 
+    # current_slot_added_transactions =
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
-      register_to_beacon_pool_updates()
+      PubSub.register_to_current_epoch_of_slot_time()
       PubSub.register_to_added_new_transaction_summary()
+
+      register_to_beacon_pool_updates()
     end
 
     beacon_dates =
@@ -59,6 +62,14 @@ defmodule ArchEthicWeb.BeaconChainLive do
           [next_summary_time | dates]
       end
 
+    # transactions =
+    #   case current_slot_added_transactions do
+    #     [] ->
+    #       list_transaction_by_date(Enum.at(beacon_dates, 0))
+
+    #     _ ->
+    #       [current_slot_added_transactions | list_transaction_by_date(Enum.at(beacon_dates, 0))]
+    #   end
     new_assign =
       socket
       |> assign(:next_summary_time, next_summary_time)
@@ -171,6 +182,36 @@ defmodule ArchEthicWeb.BeaconChainLive do
     {:noreply, new_assign}
   end
 
+  def handle_info(
+        {:create_slot, date},
+        socket = %{assigns: %{transactions: transactions, current_date_page: page}}
+      ) do
+    transaction_summaries =
+      Enum.map(BeaconChain.list_subsets(), fn subset ->
+        list_of_nodes_for_this_subset =
+          Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
+
+        P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
+          node_public_key: Crypto.first_node_public_key(),
+          subset: subset
+        })
+      end)
+
+    new_transactions =
+      if page == 1 and Enum.empty?(transaction_summaries) and
+           !Enum.member?(transactions, transaction_summaries) do
+        [transaction_summaries | transactions]
+      else
+        transactions
+      end
+
+    new_assign =
+      socket
+      |> assign(:transactions, new_transactions)
+
+    {:noreply, new_assign}
+  end
+
   defp get_beacon_dates do
     %Node{enrollment_date: enrollment_date} =
       P2P.list_nodes() |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime}) |> Enum.at(0)
@@ -188,7 +229,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
         Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
 
       P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
-        nodePublicKey: Crypto.first_node_public_key(),
+        node_public_key: Crypto.first_node_public_key(),
         subset: subset
       })
     end)

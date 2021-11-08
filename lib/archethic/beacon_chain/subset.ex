@@ -100,10 +100,8 @@ defmodule ArchEthic.BeaconChain.Subset do
         beacon_subset: Base.encode16(subset)
       )
 
-      if !Enum.empty?(subscribed_nodes) do
-        P2P.get_nodes_info(subscribed_nodes)
-        |> P2P.broadcast_message(tx_summary)
-      end
+      P2P.get_nodes_info(subscribed_nodes)
+      |> P2P.broadcast_message(tx_summary)
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds
       case Map.get(state, :sampling_time) do
@@ -131,14 +129,6 @@ defmodule ArchEthic.BeaconChain.Subset do
   end
 
   def handle_cast(
-        {:subscribe_node_to_beacon_updates, node_public_key},
-        state = %{subscribed_nodes: current_list_of_subscribed_nodes}
-      ) do
-    updated_list_of_subscribed_nodes = [node_public_key | current_list_of_subscribed_nodes]
-    {:noreply, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
-  end
-
-  def handle_cast(
         {:add_end_of_node_sync, end_of_sync = %EndOfNodeSync{public_key: node_public_key}},
         state = %{current_slot: current_slot, subset: subset}
       ) do
@@ -149,6 +139,16 @@ defmodule ArchEthic.BeaconChain.Subset do
 
     current_slot = Slot.add_end_of_node_sync(current_slot, end_of_sync)
     {:noreply, %{state | current_slot: current_slot}}
+  end
+
+  def handle_call(
+        {:subscribe_node_to_beacon_updates, node_public_key},
+        _,
+        state = %{subscribed_nodes: current_list_of_subscribed_nodes, current_slot: current_slot}
+      ) do
+    updated_list_of_subscribed_nodes = [node_public_key | current_list_of_subscribed_nodes]
+
+    {:reply, current_slot, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
   end
 
   def handle_info(
@@ -352,13 +352,8 @@ defmodule ArchEthic.BeaconChain.Subset do
     |> ValidationStamp.sign()
   end
 
-  def subscribe_for_beacon_updates(node_public_key, subset) do
-    # register for beacon updates i.e add to subscribed list
-
-    # if Utils.key_in_node_list?( P2P.authorized_nodes(),nodePublicKey) do
-    GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
-
+  def subscribe_for_beacon_updates(subset, node_public_key) do
     Logger.debug("Added Node Public key as subscriber for subset in Subset ")
-    # end
+    GenServer.call(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
   end
 end
