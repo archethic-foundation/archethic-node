@@ -110,7 +110,8 @@ defmodule ArchEthicWeb.ExplorerController do
       transaction_chain: [],
       address: "",
       chain_size: 0,
-      last_checked?: false
+      last_checked?: false,
+      uco_balance: 0
     )
   end
 end
