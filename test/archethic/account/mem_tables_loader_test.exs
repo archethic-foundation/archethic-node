@@ -40,17 +40,23 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
       assert :ok = MemTablesLoader.load_transaction(create_transaction())
 
       [
-        %UnspentOutput{from: "@Charlie3", amount: 19.0, type: :UCO},
-        %UnspentOutput{from: "@Alice2", amount: 2.0, type: :UCO}
+        %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 1.303, type: :UCO}] =
+      [%UnspentOutput{from: "@Charlie3", amount: 1_303_000_000, type: :UCO}] =
         UCOLedger.get_unspent_outputs("@NodeKey")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 34.0}] = UCOLedger.get_unspent_outputs("@Tom4")
+      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000}] =
+        UCOLedger.get_unspent_outputs("@Tom4")
 
-      assert [%UnspentOutput{from: "@Charlie3", amount: 10.0, type: {:NFT, "@CharlieNFT"}}] =
-               NFTLedger.get_unspent_outputs("@Bob3")
+      assert [
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 1_000_000_000,
+                 type: {:NFT, "@CharlieNFT"}
+               }
+             ] = NFTLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -66,18 +72,23 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
       assert {:ok, _} = MemTablesLoader.start_link()
 
       [
-        %UnspentOutput{from: "@Charlie3", amount: 19.0, type: :UCO},
-        %UnspentOutput{from: "@Alice2", amount: 2.0, type: :UCO}
+        %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+        %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 1.303, type: :UCO}] =
+      [%UnspentOutput{from: "@Charlie3", amount: 1_303_000_000, type: :UCO}] =
         UCOLedger.get_unspent_outputs("@NodeKey")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 34.0, type: :UCO}] =
+      [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000, type: :UCO}] =
         UCOLedger.get_unspent_outputs("@Tom4")
 
-      assert [%UnspentOutput{from: "@Charlie3", amount: 10.0, type: {:NFT, "@CharlieNFT"}}] =
-               NFTLedger.get_unspent_outputs("@Bob3")
+      assert [
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 1_000_000_000,
+                 type: {:NFT, "@CharlieNFT"}
+               }
+             ] = NFTLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -89,17 +100,17 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
         timestamp: DateTime.utc_now(),
         ledger_operations: %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Tom4", amount: 34.0, type: :UCO},
-            %TransactionMovement{to: "@Bob3", amount: 10.0, type: {:NFT, "@CharlieNFT"}}
+            %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
+            %TransactionMovement{to: "@Bob3", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
           ],
-          node_movements: [%NodeMovement{to: "NodeKey", amount: 1.303, roles: []}],
+          node_movements: [%NodeMovement{to: "NodeKey", amount: 1_303_000_000, roles: []}],
           unspent_outputs: [
             %UnspentOutput{
               from: "@Alice2",
-              amount: 2.0,
+              amount: 200_000_000,
               type: :UCO
             },
-            %UnspentOutput{from: "@Charlie3", amount: 19.0, type: :UCO}
+            %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO}
           ]
         }
       }

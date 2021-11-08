@@ -1,5 +1,7 @@
 import Config
 
+config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
+
 config :archethic,
        :mut_dir,
        System.get_env(
@@ -36,13 +38,9 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
     %{
       address:
-        System.get_env(
-          "ARCHETHIC_TESTNET_GENESIS_ADDRESS",
-          "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
-        )
+        "00EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
         |> Base.decode16!(case: :mixed),
-      amount:
-        System.get_env("ARCHETHIC_TESTNET_GENESIS_AMOUNT", "10000000") |> Float.parse() |> elem(0)
+      amount: 1_000_000_000_000_000
     }
   ]
 
@@ -114,6 +112,8 @@ config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
 
 config :archethic, ArchEthic.P2P.Endpoint,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
+
+config :archethic, ArchEthicWeb.FaucetController, enabled: true
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

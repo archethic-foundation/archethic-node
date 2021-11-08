@@ -42,7 +42,7 @@ defmodule ArchEthic.Crypto do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Keys
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   alias ArchEthic.Utils
 
@@ -972,7 +972,7 @@ defmodule ArchEthic.Crypto do
   def load_transaction(%Transaction{
         address: address,
         type: :node_shared_secrets,
-        data: %TransactionData{keys: keys = %Keys{secrets: [secret]}},
+        data: %TransactionData{ownerships: [ownership = %Ownership{secret: secret}]},
         validation_stamp: %ValidationStamp{
           timestamp: timestamp
         }
@@ -985,8 +985,8 @@ defmodule ArchEthic.Crypto do
       transaction_type: :node_shared_secrets
     )
 
-    if Keys.authorized_key?(keys, last_node_public_key()) do
-      encrypted_secret_key = Keys.get_encrypted_key_at(keys, 0, last_node_public_key())
+    if Ownership.authorized_public_key?(ownership, last_node_public_key()) do
+      encrypted_secret_key = Ownership.get_encrypted_key(ownership, last_node_public_key())
 
       daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 

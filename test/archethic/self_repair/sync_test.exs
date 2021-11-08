@@ -125,7 +125,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       inputs = [
         %TransactionInput{
           from: "@Alice2",
-          amount: 10.0,
+          amount: 1_000_000_000,
           spent?: true,
           type: :UCO,
           timestamp: DateTime.utc_now()

@@ -51,13 +51,13 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> { :ets.tab2list(:archethic_nft_ledger), :ets.tab2list(:archethic_nft_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Bob3", "@NFT1"}, 3.0, false, ~U[2021-03-05 13:41:34Z]},
-          {{"@Alice2", "@Charlie10", "@NFT1"}, 1.0, false, ~U[2021-03-05 13:41:34Z]}
+          {{"@Alice2", "@Bob3", "@NFT1"}, 300_000_000, false, ~U[2021-03-05 13:41:34Z]},
+          {{"@Alice2", "@Charlie10", "@NFT1"}, 100_000_000, false, ~U[2021-03-05 13:41:34Z]}
         ],
         [
           {"@Alice2", "@Bob3", "@NFT1"},
@@ -76,7 +76,7 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
         },
         timestamp = %DateTime{}
       )
-      when is_binary(to_address) and is_binary(from_address) and is_float(amount) and
+      when is_binary(to_address) and is_binary(from_address) and is_integer(amount) and amount > 0 and
              is_binary(nft_address) do
     true =
       :ets.insert(
@@ -94,12 +94,12 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       [
-        %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}},
-        %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}},
+        %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}},
+        %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}},
       ]
 
       iex> {:ok, _pid} = NFTLedger.start_link()
@@ -134,8 +134,8 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       []
@@ -158,22 +158,22 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]}
+        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 3.0, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]},
-        %TransactionInput{from: "@Charlie10", amount: 1.0, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]}
+        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())

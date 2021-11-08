@@ -12,7 +12,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedgerTest do
             transfers <-
               StreamData.map_of(
                 StreamData.binary(length: 32),
-                {StreamData.binary(length: 32), StreamData.float(min: 0.0)}
+                {StreamData.binary(length: 32), StreamData.positive_integer()}
               )
           ) do
       transfers =

@@ -19,7 +19,7 @@ defmodule ArchEthic.AccountTest do
         "@Alice2",
         %UnspentOutput{
           from: "@Bob3",
-          amount: 3.0,
+          amount: 300_000_000,
           type: :UCO
         },
         ~U[2021-03-05 13:41:34Z]
@@ -29,7 +29,7 @@ defmodule ArchEthic.AccountTest do
         "@Alice2",
         %UnspentOutput{
           from: "@Tom10",
-          amount: 1.0,
+          amount: 100_000_000,
           type: :UCO
         },
         ~U[2021-03-05 13:41:34Z]
@@ -39,29 +39,30 @@ defmodule ArchEthic.AccountTest do
         "@Alice2",
         %UnspentOutput{
           from: "@Charlie2",
-          amount: 100.0,
+          amount: 10_000_000_000,
           type: {:NFT, "@CharlieNFT"}
         },
         ~U[2021-03-05 13:41:34Z]
       )
 
-      assert %{uco: 4.0, nft: %{"@CharlieNFT" => 100}} == Account.get_balance("@Alice2")
+      assert %{uco: 400_000_000, nft: %{"@CharlieNFT" => 10_000_000_000}} ==
+               Account.get_balance("@Alice2")
     end
 
     test "should return 0 when no unspent outputs associated" do
-      assert %{uco: 0.0, nft: %{}} == Account.get_balance("@Alice2")
+      assert %{uco: 0, nft: %{}} == Account.get_balance("@Alice2")
     end
 
     test "should return 0 when all the unspent outputs have been spent" do
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Bob3", amount: 3.0},
+        %UnspentOutput{from: "@Bob3", amount: 300_000_000},
         ~U[2021-03-05 13:41:34Z]
       )
 
       UCOLedger.add_unspent_output(
         "@Alice2",
-        %UnspentOutput{from: "@Tom10", amount: 1.0},
+        %UnspentOutput{from: "@Tom10", amount: 100_000_000},
         ~U[2021-03-05 13:41:34Z]
       )
 
@@ -69,7 +70,7 @@ defmodule ArchEthic.AccountTest do
         "@Alice2",
         %UnspentOutput{
           from: "@Charlie2",
-          amount: 100.0,
+          amount: 10_000_000_000,
           type: {:NFT, "@CharlieNFT"}
         },
         ~U[2021-03-05 13:41:34Z]
@@ -78,7 +79,7 @@ defmodule ArchEthic.AccountTest do
       UCOLedger.spend_all_unspent_outputs("@Alice2")
       NFTLedger.spend_all_unspent_outputs("@Alice2")
 
-      assert %{uco: 0.0, nft: %{}} == Account.get_balance("@Alice2")
+      assert %{uco: 0, nft: %{}} == Account.get_balance("@Alice2")
     end
   end
 end

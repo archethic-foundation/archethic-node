@@ -212,6 +212,6 @@ defmodule ArchEthic.Mining do
   @doc """
   Get the transaction fee
   """
-  @spec get_transaction_fee(Transaction.t(), float()) :: float()
+  @spec get_transaction_fee(Transaction.t(), float()) :: non_neg_integer()
   defdelegate get_transaction_fee(tx, uco_price_in_usd), to: Fee, as: :calculate
 end

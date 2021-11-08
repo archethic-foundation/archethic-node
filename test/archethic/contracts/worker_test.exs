@@ -20,6 +20,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
@@ -55,21 +56,28 @@ defmodule ArchEthic.Contracts.WorkerTest do
     next_address = Crypto.hash(pub)
 
     secret = Crypto.aes_encrypt(transaction_seed, aes_key)
+    storage_nonce_public_key = Crypto.storage_nonce_public_key()
 
-    constants = %{
-      "address" => "@SC1",
-      "authorized_keys" => [
-        %{
-          Crypto.storage_nonce_public_key() =>
-            Crypto.ec_encrypt(aes_key, Crypto.storage_nonce_public_key())
-        }
-      ],
-      "secrets" => [secret],
-      "content" => "",
-      "uco_transferred" => 0.0,
-      "nft_transferred" => 0.0,
-      "previous_public_key" => transaction_seed |> Crypto.derive_keypair(0) |> elem(0)
-    }
+    constants =
+      %Transaction{
+        address: "@SC1",
+        data: %TransactionData{
+          content: "",
+          ownerships: [
+            %Ownership{
+              secret: secret,
+              authorized_keys: %{
+                storage_nonce_public_key => Crypto.ec_encrypt(aes_key, storage_nonce_public_key)
+              }
+            }
+          ]
+        },
+        previous_public_key:
+          transaction_seed
+          |> Crypto.derive_keypair(0)
+          |> elem(0)
+      }
+      |> Constants.from_transaction()
 
     expected_tx = %Transaction{
       address: next_address,
@@ -82,7 +90,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
                 to:
                   <<127, 102, 97, 172, 226, 130, 249, 71, 172, 162, 239, 148, 125, 1, 189, 220,
                     144, 198, 95, 9, 238, 130, 139, 218, 222, 46, 62, 212, 37, 132, 112, 179>>,
-                amount: 10.04
+                amount: 1_040_000_000
               }
             ]
           }
@@ -109,12 +117,12 @@ defmodule ArchEthic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: datetime, at: #{DateTime.utc_now() |> DateTime.add(1) |> DateTime.to_unix()} do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
+        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
       end
       """
 
@@ -143,12 +151,12 @@ defmodule ArchEthic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: interval, at: "* * * * * *" do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
+        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
       end
       """
 
@@ -203,12 +211,12 @@ defmodule ArchEthic.Contracts.WorkerTest do
     } do
       code = """
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
+        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
       end
       """
 
@@ -249,12 +257,12 @@ defmodule ArchEthic.Contracts.WorkerTest do
       ]
 
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 10.04
+        add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1_040_000_000
       end
       """
 
@@ -302,24 +310,24 @@ defmodule ArchEthic.Contracts.WorkerTest do
       ]
 
       condition inherit: [
-        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 10.04}
+        uco_transfers: %{ "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3" => 1_040_000_000}
       ]
 
       actions triggered_by: transaction do
         set_type transfer
-        add_uco_transfer to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 10.04
+        add_uco_transfer to: "7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3", amount: 1_040_000_000
         set_code "
           condition transaction: [
             content: regex_match?(\\"^Mr.Y|Mr.X{1}$\\")
           ]
 
           condition inherit: [
-            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9.20}
+            uco_transfers: %{ \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\" => 9_200_000_000}
           ]
 
           actions triggered_by: transaction do
             set_type transfer
-            add_uco_transfer to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9.20
+            add_uco_transfer to: \\"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\\", amount: 9_200_000_000
           end"
       end
       """
@@ -349,12 +357,12 @@ defmodule ArchEthic.Contracts.WorkerTest do
     ]
 
     condition inherit: [
-      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9.20}
+      uco_transfers: %{ \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\" => 9_200_000_000}
     ]
 
     actions triggered_by: transaction do
       set_type transfer
-      add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9.20
+      add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 9_200_000_000
     end"
       after
         3_000 ->

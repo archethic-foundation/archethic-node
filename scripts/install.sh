@@ -20,7 +20,8 @@ sudo apt-get install -y \
   zlib1g-dev \
   libgmp-dev \
   nodejs \
-  npm
+  npm \
+  net-tools
 
 sudo locale-gen en_US.UTF-8
 
@@ -149,7 +150,7 @@ sudo apt install tpm2-tools
 cd $SCRIPT_DIR/..
 make
 
-IFACE=$(ip addr show | awk '/inet.*brd/{print $NF; exit}')
+IFACE=$(route | grep '^default' | grep -o '[^ ]*$')
 FILENAME=`cat /sys/class/net/$IFACE/address`
 echo Generating Keys - It may take a while...
 ./priv/c_dist/tpm_keygen > $INSTALL_DIR/$FILENAME 

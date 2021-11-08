@@ -71,10 +71,10 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>    ]
       ...>
       ...>    actions triggered_by: datetime, at: 1603270603 do
-      ...>      new_content = \"Sent #{10.04}\"
+      ...>      new_content = \"Sent #{1_040_000_000}\"
       ...>      set_type transfer
       ...>      set_content new_content
-      ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 10.04
+      ...>      add_uco_transfer to: \"22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10\", amount: 1_040_000_000
       ...>    end
       ...>
       ...>    actions triggered_by: oracle do
@@ -149,7 +149,7 @@ defmodule ArchEthic.Contracts.Interpreter do
            %Trigger{
              actions: {:__block__, [],
               [
-                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 10.04"]}]},
+                {:=, [line: 15], [{:scope, [line: 15], nil}, {{:., [line: 15], [{:__aliases__, [line: 15], [:Map]}, :put]}, [line: 15], [{:scope, [line: 15], nil}, "new_content", "Sent 1040000000"]}]},
                 {
                   :=,
                   [line: 16],
@@ -171,7 +171,7 @@ defmodule ArchEthic.Contracts.Interpreter do
                   [line: 18],
                   [
                     {:scope, [line: 18], nil},
-                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 10.04}]]}]}]}
+                    {:update_in, [line: 18], [{:scope, [line: 18], nil}, ["next_transaction"], {:&, [line: 18], [{{:., [line: 18], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :add_uco_transfer]}, [line: 18], [{:&, [line: 18], [1]}, [{"to", <<34, 54, 139, 80, 211, 178, 151, 103, 135, 207, 204, 39, 80, 138, 142, 140, 103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>}, {"amount", 1040000000}]]}]}]}
                   ]
                 }
               ]},
@@ -441,6 +441,18 @@ defmodule ArchEthic.Contracts.Interpreter do
        when field_name in @condition_fields,
        do: {node, acc}
 
+  # Whitelist the usage of map in the conditions
+  # Example:
+  #
+  # ```
+  # condition inehrit: [
+  #   uco_transfers: [%{ to: "address", amount: 1000000 }]
+  # ]
+  # ```
+  defp prewalk(node = {{:atom, _key}, _val}, acc = {:ok, %{scope: :condition}}) do
+    {node, acc}
+  end
+
   # Whitelist the usage transaction fields
   defp prewalk(
          node = {:., _, [{{:atom, transaction_ref}, _, nil}, {:atom, type}]},
@@ -664,23 +676,23 @@ defmodule ArchEthic.Contracts.Interpreter do
        when arg in ["to", "amount", "nft"],
        do: {node, acc}
 
-  # Whitelist the add_authorized_key argument list
+  # Whitelist the add_ownership argument list
   defp prewalk(
          node = [
-           {{:atom, "public_key"}, _public_key},
-           {{:atom, "encrypted_secret_key"}, _encrypted_secret_key},
-           {{:atom, "secret_index"}, _secret_index}
+           {{:atom, "secret"}, _secret},
+           {{:atom, "secret_key"}, _secret_key},
+           {{:atom, "authorized_public_keys"}, _authorized_public_keys}
          ],
-         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_ownership", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
          node = {{:atom, arg}, _},
-         acc = {:ok, %{scope: {:function, "add_authorized_key", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_ownership", :actions}}}
        )
-       when arg in ["public_key", "encrypted_secret_key", "secret_index"],
+       when arg in ["secret", "secret_key", "authorized_public_keys"],
        do: {node, acc}
 
   # Whitelist generics
@@ -962,23 +974,37 @@ defmodule ArchEthic.Contracts.Interpreter do
 
   defp aggregate_conditions(conditions, subject_scope) do
     Enum.reduce(conditions, %Conditions{}, fn {subject, condition}, acc ->
-      condition =
-        if subject == "origin_family" do
-          String.to_existing_atom(condition)
-        else
-          if is_binary(condition) or is_number(condition) do
-            {:==, [],
-             [
-               {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
-               condition
-             ]}
-          else
-            Macro.postwalk(condition, &to_boolean_expression(&1, subject_scope, subject))
-          end
-        end
-
+      condition = do_aggregate_condition(condition, subject_scope, subject)
       Map.put(acc, String.to_existing_atom(subject), condition)
     end)
+  end
+
+  defp do_aggregate_condition(condition, _, "origin_family"),
+    do: String.to_existing_atom(condition)
+
+  defp do_aggregate_condition(condition, subject_scope, subject)
+       when is_binary(condition) or is_number(condition) do
+    {:==, [],
+     [
+       {:get_in, [], [{:scope, [], nil}, [subject_scope, subject]]},
+       condition
+     ]}
+  end
+
+  defp do_aggregate_condition(condition, subject_scope, subject) when is_list(condition) do
+    {:==, [],
+     [
+       {:get_in, [],
+        [
+          {:scope, [], nil},
+          [subject_scope, subject]
+        ]},
+       condition
+     ]}
+  end
+
+  defp do_aggregate_condition(condition, subject_scope, subject) do
+    Macro.postwalk(condition, &to_boolean_expression(&1, subject_scope, subject))
   end
 
   defp to_boolean_expression(
@@ -1314,7 +1340,7 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp do_postwalk_execution(node, acc), do: {parse_value(node), acc}
 
   defp parse_value(val) when is_binary(val) do
-    case Base.decode16(val) do
+    case Base.decode16(val, case: :mixed) do
       {:ok, bin} ->
         bin
 
@@ -1337,7 +1363,7 @@ defmodule ArchEthic.Contracts.Interpreter do
 
           {_, false} ->
             Logger.debug(
-              "Invalid condition for #{field} with the given value: #{inspect(constants)}"
+              "Invalid condition for #{field} with the given value: #{get_in(constants, ["next", field])} - expected: #{inspect(condition)}"
             )
 
             false

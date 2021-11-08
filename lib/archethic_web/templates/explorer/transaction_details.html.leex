@@ -56,7 +56,7 @@
                         <p>The transaction does not exists yet. </p>
                         <hr />
                         <div class="mt-4 box has-background-warning-light">
-                            <small>It may appears later. <br />Please retry when the transaction will be processed.</small>
+                            <small>It may appear later. <br />Please retry when the transaction will be processed.</small>
                         </div>
                     <% else %>
                         <div>
@@ -104,9 +104,9 @@
                                                 </ul>
                                             </li>
                                             <li>
-                                                <a @click="data_section='keys'"
-                                                :class="data_section == 'keys' ? 'is-active' : '' ">
-                                                    Keys
+                                                <a @click="data_section='ownerships'"
+                                                :class="data_section == 'ownerships' ? 'is-active' : '' ">
+                                                    Ownerships
                                                 </a>
                                             </li>
                                             <li>
@@ -160,7 +160,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
-                                                    <%= format_float(transfer.amount) %> UCO
+                                                    <%= to_float(transfer.amount) %> UCO
                                                 </div>
                                             </div>
                                         </div>
@@ -183,7 +183,7 @@
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
-                                                <div class="column"><%= format_float(transfer.amount) %></div>
+                                                <div class="column"><%= to_float(transfer.amount) %></div>
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">NFT</div>
@@ -196,13 +196,13 @@
                                         </div>
                                         <% end %>
                                     </div>
-                                    <div x-show="data_section=='keys' ">
-                                        <p class="heading mb-4">Keys and Secrets</p>
-                                        <%= for { secret, index } <- Enum.with_index(@transaction.data.keys.secrets) do %>
+                                    <div x-show="data_section=='ownerships' ">
+                                        <p class="heading mb-4">Ownerships</p>
+                                        <%= for ownership <- @transaction.data.ownerships do %>
                                             <div class="box">
                                                 <div class="columns">
                                                 <div class="column">
-                                                    <p class="text_wrap">Secret: <%= Base.encode16(secret) %></p>
+                                                    <p class="text_wrap">Secret: <%= Base.encode16(ownership.secret) %></p>
                                                 </div>
                                                 </div>
                                                 <div class="columns">
@@ -210,7 +210,7 @@
                                                     <p class="heading">Authorized keys</p>
                                                 </div>
                                                 </div>
-                                                <%= for { key, _enc_key} <- Enum.at(@transaction.data.keys.authorized_keys, index) do %>
+                                                <%= for { key, _enc_key} <- ownership.authorized_keys do %>
                                                 <div class="columns">
                                                     <div class="column">
                                                         <span class="text_wrap"><%= Base.encode16(key) %></span>
@@ -331,10 +331,10 @@
                                                 <div class="column">
                                                     <%= case movement.type do %>
                                                         <% :UCO -> %>
-                                                            <%= format_float(movement.amount) %>
+                                                            <%= to_float(movement.amount) %>
                                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                                         <% {:NFT, nft_address} -> %>
-                                                            <%= format_float(movement.amount) %>
+                                                            <%= to_float(movement.amount) %>
                                                             <span class="tag is-success is-light ml-2">NFT</span>
                                                             <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                                 <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
@@ -362,7 +362,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Reward</div>
                                                 <div class="column">
-                                                    <%= format_float(movement.amount) %>
+                                                    <%= to_float(movement.amount) %>
                                                     <span class="tag is-primary is-light ml-2">UCO</span>
                                                 </div>
                                             </div>
@@ -387,10 +387,10 @@
                                                 <div class="column">
                                                     <%= case unspent_output.type do %>
                                                     <% :UCO -> %>
-                                                        <%= format_float(unspent_output.amount) %>
+                                                        <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-primary is-light ml-2">UCO</span>
                                                     <% {:NFT, nft_address} -> %>
-                                                        <%= format_float(unspent_output.amount) %>
+                                                        <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-success is-light ml-2">NFT</span>
                                                         <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                             <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
@@ -405,7 +405,7 @@
                                     <div x-show="operation_section == 'transaction_fee' ">
                                         <p class="heading mb-4">Transaction fee</p>
                                         <p>
-                                            <%= @transaction.validation_stamp.ledger_operations.fee %>
+                                            <%= to_float(@transaction.validation_stamp.ledger_operations.fee) %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
                                         </p>
                                     </div>
@@ -510,7 +510,7 @@
                                         <div class="column heading">Amount</div>
                                       </div>
                                       <div class="columns">
-                                          <div class="column"><%= format_float(input.amount) %></div>
+                                          <div class="column"><%= to_float(input.amount) %></div>
                                       </div>
                                     </div>
                                     <div class="column">

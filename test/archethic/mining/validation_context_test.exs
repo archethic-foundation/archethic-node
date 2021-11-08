@@ -195,7 +195,7 @@ defmodule ArchEthic.Mining.ValidationContextTest do
     %ValidationContext{
       transaction: Transaction.new(:transfer, %TransactionData{}, "seed", 0),
       previous_storage_nodes: previous_storage_nodes,
-      unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 2.04, type: :UCO}],
+      unspent_outputs: [%UnspentOutput{from: "@Alice2", amount: 204_000_000, type: :UCO}],
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
@@ -273,7 +273,7 @@ defmodule ArchEthic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: 20.20,
+          fee: 2_020_000_000,
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
@@ -293,6 +293,8 @@ defmodule ArchEthic.Mining.ValidationContextTest do
          previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
+    fee = Fee.calculate(tx, 0.07)
+
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
       proof_of_work: Crypto.first_node_public_key(),
@@ -300,13 +302,13 @@ defmodule ArchEthic.Mining.ValidationContextTest do
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
         %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
+          fee: fee,
           transaction_movements: [
-            %TransactionMovement{to: "@Bob3", amount: 2000, type: :UCO}
+            %TransactionMovement{to: "@Bob3", amount: 200_000_000_000, type: :UCO}
           ],
           unspent_outputs: [
             %UnspentOutput{
-              amount: 0.611423,
+              amount: Enum.reduce(unspent_outputs, 0, &(&1.amount + &2)) - fee,
               from: tx.address,
               type: :UCO
             }
@@ -340,7 +342,7 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx),
           unspent_outputs: [
             %UnspentOutput{
-              amount: 1000,
+              amount: 100_000_000_000,
               from: tx.address,
               type: :UCO
             }
@@ -374,27 +376,27 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           node_movements: [
             %NodeMovement{
               to: coordinator_node.last_public_key,
-              amount: 20.0,
+              amount: 2_000_000_000,
               roles: [:coordinator_node]
             },
             %NodeMovement{
               to: Enum.at(cross_validation_nodes, 0).last_public_key,
-              amount: 15.0,
+              amount: 1_500_000_000,
               roles: [:cross_validation_node]
             },
             %NodeMovement{
               to: Enum.at(cross_validation_nodes, 1).last_public_key,
-              amount: 15.0,
+              amount: 1_500_000_000,
               roles: [:cross_validation_node]
             },
             %NodeMovement{
               to: Enum.at(previous_storage_nodes, 0).last_public_key,
-              amount: 10.0,
+              amount: 1_000_000_000,
               roles: [:previous_storage_node]
             },
             %NodeMovement{
               to: Enum.at(previous_storage_nodes, 1).last_public_key,
-              amount: 10.0,
+              amount: 1_000_000_000,
               roles: [:previous_storage_node]
             }
           ]

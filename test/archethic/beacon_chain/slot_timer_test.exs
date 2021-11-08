@@ -89,7 +89,7 @@ defmodule ArchEthic.BeaconChain.SlotTimerTest do
     {:ok, _pid} = SlotTimer.start_link([interval: "0 * * * * * *", trigger_offset: 0], [])
     now = DateTime.utc_now()
     next_slot_time = SlotTimer.next_slot(now)
-    assert 1 == abs(now.minute - next_slot_time.minute)
+    assert :gt == DateTime.compare(next_slot_time, now)
   end
 
   test "previous_slot/2 should retrieve the previous slot time from a date" do

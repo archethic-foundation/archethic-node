@@ -86,7 +86,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
     genesis_transfers_amount =
       tx
       |> Transaction.get_movements()
-      |> Enum.reduce(0.0, &(&2 + &1.amount))
+      |> Enum.reduce(0, &(&2 + &1.amount))
 
     tx
     |> self_validation([
@@ -117,7 +117,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   defp genesis_transfers(network_pool_address) do
     get_genesis_pools()
     |> Enum.map(&%Transfer{to: &1.address, amount: &1.amount})
-    |> Enum.concat([%Transfer{to: network_pool_address, amount: 1.46e9}])
+    |> Enum.concat([%Transfer{to: network_pool_address, amount: 146_000_000_000_000_000}])
   end
 
   def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
