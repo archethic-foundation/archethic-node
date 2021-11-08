@@ -320,8 +320,6 @@ defmodule ArchEthic.P2PTest do
                  subset: subset,
                  node_public_key: first_public_key
                })
-
     end
-
   end
 end
