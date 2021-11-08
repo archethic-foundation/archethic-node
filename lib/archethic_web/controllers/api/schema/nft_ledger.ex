@@ -24,6 +24,6 @@ defmodule ArchEthicWeb.API.Schema.NFTLedger do
     changeset
     |> cast(params, [:to, :amount, :nft])
     |> validate_required([:to, :amount, :nft])
-    |> validate_number(:to, greater_than: 0)
+    |> validate_number(:amount, greater_than: 0)
   end
 end
