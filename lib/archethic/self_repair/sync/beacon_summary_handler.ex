@@ -180,14 +180,29 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
       |> Stream.map(& &1.summary_time)
       |> Utils.flow_window_from_dates(& &1.summary_time)
 
-    summaries
-    |> Flow.from_enumerable()
-    |> Flow.partition(window: window, key: {:key, :subset})
-    |> Flow.reduce(fn -> initial_state end, &do_reduce_summary/2)
-    |> Flow.emit(:state)
-    |> Flow.partition()
-    |> Flow.map(&process_summary_aggregate(&1, node_patch))
-    |> Flow.run()
+    [aggregate] =
+      summaries
+      |> Flow.from_enumerable()
+      |> Flow.partition(window: window, key: {:key, :subset})
+      |> Flow.reduce(fn -> initial_state end, &do_reduce_summary/2)
+      |> Flow.departition(
+        &Map.new/0,
+        fn new, acc ->
+          acc
+          |> Map.update(:transactions, new.transactions, &(&1 ++ new.transactions))
+          |> Map.update(:ends_of_sync, new.ends_of_sync, &(&1 ++ new.ends_of_sync))
+          |> Map.update(
+            :p2p_availabilities,
+            new.p2p_availabilities,
+            &(&1 ++ new.p2p_availabilities)
+          )
+          |> Map.update(:stats, new.stats, &Map.merge(&1, new.stats))
+        end,
+        & &1
+      )
+      |> Enum.to_list()
+
+    process_summary_aggregate(aggregate, node_patch)
   end
 
   defp do_reduce_summary(

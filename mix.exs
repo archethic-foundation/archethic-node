@@ -70,7 +70,8 @@ defmodule ArchEthic.MixProject do
       {:gen_state_machine, "~> 3.0"},
       {:retry, "~> 0.14.1"},
       {:gen_stage, "~> 1.1"},
-      {:knigge, "~> 1.4"}
+      {:knigge, "~> 1.4"},
+      {:flow, "~> 1.0"}
     ]
   end
 end
