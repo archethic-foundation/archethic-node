@@ -10,10 +10,10 @@ defmodule ArchEthic.Replication.TransactionContext do
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.TransactionChain.TransactionInput
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias ArchEthic.TransactionChain.TransactionInput
 
   alias ArchEthic.Replication
 
@@ -24,77 +24,54 @@ defmodule ArchEthic.Replication.TransactionContext do
           address :: Crypto.versioned_hash(),
           timestamp :: DateTime.t(),
           force_remote_download? :: boolean()
-        ) ::
-          Enumerable.t() | list(Transaction.t())
+        ) :: list(Transaction.t())
   def fetch_transaction_chain(address, timestamp = %DateTime{}, force_remote_download? \\ false)
       when is_binary(address) and is_boolean(force_remote_download?) do
-    message = %GetTransactionChain{address: address}
+    case replication_nodes(address, timestamp, force_remote_download?) do
+      [] ->
+        []
 
-    do_fetch(
-      address,
-      message,
-      fn
-        {:ok, %TransactionList{transactions: transactions}} -> transactions
-        _ -> []
-      end,
-      timestamp,
-      force_remote_download?
-    )
+      nodes ->
+        %TransactionList{transactions: txs} =
+          reply_first(nodes, %GetTransactionChain{address: address})
+
+        txs
+    end
   end
 
   @doc """
   Fetch the transaction unspent outputs
   """
   @spec fetch_unspent_outputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
-          Enumerable.t() | list(UnspentOutput.t())
+          list(UnspentOutput.t())
   def fetch_unspent_outputs(address, timestamp) when is_binary(address) do
-    message = %GetUnspentOutputs{address: address}
+    case replication_nodes(address, timestamp, false) do
+      [] ->
+        []
 
-    do_fetch(
-      address,
-      message,
-      fn
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
-          unspent_outputs
+      nodes ->
+        %UnspentOutputList{unspent_outputs: utxos} =
+          reply_first(nodes, %GetUnspentOutputs{address: address})
 
-        _ ->
-          []
-      end,
-      timestamp
-    )
+        utxos
+    end
   end
 
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
   """
   @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
-          Enumerable.t() | list(TransactionInput.t())
+          list(TransactionInput.t())
   def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
-    message = %GetTransactionInputs{address: address}
-
-    do_fetch(
-      address,
-      message,
-      fn
-        {:ok, %TransactionInputList{inputs: inputs}} ->
-          Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
-
-        _ ->
-          []
-      end,
-      timestamp
-    )
-  end
-
-  defp do_fetch(address, message, result_handler, timestamp, force_remote_download? \\ false) do
-    case replication_nodes(address, timestamp, force_remote_download?) do
+    case replication_nodes(address, timestamp, false) do
       [] ->
-        result_handler.({:error, :not_found})
+        []
 
       nodes ->
-        nodes
-        |> P2P.reply_first(message)
-        |> result_handler.()
+        %TransactionInputList{inputs: inputs} =
+          reply_first(nodes, %GetTransactionInputs{address: address})
+
+        Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
     end
   end
 
@@ -109,5 +86,15 @@ defmodule ArchEthic.Replication.TransactionContext do
     address
     |> Replication.chain_storage_nodes()
     |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
+  end
+
+  defp reply_first([node | rest], message) do
+    case P2P.send_message(node, message) do
+      {:ok, data} ->
+        data
+
+      {:error, _} ->
+        reply_first(rest, message)
+    end
   end
 end

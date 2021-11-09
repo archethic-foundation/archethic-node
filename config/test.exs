@@ -91,11 +91,10 @@ config :archethic, ArchEthic.Networking.IPLookup, MockIPLookup
 config :archethic, ArchEthic.Networking.PortForwarding, MockPortForwarding
 config :archethic, ArchEthic.Networking.Scheduler, enabled: false
 
-config :archethic, ArchEthic.P2P.Endpoint.Listener, enabled: false
+config :archethic, ArchEthic.P2P.Listener, enabled: false
 config :archethic, ArchEthic.P2P.MemTableLoader, enabled: false
 config :archethic, ArchEthic.P2P.MemTable, enabled: false
 config :archethic, ArchEthic.P2P.Client, MockClient
-config :archethic, ArchEthic.P2P.Transport, MockTransport
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds, enabled: false
 

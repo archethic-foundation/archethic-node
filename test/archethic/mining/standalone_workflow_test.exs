@@ -45,17 +45,21 @@ defmodule ArchEthic.Mining.StandaloneWorkflowTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetP2PView{} ->
+      _, %GetP2PView{}, _ ->
         {:ok, %P2PView{nodes_view: <<1::1>>}}
 
-      _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok,
+         %UnspentOutputList{
+           unspent_outputs: unspent_outputs
+         }}
 
-      _, %GetTransaction{} ->
+      _, %GetTransaction{}, _ ->
         {:ok, %NotFound{}}
 
-      _, %ReplicateTransaction{} ->
+      _, %ReplicateTransaction{}, _ ->
         send(me, :transaction_replicated)
+
         {:ok, %Ok{}}
     end)
 

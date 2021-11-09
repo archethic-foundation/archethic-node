@@ -1,16 +1,12 @@
 defmodule ArchEthic.Bootstrap.TransactionHandler do
   @moduledoc false
 
-  use Retry
-
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Error
   alias ArchEthic.P2P.Message.NewTransaction
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Transport
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
@@ -32,17 +28,24 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
       transaction_type: "node"
     )
 
-    case P2P.reply_first(nodes, %NewTransaction{transaction: tx}) do
+    do_send_transaction(nodes, tx)
+  end
+
+  defp do_send_transaction([node | rest], tx) do
+    case P2P.send_message(node, %NewTransaction{transaction: tx}) do
       {:ok, %Ok{}} ->
         :ok
 
-      {:ok, %Error{reason: :network_issue}} ->
-        {:error, :network_issue}
+      {:error, _} = e ->
+        Logger.error("Cannot send node transaction - #{inspect(e)}",
+          node: Base.encode16(node.first_public_key)
+        )
 
-      {:error, :network_issue} ->
-        {:error, :network_issue}
+        do_send_transaction(rest, tx)
     end
   end
+
+  defp do_send_transaction([], _), do: {:error, :network_issue}
 
   @doc """
   Create a new node transaction
@@ -50,7 +53,7 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
   @spec create_node_transaction(
           :inet.ip_address(),
           :inet.port_number(),
-          Transport.supported(),
+          P2P.supported_transport(),
           Crypto.versioned_hash()
         ) ::
           Transaction.t()

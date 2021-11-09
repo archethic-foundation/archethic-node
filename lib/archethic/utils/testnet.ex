@@ -109,7 +109,7 @@ defmodule ArchEthic.Utils.Testnet do
 
   alias ArchEthic.Crypto
 
-  defp p2p_port, do: Application.get_env(:archethic, ArchEthic.P2P.Endpoint)[:port]
+  defp p2p_port, do: Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
   defp web_port, do: Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
 
   @validator_ip 220
@@ -158,12 +158,12 @@ defmodule ArchEthic.Utils.Testnet do
               build: %{ context: "c"},
               networks: %{:net => %{ipv4_address: "1.2.3.2"}},
               command: [
-                "/wait-for-tcp.sh", 
-                "scylladb1:9042", 
-                "--timeout=0", 
-                "--strict", 
-                "--", 
-                "./bin/archethic_node", 
+                "/wait-for-tcp.sh",
+                "scylladb1:9042",
+                "--timeout=0",
+                "--strict",
+                "--",
+                "./bin/archethic_node",
                 "foreground"
               ],
               volumes: [
@@ -185,16 +185,16 @@ defmodule ArchEthic.Utils.Testnet do
                 "c/scripts/wait-for-node.sh:/wait-for-node.sh:ro"
               ],
               command: [
-                "/wait-for-tcp.sh", 
-                "scylladb2:9042", 
-                "--timeout=0", 
-                "--strict", "--", 
+                "/wait-for-tcp.sh",
+                "scylladb2:9042",
+                "--timeout=0",
+                "--strict", "--",
                 "/wait-for-node.sh",
                 "http://node1:4002/up",
                 "./bin/archethic_node",
                 "foreground"
               ]
-            }, 
+            },
             "node3" => %{
               depends_on: ["node1"],
               environment: %{
@@ -210,10 +210,10 @@ defmodule ArchEthic.Utils.Testnet do
                 "c/scripts/wait-for-node.sh:/wait-for-node.sh:ro"
               ],
               command: [
-                "/wait-for-tcp.sh", 
-                "scylladb3:9042", 
-                "--timeout=0", 
-                "--strict", "--", 
+                "/wait-for-tcp.sh",
+                "scylladb3:9042",
+                "--timeout=0",
+                "--strict", "--",
                 "/wait-for-node.sh",
                 "http://node1:4002/up",
                 "./bin/archethic_node",

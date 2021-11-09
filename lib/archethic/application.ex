@@ -49,7 +49,7 @@ defmodule ArchEthic.Application do
   require Logger
 
   def start(_type, _args) do
-    p2p_endpoint_conf = Application.get_env(:archethic, ArchEthic.P2P.Endpoint)
+    p2p_endpoint_conf = Application.get_env(:archethic, ArchEthic.P2P.Listener)
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
     port = Networking.try_open_port(port, true)

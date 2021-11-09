@@ -2,9 +2,9 @@ defmodule ArchEthic.P2P.Supervisor do
   @moduledoc false
 
   alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Connection
-  alias ArchEthic.P2P.Endpoint
-  alias ArchEthic.P2P.Endpoint.Supervisor, as: EndpointSupervisor
+  alias ArchEthic.P2P.Client.ConnectionRegistry
+  alias ArchEthic.P2P.Client.ConnectionSupervisor
+  alias ArchEthic.P2P.Listener
   alias ArchEthic.P2P.MemTable
   alias ArchEthic.P2P.MemTableLoader
 
@@ -19,22 +19,16 @@ defmodule ArchEthic.P2P.Supervisor do
   def init(args) do
     port = Keyword.fetch!(args, :port)
 
-    endpoint_conf = Application.get_env(:archethic, Endpoint, [])
+    listener_conf = Application.get_env(:archethic, Listener, [])
 
     bootstraping_seeds_conf = Application.get_env(:archethic, BootstrappingSeeds)
 
-    # Setup the connection handler for the local node
-    Connection.start_link(name: ArchEthic.P2P.LocalConnection, initiator?: true)
-
     optional_children = [
-      {Registry,
-       keys: :unique,
-       name: ArchEthic.P2P.ConnectionRegistry,
-       partitions: System.schedulers_online()},
-      {DynamicSupervisor, name: ArchEthic.P2P.ConnectionSupervisor, strategy: :one_for_one},
+      {Registry, name: ConnectionRegistry, keys: :unique},
+      ConnectionSupervisor,
       MemTable,
       MemTableLoader,
-      {EndpointSupervisor, Keyword.put(endpoint_conf, :port, port)},
+      {Listener, Keyword.put(listener_conf, :port, port)},
       {BootstrappingSeeds,
        [
          backup_file: Utils.mut_dir(Keyword.fetch!(bootstraping_seeds_conf, :backup_file)),

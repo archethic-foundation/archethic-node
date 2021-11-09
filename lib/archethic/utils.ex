@@ -564,4 +564,18 @@ defmodule ArchEthic.Utils do
         Flow.Window.global()
     end
   end
+
+  @doc """
+  Clear the mailbox of the current process
+  """
+  @spec flush_mailbox() :: :ok
+  def flush_mailbox do
+    receive do
+      _ ->
+        flush_mailbox()
+    after
+      0 ->
+        :ok
+    end
+  end
 end

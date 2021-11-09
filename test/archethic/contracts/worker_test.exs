@@ -44,7 +44,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn _, %StartMining{transaction: tx} ->
+    |> stub(:send_message, fn _, %StartMining{transaction: tx}, _ ->
       send(me, {:transaction_sent, tx})
       {:ok, %Ok{}}
     end)

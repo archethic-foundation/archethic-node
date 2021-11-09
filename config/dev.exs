@@ -110,7 +110,7 @@ config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
   interval: "40 * * * * * *",
   application_interval: "0 * * * * * *"
 
-config :archethic, ArchEthic.P2P.Endpoint,
+config :archethic, ArchEthic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
 config :archethic, ArchEthicWeb.FaucetController, enabled: true

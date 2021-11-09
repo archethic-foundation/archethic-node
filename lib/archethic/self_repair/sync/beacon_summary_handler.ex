@@ -67,29 +67,41 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     end)
   end
 
-  def download_summary(beacon_address, nodes, patch, prev_result \\ nil)
+  def download_summary(_beacon_address, [], _), do: {:ok, %NotFound{}}
 
-  def download_summary(_beacon_address, [], _, %NotFound{}), do: {:ok, %NotFound{}}
+  def download_summary(beacon_address, nodes, patch) do
+    nodes
+    |> P2P.nearest_nodes(patch)
+    |> do_get_download_summary(beacon_address, nil)
+  end
 
-  def download_summary(beacon_address, nodes, patch, prev_result) do
-    case P2P.reply_first(nodes, %GetBeaconSummary{address: beacon_address},
-           patch: patch,
-           node_ack?: true
-         ) do
-      {:ok, %NotFound{}, node} ->
-        download_summary(beacon_address, nodes -- [node], patch, %NotFound{})
+  defp do_get_download_summary([node | rest], address, prev_result) do
+    with {:ok, ref} <- P2P.send_message(node, %GetBeaconSummary{address: address}),
+         {:ok, summary = %BeaconSummary{}} <-
+           P2P.async_response(ref, &recv_loop_summary(&1, nil)) do
+      {:ok, summary}
+    else
+      {:ok, %NotFound{}} ->
+        do_get_download_summary(rest, address, %NotFound{})
 
-      {:ok, summary = %BeaconSummary{}, _node} ->
-        {:ok, summary}
+      {:error, _} ->
+        do_get_download_summary(rest, address, prev_result)
+    end
+  end
 
-      {:error, :network_issue} ->
-        case prev_result do
-          nil ->
-            {:error, :network_issue}
+  defp do_get_download_summary([], _, %NotFound{}), do: {:ok, %NotFound{}}
+  defp do_get_download_summary([], _, _), do: {:error, :network_issue}
 
-          _ ->
-            {:ok, prev_result}
-        end
+  defp recv_loop_summary(ref, acc) do
+    receive do
+      {:data, ^ref, data} ->
+        recv_loop_summary(ref, data)
+
+      {:data_end, ^ref} ->
+        {:ok, acc}
+
+      {:error, _} = e ->
+        e
     end
   end
 
@@ -143,10 +155,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   end
 
   defp fetch_transaction([node | rest], address) do
-    case P2P.send_message(node, %GetTransaction{address: address}) do
-      {:ok, tx = %Transaction{}} ->
-        {:ok, tx}
-
+    with {:ok, ref} <- P2P.send_message(node, %GetTransaction{address: address}),
+         {:ok, tx} <- P2P.async_response(ref, &recv_tx_loop(&1, {:error, :not_found})) do
+      {:ok, tx}
+    else
       _ ->
         fetch_transaction(rest, address)
     end
@@ -159,6 +171,22 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     )
 
     {:error, :network_issue}
+  end
+
+  defp recv_tx_loop(ref, acc) do
+    receive do
+      {:data, ^ref, tx = %Transaction{}} ->
+        recv_tx_loop(ref, {:ok, tx})
+
+      {:data, ^ref, %NotFound{}} ->
+        recv_tx_loop(ref, {:error, :not_found})
+
+      {:data_end, ^ref} ->
+        acc
+
+      {:error, _} = e ->
+        e
+    end
   end
 
   @doc """

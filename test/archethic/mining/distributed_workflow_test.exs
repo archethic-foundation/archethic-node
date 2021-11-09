@@ -103,19 +103,19 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys} ->
+        _, %GetP2PView{node_public_keys: public_keys}, _ ->
           {:ok,
            %P2PView{
              nodes_view: Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
            }}
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %GetTransaction{} ->
+        _, %GetTransaction{}, _ ->
           {:ok, %Transaction{}}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -134,51 +134,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
                   previous_transaction: _,
                   unspent_outputs: _,
                   previous_storage_nodes: _
-                }
-              }} = :sys.get_state(pid)
-    end
-
-    test "should shortcut the transaction context retrieval if the transaction is invalid", %{
-      sorting_seed: sorting_seed
-    } do
-      tx = Transaction.new(:node, %TransactionData{})
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %CrossValidate{} ->
-          {:ok, %Ok{}}
-      end)
-
-      validation_nodes =
-        Election.validation_nodes(
-          tx,
-          sorting_seed,
-          P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
-        )
-
-      welcome_node = %Node{
-        ip: {80, 10, 20, 102},
-        port: 3005,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        reward_address: :crypto.strong_rand_bytes(32)
-      }
-
-      P2P.add_and_connect_node(welcome_node)
-
-      {:ok, pid} =
-        Workflow.start_link(
-          transaction: tx,
-          welcome_node: welcome_node,
-          validation_nodes: validation_nodes,
-          node_public_key: List.first(validation_nodes).last_public_key
-        )
-
-      assert {:wait_cross_validation_stamps,
-              %{
-                context: %ValidationContext{
-                  validation_stamp: %ValidationStamp{errors: [:pending_transaction]}
                 }
               }} = :sys.get_state(pid)
     end
@@ -225,17 +180,17 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys1} ->
+        _, %GetP2PView{node_public_keys: public_keys1}, _ ->
           view = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           {:ok, %P2PView{nodes_view: view}}
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %GetTransaction{} ->
+        _, %GetTransaction{}, _ ->
           {:ok, %Transaction{}}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -315,20 +270,20 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys} ->
+        _, %GetP2PView{node_public_keys: public_keys}, _ ->
           view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           {:ok, %P2PView{nodes_view: view}}
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %GetTransaction{} ->
+        _, %GetTransaction{}, _ ->
           {:ok, %NotFound{}}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{} ->
+        _, %CrossValidate{}, _ ->
           {:ok, %Ok{}}
       end)
 
@@ -435,24 +390,24 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys} ->
+        _, %GetP2PView{node_public_keys: public_keys}, _ ->
           view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           {:ok, %P2PView{nodes_view: view}}
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %GetTransaction{} ->
+        _, %GetTransaction{}, _ ->
           {:ok, %NotFound{}}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree}, _ ->
           send(me, {stamp, tree})
           {:ok, %Ok{}}
 
-        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %CrossValidationDone{cross_validation_stamp: stamp}, _ ->
           send(me, {:cross_validation_done, stamp})
           {:ok, %Ok{}}
       end)
@@ -611,29 +566,28 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys} ->
+        _, %GetP2PView{node_public_keys: public_keys}, _ ->
           view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
           {:ok, %P2PView{nodes_view: view}}
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{}}
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-        _, %GetTransaction{} ->
+        _, %GetTransaction{}, _ ->
           {:ok, %NotFound{}}
 
-        _, %AddMiningContext{} ->
+        _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree} ->
+        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree}, _ ->
           send(me, {:cross_validate, stamp, tree})
           {:ok, %Ok{}}
 
-        _, %CrossValidationDone{cross_validation_stamp: stamp} ->
+        _, %CrossValidationDone{cross_validation_stamp: stamp}, _ ->
           send(me, {:cross_validation_done, stamp})
-
           {:ok, %Ok{}}
 
-        _, %ReplicateTransaction{transaction: tx} ->
+        _, %ReplicateTransaction{transaction: tx}, _ ->
           send(me, {:replicate_transaction, tx})
           {:ok, %Ok{}}
       end)

@@ -1,18 +1,17 @@
 defmodule ArchEthic.P2P.Client.DefaultImpl do
   @moduledoc false
 
-  use Retry
-
   alias ArchEthic.Crypto
 
+  alias ArchEthic.P2P
   alias ArchEthic.P2P.Client
-  alias ArchEthic.P2P.Client.RemoteConnection
-  alias ArchEthic.P2P.Connection
-  alias ArchEthic.P2P.ConnectionRegistry
-  alias ArchEthic.P2P.ConnectionSupervisor
-  alias ArchEthic.P2P.LocalConnection
+  alias ArchEthic.P2P.Client.Connection
+  alias ArchEthic.P2P.Client.ConnectionSupervisor
+  alias ArchEthic.P2P.Client.Transport.TCPImpl
+  alias ArchEthic.P2P.Message
   alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Transport
+
+  require Logger
 
   @behaviour Client
 
@@ -23,47 +22,43 @@ defmodule ArchEthic.P2P.Client.DefaultImpl do
   @spec new_connection(
           :inet.ip_address(),
           port :: :inet.port_number(),
-          Transport.supported(),
+          P2P.supported_transport(),
           Crypto.key()
-        ) :: {:ok, pid()}
+        ) :: Supervisor.on_start()
   def new_connection(ip, port, transport, node_public_key) do
-    DynamicSupervisor.start_child(
-      ConnectionSupervisor,
-      %{
-        id: {:remote_conn, node_public_key},
-        start:
-          {RemoteConnection, :start_link,
-           [[ip: ip, port: port, node_public_key: node_public_key, transport: transport]]}
-      }
+    ConnectionSupervisor.add_connection(
+      transport: transport_mod(transport),
+      ip: ip,
+      port: port,
+      node_public_key: node_public_key
     )
   end
+
+  defp transport_mod(:tcp), do: TCPImpl
+  defp transport_mod(other), do: other
 
   @doc """
   Send a message to the given node using the right connection bearer
   """
   @impl Client
-  def send_message(%Node{first_public_key: first_public_key}, message) do
-    if first_public_key == Crypto.first_node_public_key() do
-      LocalConnection
-      |> Process.whereis()
-      |> Connection.send_message(message)
+  def send_message(
+        %Node{first_public_key: node_public_key},
+        message,
+        timeout
+      ) do
+    if node_public_key == Crypto.first_node_public_key() do
+      {:ok, Message.process(message)}
     else
-      retry_while with: linear_backoff(10, 2) |> expiry(100) do
-        case Registry.lookup(ConnectionRegistry, {:bearer_conn, first_public_key}) do
-          [{pid, _}] ->
-            try do
-              {:halt, Connection.send_message(pid, message)}
-            catch
-              _ ->
-                {:cont, {:error, :network_issue}}
+      case Connection.send_message(node_public_key, message, timeout) do
+        {:ok, data} ->
+          {:ok, data}
 
-              :exit, _ ->
-                {:cont, {:error, :network_issue}}
-            end
+        {:error, reason} ->
+          Logger.warning("Cannot send message #{inspect(message)} - #{inspect(reason)}",
+            node: Base.encode16(node_public_key)
+          )
 
-          [] ->
-            {:cont, {:error, :network_issue}}
-        end
+          {:error, reason}
       end
     end
   end

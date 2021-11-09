@@ -3,21 +3,25 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
   use ArchEthicWeb.ConnCase
   use ArchEthicWeb.GraphQLSubscriptionCase
 
-  alias ArchEthic.Account.MemTables.NFTLedger
-  alias ArchEthic.Account.MemTables.UCOLedger
-
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.Balance
+  alias ArchEthic.P2P.Message.GetBalance
   alias ArchEthic.P2P.Message.GetLastTransaction
+  alias ArchEthic.P2P.Message.GetTransaction
+  alias ArchEthic.P2P.Message.GetTransactionChain
+  alias ArchEthic.P2P.Message.GetTransactionInputs
   alias ArchEthic.P2P.Message.NotFound
+  alias ArchEthic.P2P.Message.TransactionInputList
+  alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionInput
 
   import Mox
 
@@ -53,6 +57,11 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should return nothing when the transaction is not found", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
 
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+      end)
+
       conn =
         post(conn, "/api", %{
           "query" => "query { transaction(address: \"#{addr}\") { address } }"
@@ -64,14 +73,9 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should the transaction with the requested fields", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
 
-      MockDB
-      |> stub(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           address: addr,
-           type: :transfer,
-           data: %TransactionData{}
-         }}
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{}, _ ->
+        {:ok, %Transaction{address: addr, type: :transfer, data: %TransactionData{}}}
       end)
 
       conn =
@@ -89,9 +93,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
       first_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       last_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      MockDB
-      |> expect(:get_last_chain_address, fn _addr -> last_address end)
-      |> stub(:get_transaction, fn ^last_address, _ ->
+      MockClient
+      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
         {:ok,
          %Transaction{
            address: last_address,
@@ -115,12 +118,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should return an error when no last transaction on this chain", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      MockDB
-      |> expect(:get_last_chain_address, fn addr -> addr end)
-      |> expect(:get_transaction, fn _, _ -> {:error, :transaction_not_exists} end)
-
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{} ->
+      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
         {:ok, %NotFound{}}
       end)
 
@@ -200,8 +199,13 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
           }
         end)
 
-      MockDB
-      |> stub(:get_transaction_chain, fn _, _ -> transactions end)
+      MockClient
+      |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
+        {:ok,
+         %TransactionList{
+           transactions: transactions
+         }}
+      end)
 
       last_addr = List.last(transactions).address
 
@@ -227,8 +231,10 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
           }
         end)
 
-      MockDB
-      |> stub(:get_transaction_chain, fn _, _ -> transactions end)
+      MockClient
+      |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
+        {:ok, %TransactionList{transactions: transactions}}
+      end)
 
       last_addr = List.last(transactions).address
 
@@ -250,32 +256,10 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should retrieve the uco balance of an address", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      UCOLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 20_200_000
-        },
-        DateTime.utc_now()
-      )
-
-      UCOLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 51_800_000
-        },
-        DateTime.utc_now()
-      )
-
-      UCOLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 146_000_000
-        },
-        DateTime.utc_now()
-      )
+      MockClient
+      |> stub(:send_message, fn _, %GetBalance{}, _ ->
+        {:ok, %Balance{uco: 218_000_000}}
+      end)
 
       conn =
         post(conn, "/api", %{
@@ -288,35 +272,17 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should retrieve the nft balance of an address", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      NFTLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 200_000_000,
-          type: {:NFT, :crypto.strong_rand_bytes(32)}
-        },
-        DateTime.utc_now()
-      )
-
-      NFTLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 500_000_000,
-          type: {:NFT, :crypto.strong_rand_bytes(32)}
-        },
-        DateTime.utc_now()
-      )
-
-      NFTLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 1_000_000_000,
-          type: {:NFT, :crypto.strong_rand_bytes(32)}
-        },
-        DateTime.utc_now()
-      )
+      MockClient
+      |> stub(:send_message, fn _, %GetBalance{}, _ ->
+        {:ok,
+         %Balance{
+           nft: %{
+             "@NFT1" => 200_000_000,
+             "@NFT2" => 500_000_000,
+             "@NFT3" => 1_000_000_000
+           }
+         }}
+      end)
 
       conn =
         post(conn, "/api", %{
@@ -337,14 +303,20 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should return a list of ledger inputs", %{conn: conn} do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      UCOLedger.add_unspent_output(
-        addr,
-        %UnspentOutput{
-          from: :crypto.strong_rand_bytes(32),
-          amount: 20_200_000
-        },
-        ~U[2021-03-05 13:41:34Z]
-      )
+      MockClient
+      |> stub(:send_message, fn _, %GetTransactionInputs{}, _ ->
+        {:ok,
+         %TransactionInputList{
+           inputs: [
+             %TransactionInput{
+               from: :crypto.strong_rand_bytes(32),
+               amount: 20_200_000,
+               type: :UCO,
+               timestamp: DateTime.from_unix!(1_614_951_694)
+             }
+           ]
+         }}
+      end)
 
       conn =
         post(conn, "/api", %{
@@ -395,8 +367,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
       PubSub.notify_new_transaction(addr)
 
-      MockDB
-      |> expect(:get_transaction, fn _, _ ->
+      MockClient
+      |> stub(:send_message, fn _, %GetTransaction{}, _ ->
         {:ok, %Transaction{address: addr, type: :transfer, data: %TransactionData{}}}
       end)
 

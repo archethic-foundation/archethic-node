@@ -43,7 +43,7 @@ defmodule ArchEthic.ReplicationTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
+    start_supervised!({BeaconSlotTimer, [interval: "0 0 * * * *"]})
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
@@ -188,13 +188,18 @@ defmodule ArchEthic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetUnspentOutputs{} ->
-        {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}}
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok,
+         %UnspentOutputList{
+           unspent_outputs: unspent_outputs
+         }}
 
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
+        Process.sleep(10)
         {:ok, %TransactionList{transactions: []}}
 
-      _, %ReplicateTransaction{} ->
+      _, %ReplicateTransaction{}, _ ->
+        Process.sleep(10)
         {:ok, %Ok{}}
     end)
 
@@ -330,7 +335,7 @@ defmodule ArchEthic.ReplicationTest do
       me = self()
 
       MockClient
-      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _} ->
+      |> stub(:send_message, fn _, %NotifyLastTransactionAddress{address: _}, _ ->
         send(me, :notification_sent)
         {:ok, %Ok{}}
       end)

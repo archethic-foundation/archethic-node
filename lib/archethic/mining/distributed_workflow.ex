@@ -25,7 +25,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   alias ArchEthic.P2P.Message.AddMiningContext
   alias ArchEthic.P2P.Message.CrossValidate
   alias ArchEthic.P2P.Message.CrossValidationDone
-  alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
 
@@ -135,13 +134,16 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       )
 
     next_events = [
-      {{:timeout, :stop_timeout}, timeout, :any},
       {:next_event, :internal, :prior_validation}
     ]
 
     {:ok, :idle,
-     %{node_public_key: node_public_key, context: context, start_time: System.monotonic_time()},
-     next_events}
+     %{
+       node_public_key: node_public_key,
+       context: context,
+       start_time: System.monotonic_time(),
+       timeout: timeout
+     }, next_events}
   end
 
   defp parse_opts(opts) do
@@ -178,46 +180,42 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       ) do
     role = if node_public_key == coordinator_key, do: :coordinator, else: :cross_validator
 
-    case PendingTransactionValidation.validate(tx) do
-      :ok ->
-        new_data =
-          Map.put(
-            data,
-            :context,
-            ValidationContext.set_pending_transaction_validation(context, true)
+    valid_transaction? =
+      case PendingTransactionValidation.validate(tx) do
+        :ok ->
+          true
+
+        {:error, reason} ->
+          Logger.warning("Invalid transaction - #{inspect(reason)}",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
           )
 
-        next_events =
-          case role do
-            :cross_validator ->
-              [
-                {:next_event, :internal, :build_transaction_context},
-                {:next_event, :internal, :notify_context}
-              ]
+          false
+      end
 
-            :coordinator ->
-              [{:next_event, :internal, :build_transaction_context}]
-          end
+    next_events =
+      case role do
+        :cross_validator ->
+          [
+            {:next_event, :internal, :build_transaction_context},
+            {:next_event, :internal, :notify_context}
+          ]
 
-        {:next_state, role, new_data, next_events}
+        :coordinator ->
+          [
+            {:next_event, :internal, :build_transaction_context}
+          ]
+      end
 
-      _ ->
-        new_data =
-          Map.put(
-            data,
-            :context,
-            ValidationContext.set_pending_transaction_validation(context, false)
-          )
+    new_data =
+      Map.put(
+        data,
+        :context,
+        ValidationContext.set_pending_transaction_validation(context, valid_transaction?)
+      )
 
-        case role do
-          :coordinator ->
-            {:next_state, :coordinator, new_data,
-             {:next_event, :internal, :create_and_notify_validation_stamp}}
-
-          :cross_validator ->
-            {:next_state, :cross_validator, new_data}
-        end
-    end
+    {:next_state, role, new_data, next_events}
   end
 
   def handle_event(
@@ -225,6 +223,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :build_transaction_context,
         _,
         data = %{
+          timeout: timeout,
           context:
             context = %ValidationContext{
               transaction: tx,
@@ -272,7 +271,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    {:keep_state, %{data | context: new_context}}
+    {:keep_state, %{data | context: new_context}, [{{:timeout, :stop_timeout}, timeout, :any}]}
   end
 
   def handle_event(
@@ -468,6 +467,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :wait_cross_validation_stamps,
         :replication,
         _data = %{
+          start_time: start_time,
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: tx_address, type: type}
@@ -479,8 +479,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction_type: type
     )
 
-    request_replication(context)
-    :keep_state_and_data
+    request_replication(context, start_time)
+    :stop
   end
 
   def handle_event(
@@ -488,6 +488,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :cross_validator,
         :replication,
         _data = %{
+          start_time: start_time,
           context:
             context = %ValidationContext{
               transaction: %Transaction{address: tx_address, type: tx_type},
@@ -500,33 +501,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction_type: tx_type
     )
 
-    request_replication(context)
-    :keep_state_and_data
-  end
-
-  def handle_event(
-        :info,
-        {:acknowledge_storage, replication_node_public_key, tree_types},
-        :replication,
-        data = %{context: context = %ValidationContext{transaction: tx}, start_time: start_time}
-      ) do
-    new_context =
-      ValidationContext.confirm_replication(context, replication_node_public_key, tree_types)
-
-    if ValidationContext.enough_replication_confirmations?(new_context) do
-      :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
-        duration: System.monotonic_time() - start_time
-      })
-
-      Logger.info("Replication finished",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
-      )
-
-      :stop
-    else
-      {:keep_state, %{data | context: new_context}}
-    end
+    request_replication(context, start_time)
+    :stop
   end
 
   def handle_event(
@@ -619,11 +595,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
          context = %ValidationContext{
            transaction: tx,
            welcome_node: %Node{last_public_key: welcome_node_public_key}
-         }
+         },
+         start_time
        ) do
     storage_nodes = ValidationContext.get_replication_nodes(context)
-
-    worker_pid = self()
 
     Logger.info(
       "Send validated transaction to #{storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end) |> Enum.join(",")}",
@@ -644,21 +619,15 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
           welcome_node_public_key: welcome_node_public_key
         }
 
-        case P2P.send_message(node, message) do
-          {:ok, %Ok{}} ->
-            {:ok, node, roles}
-
-          _ ->
-            :error
-        end
+        P2P.send_message(node, message)
       end,
-      on_timeout: :kill_task,
-      ordered?: false
+      ordered: false,
+      on_timeout: :kill_task
     )
-    |> Stream.filter(&match?({:ok, {:ok, %Node{}, _}}, &1))
-    |> Stream.each(fn {:ok, {:ok, %Node{last_public_key: node_key}, roles}} ->
-      send(worker_pid, {:acknowledge_storage, node_key, roles})
-    end)
     |> Stream.run()
+
+    :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
+      duration: System.monotonic_time() - start_time
+    })
   end
 end

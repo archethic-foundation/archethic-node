@@ -21,7 +21,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
 
   test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
-    |> stub(:send_message, fn _, %GetTransactionChain{} ->
+    |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
       {:ok, %TransactionList{transactions: [%Transaction{}]}}
     end)
 
@@ -54,10 +54,12 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     )
 
     MockClient
-    |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
+    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ ->
       {:ok,
        %UnspentOutputList{
-         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}]
+         unspent_outputs: [
+           %UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}
+         ]
        }}
     end)
 
@@ -90,10 +92,12 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     )
 
     MockClient
-    |> stub(:send_message, fn _, %GetUnspentOutputs{} ->
+    |> stub(:send_message, fn _, %GetUnspentOutputs{}, _ ->
       {:ok,
        %UnspentOutputList{
-         unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}]
+         unspent_outputs: [
+           %UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}
+         ]
        }}
     end)
 

@@ -188,7 +188,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       end)
 
       MockClient
-      |> expect(:send_message, fn _, %GetFirstPublicKey{} ->
+      |> expect(:send_message, fn _, %GetFirstPublicKey{}, _ ->
         {:ok, %FirstPublicKey{public_key: tx.previous_public_key}}
       end)
 

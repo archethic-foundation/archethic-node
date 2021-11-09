@@ -195,18 +195,17 @@ defmodule ArchEthic.BeaconChain do
           data: %TransactionData{content: content}
         }
       ) do
-    with {%Slot{} = slot, _} <- Slot.deserialize(content),
-         :ok <- validate_slot(tx, slot),
-         invovled_nodes <- Slot.involved_nodes(slot),
-         {:ok, %TransactionList{transactions: transactions}} <-
-           P2P.reply_atomic(invovled_nodes, 3, %GetTransactionChain{address: address}) do
-      [tx]
-      |> Stream.concat(transactions)
-      |> TransactionChain.write()
-
-      :ok
+    with false <- TransactionChain.transaction_exists?(address),
+         {%Slot{subset: subset, slot_time: slot_time} = slot, _} <- Slot.deserialize(content),
+         :ok <- validate_slot(tx, slot) do
+      summary_address = summary_transaction_address(subset, next_summary_date(slot_time))
+      TransactionChain.write_transaction(tx, summary_address)
     else
-      _ ->
+      true ->
+        :ok
+
+      {:error, _} = e ->
+        Logger.error("Invalid beacon slot #{inspect(e)}")
         :error
     end
   end

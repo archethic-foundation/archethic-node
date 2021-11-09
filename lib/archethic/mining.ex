@@ -29,6 +29,8 @@ defmodule ArchEthic.Mining do
 
   use Retry
 
+  @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :timeout])
+
   @doc """
   Start mining process for a given transaction.
   """
@@ -185,22 +187,15 @@ defmodule ArchEthic.Mining do
   end
 
   defp get_mining_process!(tx_address) do
-    pid =
-      retry_while with: linear_backoff(100, 2) |> expiry(3_000) do
-        case Registry.lookup(WorkflowRegistry, tx_address) do
-          [{pid, _}] ->
-            {:halt, pid}
+    retry_while with: exponential_backoff(100, 2) |> expiry(@mining_timeout) do
+      case Registry.lookup(WorkflowRegistry, tx_address) do
+        [{pid, _}] ->
+          {:halt, pid}
 
-          _ ->
-            {:cont, nil}
-        end
+        _ ->
+          {:cont, nil}
       end
-
-    if pid == nil do
-      raise "No mining process for the transaction"
     end
-
-    pid
   end
 
   @doc """

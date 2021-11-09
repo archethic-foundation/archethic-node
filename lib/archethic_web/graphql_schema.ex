@@ -60,7 +60,7 @@ defmodule ArchEthicWeb.GraphQLSchema do
 
       resolve(fn args = %{address: address}, _ ->
         page = Map.get(args, :page, 1)
-        {:ok, Resolver.paginate_chain(address, page)}
+        Resolver.paginate_chain(address, page)
       end)
     end
 
@@ -71,7 +71,7 @@ defmodule ArchEthicWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        {:ok, Resolver.get_balance(address)}
+        Resolver.get_balance(address)
       end)
     end
 
@@ -82,7 +82,7 @@ defmodule ArchEthicWeb.GraphQLSchema do
       arg(:address, non_null(:address))
 
       resolve(fn %{address: address}, _ ->
-        {:ok, Resolver.get_inputs(address)}
+        Resolver.get_inputs(address)
       end)
     end
 

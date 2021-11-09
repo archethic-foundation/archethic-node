@@ -183,9 +183,8 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
            }
          }
        ) do
-    first_public_key = get_first_public_key(tx)
-
-    with {:member, true} <-
+    with {:ok, first_public_key} <- get_first_public_key(tx),
+         {:member, true} <-
            {:member, Governance.pool_member?(first_public_key, :technical_council)},
          {:ok, prop} <- Governance.get_code_proposal(proposal_address),
          previous_address <- Transaction.previous_address(tx),
@@ -200,6 +199,9 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
       {:signed, true} ->
         {:error, "Code proposal already signed"}
+
+      {:error, :network_issue} ->
+        {:error, "Network issue"}
     end
   end
 
@@ -253,22 +255,25 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     |> Keyword.get(:allowed_node_key_origins, [])
   end
 
-  defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
+  defp get_first_public_key(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
 
-    storage_nodes = Replication.chain_storage_nodes(previous_address)
+    previous_address
+    |> Replication.chain_storage_nodes()
+    |> get_first_public_key(previous_address)
+  end
 
-    response_message =
-      P2P.reply_first(storage_nodes, %GetFirstPublicKey{address: previous_address})
-
-    case response_message do
+  defp get_first_public_key([node | rest], address) do
+    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
       {:ok, %FirstPublicKey{public_key: public_key}} ->
-        public_key
+        {:ok, public_key}
 
-      _ ->
-        previous_public_key
+      {:error, _} ->
+        get_first_public_key(rest, address)
     end
   end
+
+  defp get_first_public_key([], _), do: {:error, :network_issue}
 
   defp valid_connection?(ip, port, previous_public_key) do
     if should_validate_connection?() do

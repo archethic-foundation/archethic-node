@@ -25,7 +25,16 @@ defmodule ArchEthicWeb.Router do
     get("/", RootController, :index)
     get("/up", UpController, :up)
     get("/metrics", MetricsController, :index)
-    live_dashboard("/dashboard", metrics: ArchEthic.Telemetry)
+
+    if Mix.env() == :dev do
+      live_dashboard("/dashboard",
+        metrics: ArchEthic.Telemetry,
+        additional_pages: [
+          # broadway: BroadwayDashboard
+        ]
+      )
+    end
+
     get("/faucet", FaucetController, :index)
     post("/faucet", FaucetController, :create_transfer)
   end

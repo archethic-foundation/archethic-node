@@ -26,10 +26,9 @@ defmodule ArchEthicWeb.ExplorerController do
   def chain(conn, _params = %{"address" => address, "last" => "on"}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_hash?(addr),
-         {:ok, %Transaction{address: last_address}} <- ArchEthic.get_last_transaction(addr) do
-      chain = ArchEthic.get_transaction_chain(last_address)
-      %{uco: uco_balance} = ArchEthic.get_balance(addr)
-
+         {:ok, %Transaction{address: last_address}} <- ArchEthic.get_last_transaction(addr),
+         {:ok, chain} <- ArchEthic.get_transaction_chain(last_address),
+         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr) do
       render(conn, "chain.html",
         transaction_chain: chain,
         chain_size: Enum.count(chain),
@@ -45,6 +44,16 @@ defmodule ArchEthicWeb.ExplorerController do
           address: "",
           last_checked?: true,
           error: :invalid_address,
+          uco_balance: 0
+        )
+
+      {:error, _} ->
+        render(conn, "chain.html",
+          transaction_chain: [],
+          chain_size: 0,
+          address: "",
+          last_checked?: true,
+          error: :network_issue,
           uco_balance: 0
         )
 
@@ -71,10 +80,9 @@ defmodule ArchEthicWeb.ExplorerController do
 
   def chain(conn, _params = %{"address" => address}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr) do
-      chain = ArchEthic.get_transaction_chain(addr)
-      %{uco: uco_balance} = ArchEthic.get_balance(addr)
-
+         true <- Crypto.valid_hash?(addr),
+         {:ok, chain} <- ArchEthic.get_transaction_chain(addr),
+         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr) do
       render(conn, "chain.html",
         transaction_chain: chain,
         address: addr,
@@ -101,6 +109,16 @@ defmodule ArchEthicWeb.ExplorerController do
           uco_balance: 0,
           last_checked?: false,
           error: :invalid_address
+        )
+
+      {:error, _} ->
+        render(conn, "chain.html",
+          transaction_chain: [],
+          address: "",
+          chain_size: 0,
+          uco_balance: 0,
+          last_checked?: false,
+          error: :network_issue
         )
     end
   end

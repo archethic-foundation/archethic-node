@@ -585,52 +585,6 @@ defmodule ArchEthic.Mining.ValidationContext do
   end
 
   @doc """
-  Determine if the number of replication nodes confirmation is reached
-
-  ## Examples
-
-      iex> %ValidationContext{
-      ...>    replication_nodes_confirmation: %{
-      ...>      chain: <<0::1, 1::1, 0::1>>,
-      ...>      IO: <<0::1, 0::1, 0::1>>,
-      ...>      beacon: <<0::1, 1::1, 0::1>>
-      ...>    },
-      ...>    sub_replication_tree: %{
-      ...>      chain: <<0::1, 1::1, 0::1>>,
-      ...>      IO: <<0::1, 1::1, 0::1>>,
-      ...>      beacon: <<0::1, 1::1, 0::1>>
-      ...>    }
-      ...> }
-      ...> |> ValidationContext.enough_replication_confirmations?()
-      false
-
-      iex> %ValidationContext{
-      ...>    replication_nodes_confirmation: %{
-      ...>      chain: <<0::1, 1::1, 0::1>>,
-      ...>      IO: <<0::1, 1::1, 0::1>>,
-      ...>      beacon: <<0::1, 1::1, 0::1>>
-      ...>    },
-      ...>    sub_replication_tree: %{
-      ...>      chain: <<0::1, 1::1, 0::1>>,
-      ...>      IO: <<0::1, 1::1, 0::1>>,
-      ...>      beacon: <<0::1, 1::1, 0::1>>
-      ...>    }
-      ...> }
-      ...> |> ValidationContext.enough_replication_confirmations?()
-      true
-  """
-  @spec enough_replication_confirmations?(t()) :: boolean()
-  def enough_replication_confirmations?(%__MODULE__{
-        replication_nodes_confirmation: replication_nodes_confirmation,
-        sub_replication_tree: replication_tree
-      }) do
-    Enum.all?(replication_nodes_confirmation, fn {tree, confirmations} ->
-      Utils.count_bitstring_bits(confirmations) ==
-        Utils.count_bitstring_bits(Map.get(replication_tree, tree))
-    end)
-  end
-
-  @doc """
   Initialize the transaction mining context
   """
   @spec put_transaction_context(

@@ -359,19 +359,22 @@ defmodule ArchEthic.BeaconChain.Summary do
   @doc """
   Return the list node availabilites by identifying the nodes from the binary list
   """
-  @spec get_node_availabilities(t()) ::
+  @spec get_node_availabilities(t(), list(Node.t())) ::
           list({node :: Node.t(), available? :: boolean(), average_availability :: float()})
-  def get_node_availabilities(%__MODULE__{
-        node_availabilities: node_availabilities,
-        node_average_availabilities: node_average_availabilities,
-        subset: subset
-      }) do
-    node_list = P2PSampling.list_nodes_to_sample(subset)
+  def get_node_availabilities(
+        %__MODULE__{
+          node_availabilities: node_availabilities,
+          node_average_availabilities: node_average_availabilities,
+          subset: subset
+        },
+        node_list
+      ) do
+    subset_node_list = P2PSampling.list_nodes_to_sample(subset, node_list)
 
     Utils.bitstring_to_integer_list(node_availabilities)
     |> Enum.with_index()
     |> Enum.map(fn {available_bit, index} ->
-      node = Enum.at(node_list, index)
+      node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
 
       case available_bit do

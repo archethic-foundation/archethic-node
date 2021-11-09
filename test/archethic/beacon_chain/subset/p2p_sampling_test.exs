@@ -4,7 +4,6 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSamplingTest do
   alias ArchEthic.BeaconChain.Subset.P2PSampling
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.ConnectionRegistry
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.Ping
   alias ArchEthic.P2P.Node
@@ -47,30 +46,31 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSamplingTest do
     ]
 
     MockClient
-    |> stub(:new_connection, fn _, _, _, key ->
-      Registry.register(ConnectionRegistry, {:bearer_conn, key}, [])
+    |> stub(:new_connection, fn _, _, _, _ ->
       {:ok, self()}
     end)
-    |> expect(:send_message, fn %Node{port: 3001}, %Ping{} ->
+    |> expect(:send_message, fn %Node{port: 3001}, %Ping{}, _ ->
+      Process.sleep(10)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3002}, %Ping{} ->
+    |> expect(:send_message, fn %Node{port: 3002}, %Ping{}, _ ->
       Process.sleep(100)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3003}, %Ping{} ->
+    |> expect(:send_message, fn %Node{port: 3003}, %Ping{}, _ ->
       Process.sleep(300)
       {:ok, %Ok{}}
     end)
-    |> expect(:send_message, fn %Node{port: 3004}, %Ping{} ->
+    |> expect(:send_message, fn %Node{port: 3004}, %Ping{}, _ ->
       {:error, :network_issue}
     end)
 
     Enum.each(nodes, &P2P.add_and_connect_node/1)
 
-    assert [{true, 0}, {true, node2_lat}, {true, node3_lat}, {false, 0}] =
+    assert [{true, node1_lat}, {true, node2_lat}, {true, node3_lat}, {false, 1000}] =
              P2PSampling.get_p2p_views(nodes)
 
+    assert node1_lat < node2_lat
     assert node2_lat < node3_lat
   end
 end

@@ -19,6 +19,14 @@ defmodule ArchEthic.P2P do
 
   require Logger
 
+  @type supported_transport :: :tcp
+
+  @doc """
+  Return the list of supported transport implementation
+  """
+  @spec supported_transports() :: list(supported_transport())
+  def supported_transports, do: [:tcp]
+
   @doc """
   Compute a geographical patch (zone) from an IP
   """
@@ -43,8 +51,13 @@ defmodule ArchEthic.P2P do
     if first_public_key == Crypto.first_node_public_key() do
       :ok
     else
-      Client.new_connection(ip, port, transport, first_public_key)
-      :ok
+      case Client.new_connection(ip, port, transport, first_public_key) do
+        {:ok, _pid} ->
+          :ok
+
+        {:error, {:already_started, _pid}} ->
+          :ok
+      end
     end
   end
 
@@ -154,63 +167,53 @@ defmodule ArchEthic.P2P do
   end
 
   @doc """
-  Send a P2P message to a node.
+  Send a P2P message and fails if the message cannot be sent
+
+  For mode details see `send_message/3`
+  """
+  @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
+  def send_message!(node, message, timeout \\ 5_000)
+
+  def send_message!(public_key, message, timeout) when is_binary(public_key) do
+    public_key
+    |> get_node_info!
+    |> send_message!(message, timeout)
+  end
+
+  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
+    case Client.send_message(node, message, timeout) do
+      {:ok, ref} ->
+        ref
+
+      {:error, reason} ->
+        raise "Messaging error with #{:inet.ntoa(ip)}:#{port} - #{inspect(reason)}"
+    end
+  end
+
+  @doc """
+  Send a P2P message
 
   If the exchange fails, the node availability history will decrease
   and will be locally unavailable until the next exchange
   """
-  @spec send_message!(Crypto.key() | Node.t(), Message.request()) :: Message.response()
-  def send_message!(node, message)
-
-  def send_message!(public_key, message) when is_binary(public_key) do
-    public_key
-    |> get_node_info!
-    |> send_message!(message)
-  end
-
-  def send_message!(node = %Node{ip: ip, port: port}, message) do
-    case Client.send_message(node, message) do
-      {:ok, data} ->
-        data
-
-      {:error, :network_issue} ->
-        raise "Messaging error with #{:inet.ntoa(ip)}:#{port}"
-    end
-  end
-
-  @spec send_message(Crypto.key() | Node.t(), Message.t()) ::
-          {:ok, Message.t()}
+  @spec send_message(Crypto.key() | Node.t(), Message.request(), timeout()) ::
+          {:ok, Message.response()}
           | {:error, :not_found}
-          | {:error, :network_issue}
-  def send_message(node, message)
+          | {:error, :timeout}
+          | {:error, :closed}
+  def send_message(node, message, timeout \\ 5_000)
 
-  def send_message(public_key, message) when is_binary(public_key) do
+  def send_message(public_key, message, timeout) when is_binary(public_key) do
     with {:ok, node} <- get_node_info(public_key),
-         {:ok, data} <- send_message(node, message) do
+         {:ok, data} <- send_message(node, message, timeout) do
       {:ok, data}
+    else
+      {:error, _} = e ->
+        e
     end
   end
 
-  def send_message(node = %Node{first_public_key: first_public_key}, message) do
-    start = System.monotonic_time()
-
-    case Client.send_message(node, message) do
-      {:ok, data} ->
-        :telemetry.execute(
-          [:archethic, :p2p, :send_message],
-          %{duration: System.monotonic_time() - start},
-          %{message: message.__struct__ |> Module.split() |> List.last() |> Macro.underscore()}
-        )
-
-        MemTable.increase_node_availability(first_public_key)
-        {:ok, data}
-
-      {:error, :network_issue} ->
-        Logger.error("Cannot send message #{message.__struct__} to #{Node.endpoint(node)}")
-        MemTable.decrease_node_availability(first_public_key)
-        {:error, :network_issue}
-    end
-  end
+  defdelegate send_message(node, message, timeout), to: Client
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
@@ -415,131 +418,6 @@ defmodule ArchEthic.P2P do
   end
 
   @doc """
-  Send a message to a list of nodes trying to get response from the closest node.
-
-  If the node does not respond, a new node will be picked
-  """
-  @spec reply_first(
-          node_list :: list(Node.t()),
-          message :: Message.request(),
-          opts :: [node_ack?: boolean(), patch: binary()]
-        ) ::
-          {:ok, Message.response()}
-          | {:ok, Message.response(), Node.t()}
-          | {:error, :network_issue}
-  def reply_first(nodes, message, opts \\ [])
-      when is_list(nodes) and is_struct(message) and is_list(opts) do
-    node_ack? = Keyword.get(opts, :node_ack?, false)
-    patch = Keyword.get(opts, :patch)
-
-    with nil <- patch,
-         {:error, :not_found} <- get_node_info(Crypto.first_node_public_key()) do
-      get_first_reply(nodes, message, node_ack?)
-    else
-      {:ok, %Node{network_patch: patch}} ->
-        nodes
-        |> nearest_nodes(patch)
-        |> get_first_reply(message, node_ack?)
-
-      patch ->
-        nodes
-        |> nearest_nodes(patch)
-        |> get_first_reply(message, node_ack?)
-    end
-  end
-
-  defp get_first_reply([], _, _), do: {:error, :network_issue}
-
-  defp get_first_reply(nodes, message, node_ack?) do
-    nodes
-    |> Enum.filter(&Node.locally_available?/1)
-    |> do_get_first_reply(message, node_ack?)
-  end
-
-  defp do_get_first_reply(
-         [node = %Node{first_public_key: first_public_key} | rest],
-         message,
-         node_ack?
-       ) do
-    case send_message(node, message) do
-      {:error, :network_issue} ->
-        MemTable.decrease_node_availability(first_public_key)
-        get_first_reply(rest, message, node_ack?)
-
-      {:ok, data} ->
-        MemTable.increase_node_availability(first_public_key)
-        (node_ack? && {:ok, data, node}) || {:ok, data}
-    end
-  end
-
-  defp do_get_first_reply([], _, _), do: {:error, :network_issue}
-
-  @doc """
-  Request data atomically from a list nodes chunked by batch.
-
-  If the first batch responses are not atomic, the next one will be used until the end of the list.
-  """
-  @spec reply_atomic(
-          node_list :: list(Node.t()),
-          batch_size :: non_neg_integer(),
-          request :: Message.request(),
-          options :: [patch: binary(), compare_fun: (any() -> any())]
-        ) ::
-          {:ok, Message.response()} | {:error, :network_issue}
-  def reply_atomic(nodes, batch_size, message, opts \\ [])
-      when is_list(nodes) and is_integer(batch_size) and batch_size > 0 do
-    patch = Keyword.get(opts, :patch)
-    compare_fun = Keyword.get(opts, :compare_fun, fn x -> x end)
-
-    with nil <- patch,
-         {:error, :not_found} <- get_node_info(Crypto.first_node_public_key()) do
-      nodes
-    else
-      {:ok, %Node{network_patch: patch}} ->
-        nearest_nodes(nodes, patch)
-
-      patch ->
-        nearest_nodes(nodes, patch)
-    end
-    |> Enum.filter(&Node.locally_available?/1)
-    |> Enum.chunk_every(batch_size)
-    |> do_reply_atomic(message, compare_fun)
-  end
-
-  defp do_reply_atomic([], _, _), do: {:error, :network_issue}
-
-  defp do_reply_atomic([nodes | rest], message, compare_fun) do
-    responses =
-      nodes
-      |> Task.async_stream(
-        fn node = %Node{first_public_key: first_public_key} ->
-          case send_message(node, message) do
-            {:error, :network_issue} ->
-              MemTable.decrease_node_availability(first_public_key)
-              {:error, :network_issue}
-
-            {:ok, res} ->
-              MemTable.increase_node_availability(first_public_key)
-              res
-          end
-        end,
-        on_timeout: :kill_task
-      )
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.map(&elem(&1, 1))
-      |> Stream.reject(&match?({:error, :network_issue}, &1))
-      |> Enum.dedup_by(compare_fun)
-
-    case responses do
-      [res] ->
-        {:ok, res}
-
-      _ ->
-        do_reply_atomic(rest, message, compare_fun)
-    end
-  end
-
-  @doc """
   Check for possible duplicate nodes (IP spoofing).
 
   Returns true if matching node {ip,port} has a different first public key.
@@ -558,6 +436,38 @@ defmodule ArchEthic.P2P do
 
       %Node{first_public_key: first_public_key} ->
         TransactionChain.get_first_public_key(prev_public_key) != first_public_key
+    end
+  end
+
+  @doc """
+  Reorder a list of nodes to ensure the current node is only called at the end.
+  This will enforce the remote nodes to be called first, ensuring a better distribution of the work.
+
+  ## Examples
+
+      iex> [
+      ...>   %Node{ first_public_key: "key1"},
+      ...>   %Node{ first_public_key: "key2"},
+      ...>   %Node{ first_public_key: "key3"},
+      ...>   %Node{ first_public_key: "key4"}
+      ...> ]
+      ...> |> P2P.unprioritize_node("key1")
+      [
+        %Node{ first_public_key: "key2"},
+        %Node{ first_public_key: "key3"},
+        %Node{ first_public_key: "key4"},
+        %Node{ first_public_key: "key1"}
+      ]
+  """
+  @spec unprioritize_node(list(Node.t()), Crypto.key()) :: list(Node.t())
+  def unprioritize_node(node_list, discarded_node_public_key) do
+    case Enum.find_index(node_list, &(&1.first_public_key == discarded_node_public_key)) do
+      nil ->
+        node_list
+
+      index ->
+        {node, list} = List.pop_at(node_list, index)
+        :lists.flatten([list | [node]])
     end
   end
 end

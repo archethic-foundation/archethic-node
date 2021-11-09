@@ -37,7 +37,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalSchedulerTest do
       me = self()
 
       MockClient
-      |> stub(:send_message, fn _, %StartMining{} ->
+      |> stub(:send_message, fn _, %StartMining{}, _ ->
         send(me, :renewal_processed)
         {:ok, %Ok{}}
       end)

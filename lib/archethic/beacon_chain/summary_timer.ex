@@ -4,9 +4,11 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
   """
 
   use GenServer
+
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker
   alias Crontab.Scheduler, as: CronScheduler
+
   alias ArchEthic.PubSub
   alias ArchEthic.Utils
 
