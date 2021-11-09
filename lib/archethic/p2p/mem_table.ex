@@ -18,17 +18,6 @@ defmodule ArchEthic.P2P.MemTable do
 
   @doc """
   Initialize the memory tables for the P2P view
-
-  ## Examples
-
-      iex> {:ok, _} = MemTable.start_link()
-      iex> {
-      ...>    :ets.info(:archethic_node_discovery)[:type],
-      ...>    :ets.info(:archethic_node_keys)[:type],
-      ...>    :ets.info(:archethic_available_nodes)[:type],
-      ...>    :ets.info(:archethic_authorized_nodes)[:type],
-      ...>  }
-      { :set, :set, :set, :set }
   """
   @spec start_link([]) :: {:ok, pid()}
   def start_link(args \\ []) do

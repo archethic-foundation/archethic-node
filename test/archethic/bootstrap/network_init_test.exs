@@ -61,7 +61,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     })
 
     MockClient
-    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address} ->
+    |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
       {:ok, %LastTransactionAddress{address: address}}
     end)
 
@@ -126,10 +126,10 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
-      _, %GetUnspentOutputs{} ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: inputs}}
     end)
 
@@ -177,27 +177,14 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
-      _, %GetUnspentOutputs{} ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
     end)
 
     me = self()
-
-    P2P.add_and_connect_node(%Node{
-      first_public_key: Crypto.last_node_public_key(),
-      last_public_key: Crypto.last_node_public_key(),
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now(),
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
 
     MockDB
     |> expect(:write_transaction_chain, fn [tx] ->
@@ -235,11 +222,14 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   test "init_genesis_wallets/1 should initialize genesis wallets" do
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
-      _, %GetUnspentOutputs{} ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -258,6 +248,8 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+
+    NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
 
     assert :ok = NetworkInit.init_genesis_wallets()
 

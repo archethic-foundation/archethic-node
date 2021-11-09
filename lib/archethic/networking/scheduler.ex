@@ -6,7 +6,7 @@ defmodule ArchEthic.Networking.Scheduler do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Endpoint, as: P2PEndpoint
+  alias ArchEthic.P2P.Listener, as: P2PListener
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.Networking.IPLookup
@@ -80,7 +80,7 @@ defmodule ArchEthic.Networking.Scheduler do
   end
 
   defp open_ports do
-    p2p_port = Application.get_env(:archethic, P2PEndpoint) |> Keyword.fetch!(:port)
+    p2p_port = Application.get_env(:archethic, P2PListener) |> Keyword.fetch!(:port)
     web_port = Application.get_env(:archethic, WebEndpoint) |> get_in([:http, :port])
     PortForwarding.try_open_port(p2p_port, false)
     PortForwarding.try_open_port(web_port, false)

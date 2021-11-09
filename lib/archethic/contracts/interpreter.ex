@@ -57,7 +57,7 @@ defmodule ArchEthic.Contracts.Interpreter do
   ## Examples
 
       iex> Interpreter.parse("
-      ...>    condition transaction: [ 
+      ...>    condition transaction: [
       ...>      content: regex_match?(\"^Mr.Y|Mr.X{1}$\"),
       ...>      origin_family: biometric
       ...>    ]
@@ -65,7 +65,7 @@ defmodule ArchEthic.Contracts.Interpreter do
       ...>    condition inherit: [
       ...>       content: regex_match?(\"hello\")
       ...>    ]
-      ...>   
+      ...>
       ...>    condition oracle: [
       ...>      content: json_path_extract(\"$.uco.eur\") > 1
       ...>    ]
@@ -1363,7 +1363,7 @@ defmodule ArchEthic.Contracts.Interpreter do
 
           {_, false} ->
             Logger.debug(
-              "Invalid condition for #{field} with the given value: #{get_in(constants, ["next", field])} - expected: #{inspect(condition)}"
+              "Invalid condition for `#{field}` with the given value: `#{get_in(constants, ["next", field])}` - expected: #{inspect(condition)}"
             )
 
             false

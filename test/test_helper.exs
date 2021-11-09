@@ -7,7 +7,6 @@ ExUnit.start(
 )
 
 Mox.defmock(MockClient, for: ArchEthic.P2P.Client)
-Mox.defmock(MockTransport, for: ArchEthic.P2P.TransportImpl)
 
 Mox.defmock(MockCrypto,
   for: [ArchEthic.Crypto.NodeKeystore, ArchEthic.Crypto.SharedSecretsKeystore]

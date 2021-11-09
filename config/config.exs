@@ -17,6 +17,11 @@ config :git_hooks,
   ]
 
 # Configures Elixir's Logger
+config :logger,
+  utc_log: true,
+  handle_otp_reports: true,
+  handle_sasl_reports: false
+
 config :logger, :console,
   format: "$date $time $metadata[$level] $message\n",
   metadata: [
@@ -26,14 +31,10 @@ config :logger, :console,
     :transaction_type,
     :beacon_subset,
     :node,
-    :address
+    :address,
+    :message_id
   ],
   colors: [enabled: true]
-
-config :logger,
-  utc_log: true,
-  handle_otp_reports: true,
-  handle_sasl_reports: false
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
@@ -83,7 +84,7 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
-config :archethic, ArchEthic.P2P.Endpoint,
+config :archethic, ArchEthic.P2P.Listener,
   nb_acceptors: 100,
   transport: :tcp,
   port: 3002

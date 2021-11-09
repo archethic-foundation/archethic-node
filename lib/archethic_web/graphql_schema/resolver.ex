@@ -14,20 +14,31 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   @limit_page 10
 
   def get_balance(address) do
-    %{uco: uco, nft: nft_balances} = ArchEthic.get_balance(address)
+    case ArchEthic.get_balance(address) do
+      {:ok, %{uco: uco, nft: nft_balances}} ->
+        balance = %{
+          uco: uco,
+          nft:
+            nft_balances
+            |> Enum.map(fn {address, amount} -> %{address: address, amount: amount} end)
+            |> Enum.sort_by(& &1.amount)
+        }
 
-    %{
-      uco: uco,
-      nft:
-        nft_balances
-        |> Enum.map(fn {address, amount} -> %{address: address, amount: amount} end)
-        |> Enum.sort_by(& &1.amount)
-    }
+        {:ok, balance}
+
+      {:error, :network_issue} = e ->
+        e
+    end
   end
 
   def get_inputs(address) do
-    inputs = ArchEthic.get_transaction_inputs(address)
-    Enum.map(inputs, &TransactionInput.to_map/1)
+    case ArchEthic.get_transaction_inputs(address) do
+      {:ok, inputs} ->
+        {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
+
+      {:error, _} = e ->
+        e
+    end
   end
 
   def shared_secrets do
@@ -37,9 +48,13 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def paginate_chain(address, page) do
-    address
-    |> ArchEthic.get_transaction_chain()
-    |> paginate_transactions(page)
+    case ArchEthic.get_transaction_chain(address) do
+      {:ok, chain} ->
+        {:ok, paginate_transactions(chain, page)}
+
+      {:error, _} = e ->
+        e
+    end
   end
 
   def paginate_local_transactions(page) do
@@ -47,12 +62,10 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   defp paginate_transactions(transactions, page) do
-    start_pagination = (page - 1) * @limit_page
-    end_pagination = @limit_page
-
     transactions
-    |> Enum.slice(start_pagination, end_pagination)
-    |> Enum.map(&Transaction.to_map/1)
+    |> Stream.map(&Transaction.to_map/1)
+    |> Stream.chunk_every(@limit_page)
+    |> Enum.at(page - 1)
   end
 
   def get_last_transaction(address) do
@@ -60,7 +73,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
       {:ok, tx} ->
         {:ok, Transaction.to_map(tx)}
 
-      {:error, :transaction_not_exists} = e ->
+      {:error, _} = e ->
         e
     end
   end
@@ -70,7 +83,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
       {:ok, tx} ->
         {:ok, Transaction.to_map(tx)}
 
-      {:error, :transaction_not_exists} = e ->
+      {:error, _} = e ->
         e
     end
   end

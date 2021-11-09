@@ -8,7 +8,6 @@ defmodule ArchEthic.TransactionChain do
   alias ArchEthic.DB
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.LastTransactionAddress
 
@@ -20,8 +19,6 @@ defmodule ArchEthic.TransactionChain do
 
   alias __MODULE__.Transaction
   alias __MODULE__.Transaction.ValidationStamp
-
-  alias ArchEthic.Utils
 
   require Logger
 
@@ -95,7 +92,7 @@ defmodule ArchEthic.TransactionChain do
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
-  @spec get(binary(), list()) :: list(Transaction.t())
+  @spec get(binary(), list()) :: Enumerable.t() | list(Transaction.t())
   defdelegate get(address, fields \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
@@ -231,7 +228,7 @@ defmodule ArchEthic.TransactionChain do
 
       iex> [
       ...>    %Transaction{
-      ...>      address: <<0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>, 
+      ...>      address: <<0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>,
       ...>      type: :transfer,
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
@@ -277,7 +274,7 @@ defmodule ArchEthic.TransactionChain do
       ...>       232, 135, 42, 112, 58, 181, 13>>
       ...>    },
       ...>    %Transaction{
-      ...>      address: <<0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>, 
+      ...>      address: <<0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>,
       ...>      type: :transfer,
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
@@ -299,10 +296,10 @@ defmodule ArchEthic.TransactionChain do
       ...>      }
       ...>    }
       ...> ]
-      ...> |> TransactionChain.proof_of_integrity() 
+      ...> |> TransactionChain.proof_of_integrity()
       # Hash of the transaction + previous proof of integrity
       <<0, 191, 70, 89, 151, 55, 18, 143, 44, 255, 246, 97, 86, 1, 102, 246, 48, 210,
-        26, 207, 228, 116, 102, 47, 32, 16, 225, 45, 26, 53, 154, 123, 106>> 
+        26, 207, 228, 116, 102, 47, 32, 16, 225, 45, 26, 53, 154, 123, 106>>
   """
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
@@ -350,7 +347,7 @@ defmodule ArchEthic.TransactionChain do
       ...>     validation_stamp: %ValidationStamp{
       ...>        timestamp: ~U[2020-03-30 12:06:30.000Z],
       ...>        proof_of_integrity: <<0, 191, 70, 89, 151, 55, 18, 143, 44, 255, 246, 97, 86, 1, 102, 246, 48, 210,
-      ...>          26, 207, 228, 116, 102, 47, 32, 16, 225, 45, 26, 53, 154, 123, 106>> 
+      ...>          26, 207, 228, 116, 102, 47, 32, 16, 225, 45, 26, 53, 154, 123, 106>>
       ...>      }
       ...>    },
       ...>    %Transaction{
@@ -451,21 +448,23 @@ defmodule ArchEthic.TransactionChain do
   """
   @spec resolve_last_address(binary(), DateTime.t()) :: binary()
   def resolve_last_address(address, timestamp = %DateTime{}) when is_binary(address) do
+    address
+    |> Replication.chain_storage_nodes()
+    |> P2P.nearest_nodes()
+    |> get_last_transaction_address(address, timestamp)
+  end
+
+  defp get_last_transaction_address([node | rest], address, timestamp) do
     message = %GetLastTransactionAddress{address: address, timestamp: timestamp}
 
-    storage_nodes = Replication.chain_storage_nodes(address)
+    case P2P.send_message(node, message) do
+      {:ok, %LastTransactionAddress{address: address}} ->
+        address
 
-    if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
-      handle_resolve_result({:ok, Message.process(message)}, address)
-    else
-      storage_nodes
-      |> P2P.reply_first(message)
-      |> handle_resolve_result(address)
+      {:error, _} ->
+        get_last_transaction_address(rest, address, timestamp)
     end
   end
 
-  defp handle_resolve_result({:ok, %LastTransactionAddress{address: last_address}}, _),
-    do: last_address
-
-  defp handle_resolve_result(_, address), do: address
+  defp get_last_transaction_address([], address, _), do: address
 end

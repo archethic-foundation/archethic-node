@@ -65,22 +65,41 @@ defmodule ArchEthic.Reward do
   defp get_transactions_after(address, date) do
     last_address = TransactionChain.resolve_last_address(address, DateTime.utc_now())
 
-    {:ok, %TransactionList{transactions: chain}} =
-      last_address
-      |> Replication.chain_storage_nodes()
-      |> P2P.reply_first(%GetTransactionChain{address: last_address, after: date})
+    last_address
+    |> Replication.chain_storage_nodes()
+    |> P2P.nearest_nodes()
+    |> get_transaction_chain_after(address, date)
+  end
 
-    chain
+  defp get_transaction_chain_after([node | rest], address, date) do
+    case P2P.send_message(node, %GetTransactionChain{address: address, after: date}) do
+      {:ok, %TransactionList{transactions: transactions}} ->
+        transactions
+
+      {:error, _} ->
+        get_transaction_chain_after(rest, address, date)
+    end
   end
 
   defp get_reward_unspent_outputs(%Transaction{address: address}) do
-    {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} =
-      address
-      |> Replication.chain_storage_nodes()
-      |> P2P.reply_first(%GetUnspentOutputs{address: address})
-
-    Enum.filter(unspent_outputs, &(&1.type == :reward))
+    address
+    |> Replication.chain_storage_nodes()
+    |> P2P.nearest_nodes()
+    |> get_unspent_outputs(address)
+    |> Enum.filter(&(&1.type == :reward))
   end
+
+  defp get_unspent_outputs([node | rest], address) do
+    case P2P.send_message(node, %GetUnspentOutputs{address: address}) do
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
+        unspent_outputs
+
+      {:error, _} ->
+        get_unspent_outputs(rest, address)
+    end
+  end
+
+  defp get_unspent_outputs([], _), do: {:error, :network_issue}
 
   def load_transaction(_), do: :ok
 

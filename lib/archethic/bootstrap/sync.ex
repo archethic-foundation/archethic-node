@@ -17,7 +17,6 @@ defmodule ArchEthic.Bootstrap.Sync do
   alias ArchEthic.P2P.Message.NodeList
   alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
   alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Transport
 
   alias ArchEthic.Election
 
@@ -57,7 +56,7 @@ defmodule ArchEthic.Bootstrap.Sync do
   @spec require_update?(
           :inet.ip_address(),
           :inet.port_number(),
-          Transport.supported(),
+          P2P.supported_transport(),
           DateTime.t() | nil
         ) :: boolean()
   def require_update?(_ip, _port, _transport, nil), do: false
@@ -119,24 +118,38 @@ defmodule ArchEthic.Bootstrap.Sync do
   @doc """
   Fetch and load the nodes list
   """
-  @spec load_node_list(list(Node.t())) :: :ok
-  def load_node_list(nodes) do
-    {:ok, %NodeList{nodes: nodes}} = P2P.reply_first(nodes, %ListNodes{})
-    Enum.each(nodes, &P2P.add_and_connect_node/1)
-    Logger.info("Node list refreshed")
+  @spec load_node_list(list(Node.t())) :: :ok | {:error, :network_issue}
+  def load_node_list([node | rest]) do
+    case P2P.send_message(node, %ListNodes{}) do
+      {:ok, %NodeList{nodes: nodes}} ->
+        Enum.each(nodes, &P2P.add_and_connect_node/1)
+        Logger.info("Node list refreshed")
+
+      {:error, _} ->
+        load_node_list(rest)
+    end
   end
+
+  def load_node_list([]), do: {:error, :network_issue}
 
   @doc """
   Fetch and load the storage nonce
   """
-  @spec load_storage_nonce(list(Node.t())) :: :ok
-  def load_storage_nonce(nodes) do
+  @spec load_storage_nonce(list(Node.t())) :: :ok | {:error, :network_issue}
+  def load_storage_nonce([node | rest]) do
     message = %GetStorageNonce{public_key: Crypto.last_node_public_key()}
 
-    {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}} = P2P.reply_first(nodes, message)
-    :ok = Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
-    Logger.info("Storage nonce set")
+    case P2P.send_message(node, message) do
+      {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}} ->
+        :ok = Crypto.decrypt_and_set_storage_nonce(encrypted_nonce)
+        Logger.info("Storage nonce set")
+
+      {:error, _} ->
+        load_storage_nonce(rest)
+    end
   end
+
+  def load_storage_nonce([]), do: {:error, :network_issue}
 
   @doc """
   Fetch the closest nodes and new bootstrapping seeds.
@@ -147,21 +160,27 @@ defmodule ArchEthic.Bootstrap.Sync do
 
   Returns the closest nodes
   """
-  @spec get_closest_nodes_and_renew_seeds(list(Node.t()), binary()) :: list(Node.t())
-  def get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch) do
-    {:ok, %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds}} =
-      P2P.reply_first(bootstrapping_seeds, %GetBootstrappingNodes{patch: patch}, patch: patch)
+  @spec get_closest_nodes_and_renew_seeds(list(Node.t()), binary()) ::
+          {:ok, list(Node.t())} | {:error, :network_issue}
+  def get_closest_nodes_and_renew_seeds([node | rest], patch) do
+    case P2P.send_message(node, %GetBootstrappingNodes{patch: patch}) do
+      {:ok, %BootstrappingNodes{closest_nodes: closest_nodes, new_seeds: new_seeds}} ->
+        :ok = P2P.new_bootstrapping_seeds(new_seeds)
 
-    :ok = P2P.new_bootstrapping_seeds(new_seeds)
+        (new_seeds ++ closest_nodes)
+        |> P2P.distinct_nodes()
+        |> Enum.each(&P2P.add_and_connect_node/1)
 
-    (new_seeds ++ closest_nodes)
-    |> P2P.distinct_nodes()
-    |> Enum.each(&P2P.add_and_connect_node/1)
+        Logger.info("Closest nodes and seeds loaded in the P2P view")
 
-    Logger.info("Closest nodes and seeds loaded in the P2P view")
+        {:ok, closest_nodes}
 
-    closest_nodes
+      {:error, _} ->
+        get_closest_nodes_and_renew_seeds(rest, patch)
+    end
   end
+
+  def get_closest_nodes_and_renew_seeds([], _), do: {:error, :network_issue}
 
   @doc """
   Notify the beacon chain for the first node public key about the readiness of the node and the end of the bootstrapping

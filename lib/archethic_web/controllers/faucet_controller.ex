@@ -38,9 +38,9 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    with {:ok, address} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(address),
-         :ok <- transfer(address) do
+    with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
+         true <- Crypto.valid_hash?(recipient_address),
+         :ok <- transfer(recipient_address) do
       conn
       |> put_flash(:info, "Transferred successfully")
       |> redirect(to: Routes.faucet_path(conn, :index))
@@ -58,26 +58,27 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   defp transfer(
-         address,
+         recipient_address,
          curve \\ Crypto.default_curve()
        )
-       when is_bitstring(address) do
+       when is_bitstring(recipient_address) do
     {gen_pub, _} = Crypto.derive_keypair(@pool_seed, 0, curve)
 
     pool_gen_address = Crypto.hash(gen_pub)
 
-    last_address =
-      case ArchEthic.get_last_transaction(pool_gen_address) do
-        {:ok, transaction} ->
-          %ArchEthic.TransactionChain.Transaction{address: last_address} = transaction
-          last_address
+    with {:ok, tx} <- ArchEthic.get_last_transaction(pool_gen_address),
+         {:ok, last_index} <- ArchEthic.get_transaction_chain_length(tx.address) do
+      create_transaction(last_index, curve, recipient_address)
+    else
+      {:error, :transaction_not_exists} ->
+        create_transaction(0, curve, recipient_address)
 
-        {:error, :transaction_not_exists} ->
-          pool_gen_address
-      end
+      {:error, _} = e ->
+        e
+    end
+  end
 
-    last_index = ArchEthic.get_transaction_chain_length(last_address)
-
+  defp create_transaction(transaction_index, curve, recipient_address) do
     Transaction.new(
       :transfer,
       %TransactionData{
@@ -85,7 +86,7 @@ defmodule ArchEthicWeb.FaucetController do
           uco: %UCOLedger{
             transfers: [
               %UCOLedger.Transfer{
-                to: address,
+                to: recipient_address,
                 amount: 10_000_000_000
               }
             ]
@@ -93,7 +94,7 @@ defmodule ArchEthicWeb.FaucetController do
         }
       },
       @pool_seed,
-      last_index,
+      transaction_index,
       curve
     )
     |> ArchEthic.send_new_transaction()

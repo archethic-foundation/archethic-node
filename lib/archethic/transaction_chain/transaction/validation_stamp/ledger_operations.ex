@@ -681,14 +681,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 2, 
-      ...> 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 
+      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 2,
+      ...> 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
       ...> 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
       ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
-      ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207, 
+      ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 0, 137, 84, 64,
-      ...> 3, 0, 1, 2, 
+      ...> 3, 0, 1, 2,
       ...> 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0>>
@@ -819,7 +819,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    fee: 50_000_000,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],  
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],
       ...>    node_movements: [
       ...>       %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 5_000_000, roles: [:coordinator_node]},
       ...>       %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 10_000_000, roles: [:cross_validation_node]},
@@ -837,7 +837,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    fee: 50_000_000,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],  
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],
       ...>    node_movements: [
       ...>       %NodeMovement{to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D", amount: 25_000_000, roles: [:coordinator_node, :cross_validation_node]},
       ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 8_333_333, roles: [:previous_storage_node]},
@@ -1043,7 +1043,11 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         timestamp = %DateTime{}
       ) do
     expected_movements = [
-      %TransactionMovement{to: @burning_address, amount: get_network_pool_reward(fee), type: :UCO}
+      %TransactionMovement{
+        to: @burning_address,
+        amount: get_network_pool_reward(fee),
+        type: :UCO
+      }
       | resolve_transaction_movements(tx_movements, timestamp)
     ]
 

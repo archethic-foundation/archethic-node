@@ -187,7 +187,7 @@ config :archethic, ArchEthic.SelfRepair.Scheduler,
   # To give time for the beacon chain to produce summary
   interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
 
-config :archethic, ArchEthic.P2P.Endpoint,
+config :archethic, ArchEthic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "30002") |> String.to_integer()
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds,

@@ -71,7 +71,10 @@ defmodule ArchEthic.MixProject do
       {:retry, "~> 0.14.1"},
       {:gen_stage, "~> 1.1"},
       {:knigge, "~> 1.4"},
-      {:flow, "~> 1.0"}
+      {:flow, "~> 1.0"},
+      {:ranch, "~> 2.1", override: true},
+      {:broadway, "~> 1.0"}
+      # {:broadway_dashboard, "~> 0.2.0", only: :dev}
     ]
   end
 end

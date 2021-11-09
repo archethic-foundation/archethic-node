@@ -12,9 +12,9 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.NewBeaconTransaction
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.Ping
-  alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
@@ -116,11 +116,12 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %ReplicateTransaction{transaction: tx} ->
+      _, %NewBeaconTransaction{transaction: tx}, _ ->
         send(me, {:beacon_tx, tx})
         {:ok, %Ok{}}
 
-      _, %Ping{} ->
+      _, %Ping{}, _ ->
+        Process.sleep(10)
         {:ok, %Ok{}}
     end)
 
@@ -189,10 +190,12 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %ReplicateTransaction{} ->
+      _, %NewBeaconTransaction{transaction: tx}, _ ->
+        send(self(), {:beacon_tx, tx})
         {:ok, %Ok{}}
 
-      _, %Ping{} ->
+      _, %Ping{}, _ ->
+        Process.sleep(10)
         {:ok, %Ok{}}
     end)
 

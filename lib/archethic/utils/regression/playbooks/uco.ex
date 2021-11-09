@@ -15,8 +15,8 @@ defmodule ArchEthic.Utils.Playbook.UCO do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias ArchEthic.Utils.WebClient
   alias ArchEthic.Utils.Regression.Playbook
+  alias ArchEthic.Utils.WebClient
 
   @behaviour Playbook
 
@@ -58,7 +58,7 @@ defmodule ArchEthic.Utils.Playbook.UCO do
 
     Logger.info("Transaction #{Base.encode16(address)} submitted")
 
-    # Ensure the recipient got the 10.0 UCO 
+    # Ensure the recipient got the 10.0 UCO
     10.0 = get_uco_balance(recipient_address, host, port)
     Logger.info("#{Base.encode16(recipient_address)} received 10.0 UCO")
 

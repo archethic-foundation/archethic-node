@@ -26,8 +26,6 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.NodeList
   alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
   alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
@@ -69,17 +67,55 @@ defmodule ArchEthic.BootstrapTest do
     test "should initialize the network when nothing is set before" do
       MockClient
       |> stub(:send_message, fn
-        _, %GetLastTransactionAddress{address: address} ->
-          {:ok, %LastTransactionAddress{address: address}}
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          ref = make_ref()
 
-        _, %GetUnspentOutputs{} ->
-          {:ok, %UnspentOutputList{unspent_outputs: []}}
+          me = self()
 
-        _, %GetTransactionChain{} ->
-          {:ok, %TransactionList{transactions: []}}
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+            send(me, {:data, ref, %LastTransactionAddress{address: address}})
+            send(me, {:data_end, ref})
+          end)
 
-        _, %NotifyEndOfNodeSync{} ->
-          {:ok, %Ok{}}
+          {:ok, ref}
+
+        _, %GetUnspentOutputs{}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %GetTransactionChain{}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %NotifyEndOfNodeSync{}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+            send(me, {:data, ref, %Ok{}})
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
       end)
 
       {:ok, daily_nonce_key} =
@@ -148,8 +184,6 @@ defmodule ArchEthic.BootstrapTest do
 
   describe "run/5 with an initialized network" do
     setup do
-      me = self()
-
       nodes = [
         %Node{
           ip: {127, 0, 0, 1},
@@ -195,70 +229,180 @@ defmodule ArchEthic.BootstrapTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBootstrappingNodes{} ->
-          {:ok,
-           %BootstrappingNodes{
-             new_seeds: [
-               Enum.at(nodes, 0)
-             ],
-             closest_nodes: [
-               Enum.at(nodes, 1)
-             ]
-           }}
+        _, %GetBootstrappingNodes{}, _ ->
+          ref = make_ref()
 
-        _, %NewTransaction{transaction: tx} ->
-          stamp = %ValidationStamp{
-            timestamp: DateTime.utc_now(),
-            proof_of_work: "",
-            proof_of_integrity: "",
-            ledger_operations: %LedgerOperations{
-              node_movements: [
-                %NodeMovement{
-                  to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                  amount: 100_000_000,
-                  roles: [
-                    :welcome_node,
-                    :coordinator_node,
-                    :cross_validation_node,
-                    :previous_storage_node
-                  ]
-                }
-              ]
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref,
+               %BootstrappingNodes{
+                 new_seeds: [
+                   Enum.at(nodes, 0)
+                 ],
+                 closest_nodes: [
+                   Enum.at(nodes, 1)
+                 ]
+               }}
+            )
+
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %NewTransaction{transaction: tx}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            stamp = %ValidationStamp{
+              timestamp: DateTime.utc_now(),
+              proof_of_work: "",
+              proof_of_integrity: "",
+              ledger_operations: %LedgerOperations{
+                node_movements: [
+                  %NodeMovement{
+                    to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
+                    amount: 100_000_000,
+                    roles: [
+                      :welcome_node,
+                      :coordinator_node,
+                      :cross_validation_node,
+                      :previous_storage_node
+                    ]
+                  }
+                ]
+              }
             }
-          }
 
-          validated_tx = %{tx | validation_stamp: stamp}
-          :ok = TransactionChain.write([validated_tx])
-          :ok = Replication.ingest_transaction(validated_tx)
-          :ok = Replication.acknowledge_storage(validated_tx, P2P.get_node_info())
+            validated_tx = %{tx | validation_stamp: stamp}
+            :ok = TransactionChain.write([validated_tx])
+            :ok = Replication.ingest_transaction(validated_tx)
+            :ok = Replication.acknowledge_storage(validated_tx, P2P.get_node_info())
 
-          {:ok, %Ok{}}
+            send(
+              me,
+              {:data, ref, %Ok{}}
+            )
 
-        _, %GetStorageNonce{} ->
-          {:ok,
-           %EncryptedStorageNonce{
-             digest:
-               Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.last_node_public_key())
-           }}
+            send(me, {:data_end, ref})
+          end)
 
-        _, %ListNodes{} ->
-          {:ok, %NodeList{nodes: nodes}}
+          {:ok, ref}
 
-        _, %NotifyEndOfNodeSync{} ->
-          send(me, :node_ready)
-          {:ok, %Ok{}}
+        _, %GetStorageNonce{}, _ ->
+          ref = make_ref()
 
-        _, %GetTransaction{address: address} ->
-          {:ok,
-           %Transaction{
-             address: address,
-             validation_stamp: %ValidationStamp{},
-             cross_validation_stamps: [%{}]
-           }}
+          me = self()
 
-        _, %AcknowledgeStorage{address: address} ->
-          PubSub.notify_new_transaction(address)
-          {:ok, %Ok{}}
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref,
+               %EncryptedStorageNonce{
+                 digest:
+                   Crypto.ec_encrypt(:crypto.strong_rand_bytes(32), Crypto.last_node_public_key())
+               }}
+            )
+
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %ListNodes{}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref, %NodeList{nodes: nodes}}
+            )
+
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %NotifyEndOfNodeSync{}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref, %Ok{}}
+            )
+
+            send(me, :node_ready)
+
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %GetTransaction{address: address}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref,
+               %Transaction{
+                 address: address,
+                 validation_stamp: %ValidationStamp{},
+                 cross_validation_stamps: [%{}]
+               }}
+            )
+
+            send(me, :node_ready)
+
+            send(me, {:data_end, ref})
+          end)
+
+          {:ok, ref}
+
+        _, %AcknowledgeStorage{address: address}, _ ->
+          ref = make_ref()
+
+          me = self()
+
+          spawn(fn ->
+            send(me, {:data_begin, ref})
+
+            send(
+              me,
+              {:data, ref, %Ok{}}
+            )
+
+            send(me, :node_ready)
+
+            send(me, {:data_end, ref})
+            PubSub.notify_new_transaction(address)
+          end)
+
+          {:ok, ref}
       end)
 
       :ok

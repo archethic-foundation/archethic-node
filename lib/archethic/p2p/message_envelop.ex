@@ -64,23 +64,41 @@ defmodule ArchEthic.P2P.MessageEnvelop do
   It will detect if the message is encrypted and try to decrypt with the current node private key.
   """
   @spec decode(bitstring()) :: t()
-  def decode(<<message_id::32, 0::8, curve_id::8, origin_id::8, rest::binary>>) do
+  def decode(<<message_id::32, 0::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
-    <<public_key::binary-size(key_size), rest::binary>> = rest
 
-    {data, _} = Message.decode(rest)
+    <<public_key::binary-size(key_size), message::bitstring>> = rest
+
+    {data, _} = Message.decode(message)
     sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
+
     %__MODULE__{message_id: message_id, message: data, sender_public_key: sender_public_key}
   end
 
-  def decode(<<message_id::32, 1::8, curve_id::8, origin_id::8, rest::binary>>) do
+  def decode(<<message_id::32, 1::8, curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
-    <<public_key::binary-size(key_size), encrypted_message::binary>> = rest
+
+    <<public_key::binary-size(key_size), encrypted_message::bitstring>> = rest
+
     message = Crypto.ec_decrypt_with_first_node_key!(encrypted_message)
 
     {data, _} = Message.decode(message)
 
     sender_public_key = <<curve_id::8, origin_id::8, public_key::binary>>
+
     %__MODULE__{message_id: message_id, message: data, sender_public_key: sender_public_key}
+  end
+
+  @doc """
+  Decode the raw message without any decryption or deserialization.
+
+  This can be useful, if you want to decode an encrypted content but not decrypt it with the node's private key
+  """
+  @spec decode_raw_message(bitstring()) :: {non_neg_integer(), bitstring()}
+  def decode_raw_message(<<message_id::32, _::8, curve_id::8, _origin_id::8, rest::bitstring>>) do
+    key_size = Crypto.key_size(curve_id)
+
+    <<_public_key::binary-size(key_size), encrypted_message::bitstring>> = rest
+    {message_id, encrypted_message}
   end
 end

@@ -71,32 +71,49 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
          socket,
          tx = %Transaction{address: address}
        ) do
-    balance = ArchEthic.get_balance(address)
     previous_address = Transaction.previous_address(tx)
 
-    inputs = ArchEthic.get_transaction_inputs(address)
-    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+    with {:ok, balance} <- ArchEthic.get_balance(address),
+         {:ok, inputs} <- ArchEthic.get_transaction_inputs(address) do
+      ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+      contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-    socket
-    |> assign(:transaction, tx)
-    |> assign(:previous_address, previous_address)
-    |> assign(:balance, balance)
-    |> assign(:inputs, ledger_inputs)
-    |> assign(:calls, contract_inputs)
-    |> assign(:address, address)
+      socket
+      |> assign(:transaction, tx)
+      |> assign(:previous_address, previous_address)
+      |> assign(:balance, balance)
+      |> assign(:inputs, ledger_inputs)
+      |> assign(:calls, contract_inputs)
+      |> assign(:address, address)
+    else
+      {:error, :network_issue} ->
+        socket
+        |> assign(:error, :network_issue)
+        |> assign(:address, address)
+        |> assign(:inputs, [])
+        |> assign(:calls, [])
+    end
   end
 
   def handle_not_existing_transaction(socket, address) do
-    inputs = ArchEthic.get_transaction_inputs(address)
-    ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
-    contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+    case ArchEthic.get_transaction_inputs(address) do
+      {:ok, inputs} ->
+        ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
+        contract_inputs = Enum.filter(inputs, &(&1.type == :call))
 
-    socket
-    |> assign(:address, address)
-    |> assign(:inputs, ledger_inputs)
-    |> assign(:calls, contract_inputs)
-    |> assign(:error, :not_exists)
+        socket
+        |> assign(:address, address)
+        |> assign(:inputs, ledger_inputs)
+        |> assign(:calls, contract_inputs)
+        |> assign(:error, :not_exists)
+
+      {:error, :network_issue} ->
+        socket
+        |> assign(:address, address)
+        |> assign(:inputs, [])
+        |> assign(:calls, [])
+        |> assign(:error, :network_issue)
+    end
   end
 
   def handle_invalid_address(socket, address) do

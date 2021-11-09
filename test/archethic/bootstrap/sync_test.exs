@@ -43,13 +43,13 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   setup do
     MockClient
     |> stub(:send_message, fn
-      _, %GetLastTransactionAddress{address: address} ->
-        %LastTransactionAddress{address: address}
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
 
-      _, %GetUnspentOutputs{} ->
+      _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
 
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
     end)
 
@@ -280,7 +280,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %ListNodes{} ->
+      _, %ListNodes{}, _ ->
         {:ok,
          %NodeList{
            nodes: [
@@ -318,7 +318,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     :ok = P2P.add_and_connect_node(node)
 
     MockClient
-    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key} ->
+    |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key}, _ ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
       {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
     end)
@@ -344,7 +344,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     me = self()
 
     MockClient
-    |> stub(:send_message, fn _, %NotifyEndOfNodeSync{} ->
+    |> stub(:send_message, fn _, %NotifyEndOfNodeSync{}, _ ->
       send(me, :end_of_sync)
       {:ok, %Ok{}}
     end)

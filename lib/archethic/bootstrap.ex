@@ -13,7 +13,6 @@ defmodule ArchEthic.Bootstrap do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Transport
 
   alias ArchEthic.SelfRepair
 
@@ -74,7 +73,7 @@ defmodule ArchEthic.Bootstrap do
   @spec run(
           :inet.ip_address(),
           :inet.port_number(),
-          Transport.supported(),
+          P2P.supported_transport(),
           list(Node.t()),
           DateTime.t() | nil,
           Crypto.versioned_hash()
@@ -190,7 +189,7 @@ defmodule ArchEthic.Bootstrap do
   defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
     Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
 
-    closest_nodes = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
+    {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
     tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
     :ok = TransactionHandler.send_transaction(tx, closest_nodes)
@@ -208,7 +207,7 @@ defmodule ArchEthic.Bootstrap do
         Logger.warning("Not enough nodes in the network. No node update")
 
       _ ->
-        closest_nodes = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
+        {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
         tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
         :ok = TransactionHandler.send_transaction(tx, closest_nodes)

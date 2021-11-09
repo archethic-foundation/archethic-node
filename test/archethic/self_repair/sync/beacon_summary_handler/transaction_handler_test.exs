@@ -114,13 +114,13 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{} ->
+      _, %GetTransaction{}, _ ->
         {:ok, tx}
 
-      _, %GetTransactionInputs{} ->
+      _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: inputs}}
 
-      _, %GetTransactionChain{} ->
+      _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
     end)
 

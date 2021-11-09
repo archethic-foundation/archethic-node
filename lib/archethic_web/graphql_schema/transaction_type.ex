@@ -23,19 +23,19 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
 
     field :inputs, list_of(:transaction_input) do
       resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Resolver.get_inputs(address)}
+        Resolver.get_inputs(address)
       end)
     end
 
     field :chain_length, :integer do
       resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Resolver.get_chain_length(address)}
+        Resolver.get_chain_length(address)
       end)
     end
 
     field :balance, :balance do
       resolve(fn _, %{source: %{address: address}} ->
-        {:ok, Resolver.get_balance(address)}
+        Resolver.get_balance(address)
       end)
     end
   end

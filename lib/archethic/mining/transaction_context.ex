@@ -29,8 +29,7 @@ defmodule ArchEthic.Mining.TransactionContext do
           previous_tx_address :: binary(),
           chain_storage_node_public_keys :: list(Crypto.key()),
           beacon_storage_nodes_public_keys :: list(Crypto.key()),
-          validation_node_public_keys :: list(Crypto.key()),
-          unspent_outputs_confirmation? :: boolean()
+          validation_node_public_keys :: list(Crypto.key())
         ) ::
           {Transaction.t(), list(UnspentOutput.t()), list(Node.t()), bitstring(), bitstring(),
            bitstring()}
@@ -38,15 +37,13 @@ defmodule ArchEthic.Mining.TransactionContext do
         previous_address,
         chain_storage_node_public_keys,
         beacon_storage_nodes_public_keys,
-        validation_node_public_keys,
-        unspent_outputs_confirmation? \\ true
+        validation_node_public_keys
       ) do
     nodes_distribution = previous_nodes_distribution(previous_address, 5, 3)
 
     context =
       wrap_async_queries(
         previous_address,
-        unspent_outputs_confirmation?,
         chain_storage_node_public_keys,
         beacon_storage_nodes_public_keys,
         validation_node_public_keys,
@@ -81,7 +78,6 @@ defmodule ArchEthic.Mining.TransactionContext do
 
   defp wrap_async_queries(
          previous_address,
-         unspent_outputs_confirmation?,
          chain_storage_node_public_keys,
          beacon_storage_nodes_public_keys,
          validation_node_public_keys,
@@ -100,8 +96,7 @@ defmodule ArchEthic.Mining.TransactionContext do
       utxo: fn ->
         DataFetcher.fetch_unspent_outputs(
           previous_address,
-          unspent_outputs_nodes_split,
-          unspent_outputs_confirmation?
+          unspent_outputs_nodes_split
         )
       end,
       chain_nodes_view: fn ->
@@ -120,9 +115,12 @@ defmodule ArchEthic.Mining.TransactionContext do
         DataFetcher.fetch_p2p_view(validation_node_public_keys, validation_nodes_view_split)
       end
     ]
-    |> Task.async_stream(fn {domain, fun} ->
-      {domain, fun.()}
-    end)
+    |> Task.async_stream(
+      fn {domain, fun} ->
+        {domain, fun.()}
+      end,
+      on_timeout: :kill_task
+    )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.map(&elem(&1, 1))
   end
@@ -130,26 +128,25 @@ defmodule ArchEthic.Mining.TransactionContext do
   defp reduce_tasks({_, {:error, _}}, acc), do: acc
 
   defp reduce_tasks(
-         {:prev_tx, {:ok, prev_tx = %Transaction{}, prev_tx_node = %Node{}}},
+         {:prev_tx, {:ok, prev_tx = %Transaction{}, node = %Node{}}},
          acc
        ) do
     acc
     |> Map.put(:previous_transaction, prev_tx)
     |> Map.update(
       :previous_storage_nodes,
-      [prev_tx_node],
-      &P2P.distinct_nodes([prev_tx_node | &1])
+      [node],
+      &P2P.distinct_nodes([node | &1])
     )
   end
 
-  defp reduce_tasks({:utxo, {:ok, unspent_outputs, unspent_outputs_nodes}}, acc)
-       when is_list(unspent_outputs) and is_list(unspent_outputs_nodes) do
+  defp reduce_tasks({:utxo, {:ok, unspent_outputs, node = %Node{}}}, acc) do
     acc
     |> Map.put(:unspent_outputs, unspent_outputs)
     |> Map.update(
       :previous_storage_nodes,
-      unspent_outputs_nodes,
-      &P2P.distinct_nodes(&1 ++ unspent_outputs_nodes)
+      [node],
+      &P2P.distinct_nodes([node | &1])
     )
   end
 

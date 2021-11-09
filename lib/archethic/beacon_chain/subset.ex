@@ -207,14 +207,14 @@ defmodule ArchEthic.BeaconChain.Subset do
   defp handle_summary(time, subset) do
     chain_address = beacon_summary_address(subset, time)
 
-    case TransactionChain.get(chain_address, data: [:content]) do
-      [] ->
-        :ok
+    beacon_chain = TransactionChain.get(chain_address, data: [:content])
 
-      beacon_chain ->
-        beacon_chain
-        |> create_summary_transaction(subset, time)
-        |> TransactionChain.write_transaction()
+    if Enum.empty?(beacon_chain) do
+      :ok
+    else
+      beacon_chain
+      |> create_summary_transaction(subset, time)
+      |> TransactionChain.write_transaction()
     end
   end
 

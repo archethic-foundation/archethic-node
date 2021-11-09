@@ -12,7 +12,8 @@ defmodule ArchEthic.P2P.Node do
   require Logger
 
   alias ArchEthic.Crypto
-  alias ArchEthic.P2P.Transport
+
+  alias ArchEthic.P2P
 
   defstruct [
     :first_public_key,
@@ -38,8 +39,8 @@ defmodule ArchEthic.P2P.Node do
   ## Examples
 
       iex> Node.decode_transaction_content(<<
-      ...>  127, 0, 0, 1, 
-      ...>  11, 184, 
+      ...>  127, 0, 0, 1,
+      ...>  11, 184,
       ...>  1,
       ...>  0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
@@ -47,9 +48,9 @@ defmodule ArchEthic.P2P.Node do
       ...>  63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
       ...>  132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
-      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126 
+      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126
       ...> >>)
-      { :ok, 
+      { :ok,
         {127, 0, 0, 1},
         3000,
         :tcp,
@@ -58,11 +59,11 @@ defmodule ArchEthic.P2P.Node do
         <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
          175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
          132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
-         255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>> 
+         255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>>
       }
   """
   @spec decode_transaction_content(binary()) ::
-          {:ok, :inet.ip_address(), :inet.port_number(), Transport.supported(),
+          {:ok, :inet.ip_address(), :inet.port_number(), P2P.supported_transport(),
            reward_address :: binary(), key_certificate :: binary()}
           | :error
   def decode_transaction_content(<<ip::binary-size(4), port::16, transport::8, rest::binary>>) do
@@ -96,7 +97,7 @@ defmodule ArchEthic.P2P.Node do
       ...> <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
       ...>  132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
-      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>> 
+      ...>  255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126>>
       ...> )
       <<
       # IP
@@ -114,13 +115,13 @@ defmodule ArchEthic.P2P.Node do
       63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
       132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
-      255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126 
+      255, 229, 33, 178, 204, 184, 228, 130, 173, 148, 82, 126
       >>
   """
   @spec encode_transaction_content(
           :inet.ip_address(),
           :inet.port_number(),
-          Transport.supported(),
+          P2P.supported_transport(),
           binary(),
           binary()
         ) :: binary()
@@ -150,7 +151,7 @@ defmodule ArchEthic.P2P.Node do
           authorized?: boolean(),
           enrollment_date: nil | DateTime.t(),
           authorization_date: nil | DateTime.t(),
-          transport: Transport.supported()
+          transport: P2P.supported_transport()
         }
 
   @doc """

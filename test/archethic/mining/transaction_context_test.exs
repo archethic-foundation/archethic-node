@@ -14,11 +14,6 @@ defmodule ArchEthic.Mining.TransactionContextTest do
   alias ArchEthic.Mining.TransactionContext
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
-
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   doctest TransactionContext
@@ -37,31 +32,20 @@ defmodule ArchEthic.Mining.TransactionContextTest do
 
   describe "get/5" do
     test "should get the context of the transaction and involved nodes" do
-      unspent_output = %Transaction{
-        validation_stamp: %ValidationStamp{
-          ledger_operations: %LedgerOperations{
-            transaction_movements: [
-              %TransactionMovement{to: "@Alice1", amount: 1_000_000_000, type: :UCO}
-            ]
-          }
-        }
-      }
-
       MockClient
       |> stub(:send_message, fn
-        _, %GetTransaction{address: "@Bob3"} ->
-          {:ok, unspent_output}
+        _, %GetTransaction{address: "@Alice1"}, _ ->
+          {:ok, %Transaction{}}
 
-        _, %GetTransaction{address: "@Alice1"} ->
-          {:ok, unspent_output}
-
-        _, %GetP2PView{} ->
+        _, %GetP2PView{}, _ ->
           {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
 
-        _, %GetUnspentOutputs{address: "@Alice1"} ->
+        _, %GetUnspentOutputs{address: "@Alice1"}, _ ->
           {:ok,
            %UnspentOutputList{
-             unspent_outputs: [%UnspentOutput{from: "@Bob3", amount: 1_000_000_000, type: :UCO}]
+             unspent_outputs: [
+               %UnspentOutput{from: "@Bob3", amount: 1_000_000_000, type: :UCO}
+             ]
            }}
       end)
 

@@ -7,27 +7,54 @@ defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.P2P.Message
+  alias ArchEthic.P2P.Message.Balance
+  alias ArchEthic.P2P.Message.GetBalance
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.TransactionList
 
   alias ArchEthic.TransactionChain.Transaction
 
-  alias ArchEthic.Utils
   alias ArchEthic.Utils.Regression.Benchmark
   alias ArchEthic.Utils.WebClient
 
   @behaviour Benchmark
 
   def plan([host | _nodes], _opts) do
-    port = Application.get_env(:archethic, ArchEthic.P2P.Endpoint)[:port]
+    port = Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
     http = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
     {:ok, addr} = :inet.getaddr(to_charlist(host), :inet)
 
+    {public_key, private_key} =
+      Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32), :secp256r1)
+
+    {:ok, conn_pid} =
+      __MODULE__.Connection.start_link(
+        addr: addr,
+        port: port,
+        public_key: public_key,
+        private_key: private_key
+      )
+
     {%{
-       "GetTransaction" => fn _ -> get_transaction(addr, port) end,
-       "GetTransactionChain" => fn _ -> get_transaction_chain(addr, port) end
+       "GetTransaction" => fn _ ->
+         %Transaction{} =
+           __MODULE__.Connection.send_message(conn_pid, %GetTransaction{
+             address: get_genesis_address()
+           })
+       end,
+       "GetTransactionChain" => fn _ ->
+         %TransactionList{} =
+           __MODULE__.Connection.send_message(conn_pid, %GetTransactionChain{
+             address: get_genesis_address()
+           })
+       end,
+       "GetBalance" => fn _ ->
+         %Balance{} =
+           __MODULE__.Connection.send_message(conn_pid, %GetBalance{
+             address: get_genesis_address()
+           })
+       end
      },
      [
        before_scenario: fn _ -> get_vm_status(host, http) end,
@@ -68,50 +95,79 @@ defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
     |> Crypto.hash()
   end
 
-  defp get_transaction(addr, port) do
-    {:ok, socket} = connect(addr, port)
-    :ok = send_msg(socket, %GetTransaction{address: get_genesis_address()})
-    {:ok, %Transaction{}} = recv(socket)
-  end
+  defmodule Connection do
+    @moduledoc false
+    alias ArchEthic.Crypto
 
-  defp get_transaction_chain(addr, port) do
-    {:ok, socket} = connect(addr, port)
-    :ok = send_msg(socket, %GetTransactionChain{address: get_genesis_address()})
-    {:ok, %TransactionList{transactions: _}} = recv(socket)
-  end
+    alias ArchEthic.P2P.Message
+    alias ArchEthic.P2P.MessageEnvelop
 
-  defp connect(addr, port) do
-    :gen_tcp.connect(addr, port, [:binary, packet: 4, active: false])
-  end
-
-  defp send_msg(socket, message) do
-    msg_binary =
-      message
-      |> Message.encode()
-      |> Utils.wrap_binary()
-
-    case :gen_tcp.send(
-           socket,
-           <<1::32, 0::8, 0::8, 0::8, :crypto.strong_rand_bytes(32)::binary, msg_binary::binary>>
-         ) do
-      :ok ->
-        :ok
-
-      e ->
-        :gen_tcp.close(socket)
-        e
+    def start_link(arg) do
+      GenServer.start_link(__MODULE__, arg)
     end
-  end
 
-  defp recv(socket) do
-    case :gen_tcp.recv(socket, 0) do
-      {:ok, <<_::32, 0::8, _::binary-size(34), data::binary>>} ->
-        {msg, _} = Message.decode(data)
-        {:ok, msg}
+    def send_message(pid, message) do
+      GenServer.call(pid, {:send_message, message})
+    end
 
-      e ->
-        :gen_tcp.close(socket)
-        e
+    def init(arg) do
+      addr = Keyword.get(arg, :addr)
+      port = Keyword.get(arg, :port)
+      public_key = Keyword.get(arg, :public_key)
+      private_key = Keyword.get(arg, :private_key)
+
+      {:ok, socket} = :gen_tcp.connect(addr, port, [:binary, active: true, packet: 4])
+
+      {:ok,
+       %{
+         socket: socket,
+         messages: %{},
+         request_id: 0,
+         public_key: public_key,
+         private_key: private_key
+       }}
+    end
+
+    def handle_call(
+          {:send_message, msg},
+          from,
+          state = %{socket: socket, public_key: public_key, request_id: request_id}
+        ) do
+      envelop =
+        %MessageEnvelop{
+          message: msg,
+          message_id: request_id,
+          sender_public_key: public_key
+        }
+        |> MessageEnvelop.encode()
+
+      :gen_tcp.send(socket, envelop)
+
+      new_state =
+        state
+        |> Map.update!(:request_id, &(&1 + 1))
+        |> Map.update!(:messages, &Map.put(&1, request_id, from))
+
+      {:noreply, new_state}
+    end
+
+    def handle_info({:tcp, _, data}, state = %{private_key: private_key, messages: messages}) do
+      {msg_id, encrypted_message} = MessageEnvelop.decode_raw_message(data)
+
+      msg =
+        encrypted_message
+        |> Crypto.ec_decrypt!(private_key)
+        |> Message.decode()
+        |> elem(0)
+
+      case Map.pop(messages, msg_id) do
+        {nil, _} ->
+          {:noreply, state}
+
+        {from, messages} ->
+          GenServer.reply(from, msg)
+          {:noreply, %{state | messages: messages}}
+      end
     end
   end
 end

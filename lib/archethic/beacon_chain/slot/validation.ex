@@ -4,12 +4,12 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
-  alias ArchEthic.BeaconChain.SummaryTimer
 
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransactionSummary
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
@@ -30,32 +30,53 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
   defp do_valid_transaction_summary(
          summary = %TransactionSummary{address: address, timestamp: timestamp}
        ) do
-    case transaction_summary_storage_nodes(address, timestamp) do
-      [] ->
+    storage_nodes = transaction_summary_storage_nodes(address, timestamp)
+
+    case check_transaction_summary(storage_nodes, address, summary) do
+      :ok ->
         true
 
-      nodes ->
-        case P2P.reply_atomic(nodes, 3, %GetTransactionSummary{address: address}) do
-          {:ok, ^summary} ->
-            true
-
-          _ ->
-            false
-        end
+      {:error, _} ->
+        false
     end
   end
+
+  defp check_transaction_summary(nodes, address, expected_summary, timeout \\ 500)
+
+  defp check_transaction_summary(
+         [node | rest],
+         address,
+         expected_summary,
+         timeout
+       ) do
+    case P2P.send_message(node, %GetTransactionSummary{address: address}, timeout) do
+      {:ok, ^expected_summary} ->
+        :ok
+
+      {:ok, %TransactionSummary{}} ->
+        {:error, :invalid_summary}
+
+      {:ok, %NotFound{}} ->
+        {:error, :invalid_summary}
+
+      {:error, :timeout} ->
+        check_transaction_summary(rest, address, expected_summary, trunc(timeout * 1.5))
+
+      {:error, :closed} ->
+        check_transaction_summary(rest, address, expected_summary, timeout)
+    end
+  end
+
+  defp check_transaction_summary([], _, _, _), do: {:error, :network_issue}
 
   defp transaction_summary_storage_nodes(address, timestamp) do
     address
     |> Replication.chain_storage_nodes()
     |> Enum.filter(fn %Node{enrollment_date: enrollment_date} ->
-      previous_summary_time = SummaryTimer.previous_summary(timestamp)
-
-      diff = DateTime.compare(DateTime.truncate(enrollment_date, :second), previous_summary_time)
-
-      diff == :lt or diff == :eq
+      DateTime.compare(DateTime.truncate(enrollment_date, :second), timestamp) == :lt
     end)
-    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    |> P2P.nearest_nodes()
+    |> P2P.unprioritize_node(Crypto.first_node_public_key())
   end
 
   @doc """
