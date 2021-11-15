@@ -44,11 +44,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
 
-    # current_slot_added_transactions =
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
       PubSub.register_to_current_epoch_of_slot_time()
+      # register for client to able to get the current added transaction to the beacon pool
       PubSub.register_to_added_new_transaction_summary()
+      PubSub.register_to_next_epoch_of_slot_time()
 
       register_to_beacon_pool_updates()
     end
@@ -62,17 +63,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
           [next_summary_time | dates]
       end
 
-    # transactions =
-    #   case current_slot_added_transactions do
-    #     [] ->
-    #       list_transaction_by_date(Enum.at(beacon_dates, 0))
-
-    #     _ ->
-    #       [current_slot_added_transactions | list_transaction_by_date(Enum.at(beacon_dates, 0))]
-    #   end
     new_assign =
       socket
+      |> assign(:update_time, DateTime.utc_now())
       |> assign(:next_summary_time, next_summary_time)
+      |> assign(:next_epoch_slot_time, next_summary_time)
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
       |> assign(
@@ -125,92 +120,41 @@ defmodule ArchEthicWeb.BeaconChainLive do
   def handle_info(
         {:added_new_transaction_summary, tx_summary = %TransactionSummary{}},
         socket = %{
-          assigns: %{
-            current_date_page: page,
-            transactions: transactions,
-            next_summary_time: next_summary_time,
-            dates: dates
-          }
+          assigns:
+            assigns = %{
+              current_date_page: page,
+              transactions: transactions
+            }
         }
       ) do
-    new_transactions =
-      if page == 1 do
-        [tx_summary | transactions |> Enum.to_list()]
-      else
-        transactions
-      end
-
-    new_dates =
-      if Enum.at(dates, 0) == next_summary_time do
-        dates
-      else
-        [next_summary_time | dates]
-      end
-
     new_assign =
       socket
-      |> assign(:dates, new_dates)
-      |> assign(:transactions, new_transactions)
+      |> assign(:update_time, DateTime.utc_now())
 
-    {:noreply, new_assign}
+    if page == 1 do
+      # Only update the transaction listed when you are on the first page
+      new_assign =
+        case Map.get(assigns, :summary_passed?) do
+          true ->
+            new_assign
+            |> assign(:transactions, [tx_summary | transactions |> Enum.to_list()])
+            |> assign(:summary_passed?, false)
+            |> assign(:update_time, DateTime.utc_now())
+
+          _ ->
+            update(
+              new_assign,
+              :transactions,
+              &[tx_summary | &1 |> Enum.to_list()]
+            )
+        end
+
+      {:noreply, new_assign}
+    else
+      {:noreply, new_assign}
+    end
   end
 
-  def handle_info(
-        {:next_summary_time, next_summary_date},
-        socket = %{assigns: %{current_date_page: page, dates: dates}}
-      ) do
-    new_dates = [next_summary_date | dates]
-
-    transactions =
-      new_dates
-      |> Enum.at(page - 1)
-      |> list_transaction_by_date()
-
-    new_next_summary =
-      if :gt == DateTime.compare(next_summary_date, DateTime.utc_now()) do
-        next_summary_date
-      else
-        BeaconChain.next_summary_date(DateTime.utc_now())
-      end
-
-    new_assign =
-      socket
-      |> assign(:transactions, transactions)
-      |> assign(:dates, new_dates)
-      |> assign(:next_summary_time, new_next_summary)
-
-    {:noreply, new_assign}
-  end
-
-  def handle_info(
-        {:create_slot, date},
-        socket = %{assigns: %{transactions: transactions, current_date_page: page}}
-      ) do
-    transaction_summaries =
-      Enum.map(BeaconChain.list_subsets(), fn subset ->
-        list_of_nodes_for_this_subset =
-          Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
-
-        P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
-          node_public_key: Crypto.first_node_public_key(),
-          subset: subset
-        })
-      end)
-
-    new_transactions =
-      if page == 1 and Enum.empty?(transaction_summaries) and
-           !Enum.member?(transactions, transaction_summaries) do
-        [transaction_summaries | transactions]
-      else
-        transactions
-      end
-
-    new_assign =
-      socket
-      |> assign(:transactions, new_transactions)
-
-    {:noreply, new_assign}
-  end
 
   defp get_beacon_dates do
     %Node{enrollment_date: enrollment_date} =

@@ -146,7 +146,12 @@ defmodule ArchEthic.BeaconChain.Subset do
         _,
         state = %{subscribed_nodes: current_list_of_subscribed_nodes, current_slot: current_slot}
       ) do
-    updated_list_of_subscribed_nodes = [node_public_key | current_list_of_subscribed_nodes]
+    updated_list_of_subscribed_nodes =
+      if Enum.member?(current_list_of_subscribed_nodes, node_public_key) do
+        current_list_of_subscribed_nodes
+      else
+        [node_public_key | current_list_of_subscribed_nodes]
+      end
 
     {:reply, current_slot, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
   end
@@ -208,11 +213,12 @@ defmodule ArchEthic.BeaconChain.Subset do
         %Slot{subset: subset, slot_time: next_time}
       )
 
-    Map.put(
-      new_state,
-      :subscribed_nodes,
-      []
-    )
+    new_state
+    # Map.put(
+    #   new_state,
+    #   :subscribed_nodes,
+    #   []
+    # )
   end
 
   defp broadcast_beacon_transaction(subset, next_time, transaction, node_public_key) do
