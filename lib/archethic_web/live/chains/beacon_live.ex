@@ -155,7 +155,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end
   end
 
-
   defp get_beacon_dates do
     %Node{enrollment_date: enrollment_date} =
       P2P.list_nodes() |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime}) |> Enum.at(0)

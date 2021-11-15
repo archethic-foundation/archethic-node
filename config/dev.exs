@@ -1,6 +1,5 @@
 import Config
 
-
 config :archethic,
        :mut_dir,
        System.get_env(
