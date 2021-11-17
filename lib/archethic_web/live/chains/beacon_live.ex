@@ -15,6 +15,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
   alias ArchEthicWeb.ExplorerView
   alias Phoenix.View
+  require Logger
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
@@ -46,10 +47,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
-      PubSub.register_to_current_epoch_of_slot_time()
       # register for client to able to get the current added transaction to the beacon pool
       PubSub.register_to_added_new_transaction_summary()
-      PubSub.register_to_next_epoch_of_slot_time()
 
       register_to_beacon_pool_updates()
     end
@@ -67,7 +66,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
       socket
       |> assign(:update_time, DateTime.utc_now())
       |> assign(:next_summary_time, next_summary_time)
-      |> assign(:next_epoch_slot_time, next_summary_time)
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
       |> assign(
@@ -139,7 +137,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
             new_assign
             |> assign(:transactions, [tx_summary | transactions |> Enum.to_list()])
             |> assign(:summary_passed?, false)
-            |> assign(:update_time, DateTime.utc_now())
 
           _ ->
             update(
@@ -153,6 +150,38 @@ defmodule ArchEthicWeb.BeaconChainLive do
     else
       {:noreply, new_assign}
     end
+  end
+
+  def handle_info(
+        {:next_summary_time, next_summary_date},
+        socket = %{
+          assigns: %{
+            current_date_page: page,
+            dates: dates
+          }
+        }
+      ) do
+    new_next_summary =
+      if :gt == DateTime.compare(next_summary_date, DateTime.utc_now()) do
+        next_summary_date
+      else
+        BeaconChain.next_summary_date(DateTime.utc_now())
+      end
+
+    new_dates = [new_next_summary | dates]
+
+    transactions =
+      new_dates
+      |> Enum.at(page - 1)
+      |> list_transaction_by_date()
+
+    new_assign =
+      socket
+      |> assign(:transactions, transactions)
+      |> assign(:dates, new_dates)
+      |> assign(:next_summary_time, new_next_summary)
+
+    {:noreply, new_assign}
   end
 
   defp get_beacon_dates do
