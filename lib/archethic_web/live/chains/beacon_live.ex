@@ -193,10 +193,10 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  defp register_to_beacon_pool_updates do
+  def register_to_beacon_pool_updates do
     date = BeaconChain.next_summary_date(DateTime.utc_now())
 
-    Enum.map(BeaconChain.list_subsets(), fn subset ->
+    Enum.each(BeaconChain.list_subsets(), fn subset ->
       list_of_nodes_for_this_subset =
         Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
 
