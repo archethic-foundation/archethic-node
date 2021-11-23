@@ -349,10 +349,11 @@ defmodule ArchEthic.BeaconChain.Subset do
     }
     |> ValidationStamp.sign()
   end
+
   @doc """
   Add node public key to the corresponding subset for beacon updates
   """
-  @spec subscribe_for_beacon_updates(binary(), Crypto.key) :: Slot.t()
+  @spec subscribe_for_beacon_updates(binary(), Crypto.key()) :: Slot.t()
   def subscribe_for_beacon_updates(subset, node_public_key) do
     Logger.debug("Added Node Public key as subscriber for subset in Subset ")
     GenServer.call(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})

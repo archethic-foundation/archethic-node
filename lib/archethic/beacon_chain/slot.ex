@@ -323,25 +323,26 @@ defmodule ArchEthic.BeaconChain.Slot do
     {network_stats, rest} = deserialize_network_stats(rest, p2p_view_size, [])
     <<involved_nodes_size::8, rest2::bitstring>> = rest
 
-    IO.inspect involved_nodes_size
-    IO.inspect rest2
-      if involved_nodes_size == 100  do
-       IO.inspect( {
-          %__MODULE__{
-            subset: <<subset>>,
-            slot_time: DateTime.from_unix!(slot_timestamp),
-            transaction_summaries: tx_summaries,
-            end_of_node_synchronizations: end_of_node_synchronizations,
-            p2p_view: %{
-              availabilities: availabilities,
-              network_stats: network_stats
-            },
-            # involved_nodes: involved_nodes
-          },
-          rest
-        }
-       )
-      end
+    IO.inspect(involved_nodes_size)
+    IO.inspect(rest2)
+
+    if involved_nodes_size == 100 do
+      IO.inspect({
+        %__MODULE__{
+          subset: <<subset>>,
+          slot_time: DateTime.from_unix!(slot_timestamp),
+          transaction_summaries: tx_summaries,
+          end_of_node_synchronizations: end_of_node_synchronizations,
+          p2p_view: %{
+            availabilities: availabilities,
+            network_stats: network_stats
+          }
+          # involved_nodes: involved_nodes
+        },
+        rest
+      })
+    end
+
     <<involved_nodes_size::8, involved_nodes::bitstring-size(involved_nodes_size),
       rest::bitstring>> = rest
 
@@ -358,7 +359,8 @@ defmodule ArchEthic.BeaconChain.Slot do
         involved_nodes: involved_nodes
       },
       rest
-    }|> IO.inspect()
+    }
+    |> IO.inspect()
   end
 
   defp deserialize_tx_summaries(rest, 0, _acc), do: {[], rest}
