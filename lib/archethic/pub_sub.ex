@@ -180,7 +180,7 @@ defmodule ArchEthic.PubSub do
   """
   @spec register_to_next_epoch_of_slot_time :: {:ok, pid()}
   def register_to_next_epoch_of_slot_time do
-    Registry.register(PubSubRegistry, :next_epoch_of_slot_time, [])
+    Registry.register(PubSubRegistry, :next_epoch_of_slot_timer, [])
   end
 
   @doc """
@@ -188,7 +188,7 @@ defmodule ArchEthic.PubSub do
   """
   @spec register_to_current_epoch_of_slot_time :: {:ok, pid()}
   def register_to_current_epoch_of_slot_time do
-    Registry.register(PubSubRegistry, :current_epoch_of_slot_time, [])
+    Registry.register(PubSubRegistry, :current_epoch_of_slot_timer, [])
   end
 
   @doc """

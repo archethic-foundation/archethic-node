@@ -95,7 +95,7 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
     :ets.insert(:archethic_slot_timer, {:interval, interval})
 
     PubSub.register_to_node_update()
-    schedule_next_epoch_time(interval)
+
     {:ok, %{interval: interval}}
   end
 
@@ -140,22 +140,10 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
 
     Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
+    PubSub.notify_next_epoch_of_slot_timer(next_slot(slot_time))
+
     Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
 
-    {:noreply, Map.put(state, :timer, timer), :hibernate}
-  end
-
-  def handle_info(
-        :next_epoch_time,
-        state = %{
-          interval: interval
-        }
-      ) do
-    timer = schedule_next_epoch_time(interval)
-
-    current_time = DateTime.utc_now() |> Utils.truncate_datetime()
-
-    PubSub.notify_next_epoch_of_slot_timer(next_slot(current_time))
     {:noreply, Map.put(state, :timer, timer), :hibernate}
   end
 
@@ -186,10 +174,6 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
 
   defp schedule_new_slot(interval) do
     Process.send_after(self(), :new_slot, Utils.time_offset(interval) * 1000)
-  end
-
-  defp schedule_next_epoch_time(interval) do
-    Process.send_after(self(), :next_epoch_time, Utils.time_offset(interval) * 1000)
   end
 
   defp cancel_timer(nil), do: :ok

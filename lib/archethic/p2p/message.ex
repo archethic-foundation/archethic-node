@@ -1185,14 +1185,12 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
-    Logger.debug("Processing recevied Register Beacon Update msg ")
     current_slot = BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
     %Slot{transaction_summaries: transaction_summaries} = current_slot
     transaction_summaries
   end
 
   def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do
-    Logger.debug("Processing recevied  Beacon Update msg ")
     :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
 

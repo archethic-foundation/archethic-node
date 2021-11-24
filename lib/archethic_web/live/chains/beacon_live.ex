@@ -34,8 +34,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       max_concurrency: 256
     )
     |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-    |> Stream.flat_map(fn {:ok,
-                           {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
+    |> Enum.flat_map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
       transaction_summaries
     end)
   end
@@ -49,8 +48,9 @@ defmodule ArchEthicWeb.BeaconChainLive do
       PubSub.register_to_next_summary_time()
       # register for client to able to get the current added transaction to the beacon pool
       PubSub.register_to_added_new_transaction_summary()
-
-      register_to_beacon_pool_updates()
+      PubSub.register_to_next_epoch_of_slot_time()
+      PubSub.register_to_current_epoch_of_slot_time()
+      # register_to_beacon_pool_updates(DateTime.utc_now())
     end
 
     beacon_dates =
@@ -129,20 +129,20 @@ defmodule ArchEthicWeb.BeaconChainLive do
       socket
       |> assign(:update_time, DateTime.utc_now())
 
-    if page == 1 do
+    if page == 1 and !Enum.member?(transactions, tx_summary) do
       # Only update the transaction listed when you are on the first page
       new_assign =
         case Map.get(assigns, :summary_passed?) do
           true ->
             new_assign
-            |> assign(:transactions, [tx_summary | transactions |> Enum.to_list()])
+            |> assign(:transactions, [tx_summary | transactions])
             |> assign(:summary_passed?, false)
 
           _ ->
             update(
               new_assign,
               :transactions,
-              &[tx_summary | &1 |> Enum.to_list()]
+              &[tx_summary | &1]
             )
         end
 
@@ -184,6 +184,20 @@ defmodule ArchEthicWeb.BeaconChainLive do
     {:noreply, new_assign}
   end
 
+  def handle_info({:next_epoch_of_slot_timer, date}, socket) do
+    date
+    |> register_to_beacon_pool_updates()
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:current_epoch_of_slot_timer, date}, socket) do
+    date
+    |> register_to_beacon_pool_updates()
+
+    {:noreply, socket}
+  end
+
   defp get_beacon_dates do
     %Node{enrollment_date: enrollment_date} =
       P2P.list_nodes() |> Enum.sort_by(& &1.enrollment_date, {:asc, DateTime}) |> Enum.at(0)
@@ -193,9 +207,9 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  def register_to_beacon_pool_updates do
-    date = BeaconChain.next_summary_date(DateTime.utc_now())
-
+  def register_to_beacon_pool_updates(
+        date = %DateTime{} \\ BeaconChain.next_summary_date(DateTime.utc_now())
+      ) do
     Enum.each(BeaconChain.list_subsets(), fn subset ->
       list_of_nodes_for_this_subset =
         Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
