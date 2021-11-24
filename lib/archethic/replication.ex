@@ -218,18 +218,19 @@ defmodule ArchEthic.Replication do
          tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
          self_repair?
        ) do
-    prev_address = Transaction.previous_address(tx)
-
     if Transaction.network_type?(type) do
-      do_fetch_context_for_network_transaction(prev_address, timestamp, self_repair?)
+      do_fetch_context_for_network_transaction(tx, timestamp, self_repair?)
     else
-      fetch_context_for_regular_transaction(prev_address, timestamp, self_repair?)
+      fetch_context_for_regular_transaction(tx, timestamp, self_repair?)
     end
   end
 
-  defp do_fetch_context_for_network_transaction(previous_address, timestamp, self_repair?) do
-    Logger.debug("Try to fetch network previous transaction locally",
-      transaction_address: Base.encode16(previous_address)
+  defp do_fetch_context_for_network_transaction(tx, timestamp, self_repair?) do
+    previous_address = Transaction.previous_address(tx)
+
+    Logger.debug(
+      "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) locally",
+      transaction_address: Base.encode16(tx.address)
     )
 
     previous_chain = TransactionChain.get(previous_address)
@@ -239,8 +240,8 @@ defmodule ArchEthic.Replication do
     previous_chain =
       if Enum.empty?(previous_chain) do
         Logger.debug(
-          "Try to fetch network previous transaction from remote nodes (possibility of an orphan state)",
-          transaction_address: Base.encode16(previous_address)
+          "Try to fetch network transaction chain (previous address: #{Base.encode16(previous_address)}) from remote nodes (possibility of an orphan state)",
+          transaction_address: Base.encode16(tx.address)
         )
 
         TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
@@ -248,38 +249,49 @@ defmodule ArchEthic.Replication do
         previous_chain
       end
 
-    inputs_unspent_outputs =
-      fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
+    inputs_unspent_outputs = fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
 
     {previous_chain, inputs_unspent_outputs}
   end
 
-  defp fetch_context_for_regular_transaction(previous_address, timestamp, self_repair?) do
-    Logger.debug("Fetch regular previous transaction",
-      transaction_address: Base.encode16(previous_address)
-    )
+  defp fetch_context_for_regular_transaction(tx, timestamp, self_repair?) do
+    previous_address = Transaction.previous_address(tx)
 
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
       Task.yield_many([
         Task.async(fn ->
+          Logger.debug(
+            "Fetch transaction chain (previous address: #{Base.encode16(previous_address)})",
+            transaction_address: Base.encode16(tx.address)
+          )
+
           TransactionContext.fetch_transaction_chain(previous_address, timestamp)
         end),
         Task.async(fn ->
-          fetch_inputs_unspent_outputs(previous_address, timestamp, self_repair?)
+          fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
         end)
       ])
 
     {previous_chain, inputs_unspent_outputs}
   end
 
-  defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = true) do
-    Logger.debug("Fetch transaction inputs", transaction_address: Base.encode16(previous_address))
+  defp fetch_inputs_unspent_outputs(tx, timestamp, _self_repair = true) do
+    previous_address = Transaction.previous_address(tx)
+
+    Logger.debug(
+      "Fetch inputs from previous transaction (#{Base.encode16(previous_address)})",
+      transaction_address: Base.encode16(tx.address)
+    )
+
     TransactionContext.fetch_transaction_inputs(previous_address, timestamp)
   end
 
-  defp fetch_inputs_unspent_outputs(previous_address, timestamp, _self_repair = false) do
-    Logger.debug("Fetch transaction unspent outputs",
-      transaction_address: Base.encode16(previous_address)
+  defp fetch_inputs_unspent_outputs(tx, timestamp, _self_repair = false) do
+    previous_address = Transaction.previous_address(tx)
+
+    Logger.debug(
+      "Fetch unspent outputs from previous transaction (#{Base.encode16(previous_address)})",
+      transaction_address: Base.encode16(tx.address)
     )
 
     TransactionContext.fetch_unspent_outputs(previous_address, timestamp)
