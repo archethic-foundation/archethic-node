@@ -19,6 +19,7 @@ defmodule ArchEthic.Mining do
 
   alias ArchEthic.Replication
 
+  alias ArchEthic.SelfRepair
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain.Transaction
@@ -64,7 +65,22 @@ defmodule ArchEthic.Mining do
         timestamp = %DateTime{}
       )
       when is_binary(sorting_seed) do
-    node_list = P2P.authorized_nodes(timestamp)
+    node_list =
+      if Transaction.network_type?(type) do
+        last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(timestamp)
+
+        # Get the authorized nodes which were authorize before the previous self repair date
+        case P2P.authorized_nodes(last_self_repair_date) do
+          # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
+          [] ->
+            P2P.authorized_nodes()
+
+          authorized_nodes ->
+            authorized_nodes
+        end
+      else
+        P2P.authorized_nodes(timestamp)
+      end
 
     storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
 
