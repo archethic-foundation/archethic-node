@@ -24,11 +24,17 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       network_patch: "AAA"
     })
 
+    on_exit(fn ->
+      Application.put_env(:archethic, ArchEthic.Mining.PendingTransactionValidation,
+        allowed_node_key_origins: []
+      )
+    end)
+
     :ok
   end
 
   describe "validate_pending_transaction/1" do
-    test "should :ok when a node transaction data content contains node endpoint information" do
+    test "should return :ok when a node transaction data content contains node endpoint information" do
       {public_key, _} = Crypto.derive_keypair("seed", 0)
       certificate = Crypto.get_key_certificate(public_key)
 
@@ -37,15 +43,42 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
           :node,
           %TransactionData{
             content:
-              <<127, 0, 0, 1, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115,
-                128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64,
-                157, 137, byte_size(certificate)::16, certificate::binary>>
+              <<80, 20, 10, 200, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
+                115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31,
+                64, 157, 137, byte_size(certificate)::16, certificate::binary>>
           },
           "seed",
           0
         )
 
       assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return an error when a node transaction public key used on non allowed origin" do
+      Application.put_env(:archethic, ArchEthic.Mining.PendingTransactionValidation,
+        allowed_node_key_origins: [:tpm]
+      )
+
+      {public_key, private_key} = Crypto.derive_keypair("seed", 0)
+      {next_public_key, _} = Crypto.derive_keypair("seed", 1)
+      certificate = Crypto.get_key_certificate(public_key)
+
+      tx =
+        Transaction.new_with_keys(
+          :node,
+          %TransactionData{
+            content:
+              <<80, 20, 100, 50, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
+                115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31,
+                64, 157, 137, byte_size(certificate)::16, certificate::binary>>
+          },
+          private_key,
+          public_key,
+          next_public_key
+        )
+
+      assert {:error, "Invalid node transaction with invalid key / certificate"} =
+               PendingTransactionValidation.validate(tx)
     end
 
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do

@@ -42,8 +42,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
 
     P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
+      ip: {80, 10, 20, 102},
+      port: 3001,
       first_public_key: Crypto.first_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
@@ -58,8 +58,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
     {pub, _} = Crypto.generate_deterministic_keypair("seed")
 
     P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
+      ip: {80, 10, 20, 102},
+      port: 3002,
       first_public_key: pub,
       last_public_key: pub,
       authorized?: true,
@@ -76,7 +76,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
     tx =
       Transaction.new(:node, %TransactionData{
         content:
-          <<127, 0, 0, 1, 3000::16, 1, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80,
+          <<80, 10, 20, 102, 3000::16, 1, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80,
             12, 236, 69, 10, 209, 6, 234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132,
             186, byte_size(certificate)::16, certificate::binary>>
       })
@@ -158,7 +158,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         )
 
       welcome_node = %Node{
-        ip: {127, 0, 0, 1},
+        ip: {80, 10, 20, 102},
         port: 3005,
         first_public_key: "key1",
         last_public_key: "key1",
@@ -188,8 +188,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
     test "should aggregate context and wait enough confirmed validation nodes context building",
          %{tx: tx, sorting_seed: sorting_seed} do
       P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+        ip: {80, 10, 20, 102},
+        port: 3006,
         last_public_key: "other_validator_key",
         first_public_key: "other_validator_key",
         authorized?: true,
@@ -202,8 +202,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       })
 
       P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+        ip: {80, 10, 20, 102},
+        port: 3007,
         last_public_key: "other_validator_key2",
         first_public_key: "other_validator_key2",
         authorized?: true,
@@ -240,7 +240,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       end)
 
       welcome_node = %Node{
-        ip: {127, 0, 0, 1},
+        ip: {80, 10, 20, 102},
         port: 3005,
         first_public_key: "key1",
         last_public_key: "key1",
@@ -257,8 +257,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       previous_storage_nodes = [
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
+          ip: {80, 10, 20, 102},
+          port: 3006,
           first_public_key: "key10",
           last_public_key: "key10",
           authorized?: true,
@@ -267,8 +267,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           network_patch: "AAA"
         },
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3002,
+          ip: {80, 10, 20, 102},
+          port: 3007,
           first_public_key: "key23",
           last_public_key: "key23",
           authorized?: true,
@@ -333,7 +333,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       end)
 
       welcome_node = %Node{
-        ip: {127, 0, 0, 1},
+        ip: {80, 10, 20, 102},
         port: 3005,
         first_public_key: "key1",
         last_public_key: "key1",
@@ -352,8 +352,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       previous_storage_nodes = [
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
+          ip: {80, 10, 20, 102},
+          port: 3006,
           first_public_key: "key10",
           last_public_key: "key10",
           reward_address: :crypto.strong_rand_bytes(32),
@@ -363,8 +363,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           network_patch: "AAA"
         },
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3002,
+          ip: {80, 10, 20, 102},
+          port: 3007,
           first_public_key: "key23",
           last_public_key: "key23",
           reward_address: :crypto.strong_rand_bytes(32),
@@ -410,8 +410,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       {pub, _} = Crypto.generate_deterministic_keypair("seed3")
 
       P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+        ip: {80, 10, 20, 102},
+        port: 3008,
         last_public_key: pub,
         first_public_key: pub,
         authorized?: true,
@@ -458,7 +458,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       end)
 
       welcome_node = %Node{
-        ip: {127, 0, 0, 1},
+        ip: {80, 10, 20, 102},
         port: 3005,
         first_public_key: "key1",
         last_public_key: "key1",
@@ -485,8 +485,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       previous_storage_nodes = [
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
+          ip: {80, 10, 20, 102},
+          port: 3006,
           first_public_key: "key10",
           last_public_key: "key10",
           reward_address: :crypto.strong_rand_bytes(32),
@@ -496,8 +496,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           network_patch: "AAA"
         },
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3002,
+          ip: {80, 10, 20, 102},
+          port: 3007,
           first_public_key: "key23",
           last_public_key: "key23",
           reward_address: :crypto.strong_rand_bytes(32),
@@ -639,8 +639,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       end)
 
       P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+        ip: {80, 10, 20, 102},
+        port: 3006,
         last_public_key: "key10",
         first_public_key: "key10",
         network_patch: "AAA",
@@ -653,8 +653,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       })
 
       P2P.add_and_connect_node(%Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
+        ip: {80, 10, 20, 102},
+        port: 3007,
         last_public_key: "key23",
         first_public_key: "key23",
         network_patch: "AAA",
@@ -667,7 +667,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       })
 
       welcome_node = %Node{
-        ip: {127, 0, 0, 1},
+        ip: {80, 10, 20, 102},
         port: 3005,
         first_public_key: "key1",
         last_public_key: "key1",
@@ -694,8 +694,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
       previous_storage_nodes = [
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3000,
+          ip: {80, 10, 20, 102},
+          port: 3007,
           first_public_key: "key10",
           last_public_key: "key10",
           reward_address: :crypto.strong_rand_bytes(32),
@@ -703,8 +703,8 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           authorization_date: DateTime.utc_now()
         },
         %Node{
-          ip: {127, 0, 0, 1},
-          port: 3002,
+          ip: {80, 10, 20, 102},
+          port: 3008,
           first_public_key: "key23",
           last_public_key: "key23",
           reward_address: :crypto.strong_rand_bytes(32),

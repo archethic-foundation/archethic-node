@@ -8,7 +8,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
   alias ArchEthic.Governance
   alias ArchEthic.Governance.Code.Proposal, as: CodeProposal
-
+  alias ArchEthic.Networking
   alias ArchEthic.OracleChain
 
   alias ArchEthic.P2P
@@ -114,21 +114,24 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with {:ok, _, _, _, _, key_certificate} <- Node.decode_transaction_content(content),
+    with {:ok, ip, port, _, _, key_certificate} <- Node.decode_transaction_content(content),
+         true <-
+           Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins()),
          root_ca_public_key <- Crypto.get_root_ca_public_key(previous_public_key),
          true <-
            Crypto.verify_key_certificate?(
              previous_public_key,
              key_certificate,
              root_ca_public_key
-           ) do
+           ),
+         true <- valid_connection?(ip, port, previous_public_key) do
       :ok
     else
       :error ->
         {:error, "Invalid node transaction's content"}
 
       false ->
-        {:error, "Invalid node transaction with invalid key certificate"}
+        {:error, "Invalid node transaction with invalid key / certificate"}
     end
   end
 
@@ -244,6 +247,12 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(_), do: :ok
 
+  defp get_allowed_node_key_origins do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:allowed_node_key_origins, [])
+  end
+
   defp get_first_public_key(tx = %Transaction{previous_public_key: previous_public_key}) do
     previous_address = Transaction.previous_address(tx)
 
@@ -259,5 +268,25 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       _ ->
         previous_public_key
     end
+  end
+
+  defp valid_connection?(ip, port, previous_public_key) do
+    if should_validate_connection?() do
+      with true <- Networking.valid_ip?(ip),
+           false <- P2P.duplicating_node?(ip, port, previous_public_key) do
+        true
+      else
+        _ ->
+          false
+      end
+    else
+      true
+    end
+  end
+
+  defp should_validate_connection? do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:validate_connection, false)
   end
 end

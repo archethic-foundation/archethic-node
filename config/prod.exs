@@ -125,6 +125,12 @@ config :archethic, ArchEthic.Governance.Pools,
     uniris: []
   ]
 
+config :archethic, ArchEthic.Mining.PendingTransactionValidation,
+  allowed_node_key_origins:
+    System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm")
+    |> String.split(";", trim: true)
+    |> Enum.map(&String.to_existing_atom/1)
+
 config :archethic,
        ArchEthic.Networking.IPLookup,
        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
@@ -188,6 +194,8 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
+
+config :archethic, ArchEthic.Mining.PendingTransactionValidation, validate_connection: true
 
 config :archethic, ArchEthicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"

@@ -99,6 +99,8 @@ config :archethic, ArchEthic.P2P.Transport, MockTransport
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds, enabled: false
 
+config :archethic, ArchEthic.Mining.PendingTransactionValidation, validate_connection: true
+
 config :archethic, ArchEthic.Reward.NetworkPoolScheduler, enabled: false
 config :archethic, ArchEthic.Reward.WithdrawScheduler, enabled: false
 

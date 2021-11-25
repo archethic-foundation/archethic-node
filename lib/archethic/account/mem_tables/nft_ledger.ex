@@ -85,6 +85,12 @@ defmodule ArchEthic.Account.MemTables.NFTLedger do
       )
 
     true = :ets.insert(@unspent_output_index_table, {to_address, from_address, nft_address})
+
+    Logger.info(
+      "#{amount} unspent NFT (#{Base.encode16(nft_address)}) added for #{Base.encode16(to_address)}",
+      transaction_address: Base.encode16(from_address)
+    )
+
     :ok
   end
 
