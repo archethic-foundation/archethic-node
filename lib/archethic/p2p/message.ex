@@ -19,6 +19,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.AcknowledgeStorage
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
+  alias __MODULE__.BeaconSummaryList
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
@@ -26,6 +27,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.Error
   alias __MODULE__.FirstPublicKey
   alias __MODULE__.GetBalance
+  alias __MODULE__.GetBeaconSummaries
   alias __MODULE__.GetBeaconSummary
   alias __MODULE__.GetBootstrappingNodes
   alias __MODULE__.GetFirstPublicKey
@@ -104,6 +106,7 @@ defmodule ArchEthic.P2P.Message do
           | Ping.t()
           | GetBeaconSummary.t()
           | NewBeaconTransaction.t()
+          | GetBeaconSummaries.t()
 
   @type response ::
           Ok.t()
@@ -124,6 +127,7 @@ defmodule ArchEthic.P2P.Message do
           | TransactionInputList.t()
           | Error.t()
           | Summary.t()
+          | BeaconSummaryList.t()
 
   @doc """
   Extract the Message Struct name
@@ -318,6 +322,18 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(%NewBeaconTransaction{transaction: tx}),
     do: <<26::8, Transaction.serialize(tx)::bitstring>>
+
+  def encode(%GetBeaconSummaries{addresses: addresses}),
+    do: <<27::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
+
+  def encode(%BeaconSummaryList{summaries: summaries}) do
+    summaries_bin =
+      Stream.map(summaries, &Summary.serialize/1)
+      |> Enum.to_list()
+      |> :erlang.list_to_bitstring()
+
+    <<237::8, Enum.count(summaries)::32, summaries_bin::bitstring>>
+  end
 
   def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
@@ -694,6 +710,24 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
+  def decode(<<27::8, nb_addresses::32, rest::bitstring>>) do
+    {addresses, rest} = deserialize_hashes(rest, nb_addresses, [])
+
+    {
+      %GetBeaconSummaries{addresses: addresses},
+      rest
+    }
+  end
+
+  def decode(<<237::8, nb_summaries::32, rest::bitstring>>) do
+    {summaries, rest} = deserialize_summaries(rest, nb_summaries, [])
+
+    {
+      %BeaconSummaryList{summaries: summaries},
+      rest
+    }
+  end
+
   def decode(<<238::8, reason::8, rest::bitstring>>) do
     {%Error{reason: Error.deserialize_reason(reason)}, rest}
   end
@@ -842,6 +876,17 @@ defmodule ArchEthic.P2P.Message do
     {<<hash_id::8, hash::binary>>, rest}
   end
 
+  defp deserialize_hashes(rest, 0, _), do: {[], rest}
+
+  defp deserialize_hashes(rest, nb_hashes, acc) when length(acc) == nb_hashes do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_hashes(rest, nb_hashes, acc) do
+    {hash, rest} = deserialize_hash(rest)
+    deserialize_hashes(rest, nb_hashes, [hash | acc])
+  end
+
   defp deserialize_public_key(<<curve_id::8, origin_id::8, rest::bitstring>>) do
     key_size = Crypto.key_size(curve_id)
     <<public_key::binary-size(key_size), rest::bitstring>> = rest
@@ -878,6 +923,16 @@ defmodule ArchEthic.P2P.Message do
   defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
     {nft_address, <<amount::float, rest::bitstring>>} = deserialize_hash(rest)
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
+  end
+
+  defp deserialize_summaries(rest, 0, _), do: {[], rest}
+
+  defp deserialize_summaries(rest, nb_summaries, acc) when nb_summaries == length(acc),
+    do: {Enum.reverse(acc), rest}
+
+  defp deserialize_summaries(rest, nb_summaries, acc) do
+    {summary, rest} = Summary.deserialize(rest)
+    deserialize_summaries(rest, nb_summaries, [summary | acc])
   end
 
   @doc """
@@ -1165,5 +1220,11 @@ defmodule ArchEthic.P2P.Message do
       :error ->
         %Error{reason: :invalid_transaction}
     end
+  end
+
+  def process(%GetBeaconSummaries{addresses: addresses}) do
+    %BeaconSummaryList{
+      summaries: BeaconChain.get_beacon_summaries(addresses)
+    }
   end
 end

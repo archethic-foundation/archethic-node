@@ -9,10 +9,13 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetBeaconSummary
+  alias ArchEthic.P2P.Message.BeaconSummaryList
+  alias ArchEthic.P2P.Message.GetBeaconSummaries
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.TransactionInputList
+  alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionFactory
@@ -155,72 +158,31 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummary{address: _address}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data, ref, summary})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+        _, %GetBeaconSummaries{addresses: _}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary]}}
 
         _, %GetTransaction{address: address}, _ ->
-          ref = make_ref()
+          if address == tx.address do
+            {:ok, tx}
+          else
+            tx_content =
+              summary
+              |> BeaconSummary.serialize()
+              |> Utils.wrap_binary()
 
-          tx =
-            if address == tx.address do
-              tx
-            else
-              tx_content =
-                summary
-                |> BeaconSummary.serialize()
-                |> Utils.wrap_binary()
-
-              %Transaction{
-                address: address,
-                type: :beacon_summary,
-                data: %TransactionData{content: tx_content}
-              }
-            end
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data, ref, tx})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+            {:ok,
+             %Transaction{
+               address: address,
+               type: :beacon_summary,
+               data: %TransactionData{content: tx_content}
+             }}
+          end
 
         _, %GetTransactionInputs{}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            Enum.each(inputs, &send(me, {:data, ref, &1}))
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionInputList{inputs: inputs}}
 
         _, %GetTransactionChain{}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionList{transactions: []}}
       end)
 
       MockDB
@@ -232,7 +194,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
                  "AAA"
                )
 
-      assert_receive :storage
+      assert_receive :storage, 5_000
     end
   end
 end
