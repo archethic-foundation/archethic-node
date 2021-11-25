@@ -7,6 +7,9 @@ defmodule ArchEthic.SelfRepair do
   alias __MODULE__.Scheduler
   alias __MODULE__.Sync
 
+  alias Crontab.CronExpression.Parser, as: CronParser
+  alias Crontab.Scheduler, as: CronScheduler
+
   @doc """
   Start the self repair synchronization scheduler
   """
@@ -38,5 +41,16 @@ defmodule ArchEthic.SelfRepair do
     changed_conf
     |> Keyword.get(Scheduler)
     |> Scheduler.config_change()
+  end
+
+  @doc """
+  Return the previous scheduler time from a given date
+  """
+  @spec get_previous_scheduler_repair_time(DateTime.t()) :: DateTime.t()
+  def get_previous_scheduler_repair_time(date_from = %DateTime{}) do
+    Scheduler.get_interval()
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 end

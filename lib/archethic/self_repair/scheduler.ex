@@ -70,6 +70,10 @@ defmodule ArchEthic.SelfRepair.Scheduler do
     {:reply, :ok, new_state}
   end
 
+  def handle_call(:get_interval, _, state = %{interval: interval}) do
+    {:reply, interval, state}
+  end
+
   def handle_info(
         :sync,
         state = %{
@@ -132,5 +136,13 @@ defmodule ArchEthic.SelfRepair.Scheduler do
 
   def config_change(new_conf) do
     GenServer.cast(__MODULE__, {:new_conf, new_conf})
+  end
+
+  @doc """
+  Retrieve the self repair interval
+  """
+  @spec get_interval() :: binary()
+  def get_interval do
+    GenServer.call(__MODULE__, :get_interval)
   end
 end
