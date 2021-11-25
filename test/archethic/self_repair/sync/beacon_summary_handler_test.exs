@@ -284,11 +284,11 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     ]
 
     summary_pools = [
-      {"A", [{~U[2021-01-22 16:12:58Z], [node1, node2]}]},
-      {"B", [{~U[2021-01-22 16:12:58Z], [node1, node2]}]},
-      {"D", [{~U[2021-01-22 16:12:58Z], [node1]}]},
-      {"E", [{~U[2021-01-22 16:12:58Z], [node2, node1]}]},
-      {"F", [{~U[2021-01-22 16:12:58Z], [node2]}]}
+      {~U[2021-01-22 16:12:58Z], "A", [node1, node2]},
+      {~U[2021-01-22 16:12:58Z], "B", [node1, node2]},
+      {~U[2021-01-22 16:12:58Z], "D", [node1]},
+      {~U[2021-01-22 16:12:58Z], "E", [node2, node1]},
+      {~U[2021-01-22 16:12:58Z], "F", [node2]}
     ]
 
     transaction_addresses =

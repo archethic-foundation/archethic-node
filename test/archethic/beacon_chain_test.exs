@@ -8,7 +8,6 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.SubsetRegistry
-  alias ArchEthic.BeaconChain.SummaryTimer
 
   alias ArchEthic.Crypto
 
@@ -35,16 +34,12 @@ defmodule ArchEthic.BeaconChainTest do
   end
 
   describe "get_summary_pools/2" do
-    setup do
-      start_supervised!({SummaryTimer, interval: "0 0 0 * * *"})
-      :ok
-    end
-
     test "with 1 day off" do
       date_ref = DateTime.utc_now() |> DateTime.add(-86_400)
+      dates = [date_ref]
 
       pools =
-        BeaconChain.get_summary_pools(date_ref, [
+        BeaconChain.get_summary_pools(dates, [
           %Node{
             ip: {127, 0, 0, 1},
             port: 3000,
@@ -53,7 +48,7 @@ defmodule ArchEthic.BeaconChainTest do
             geo_patch: "AAA",
             available?: true,
             authorized?: true,
-            authorization_date: date_ref
+            authorization_date: date_ref |> DateTime.add(-86_400)
           },
           %Node{
             ip: {127, 0, 0, 1},
@@ -63,21 +58,23 @@ defmodule ArchEthic.BeaconChainTest do
             geo_patch: "AAA",
             available?: true,
             authorized?: true,
-            authorization_date: date_ref
+            authorization_date: date_ref |> DateTime.add(-86_400)
           }
         ])
 
-      assert Enum.all?(pools, fn {_, nodes_by_summary} ->
-               assert length(nodes_by_summary) == 1
-               assert Enum.all?(nodes_by_summary, &(tuple_size(&1) == 2))
+      assert Enum.all?(pools, fn {_, _, nodes} ->
+               assert length(nodes) == 2
              end)
     end
 
     test "with 10 days off" do
-      date_ref = DateTime.utc_now() |> DateTime.add(-86_400 * 10)
+      dates =
+        Enum.map(1..10, fn i ->
+          DateTime.utc_now() |> DateTime.add(86_400 * i)
+        end)
 
       pools =
-        BeaconChain.get_summary_pools(date_ref, [
+        BeaconChain.get_summary_pools(dates, [
           %Node{
             ip: {127, 0, 0, 1},
             port: 3000,
@@ -86,7 +83,7 @@ defmodule ArchEthic.BeaconChainTest do
             geo_patch: "AAA",
             available?: true,
             authorized?: true,
-            authorization_date: date_ref
+            authorization_date: List.first(dates) |> DateTime.add(-86_400)
           },
           %Node{
             ip: {127, 0, 0, 1},
@@ -96,14 +93,12 @@ defmodule ArchEthic.BeaconChainTest do
             geo_patch: "AAA",
             available?: true,
             authorized?: true,
-            authorization_date: date_ref
+            authorization_date: List.first(dates) |> DateTime.add(-86_400)
           }
         ])
 
-      assert Enum.all?(pools, fn {_, nodes_by_summary} ->
-               assert length(nodes_by_summary) == 10
-               assert Enum.all?(nodes_by_summary, &(tuple_size(&1) == 2))
-             end)
+      assert Enum.count(pools) == 10 * 256
+      assert Enum.all?(pools, fn {_, _, nodes} -> length(nodes) == 2 end)
     end
   end
 

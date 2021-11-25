@@ -24,10 +24,6 @@ defmodule ArchEthicWeb.LayoutHelpers do
     Sizeable.filesize(nb_bytes)
   end
 
-  def format_seconds(seconds) do
-    HumanizeTime.format_seconds(seconds)
-  end
-
   def to_float(number) when is_number(number) do
     :erlang.float_to_binary(number / 100_000_000, [:compact, decimals: 8])
   end

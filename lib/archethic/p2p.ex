@@ -538,4 +538,26 @@ defmodule ArchEthic.P2P do
         do_reply_atomic(rest, message, compare_fun)
     end
   end
+
+  @doc """
+  Check for possible duplicate nodes (IP spoofing).
+
+  Returns true if matching node {ip,port} has a different first public key.
+  """
+  @spec duplicating_node?(
+          :inet.ip_address(),
+          :inet.port_number(),
+          ArchEthic.Crypto.key(),
+          list(Node.t())
+        ) ::
+          boolean()
+  def duplicating_node?(tx_ip, tx_port, prev_public_key, nodes \\ list_nodes()) do
+    case Enum.find(nodes, &(&1.ip == tx_ip and &1.port == tx_port)) do
+      nil ->
+        false
+
+      %Node{first_public_key: first_public_key} ->
+        TransactionChain.get_first_public_key(prev_public_key) != first_public_key
+    end
+  end
 end

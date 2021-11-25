@@ -33,7 +33,6 @@ defmodule ArchEthic.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:flow, "~> 1.0"},
       {:mint, "~> 1.0"},
       {:benchee, "~> 1.0"},
       {:xandra, "~> 0.11"},
@@ -52,15 +51,13 @@ defmodule ArchEthic.MixProject do
       {:observer_cli, "~> 1.5"},
       {:distillery, github: "bitwalker/distillery", ref: "6700edb"},
       {:crontab, "~> 1.1"},
-      {:credo, "~> 1.5", runtime: false},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
-      {:mox, "~> 0.5.2"},
-      {:stream_data, "~> 0.5.0"},
+      {:mox, "~> 0.5.2", only: [:test]},
+      {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
       {:elixir_make, "~> 0.6.0", runtime: false},
-      {:logger_file_backend, "~> 0.0.11"},
       {:earmark, "~> 1.4"},
-      {:humanize_time, "~> 1.0"},
       {:sizeable, "~> 1.0"},
       {:exjsonpath, "~> 0.9.0"},
       {:rand_compat, "~> 0.0.3"},
@@ -69,11 +66,12 @@ defmodule ArchEthic.MixProject do
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_metrics_prometheus_core, "~> 1.0.0"},
       {:telemetry_poller, "~> 0.5.1"},
-      {:poolboy, "~> 1.5.1"},
       {:ecto, "~> 3.5"},
       {:gen_state_machine, "~> 3.0"},
       {:retry, "~> 0.14.1"},
-      {:knigge, "~> 1.4"}
+      {:gen_stage, "~> 1.1"},
+      {:knigge, "~> 1.4"},
+      {:flow, "~> 1.0"}
     ]
   end
 end
