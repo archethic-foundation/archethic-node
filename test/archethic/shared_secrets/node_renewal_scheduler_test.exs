@@ -12,11 +12,14 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalSchedulerTest do
   alias ArchEthic.P2P.Message.StartMining
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.SelfRepair.Scheduler, as: SelfRepairScheduler
+
   alias ArchEthic.SharedSecrets.NodeRenewalScheduler, as: Scheduler
 
   import Mox
 
   setup do
+    SelfRepairScheduler.start_link(interval: "0 0 0 * *")
     start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
     :ok

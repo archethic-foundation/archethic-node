@@ -16,7 +16,6 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
   """
 
   alias Crontab.CronExpression.Parser, as: CronParser
-  alias Crontab.DateChecker, as: CronDateChecker
   alias Crontab.Scheduler, as: CronScheduler
 
   alias ArchEthic
@@ -147,24 +146,10 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
   """
   @spec next_application_date(DateTime.t()) :: DateTime.t()
   def next_application_date(date_from = %DateTime{}) do
-    if renewal_date?(date_from) do
-      get_application_date_interval()
-      |> CronParser.parse!(true)
-      |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-      |> DateTime.from_naive!("Etc/UTC")
-    else
-      date_from
-    end
-  end
-
-  defp renewal_date?(date) do
-    get_trigger_interval()
+    get_application_date_interval()
     |> CronParser.parse!(true)
-    |> CronDateChecker.matches_date?(DateTime.to_naive(date))
-  end
-
-  defp get_trigger_interval do
-    Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:interval)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
+    |> DateTime.from_naive!("Etc/UTC")
   end
 
   defp get_application_date_interval do

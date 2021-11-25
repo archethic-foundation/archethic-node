@@ -151,6 +151,46 @@ defmodule ArchEthic.TransactionFactory do
     %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
   end
 
+  def create_transaction_with_invalid_proof_of_election(
+        %{
+          coordinator_node: coordinator_node,
+          storage_nodes: storage_nodes
+        },
+        inputs
+      ) do
+    tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
+
+    ledger_operations =
+      %LedgerOperations{
+        fee: Fee.calculate(tx, 0.07)
+      }
+      |> LedgerOperations.distribute_rewards(
+        coordinator_node,
+        [coordinator_node],
+        [coordinator_node] ++ storage_nodes
+      )
+      |> LedgerOperations.consume_inputs(tx.address, inputs)
+
+    validation_stamp =
+      %ValidationStamp{
+        timestamp: DateTime.utc_now(),
+        proof_of_work: Crypto.first_node_public_key(),
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_election: :crypto.strong_rand_bytes(32),
+        ledger_operations: ledger_operations,
+        signature: :crypto.strong_rand_bytes(32)
+      }
+      |> ValidationStamp.sign()
+
+    cross_validation_stamp =
+      CrossValidationStamp.sign(
+        %CrossValidationStamp{},
+        validation_stamp
+      )
+
+    %{tx | validation_stamp: validation_stamp, cross_validation_stamps: [cross_validation_stamp]}
+  end
+
   def create_transaction_with_invalid_validation_stamp_signature(
         %{
           coordinator_node: coordinator_node,

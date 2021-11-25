@@ -15,10 +15,9 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
 
   describe "start_link/1" do
     test "should initialize the node shared secrets to null when not transaction found" do
-      {:ok, pid} = Keystore.start_link()
-
-      assert {:idle, %{daily_nonce_keys: %{}, shared_secrets_index: 0, network_pool_index: 0}} =
-               :sys.get_state(pid)
+      {:ok, _pid} = Keystore.start_link()
+      assert [{_, 0}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
+      assert [{_, 0}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
     end
 
     test "should initialize the node shared secrets index from the stored transactions" do
@@ -43,33 +42,37 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
         ]
       end)
 
-      {:ok, pid} = Keystore.start_link()
+      {:ok, _pid} = Keystore.start_link()
 
       daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
 
-      assert {:authorized,
-              %{
-                daily_nonce_keys: %{^timestamp => ^daily_nonce_keypair},
-                shared_secrets_index: 1,
-                network_pool_index: 1
-              }} = :sys.get_state(pid)
+      unix_timestamp = DateTime.to_unix(timestamp)
+
+      assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
+      assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
+
+      assert [{^unix_timestamp, ^daily_nonce_keypair}] =
+               :ets.tab2list(:archethic_shared_secrets_daily_keys)
     end
   end
 
   test "unwrap_secrets/3 should load encrypted secrets by decrypting them" do
-    {:ok, pid} = Keystore.start_link()
+    {:ok, _pid} = Keystore.start_link()
 
     timestamp = ~U[2021-04-08 06:35:17Z]
 
     {daily_nonce_seed, transaction_seed, network_pool_seed} =
       load_secrets(~U[2021-04-08 06:35:17Z])
 
-    assert {:authorized,
-            %{
-              transaction_seed: ^transaction_seed,
-              network_pool_seed: ^network_pool_seed,
-              daily_nonce_keys: %{^timestamp => {pub, _}}
-            }} = :sys.get_state(pid)
+    unix_timestamp = DateTime.to_unix(timestamp)
+
+    assert [{_, ^transaction_seed}] =
+             :ets.lookup(:archethic_shared_secrets_keystore, :transaction_seed)
+
+    assert [{_, ^network_pool_seed}] =
+             :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_seed)
+
+    assert [{^unix_timestamp, {pub, _}}] = :ets.tab2list(:archethic_shared_secrets_daily_keys)
 
     {expected_pub, _} = Crypto.generate_deterministic_keypair(daily_nonce_seed)
     assert pub == expected_pub

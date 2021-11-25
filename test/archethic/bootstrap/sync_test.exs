@@ -32,7 +32,6 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   doctest Sync
 
@@ -210,41 +209,35 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
-      {:ok, daily_nonce_key} =
-        Agent.start_link(fn ->
-          Application.get_env(:archethic, ArchEthic.Bootstrap.NetworkInit)
-          |> Keyword.fetch!(:genesis_daily_nonce_seed)
-          |> Crypto.generate_deterministic_keypair()
-          |> elem(1)
-        end)
-
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
-      |> stub(:write_transaction_chain, fn
-        [
-          %Transaction{
-            type: :node_shared_secrets,
-            data: %TransactionData{
-              ownerships: [%Ownership{authorized_keys: keys, secret: secret}]
-            }
-          }
-        ] ->
-          encrypted_key = Map.get(keys, Crypto.last_node_public_key())
-          aes_key = Crypto.ec_decrypt_with_last_node_key!(encrypted_key)
-          <<encrypted_daily_nonce_seed::binary-size(60), _::binary>> = secret
-          daily_nonce_seed = Crypto.aes_decrypt!(encrypted_daily_nonce_seed, aes_key)
 
-          Agent.update(daily_nonce_key, fn _ ->
-            daily_nonce_seed |> Crypto.generate_deterministic_keypair() |> elem(1)
-          end)
-
-        _ ->
-          :ok
-      end)
+      {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)
 
       MockCrypto
-      |> stub(:sign_with_daily_nonce_key, fn data, _ ->
-        Crypto.sign(data, Agent.get(daily_nonce_key, & &1))
+      |> stub(:unwrap_secrets, fn encrypted_secrets, encrypted_secret_key, timestamp ->
+        <<enc_daily_nonce_seed::binary-size(60), _enc_transaction_seed::binary-size(60),
+          _enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
+
+        {:ok, aes_key} = Crypto.ec_decrypt_with_last_node_key(encrypted_secret_key)
+        {:ok, daily_nonce_seed} = Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key)
+        daily_nonce_keypair = Crypto.generate_deterministic_keypair(daily_nonce_seed)
+
+        Agent.update(daily_nonce_agent, fn state ->
+          Map.put(state, timestamp, daily_nonce_keypair)
+        end)
+      end)
+      |> stub(:sign_with_daily_nonce_key, fn data, timestamp ->
+        {_pub, pv} =
+          Agent.get(daily_nonce_agent, fn state ->
+            state
+            |> Enum.sort_by(&elem(&1, 0), {:desc, DateTime})
+            |> Enum.filter(&(DateTime.diff(elem(&1, 0), timestamp) <= 0))
+            |> List.first()
+            |> elem(1)
+          end)
+
+        Crypto.sign(data, pv)
       end)
 
       node_tx =

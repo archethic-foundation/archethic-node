@@ -23,6 +23,13 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
                                 :genesis_origin_public_keys
                               ])
 
+  @genesis_daily_nonce_public_key Application.compile_env!(:archethic, [
+                                    NetworkInit,
+                                    :genesis_daily_nonce_seed
+                                  ])
+                                  |> Crypto.generate_deterministic_keypair()
+                                  |> elem(0)
+
   describe "load_transaction/1" do
     test "should load node transaction and first node public key as origin key" do
       first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
@@ -101,18 +108,11 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
 
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      genesis_daily_nonce_public_key =
-        :archethic
-        |> Application.get_env(NetworkInit)
-        |> Keyword.fetch!(:genesis_daily_nonce_seed)
-        |> Crypto.generate_deterministic_keypair()
-        |> elem(0)
-
       assert NetworkLookup.get_daily_nonce_public_key() ==
-               genesis_daily_nonce_public_key
+               @genesis_daily_nonce_public_key
 
       assert NetworkLookup.get_daily_nonce_public_key(DateTime.utc_now()) ==
-               genesis_daily_nonce_public_key
+               @genesis_daily_nonce_public_key
 
       assert NetworkLookup.get_daily_nonce_public_key(
                NodeRenewalScheduler.next_application_date(DateTime.utc_now())
@@ -188,23 +188,13 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
 
       assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
 
-      genesis_daily_nonce_public_key =
-        :archethic
-        |> Application.get_env(NetworkInit)
-        |> Keyword.fetch!(:genesis_daily_nonce_seed)
-        |> Crypto.generate_deterministic_keypair()
-        |> elem(0)
-
       assert NetworkLookup.get_daily_nonce_public_key(DateTime.utc_now()) ==
-               genesis_daily_nonce_public_key
+               @genesis_daily_nonce_public_key
 
-      assert NetworkLookup.get_daily_nonce_public_key(
-               NodeRenewalScheduler.next_application_date(
-                 node_shared_secrets_tx.validation_stamp.timestamp
-               )
-             ) ==
-               <<0, 0, 134, 118, 192, 4, 151, 93, 80, 114, 78, 96, 104, 42, 113, 76, 22, 142, 79,
-                 138, 169, 159, 93, 80, 246, 65, 59, 171, 182, 223, 96, 3, 170, 18>>
+      assert @genesis_daily_nonce_public_key ==
+               DateTime.utc_now()
+               |> NodeRenewalScheduler.next_application_date()
+               |> NetworkLookup.get_daily_nonce_public_key()
     end
   end
 end
