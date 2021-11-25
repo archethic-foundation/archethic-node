@@ -10,11 +10,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetBeaconSummary
+  alias ArchEthic.P2P.Message.BeaconSummaryList
+  alias ArchEthic.P2P.Message.GetBeaconSummaries
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
   alias ArchEthic.P2P.Message.NotFound
+  alias ArchEthic.P2P.Message.TransactionInputList
+  alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
@@ -185,217 +188,91 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       }
     }
 
+    summaries_address_lookup = %{
+      beacon_summary_address_d => Map.get(beacon_summaries, "D"),
+      beacon_summary_address_e => Map.get(beacon_summaries, "E"),
+      beacon_summary_address_f => Map.get(beacon_summaries, "F"),
+      beacon_summary_address_a => Map.get(beacon_summaries, "A"),
+      beacon_summary_address_b => Map.get(beacon_summaries, "B")
+    }
+
     MockClient
     |> stub(:send_message, fn
-      _, %GetBeaconSummary{address: ^beacon_summary_address_d}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-          send(me, {:data, ref, Map.get(beacon_summaries, "D")})
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
-
-      _, %GetBeaconSummary{address: ^beacon_summary_address_e}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-          send(me, {:data, ref, Map.get(beacon_summaries, "E")})
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
-
-      _, %GetBeaconSummary{address: ^beacon_summary_address_f}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-          send(me, {:data, ref, Map.get(beacon_summaries, "F")})
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
-
-      _, %GetBeaconSummary{address: ^beacon_summary_address_a}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-          send(me, {:data, ref, Map.get(beacon_summaries, "A")})
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
-
-      _, %GetBeaconSummary{address: ^beacon_summary_address_b}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-          send(me, {:data, ref, Map.get(beacon_summaries, "B")})
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+      _, %GetBeaconSummaries{addresses: addresses}, _ ->
+        {:ok,
+         %BeaconSummaryList{
+           summaries: Enum.map(addresses, &Map.get(summaries_address_lookup, &1))
+         }}
 
       _, %GetTransaction{address: ^beacon_summary_address_d}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-
-          send(
-            me,
-            {:data, ref,
-             %Transaction{
-               address: beacon_summary_address_d,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   beacon_summaries
-                   |> Map.get("D")
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
-          )
-
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("D")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
 
       _, %GetTransaction{address: ^beacon_summary_address_e}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-
-          send(
-            me,
-            {:data, ref,
-             %Transaction{
-               address: beacon_summary_address_d,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   beacon_summaries
-                   |> Map.get("E")
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
-          )
-
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("E")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
 
       _, %GetTransaction{address: ^beacon_summary_address_f}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-
-          send(
-            me,
-            {:data, ref,
-             %Transaction{
-               address: beacon_summary_address_d,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   beacon_summaries
-                   |> Map.get("F")
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
-          )
-
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("F")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
 
       _, %GetTransaction{address: ^beacon_summary_address_a}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-
-          send(
-            me,
-            {:data, ref,
-             %Transaction{
-               address: beacon_summary_address_d,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   beacon_summaries
-                   |> Map.get("A")
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
-          )
-
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("A")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
 
       _, %GetTransaction{address: ^beacon_summary_address_b}, _ ->
-        ref = make_ref()
-
-        me = self()
-
-        spawn(fn ->
-          send(me, {:data_begin, ref})
-
-          send(
-            me,
-            {:data, ref,
-             %Transaction{
-               address: beacon_summary_address_d,
-               type: :beacon_summary,
-               data: %TransactionData{
-                 content:
-                   beacon_summaries
-                   |> Map.get("B")
-                   |> BeaconSummary.serialize()
-                   |> Utils.wrap_binary()
-               }
-             }}
-          )
-
-          send(me, {:data_end, ref})
-        end)
-
-        {:ok, ref}
+        {:ok,
+         %Transaction{
+           address: beacon_summary_address_d,
+           type: :beacon_summary,
+           data: %TransactionData{
+             content:
+               beacon_summaries
+               |> Map.get("B")
+               |> BeaconSummary.serialize()
+               |> Utils.wrap_binary()
+           }
+         }}
     end)
 
     expected_addresses = [
@@ -507,54 +384,22 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{address: address}, _ ->
-          res =
-            cond do
-              address == transfer_tx.address ->
-                transfer_tx
+          cond do
+            address == transfer_tx.address ->
+              {:ok, transfer_tx}
 
-              address == node_tx.address ->
-                node_tx
+            address == node_tx.address ->
+              {:ok, node_tx}
 
-              true ->
-                %NotFound{}
-            end
-
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data, ref, res})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+            true ->
+              {:ok, %NotFound{}}
+          end
 
         _, %GetTransactionChain{}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionList{}}
 
         _, %GetTransactionInputs{}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            Enum.each(inputs, &send(me, {:data, ref, &1}))
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionInputList{inputs: inputs}}
       end)
 
       summaries = [
@@ -673,54 +518,22 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       MockClient
       |> stub(:send_message, fn
         _, %GetTransaction{address: address}, _ ->
-          res =
-            cond do
-              address == transfer_tx.address ->
-                transfer_tx
+          cond do
+            address == transfer_tx.address ->
+              {:ok, transfer_tx}
 
-              address == node_tx.address ->
-                node_tx
+            address == node_tx.address ->
+              {:ok, node_tx}
 
-              true ->
-                %NotFound{}
-            end
-
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data, ref, res})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+            true ->
+              {:ok, %NotFound{}}
+          end
 
         _, %GetTransactionChain{}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionList{transactions: []}}
 
         _, %GetTransactionInputs{address: _}, _ ->
-          ref = make_ref()
-
-          me = self()
-
-          spawn(fn ->
-            send(me, {:data_begin, ref})
-            Enum.each(inputs, &send(me, {:data, ref, &1}))
-            send(me, {:data_end, ref})
-          end)
-
-          {:ok, ref}
+          {:ok, %TransactionInputList{inputs: inputs}}
       end)
 
       MockDB

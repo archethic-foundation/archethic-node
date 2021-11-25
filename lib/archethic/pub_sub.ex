@@ -51,12 +51,8 @@ defmodule ArchEthic.PubSub do
     )
   end
 
-  def notify_new_tps(tps) when is_float(tps) do
-    dispatch(:new_tps, {:new_tps, tps})
-  end
-
-  def notify_new_transaction_number(nb_transactions) when is_integer(nb_transactions) do
-    dispatch(:new_transaction_number, {:new_transaction_number, nb_transactions})
+  def notify_new_tps(tps, nb_transactions) when is_float(tps) and is_integer(nb_transactions) do
+    dispatch(:new_tps, {:new_tps, tps, nb_transactions})
   end
 
   @doc """
@@ -128,14 +124,6 @@ defmodule ArchEthic.PubSub do
   @spec register_to_new_tps :: {:ok, pid()}
   def register_to_new_tps do
     Registry.register(PubSubRegistry, :new_tps, [])
-  end
-
-  @doc """
-  Register a process to a increment of transaction number
-  """
-  @spec register_to_new_transaction_number :: {:ok, pid()}
-  def register_to_new_transaction_number do
-    Registry.register(PubSubRegistry, :new_transaction_number, [])
   end
 
   @doc """

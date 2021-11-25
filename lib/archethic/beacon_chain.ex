@@ -265,4 +265,15 @@ defmodule ArchEthic.BeaconChain do
   """
   @spec previous_summary_dates(DateTime.t()) :: Enumerable.t()
   defdelegate previous_summary_dates(date), to: SummaryTimer, as: :previous_summaries
+
+  @doc """
+  Return a list of beacon summaries from a list of transaction addresses
+  """
+  @spec get_beacon_summaries(list(binary)) :: Enumerable.t() | list(Summary.t())
+  def get_beacon_summaries(addresses) do
+    addresses
+    |> Stream.map(&get_summary/1)
+    |> Stream.reject(&match?({:error, :not_found}, &1))
+    |> Stream.map(fn {:ok, summary} -> summary end)
+  end
 end

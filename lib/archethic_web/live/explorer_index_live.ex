@@ -16,7 +16,6 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
 
     if connected?(socket) do
       PubSub.register_to_new_tps()
-      PubSub.register_to_new_transaction_number()
     end
 
     new_socket =
@@ -31,12 +30,13 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
     View.render(ExplorerView, "index.html", assigns)
   end
 
-  def handle_info({:new_tps, tps}, socket) do
-    {:noreply, assign(socket, :tps, tps)}
-  end
+  def handle_info({:new_tps, tps, nb_transactions}, socket) do
+    new_socket =
+      socket
+      |> assign(:tps, tps)
+      |> assign(:nb_transactions, nb_transactions)
 
-  def handle_info({:new_transaction_number, nb}, socket) do
-    {:noreply, assign(socket, :nb_transactions, nb)}
+    {:noreply, new_socket}
   end
 
   def handle_event("search", %{"address" => address}, socket) do
