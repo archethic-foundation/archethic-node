@@ -47,7 +47,7 @@ defmodule ArchEthic.ReplicationTest do
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
-    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
     :ok
   end

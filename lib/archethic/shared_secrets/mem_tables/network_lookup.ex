@@ -116,7 +116,7 @@ defmodule ArchEthic.SharedSecrets.MemTables.NetworkLookup do
       iex> NetworkLookup.get_daily_nonce_public_key(~U[2021-04-07 10:00:00Z])
       <<0, 0, 52, 242, 87, 194, 41, 203, 59, 163, 197, 116, 83, 28, 134, 140, 48, 74, 66, 21, 248, 239, 162, 234, 35, 220, 113, 133, 73, 255, 58, 134, 225, 30>>
       iex> NetworkLookup.get_daily_nonce_public_key(~U[2021-04-07 08:36:41Z])
-      <<0, 0, 52, 242, 87, 194, 41, 203, 59, 163, 197, 116, 83, 28, 134, 140, 48, 74, 66, 21, 248, 239, 162, 234, 35, 220, 113, 133, 73, 255, 58, 134, 225, 30>>
+      <<0, 0, 57, 24, 251, 164, 133, 168, 109, 154, 9, 77, 197, 254, 138, 187, 250, 200, 37, 115, 182, 174, 90, 206, 161, 228, 197, 77, 184, 101, 183, 164, 187, 96>>
       iex> NetworkLookup.get_daily_nonce_public_key(~U[2021-04-07 00:00:00Z])
       <<0, 0, 57, 24, 251, 164, 133, 168, 109, 154, 9, 77, 197, 254, 138, 187, 250, 200, 37, 115, 182, 174, 90, 206, 161, 228, 197, 77, 184, 101, 183, 164, 187, 96>>
 
@@ -125,19 +125,15 @@ defmodule ArchEthic.SharedSecrets.MemTables.NetworkLookup do
   def get_daily_nonce_public_key(date \\ DateTime.utc_now()) do
     unix_time = DateTime.to_unix(date)
 
-    case :ets.lookup(@table_name, {:daily_nonce, unix_time}) do
-      [{_, public_key}] ->
-        public_key
+    [{_, public_key}] =
+      case :ets.prev(@table_name, {:daily_nonce, unix_time}) do
+        :"$end_of_table" ->
+          :ets.lookup(@table_name, {:daily_nonce, unix_time})
 
-      [] ->
-        case :ets.prev(@table_name, {:daily_nonce, unix_time}) do
-          :"$end_of_table" ->
-            @genesis_daily_nonce_public_key
+        key ->
+          :ets.lookup(@table_name, key)
+      end
 
-          key ->
-            [{_, public_key}] = :ets.lookup(@table_name, key)
-            public_key
-        end
-    end
+    public_key
   end
 end

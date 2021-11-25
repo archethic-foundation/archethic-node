@@ -121,7 +121,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
     test "should retrieve the missing beacon summaries from the given date", context do
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
-      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+      |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
       inputs = [
         %TransactionInput{

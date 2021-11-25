@@ -20,7 +20,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
-    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now())
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
     welcome_node = %Node{
       first_public_key: "key1",
@@ -82,6 +82,14 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
       assert {:error, :invalid_proof_of_work} =
                context
                |> TransactionFactory.create_transaction_with_invalid_proof_of_work([])
+               |> TransactionValidator.validate()
+    end
+
+    test "should return {:error, :invalid_proof_of_election} when an invalid proof of work",
+         context do
+      assert {:error, :invalid_proof_of_election} =
+               context
+               |> TransactionFactory.create_transaction_with_invalid_proof_of_election([])
                |> TransactionValidator.validate()
     end
 
