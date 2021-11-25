@@ -9,7 +9,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Crypto
   alias ArchEthic.Election
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.RegisterBeaconUpdates
   alias ArchEthic.P2P.Node
   alias ArchEthic.PubSub
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
@@ -50,7 +49,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       PubSub.register_to_added_new_transaction_summary()
       PubSub.register_to_next_epoch_of_slot_time()
       PubSub.register_to_current_epoch_of_slot_time()
-      # register_to_beacon_pool_updates(DateTime.utc_now())
+      BeaconChain.register_to_beacon_pool_updates()
     end
 
     beacon_dates =
@@ -186,14 +185,14 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   def handle_info({:next_epoch_of_slot_timer, date}, socket) do
     date
-    |> register_to_beacon_pool_updates()
+    |> BeaconChain.register_to_beacon_pool_updates()
 
     {:noreply, socket}
   end
 
   def handle_info({:current_epoch_of_slot_timer, date}, socket) do
     date
-    |> register_to_beacon_pool_updates()
+    |> BeaconChain.register_to_beacon_pool_updates()
 
     {:noreply, socket}
   end
@@ -205,19 +204,5 @@ defmodule ArchEthicWeb.BeaconChainLive do
     enrollment_date
     |> SummaryTimer.previous_summaries()
     |> Enum.sort({:desc, DateTime})
-  end
-
-  def register_to_beacon_pool_updates(
-        date = %DateTime{} \\ BeaconChain.next_summary_date(DateTime.utc_now())
-      ) do
-    Enum.each(BeaconChain.list_subsets(), fn subset ->
-      list_of_nodes_for_this_subset =
-        Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
-
-      P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
-        node_public_key: Crypto.first_node_public_key(),
-        subset: subset
-      })
-    end)
   end
 end

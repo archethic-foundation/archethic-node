@@ -23,6 +23,7 @@ defmodule ArchEthic.BeaconChain do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransactionChain
+  alias ArchEthic.P2P.Message.RegisterBeaconUpdates
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
 
@@ -259,7 +260,7 @@ defmodule ArchEthic.BeaconChain do
   end
 
   @doc """
-   Register for beacon updates i.e add to subscribed list takes for given subset and node_public_key
+   subscribe for beacon updates i.e add to subscribed list takes for given subset and node_public_key
   """
   def subscribe_for_beacon_updates(subset, node_public_key) do
     # check node list and subscribe to subset if exist
@@ -270,5 +271,20 @@ defmodule ArchEthic.BeaconChain do
 
       Subset.subscribe_for_beacon_updates(subset, node_public_key)
     end
+  end
+
+  @doc """
+   subscribe for beacon updates i.e add to subscribed list takes for given subset and node_public_key
+  """
+  def register_to_beacon_pool_updates(date = %DateTime{} \\ next_summary_date(DateTime.utc_now())) do
+    Enum.each(list_subsets(), fn subset ->
+      list_of_nodes_for_this_subset =
+        Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
+
+      P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
+        node_public_key: Crypto.first_node_public_key(),
+        subset: subset
+      })
+    end)
   end
 end
