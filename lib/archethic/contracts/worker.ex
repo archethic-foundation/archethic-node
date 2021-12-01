@@ -300,9 +300,12 @@ defmodule ArchEthic.Contracts.Worker do
 
     encrypted_key = Map.get(authorized_keys, storage_nonce_public_key)
 
-    with {:ok, aes_key} <- Crypto.ec_decrypt_with_storage_nonce(encrypted_key),
-         {:ok, transaction_seed} <- Crypto.aes_decrypt(secret, aes_key) do
-      {:ok, transaction_seed}
+    case Crypto.ec_decrypt_with_storage_nonce(encrypted_key) do
+      {:ok, aes_key} ->
+        Crypto.aes_decrypt(secret, aes_key)
+
+      {:error, :decryption_failed} ->
+        {:error, :decryption_failed}
     end
   end
 

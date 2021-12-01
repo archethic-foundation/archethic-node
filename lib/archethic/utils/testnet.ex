@@ -350,7 +350,7 @@ defmodule ArchEthic.Utils.Testnet do
   end
 
   defp prometheus_config(nodes) do
-    targets = nodes |> Enum.map(&"    - #{&1}:#{web_port()}\n") |> Enum.join()
+    targets = Enum.map_join(nodes, &"    - #{&1}:#{web_port()}\n")
 
     """
     global:

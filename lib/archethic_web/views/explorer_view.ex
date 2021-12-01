@@ -19,8 +19,7 @@ defmodule ArchEthicWeb.ExplorerView do
   def roles_to_string(roles) do
     roles
     |> Enum.map(&Atom.to_string/1)
-    |> Enum.map(&String.replace(&1, "_", " "))
-    |> Enum.join(", ")
+    |> Enum.map_join(", ", &String.replace(&1, "_", " "))
   end
 
   def format_transaction_type(type) do
@@ -54,20 +53,21 @@ defmodule ArchEthicWeb.ExplorerView do
      }, _} = Slot.deserialize(content)
 
     transaction_summaries_stringified =
-      Enum.map(transaction_summaries, fn %TransactionSummary{
-                                           address: address,
-                                           timestamp: timestamp,
-                                           type: type
-                                         } ->
+      Enum.map_join(transaction_summaries, "\n", fn %TransactionSummary{
+                                                      address: address,
+                                                      timestamp: timestamp,
+                                                      type: type
+                                                    } ->
         "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(address)} - #{type}"
       end)
-      |> Enum.join("\n")
 
     end_of_sync_stringified =
-      Enum.map(end_of_sync, fn %EndOfNodeSync{public_key: node_public_key, timestamp: timestamp} ->
+      Enum.map_join(end_of_sync, ",", fn %EndOfNodeSync{
+                                           public_key: node_public_key,
+                                           timestamp: timestamp
+                                         } ->
         "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(node_public_key)}"
       end)
-      |> Enum.join(",")
 
     """
     Subset: #{Base.encode16(subset)}
@@ -91,20 +91,21 @@ defmodule ArchEthicWeb.ExplorerView do
      }, _} = Summary.deserialize(content)
 
     transaction_summaries_stringified =
-      Enum.map(transaction_summaries, fn %TransactionSummary{
-                                           address: address,
-                                           timestamp: timestamp,
-                                           type: type
-                                         } ->
+      Enum.map_join(transaction_summaries, "\n", fn %TransactionSummary{
+                                                      address: address,
+                                                      timestamp: timestamp,
+                                                      type: type
+                                                    } ->
         "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(address)} - #{type}"
       end)
-      |> Enum.join("\n")
 
     end_of_sync_stringified =
-      Enum.map(end_of_sync, fn %EndOfNodeSync{public_key: node_public_key, timestamp: timestamp} ->
+      Enum.map_join(end_of_sync, ", ", fn %EndOfNodeSync{
+                                            public_key: node_public_key,
+                                            timestamp: timestamp
+                                          } ->
         "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(node_public_key)}"
       end)
-      |> Enum.join(",")
 
     """
     Subset: #{Base.encode16(subset)}

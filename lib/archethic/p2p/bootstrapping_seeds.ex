@@ -65,7 +65,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
       end
 
     Logger.info(
-      "Bootstrapping seeds initialize with #{seeds |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}"
+      "Bootstrapping seeds initialize with #{Enum.map_join(seeds, ", ", &:inet.ntoa(&1.ip))}"
     )
 
     PubSub.register_to_node_update()
@@ -89,7 +89,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     |> flush_seeds(file)
 
     Logger.info(
-      "Bootstrapping seeds list refreshed with #{seeds |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}"
+      "Bootstrapping seeds list refreshed with #{Enum.map_join(seeds, ", ", &Node.endpoint/1)}"
     )
 
     {:reply, :ok, %{state | seeds: seeds}}
@@ -107,7 +107,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     |> flush_seeds(file)
 
     Logger.debug(
-      "Bootstrapping seeds list refreshed with #{top_nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}"
+      "Bootstrapping seeds list refreshed with #{Enum.map_join(top_nodes, ", ", &Node.endpoint/1)}"
     )
 
     {:noreply, Map.put(state, :seeds, top_nodes)}

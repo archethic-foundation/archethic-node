@@ -186,7 +186,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
   defp get_uco_balance(address, host, port) do
     query = ~s|query {lastTransaction(address: "#{Base.encode16(address)}"){ balance { uco }}}|
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query |> IO.inspect())) do
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
       {:ok, %{"data" => %{"lastTransaction" => %{"balance" => %{"uco" => uco}}}}} ->
         uco
 
