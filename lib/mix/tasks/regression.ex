@@ -40,11 +40,9 @@ defmodule Mix.Tasks.ArchEthic.Regression do
         if parsed[:help] do
           Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
         else
-          with true <- Regression.nodes_up?(nodes),
-               :ok <- maybe(parsed, :bench, &Regression.run_benchmarks/1, [nodes]),
-               :ok <- maybe(parsed, :playbook, &Regression.run_playbooks/1, [nodes]) do
-            :ok
-          end
+          true = Regression.nodes_up?(nodes)
+          :ok = maybe(parsed, :bench, &Regression.run_benchmarks/1, [nodes])
+          :ok = maybe(parsed, :playbook, &Regression.run_playbooks/1, [nodes])
         end
     end
   end

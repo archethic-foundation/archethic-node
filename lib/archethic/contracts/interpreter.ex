@@ -383,7 +383,8 @@ defmodule ArchEthic.Contracts.Interpreter do
         {node, acc}
 
       {:error, reason} ->
-        params = Enum.map(trigger_opts, fn {{:atom, k}, v} -> "#{k}:#{v}" end) |> Enum.join(", ")
+        params = Enum.map_join(trigger_opts, ", ", fn {{:atom, k}, v} -> "#{k}:#{v}" end)
+
         {node, {:error, {meta, "invalid trigger - #{reason}", "arguments #{params}"}}}
     end
   end

@@ -1051,35 +1051,41 @@ defmodule ArchEthic.Mining.ValidationContext do
     previous_storage_nodes =
       P2P.distinct_nodes([unspent_storage_nodes(unspent_outputs), previous_storage_nodes(tx)])
 
-    with true <- LedgerOperations.valid_node_movements_roles?(ops),
-         true <-
-           LedgerOperations.valid_node_movements_cross_validation_nodes?(
-             ops,
-             Enum.map(cross_validation_nodes, & &1.last_public_key)
-           ),
-         true <-
-           LedgerOperations.valid_node_movements_previous_storage_nodes?(
-             ops,
-             Enum.map(previous_storage_nodes, & &1.last_public_key)
-           ),
-         true <- LedgerOperations.valid_reward_distribution?(ops),
-         true <-
-           LedgerOperations.has_node_movement_with_role?(
-             ops,
-             coordinator_node_public_key,
-             :coordinator_node
-           ),
-         true <-
-           Enum.all?(
-             cross_validation_nodes,
-             &LedgerOperations.has_node_movement_with_role?(
-               ops,
-               &1.last_public_key,
-               :cross_validation_node
-             )
-           ) do
-      true
-    end
+    [
+      fn -> LedgerOperations.valid_node_movements_roles?(ops) end,
+      fn ->
+        LedgerOperations.valid_node_movements_cross_validation_nodes?(
+          ops,
+          Enum.map(cross_validation_nodes, & &1.last_public_key)
+        )
+      end,
+      fn ->
+        LedgerOperations.valid_node_movements_previous_storage_nodes?(
+          ops,
+          Enum.map(previous_storage_nodes, & &1.last_public_key)
+        )
+      end,
+      fn -> LedgerOperations.valid_reward_distribution?(ops) end,
+      fn ->
+        LedgerOperations.has_node_movement_with_role?(
+          ops,
+          coordinator_node_public_key,
+          :coordinator_node
+        )
+      end,
+      fn ->
+        Enum.all?(
+          cross_validation_nodes,
+          &LedgerOperations.has_node_movement_with_role?(
+            ops,
+            &1.last_public_key,
+            :cross_validation_node
+          )
+        )
+      end
+    ]
+    |> Task.async_stream(& &1.(), ordered: false)
+    |> Enum.all?(&match?({:ok, true}, &1))
   end
 
   defp unspent_storage_nodes([]), do: []

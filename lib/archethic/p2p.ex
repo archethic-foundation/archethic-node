@@ -128,11 +128,13 @@ defmodule ArchEthic.P2P do
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
   def authorized_nodes(date = %DateTime{} \\ DateTime.utc_now()) do
-    Enum.filter(
-      MemTable.authorized_nodes(),
-      &(DateTime.diff(&1.authorization_date, DateTime.truncate(date, :second)) <= 0)
-    )
-    |> Enum.filter(& &1.available?)
+    Enum.filter(MemTable.authorized_nodes(), fn %Node{
+                                                  available?: available?,
+                                                  authorization_date: authorization_date
+                                                } ->
+      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) <= 0 and
+        available?
+    end)
   end
 
   @doc """

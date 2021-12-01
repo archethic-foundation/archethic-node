@@ -556,7 +556,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
          full_replication_tree: replication_tree
        }) do
     Logger.info(
-      "Send validation stamp to #{cross_validation_nodes |> Enum.map(&:inet.ntoa(&1.ip)) |> Enum.join(", ")}",
+      "Send validation stamp to #{Enum.map_join(cross_validation_nodes, ", ", &:inet.ntoa(&1.ip))}",
       transaction_address: Base.encode16(tx_address),
       transaction_type: tx_type
     )
@@ -580,7 +580,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       |> Enum.reject(&(&1.last_public_key == Crypto.last_node_public_key()))
 
     Logger.info(
-      "Send cross validation stamps to #{nodes |> Enum.map(&Node.endpoint/1) |> Enum.join(", ")}",
+      "Send cross validation stamps to #{Enum.map_join(nodes, ", ", &Node.endpoint/1)}",
       transaction_address: Base.encode16(tx_address),
       transaction_type: tx_type
     )
@@ -601,7 +601,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     storage_nodes = ValidationContext.get_replication_nodes(context)
 
     Logger.info(
-      "Send validated transaction to #{storage_nodes |> Enum.map(fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end) |> Enum.join(",")}",
+      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", fn {node, roles} -> "#{Node.endpoint(node)} as #{Enum.join(roles, ",")}" end)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
