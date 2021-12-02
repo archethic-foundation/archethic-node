@@ -1,7 +1,7 @@
 defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   @moduledoc false
 
-  alias ArchEthic.DB.CassandraImpl.Producer
+  alias ArchEthic.DB.CassandraImpl.QueryProducer
 
   require Logger
 
@@ -36,7 +36,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
         'replication_factor' : 1
       };
     """
-    |> Producer.add_query()
+    |> QueryProducer.add_query()
   end
 
   defp create_migration_table do
@@ -47,7 +47,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
       PRIMARY KEY (version)
     );
     """
-    |> Producer.add_query()
+    |> QueryProducer.add_query()
   end
 
   defp load_migrations do
@@ -61,7 +61,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   end
 
   defp get_migrated_versions do
-    Producer.add_query("SELECT version FROM archethic.schema_migrations")
+    QueryProducer.add_query("SELECT version FROM archethic.schema_migrations")
   end
 
   defp get_migrations do
@@ -101,7 +101,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
 
       migration_query
       |> String.split(";", trim: true)
-      |> Enum.each(&Producer.add_query/1)
+      |> Enum.each(&QueryProducer.add_query/1)
 
       version
     end
@@ -114,6 +114,6 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   defp register_migrated_versions(versions) do
     query = "INSERT INTO archethic.schema_migrations(version, updated_at) VALUES(?, ?)"
 
-    Enum.each(versions, &Producer.add_query(query, [&1, DateTime.utc_now()]))
+    Enum.each(versions, &QueryProducer.add_query(query, [&1, DateTime.utc_now()]))
   end
 end

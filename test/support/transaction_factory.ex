@@ -30,6 +30,7 @@ defmodule ArchEthic.TransactionFactory do
     seed = Keyword.get(opts, :seed, "seed")
     index = Keyword.get(opts, :index, 0)
     content = Keyword.get(opts, :content, "")
+    timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
 
     tx = Transaction.new(type, %TransactionData{content: content}, seed, index)
 
@@ -47,7 +48,7 @@ defmodule ArchEthic.TransactionFactory do
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: timestamp,
         proof_of_work: Crypto.first_node_public_key(),
         proof_of_election:
           Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),

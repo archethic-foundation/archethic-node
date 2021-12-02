@@ -60,6 +60,9 @@ config :archethic, ArchEthic.Crypto.KeystoreLoader, enabled: false
 config :archethic, MockCrypto, enabled: false
 
 config :archethic, ArchEthic.DB, MockDB
+
+config :archethic, ArchEthic.DB.CassandraImpl, host: "127.0.0.1:9042"
+
 config :archethic, MockDB, enabled: false
 
 config :archethic, ArchEthic.Election.Constraints, enabled: false

@@ -6,7 +6,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   alias ArchEthic.DB
 
   alias __MODULE__.CQL
-  alias __MODULE__.Producer
+  alias __MODULE__.QueryProducer
   alias __MODULE__.SchemaMigrator
   alias __MODULE__.Supervisor, as: CassandraSupervisor
 
@@ -31,8 +31,8 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec list_transactions(list()) :: Enumerable.t()
   def list_transactions(fields \\ []) when is_list(fields) do
     "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions"
-    |> Producer.add_query()
-    |> Enum.map(&format_result_to_transaction/1)
+    |> QueryProducer.add_query([], true)
+    |> Stream.map(&format_result_to_transaction/1)
   end
 
   @impl DB
@@ -45,8 +45,8 @@ defmodule ArchEthic.DB.CassandraImpl do
     start = System.monotonic_time()
 
     result =
-      Producer.add_query(
         "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? PER PARTITION LIMIT 1",
+      QueryProducer.add_query(
         [address]
       )
 
@@ -75,10 +75,10 @@ defmodule ArchEthic.DB.CassandraImpl do
       1..4
       |> Task.async_stream(fn bucket ->
         "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? and bucket=?"
-        |> Producer.add_query([address, bucket])
+        |> QueryProducer.add_query([address, bucket], true)
         |> Enum.map(&format_result_to_transaction/1)
       end)
-      |> Enum.into([], fn {:ok, res} -> res end)
+      |> Stream.map(fn {:ok, res} -> res end)
       |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
@@ -128,7 +128,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     start = System.monotonic_time()
 
     "INSERT INTO archethic.transactions (chain_address, bucket, timestamp, version, address, type, data, previous_public_key, previous_signature, origin_signature, validation_stamp, cross_validation_stamps) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    |> Producer.add_query([
+    |> QueryProducer.add_query([
       chain_address,
       bucket,
       timestamp,
@@ -144,7 +144,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     ])
 
     "INSERT INTO archethic.transaction_type_lookup(type, address, timestamp) VALUES(?, ?, ?)"
-    |> Producer.add_query([type, address, timestamp])
+    |> QueryProducer.add_query([type, address, timestamp])
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_transaction"
@@ -178,8 +178,17 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     start = System.monotonic_time()
 
-    chain
-    |> Task.async_stream(
+    statement_by_first_address =
+      "INSERT INTO archethic.chain_lookup_by_first_address(last_transaction_address, genesis_transaction_address) VALUES (?, ?)"
+
+    statement_by_first_key =
+      "INSERT INTO archethic.chain_lookup_by_first_key(last_key, genesis_key) VALUES (?, ?)"
+
+    statement_by_last_address =
+      "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)"
+
+    Stream.each(
+      chain,
       fn tx = %Transaction{
            address: tx_address,
            validation_stamp: %ValidationStamp{timestamp: tx_timestamp},
@@ -187,30 +196,16 @@ defmodule ArchEthic.DB.CassandraImpl do
          } ->
         do_write_transaction(tx, chain_address)
 
-        Producer.add_query(
-          "INSERT INTO archethic.chain_lookup_by_first_address(last_transaction_address, genesis_transaction_address) VALUES (?, ?)",
-          [chain_address, tx_address]
-        )
+        QueryProducer.add_query(statement_by_first_address, [chain_address, tx_address])
 
-        Producer.add_query(
-          "INSERT INTO archethic.chain_lookup_by_first_key(last_key, genesis_key) VALUES (?, ?)",
-          [chain_public_key, tx_public_key]
-        )
+        QueryProducer.add_query(statement_by_first_key, [chain_public_key, tx_public_key])
 
-        # Set the last transaction address lookup
-        [tx_address, Transaction.previous_address(tx)]
-        |> Enum.each(fn address ->
-          Producer.add_query(
-            "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)",
-            [
-              address,
-              chain_address,
-              tx_timestamp
-            ]
-          )
-        end)
-      end,
-      ordered: false
+        QueryProducer.add_query(statement_by_last_address, [
+          Transaction.previous_address(tx),
+          chain_address,
+          tx_timestamp
+        ])
+      end
     )
     |> Stream.run()
 
@@ -238,7 +233,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   def add_last_transaction_address(tx_address, last_address, timestamp = %DateTime{}) do
-    Producer.add_query(
+    QueryProducer.add_query(
       "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)",
       [tx_address, last_address, timestamp]
     )
@@ -253,12 +248,12 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec list_last_transaction_addresses() :: Enumerable.t()
   def list_last_transaction_addresses do
     "SELECT * FROM archethic.chain_lookup_by_last_address PER PARTITION LIMIT 1"
-    |> Producer.add_query()
-    |> Enum.map(fn %{
-                     "transaction_address" => address,
-                     "last_transaction_address" => last_address,
-                     "timestamp" => timestamp
-                   } ->
+    |> QueryProducer.add_query([], true)
+    |> Stream.map(fn %{
+                       "transaction_address" => address,
+                       "last_transaction_address" => last_address,
+                       "timestamp" => timestamp
+                     } ->
       {address, last_address, timestamp}
     end)
   end
@@ -267,7 +262,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec chain_size(binary()) :: non_neg_integer()
   def chain_size(address) do
     "SELECT COUNT(*) as size FROM archethic.transactions WHERE chain_address=?"
-    |> Producer.add_query([address])
+    |> QueryProducer.add_query([address])
     |> Enum.at(0, %{})
     |> Map.get("size", 0)
   end
@@ -277,21 +272,18 @@ defmodule ArchEthic.DB.CassandraImpl do
           Enumerable.t()
   def list_transactions_by_type(type, fields \\ []) do
     "SELECT address FROM archethic.transaction_type_lookup WHERE type=?"
-    |> Producer.add_query([Atom.to_string(type)])
-    |> Task.async_stream(fn %{"address" => address} ->
-      "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=?"
-      |> Producer.add_query([address])
-      |> Enum.at(0)
-      |> format_result_to_transaction()
+    |> QueryProducer.add_query([Atom.to_string(type)], true)
+    |> Stream.map(fn %{"address" => address} ->
+      {:ok, tx} = get_transaction(address, fields)
+      tx
     end)
-    |> Enum.into([], fn {:ok, res} -> res end)
   end
 
   @impl DB
   @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
   def count_transactions_by_type(type) do
     "SELECT COUNT(address) as nb FROM archethic.transaction_type_lookup WHERE type=?"
-    |> Producer.add_query([Atom.to_string(type)])
+    |> QueryProducer.add_query([Atom.to_string(type)])
     |> Enum.at(0, %{})
     |> Map.get("nb", 0)
   end
@@ -303,7 +295,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_last_chain_address(binary()) :: binary()
   def get_last_chain_address(address) do
     "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
-    |> Producer.add_query([address])
+    |> QueryProducer.add_query([address])
     |> Enum.at(0, %{})
     |> Map.get("last_transaction_address", address)
   end
@@ -315,7 +307,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
   def get_last_chain_address(address, datetime = %DateTime{}) do
     "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
-    |> Producer.add_query([address, datetime])
+    |> QueryProducer.add_query([address, datetime])
     |> Enum.at(0, %{})
     |> Map.get("last_transaction_address", address)
   end
@@ -327,7 +319,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_first_chain_address(binary()) :: binary()
   def get_first_chain_address(address) when is_binary(address) do
     "SELECT genesis_transaction_address FROM archethic.chain_lookup_by_first_address WHERE last_transaction_address=?"
-    |> Producer.add_query([address])
+    |> QueryProducer.add_query([address])
     |> Enum.at(0, %{})
     |> Map.get("genesis_transaction_address", address)
   end
@@ -339,7 +331,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   def get_first_public_key(previous_public_key) when is_binary(previous_public_key) do
     "SELECT genesis_key FROM archethic.chain_lookup_by_first_key WHERE last_key=?"
-    |> Producer.add_query([previous_public_key])
+    |> QueryProducer.add_query([previous_public_key])
     |> Enum.at(0, %{})
     |> Map.get("genesis_key", previous_public_key)
   end
@@ -351,7 +343,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_latest_tps :: float()
   def get_latest_tps do
     "SELECT tps FROM archethic.network_stats_by_date"
-    |> Producer.add_query()
+    |> QueryProducer.add_query()
     |> Enum.at(0, %{})
     |> Map.get("tps", 0.0)
   end
@@ -363,7 +355,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_nb_transactions() :: non_neg_integer()
   def get_nb_transactions do
     "SELECT nb_transactions FROM archethic.network_stats_by_date"
-    |> Producer.add_query()
+    |> QueryProducer.add_query([], true)
     |> Enum.reduce(0, fn %{"nb_transactions" => nb_transactions}, acc -> nb_transactions + acc end)
   end
 
@@ -374,7 +366,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
   def register_tps(date = %DateTime{}, tps, nb_transactions)
       when is_float(tps) and tps >= 0.0 and is_integer(nb_transactions) and nb_transactions >= 0 do
-    Producer.add_query(
+    QueryProducer.add_query(
       "INSERT INTO archethic.network_stats_by_date (date, tps, nb_transactions) VALUES (?, ?, ?)",
       [date, tps, nb_transactions]
     )
@@ -390,7 +382,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   def transaction_exists?(address) when is_binary(address) do
     count =
       "SELECT COUNT(address) as count FROM archethic.transactions WHERE chain_address=?"
-      |> Producer.add_query([address])
+      |> QueryProducer.add_query([address])
       |> Enum.at(0, %{})
       |> Map.get("count", 0)
 
@@ -413,7 +405,7 @@ defmodule ArchEthic.DB.CassandraImpl do
         available?,
         avg_availability
       ) do
-    Producer.add_query(
+    QueryProducer.add_query(
       "INSERT INTO archethic.p2p_summary_by_node (node_public_key, date, available, average_availability) VALUES (?, ?, ?, ?)",
       [
         node_public_key,
@@ -433,13 +425,13 @@ defmodule ArchEthic.DB.CassandraImpl do
             {available? :: boolean(), average_availability :: float()}
         }
   def get_last_p2p_summaries do
-    "SELECT node_public_key, available, average_availability FROM archethic.p2P_summary_by_node PER PARTITION LIMIT 1"
-    |> Producer.add_query([])
-    |> Enum.map(fn %{
-                     "node_public_key" => node_public_key,
-                     "available" => available?,
-                     "average_availability" => avg_availability
-                   } ->
+    "SELECT node_public_key, available, average_availability FROM archethic.p2p_summary_by_node PER PARTITION LIMIT 1"
+    |> QueryProducer.add_query([], true)
+    |> Stream.map(fn %{
+                       "node_public_key" => node_public_key,
+                       "available" => available?,
+                       "average_availability" => avg_availability
+                     } ->
       {node_public_key, {available?, avg_availability}}
     end)
     |> Enum.into(%{})

@@ -164,8 +164,12 @@ defmodule ArchEthic.DB.CassandraImplTest do
   @tag infrastructure: true
   test "list_transactions_by_type/1 should return the list of transaction by the given type" do
     chain = [
-      create_transaction(index: 1, type: :transfer),
-      create_transaction(index: 0, type: :hosting)
+      create_transaction(
+        index: 1,
+        type: :transfer,
+        timestamp: DateTime.utc_now() |> DateTime.add(5_000)
+      ),
+      create_transaction(index: 0, type: :hosting, timestamp: DateTime.utc_now())
     ]
 
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -210,9 +214,9 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
   @tag infrastructure: true
   test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
@@ -227,42 +231,41 @@ defmodule ArchEthic.DB.CassandraImplTest do
              Cassandra.get_last_chain_address(tx2.address, tx1.validation_stamp.timestamp)
 
     assert tx1.address ==
-             Cassandra.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
+             Cassandra.get_last_chain_address(
+               tx1.address,
+               tx1.validation_stamp.timestamp |> DateTime.add(-1)
+             )
   end
 
   @tag infrastructure: true
   test "get_first_chain_address/1 should return the first transaction address of a chain" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
     assert tx1.address == Cassandra.get_first_chain_address(tx3.address)
-    assert tx1.address == Cassandra.get_first_chain_address(tx2.address)
-    assert tx1.address == Cassandra.get_first_chain_address(tx1.address)
   end
 
   @tag infrastructure: true
   test "get_first_public_key/1 should return the first public key from a transaction address of a chain" do
-    tx1 = create_transaction(index: 0)
-    tx2 = create_transaction(index: 1)
-    tx3 = create_transaction(index: 2)
+    tx1 = create_transaction(index: 0, timestamp: DateTime.utc_now())
+    tx2 = create_transaction(index: 1, timestamp: DateTime.utc_now() |> DateTime.add(5_000))
+    tx3 = create_transaction(index: 2, timestamp: DateTime.utc_now() |> DateTime.add(10_000))
 
     chain = [tx3, tx2, tx1]
     assert :ok = Cassandra.write_transaction_chain(chain)
 
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx3.previous_public_key)
-    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx2.previous_public_key)
-    assert tx1.previous_public_key == Cassandra.get_first_public_key(tx1.previous_public_key)
   end
 
   @tag infrastructure: true
   test "register_tps/3 should insert the tps and the nb transactions for a given date" do
-    :ok = Cassandra.register_tps(DateTime.utc_now(), 10, 10_000)
+    :ok = Cassandra.register_tps(DateTime.utc_now(), 10.0, 10_000)
 
-    assert 10 =
+    assert 10.0 =
              :xandra_conn
              |> Xandra.execute!("SELECT * FROM archethic.network_stats_by_date")
              |> Enum.at(0)
