@@ -45,8 +45,8 @@ defmodule ArchEthic.DB.CassandraImpl do
     start = System.monotonic_time()
 
     result =
-        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? PER PARTITION LIMIT 1",
       QueryProducer.add_query(
+        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE address=?",
         [address]
       )
 
