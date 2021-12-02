@@ -45,7 +45,8 @@ Current implemented features:
 Requirements:
 - Libsodium: for the ed25519 to Curve25519 conversion 
 - OpenSSL 1.11
-- OTP 23: generation of ed25519 key pairs
+- Erlang OTP 24
+- Elixir 1.12
 - GMP (https://gmplib.org/)
 
 Platforms supported:
@@ -56,8 +57,6 @@ Requires ScyllaDB/Cassandra installation to use for the backend storage
 (We recommand ScyllaDB as it's better in resource consumption and performances)
 
 ## Development
-
-Requires Elixir 1.11
 
 At first, get dependencies:
 ```bash
