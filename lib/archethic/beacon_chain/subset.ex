@@ -206,10 +206,17 @@ defmodule ArchEthic.BeaconChain.Subset do
   defp next_state(state = %{subset: subset}, time) do
     next_time = SlotTimer.next_slot(time)
 
+    new_state =
+      Map.put(
+        state,
+        :current_slot,
+        %Slot{subset: subset, slot_time: next_time}
+      )
+
     Map.put(
-      state,
-      :current_slot,
-      %Slot{subset: subset, slot_time: next_time}
+      new_state,
+      :subscribed_nodes,
+      []
     )
   end
 

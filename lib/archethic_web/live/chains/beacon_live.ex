@@ -47,9 +47,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
       PubSub.register_to_next_summary_time()
       # register for client to able to get the current added transaction to the beacon pool
       PubSub.register_to_added_new_transaction_summary()
-      PubSub.register_to_next_epoch_of_slot_time()
       PubSub.register_to_current_epoch_of_slot_time()
-      BeaconChain.register_to_beacon_pool_updates()
+      # BeaconChain.register_to_beacon_pool_updates()
     end
 
     beacon_dates =
@@ -181,13 +180,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
       |> assign(:next_summary_time, new_next_summary)
 
     {:noreply, new_assign}
-  end
-
-  def handle_info({:next_epoch_of_slot_timer, date}, socket) do
-    date
-    |> BeaconChain.register_to_beacon_pool_updates()
-
-    {:noreply, socket}
   end
 
   def handle_info({:current_epoch_of_slot_timer, date}, socket) do
