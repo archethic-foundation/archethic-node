@@ -37,8 +37,23 @@ Current implemented features:
 - Integrated Oracle Chain (UCO Price Feed)
 - Efficient transaction fee
 
-## Next features to appear very soon:
+## Development Roadmap
+
+### Short term
+These are the features will be implemented very soon (already in the pipe of the core team)
+- BeaconChain explorer with real feed of the transaction in a sharded network
+- Decentralized Wallet & Identity
+- Yubikey integration for node enrollment and key management
+- Provide exception on the smart contract inherit constraints
+- Network coordinates aggregation from the BeaconChain
+
+### Mid-Long term:
+These are the feature which will be implemented after the short term roadmap but which are important:
 - OnChain Governance & Decentralized Code Source and Hot Release Upgrades
+- SGX integration for enclaving the node shared secrets
+- Smart Contract Builder / Generator
+- Smart UTXO: Provide code inside an UTXO to be executed when it's consumed
+- On-chain time management through BeaconChain to ensure clock synchronisation
 
 ## Installation
 
