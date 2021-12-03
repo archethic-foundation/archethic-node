@@ -1,7 +1,7 @@
 defmodule ArchEthic.Contracts.Worker do
   @moduledoc false
 
-  # TODO: should process functions only if there is funds (for the prepaid default option)
+  alias ArchEthic.Account
 
   alias ArchEthic.ContractRegistry
   alias ArchEthic.Contracts.Contract
@@ -11,6 +11,10 @@ defmodule ArchEthic.Contracts.Worker do
   alias ArchEthic.Contracts.Interpreter
 
   alias ArchEthic.Crypto
+
+  alias ArchEthic.Mining
+
+  alias ArchEthic.OracleChain
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.StartMining
@@ -24,6 +28,8 @@ defmodule ArchEthic.Contracts.Worker do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ownership
+
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias ArchEthic.Utils
 
@@ -87,21 +93,25 @@ defmodule ArchEthic.Contracts.Worker do
         "transaction" => Constants.from_transaction(incoming_tx)
       }
 
-      if Interpreter.valid_conditions?(transaction_condition, constants) do
-        contract
-        |> Interpreter.execute_actions(:transaction, constants)
-        |> chain_transaction(Constants.to_transaction(contract_constants))
-        |> handle_new_transaction()
+      contract_transaction = Constants.to_transaction(contract_constants)
 
+      with true <- Interpreter.valid_conditions?(transaction_condition, constants),
+           next_tx <- Interpreter.execute_actions(contract, :transaction, constants),
+           {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction) do
+        handle_new_transaction(next_tx)
         {:reply, :ok, state}
       else
-        Logger.debug("Incoming transaction didn't match the condition",
-          transaction_address: Base.encode16(incoming_tx.address),
-          transaction_type: incoming_tx.type,
-          contract: Base.encode16(contract_address)
-        )
+        false ->
+          Logger.debug("Incoming transaction didn't match the condition",
+            transaction_address: Base.encode16(incoming_tx.address),
+            transaction_type: incoming_tx.type,
+            contract: Base.encode16(contract_address)
+          )
 
-        {:reply, {:error, :invalid_condition}, state}
+          {:reply, {:error, :invalid_condition}, state}
+
+        {:error, :transaction_seed_decryption} ->
+          {:reply, :error, state}
       end
     else
       Logger.debug("No transaction trigger",
@@ -132,10 +142,12 @@ defmodule ArchEthic.Contracts.Worker do
       "contract" => contract_constants
     }
 
-    contract
-    |> Interpreter.execute_actions(:datetime, constants)
-    |> chain_transaction(Constants.to_transaction(contract_constants))
-    |> handle_new_transaction()
+    contract_tx = Constants.to_transaction(contract_constants)
+
+    with next_tx <- Interpreter.execute_actions(contract, :datetime, constants),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_tx) do
+      handle_new_transaction(next_tx)
+    end
 
     Process.cancel_timer(timer)
     {:noreply, Map.update!(state, :timers, &Map.delete(&1, :datetime))}
@@ -163,10 +175,14 @@ defmodule ArchEthic.Contracts.Worker do
       "contract" => contract_constants
     }
 
-    contract
-    |> Interpreter.execute_actions(:interval, constants)
-    |> chain_transaction(Constants.to_transaction(contract_constants))
-    |> handle_new_transaction()
+    contract_transaction = Constants.to_transaction(contract_constants)
+
+    with true <- enough_funds?(address),
+         next_tx <- Interpreter.execute_actions(contract, :interval, constants),
+         {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
+         :ok <- ensure_enough_funds(next_tx, address) do
+      handle_new_transaction(next_tx)
+    end
 
     {:noreply, put_in(state, [:timers, :interval], interval_timer)}
   end
@@ -184,7 +200,8 @@ defmodule ArchEthic.Contracts.Worker do
       ) do
     Logger.info("Execute contract oracle trigger actions", contract: Base.encode16(address))
 
-    if Enum.any?(triggers, &(&1.type == :oracle)) do
+    with true <- enough_funds?(address),
+         true <- Enum.any?(triggers, &(&1.type == :oracle)) do
       {:ok, tx} = TransactionChain.get_transaction(tx_address)
 
       constants = %{
@@ -192,28 +209,31 @@ defmodule ArchEthic.Contracts.Worker do
         "transaction" => Constants.from_transaction(tx)
       }
 
+      contract_transaction = Constants.to_transaction(contract_constants)
+
       if Conditions.empty?(oracle_condition) do
-        contract
-        |> Interpreter.execute_actions(:oracle, constants)
-        |> chain_transaction(Constants.to_transaction(constants))
-        |> handle_new_transaction()
-
-        {:noreply, state}
+        with next_tx <- Interpreter.execute_actions(contract, :oracle, constants),
+             {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
+             :ok <- ensure_enough_funds(next_tx, address) do
+          handle_new_transaction(next_tx)
+        end
       else
-        if Interpreter.valid_conditions?(oracle_condition, constants) do
-          contract
-          |> Interpreter.execute_actions(:oracle, constants)
-          |> chain_transaction(Constants.to_transaction(contract_constants))
-          |> handle_new_transaction()
-
-          {:noreply, state}
+        with true <- Interpreter.valid_conditions?(oracle_condition, constants),
+             next_tx <- Interpreter.execute_actions(contract, :oracle, constants),
+             {:ok, next_tx} <- chain_transaction(next_tx, contract_transaction),
+             :ok <- ensure_enough_funds(next_tx, address) do
+          handle_new_transaction(next_tx)
         else
-          {:noreply, state}
+          false ->
+            Logger.error("Invalid oracle conditions", contract: Base.encode16(address))
+
+          {:error, e} ->
+            Logger.error("#{inspect(e)}", contract: Base.encode16(address))
         end
       end
-    else
-      {:noreply, state}
     end
+
+    {:noreply, state}
   end
 
   defp via_tuple(address) do
@@ -235,11 +255,7 @@ defmodule ArchEthic.Contracts.Worker do
 
   defp schedule_trigger(_), do: :ok
 
-  defp handle_new_transaction(e = {:error, _}) do
-    Logger.error("#{inspect(e)}")
-  end
-
-  defp handle_new_transaction({:ok, next_transaction = %Transaction{}}) do
+  defp handle_new_transaction(next_transaction = %Transaction{}) do
     [%Node{first_public_key: key} | _] =
       next_transaction
       |> Transaction.previous_address()
@@ -285,7 +301,7 @@ defmodule ArchEthic.Contracts.Worker do
          )}
 
       _ ->
-        Logger.error("Cannot decrypt the transaction seed", contract: Base.encode16(address))
+        Logger.info("Cannot decrypt the transaction seed", contract: Base.encode16(address))
         {:error, :transaction_seed_decryption}
     end
   end
@@ -362,4 +378,65 @@ defmodule ArchEthic.Contracts.Worker do
   end
 
   defp chain_ownerships(acc), do: acc
+
+  defp enough_funds?(contract_address) do
+    case Account.get_balance(contract_address) do
+      %{uco: uco_balance} when uco_balance > 0 ->
+        true
+
+<<<<<<< Updated upstream
+  defp ensure_enough_funds({:error, _} = e, _), do: e
+=======
+      _ ->
+        Logger.debug("Not enough funds to interpret the smart contract for a trigger interval",
+          contract: Base.encode16(contract_address)
+        )
+>>>>>>> Stashed changes
+
+        false
+    end
+  end
+
+  defp ensure_enough_funds(next_transaction, contract_address) do
+    %{uco: uco_to_transfer, nft: nft_to_transfer} =
+      next_transaction
+      |> Transaction.get_movements()
+      |> Enum.reduce(%{uco: 0, nft: %{}}, fn
+        %TransactionMovement{type: :UCO, amount: amount}, acc ->
+          Map.update!(acc, :uco, &(&1 + amount))
+
+        %TransactionMovement{type: {:NFT, nft_address}, amount: amount}, acc ->
+          Map.update!(acc, :nft, &Map.put(&1, nft_address, amount))
+      end)
+
+    %{uco: uco_balance, nft: nft_balances} = Account.get_balance(contract_address)
+
+    uco_usd_price =
+      DateTime.utc_now()
+      |> OracleChain.get_uco_price()
+      |> Keyword.get(:usd)
+
+    tx_fee =
+      Mining.get_transaction_fee(
+        next_transaction,
+        uco_usd_price
+      )
+
+    with true <- uco_balance > uco_to_transfer + tx_fee,
+         true <-
+           Enum.all?(nft_to_transfer, fn {nft_address, amount} ->
+             %{amount: balance} = Enum.find(nft_balances, &(Map.get(&1, :nft) == nft_address))
+             balance > amount
+           end) do
+      :ok
+    else
+      false ->
+        Logger.debug(
+          "Not enough funds to submit the transaction - expected %{ UCO: #{uco_to_transfer + tx_fee},  nft: #{inspect(nft_to_transfer)}} - got: %{ UCO: #{uco_balance}, nft: #{inspect(nft_balances)}}",
+          contract: Base.encode16(contract_address)
+        )
+
+        {:error, :not_enough_funds}
+    end
+  end
 end
