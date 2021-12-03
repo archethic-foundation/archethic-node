@@ -384,14 +384,10 @@ defmodule ArchEthic.Contracts.Worker do
       %{uco: uco_balance} when uco_balance > 0 ->
         true
 
-<<<<<<< Updated upstream
-  defp ensure_enough_funds({:error, _} = e, _), do: e
-=======
       _ ->
         Logger.debug("Not enough funds to interpret the smart contract for a trigger interval",
           contract: Base.encode16(contract_address)
         )
->>>>>>> Stashed changes
 
         false
     end

@@ -204,4 +204,18 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         uco
     end
   end
+
+  def storage_nonce_public_key(host, port) do
+    query = ~s|query {sharedSecrets { storageNoncePublicKey}}|
+
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+      {:ok,
+       %{
+         "data" => %{
+           "sharedSecrets" => %{"storageNoncePublicKey" => storage_nonce_public_key}
+         }
+       }} ->
+        Base.decode16!(storage_nonce_public_key)
+    end
+  end
 end

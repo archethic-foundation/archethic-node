@@ -1,8 +1,6 @@
 defmodule ArchEthic.Utils.Regression.Playbook.UCO do
   @moduledoc """
   Play and verify UCO ledger.
-
-  TODO
   """
 
   require Logger
@@ -78,6 +76,8 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
       )
 
     Logger.info("Transaction #{Base.encode16(address)} submitted")
+
+    Process.sleep(500)
 
     # Ensure the second recipient received the 5.0 UCO
     5.0 = Playbook.get_uco_balance(new_recipient_address, host, port)

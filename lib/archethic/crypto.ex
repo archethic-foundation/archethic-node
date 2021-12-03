@@ -155,7 +155,15 @@ defmodule ArchEthic.Crypto do
   Retrieve the storage nonce
   """
   @spec storage_nonce() :: binary()
-  def storage_nonce, do: :persistent_term.get(:storage_nonce)
+  def storage_nonce do
+    try do
+      :persistent_term.get(:storage_nonce)
+    rescue
+      _ ->
+        {:ok, nonce} = load_storage_nonce()
+        nonce
+    end
+  end
 
   @doc """
   Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
@@ -181,7 +189,7 @@ defmodule ArchEthic.Crypto do
     summary_byte = if summary?, do: 1, else: 0
 
     derive_keypair(
-      :persistent_term.get(:storage_nonce),
+      storage_nonce(),
       hash(["beacon", subset, <<DateTime.to_unix(date)::32, summary_byte::8>>])
     )
   end
@@ -242,7 +250,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec encrypt_storage_nonce(key()) :: binary()
   def encrypt_storage_nonce(public_key) when is_binary(public_key) do
-    ec_encrypt(:persistent_term.get(:storage_nonce), public_key)
+    ec_encrypt(storage_nonce(), public_key)
   end
 
   @doc """
@@ -301,7 +309,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec storage_nonce_public_key() :: binary()
   def storage_nonce_public_key do
-    {pub, _} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    {pub, _} = derive_keypair(storage_nonce(), 0)
     pub
   end
 
@@ -312,7 +320,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec ec_decrypt_with_storage_nonce(iodata()) :: {:ok, binary()} | {:error, :decryption_failed}
   def ec_decrypt_with_storage_nonce(data) when is_bitstring(data) or is_list(data) do
-    {_, pv} = derive_keypair(:persistent_term.get(:storage_nonce), 0)
+    {_, pv} = derive_keypair(storage_nonce(), 0)
     ec_decrypt(data, pv)
   end
 
@@ -896,7 +904,7 @@ defmodule ArchEthic.Crypto do
   """
   @spec hash_with_storage_nonce(data :: iodata()) :: binary()
   def hash_with_storage_nonce(data) when is_binary(data) or is_list(data) do
-    hash([:persistent_term.get(:storage_nonce), data])
+    hash([storage_nonce(), data])
   end
 
   @doc """
@@ -1021,15 +1029,30 @@ defmodule ArchEthic.Crypto do
 
   def load_transaction(_), do: :ok
 
-  @doc """
-  Return the storage nonce filepath
-  """
   @spec storage_nonce_filepath() :: binary()
   def storage_nonce_filepath do
     rel_filepath =
       Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:storage_nonce_file)
 
     Utils.mut_dir(rel_filepath)
+  end
+
+  @doc """
+  Load the storage nonce from the filesystem
+  """
+  @spec load_storage_nonce() :: {:ok, binary()} | {:error, File.posix()}
+  def load_storage_nonce do
+    abs_filepath = storage_nonce_filepath()
+    :ok = File.mkdir_p!(Path.dirname(abs_filepath))
+
+    case File.read(abs_filepath) do
+      {:ok, storage_nonce} ->
+        :persistent_term.put(:storage_nonce, storage_nonce)
+        {:ok, storage_nonce}
+
+      {:error, _} = e ->
+        e
+    end
   end
 
   @doc """

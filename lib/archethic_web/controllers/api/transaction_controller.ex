@@ -11,6 +11,8 @@ defmodule ArchEthicWeb.API.TransactionController do
   alias ArchEthicWeb.API.TransactionPayload
   alias ArchEthicWeb.ErrorView
 
+  require Logger
+
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
@@ -39,9 +41,14 @@ defmodule ArchEthicWeb.API.TransactionController do
         end
 
       changeset ->
+        Logger.debug(
+          "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchEthicWeb.ErrorHelpers.translate_error/1))}"
+        )
+
         conn
         |> put_status(400)
-        |> render(ErrorView, "400.json", changeset: changeset)
+        |> put_view(ErrorView)
+        |> render("400.json", changeset: changeset)
     end
   end
 

@@ -6,15 +6,22 @@ defmodule ArchEthic.Utils.Regression do
 
   alias ArchEthic.Utils
   alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
+
+  alias ArchEthic.Utils.Regression.Playbook.SmartContract
   alias ArchEthic.Utils.Regression.Playbook.UCO
+
   alias ArchEthic.Utils.WebClient
 
-  @playbooks [UCO]
+  @playbooks [UCO, SmartContract]
   @benchmarks [P2PMessage]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")
-    Enum.each(@playbooks, fn playbook -> playbook.play!(nodes, opts) end)
+
+    Enum.each(@playbooks, fn playbook ->
+      playbook.play!(nodes, opts)
+      Process.sleep(100)
+    end)
   end
 
   def run_benchmarks(nodes, opts \\ []) do
