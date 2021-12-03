@@ -13,25 +13,38 @@ defmodule ArchEthic.DB.CassandraImpl.QueryProducer do
 
   def add_query(query, parameters, false) do
     pid = :persistent_term.get(:cassandra_query_producer)
-    GenStage.call(pid, {:call, query, parameters})
+
+    case GenStage.call(pid, {:query, query, parameters, []}) do
+      page = %Xandra.Page{} ->
+        Enum.to_list(page)
+
+      _ ->
+        :ok
+    end
   end
 
   def add_query(query, parameters, true) do
-    pid = :persistent_term.get(:cassandra_query_producer)
-
     Stream.resource(
       fn ->
-        {:ok, ref} = GenStage.call(pid, {:streaming, query, parameters})
-        ref
+        pid = :persistent_term.get(:cassandra_query_producer)
+        {pid, %{options: [], status: :new}}
       end,
-      fn ref ->
-        receive do
-          {:data, ^ref, data} ->
-            {[data], ref}
+      fn
+        {producer_pid, %{status: :done}} ->
+          {:halt, producer_pid}
 
-          {:data_end, ^ref} ->
-            {:halt, ref}
-        end
+        {producer_pid, stream_state = %{options: options}} ->
+          case GenStage.call(
+                 producer_pid,
+                 {:query, query, parameters, options}
+               ) do
+            page = %Xandra.Page{paging_state: nil} ->
+              {Enum.to_list(page), {producer_pid, %{stream_state | status: :done}}}
+
+            page = %Xandra.Page{paging_state: paging_state} ->
+              opts = Keyword.put(options, :paging_state, paging_state)
+              {Enum.to_list(page), {producer_pid, %{stream_state | options: opts}}}
+          end
       end,
       fn _ -> :ok end
     )
@@ -42,17 +55,9 @@ defmodule ArchEthic.DB.CassandraImpl.QueryProducer do
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
-  def handle_call({:call, query, parameters}, from, %{queue: queue, demand: demand}) do
-    queue = :queue.in({query, :call, parameters, %{from: from}}, queue)
+  def handle_call({:query, query, parameters, opts}, from, %{queue: queue, demand: demand}) do
+    queue = :queue.in({query, parameters, from, opts}, queue)
     dispatch_events(queue, demand, [])
-  end
-
-  def handle_call({:streaming, query, parameters}, from, %{queue: queue, demand: demand}) do
-    ref = make_ref()
-    queue = :queue.in({query, :streaming, parameters, %{from: from, ref: ref}}, queue)
-    {_, events, state} = dispatch_events(queue, demand, [])
-
-    {:reply, {:ok, ref}, events, state}
   end
 
   def handle_demand(demand, %{queue: queue, demand: pending_demand}) do

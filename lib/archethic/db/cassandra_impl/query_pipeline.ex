@@ -29,39 +29,27 @@ defmodule ArchEthic.DB.CassandraImpl.QueryPipeline do
   end
 
   def prepare_messages(messages, _context) do
-    Enum.map(messages, fn message ->
-      BroadwayMessage.update_data(message, fn {query, mode, parameters, opts} ->
-        {Xandra.prepare!(:xandra_conn, query), mode, parameters, opts}
-      end)
-    end)
+    Enum.map(messages, &do_prepare_message/1)
   end
 
-  def handle_message(_, message, _context) do
-    BroadwayMessage.update_data(message, fn msg = {query, mode, parameters, opts} ->
-      do_handle_message(query, mode, parameters, opts)
-      msg
-    end)
-  end
+  defp do_prepare_message(msg = %BroadwayMessage{data: {query, _, _, _}}) do
+    case Xandra.prepare(:xandra_conn, query) do
+      {:ok, prepared} ->
+        BroadwayMessage.update_data(msg, fn {_, parameters, from, opts} ->
+          {prepared, parameters, from, opts}
+        end)
 
-  defp do_handle_message(query, :call, parameters, %{from: from}) do
-    case Xandra.execute!(:xandra_conn, query, parameters) do
-      page = %Xandra.Page{} ->
-        results = Enum.to_list(page)
-        GenStage.reply(from, results)
-
-      _ ->
-        GenStage.reply(from, :ok)
+      {:error, reason} ->
+        BroadwayMessage.failed(msg, "#{inspect(reason)}")
     end
   end
 
-  defp do_handle_message(query, :streaming, parameters, %{from: from, ref: ref}) do
-    from_pid = elem(from, 0)
+  def handle_message(_, message, _context) do
+    BroadwayMessage.update_data(message, fn msg = {query, parameters, from, options} ->
+      res = Xandra.execute!(:xandra_conn, query, parameters, options)
+      GenStage.reply(from, res)
 
-    :xandra_conn
-    |> Xandra.stream_pages!(query, parameters)
-    |> Stream.flat_map(& &1)
-    |> Enum.each(&send(from_pid, {:data, ref, &1}))
-
-    send(from_pid, {:data_end, ref})
+      msg
+    end)
   end
 end
