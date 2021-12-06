@@ -6,6 +6,7 @@ trap 'echo "******* FAILED *******" 1>&2' ERR
 USER=$(whoami)
 INSTALL_DIR=/home/$USER/aebot/build
 UPGRADE=0
+SERVICE_CREATION=0
 
 usage() {
   echo "Usage:"
@@ -14,6 +15,7 @@ usage() {
   echo ""
   echo "  " release.sh [-d  dir] " Specify the installation dir"
   echo "  " release.sh -u "       Upgrade the release"
+  echo "  " release.sh -s "       Create a systemd service"
   echo "  " release.sh -h "       Print the help usage"
   echo ""
 }
@@ -24,6 +26,7 @@ do
     in
         d) INSTALL_DIR=${OPTARG};;
         u) UPGRADE=1;;
+        s) SERVICE_CREATION=1;;
         h)
           usage
           exit 0
@@ -81,6 +84,9 @@ else
     tar zxvf _build/prod/rel/archethic_node/releases/$VERSION/archethic_node.tar.gz -C $INSTALL_DIR
     echo "Release has been installed on ${INSTALL_DIR}"
 
+    if [ $SERVICE_CREATION == 1 ]
+    then
+    
     echo "Creating service file"
     sudo bash -c 'cat > /etc/systemd/system/archethic.service' << EOF
 
@@ -121,6 +127,9 @@ EOF
     sudo systemctl enable archethic
     sudo systemctl start archethic
     echo "Service Started"
+    fi
+
+    
 fi
 
 exit
