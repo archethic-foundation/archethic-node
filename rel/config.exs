@@ -24,7 +24,6 @@ use Distillery.Releases.Config,
 environment Mix.env() do
   set include_erts: true
   set include_src: false
-  set cookie: :crypto.hash(:sha256, System.get_env("ERLANG_COOKIE", "")) |> Base.encode16() |> String.to_atom() 
   set vm_args: "rel/vm.args"
   set pre_configure_hooks: "rel/pre_configure"
 
@@ -39,6 +38,8 @@ environment Mix.env() do
   set commands: [
     regression_test: "rel/commands/regression_test"
   ]
+
+  plugin Distillery.Releases.Plugin.CookieLoader
 end
 
 # You may define one or more releases in this file.
