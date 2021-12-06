@@ -12,12 +12,19 @@
         <% end %>
     </div>
 
-    <%= if assigns[:error] == :invalid_public_key do %>
-        <p>The node public key is invalid.</p>
-        <div class="mt-4 box has-background-warning-light">
-            <small>Please check the public key validity.</small>
-        </div>
-    <% else %>
+    <%= case assigns[:error] do %>
+        <% :invalid_public_key -> %>
+            <p>The node public key is invalid.</p>
+            <div class="mt-4 box has-background-warning-light">
+                <small>Please check the public key validity.</small>
+            </div>
+        <% :not_exists -> %>
+            <p>The node request does not exists.</p>
+            <div class="mt-4 box has-background-warning-light">
+                <small>Please check the node public key.</small>
+            </div>
+        <% nil -> %>
+
         <div class="columns">
             <div class="column">
                 <p class="heading">First public key</p>
@@ -30,7 +37,8 @@
                 <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(@node.last_public_key, 0, 13)) %>...</span>
             </div>
         </div>
-            <div class="columns">
+
+        <div class="columns">
             <div class="column">
                 <p class="heading">IP</p>
                 <%= :inet_parse.ntoa(@node.ip) %>
