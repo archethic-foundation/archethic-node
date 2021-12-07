@@ -3,55 +3,39 @@ defmodule ArchEthicWeb.BeaconChainLive do
   use ArchEthicWeb, :live_view
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer
   alias ArchEthic.Crypto
   alias ArchEthic.Election
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Message.GetBeaconSummaries
-  alias ArchEthic.P2P.Message.BeaconSummaryList
   alias ArchEthic.PubSub
-  # alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
+  alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
   alias ArchEthicWeb.ExplorerView
   alias Phoenix.View
+  require Logger
 
   defp list_transaction_by_date(date = %DateTime{}) do
-    Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
+    Enum.map(BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
       node_list = P2P.authorized_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
+      %Node{network_patch: patch} = P2P.get_node_info()
 
-      Enum.reduce(nodes, acc, fn node, acc ->
-        Map.update(acc, node, [b_address], &[b_address | &1])
-      end)
+      {b_address, nodes, patch}
     end)
-    |> Stream.transform([], fn
-      {_, []}, acc ->
-        {[], acc}
-
-      {node, addresses}, acc ->
-        addresses_to_fetch = Enum.reject(addresses, &(&1 in acc))
-
-        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses_to_fetch}) do
-          {:ok, %BeaconSummaryList{summaries: summaries}} ->
-            summaries_address_resolved =
-              Enum.map(
-                summaries,
-                &Crypto.derive_beacon_chain_address(&1.subset, &1.summary_time, true)
-              )
-
-            {summaries, acc ++ summaries_address_resolved}
-
-          _ ->
-            {[], acc}
-        end
-    end)
-    |> Stream.map(fn %BeaconSummary{transaction_summaries: transaction_summaries} ->
+    |> Task.async_stream(
+      fn {address, nodes, patch} ->
+        BeaconSummaryHandler.download_summary(address, nodes, patch)
+      end,
+      on_timeout: :kill_task,
+      max_concurrency: 256
+    )
+    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
+    |> Enum.flat_map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
       transaction_summaries
     end)
-    |> Stream.flat_map(& &1)
-    |> Enum.to_list()
   end
 
   defp list_transaction_by_date(nil), do: []
@@ -61,12 +45,23 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
+      # register for client to able to get the current added transaction to the beacon pool
+      PubSub.register_to_added_new_transaction_summary()
+      PubSub.register_to_current_epoch_of_slot_time()
     end
 
-    beacon_dates = get_beacon_dates()
+    beacon_dates =
+      case get_beacon_dates() |> Enum.to_list() do
+        [] ->
+          [next_summary_time]
+
+        dates ->
+          [next_summary_time | dates]
+      end
 
     new_assign =
       socket
+      |> assign(:update_time, DateTime.utc_now())
       |> assign(:next_summary_time, next_summary_time)
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
@@ -118,22 +113,64 @@ defmodule ArchEthicWeb.BeaconChainLive do
   end
 
   def handle_info(
-        {:next_summary_time, next_summary_date},
-        socket = %{assigns: %{current_date_page: page, dates: dates}}
+        {:added_new_transaction_summary, tx_summary = %TransactionSummary{}},
+        socket = %{
+          assigns:
+            assigns = %{
+              current_date_page: page,
+              transactions: transactions
+            }
+        }
       ) do
-    new_dates = [next_summary_date | dates]
+    new_assign =
+      socket
+      |> assign(:update_time, DateTime.utc_now())
 
-    transactions =
-      new_dates
-      |> Enum.at(page - 1)
-      |> list_transaction_by_date()
+    if page == 1 and !Enum.member?(transactions, tx_summary) do
+      # Only update the transaction listed when you are on the first page
+      new_assign =
+        case Map.get(assigns, :summary_passed?) do
+          true ->
+            new_assign
+            |> assign(:transactions, [tx_summary | transactions])
+            |> assign(:summary_passed?, false)
 
+          _ ->
+            update(
+              new_assign,
+              :transactions,
+              &[tx_summary | &1]
+            )
+        end
+
+      {:noreply, new_assign}
+    else
+      {:noreply, new_assign}
+    end
+  end
+
+  def handle_info(
+        {:next_summary_time, next_summary_date},
+        socket = %{
+          assigns: %{
+            current_date_page: page,
+            dates: dates
+          }
+        }
+      ) do
     new_next_summary =
       if :gt == DateTime.compare(next_summary_date, DateTime.utc_now()) do
         next_summary_date
       else
         BeaconChain.next_summary_date(DateTime.utc_now())
       end
+
+    new_dates = [new_next_summary | dates]
+
+    transactions =
+      new_dates
+      |> Enum.at(page - 1)
+      |> list_transaction_by_date()
 
     new_assign =
       socket
@@ -142,6 +179,13 @@ defmodule ArchEthicWeb.BeaconChainLive do
       |> assign(:next_summary_time, new_next_summary)
 
     {:noreply, new_assign}
+  end
+
+  def handle_info({:current_epoch_of_slot_timer, date}, socket) do
+    date
+    |> BeaconChain.register_to_beacon_pool_updates()
+
+    {:noreply, socket}
   end
 
   defp get_beacon_dates do

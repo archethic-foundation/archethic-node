@@ -42,7 +42,7 @@ defmodule ArchEthicWeb.FaucetController do
          true <- Crypto.valid_hash?(recipient_address),
          :ok <- transfer(recipient_address) do
       conn
-      |> put_flash(:info, "Transferred successfully")
+      |> put_flash(:info, "Transferred 100 UCO successfully")
       |> redirect(to: Routes.faucet_path(conn, :index))
     else
       {:error, _} ->

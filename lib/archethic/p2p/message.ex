@@ -5,6 +5,7 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.Account
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary
 
@@ -20,6 +21,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.AddMiningContext
   alias __MODULE__.Balance
   alias __MODULE__.BeaconSummaryList
+  alias __MODULE__.BeaconUpdate
   alias __MODULE__.BootstrappingNodes
   alias __MODULE__.CrossValidate
   alias __MODULE__.CrossValidationDone
@@ -53,6 +55,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.Ok
   alias __MODULE__.P2PView
   alias __MODULE__.Ping
+  alias __MODULE__.RegisterBeaconUpdates
   alias __MODULE__.ReplicateTransaction
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
@@ -107,6 +110,9 @@ defmodule ArchEthic.P2P.Message do
           | GetBeaconSummary.t()
           | NewBeaconTransaction.t()
           | GetBeaconSummaries.t()
+          | RegisterBeaconUpdates.t()
+          | BeaconUpdate.t()
+          | TransactionSummary.t()
 
   @type response ::
           Ok.t()
@@ -325,6 +331,10 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(%GetBeaconSummaries{addresses: addresses}),
     do: <<27::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
+
+  def encode(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
+    <<28::8, node_public_key::binary, subset::binary>>
+  end
 
   def encode(%BeaconSummaryList{summaries: summaries}) do
     summaries_bin =
@@ -716,6 +726,17 @@ defmodule ArchEthic.P2P.Message do
     {
       %GetBeaconSummaries{addresses: addresses},
       rest
+    }
+  end
+
+  def decode(<<28::8, rest::binary>>) do
+    {public_key, rest} = deserialize_public_key(rest)
+
+    {
+      %RegisterBeaconUpdates{
+        subset: rest,
+        node_public_key: public_key
+      }
     }
   end
 
@@ -1226,5 +1247,19 @@ defmodule ArchEthic.P2P.Message do
     %BeaconSummaryList{
       summaries: BeaconChain.get_beacon_summaries(addresses)
     }
+  end
+
+  def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
+    current_slot = BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
+    %Slot{transaction_summaries: transaction_summaries} = current_slot
+    transaction_summaries
+  end
+
+  def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do
+    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
+  end
+
+  def process(tx_summary = %TransactionSummary{}) do
+    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
   end
 end
