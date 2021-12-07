@@ -1,7 +1,7 @@
 FROM elixir:1.12-alpine AS archethic-ci
 
 ARG skip_tests=0
-ARG MIX_ENV=dev
+ARG MIX_ENV=prod
 
 # CI
 #  - compile
@@ -26,7 +26,7 @@ RUN apk add --no-cache --update \
 
 # Install hex and rebar
 RUN mix local.rebar --force \
- && mix local.hex --if-missing --force
+  && mix local.hex --if-missing --force
 
 WORKDIR /opt/code
 
@@ -38,13 +38,13 @@ RUN mix do deps.get, deps.compile
 # build assets
 COPY assets ./assets 
 RUN npm --prefix ./assets ci --progress=false --no-audit --loglevel=error \
- && npm --prefix ./assets run deploy
+  && npm --prefix ./assets run deploy
 
 COPY . .
 
 RUN git config user.name aebot \
- && git config user.email aebot@archethic.net \
- && git remote add origin https://github.com/archethic-foundation/archethic-node
+  && git config user.email aebot@archethic.net \
+  && git remote add origin https://github.com/archethic-foundation/archethic-node
 
 # build release
 RUN mix do phx.digest, distillery.release
@@ -54,8 +54,8 @@ RUN if [ $with_tests -eq 1 ]; then mix git_hooks.run pre_push ;fi
 
 # Install
 RUN mkdir -p /opt/app \
- && cd /opt/app \
- && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz
+  && cd /opt/app \
+  && tar zxf /opt/code/_build/${MIX_ENV}/rel/archethic_node/releases/*/archethic_node.tar.gz
 CMD /opt/app/bin/archethic_node foreground
 
 ################################################################################

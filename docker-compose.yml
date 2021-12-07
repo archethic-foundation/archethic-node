@@ -22,13 +22,37 @@ services:
   node1:
     image: archethic-node:latest
     environment:
+      - ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL=SOFTWARE
       - ARCHETHIC_CRYPTO_SEED=node1
       - ARCHETHIC_MUT_DIR=/opt/data
+      - ARCHETHIC_NETWORKING_IMPL=STATIC
       - ARCHETHIC_STATIC_IP=172.16.1.10
+      - ARCHETHIC_NETWORKING_PORT_FORWARDING=false
       - ARCHETHIC_DB_HOST=scylladb1:9042
+      - ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=172.16.1.10:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS=software
+      - ARCHETHIC_LOGGER_LEVEL=debug
+      - ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL=0 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL=0 * * * * *
+      - ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL=40 * * * * * *
+      - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
+      - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
+      - ARCHETHIC_NODE_IP_VALIDATION=false
+
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
-    command: ["/wait-for-tcp.sh", "scylladb1:9042", "--timeout=0", "--strict", "--", "./bin/archethic_node", "foreground"]
+    command:
+      [
+        "/wait-for-tcp.sh",
+        "scylladb1:9042",
+        "--timeout=0",
+        "--strict",
+        "--",
+        "./bin/archethic_node",
+        "foreground"
+      ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.10
@@ -41,35 +65,49 @@ services:
     image: scylladb/scylla
     networks:
       archethic_net:
-        ipv4_address: 172.16.1.20 
+        ipv4_address: 172.16.1.20
 
   node2:
     image: archethic-node:latest
-    environment: 
+    environment:
+      - ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL=SOFTWARE
       - ARCHETHIC_CRYPTO_SEED=node2
       - ARCHETHIC_MUT_DIR=/opt/data
+      - ARCHETHIC_NETWORKING_IMPL=STATIC
       - ARCHETHIC_STATIC_IP=172.16.1.11
-      - ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_NETWORKING_PORT_FORWARDING=false
       - ARCHETHIC_DB_HOST=scylladb2:9042
+      - ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=172.16.1.10:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS=software
+      - ARCHETHIC_LOGGER_LEVEL=debug
+      - ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL=0 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL=0 * * * * *
+      - ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL=40 * * * * * *
+      - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
+      - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
+      - ARCHETHIC_NODE_IP_VALIDATION=false
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-    command: [
-      "/wait-for-tcp.sh", 
-      "scylladb2:9042", 
-      "--timeout=0", 
-      "--strict", 
-      "--", 
-      "/wait-for-tcp.sh", 
-      "node1:4000", 
-      "--timeout=0", 
-      "--strict", 
-      "--", 
-      "/wait-for-node.sh", 
-      "node1:4000/up", 
-      "./bin/archethic_node", 
-      "foreground"
-    ]
+    command:
+      [
+        "/wait-for-tcp.sh",
+        "scylladb2:9042",
+        "--timeout=0",
+        "--strict",
+        "--",
+        "/wait-for-tcp.sh",
+        "node1:40000",
+        "--timeout=0",
+        "--strict",
+        "--",
+        "/wait-for-node.sh",
+        "node1:40000/up",
+        "./bin/archethic_node",
+        "foreground"
+      ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.11
@@ -82,35 +120,49 @@ services:
     image: scylladb/scylla
     networks:
       archethic_net:
-        ipv4_address: 172.16.1.21 
+        ipv4_address: 172.16.1.21
 
   node3:
     image: archethic-node:latest
-    environment: 
+    environment:
+      - ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL=SOFTWARE
       - ARCHETHIC_CRYPTO_SEED=node3
       - ARCHETHIC_MUT_DIR=/opt/data
+      - ARCHETHIC_NETWORKING_IMPL=STATIC
       - ARCHETHIC_STATIC_IP=172.16.1.12
-      - ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=172.16.1.10:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_NETWORKING_PORT_FORWARDING=false
       - ARCHETHIC_DB_HOST=scylladb3:9042
+      - ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS=172.16.1.10:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp
+      - ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS=software
+      - ARCHETHIC_LOGGER_LEVEL=debug
+      - ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL=0 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL=*/10 * * * * *
+      - ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL=0 * * * * *
+      - ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL=40 * * * * * *
+      - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
+      - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
+      - ARCHETHIC_NODE_IP_VALIDATION=false
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
-    command: [
-      "/wait-for-tcp.sh", 
-      "scylladb3:9042", 
-      "--timeout=0", 
-      "--strict", 
-      "--", 
-      "/wait-for-tcp.sh", 
-      "node1:4000", 
-      "--timeout=0", 
-      "--strict", 
-      "--", 
-      "/wait-for-node.sh", 
-      "node1:4000/up", 
-      "./bin/archethic_node", 
-      "foreground"
-    ]
+    command:
+      [
+        "/wait-for-tcp.sh",
+        "scylladb3:9042",
+        "--timeout=0",
+        "--strict",
+        "--",
+        "/wait-for-tcp.sh",
+        "node1:40000",
+        "--timeout=0",
+        "--strict",
+        "--",
+        "/wait-for-node.sh",
+        "node1:40000/up",
+        "./bin/archethic_node",
+        "foreground"
+      ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.12
@@ -123,8 +175,8 @@ services:
     image: scylladb/scylla
     networks:
       archethic_net:
-        ipv4_address: 172.16.1.22 
-       
+        ipv4_address: 172.16.1.22
+
   collector:
     image: prom/prometheus
     volumes:
@@ -132,13 +184,21 @@ services:
     networks:
       archethic_net:
         ipv4_address: 172.16.1.200
-  
+
   bench:
     image: archethic-node:latest
-    environment: 
+    environment:
       - ARCHETHIC_MUT_DIR=/opt/data
-    command: ["./bin/archethic_node", "regression_test", "--bench", "node1", "node2", "node3"]
-    profiles: ["validate"]
+    command:
+      [
+        "./bin/archethic_node",
+        "regression_test",
+        "--bench",
+        "node1",
+        "node2",
+        "node3"
+      ]
+    profiles: [ "validate" ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.201
@@ -147,8 +207,16 @@ services:
     image: archethic-node:latest
     environment:
       - ARCHETHIC_MUT_DIR=/opt/data
-    command: ["./bin/archethic_node", "regression_test", "--playbook", "node1", "node2", "node3"]
-    profiles: ["validate"]
+    command:
+      [
+        "./bin/archethic_node",
+        "regression_test",
+        "--playbook",
+        "node1",
+        "node2",
+        "node3"
+      ]
+    profiles: [ "validate" ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.202

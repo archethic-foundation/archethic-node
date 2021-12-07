@@ -109,8 +109,8 @@ defmodule ArchEthic.Utils.Testnet do
 
   alias ArchEthic.Crypto
 
-  defp p2p_port, do: Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
-  defp web_port, do: Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+  defp p2p_port, do: 30_002
+  defp web_port, do: 40_000
 
   @validator_ip 220
   @bench_ip 221
@@ -140,9 +140,9 @@ defmodule ArchEthic.Utils.Testnet do
         "- job_name: testnet\\n" <>
         "  static_configs:\\n" <>
         "  - targets:\\n" <>
-        "    - node1:4002\\n" <>
-        "    - node2:4002\\n" <>
-        "    - node3:4002\\n\\n"},
+        "    - node1:40000\\n" <>
+        "    - node2:40000\\n" <>
+        "    - node3:40000\\n\\n"},
       {"docker-compose.json", %{
         version: "3.9",
           networks: %{:net => %{ipam: %{config: [%{subnet: "1.2.3.0/24"}], driver: :default}}},
@@ -150,9 +150,22 @@ defmodule ArchEthic.Utils.Testnet do
             "node1" => %{
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node1",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.2",
-                "ARCHETHIC_DB_HOST" => "scylladb1:9042"
+                "ARCHETHIC_DB_HOST" => "scylladb1:9042",
+                "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
+                "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
+                "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
+                "ARCHETHIC_LOGGER_LEVEL" => "debug",
+                "ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
+                "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
+                "ARCHETHIC_NODE_IP_VALIDATION" => "false",
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
               },
               image: "i",
               build: %{ context: "c"},
@@ -174,9 +187,22 @@ defmodule ArchEthic.Utils.Testnet do
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node2",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.3",
-                "ARCHETHIC_DB_HOST" => "scylladb2:9042"
+                "ARCHETHIC_DB_HOST" => "scylladb2:9042",
+                "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
+                "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
+                "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
+                "ARCHETHIC_LOGGER_LEVEL" => "debug",
+                "ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
+                "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
+                "ARCHETHIC_NODE_IP_VALIDATION" => "false",
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
               },
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.3"}},
@@ -189,8 +215,12 @@ defmodule ArchEthic.Utils.Testnet do
                 "scylladb2:9042",
                 "--timeout=0",
                 "--strict", "--",
+                "/wait-for-tcp.sh",
+                "node1:40000",
+                "--timeout=0",
+                "--strict", "--",
                 "/wait-for-node.sh",
-                "http://node1:4002/up",
+                "http://node1:40000/up",
                 "./bin/archethic_node",
                 "foreground"
               ]
@@ -199,9 +229,22 @@ defmodule ArchEthic.Utils.Testnet do
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node3",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.4",
-                "ARCHETHIC_DB_HOST" => "scylladb3:9042"
+                "ARCHETHIC_DB_HOST" => "scylladb3:9042",
+                "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
+                "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
+                "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
+                "ARCHETHIC_LOGGER_LEVEL" => "debug",
+                "ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL" => "*/10 * * * * *",
+                "ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL" => "0 * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
+                "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
+                "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
+                "ARCHETHIC_NODE_IP_VALIDATION" => "false",
+                "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE"
               },
               image: "i",
               networks: %{:net => %{ipv4_address: "1.2.3.4"}},
@@ -214,8 +257,12 @@ defmodule ArchEthic.Utils.Testnet do
                 "scylladb3:9042",
                 "--timeout=0",
                 "--strict", "--",
+                "/wait-for-tcp.sh",
+                "node1:40000",
+                "--timeout=0",
+                "--strict", "--",
                 "/wait-for-node.sh",
-                "http://node1:4002/up",
+                "http://node1:40000/up",
                 "./bin/archethic_node",
                 "foreground"
               ]
@@ -377,10 +424,23 @@ defmodule ArchEthic.Utils.Testnet do
        build: %{context: src},
        image: image,
        environment: %{
+         "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
          "ARCHETHIC_CRYPTO_SEED" => "node1",
          "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(ip.(1 + 1)),
          "ARCHETHIC_STATIC_IP" => ip.(1 + 1),
-         "ARCHETHIC_DB_HOST" => "scylladb1:9042"
+         "ARCHETHIC_DB_HOST" => "scylladb1:9042",
+         "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
+         "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
+         "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
+         "ARCHETHIC_LOGGER_LEVEL" => "debug",
+         "ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL" => "*/10 * * * * *",
+         "ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL" => "0 * * * * *",
+         "ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL" => "*/10 * * * * *",
+         "ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL" => "0 * * * * *",
+         "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
+         "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
+         "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
+         "ARCHETHIC_NODE_IP_VALIDATION" => "false"
        },
        volumes: [
          "#{Path.join([src, "/scripts/wait-for-tcp.sh"])}:/wait-for-tcp.sh:ro"
@@ -404,10 +464,23 @@ defmodule ArchEthic.Utils.Testnet do
        image: image,
        depends_on: ["node1"],
        environment: %{
+         "ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL" => "SOFTWARE",
          "ARCHETHIC_CRYPTO_SEED" => "node#{n}",
          "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => seeder(ip.(1 + 1)),
          "ARCHETHIC_STATIC_IP" => ip.(n + 1),
-         "ARCHETHIC_DB_HOST" => "scylladb#{n}:9042"
+         "ARCHETHIC_DB_HOST" => "scylladb#{n}:9042",
+         "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
+         "ARCHETHIC_NETWORKING_PORT_FORWARDING" => "false",
+         "ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS" => "software",
+         "ARCHETHIC_LOGGER_LEVEL" => "debug",
+         "ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL" => "*/10 * * * * *",
+         "ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL" => "0 * * * * *",
+         "ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL" => "*/10 * * * * *",
+         "ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL" => "0 * * * * *",
+         "ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL" => "40 * * * * * *",
+         "ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL" => "0 * * * * * *",
+         "ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL" => "5 * * * * * *",
+         "ARCHETHIC_NODE_IP_VALIDATION" => "false"
        },
        networks: %{:net => %{ipv4_address: ip.(n + 1)}},
        volumes: [
@@ -417,6 +490,11 @@ defmodule ArchEthic.Utils.Testnet do
        command: [
          "/wait-for-tcp.sh",
          "scylladb#{n}:9042",
+         "--timeout=0",
+         "--strict",
+         "--",
+         "/wait-for-tcp.sh",
+         "node1:40000",
          "--timeout=0",
          "--strict",
          "--",

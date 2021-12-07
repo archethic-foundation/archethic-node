@@ -56,7 +56,8 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
 
 config :archethic,
        ArchEthic.Crypto.NodeKeystore,
-       (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE") do
+       (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE")
+             |> String.upcase() do
           "SOFTWARE" ->
             ArchEthic.Crypto.NodeKeystore.SoftwareImpl
 

@@ -100,13 +100,16 @@ config :archethic, ArchEthic.Crypto,
 
 config :archethic,
        ArchEthic.Crypto.NodeKeystore,
-       (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM")) do
+       (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM") |> String.upcase()) do
           "TPM" ->
             ArchEthic.Crypto.NodeKeystore.TPMImpl
 
           "SOFTWARE" ->
             ArchEthic.Crypto.NodeKeystore.SoftwareImpl
         end)
+
+config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
+  seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
 
 # TODO: to remove when the implementation will be detected
 config :archethic,
@@ -128,12 +131,19 @@ config :archethic, ArchEthic.Governance.Pools,
 config :archethic, ArchEthic.Mining.PendingTransactionValidation,
   allowed_node_key_origins:
     System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm")
+    |> String.upcase()
     |> String.split(";", trim: true)
-    |> Enum.map(&String.to_existing_atom/1)
+    |> Enum.map(fn
+      "TPM" ->
+        :tpm
+
+      "SOFTWARE" ->
+        :software
+    end)
 
 config :archethic,
        ArchEthic.Networking.IPLookup,
-       (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT")) do
+       (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
           "NAT" ->
             ArchEthic.Networking.IPLookup.NAT
 
