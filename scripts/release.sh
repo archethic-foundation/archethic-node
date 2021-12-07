@@ -20,7 +20,7 @@ usage() {
   echo ""
 }
 
-while getopts :uhd: option
+while getopts :suhd: option
 do
     case "${option}"
     in
