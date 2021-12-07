@@ -77,7 +77,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
           next_public_key
         )
 
-      assert {:error, "Invalid node transaction with invalid key / certificate"} =
+      assert {:error, "Invalid node transaction with invalid key origin"} =
                PendingTransactionValidation.validate(tx)
     end
 
