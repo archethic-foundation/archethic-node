@@ -4,7 +4,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore do
   alias ArchEthic.Crypto
   alias ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-  use Knigge, otp_app: :archethic, default: SoftwareImpl
+  use Knigge, otp_app: :archethic, default: SoftwareImpl, delegate_at_runtime?: true
 
   @callback child_spec(any()) :: Supervisor.child_spec()
 

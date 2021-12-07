@@ -3,7 +3,7 @@ defmodule ArchEthic.Crypto.NodeKeystore do
 
   alias ArchEthic.Crypto
 
-  use Knigge, otp_app: :archethic
+  use Knigge, otp_app: :archethic, delegate_at_runtime?: true
 
   @callback child_spec(any) :: Supervisor.child_spec()
 
