@@ -13,12 +13,15 @@ defmodule ArchEthic.DB.CassandraImpl.Supervisor do
   end
 
   def init(_args) do
-    host = Application.get_env(:archethic, ArchEthic.DB.CassandraImpl) |> Keyword.fetch!(:host)
+    conf = Application.get_env(:archethic, ArchEthic.DB.CassandraImpl)
+
+    host = Keyword.fetch!(conf, :host)
+    pool_size = Keyword.get(conf, :pool_size, 10)
 
     Logger.info("Start Cassandra connection at #{host}")
 
     children = [
-      {Xandra, name: :xandra_conn, pool_size: 10, nodes: [host]},
+      {Xandra, name: :xandra_conn, pool_size: pool_size, nodes: [host]},
       QueryPipeline,
       SchemaMigrator
     ]

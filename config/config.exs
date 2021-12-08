@@ -63,10 +63,8 @@ config :archethic, ArchEthic.Crypto,
   storage_nonce_file: "crypto/storage_nonce",
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
-config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
-  seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
-
 config :archethic, ArchEthic.DB, ArchEthic.DB.CassandraImpl
+config :archethic, ArchEthic.DB.CassandraImpl, pool_size: 100
 
 config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_seed:

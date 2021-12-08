@@ -41,16 +41,15 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     start = System.monotonic_time()
 
     with true <- Transaction.verify_previous_signature?(tx),
-         :ok <- validate_contract(tx) do
-      res = do_accept_transaction(tx)
-
+         :ok <- validate_contract(tx),
+         :ok <- do_accept_transaction(tx) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
         %{duration: System.monotonic_time() - start},
         %{transaction_type: type}
       )
 
-      res
+      :ok
     else
       false ->
         Logger.error("Invalid previous signature",
@@ -115,23 +114,32 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          previous_public_key: previous_public_key
        }) do
     with {:ok, ip, port, _, _, key_certificate} <- Node.decode_transaction_content(content),
-         true <-
-           Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins()),
+         {:auth_origin, true} <-
+           {:auth_origin,
+            Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins())},
          root_ca_public_key <- Crypto.get_root_ca_public_key(previous_public_key),
-         true <-
-           Crypto.verify_key_certificate?(
-             previous_public_key,
-             key_certificate,
-             root_ca_public_key
-           ),
-         true <- valid_connection?(ip, port, previous_public_key) do
+         {:auth_cert, true} <-
+           {:auth_cert,
+            Crypto.verify_key_certificate?(
+              previous_public_key,
+              key_certificate,
+              root_ca_public_key
+            )},
+         {:conn, true} <-
+           {:conn, valid_connection?(ip, port, previous_public_key, should_validate_node_ip?())} do
       :ok
     else
       :error ->
         {:error, "Invalid node transaction's content"}
 
-      false ->
-        {:error, "Invalid node transaction with invalid key / certificate"}
+      {:auth_cert, false} ->
+        {:error, "Invalid node transaction with invalid certificate"}
+
+      {:auth_origin, false} ->
+        {:error, "Invalid node transaction with invalid key origin"}
+
+      {:conn, false} ->
+        {:error, "Invalid node connection (IP/Port) for the given public key"}
     end
   end
 
@@ -275,23 +283,29 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
   defp get_first_public_key([], _), do: {:error, :network_issue}
 
-  defp valid_connection?(ip, port, previous_public_key) do
-    if should_validate_connection?() do
-      with true <- Networking.valid_ip?(ip),
-           false <- P2P.duplicating_node?(ip, port, previous_public_key) do
-        true
-      else
-        _ ->
-          false
-      end
-    else
+  defp valid_connection?(ip, port, previous_public_key, _check_ip? = true) do
+    with true <- Networking.valid_ip?(ip),
+         false <- P2P.duplicating_node?(ip, port, previous_public_key) do
       true
+    else
+      _ ->
+        false
     end
   end
 
-  defp should_validate_connection? do
+  defp valid_connection?(ip, port, previous_public_key, _check_ip? = false) do
+    case P2P.duplicating_node?(ip, port, previous_public_key) do
+      false ->
+        true
+
+      true ->
+        false
+    end
+  end
+
+  defp should_validate_node_ip? do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:validate_connection, false)
+    |> Keyword.get(:validate_node_ip, false)
   end
 end
