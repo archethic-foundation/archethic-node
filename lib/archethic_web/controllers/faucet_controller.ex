@@ -34,7 +34,7 @@ defmodule ArchEthicWeb.FaucetController do
     |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
     |> put_resp_header("pragma", "no-cache")
     |> put_resp_header("expires", "0")
-    |> render("index.html", address: "")
+    |> render("index.html", address: "", link_address: "")
   end
 
   def create_transfer(conn, %{"address" => address}) do
@@ -42,18 +42,21 @@ defmodule ArchEthicWeb.FaucetController do
          true <- Crypto.valid_hash?(recipient_address),
          :ok <- transfer(recipient_address) do
       conn
-      |> put_flash(:info, "Transferred successfully")
-      |> redirect(to: Routes.faucet_path(conn, :index))
+      |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
+      |> put_resp_header("pragma", "no-cache")
+      |> put_resp_header("expires", "0")
+      |> put_flash(:info, "Transferred successfully (click to view)")
+      |> render("index.html", address: "", link_address: address)
     else
       {:error, _} ->
         conn
         |> put_flash(:error, "Unable to transfer")
-        |> render("index.html", address: address)
+        |> render("index.html", address: address, link_address: "")
 
       _ ->
         conn
         |> put_flash(:error, "Malformed address")
-        |> render("index.html", address: address)
+        |> render("index.html", address: address, link_address: "")
     end
   end
 
