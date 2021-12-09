@@ -86,20 +86,33 @@ defmodule ArchEthic.SelfRepair.Scheduler do
       "Self-Repair synchronization started from #{last_sync_date_to_string(last_sync_date)}"
     )
 
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
+    Task.Supervisor.async_nolink(TaskSupervisor, fn ->
       Sync.load_missed_transactions(last_sync_date, get_node_patch())
     end)
 
     timer = schedule_sync(interval)
     Logger.info("Self-Repair will be started in #{Utils.remaining_seconds_from_timer(timer)}")
 
-    update_last_sync_date()
-
     new_state =
       state
       |> Map.put(:timer, timer)
 
     {:noreply, new_state, :hibernate}
+  end
+
+  def handle_info({ref, :ok}, state) do
+    update_last_sync_date()
+    Process.demonitor(ref, [:flush])
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, _, _, reason}, state) do
+    Logger.error("Failed to completed self-repair cycle: #{reason}")
+    {:noreply, state}
+  end
+
+  def handle_info(_, state) do
+    {:noreply, state}
   end
 
   def handle_cast({:new_conf, conf}, state) do
