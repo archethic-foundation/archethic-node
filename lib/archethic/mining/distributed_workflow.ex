@@ -186,7 +186,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
           true
 
         {:error, reason} ->
-          Logger.warning("Invalid transaction - #{inspect(reason)}",
+          Logger.debug("Invalid transaction - #{inspect(reason)}",
             transaction_address: Base.encode16(tx.address),
             transaction_type: tx.type
           )
@@ -254,6 +254,16 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :telemetry.execute([:archethic, :mining, :fetch_context], %{
       duration: System.monotonic_time() - start
     })
+
+    Logger.debug("Previous transaction #{inspect(prev_tx)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.debug("Unspent outputs #{inspect(unspent_outputs)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
     new_context =
       ValidationContext.put_transaction_context(

@@ -130,6 +130,9 @@ defmodule ArchEthic.SelfRepair.Sync do
   defp missed_previous_summaries(last_sync_date, patch) do
     last_sync_date
     |> BeaconChain.previous_summary_dates()
+    |> tap(fn dates ->
+      Logger.debug("Dates to sync from self-repair cycle #{inspect(Enum.to_list(dates))}")
+    end)
     |> BeaconChain.get_summary_pools()
     |> BeaconSummaryHandler.get_beacon_summaries(patch)
   end
