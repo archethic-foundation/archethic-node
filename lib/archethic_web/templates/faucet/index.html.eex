@@ -1,3 +1,7 @@
+<%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, @link_address) do%>
+  <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
+<% end %>
+<p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
 <div class="hero is-medium is-bold is-large explorer-main">
 <div class="hero-body">
   <div class="container">
@@ -16,7 +20,7 @@
         </div>
         <div class="column is-2-desktop">
           <button type="submit" class="button is-fullwidth is-light is-outlined">
-            Transfer fund
+            Transfer 100 UCO
           </button>
         </div>
       </form>
