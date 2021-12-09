@@ -229,7 +229,7 @@ config :archethic, ArchEthicWeb.FaucetController,
 # before starting your production server.
 config :archethic, ArchEthicWeb.Endpoint,
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
-  url: [host: "*", port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
+  url: [host: nil, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",
   server: true,
   root: ".",
