@@ -40,6 +40,7 @@ services:
       - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
       - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
       - ARCHETHIC_NODE_IP_VALIDATION=false
+      - ARCHETHIC_NETWORK_TYPE=testnet
 
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
@@ -56,6 +57,8 @@ services:
     networks:
       archethic_net:
         ipv4_address: 172.16.1.10
+    ports:
+      - 4000:40000
     links:
       - scylladb1
     depends_on:
@@ -88,6 +91,7 @@ services:
       - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
       - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
       - ARCHETHIC_NODE_IP_VALIDATION=false
+      - ARCHETHIC_NETWORK_TYPE=testnet
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
@@ -111,6 +115,8 @@ services:
     networks:
       archethic_net:
         ipv4_address: 172.16.1.11
+    ports:
+      - 4001:40000
     links:
       - scylladb2
     depends_on:
@@ -143,6 +149,7 @@ services:
       - ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL=0 * * * * * *
       - ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL=5 * * * * * *
       - ARCHETHIC_NODE_IP_VALIDATION=false
+      - ARCHETHIC_NETWORK_TYPE=testnet
     volumes:
       - ./scripts/wait-for-tcp.sh:/wait-for-tcp.sh:ro
       - ./scripts/wait-for-node.sh:/wait-for-node.sh:ro
@@ -166,6 +173,8 @@ services:
     networks:
       archethic_net:
         ipv4_address: 172.16.1.12
+    ports:
+      - 4002:40000
     links:
       - scylladb3
     depends_on:
