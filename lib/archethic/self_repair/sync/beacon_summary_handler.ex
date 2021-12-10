@@ -219,6 +219,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
       |> Enum.filter(&TransactionHandler.download_transaction?/1)
 
     Logger.info("Need to synchronize #{Enum.count(transactions_to_sync)} transactions")
+    Logger.debug("Transaction to sync #{inspect(transactions_to_sync)}")
 
     Enum.each(transactions_to_sync, &TransactionHandler.download_transaction(&1, node_patch))
   end

@@ -83,7 +83,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
           ]
           |> Utils.get_keys_from_value_match(true)
 
-        Replication.process_transaction(tx, roles, self_repair?: true)
+        :ok = Replication.process_transaction(tx, roles, self_repair?: true)
 
       {:error, :network_issue} ->
         Logger.error("Network issue during during self repair",

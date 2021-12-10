@@ -73,8 +73,7 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
 
     send(pid, :sync)
 
-    Process.sleep(100)
-
+    Process.sleep(2_000)
     assert DateTime.compare(Sync.last_sync_date(), first_last_sync_date) == :gt
   end
 end

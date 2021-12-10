@@ -188,18 +188,41 @@ defmodule ArchEthic.Replication.TransactionValidator do
       :ok
     else
       {:pow, false} ->
+        Logger.debug("Invalid proof of work #{Base.encode16(pow)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, :invalid_proof_of_work}
 
       {:poe, false} ->
+        Logger.debug(
+          "Invalid proof of election - checking public key: #{Base.encode16(SharedSecrets.get_daily_nonce_public_key(timestamp))}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, :invalid_proof_of_election}
 
       {:signature, false} ->
         {:error, :invalid_validation_stamp_signature}
 
       {:fee, false} ->
+        Logger.debug(
+          "Invalid fee: #{inspect(fee)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, :invalid_transaction_fee}
 
       {:tx_movements, false} ->
+        Logger.debug(
+          "Invalid movements: #{inspect(ops.transaction_movements)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, :invalid_transaction_movements}
 
       {:node_movements_roles, false} ->
@@ -212,6 +235,12 @@ defmodule ArchEthic.Replication.TransactionValidator do
         {:error, :invalid_reward_distribution}
 
       {:errors, false} ->
+        Logger.debug(
+          "Contains errors: #{inspect(errors)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, {:transaction_errors_detected, errors}}
     end
   end
