@@ -18,10 +18,12 @@ defmodule ArchEthic do
   alias __MODULE__.P2P.Message.Error
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.GetLastTransaction
+  alias __MODULE__.P2P.Message.GetLastTransactionAddress
   alias __MODULE__.P2P.Message.GetTransaction
   alias __MODULE__.P2P.Message.GetTransactionChain
   alias __MODULE__.P2P.Message.GetTransactionChainLength
   alias __MODULE__.P2P.Message.GetTransactionInputs
+  alias __MODULE__.P2P.Message.LastTransactionAddress
   alias __MODULE__.P2P.Message.NewTransaction
   alias __MODULE__.P2P.Message.NotFound
   alias __MODULE__.P2P.Message.Ok
@@ -40,7 +42,7 @@ defmodule ArchEthic do
   @mining_timeout Application.compile_env!(:archethic, [ArchEthic.Mining, :timeout])
 
   @doc """
-  Query the search of the transaction to the dedicated storage pool
+  Query the search of the transaction to the dedicated storage pool from the closest nodes
   """
   @spec search_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
@@ -130,6 +132,9 @@ defmodule ArchEthic do
     end
   end
 
+  @doc """
+  Retrieve the last transaction for a chain from the closest nodes
+  """
   @spec get_last_transaction(address :: binary()) ::
           {:ok, Transaction.t()}
           | {:error, :transaction_not_exists}
@@ -161,10 +166,35 @@ defmodule ArchEthic do
   defp get_last_transaction([], _), do: {:error, :network_issue}
 
   @doc """
-  Retrieve the balance from an address.
+  Retrieve the last transaction address for a chain from the closest nodes
+  """
+  @spec get_last_transaction_address(address :: binary()) ::
+          {:ok, binary()}
+          | {:error, :network_issue}
+  def get_last_transaction_address(address) do
+    address
+    |> Replication.chain_storage_nodes()
+    |> P2P.nearest_nodes()
+    |> get_last_transaction_address(address)
+  end
 
-  If the current node is a storage of this address, it will perform a fast lookup
-  Otherwise it will request the closest storage node about it
+  defp get_last_transaction_address([node | rest], address) do
+    case P2P.send_message(node, %GetLastTransactionAddress{
+           address: address,
+           timestamp: DateTime.utc_now()
+         }) do
+      {:ok, %LastTransactionAddress{address: last_address}} ->
+        {:ok, last_address}
+
+      {:error, _} ->
+        get_last_transaction_address(rest, address)
+    end
+  end
+
+  defp get_last_transaction_address([], _), do: {:error, :network_issue}
+
+  @doc """
+  Retrieve the balance from an address from the closest nodes
   """
   @spec get_balance(binary) :: {:ok, Account.balance()} | {:error, :network_issue}
   def get_balance(address) when is_binary(address) do
@@ -187,7 +217,7 @@ defmodule ArchEthic do
   defp get_balance([], _), do: {:error, :network_issue}
 
   @doc """
-  Request to fetch the inputs for a transaction address
+  Request to fetch the inputs for a transaction address from the closest nodes
   """
   @spec get_transaction_inputs(binary()) ::
           {:ok, list(TransactionInput.t())} | {:error, :network_issue}
@@ -211,7 +241,7 @@ defmodule ArchEthic do
   defp get_transaction_inputs([], _), do: {:error, :network_issue}
 
   @doc """
-  Retrieve a transaction chain based on an address
+  Retrieve a transaction chain based on an address from the closest nodes
   """
   @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain(address) when is_binary(address) do
@@ -234,7 +264,7 @@ defmodule ArchEthic do
   defp get_transaction_chain([], _), do: {:error, :network_issue}
 
   @doc """
-  Retrieve the number of transaction in a transaction chain
+  Retrieve the number of transaction in a transaction chain from the closest nodes
   """
   @spec get_transaction_chain_length(binary()) ::
           {:ok, non_neg_integer()} | {:error, :network_issue}
