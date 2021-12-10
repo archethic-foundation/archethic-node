@@ -9,9 +9,7 @@ defmodule ArchEthic.P2P.Client.Connection do
   alias ArchEthic.P2P.Message
   alias ArchEthic.P2P.MessageEnvelop
 
-  use GenServer
-
-  use Retry
+  use Connection
 
   require Logger
 
@@ -21,7 +19,7 @@ defmodule ArchEthic.P2P.Client.Connection do
   @spec start_link(list()) :: GenServer.on_start()
   def start_link(arg \\ []) do
     node_public_key = Keyword.fetch!(arg, :node_public_key)
-    GenServer.start_link(__MODULE__, arg, name: via_tuple(node_public_key))
+    Connection.start_link(__MODULE__, arg, name: via_tuple(node_public_key))
   end
 
   @doc """
@@ -32,20 +30,23 @@ defmodule ArchEthic.P2P.Client.Connection do
 
   It may returns `{:error, :timeout}` if either the send or the receiving take more than the timeout value provided.
   It may also returns `{:error, :closed}` is the socket closed or any error in the transport layer
-  ```
   """
   @spec send_message(Crypto.key(), Message.request(), timeout()) ::
           {:ok, Message.response()}
           | {:error, :timeout}
           | {:error, :closed}
   def send_message(public_key, message, timeout \\ 5_000) do
-    {:ok, ref} = GenServer.call(via_tuple(public_key), {:send_message, message, timeout})
+    case Connection.call(via_tuple(public_key), {:send_message, message, timeout}) do
+      {:ok, ref} ->
+        receive do
+          {:data, ^ref, data} ->
+            {:ok, data}
 
-    receive do
-      {:data, ^ref, data} ->
-        {:ok, data}
+          {:error, _} = e ->
+            e
+        end
 
-      {:error, _} = e ->
+      {:error, :closed} = e ->
         e
     end
   end
@@ -58,20 +59,60 @@ defmodule ArchEthic.P2P.Client.Connection do
     node_public_key = Keyword.get(arg, :node_public_key)
     transport = Keyword.get(arg, :transport)
 
-    {:ok, socket} = connect(transport, ip, port, node_public_key)
+    {:connect, :init,
+     %{
+       ip: ip,
+       port: port,
+       node_public_key: node_public_key,
+       transport: transport,
+       socket: nil,
+       request_id: 0,
+       messages: %{}
+     }}
+  end
 
-    {
-      :ok,
-      %{
-        ip: ip,
-        port: port,
-        node_public_key: node_public_key,
-        transport: transport,
-        socket: socket,
-        request_id: 0,
-        messages: %{}
-      }
-    }
+  def connect(
+        _,
+        state = %{
+          ip: ip,
+          port: port,
+          transport: transport,
+          node_public_key: node_public_key,
+          socket: nil
+        }
+      ) do
+    case transport.handle_connect(ip, port) do
+      {:ok, socket} ->
+        {:ok, %{state | socket: socket}}
+
+      {:error, reason} ->
+        Logger.error(
+          "Error during node connection to #{:inet.ntoa(ip)}:#{port} - #{reason} ",
+          node: Base.encode16(node_public_key)
+        )
+
+        MemTable.decrease_node_availability(node_public_key)
+
+        {:backoff, 1_000, state}
+    end
+  end
+
+  def disconnect(info, state = %{socket: socket, node_public_key: node_public_key}) do
+    :ok = :gen_tcp.close(socket)
+
+    case info do
+      {:error, :closed} ->
+        Logger.error("Connection closed", node: Base.encode16(node_public_key))
+
+      {:error, reason} ->
+        Logger.error("Connection error - #{reason}", node: Base.encode16(node_public_key))
+    end
+
+    {:connect, :reconnect, %{state | socket: nil, messages: %{}}}
+  end
+
+  def handle_call({:send_message, _, _}, _, state = %{socket: nil}) do
+    {:reply, {:error, :closed}, state}
   end
 
   def handle_call(
@@ -101,23 +142,30 @@ defmodule ArchEthic.P2P.Client.Connection do
       message_id: request_id
     )
 
-    :ok = transport.handle_send(socket, message_envelop)
+    case transport.handle_send(socket, message_envelop) do
+      :ok ->
+        MemTable.increase_node_availability(node_public_key)
 
-    new_state =
-      state
-      |> Map.update!(
-        :messages,
-        &Map.put(&1, request_id, %{
-          from: elem(from, 0),
-          ref: ref,
-          message_name: Message.name(message),
-          timer: Process.send_after(self(), {:timeout, request_id}, timeout),
-          start_time: System.monotonic_time(:millisecond)
-        })
-      )
-      |> Map.update!(:request_id, &(&1 + 1))
+        new_state =
+          state
+          |> Map.update!(
+            :messages,
+            &Map.put(&1, request_id, %{
+              from: elem(from, 0),
+              ref: ref,
+              message_name: Message.name(message),
+              timer: Process.send_after(self(), {:timeout, request_id}, timeout),
+              start_time: System.monotonic_time(:millisecond)
+            })
+          )
+          |> Map.update!(:request_id, &(&1 + 1))
 
-    {:reply, {:ok, ref}, new_state}
+        {:reply, {:ok, ref}, new_state}
+
+      {:error, _} = e ->
+        MemTable.decrease_node_availability(node_public_key)
+        {:disconnect, e, state}
+    end
   end
 
   def handle_info(
@@ -143,18 +191,16 @@ defmodule ArchEthic.P2P.Client.Connection do
   def handle_info(
         event,
         state = %{
-          ip: ip,
-          port: port,
           transport: transport,
           node_public_key: node_public_key,
           messages: messages
         }
       ) do
     case transport.handle_message(event) do
-      {:error, reason} ->
+      {:error, reason} = e ->
         MemTable.decrease_node_availability(node_public_key)
 
-        Logger.warning("Connection disconnected #{inspect(reason)}",
+        Logger.info("Connection disconnected #{inspect(reason)}",
           node: Base.encode16(node_public_key)
         )
 
@@ -163,8 +209,7 @@ defmodule ArchEthic.P2P.Client.Connection do
           Process.cancel_timer(timer)
         end)
 
-        {:ok, socket} = connect(transport, ip, port, node_public_key)
-        {:noreply, %{state | socket: socket, messages: %{}}}
+        {:disconnect, e, state}
 
       {:ok, msg} ->
         end_time = System.monotonic_time(:millisecond)
@@ -196,23 +241,6 @@ defmodule ArchEthic.P2P.Client.Connection do
           {nil, _state} ->
             {:noreply, state}
         end
-    end
-  end
-
-  defp connect(transport, ip, port, node_public_key) do
-    retry_while with: exponential_backoff(100, 2) do
-      case transport.handle_connect(ip, port) do
-        {:ok, socket} ->
-          {:halt, {:ok, socket}}
-
-        {:error, reason} ->
-          Logger.warning(
-            "Error during node connection #{inspect(reason)} to #{:inet.ntoa(ip)}:#{port}",
-            node: Base.encode16(node_public_key)
-          )
-
-          {:cont, {:error, reason}}
-      end
     end
   end
 end

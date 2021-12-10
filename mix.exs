@@ -73,8 +73,9 @@ defmodule ArchEthic.MixProject do
       {:knigge, "~> 1.4"},
       {:flow, "~> 1.0"},
       {:ranch, "~> 2.1", override: true},
-      {:broadway, "~> 1.0"}
-      # {:broadway_dashboard, "~> 0.2.0", only: :dev}
+      {:broadway, "~> 1.0"},
+      # {:broadway_dashboard, "~> 0.2.0", only: :dev},
+      {:connection, "~> 1.1"}
     ]
   end
 end
