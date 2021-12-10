@@ -1028,7 +1028,7 @@ defmodule ArchEthic.P2P.Message do
       %Ok{}
     else
       Logger.error("Invalid validation node election",
-        transaction_address: tx.address,
+        transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
       )
 

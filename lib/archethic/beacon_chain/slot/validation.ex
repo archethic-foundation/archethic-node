@@ -14,6 +14,8 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
 
   alias ArchEthic.Replication
 
+  require Logger
+
   @doc """
   Validate the transaction summaries to ensure the transactions included really exists
   """
@@ -54,11 +56,16 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
       {:ok, ^expected_summary} ->
         :ok
 
-      {:ok, %TransactionSummary{}} ->
+      {:ok, recv = %TransactionSummary{}} ->
+        Logger.debug(
+          "BeaconChain summary received is different #{inspect(recv)} - expect #{expected_summary}"
+        )
+
         {:error, :invalid_summary}
 
       {:ok, %NotFound{}} ->
-        {:error, :invalid_summary}
+        Logger.debug("BeaconChain summary was not found at #{Node.endpoint(node)}")
+        check_transaction_summary(rest, address, expected_summary, timeout)
 
       {:error, :timeout} ->
         check_transaction_summary(rest, address, expected_summary, trunc(timeout * 1.5))
