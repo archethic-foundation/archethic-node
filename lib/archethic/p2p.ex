@@ -240,10 +240,14 @@ defmodule ArchEthic.P2P do
   """
   @spec nearest_nodes(node_list :: Enumerable.t(), network_patch :: binary()) :: Enumerable.t()
   def nearest_nodes(storage_nodes, network_patch) when is_binary(network_patch) do
-    Enum.sort_by(storage_nodes, &distance(&1.network_patch, network_patch))
+    Enum.sort_by(storage_nodes, &network_distance(&1.network_patch, network_patch))
   end
 
-  defp distance(patch_a, patch_b) when is_binary(patch_a) and is_binary(patch_b) do
+  @doc """
+  Compute a network distance between two network patches
+  """
+  @spec network_distance(binary(), binary()) :: float()
+  def network_distance(patch_a, patch_b) when is_binary(patch_a) and is_binary(patch_b) do
     [first_digit_a, second_digit_a, _] =
       patch_a |> String.split("", trim: true) |> Enum.map(&hex_val/1)
 

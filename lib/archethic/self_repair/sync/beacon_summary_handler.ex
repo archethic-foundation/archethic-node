@@ -45,9 +45,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   def get_beacon_summaries(summary_pools, patch) when is_binary(patch) do
     summary_pools
     |> Enum.reduce(%{}, &reduce_beacon_address_by_node/2)
+    |> Enum.sort_by(fn {node, _} -> P2P.network_distance(node.network_patch, patch) end)
     |> Stream.transform([], &get_beacon_summaries_by_node/2)
     |> Stream.map(fn summary ->
-      load_downloaded_summary(summary)
+      load_downloaded_summary(summary, patch)
       summary
     end)
   end
@@ -97,7 +98,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     Crypto.derive_beacon_chain_address(subset, summary_time, true)
   end
 
-  defp load_downloaded_summary(%BeaconSummary{summary_time: summary_time, subset: subset}) do
+  defp load_downloaded_summary(%BeaconSummary{summary_time: summary_time, subset: subset}, patch) do
     node_list = P2P.distinct_nodes([P2P.get_node_info() | P2P.authorized_nodes()])
 
     beacon_storage_nodes = Election.beacon_storage_nodes(subset, summary_time, node_list)
@@ -105,7 +106,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
          false <- TransactionChain.transaction_exists?(address),
-         {:ok, tx} <- fetch_transaction(beacon_storage_nodes, address) do
+         closest_nodes <- P2P.nearest_nodes(beacon_storage_nodes, patch),
+         {:ok, tx} <- fetch_transaction(closest_nodes, address) do
       TransactionChain.write_transaction(tx)
     end
   end
