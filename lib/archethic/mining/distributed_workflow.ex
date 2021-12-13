@@ -86,10 +86,19 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
             chain: list(bitstring()),
             beacon: list(bitstring()),
             IO: list(bitstring())
-          }
+          },
+          confirmed_cross_validation_nodes :: bitstring()
         ) :: :ok
-  def cross_validate(pid, stamp = %ValidationStamp{}, replication_tree) do
-    GenStateMachine.cast(pid, {:cross_validate, stamp, replication_tree})
+  def cross_validate(
+        pid,
+        stamp = %ValidationStamp{},
+        replication_tree,
+        confirmed_cross_validation_nodes
+      ) do
+    GenStateMachine.cast(
+      pid,
+      {:cross_validate, stamp, replication_tree, confirmed_cross_validation_nodes}
+    )
   end
 
   @doc """
@@ -221,7 +230,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   def handle_event(
         :internal,
         :build_transaction_context,
-        _,
+        state,
         data = %{
           timeout: timeout,
           context:
@@ -281,7 +290,19 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    {:keep_state, %{data | context: new_context}, [{{:timeout, :stop_timeout}, timeout, :any}]}
+    next_events =
+      case state do
+        :coordinator ->
+          [
+            {{:timeout, :wait_confirmations}, 500, :any},
+            {{:timeout, :stop_timeout}, timeout, :any}
+          ]
+
+        :cross_validator ->
+          [{{:timeout, :stop_timeout}, timeout, :any}]
+      end
+
+    {:keep_state, %{data | context: new_context}, next_events}
   end
 
   def handle_event(
@@ -360,7 +381,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         )
 
         {:keep_state, Map.put(data, :context, new_context),
-         {:next_event, :internal, :create_and_notify_validation_stamp}}
+         [
+           {{:timeout, :wait_confirmations}, :cancel},
+           {:next_event, :internal, :create_and_notify_validation_stamp}
+         ]}
       else
         {:keep_state, %{data | context: new_context}}
       end
@@ -369,28 +393,69 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     end
   end
 
-  def handle_event(:internal, :create_and_notify_validation_stamp, _, data = %{context: context}) do
-    new_context =
-      context
-      |> ValidationContext.create_validation_stamp()
-      |> ValidationContext.create_replication_tree()
+  def handle_event(
+        {:timeout, :wait_confirmations},
+        :any,
+        :coordinator,
+        _data = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.warning("Timeout to get the context validation nodes context is reached",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-    request_cross_validations(new_context)
-    {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
+    Logger.warning("Validation stamp will be created with the confirmed cross validation nodes",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    {:keep_state_and_data, {:next_event, :internal, :create_and_notify_validation_stamp}}
   end
 
-  def handle_event(:cast, {:cross_validate, _}, :idle, _), do: {:keep_state_and_data, :postpone}
+  def handle_event(
+        :internal,
+        :create_and_notify_validation_stamp,
+        :coordinator,
+        data = %{context: context = %ValidationContext{transaction: tx}}
+      ) do
+    case ValidationContext.get_confirmed_validation_nodes(context) do
+      [] ->
+        Logger.error("No cross validation nodes respond to confirm the mining context",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        :stop
+
+      _ ->
+        new_context =
+          context
+          |> ValidationContext.create_validation_stamp()
+          |> ValidationContext.create_replication_tree()
+
+        request_cross_validations(new_context)
+        {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
+    end
+  end
 
   def handle_event(
         :cast,
-        {:cross_validate, validation_stamp = %ValidationStamp{}, replication_tree},
+        {:cross_validate, _stamp, _replication_tree, _confirmed_cross_validation_nodes},
+        :idle,
+        _
+      ),
+      do: {:keep_state_and_data, :postpone}
+
+  def handle_event(
+        :cast,
+        {:cross_validate, validation_stamp = %ValidationStamp{}, replication_tree,
+         confirmed_cross_validation_nodes},
         :cross_validator,
         data = %{
           node_public_key: node_public_key,
           context:
             context = %ValidationContext{
-              transaction: tx,
-              cross_validation_nodes: cross_validation_nodes
+              transaction: tx
             }
         }
       ) do
@@ -401,13 +466,18 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
     new_context =
       context
+      |> ValidationContext.set_confirmed_validation_nodes(confirmed_cross_validation_nodes)
       |> ValidationContext.add_validation_stamp(validation_stamp)
       |> ValidationContext.add_replication_tree(replication_tree, node_public_key)
       |> ValidationContext.cross_validate()
 
     notify_cross_validation_stamp(new_context)
 
-    if length(cross_validation_nodes) == 1 and ValidationContext.atomic_commitment?(new_context) do
+    confirmed_cross_validation_nodes =
+      ValidationContext.get_confirmed_validation_nodes(new_context)
+
+    if length(confirmed_cross_validation_nodes) == 1 and
+         ValidationContext.atomic_commitment?(new_context) do
       {:next_state, :replication, %{data | context: new_context}}
     else
       {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
@@ -559,31 +629,42 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     })
   end
 
-  defp request_cross_validations(%ValidationContext{
-         cross_validation_nodes: cross_validation_nodes,
-         transaction: %Transaction{address: tx_address, type: tx_type},
-         validation_stamp: validation_stamp,
-         full_replication_tree: replication_tree
-       }) do
+  defp request_cross_validations(
+         context = %ValidationContext{
+           cross_validation_nodes_confirmation: cross_validation_node_confirmation,
+           transaction: %Transaction{address: tx_address, type: tx_type},
+           validation_stamp: validation_stamp,
+           full_replication_tree: replication_tree
+         }
+       ) do
+    cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
+
     Logger.info(
       "Send validation stamp to #{Enum.map_join(cross_validation_nodes, ", ", &:inet.ntoa(&1.ip))}",
       transaction_address: Base.encode16(tx_address),
       transaction_type: tx_type
     )
 
-    P2P.broadcast_message(cross_validation_nodes, %CrossValidate{
-      address: tx_address,
-      validation_stamp: validation_stamp,
-      replication_tree: replication_tree
-    })
+    P2P.broadcast_message(
+      cross_validation_nodes,
+      %CrossValidate{
+        address: tx_address,
+        validation_stamp: validation_stamp,
+        replication_tree: replication_tree,
+        confirmed_validation_nodes: cross_validation_node_confirmation
+      }
+    )
   end
 
-  defp notify_cross_validation_stamp(%ValidationContext{
-         transaction: %Transaction{address: tx_address, type: tx_type},
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         cross_validation_stamps: [cross_validation_stamp | []]
-       }) do
+  defp notify_cross_validation_stamp(
+         context = %ValidationContext{
+           transaction: %Transaction{address: tx_address, type: tx_type},
+           coordinator_node: coordinator_node,
+           cross_validation_stamps: [cross_validation_stamp | []]
+         }
+       ) do
+    cross_validation_nodes = ValidationContext.get_confirmed_validation_nodes(context)
+
     nodes =
       [coordinator_node | cross_validation_nodes]
       |> P2P.distinct_nodes()

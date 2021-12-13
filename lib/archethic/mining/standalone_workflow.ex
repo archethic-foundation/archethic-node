@@ -90,6 +90,7 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
 
   defp validate(context = %ValidationContext{}) do
     context
+    |> ValidationContext.confirm_validation_node(Crypto.last_node_public_key())
     |> ValidationContext.create_validation_stamp()
     |> ValidationContext.cross_validate()
   end

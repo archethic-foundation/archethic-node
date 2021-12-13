@@ -357,6 +357,124 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       assert chain_storage_nodes_view == <<1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1>>
     end
+
+    test "should evict validations nodes which didn't confirm by sending their context in time",
+         %{tx: tx, sorting_seed: sorting_seed} do
+      {pub, _} = Crypto.generate_deterministic_keypair("seed3")
+
+      P2P.add_and_connect_node(%Node{
+        ip: {80, 10, 20, 102},
+        port: 3008,
+        last_public_key: pub,
+        first_public_key: pub,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        enrollment_date: DateTime.utc_now(),
+        reward_address: :crypto.strong_rand_bytes(32)
+      })
+
+      validation_nodes =
+        Election.validation_nodes(
+          tx,
+          sorting_seed,
+          P2P.authorized_nodes(),
+          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+        )
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetP2PView{node_public_keys: public_keys}, _ ->
+          view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
+          {:ok, %P2PView{nodes_view: view}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %AddMiningContext{}, _ ->
+          {:ok, %Ok{}}
+
+        _, %CrossValidate{}, _ ->
+          {:ok, %Ok{}}
+      end)
+
+      welcome_node = %Node{
+        ip: {80, 10, 20, 102},
+        port: 3005,
+        first_public_key: "key1",
+        last_public_key: "key1",
+        reward_address: :crypto.strong_rand_bytes(32)
+      }
+
+      P2P.add_and_connect_node(welcome_node)
+
+      {:ok, coordinator_pid} =
+        Workflow.start_link(
+          transaction: tx,
+          welcome_node: welcome_node,
+          validation_nodes: validation_nodes,
+          node_public_key: List.first(validation_nodes).last_public_key
+        )
+
+      previous_storage_nodes = [
+        %Node{
+          ip: {80, 10, 20, 102},
+          port: 3006,
+          first_public_key: "key10",
+          last_public_key: "key10",
+          reward_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
+        },
+        %Node{
+          ip: {80, 10, 20, 102},
+          port: 3007,
+          first_public_key: "key23",
+          last_public_key: "key23",
+          reward_address: :crypto.strong_rand_bytes(32),
+          authorized?: true,
+          authorization_date: DateTime.utc_now(),
+          geo_patch: "AAA",
+          network_patch: "AAA"
+        }
+      ]
+
+      Enum.each(previous_storage_nodes, &P2P.add_and_connect_node/1)
+
+      Workflow.add_mining_context(
+        coordinator_pid,
+        List.last(validation_nodes).last_public_key,
+        previous_storage_nodes,
+        <<1::1, 1::1>>,
+        <<0::1, 1::1>>,
+        <<1::1, 1::1>>
+      )
+
+      Process.sleep(1_000)
+
+      {:wait_cross_validation_stamps,
+       %{
+         context: %ValidationContext{
+           validation_nodes_view: validation_nodes_view,
+           chain_storage_nodes_view: chain_storage_nodes_view,
+           beacon_storage_nodes_view: beacon_storage_nodes_view,
+           cross_validation_nodes_confirmation: confirmed_cross_validations,
+           validation_stamp: %ValidationStamp{}
+         }
+       }} = :sys.get_state(coordinator_pid)
+
+      assert validation_nodes_view == <<1::1, 1::1, 1::1>>
+      assert confirmed_cross_validations == <<0::1, 1::1>>
+      assert chain_storage_nodes_view == <<1::1, 1::1, 1::1>>
+      assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1>>
+    end
   end
 
   describe "cross_validate/2" do
@@ -494,7 +612,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
 
           assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
 
-          Workflow.cross_validate(cross_validator_pid, stamp, tree)
+          Workflow.cross_validate(cross_validator_pid, stamp, tree, <<1::1, 1::1, 1::1>>)
 
           {:wait_cross_validation_stamps,
            %{context: %ValidationContext{cross_validation_stamps: cross_validation_stamps}}} =
@@ -579,8 +697,14 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         _, %AddMiningContext{}, _ ->
           {:ok, %Ok{}}
 
-        _, %CrossValidate{validation_stamp: stamp, replication_tree: tree}, _ ->
-          send(me, {:cross_validate, stamp, tree})
+        _,
+        %CrossValidate{
+          validation_stamp: stamp,
+          replication_tree: tree,
+          confirmed_validation_nodes: confirmed_cross_validation_nodes
+        },
+        _ ->
+          send(me, {:cross_validate, stamp, tree, confirmed_cross_validation_nodes})
           {:ok, %Ok{}}
 
         _, %CrossValidationDone{cross_validation_stamp: stamp}, _ ->
@@ -681,8 +805,13 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
 
       receive do
-        {:cross_validate, stamp, tree} ->
-          Workflow.cross_validate(cross_validator_pid, stamp, tree)
+        {:cross_validate, stamp, tree, confirmed_cross_validation_nodes} ->
+          Workflow.cross_validate(
+            cross_validator_pid,
+            stamp,
+            tree,
+            confirmed_cross_validation_nodes
+          )
 
           Process.sleep(200)
           assert !Process.alive?(cross_validator_pid)

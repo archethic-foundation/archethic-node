@@ -179,17 +179,23 @@ defmodule ArchEthic.Mining do
             chain: list(bitstring()),
             beacon: list(bitstring()),
             IO: list(bitstring())
-          }
+          },
+          confirmed_cross_validation_nodes :: bitstring()
         ) :: :ok
   def cross_validate(
         tx_address,
         stamp = %ValidationStamp{},
-        replication_tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}
+        replication_tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree},
+        confirmed_cross_validation_nodes
       )
       when is_list(chain_tree) and is_list(beacon_tree) and is_list(io_tree) do
     tx_address
     |> get_mining_process!()
-    |> DistributedWorkflow.cross_validate(stamp, replication_tree)
+    |> DistributedWorkflow.cross_validate(
+      stamp,
+      replication_tree,
+      confirmed_cross_validation_nodes
+    )
   end
 
   @doc """

@@ -234,6 +234,57 @@ defmodule ArchEthic.Mining.ValidationContext do
   end
 
   @doc """
+  Get the list confirmed cross validation nodes
+
+  ## Examples
+
+      iex> %ValidationContext{
+      ...>   cross_validation_nodes: [
+      ...>     %Node{last_public_key: "key1"},
+      ...>     %Node{last_public_key: "key2"},
+      ...>     %Node{last_public_key: "key3"},
+      ...>     %Node{last_public_key: "key4"},
+      ...>   ],
+      ...>   cross_validation_nodes_confirmation: <<0::1, 1::1, 0::1, 1::1>>
+      ...> }
+      ...> |> ValidationContext.get_confirmed_validation_nodes()
+      [
+        %Node{last_public_key: "key2"},
+        %Node{last_public_key: "key4"}
+      ]
+  """
+  @spec get_confirmed_validation_nodes(t()) :: list(Node.t())
+  def get_confirmed_validation_nodes(%__MODULE__{
+        cross_validation_nodes: cross_validation_nodes,
+        cross_validation_nodes_confirmation: cross_validation_confirmation
+      }) do
+    cross_validation_confirmation
+    |> Utils.bitstring_to_integer_list()
+    |> Enum.with_index()
+    |> Enum.reduce([], fn
+      {1, index}, acc ->
+        case Enum.at(cross_validation_nodes, index) do
+          nil ->
+            acc
+
+          node ->
+            [node | acc]
+        end
+
+      {0, _}, acc ->
+        acc
+    end)
+    |> Enum.reverse()
+  end
+
+  def set_confirmed_validation_nodes(
+        context = %__MODULE__{},
+        cross_validation_nodes_confirmation
+      ) do
+    %{context | cross_validation_nodes_confirmation: cross_validation_nodes_confirmation}
+  end
+
+  @doc """
   Add the validation stamp to the mining context
   """
   @spec add_validation_stamp(t(), ValidationStamp.t()) :: t()
@@ -257,17 +308,20 @@ defmodule ArchEthic.Mining.ValidationContext do
       ...>    %Node{},
       ...>    %Node{},
       ...>    %Node{},
-      ...>  ]
+      ...>  ],
+      ...>  cross_validation_nodes_confirmation: <<1::1, 1::1, 1::1, 1::1>>
       ...> }
       ...> |> ValidationContext.enough_cross_validation_stamps?()
       false
   """
   @spec enough_cross_validation_stamps?(t()) :: boolean()
-  def enough_cross_validation_stamps?(%__MODULE__{
-        cross_validation_nodes: cross_validation_nodes,
-        cross_validation_stamps: stamps
-      }) do
-    length(cross_validation_nodes) == length(stamps)
+  def enough_cross_validation_stamps?(
+        context = %__MODULE__{
+          cross_validation_stamps: stamps
+        }
+      ) do
+    confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
+    length(confirmed_cross_validation_nodes) == length(stamps)
   end
 
   @doc """
@@ -362,6 +416,7 @@ defmodule ArchEthic.Mining.ValidationContext do
       ...> } = %ValidationContext{
       ...>    coordinator_node: %Node{last_public_key: "key1"},
       ...>    cross_validation_nodes: [%Node{last_public_key: "key2"}],
+      ...>    cross_validation_nodes_confirmation: <<1::1>>
       ...> }
       ...> |> ValidationContext.add_replication_tree(%{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>], beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] }, "key2")
   """
@@ -376,15 +431,16 @@ defmodule ArchEthic.Mining.ValidationContext do
         ) :: t()
   def add_replication_tree(
         context = %__MODULE__{
-          coordinator_node: coordinator_node,
-          cross_validation_nodes: cross_validation_nodes
+          coordinator_node: coordinator_node
         },
         tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree},
         node_public_key
       )
       when is_list(chain_tree) and is_list(beacon_tree) and is_list(io_tree) and
              is_binary(node_public_key) do
-    validation_nodes = [coordinator_node | cross_validation_nodes]
+    confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
+
+    validation_nodes = [coordinator_node | confirmed_cross_validation_nodes]
     validator_index = Enum.find_index(validation_nodes, &(&1.last_public_key == node_public_key))
 
     sub_chain_tree = Enum.at(chain_tree, validator_index)
@@ -715,11 +771,13 @@ defmodule ArchEthic.Mining.ValidationContext do
   Return the validation nodes
   """
   @spec get_validation_nodes(t()) :: list(Node.t())
-  def get_validation_nodes(%__MODULE__{
-        coordinator_node: coordinator_node,
-        cross_validation_nodes: cross_validation_nodes
-      }) do
-    [coordinator_node | cross_validation_nodes] |> P2P.distinct_nodes()
+  def get_validation_nodes(
+        context = %__MODULE__{
+          coordinator_node: coordinator_node
+        }
+      ) do
+    confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
+    [coordinator_node | confirmed_cross_validation_nodes] |> P2P.distinct_nodes()
   end
 
   @doc """
@@ -732,12 +790,13 @@ defmodule ArchEthic.Mining.ValidationContext do
           previous_transaction: prev_tx,
           unspent_outputs: unspent_outputs,
           coordinator_node: coordinator_node,
-          cross_validation_nodes: cross_validation_nodes,
           previous_storage_nodes: previous_storage_nodes,
           valid_pending_transaction?: valid_pending_transaction?
         }
       ) do
     initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
+
+    confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
 
     validation_stamp =
       %ValidationStamp{
@@ -761,7 +820,7 @@ defmodule ArchEthic.Mining.ValidationContext do
           |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.distribute_rewards(
             coordinator_node,
-            cross_validation_nodes,
+            confirmed_cross_validation_nodes,
             previous_storage_nodes
           )
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
@@ -824,7 +883,8 @@ defmodule ArchEthic.Mining.ValidationContext do
       iex> %ValidationContext{
       ...>   coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
       ...>   cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC",  last_public_key: "key2"}],
-      ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}]
+      ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}],
+      ...>   cross_validation_nodes_confirmation: <<1::1>>
       ...> }
       ...> |> ValidationContext.create_replication_tree()
       %ValidationContext{
@@ -845,7 +905,8 @@ defmodule ArchEthic.Mining.ValidationContext do
         },
         coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
         cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
-        chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}]
+        chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}],
+        cross_validation_nodes_confirmation: <<1::1>>
       }
   """
   @spec create_replication_tree(t()) :: t()
@@ -1042,14 +1103,18 @@ defmodule ArchEthic.Mining.ValidationContext do
     expected_unspent_outputs == next_unspent_outputs
   end
 
-  defp valid_stamp_node_movements?(%ValidationStamp{ledger_operations: ops}, %__MODULE__{
-         transaction: tx,
-         coordinator_node: %Node{last_public_key: coordinator_node_public_key},
-         cross_validation_nodes: cross_validation_nodes,
-         unspent_outputs: unspent_outputs
-       }) do
+  defp valid_stamp_node_movements?(
+         %ValidationStamp{ledger_operations: ops},
+         context = %__MODULE__{
+           transaction: tx,
+           coordinator_node: %Node{last_public_key: coordinator_node_public_key},
+           unspent_outputs: unspent_outputs
+         }
+       ) do
     previous_storage_nodes =
       P2P.distinct_nodes([unspent_storage_nodes(unspent_outputs), previous_storage_nodes(tx)])
+
+    cross_validation_nodes = get_confirmed_validation_nodes(context)
 
     [
       fn -> LedgerOperations.valid_node_movements_roles?(ops) end,
