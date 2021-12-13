@@ -22,36 +22,26 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
   end
 
   def init(_args) do
-    [
-      fn ->
-        TransactionChain.list_transactions_by_type(:origin_shared_secrets, [
-          :address,
-          :type,
-          data: [:content]
-        ])
-      end,
-      fn ->
-        TransactionChain.list_transactions_by_type(:node, [:address, :type, :previous_public_key])
-      end,
-      fn ->
-        TransactionChain.list_transactions_by_type(:node_shared_secrets, [
-          :address,
-          :type,
-          data: [:content],
-          validation_stamp: [:timestamp]
-        ])
-      end
-    ]
-    |> Task.async_stream(&load_transactions(&1.()))
+    TransactionChain.list_transactions_by_type(:origin_shared_secrets, [
+      :address,
+      :type,
+      data: [:content]
+    ])
+    |> Stream.concat(
+      TransactionChain.list_transactions_by_type(:node, [:address, :type, :previous_public_key])
+    )
+    |> Stream.concat(
+      TransactionChain.list_transactions_by_type(:node_shared_secrets, [
+        :address,
+        :type,
+        data: [:content],
+        validation_stamp: [:timestamp]
+      ])
+    )
+    |> Stream.each(&load_transaction/1)
     |> Stream.run()
 
     {:ok, []}
-  end
-
-  defp load_transactions(transactions) do
-    transactions
-    |> Stream.each(&load_transaction/1)
-    |> Stream.run()
   end
 
   @doc """
