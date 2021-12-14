@@ -272,8 +272,13 @@ defmodule ArchEthic.P2P do
   """
   @spec nearest_nodes(list(Node.t())) :: list(Node.t())
   def nearest_nodes(storage_nodes) when is_list(storage_nodes) do
-    %Node{network_patch: network_patch} = get_node_info()
-    nearest_nodes(storage_nodes, network_patch)
+    case get_node_info(Crypto.first_node_public_key()) do
+      {:ok, %Node{network_patch: network_patch}} ->
+        nearest_nodes(storage_nodes, network_patch)
+
+      {:error, :not_found} ->
+        storage_nodes
+    end
   end
 
   @doc """
