@@ -258,7 +258,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  defp  get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
+  defp get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
 
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
