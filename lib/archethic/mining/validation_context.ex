@@ -30,11 +30,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     },
     io_storage_nodes: [],
     previous_storage_nodes: [],
-    replication_nodes_confirmation: %{
-      chain: <<>>,
-      beacon: <<>>,
-      IO: <<>>
-    },
     valid_pending_transaction?: false
   ]
 
@@ -89,11 +84,6 @@ defmodule ArchEthic.Mining.ValidationContext do
             IO: bitstring()
           },
           cross_validation_stamps: list(CrossValidationStamp.t()),
-          replication_nodes_confirmation: %{
-            chain: bitstring(),
-            beacon: bitstring(),
-            IO: bitstring()
-          },
           validation_nodes_view: bitstring(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
@@ -412,7 +402,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       iex> %ValidationContext{
       ...>    full_replication_tree: %{ chain: [<<0::1, 1::1>>, <<1::1, 0::1>>],  beacon: [<<0::1, 1::1>>, <<1::1, 0::1>>], IO: [<<0::1, 1::1>>, <<1::1, 0::1>>] },
       ...>    sub_replication_tree: %{ chain: <<1::1, 0::1>>, beacon: <<1::1, 0::1>>, IO: <<1::1, 0::1>> },
-      ...>    replication_nodes_confirmation: %{ chain: <<0::1, 0::1>>, beacon: <<0::1, 0::1>>, IO: <<0::1, 0::1>> }
       ...> } = %ValidationContext{
       ...>    coordinator_node: %Node{last_public_key: "key1"},
       ...>    cross_validation_nodes: [%Node{last_public_key: "key2"}],
@@ -448,8 +437,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     sub_beacon_tree = Enum.at(beacon_tree, validator_index)
     sub_io_tree = Enum.at(io_tree, validator_index)
 
-    sub_tree_size = bit_size(sub_chain_tree)
-
     %{
       context
       | sub_replication_tree: %{
@@ -457,12 +444,7 @@ defmodule ArchEthic.Mining.ValidationContext do
           beacon: sub_beacon_tree,
           IO: sub_io_tree
         },
-        full_replication_tree: tree,
-        replication_nodes_confirmation: %{
-          chain: <<0::size(sub_tree_size)>>,
-          beacon: <<0::size(sub_tree_size)>>,
-          IO: <<0::size(sub_tree_size)>>
-        }
+        full_replication_tree: tree
     }
   end
 
@@ -578,66 +560,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       | validation_stamp: validation_stamp,
         cross_validation_stamps: cross_validation_stamps
     }
-  end
-
-  @doc """
-  Acknowledge the replication confirm from the given storage node towards the given validator node
-
-  ## Examples
-
-      iex> %ValidationContext{replication_nodes_confirmation: %{
-      ...>    chain: <<0::1, 0::1, 1::1>>,
-      ...>    IO: <<0::1, 0::1, 0::1>>,
-      ...>    beacon: <<0::1, 0::1, 0::1>>
-      ...>  }} = %ValidationContext{
-      ...>   replication_nodes_confirmation: %{ chain: <<0::1, 0::1, 0::1>>, beacon: <<0::1, 0::1, 0::1>>, IO: <<0::1, 0::1, 0::1>> },
-      ...>   sub_replication_tree: %{ chain: <<0::1, 0::1, 0::1>>, IO: <<0::1, 0::1, 0::1>>, beacon: <<0::1, 0::1, 0::1>>},
-      ...>   coordinator_node: %Node{last_public_key: "key1"},
-      ...>   cross_validation_nodes: [%Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}],
-      ...>   chain_storage_nodes: [
-      ...>     %Node{first_public_key: "key10", last_public_key: "key10"},
-      ...>     %Node{first_public_key: "key11", last_public_key: "key11"},
-      ...>     %Node{first_public_key: "key12", last_public_key: "key12"}
-      ...>   ]
-      ...> }
-      ...> |> ValidationContext.confirm_replication("key12", [:chain])
-  """
-  @spec confirm_replication(
-          t(),
-          storage_node_key :: Crypto.key(),
-          tree_types :: list(:chain | :beacon | :IO)
-        ) :: t()
-  def confirm_replication(
-        context = %__MODULE__{
-          chain_storage_nodes: chain_storage_nodes,
-          beacon_storage_nodes: beacon_storage_nodes,
-          io_storage_nodes: io_storage_nodes
-        },
-        from,
-        tree_types
-      ) do
-    Enum.reduce(tree_types, context, fn
-      :chain, acc ->
-        index = Enum.find_index(chain_storage_nodes, &(&1.last_public_key == from))
-
-        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
-          Map.update!(nodes, :chain, &Utils.set_bitstring_bit(&1, index))
-        end)
-
-      :beacon, acc ->
-        index = Enum.find_index(beacon_storage_nodes, &(&1.last_public_key == from))
-
-        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
-          Map.update!(nodes, :beacon, &Utils.set_bitstring_bit(&1, index))
-        end)
-
-      :IO, acc ->
-        index = Enum.find_index(io_storage_nodes, &(&1.last_public_key == from))
-
-        Map.update!(acc, :replication_nodes_confirmation, fn nodes ->
-          Map.update!(nodes, :IO, &Utils.set_bitstring_bit(&1, index))
-        end)
-    end)
   end
 
   @doc """
@@ -898,11 +820,6 @@ defmodule ArchEthic.Mining.ValidationContext do
           beacon: [],
           chain: [<<1::1, 0::1>>, <<0::1, 1::1>>]
         },
-        replication_nodes_confirmation: %{
-          IO: <<0::1, 0::1>>,
-          beacon: <<0::1, 0::1>>,
-          chain: <<0::1, 0::1>>
-        },
         coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
         cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
         chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}],
@@ -943,17 +860,10 @@ defmodule ArchEthic.Mining.ValidationContext do
       IO: tree |> Map.get(:IO) |> Enum.at(0, <<>>)
     }
 
-    sub_tree_size = sub_tree |> Map.get(:chain) |> bit_size()
-
     %{
       context
       | sub_replication_tree: sub_tree,
-        full_replication_tree: tree,
-        replication_nodes_confirmation: %{
-          chain: <<0::size(sub_tree_size)>>,
-          beacon: <<0::size(sub_tree_size)>>,
-          IO: <<0::size(sub_tree_size)>>
-        }
+        full_replication_tree: tree
     }
   end
 
