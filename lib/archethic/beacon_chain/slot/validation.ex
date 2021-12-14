@@ -58,7 +58,7 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
 
       {:ok, recv = %TransactionSummary{}} ->
         Logger.debug(
-          "BeaconChain summary received is different #{inspect(recv)} - expect #{expected_summary}"
+          "BeaconChain summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}"
         )
 
         {:error, :invalid_summary}
@@ -84,6 +84,7 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
       DateTime.compare(DateTime.truncate(enrollment_date, :second), timestamp) == :lt
     end)
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> P2P.unprioritize_node(Crypto.first_node_public_key())
   end
 

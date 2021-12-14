@@ -10,6 +10,7 @@ defmodule ArchEthic.Replication.TransactionContext do
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
+  alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -80,12 +81,16 @@ defmodule ArchEthic.Replication.TransactionContext do
     |> Replication.chain_storage_nodes()
     |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
     |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
   end
 
   defp replication_nodes(address, timestamp, false) do
     address
     |> Replication.chain_storage_nodes()
     |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
+    |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
   end
 
   defp reply_first([node | rest], message) do
