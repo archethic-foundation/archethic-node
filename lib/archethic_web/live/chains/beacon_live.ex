@@ -290,6 +290,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
+<<<<<<< HEAD
+=======
+  defp get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
+
+>>>>>>> 35ead62... Fix formatting
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
