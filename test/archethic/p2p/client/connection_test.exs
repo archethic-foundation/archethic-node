@@ -3,27 +3,28 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.P2P.Client.Connection
+  alias ArchEthic.P2P.Client.Connection, as: ARCHEthicConnection
   alias ArchEthic.P2P.Message.Balance
   alias ArchEthic.P2P.Message.GetBalance
   alias ArchEthic.P2P.MessageEnvelop
 
   test "start_link/1 should open a socket and a connection worker and initialize the backlog and lookup tables" do
     {:ok, pid} =
-      Connection.start_link(
+      ARCHEthicConnection.start_link(
         transport: __MODULE__.MockTransport,
         ip: {127, 0, 0, 1},
         port: 3000,
         node_public_key: "key1"
       )
 
-    assert %{socket: _, request_id: 0, messages: %{}} = :sys.get_state(pid)
+    assert %Connection{mod_state: %{socket: _, request_id: 0, messages: %{}}} =
+             :sys.get_state(pid)
   end
 
   describe "send_message/3" do
     test "should send the message and enqueue the request" do
       {:ok, pid} =
-        Connection.start_link(
+        ARCHEthicConnection.start_link(
           transport: __MODULE__.MockTransport,
           ip: {127, 0, 0, 1},
           port: 3000,
@@ -31,22 +32,24 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
         )
 
       spawn(fn ->
-        Connection.send_message(Crypto.first_node_public_key(), %GetBalance{
+        ARCHEthicConnection.send_message(Crypto.first_node_public_key(), %GetBalance{
           address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
         })
       end)
 
       Process.sleep(50)
 
-      assert %{
-               messages: %{0 => _},
-               request_id: 1
+      assert %Connection{
+               mod_state: %{
+                 messages: %{0 => _},
+                 request_id: 1
+               }
              } = :sys.get_state(pid)
     end
 
     test "should get an error when the timeout is reached" do
       {:ok, pid} =
-        Connection.start_link(
+        ARCHEthicConnection.start_link(
           transport: __MODULE__.MockTransport,
           ip: {127, 0, 0, 1},
           port: 3000,
@@ -54,18 +57,18 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
         )
 
       assert {:error, :timeout} =
-               Connection.send_message(
+               ARCHEthicConnection.send_message(
                  Crypto.first_node_public_key(),
                  %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>},
                  10
                )
 
-      assert %{messages: %{}} = :sys.get_state(pid)
+      assert %Connection{mod_state: %{messages: %{}}} = :sys.get_state(pid)
     end
 
     test "should receive the response after sending the request" do
       {:ok, pid} =
-        Connection.start_link(
+        ARCHEthicConnection.start_link(
           transport: __MODULE__.MockTransport,
           ip: {127, 0, 0, 1},
           port: 3000,
@@ -76,7 +79,7 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
 
       spawn(fn ->
         {:ok, %Balance{}} =
-          Connection.send_message(
+          ARCHEthicConnection.send_message(
             Crypto.first_node_public_key(),
             %GetBalance{address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>}
           )
@@ -98,8 +101,10 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
 
       assert_receive :done, 1_000
 
-      assert %{
-               messages: %{}
+      assert %Connection{
+               mod_state: %{
+                 messages: %{}
+               }
              } = :sys.get_state(pid)
     end
   end

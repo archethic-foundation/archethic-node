@@ -107,7 +107,7 @@ defmodule ArchEthic.SelfRepair.Scheduler do
   end
 
   def handle_info({:DOWN, _ref, _, _, reason}, state) do
-    Logger.error("Failed to completed self-repair cycle: #{reason}")
+    Logger.error("Failed to completed self-repair cycle: #{inspect(reason)}")
     {:noreply, state}
   end
 
