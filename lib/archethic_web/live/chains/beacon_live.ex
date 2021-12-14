@@ -74,11 +74,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
     |> Task.async_stream(
       fn {address, nodes, patch} ->
-        download_summary(address, nodes, patch)
+        get_beacon_summary_transaction_chain(address, nodes, patch)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
+    |> Enum.filter(&match?({:ok, {:ok, _}}, &1))
     |> Enum.filter(&(!match?({:ok, {:ok, []}}, &1)))
     |> Enum.map(fn {:ok, {:ok, tx_list}} ->
       Enum.map(tx_list, fn %Transaction{data: %TransactionData{content: content}} ->
@@ -257,27 +258,27 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  defp download_summary(_beacon_address, [], _), do: {:ok, %NotFound{}}
+  defp  get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
 
-  defp download_summary(beacon_address, nodes, patch) do
+  defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
-    |> do_get_download_summary(beacon_address, nil)
+    |> do_get_download_summary_transaction_chain(beacon_address, nil)
   end
 
-  defp do_get_download_summary([node | rest], address, prev_result) do
+  defp do_get_download_summary_transaction_chain([node | rest], address, prev_result) do
     case P2P.send_message(node, %GetTransactionChain{address: address}) do
       {:ok, %TransactionList{transactions: transactions}} ->
         {:ok, transactions}
 
       {:ok, %NotFound{}} ->
-        do_get_download_summary(rest, address, %NotFound{})
+        do_get_download_summary_transaction_chain(rest, address, %NotFound{})
 
       {:error, _} ->
-        do_get_download_summary(rest, address, prev_result)
+        do_get_download_summary_transaction_chain(rest, address, prev_result)
     end
   end
 
-  defp do_get_download_summary([], _, %NotFound{}), do: {:ok, %NotFound{}}
-  defp do_get_download_summary([], _, _), do: {:error, :network_issue}
+  defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, %NotFound{}}
+  defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
 end
