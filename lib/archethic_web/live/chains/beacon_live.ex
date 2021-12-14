@@ -80,7 +80,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
       max_concurrency: 256
     )
     |> Enum.filter(&match?({:ok, {:ok, _}}, &1))
-    |> Enum.filter(&(!match?({:ok, {:ok, []}}, &1)))
     |> Enum.map(fn {:ok, {:ok, tx_list}} ->
       Enum.map(tx_list, fn %Transaction{data: %TransactionData{content: content}} ->
         {slot, _} = Slot.deserialize(content)
