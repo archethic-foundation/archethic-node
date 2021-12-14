@@ -90,8 +90,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> :lists.flatten()
   end
 
-  # defp list_transaction_by_date_from_tx_chain(nil), do: []
-
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
 
@@ -257,8 +255,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-  defp get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
-
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
@@ -278,6 +274,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, %NotFound{}}
+  defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, []}
   defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
 end
