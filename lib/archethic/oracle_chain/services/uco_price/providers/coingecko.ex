@@ -14,13 +14,13 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko do
 
     query =
       String.to_charlist(
-        "https://api.coingecko.com/api/v3/simple/price?ids=uniris&vs_currencies=#{pairs_str}"
+        "https://api.coingecko.com/api/v3/simple/price?ids=archethic&vs_currencies=#{pairs_str}"
       )
 
     with {:ok, {{_, 200, 'OK'}, _headers, body}} <-
            :httpc.request(:get, {query, []}, [], []),
          {:ok, payload} <- Jason.decode(body),
-         {:ok, prices} <- Map.fetch(payload, "uniris") do
+         {:ok, prices} <- Map.fetch(payload, "archethic") do
       {:ok, prices}
     else
       {:ok, {{_, _, status}, _, _}} ->
