@@ -3,12 +3,12 @@ defmodule ArchEthic.P2P.Message.BeaconUpdate do
   Represents a message to get a beacon updates
   """
 
-  @enforce_keys [:tx_summary]
-  defstruct [:tx_summary]
+  @enforce_keys [:transaction_summaries]
+  defstruct [:transaction_summaries]
 
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
 
   @type t :: %__MODULE__{
-          tx_summary: TransactionSummary.t()
+          transaction_summaries: list(TransactionSummary.t())
         }
 end

@@ -21,6 +21,7 @@ defmodule ArchEthic.BeaconChain.Subset do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.NewBeaconTransaction
+  alias ArchEthic.P2P.Message.BeaconUpdate
 
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
@@ -141,11 +142,18 @@ defmodule ArchEthic.BeaconChain.Subset do
     {:noreply, %{state | current_slot: current_slot}}
   end
 
-  def handle_call(
+  def handle_cast(
         {:subscribe_node_to_beacon_updates, node_public_key},
-        _,
         state = %{subscribed_nodes: current_list_of_subscribed_nodes, current_slot: current_slot}
       ) do
+    %Slot{transaction_summaries: transaction_summaries} = current_slot
+
+    if Enum.count(transaction_summaries) != 0 do
+      P2P.send_message(node_public_key, %BeaconUpdate{
+        transaction_summaries: transaction_summaries
+      })
+    end
+
     updated_list_of_subscribed_nodes =
       if Enum.member?(current_list_of_subscribed_nodes, node_public_key) do
         current_list_of_subscribed_nodes
@@ -153,7 +161,7 @@ defmodule ArchEthic.BeaconChain.Subset do
         [node_public_key | current_list_of_subscribed_nodes]
       end
 
-    {:reply, current_slot, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
+    {:noreply, %{state | subscribed_nodes: updated_list_of_subscribed_nodes}}
   end
 
   def handle_info(
@@ -358,6 +366,6 @@ defmodule ArchEthic.BeaconChain.Subset do
   """
   @spec subscribe_for_beacon_updates(binary(), Crypto.key()) :: Slot.t()
   def subscribe_for_beacon_updates(subset, node_public_key) do
-    GenServer.call(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
+    GenServer.cast(via_tuple(subset), {:subscribe_node_to_beacon_updates, node_public_key})
   end
 end

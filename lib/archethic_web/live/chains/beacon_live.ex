@@ -109,12 +109,9 @@ defmodule ArchEthicWeb.BeaconChainLive do
           [next_summary_time | dates]
       end
 
-    transactions =
-      [
-        list_transaction_by_date_from_tx_chain(next_summary_time)
-        | BeaconChain.register_to_beacon_pool_updates()
-      ]
-      |> List.flatten()
+    transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
+
+    BeaconChain.register_to_beacon_pool_updates()
 
     new_assign =
       socket
@@ -143,12 +140,9 @@ defmodule ArchEthicWeb.BeaconChainLive do
         else
           transactions =
             if Enum.at(dates, 0) == Enum.at(dates, number - 1) do
-              tx =
-                dates
-                |> Enum.at(number - 1)
-                |> list_transaction_by_date_from_tx_chain()
-
-              [tx | BeaconChain.register_to_beacon_pool_updates()] |> List.flatten()
+              dates
+              |> Enum.at(number - 1)
+              |> list_transaction_by_date_from_tx_chain()
             else
               dates
               |> Enum.at(number - 1)
@@ -249,24 +243,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   def handle_info(
         {:current_epoch_of_slot_timer, date},
-        socket = %{assigns: %{current_date_page: page, transactions: transactions}}
+        socket
       ) do
-    transactions_in_slot =
-      date
-      |> BeaconChain.register_to_beacon_pool_updates()
+    date
+    |> BeaconChain.register_to_beacon_pool_updates()
 
-    new_transactions =
-      if page == 1 do
-        [transactions | transactions_in_slot] |> List.flatten()
-      else
-        transactions
-      end
-
-    new_assign =
-      socket
-      |> assign(:transactions, new_transactions)
-
-    {:noreply, new_assign}
+    {:noreply, socket}
   end
 
   defp get_beacon_dates do

@@ -5,7 +5,6 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.Account
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary
 
@@ -1250,13 +1249,13 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
-    current_slot = BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
-    %Slot{transaction_summaries: transaction_summaries} = current_slot
-    transaction_summaries
+    BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
   end
 
-  def process(%BeaconUpdate{tx_summary: tx_summary = %TransactionSummary{}}) do
-    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
+  def process(%BeaconUpdate{transaction_summaries: transaction_summaries}) do
+    Enum.each(transaction_summaries, fn tx_summary ->
+      :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
+    end)
   end
 
   def process(tx_summary = %TransactionSummary{}) do
