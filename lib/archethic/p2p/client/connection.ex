@@ -36,18 +36,23 @@ defmodule ArchEthic.P2P.Client.Connection do
           | {:error, :timeout}
           | {:error, :closed}
   def send_message(public_key, message, timeout \\ 5_000) do
-    case Connection.call(via_tuple(public_key), {:send_message, message, timeout}) do
-      {:ok, ref} ->
-        receive do
-          {:data, ^ref, data} ->
-            {:ok, data}
+    try do
+      case Connection.call(via_tuple(public_key), {:send_message, message, timeout}) do
+        {:ok, ref} ->
+          receive do
+            {:data, ^ref, data} ->
+              {:ok, data}
 
-          {:error, _} = e ->
-            e
-        end
+            {:error, _} = e ->
+              e
+          end
 
-      {:error, :closed} = e ->
-        e
+        {:error, :closed} = e ->
+          e
+      end
+    catch
+      :exit, {:timeout, _} ->
+        {:error, :timeout}
     end
   end
 
