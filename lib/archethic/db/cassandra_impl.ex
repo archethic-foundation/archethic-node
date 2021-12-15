@@ -256,10 +256,19 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec chain_size(binary()) :: non_neg_integer()
   def chain_size(address) do
-    "SELECT COUNT(*) as size FROM archethic.transactions WHERE chain_address=?"
-    |> QueryProducer.add_query([address])
-    |> Enum.at(0, %{})
-    |> Map.get("size", 0)
+    Task.async_stream(
+      1..4,
+      fn bucket ->
+        "SELECT COUNT(*) as size FROM archethic.transactions WHERE chain_address=? and bucket=?"
+        |> QueryProducer.add_query([address, bucket])
+        |> Enum.at(0, %{})
+        |> Map.get("size", 0)
+      end,
+      on_timeout: :kill_task
+    )
+    |> Enum.reduce(0, fn {:ok, size}, acc ->
+      acc + size
+    end)
   end
 
   @impl DB
@@ -375,13 +384,15 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec transaction_exists?(binary()) :: boolean()
   def transaction_exists?(address) when is_binary(address) do
-    count =
-      "SELECT COUNT(address) as count FROM archethic.transactions WHERE chain_address=?"
-      |> QueryProducer.add_query([address])
-      |> Enum.at(0, %{})
-      |> Map.get("count", 0)
+    case QueryProducer.add_query("SELECT address FROM archethic.transactions WHERE address=?", [
+           address
+         ]) do
+      [] ->
+        false
 
-    count > 0
+      [_ | _] ->
+        true
+    end
   end
 
   @doc """
