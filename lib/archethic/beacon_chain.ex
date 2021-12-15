@@ -297,13 +297,23 @@ defmodule ArchEthic.BeaconChain do
   """
   def register_to_beacon_pool_updates(date = %DateTime{} \\ next_summary_date(DateTime.utc_now())) do
     Enum.map(list_subsets(), fn subset ->
-      list_of_nodes_for_this_subset =
-        Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
-
-      P2P.broadcast_message(list_of_nodes_for_this_subset, %RegisterBeaconUpdates{
-        node_public_key: Crypto.first_node_public_key(),
-        subset: subset
-      })
+      Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
+      |> Enum.map(fn node ->
+        get_slot_returned_transactions(node, %RegisterBeaconUpdates{
+          node_public_key: Crypto.first_node_public_key(),
+          subset: subset
+        })
+      end)
     end)
+  end
+
+  defp get_slot_returned_transactions(node, msg) do
+    case P2P.send_message(node, msg) do
+      {:ok, transaction_summaries} ->
+        transaction_summaries
+
+      _ ->
+        []
+    end
   end
 end
