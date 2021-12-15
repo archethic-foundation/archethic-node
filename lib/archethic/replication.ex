@@ -164,7 +164,7 @@ defmodule ArchEthic.Replication do
       {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
-        Logger.error("Invalid transaction for replication - #{inspect(reason)}",
+        Logger.info("Invalid transaction for replication - #{inspect(reason)}",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
@@ -205,7 +205,7 @@ defmodule ArchEthic.Replication do
       {:error, reason} ->
         :ok = TransactionChain.write_ko_transaction(tx)
 
-        Logger.error("Invalid transaction for replication - #{inspect(reason)}",
+        Logger.info("Invalid transaction for replication - #{inspect(reason)}",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
@@ -303,17 +303,24 @@ defmodule ArchEthic.Replication do
   @spec acknowledge_storage(Transaction.t(), Node.t()) :: :ok
   def acknowledge_storage(
         tx = %Transaction{
-          address: address,
+          address: tx_address,
+          type: tx_type,
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         },
         welcome_node = %Node{}
       ) do
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      P2P.send_message!(welcome_node, %AcknowledgeStorage{address: address})
+      P2P.send_message!(welcome_node, %AcknowledgeStorage{address: tx_address})
+
+      Logger.debug("Transaction acknowledgement sent",
+        transaction_address: Base.encode16(tx_address),
+        transaction_type: tx_type,
+        node: Base.encode16(welcome_node.first_public_key)
+      )
     end)
 
     Task.Supervisor.start_child(TaskSupervisor, fn ->
-      acknowledge_previous_storage_nodes(address, Transaction.previous_address(tx), timestamp)
+      acknowledge_previous_storage_nodes(tx_address, Transaction.previous_address(tx), timestamp)
     end)
 
     :ok

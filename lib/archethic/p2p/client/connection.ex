@@ -86,7 +86,7 @@ defmodule ArchEthic.P2P.Client.Connection do
         {:ok, %{state | socket: socket}}
 
       {:error, reason} ->
-        Logger.error(
+        Logger.debug(
           "Error during node connection to #{:inet.ntoa(ip)}:#{port} - #{reason} ",
           node: Base.encode16(node_public_key)
         )
@@ -102,7 +102,7 @@ defmodule ArchEthic.P2P.Client.Connection do
 
     case info do
       {:error, :closed} ->
-        Logger.error("Connection closed", node: Base.encode16(node_public_key))
+        Logger.warning("Connection closed", node: Base.encode16(node_public_key))
 
       {:error, reason} ->
         Logger.error("Connection error - #{reason}", node: Base.encode16(node_public_key))
@@ -200,7 +200,7 @@ defmodule ArchEthic.P2P.Client.Connection do
       {:error, reason} = e ->
         MemTable.decrease_node_availability(node_public_key)
 
-        Logger.info("Connection disconnected #{inspect(reason)}",
+        Logger.warning("Connection failed #{inspect(reason)}",
           node: Base.encode16(node_public_key)
         )
 
