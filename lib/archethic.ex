@@ -31,6 +31,7 @@ defmodule ArchEthic do
   alias __MODULE__.P2P.Message.TransactionChainLength
   alias __MODULE__.P2P.Message.TransactionInputList
   alias __MODULE__.P2P.Message.TransactionList
+  alias __MODULE__.P2P.Node
 
   alias __MODULE__.Replication
 
@@ -54,6 +55,7 @@ defmodule ArchEthic do
 
     storage_nodes
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction(address)
   end
 
@@ -84,6 +86,7 @@ defmodule ArchEthic do
       do_send_transaction(tx)
     else
       P2P.authorized_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
       |> P2P.nearest_nodes()
       |> forward_transaction(tx)
     end
@@ -144,6 +147,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction(address)
   end
 
@@ -175,6 +179,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction_address(address)
   end
 
@@ -201,6 +206,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_balance(address)
   end
 
@@ -225,6 +231,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_inputs(address)
   end
 
@@ -248,6 +255,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_chain(address)
   end
 
@@ -272,6 +280,7 @@ defmodule ArchEthic do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_chain_length(address)
   end
 

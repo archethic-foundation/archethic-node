@@ -73,6 +73,8 @@ defmodule ArchEthic.Mining.TransactionContext do
 
     previous_address
     |> Replication.chain_storage_nodes(node_list)
+    |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> NodeDistribution.split_storage_nodes(nb_sub_lists, sample_size)
   end
 

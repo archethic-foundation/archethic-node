@@ -268,6 +268,8 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
     previous_address
     |> Replication.chain_storage_nodes()
+    |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_first_public_key(previous_address)
   end
 

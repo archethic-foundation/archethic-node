@@ -45,7 +45,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
     prepared_tx_query =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT address, type FROM archethic.transactions WHERE chain_address = ?"
+        "SELECT address, type FROM archethic.transactions WHERE address = ?"
       )
 
     tx_address = tx.address
@@ -66,14 +66,19 @@ defmodule ArchEthic.DB.CassandraImplTest do
     chain_prepared_query =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT * FROM archethic.transactions WHERE chain_address = ?"
+        "SELECT * FROM archethic.transactions WHERE chain_address = ? and bucket = ?"
       )
 
     chain =
-      Xandra.execute!(:xandra_conn, chain_prepared_query, [
-        List.first(chain).address
-      ])
-      |> Enum.to_list()
+      Task.async_stream(1..4, fn bucket ->
+        Xandra.execute!(:xandra_conn, chain_prepared_query, [
+          List.first(chain).address,
+          bucket
+        ])
+        |> Enum.to_list()
+      end)
+      |> Stream.map(fn {:ok, res} -> res end)
+      |> Enum.flat_map(& &1)
 
     assert length(chain) == 2
   end

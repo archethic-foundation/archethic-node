@@ -7,6 +7,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransaction
+  alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
 
@@ -64,6 +65,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       |> Replication.chain_storage_nodes_with_type(type)
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
       |> P2P.nearest_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
 
     case fetch_transaction(storage_nodes, address) do
       {:ok, tx = %Transaction{}} ->

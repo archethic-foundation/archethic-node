@@ -3,9 +3,12 @@ defmodule ArchEthic.P2P.MemTableLoader do
 
   use GenServer
 
+  alias ArchEthic.Crypto
+
   alias ArchEthic.DB
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Client
   alias ArchEthic.P2P.GeoPatch
   alias ArchEthic.P2P.MemTable
   alias ArchEthic.P2P.Node
@@ -96,6 +99,18 @@ defmodule ArchEthic.P2P.MemTableLoader do
     end
 
     Logger.info("Node loaded into in memory p2p tables", node: Base.encode16(first_public_key))
+
+    if first_public_key != Crypto.first_node_public_key() do
+      case Client.new_connection(ip, port, transport, first_public_key) do
+        {:ok, _} ->
+          :ok
+
+        {:error, {:already_started, _}} ->
+          :ok
+      end
+    else
+      :ok
+    end
   end
 
   def load_transaction(%Transaction{

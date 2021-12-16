@@ -45,7 +45,10 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
 
     # Ensure the recipient got the 10.0 UCO
     new_balance = Playbook.get_uco_balance(recipient_address, host, port)
-    true = new_balance == prev_balance + 10.0
+
+    true =
+      ((new_balance * 100_000_000) |> Float.round() |> trunc()) -
+        ((prev_balance * 100_000_000) |> Float.round() |> trunc()) == 100_000_000 * 10
 
     Logger.info("#{Base.encode16(recipient_address)} received 10 UCO")
 

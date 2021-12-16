@@ -52,7 +52,7 @@ defmodule ArchEthic.P2P.ListenerProtocol do
   end
 
   def handle_info({_transport_closed, _socket}, state = %{ip: ip, port: port}) do
-    Logger.info("Connection closed for #{:inet.ntoa(ip)}:#{port}")
+    Logger.warning("Connection closed for #{:inet.ntoa(ip)}:#{port}")
     {:stop, :normal, state}
   end
 end

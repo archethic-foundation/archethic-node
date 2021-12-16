@@ -47,6 +47,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
           | :insufficient_funds
           | :invalid_unspent_outputs
           | :invalid_chain
+          | :invalid_contract_acceptance
           | {:transaction_errors_detected, list(ValidationStamp.error())}
 
   @doc """
@@ -66,14 +67,18 @@ defmodule ArchEthic.Replication.TransactionValidator do
         inputs_outputs
       ) do
     with :ok <- valid_transaction(tx, inputs_outputs, true),
-         true <- Contracts.accept_new_contract?(previous_transaction, tx, timestamp),
-         true <- TransactionChain.valid?([tx, previous_transaction]) do
+         {:contract, true} <-
+           {:contract, Contracts.accept_new_contract?(previous_transaction, tx, timestamp)},
+         {:chain, true} <- {:chain, TransactionChain.valid?([tx, previous_transaction])} do
       :ok
     else
       {:error, reason} ->
         {:error, reason}
 
-      false ->
+      {:contract, false} ->
+        {:error, :invalid_contract_acceptance}
+
+      {:chain, false} ->
         {:error, :invalid_chain}
     end
   end
@@ -302,6 +307,12 @@ defmodule ArchEthic.Replication.TransactionValidator do
         {:error, :invalid_previous_storage_nodes_movements}
 
       {:utxo, false} ->
+        Logger.debug(
+          "Invalid unspent outputs - got: #{next_unspent_outputs}, expected: #{inspect(expected_unspent_outputs)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:error, :invalid_unspent_outputs}
 
       {:funds, false} ->

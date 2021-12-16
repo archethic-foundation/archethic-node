@@ -10,6 +10,7 @@ defmodule ArchEthic.TransactionChain do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.LastTransactionAddress
+  alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
 
@@ -451,6 +452,7 @@ defmodule ArchEthic.TransactionChain do
     address
     |> Replication.chain_storage_nodes()
     |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction_address(address, timestamp)
   end
 
