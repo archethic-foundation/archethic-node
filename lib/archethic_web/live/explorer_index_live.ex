@@ -34,7 +34,7 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
     new_socket =
       socket
       |> assign(:tps, tps)
-      |> assign(:nb_transactions, nb_transactions)
+      |> update(:nb_transactions, &(&1 + nb_transactions))
 
     {:noreply, new_socket}
   end
