@@ -86,13 +86,19 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   defp do_get_beacon_summaries_by_node([], _node), do: []
 
   defp do_get_beacon_summaries_by_node(addresses, node) do
-    case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-      {:ok, %BeaconSummaryList{summaries: summaries}} ->
-        summaries
+    addresses
+    # Download beacon summaries by batch of 10 transactions
+    |> Stream.chunk_every(10)
+    |> Stream.map(fn addresses ->
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
 
-      _ ->
-        []
-    end
+        _ ->
+          []
+      end
+    end)
+    |> Enum.flat_map(& &1)
   end
 
   defp get_address_from_summary(%BeaconSummary{subset: subset, summary_time: summary_time}) do
