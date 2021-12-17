@@ -16,6 +16,8 @@ defmodule ArchEthic.OracleChain do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
+  require Logger
+
   @doc """
   Determines if the oracle transaction is valid.
 
@@ -27,7 +29,8 @@ defmodule ArchEthic.OracleChain do
          true <- Services.verify_correctness?(data) do
       true
     else
-      {:error, _} ->
+      {:error, reason} ->
+        Logger.debug("Cannot decode oracle content: #{inspect(reason)} - #{inspect(content)}")
         false
 
       false ->

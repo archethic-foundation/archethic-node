@@ -21,13 +21,44 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice do
     case provider().fetch(@pairs) do
       {:ok, prices_now} ->
         Enum.all?(@pairs, fn pair ->
-          # TODO: use a deviation comparison function
-          abs(Map.fetch!(prices_prior, pair) / Map.fetch!(prices_now, pair)) == 1.0
+          compare_price(Map.fetch!(prices_prior, pair), Map.fetch!(prices_now, pair))
         end)
 
       _ ->
         false
     end
+  end
+
+  defp compare_price(price_prior, price_now) do
+    deviation_threshold = 0.01
+
+    deviation =
+      [price_prior, price_now]
+      |> standard_deviation()
+      |> Float.round(3)
+
+    if deviation < deviation_threshold do
+      true
+    else
+      Logger.debug(
+        "UCO price deviated from #{deviation} % - previous price: #{price_prior} - new price: #{price_now} "
+      )
+
+      false
+    end
+  end
+
+  defp standard_deviation(prices) do
+    prices_mean = mean(prices)
+    variance = prices |> Enum.map(fn x -> (prices_mean - x) * (prices_mean - x) end) |> mean()
+    :math.sqrt(variance)
+  end
+
+  defp mean(prices, t \\ 0, l \\ 0)
+  defp mean([], t, l), do: t / l
+
+  defp mean([x | xs], t, l) do
+    mean(xs, t + x, l + 1)
   end
 
   @impl Impl
