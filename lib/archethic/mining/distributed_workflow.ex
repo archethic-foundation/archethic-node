@@ -294,7 +294,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       case state do
         :coordinator ->
           [
-            {{:timeout, :wait_confirmations}, 500, :any},
+            {{:timeout, :wait_confirmations},
+             get_wait_confirmation_timeout(tx.type, length(unspent_outputs)), :any},
             {{:timeout, :stop_timeout}, timeout, :any}
           ]
 
@@ -720,5 +721,21 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
       duration: System.monotonic_time() - start_time
     })
+  end
+
+  defp get_wait_confirmation_timeout(:oracle, _) do
+    1_000
+  end
+
+  defp get_wait_confirmation_timeout(:oracle_summary, _) do
+    1_000
+  end
+
+  defp get_wait_confirmation_timeout(_tx_type, nb_unspent_outputs) do
+    previous_tx_download_max_estimation = 200
+    unspent_output_download_max_estimation = 100
+    unspent_outputs_download_time = nb_unspent_outputs * unspent_output_download_max_estimation
+
+    previous_tx_download_max_estimation + unspent_outputs_download_time
   end
 end
