@@ -334,7 +334,16 @@ defmodule ArchEthic.P2P.Message do
     do: <<27::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
 
   def encode(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
-    <<28::8, node_public_key::binary, subset::binary>>
+    <<28::8, subset::binary-size(1), node_public_key::binary>>
+  end
+
+  def encode(%BeaconUpdate{transaction_summaries: transaction_summaries}) do
+    transaction_summaries_bin =
+      transaction_summaries
+      |> Enum.map(&TransactionSummary.serialize/1)
+      |> :erlang.list_to_bitstring()
+
+    <<29::8, length(transaction_summaries)::16, transaction_summaries_bin::bitstring>>
   end
 
   def encode(%BeaconSummaryList{summaries: summaries}) do
@@ -735,14 +744,27 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<28::8, rest::binary>>) do
+  def decode(<<28::8, subset::binary-size(1), rest::binary>>) do
     {public_key, rest} = deserialize_public_key(rest)
 
     {
       %RegisterBeaconUpdates{
-        subset: rest,
+        subset: subset,
         node_public_key: public_key
-      }
+      },
+      rest
+    }
+  end
+
+  def decode(<<29::8, nb_transaction_summaries::16, rest::bitstring>>) do
+    {transaction_summaries, rest} =
+      deserialize_transaction_summaries(rest, nb_transaction_summaries, [])
+
+    {
+      %BeaconUpdate{
+        transaction_summaries: transaction_summaries
+      },
+      rest
     }
   end
 
@@ -960,6 +982,17 @@ defmodule ArchEthic.P2P.Message do
   defp deserialize_summaries(rest, nb_summaries, acc) do
     {summary, rest} = Summary.deserialize(rest)
     deserialize_summaries(rest, nb_summaries, [summary | acc])
+  end
+
+  defp deserialize_transaction_summaries(rest, 0, _acc), do: {[], rest}
+
+  defp deserialize_transaction_summaries(rest, nb_summaries, acc)
+       when nb_summaries == length(acc),
+       do: {Enum.reverse(acc), rest}
+
+  defp deserialize_transaction_summaries(rest, nb_summaries, acc) do
+    {summary, rest} = TransactionSummary.deserialize(rest)
+    deserialize_transaction_summaries(rest, nb_summaries, [summary | acc])
   end
 
   @doc """
@@ -1258,15 +1291,19 @@ defmodule ArchEthic.P2P.Message do
 
   def process(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
     BeaconChain.subscribe_for_beacon_updates(subset, node_public_key)
+    %Ok{}
   end
 
   def process(%BeaconUpdate{transaction_summaries: transaction_summaries}) do
     Enum.each(transaction_summaries, fn tx_summary ->
       :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
     end)
+
+    %Ok{}
   end
 
   def process(tx_summary = %TransactionSummary{}) do
     :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
+    %Ok{}
   end
 end
