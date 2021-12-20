@@ -192,14 +192,14 @@ defmodule ArchEthicWeb.BeaconChainLive do
         case Map.get(assigns, :summary_passed?) do
           true ->
             new_assign
-            |> assign(:transactions, [tx_summary | transactions])
+            |> assign(:transactions, Enum.uniq([tx_summary | transactions]))
             |> assign(:summary_passed?, false)
 
           _ ->
             update(
               new_assign,
               :transactions,
-              &[tx_summary | &1]
+              &Enum.uniq([tx_summary | &1])
             )
         end
 
