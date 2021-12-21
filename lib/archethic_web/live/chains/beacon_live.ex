@@ -186,7 +186,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       socket
       |> assign(:update_time, DateTime.utc_now())
 
-    if page == 1 and !Enum.member?(transactions, tx_summary) do
+    if page == 1 and !Enum.any?(transactions, fn tx -> tx.address == tx_summary.address end) do
       # Only update the transaction listed when you are on the first page
       new_assign =
         case Map.get(assigns, :summary_passed?) do
