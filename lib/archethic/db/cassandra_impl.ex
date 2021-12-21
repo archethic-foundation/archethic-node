@@ -6,7 +6,6 @@ defmodule ArchEthic.DB.CassandraImpl do
   alias ArchEthic.DB
 
   alias __MODULE__.CQL
-  alias __MODULE__.QueryProducer
   alias __MODULE__.SchemaMigrator
   alias __MODULE__.Supervisor, as: CassandraSupervisor
 
@@ -30,9 +29,15 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec list_transactions(list()) :: Enumerable.t()
   def list_transactions(fields \\ []) when is_list(fields) do
-    "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions"
-    |> QueryProducer.add_query([], true)
+    Xandra.stream_pages!(
+      :xandra_conn,
+      "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions",
+      [],
+      page_size: 10
+    )
+    |> Stream.flat_map(& &1)
     |> Stream.map(&format_result_to_transaction/1)
+    |> Enum.to_list()
   end
 
   @impl DB
@@ -42,15 +47,21 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_transaction(binary(), list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
+    do_get_transaction(:xandra_conn, address, fields)
+  end
+
+  defp do_get_transaction(conn, address, fields) do
     start = System.monotonic_time()
 
-    result =
-      QueryProducer.add_query(
-        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE address=?",
-        [address]
+    prepared =
+      Xandra.prepare!(
+        conn,
+        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE address=?"
       )
 
-    case Enum.at(result, 0) do
+    results = Xandra.execute!(conn, prepared, [address])
+
+    case Enum.at(results, 0) do
       nil ->
         {:error, :transaction_not_exists}
 
@@ -71,15 +82,36 @@ defmodule ArchEthic.DB.CassandraImpl do
   def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
     start = System.monotonic_time()
 
-    chain =
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
+      )
+
+    addresses_to_fetch =
       1..4
-      |> Task.async_stream(fn bucket ->
-        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transactions WHERE chain_address=? and bucket=?"
-        |> QueryProducer.add_query([address, bucket], true)
-        |> Enum.map(&format_result_to_transaction/1)
+      |> Task.async_stream(
+        fn bucket ->
+          :xandra_conn
+          |> Xandra.stream_pages!(prepared, [address, bucket], page_size: 10)
+          |> Stream.flat_map(& &1)
+          |> Enum.map(fn %{"transaction_address" => tx_address} ->
+            tx_address
+          end)
+        end,
+        max_concurrency: 4
+      )
+      |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
+
+    chain =
+      Xandra.run(:xandra_conn, fn conn ->
+        addresses_to_fetch
+        |> Stream.map(fn address ->
+          {:ok, tx} = do_get_transaction(conn, address, fields)
+          tx
+        end)
+        |> Enum.to_list()
       end)
-      |> Stream.map(fn {:ok, res} -> res end)
-      |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
@@ -93,8 +125,16 @@ defmodule ArchEthic.DB.CassandraImpl do
   Store the transaction
   """
   @spec write_transaction(Transaction.t()) :: :ok
-  def write_transaction(tx = %Transaction{address: address}) do
-    do_write_transaction(tx, address)
+  def write_transaction(
+        tx = %Transaction{
+          address: tx_address,
+          validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+        }
+      ) do
+    Xandra.run(:xandra_conn, fn conn ->
+      do_write_transaction(conn, tx)
+      add_transaction_to_chain(conn, tx_address, tx_timestamp, tx_address)
+    end)
   end
 
   @impl DB
@@ -102,18 +142,22 @@ defmodule ArchEthic.DB.CassandraImpl do
   Store the transaction into the given chain address
   """
   @spec write_transaction(Transaction.t(), binary()) :: :ok
-  def write_transaction(tx = %Transaction{}, chain_address) when is_binary(chain_address) do
-    do_write_transaction(tx, chain_address)
+  def write_transaction(
+        tx = %Transaction{
+          address: tx_address,
+          validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+        },
+        chain_address
+      )
+      when is_binary(chain_address) do
+    Xandra.run(:xandra_conn, fn conn ->
+      do_write_transaction(conn, tx)
+      add_transaction_to_chain(conn, tx_address, tx_timestamp, chain_address)
+    end)
   end
 
-  defp do_write_transaction(
-         tx = %Transaction{},
-         chain_address
-       ) do
+  defp do_write_transaction(conn, tx = %Transaction{}) do
     %{
-      "chain_address" => chain_address,
-      "bucket" => bucket,
-      "timestamp" => timestamp,
       "version" => version,
       "address" => address,
       "type" => type,
@@ -121,30 +165,44 @@ defmodule ArchEthic.DB.CassandraImpl do
       "previous_public_key" => previous_public_key,
       "previous_signature" => previous_signature,
       "origin_signature" => origin_signature,
-      "validation_stamp" => validation_stamp,
+      "validation_stamp" => validation_stamp = %{"timestamp" => timestamp},
       "cross_validation_stamps" => cross_validation_stamps
-    } = encode_transaction_to_parameters(tx, chain_address)
+    } = encode_transaction_to_parameters(tx)
 
     start = System.monotonic_time()
 
-    "INSERT INTO archethic.transactions (chain_address, bucket, timestamp, version, address, type, data, previous_public_key, previous_signature, origin_signature, validation_stamp, cross_validation_stamps) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    |> QueryProducer.add_query([
-      chain_address,
-      bucket,
-      timestamp,
-      version,
-      address,
-      type,
-      data,
-      previous_public_key,
-      previous_signature,
-      origin_signature,
-      validation_stamp,
-      cross_validation_stamps
-    ])
+    transaction_insert_prepared =
+      Xandra.prepare!(
+        conn,
+        "INSERT INTO archethic.transactions (version, address, type, data, previous_public_key, previous_signature, origin_signature, validation_stamp, cross_validation_stamps) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
 
-    "INSERT INTO archethic.transaction_type_lookup(type, address, timestamp) VALUES(?, ?, ?)"
-    |> QueryProducer.add_query([type, address, timestamp])
+    transaction_insert_type_prepared =
+      Xandra.prepare!(
+        conn,
+        "INSERT INTO archethic.transaction_type_lookup(type, address, timestamp) VALUES(?, ?, ?)"
+      )
+
+    batch =
+      Xandra.Batch.new()
+      |> Xandra.Batch.add(transaction_insert_prepared, [
+        version,
+        address,
+        type,
+        data,
+        previous_public_key,
+        previous_signature,
+        origin_signature,
+        validation_stamp,
+        cross_validation_stamps
+      ])
+      |> Xandra.Batch.add(transaction_insert_type_prepared, [
+        type,
+        address,
+        timestamp
+      ])
+
+    Xandra.execute!(conn, batch)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_transaction"
@@ -153,16 +211,10 @@ defmodule ArchEthic.DB.CassandraImpl do
     :ok
   end
 
-  defp encode_transaction_to_parameters(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
-         chain_address
-       ) do
+  defp encode_transaction_to_parameters(tx = %Transaction{}) do
     tx
     |> Transaction.to_map()
     |> Utils.stringify_keys()
-    |> Map.put("chain_address", chain_address)
-    |> Map.put("bucket", bucket_from_date(timestamp))
-    |> Map.put("timestamp", timestamp)
   end
 
   @impl DB
@@ -178,40 +230,76 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     start = System.monotonic_time()
 
-    statement_by_first_address =
-      "INSERT INTO archethic.chain_lookup_by_first_address(last_transaction_address, genesis_transaction_address) VALUES (?, ?)"
+    Xandra.run(:xandra_conn, fn conn ->
+      insert_lookup_by_first_address_prepared =
+        Xandra.prepare!(
+          conn,
+          "INSERT INTO archethic.chain_lookup_by_first_address(last_transaction_address, genesis_transaction_address) VALUES (?, ?)"
+        )
 
-    statement_by_first_key =
-      "INSERT INTO archethic.chain_lookup_by_first_key(last_key, genesis_key) VALUES (?, ?)"
+      insert_lookup_by_first_key_prepared =
+        Xandra.prepare!(
+          conn,
+          "INSERT INTO archethic.chain_lookup_by_first_key(last_key, genesis_key) VALUES (?, ?)"
+        )
 
-    statement_by_last_address =
-      "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)"
+      insert_lookup_by_last_address_prepared =
+        Xandra.prepare!(
+          conn,
+          "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)"
+        )
 
-    Stream.each(
-      chain,
-      fn tx = %Transaction{
-           address: tx_address,
-           validation_stamp: %ValidationStamp{timestamp: tx_timestamp},
-           previous_public_key: tx_public_key
-         } ->
-        do_write_transaction(tx, chain_address)
+      Stream.each(
+        chain,
+        fn tx = %Transaction{
+             address: tx_address,
+             validation_stamp: %ValidationStamp{timestamp: tx_timestamp},
+             previous_public_key: tx_public_key
+           } ->
+          do_write_transaction(conn, tx)
 
-        QueryProducer.add_query(statement_by_first_address, [chain_address, tx_address])
+          Xandra.execute!(conn, insert_lookup_by_first_address_prepared, [
+            chain_address,
+            tx_address
+          ])
 
-        QueryProducer.add_query(statement_by_first_key, [chain_public_key, tx_public_key])
+          Xandra.execute!(conn, insert_lookup_by_first_key_prepared, [
+            chain_public_key,
+            tx_public_key
+          ])
 
-        QueryProducer.add_query(statement_by_last_address, [
-          Transaction.previous_address(tx),
-          chain_address,
-          tx_timestamp
-        ])
-      end
-    )
-    |> Stream.run()
+          Xandra.execute!(conn, insert_lookup_by_last_address_prepared, [
+            Transaction.previous_address(tx),
+            chain_address,
+            tx_timestamp
+          ])
 
-    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-      query: "write_transaction_chain"
-    })
+          add_transaction_to_chain(conn, tx_address, tx_timestamp, chain_address)
+        end
+      )
+      |> Stream.run()
+
+      :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+        query: "write_transaction_chain"
+      })
+
+      :ok
+    end)
+  end
+
+  defp add_transaction_to_chain(conn, tx_address, tx_timestamp, chain_address) do
+    prepared =
+      Xandra.prepare!(
+        conn,
+        "INSERT INTO archethic.transaction_chains(chain_address, bucket, transaction_address, transaction_timestamp) VALUES(?, ?, ?, ?)"
+      )
+
+    Xandra.execute!(conn, prepared, [
+      chain_address,
+      bucket_from_date(tx_timestamp),
+      tx_address,
+      tx_timestamp
+    ])
 
     :ok
   end
@@ -233,10 +321,13 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   def add_last_transaction_address(tx_address, last_address, timestamp = %DateTime{}) do
-    QueryProducer.add_query(
-      "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)",
-      [tx_address, last_address, timestamp]
-    )
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.chain_lookup_by_last_address(transaction_address, last_transaction_address, timestamp) VALUES(?, ?, ?)"
+      )
+
+    Xandra.execute!(:xandra_conn, prepared, [tx_address, last_address, timestamp])
 
     :ok
   end
@@ -247,24 +338,37 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec list_last_transaction_addresses() :: Enumerable.t()
   def list_last_transaction_addresses do
-    "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address PER PARTITION LIMIT 1"
-    |> QueryProducer.add_query([], true)
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address PER PARTITION LIMIT 1"
+      )
+
+    :xandra_conn
+    |> Xandra.stream_pages!(prepared, [], page_size: 10)
+    |> Stream.flat_map(& &1)
     |> Stream.map(&Map.get(&1, "last_transaction_address"))
-    |> Stream.uniq()
+    |> Enum.uniq()
   end
 
   @impl DB
   @spec chain_size(binary()) :: non_neg_integer()
   def chain_size(address) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT COUNT(*) as size FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
+      )
+
     Task.async_stream(
       1..4,
       fn bucket ->
-        "SELECT COUNT(*) as size FROM archethic.transactions WHERE chain_address=? and bucket=?"
-        |> QueryProducer.add_query([address, bucket])
+        :xandra_conn
+        |> Xandra.execute!(prepared, [address, bucket])
         |> Enum.at(0, %{})
         |> Map.get("size", 0)
       end,
-      on_timeout: :kill_task
+      ordered: false
     )
     |> Enum.reduce(0, fn {:ok, size}, acc ->
       acc + size
@@ -275,19 +379,33 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec list_transactions_by_type(type :: Transaction.transaction_type(), fields :: list()) ::
           Enumerable.t()
   def list_transactions_by_type(type, fields \\ []) do
-    "SELECT address FROM archethic.transaction_type_lookup WHERE type=?"
-    |> QueryProducer.add_query([Atom.to_string(type)], true)
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT address FROM archethic.transaction_type_lookup WHERE type=?"
+      )
+
+    :xandra_conn
+    |> Xandra.stream_pages!(prepared, [Atom.to_string(type)], page_size: 10)
+    |> Stream.flat_map(& &1)
     |> Stream.map(fn %{"address" => address} ->
       {:ok, tx} = get_transaction(address, fields)
       tx
     end)
+    |> Enum.to_list()
   end
 
   @impl DB
   @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
   def count_transactions_by_type(type) do
-    "SELECT COUNT(address) as nb FROM archethic.transaction_type_lookup WHERE type=?"
-    |> QueryProducer.add_query([Atom.to_string(type)])
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT COUNT(address) as nb FROM archethic.transaction_type_lookup WHERE type=?"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [Atom.to_string(type)])
     |> Enum.at(0, %{})
     |> Map.get("nb", 0)
   end
@@ -298,8 +416,14 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_last_chain_address(binary()) :: binary()
   def get_last_chain_address(address) do
-    "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
-    |> QueryProducer.add_query([address])
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [address])
     |> Enum.at(0, %{})
     |> Map.get("last_transaction_address", address)
   end
@@ -310,8 +434,14 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
   def get_last_chain_address(address, datetime = %DateTime{}) do
-    "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
-    |> QueryProducer.add_query([address, datetime])
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [address, datetime])
     |> Enum.at(0, %{})
     |> Map.get("last_transaction_address", address)
   end
@@ -322,8 +452,14 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_first_chain_address(binary()) :: binary()
   def get_first_chain_address(address) when is_binary(address) do
-    "SELECT genesis_transaction_address FROM archethic.chain_lookup_by_first_address WHERE last_transaction_address=?"
-    |> QueryProducer.add_query([address])
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT genesis_transaction_address FROM archethic.chain_lookup_by_first_address WHERE last_transaction_address=?"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [address])
     |> Enum.at(0, %{})
     |> Map.get("genesis_transaction_address", address)
   end
@@ -334,8 +470,14 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_first_public_key(Crypto.key()) :: Crypto.key()
   def get_first_public_key(previous_public_key) when is_binary(previous_public_key) do
-    "SELECT genesis_key FROM archethic.chain_lookup_by_first_key WHERE last_key=?"
-    |> QueryProducer.add_query([previous_public_key])
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT genesis_key FROM archethic.chain_lookup_by_first_key WHERE last_key=?"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [previous_public_key])
     |> Enum.at(0, %{})
     |> Map.get("genesis_key", previous_public_key)
   end
@@ -346,8 +488,10 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_latest_tps :: float()
   def get_latest_tps do
-    "SELECT tps FROM archethic.network_stats_by_date"
-    |> QueryProducer.add_query()
+    prepared = Xandra.prepare!(:xandra_conn, "SELECT tps FROM archethic.network_stats_by_date")
+
+    :xandra_conn
+    |> Xandra.execute!(prepared)
     |> Enum.at(0, %{})
     |> Map.get("tps", 0.0)
   end
@@ -358,8 +502,12 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec get_nb_transactions() :: non_neg_integer()
   def get_nb_transactions do
-    "SELECT nb_transactions FROM archethic.network_stats_by_date"
-    |> QueryProducer.add_query([], true)
+    prepared =
+      Xandra.prepare!(:xandra_conn, "SELECT nb_transactions FROM archethic.network_stats_by_date")
+
+    :xandra_conn
+    |> Xandra.stream_pages!(prepared, [], page_size: 100)
+    |> Stream.flat_map(& &1)
     |> Enum.reduce(0, fn %{"nb_transactions" => nb_transactions}, acc -> nb_transactions + acc end)
   end
 
@@ -370,10 +518,13 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
   def register_tps(date = %DateTime{}, tps, nb_transactions)
       when is_float(tps) and tps >= 0.0 and is_integer(nb_transactions) and nb_transactions >= 0 do
-    QueryProducer.add_query(
-      "INSERT INTO archethic.network_stats_by_date (date, tps, nb_transactions) VALUES (?, ?, ?)",
-      [date, tps, nb_transactions]
-    )
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.network_stats_by_date (date, tps, nb_transactions) VALUES (?, ?, ?)"
+      )
+
+    Xandra.execute!(:xandra_conn, prepared, [date, tps, nb_transactions])
 
     :ok
   end
@@ -384,13 +535,19 @@ defmodule ArchEthic.DB.CassandraImpl do
   @impl DB
   @spec transaction_exists?(binary()) :: boolean()
   def transaction_exists?(address) when is_binary(address) do
-    case QueryProducer.add_query("SELECT address FROM archethic.transactions WHERE address=?", [
-           address
-         ]) do
-      [] ->
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT COUNT(*) as count FROM archethic.transactions WHERE address=?"
+      )
+
+    result = Xandra.execute!(:xandra_conn, prepared, [address])
+
+    case Enum.to_list(result) do
+      [%{"count" => 0}] ->
         false
 
-      [_ | _] ->
+      [%{"count" => 1}] ->
         true
     end
   end
@@ -411,15 +568,20 @@ defmodule ArchEthic.DB.CassandraImpl do
         available?,
         avg_availability
       ) do
-    QueryProducer.add_query(
-      "INSERT INTO archethic.p2p_summary_by_node (node_public_key, date, available, average_availability) VALUES (?, ?, ?, ?)",
-      [
-        node_public_key,
-        date,
-        available?,
-        avg_availability
-      ]
-    )
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.p2p_summary_by_node (node_public_key, date, available, average_availability) VALUES (?, ?, ?, ?)"
+      )
+
+    Xandra.execute!(:xandra_conn, prepared, [
+      node_public_key,
+      date,
+      available?,
+      avg_availability
+    ])
+
+    :ok
   end
 
   @doc """
@@ -431,8 +593,14 @@ defmodule ArchEthic.DB.CassandraImpl do
             {available? :: boolean(), average_availability :: float()}
         }
   def get_last_p2p_summaries do
-    "SELECT node_public_key, available, average_availability FROM archethic.p2p_summary_by_node PER PARTITION LIMIT 1"
-    |> QueryProducer.add_query([], true)
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "SELECT node_public_key, available, average_availability FROM archethic.p2p_summary_by_node PER PARTITION LIMIT 1"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared)
     |> Stream.map(fn %{
                        "node_public_key" => node_public_key,
                        "available" => available?,

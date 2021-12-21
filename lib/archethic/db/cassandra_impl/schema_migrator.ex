@@ -1,8 +1,6 @@
 defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   @moduledoc false
 
-  alias ArchEthic.DB.CassandraImpl.QueryProducer
-
   require Logger
 
   use GenServer
@@ -30,24 +28,22 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   end
 
   defp create_keyspace do
-    """
+    Xandra.execute!(:xandra_conn, """
       CREATE KEYSPACE IF NOT EXISTS archethic WITH replication = {
         'class': 'SimpleStrategy',
         'replication_factor' : 1
       };
-    """
-    |> QueryProducer.add_query()
+    """)
   end
 
   defp create_migration_table do
-    """
-    CREATE TABLE IF NOT EXISTS archethic.schema_migrations(
-      version INT,
-      updated_at TIMESTAMP,
-      PRIMARY KEY (version)
-    );
-    """
-    |> QueryProducer.add_query()
+    Xandra.execute!(:xandra_conn, """
+      CREATE TABLE IF NOT EXISTS archethic.schema_migrations(
+        version INT,
+        updated_at TIMESTAMP,
+        PRIMARY KEY (version)
+      );
+    """)
   end
 
   defp load_migrations do
@@ -61,7 +57,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   end
 
   defp get_migrated_versions do
-    QueryProducer.add_query("SELECT version FROM archethic.schema_migrations")
+    Xandra.execute!(:xandra_conn, "SELECT version FROM archethic.schema_migrations")
   end
 
   defp get_migrations do
@@ -101,7 +97,7 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
 
       migration_query
       |> String.split(";", trim: true)
-      |> Enum.each(&QueryProducer.add_query/1)
+      |> Enum.each(&Xandra.execute!(:xandra_conn, &1))
 
       version
     end
@@ -112,8 +108,15 @@ defmodule ArchEthic.DB.CassandraImpl.SchemaMigrator do
   end
 
   defp register_migrated_versions(versions) do
-    query = "INSERT INTO archethic.schema_migrations(version, updated_at) VALUES(?, ?)"
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.schema_migrations(version, updated_at) VALUES(?, ?)"
+      )
 
-    Enum.each(versions, &QueryProducer.add_query(query, [&1, DateTime.utc_now()]))
+    Enum.each(
+      versions,
+      &Xandra.execute!(:xandra_conn, prepared, [&1, DateTime.utc_now()])
+    )
   end
 end
