@@ -103,21 +103,30 @@ defmodule ArchEthic.DB.CassandraImpl do
       )
       |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
 
+    # Chunk the reads while leveraging concurrency
+    # avoiding a connection to be open too long to read many transactions
     chain =
-      Xandra.run(:xandra_conn, fn conn ->
-        addresses_to_fetch
-        |> Stream.map(fn address ->
-          {:ok, tx} = do_get_transaction(conn, address, fields)
-          tx
-        end)
-        |> Enum.to_list()
-      end)
+      addresses_to_fetch
+      |> Enum.chunk_every(10)
+      |> Task.async_stream(&chunk_get_transaction(&1, fields))
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(fn {:ok, transactions} -> transactions end)
+      |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
 
     chain
+  end
+
+  defp chunk_get_transaction(addresses, fields) do
+    Xandra.run(:xandra_conn, fn conn ->
+      Enum.map(addresses, fn address ->
+        {:ok, tx} = do_get_transaction(conn, address, fields)
+        tx
+      end)
+    end)
   end
 
   @impl DB
