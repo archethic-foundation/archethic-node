@@ -88,10 +88,12 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         :ok = Replication.process_transaction(tx, roles, self_repair?: true)
 
       {:error, :network_issue} ->
-        Logger.error("Network issue during during self repair",
+        Logger.error("Cannot fetch the transaction to sync",
           transaction_address: Base.encode16(address),
           transaction_type: type
         )
+
+        raise "Network issue during during self repair"
     end
   end
 

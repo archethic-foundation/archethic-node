@@ -432,6 +432,26 @@ defmodule ArchEthic.P2P do
   Check for possible duplicate nodes (IP spoofing).
 
   Returns true if matching node {ip,port} has a different first public key.
+
+  ## Examples
+
+    Returns false when the tuple {ip, port} is not found
+
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key0", [])
+      false
+
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key0", [%Node{ip: {127, 0, 0, 1}, port: 3001}])
+      false
+
+    Returns false when the node with the ip/PORT is found but the chain of keys is followed
+
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key1", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.hash("node_key1") }])
+      false
+
+    Returns true when the node with the ip/PORT is found but the chain of keys doesn't match
+
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key10", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.hash("node_key1")}])
+      true
   """
   @spec duplicating_node?(
           :inet.ip_address(),
@@ -445,8 +465,8 @@ defmodule ArchEthic.P2P do
       nil ->
         false
 
-      %Node{first_public_key: first_public_key} ->
-        TransactionChain.get_first_public_key(prev_public_key) != first_public_key
+      %Node{last_address: last_address} ->
+        Crypto.hash(prev_public_key) != last_address
     end
   end
 

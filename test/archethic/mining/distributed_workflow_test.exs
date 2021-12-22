@@ -457,7 +457,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         <<1::1, 1::1>>
       )
 
-      Process.sleep(1_000)
+      Process.sleep(2_000)
 
       {:wait_cross_validation_stamps,
        %{

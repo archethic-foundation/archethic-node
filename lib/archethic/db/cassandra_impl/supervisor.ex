@@ -3,7 +3,6 @@ defmodule ArchEthic.DB.CassandraImpl.Supervisor do
 
   use Supervisor
 
-  alias ArchEthic.DB.CassandraImpl.QueryPipeline
   alias ArchEthic.DB.CassandraImpl.SchemaMigrator
 
   require Logger
@@ -22,7 +21,6 @@ defmodule ArchEthic.DB.CassandraImpl.Supervisor do
 
     children = [
       {Xandra, name: :xandra_conn, pool_size: pool_size, nodes: [host]},
-      QueryPipeline,
       SchemaMigrator
     ]
 
