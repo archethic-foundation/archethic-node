@@ -192,26 +192,23 @@ defmodule ArchEthic.DB.CassandraImpl do
         "INSERT INTO archethic.transaction_type_lookup(type, address, timestamp) VALUES(?, ?, ?)"
       )
 
-    batch =
-      Xandra.Batch.new()
-      |> Xandra.Batch.add(transaction_insert_prepared, [
-        version,
-        address,
-        type,
-        data,
-        previous_public_key,
-        previous_signature,
-        origin_signature,
-        validation_stamp,
-        cross_validation_stamps
-      ])
-      |> Xandra.Batch.add(transaction_insert_type_prepared, [
-        type,
-        address,
-        timestamp
-      ])
+    Xandra.execute!(conn, transaction_insert_prepared, [
+      version,
+      address,
+      type,
+      data,
+      previous_public_key,
+      previous_signature,
+      origin_signature,
+      validation_stamp,
+      cross_validation_stamps
+    ])
 
-    Xandra.execute!(conn, batch)
+    Xandra.execute!(conn, transaction_insert_type_prepared, [
+      type,
+      address,
+      timestamp
+    ])
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_transaction"
