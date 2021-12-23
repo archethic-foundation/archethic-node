@@ -192,6 +192,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     valid_transaction? =
       case PendingTransactionValidation.validate(tx) do
         :ok ->
+          Logger.debug("Pending transaction valid",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
+          )
+
           true
 
         {:error, reason} ->
@@ -232,6 +237,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :build_transaction_context,
         state,
         data = %{
+          start_time: mining_start_time,
           timeout: timeout,
           context:
             context = %ValidationContext{
@@ -260,8 +266,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         [coordinator_key | Enum.map(cross_validation_nodes, & &1.last_public_key)]
       )
 
+    now = System.monotonic_time()
+
     :telemetry.execute([:archethic, :mining, :fetch_context], %{
-      duration: System.monotonic_time() - start
+      duration: now - start
     })
 
     Logger.debug("Previous transaction #{inspect(prev_tx)}",
@@ -293,9 +301,15 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     next_events =
       case state do
         :coordinator ->
+          waiting_time =
+            (now - mining_start_time)
+            |> :erlang.convert_time_unit(:native, :millisecond)
+            |> abs()
+
+          transmission_delay = 500
+
           [
-            {{:timeout, :wait_confirmations},
-             get_wait_confirmation_timeout(tx.type, length(unspent_outputs)), :any},
+            {{:timeout, :wait_confirmations}, waiting_time + transmission_delay, :any},
             {{:timeout, :stop_timeout}, timeout, :any}
           ]
 
@@ -534,7 +548,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :consensus_not_reached,
         _data = %{context: context = %ValidationContext{transaction: tx}}
       ) do
-    Logger.error("Consensus not reached - Malicious Detection started",
+    Logger.error("Consensus not reached",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
@@ -721,21 +735,5 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :telemetry.execute([:archethic, :mining, :full_transaction_validation], %{
       duration: System.monotonic_time() - start_time
     })
-  end
-
-  defp get_wait_confirmation_timeout(:oracle, _) do
-    1_000
-  end
-
-  defp get_wait_confirmation_timeout(:oracle_summary, _) do
-    1_000
-  end
-
-  defp get_wait_confirmation_timeout(_tx_type, nb_unspent_outputs) do
-    previous_tx_download_max_estimation = 200
-    unspent_output_download_max_estimation = 100
-    unspent_outputs_download_time = nb_unspent_outputs * unspent_output_download_max_estimation
-
-    previous_tx_download_max_estimation + unspent_outputs_download_time
   end
 end

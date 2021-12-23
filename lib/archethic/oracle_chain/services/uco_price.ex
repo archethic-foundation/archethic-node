@@ -24,7 +24,8 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice do
           compare_price(Map.fetch!(prices_prior, pair), Map.fetch!(prices_now, pair))
         end)
 
-      _ ->
+      {:error, reason} ->
+        Logger.warning("Cannot fetch UCO price - reason: #{inspect(reason)}")
         false
     end
   end
@@ -40,7 +41,7 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice do
     if deviation < deviation_threshold do
       true
     else
-      Logger.debug(
+      Logger.warning(
         "UCO price deviated from #{deviation} % - previous price: #{price_prior} - new price: #{price_now} "
       )
 

@@ -32,7 +32,10 @@ defmodule ArchEthic.OracleChain.Services do
         new_digest != previous_digest
 
       {service, reason} ->
-        Logger.error("Cannot request the Oracle provider #{service} - reason: #{inspect(reason)}")
+        Logger.warning(
+          "Cannot request the Oracle provider #{service} - reason: #{inspect(reason)}"
+        )
+
         false
     end)
     |> Enum.into(%{}, fn {service, {:ok, data}} -> {service, data} end)

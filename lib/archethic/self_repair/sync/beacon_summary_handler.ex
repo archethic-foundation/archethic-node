@@ -218,7 +218,12 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     Enum.each(ends_of_sync, &handle_end_of_node_sync/1)
 
-    Enum.each(p2p_availabilities, &update_availabilities(elem(&1, 0), elem(&1, 1), elem(&1, 2)))
+    p2p_availabilities
+    |> Enum.uniq_by(fn {%Node{first_public_key: node_first_public_key}, _available?,
+                        _avg_availability} ->
+      node_first_public_key
+    end)
+    |> Enum.each(&update_availabilities(elem(&1, 0), elem(&1, 1), elem(&1, 2)))
 
     update_statistics(stats)
   end
@@ -245,13 +250,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   defp update_availabilities(%Node{first_public_key: node_key}, available?, avg_availability) do
     DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
 
-    if available? do
-      P2P.set_node_globally_available(node_key)
-    else
-      P2P.set_node_globally_unavailable(node_key)
-    end
+    # TODO: fix the split of the network when node have different P2P availabilities causing the system to fail
+    # if available? do
+    #   P2P.set_node_globally_available(node_key)
+    # else
+    #   P2P.set_node_globally_unavailable(node_key)
+    # end
 
-    P2P.set_node_average_availability(node_key, avg_availability)
+    # P2P.set_node_average_availability(node_key, avg_availability)
   end
 
   defp update_statistics(stats) do

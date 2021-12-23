@@ -60,7 +60,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
         {:error, "Invalid previous signature"}
 
       {:error, reason} = e ->
-        Logger.error(reason, transaction_address: Base.encode16(address), transaction_type: type)
+        Logger.info(reason, transaction_address: Base.encode16(address), transaction_type: type)
         e
     end
   end
