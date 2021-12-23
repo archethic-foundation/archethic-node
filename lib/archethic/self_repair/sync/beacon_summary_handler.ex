@@ -218,7 +218,12 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     Enum.each(ends_of_sync, &handle_end_of_node_sync/1)
 
-    Enum.each(p2p_availabilities, &update_availabilities(elem(&1, 0), elem(&1, 1), elem(&1, 2)))
+    p2p_availabilities
+    |> Enum.uniq_by(fn {%Node{first_public_key: node_first_public_key}, _available?,
+                        _avg_availability} ->
+      node_first_public_key
+    end)
+    |> Enum.each(&update_availabilities(elem(&1, 0), elem(&1, 1), elem(&1, 2)))
 
     update_statistics(stats)
   end
