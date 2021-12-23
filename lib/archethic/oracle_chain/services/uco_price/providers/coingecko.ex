@@ -31,6 +31,9 @@ defmodule ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko do
 
       :error ->
         {:error, "invalid content"}
+
+      {:error, _} = e ->
+        e
     end
   end
 end
