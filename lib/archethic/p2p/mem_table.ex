@@ -501,11 +501,10 @@ defmodule ArchEthic.P2P.MemTable do
   @spec authorize_node(first_public_key :: Crypto.key(), authorization_date :: DateTime.t()) ::
           :ok
   def authorize_node(first_public_key, date = %DateTime{}) when is_binary(first_public_key) do
-    if :ets.member(@authorized_nodes_table, first_public_key) do
-      :ok
-    else
+    Logger.info("New authorized node", node: Base.encode16(first_public_key))
+
+    if !:ets.member(@authorized_nodes_table, first_public_key) do
       true = :ets.insert(@authorized_nodes_table, {first_public_key, date})
-      Logger.info("New authorized node", node: Base.encode16(first_public_key))
       notify_node_update(first_public_key)
     end
   end
