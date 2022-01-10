@@ -208,11 +208,11 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   [CrossValidationStamp] represents the approval of the validation stamp by a cross validation node.
   It includes:
   - Signature: signature of the validation stamp
-  - Node: node public key
+  - Node public key: cross validation node's public key
   """
   object :cross_validation_stamp do
     field(:signature, :hex)
-    field(:node, :hex)
+    field(:node_public_key, :hex)
   end
 
   @desc """
