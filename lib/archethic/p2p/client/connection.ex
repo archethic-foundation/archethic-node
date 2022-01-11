@@ -239,6 +239,14 @@ defmodule ArchEthic.P2P.Client.Connection do
               node_public_key: node_public_key
             )
 
+            :telemetry.execute(
+              [:archethic, :p2p, :send_message],
+              %{
+                duration: end_time - start_time
+              },
+              %{message: message_name}
+            )
+
             send(from, {:data, ref, message})
             Process.cancel_timer(timer)
             {:noreply, new_state}
