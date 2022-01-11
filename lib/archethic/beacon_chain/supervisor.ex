@@ -3,10 +3,9 @@ defmodule ArchEthic.BeaconChain.Supervisor do
 
   use Supervisor
 
-  alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.SummaryTimer
+  alias ArchEthic.BeaconChain.SubsetSupervisor
 
   alias ArchEthic.Utils
 
@@ -15,24 +14,13 @@ defmodule ArchEthic.BeaconChain.Supervisor do
   end
 
   def init(_args) do
-    BeaconChain.init_subsets()
-    subsets = BeaconChain.list_subsets()
+    schedulers =
+      Utils.configurable_children([
+        {SlotTimer, Application.get_env(:archethic, SlotTimer), []},
+        {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []}
+      ])
 
-    optional_children = [
-      {SlotTimer, Application.get_env(:archethic, SlotTimer), []},
-      {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []}
-      | Enum.map(
-          subsets,
-          &{Subset, [subset: &1], [id: &1]}
-        )
-    ]
-
-    static_children = [
-      {Registry,
-       keys: :unique, name: BeaconChain.SubsetRegistry, partitions: System.schedulers_online()}
-    ]
-
-    children = static_children ++ Utils.configurable_children(optional_children)
+    children = schedulers ++ [SubsetSupervisor]
 
     Supervisor.init(children, strategy: :one_for_one)
   end

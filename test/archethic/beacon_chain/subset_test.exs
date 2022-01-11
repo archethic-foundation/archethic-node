@@ -126,11 +126,6 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
         {:ok, %Ok{}}
     end)
 
-    MockDB
-    |> expect(:write_transaction, fn %Transaction{type: :beacon}, _ ->
-      :ok
-    end)
-
     send(pid, {:create_slot, DateTime.utc_now()})
 
     assert_receive {:beacon_tx,

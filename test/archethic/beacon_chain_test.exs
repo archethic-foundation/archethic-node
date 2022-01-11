@@ -7,6 +7,7 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
+  alias ArchEthic.BeaconChain.Subset.SummaryCache
   alias ArchEthic.BeaconChain.SubsetRegistry
   alias ArchEthic.BeaconChain.SummaryTimer
 
@@ -22,8 +23,6 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.Utils
 
   doctest ArchEthic.BeaconChain
-
-  import Mox
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
@@ -177,17 +176,9 @@ defmodule ArchEthic.BeaconChainTest do
         }
       }
 
-      me = self()
-
-      MockDB
-      |> expect(:write_transaction, fn %Transaction{type: :beacon}, _chain_address ->
-        send(me, :wrote)
-        :ok
-      end)
-
       assert :ok = BeaconChain.load_transaction(tx)
 
-      assert_receive :wrote
+      assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
     end
   end
 end
