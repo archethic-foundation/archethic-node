@@ -69,7 +69,8 @@ defmodule ArchEthicWeb.FaucetController do
 
     pool_gen_address = Crypto.hash(gen_pub)
 
-    with {:ok, last_address} <- ArchEthic.get_last_transaction_address(pool_gen_address),
+    with {:ok, last_address} <-
+           ArchEthic.get_last_transaction_address(pool_gen_address),
          {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
       create_transaction(last_index, curve, recipient_address)
     else

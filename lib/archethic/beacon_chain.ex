@@ -4,8 +4,6 @@ defmodule ArchEthic.BeaconChain do
   to retrieve the beacon storage nodes involved.
   """
 
-  alias ArchEthic.Election
-
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
@@ -20,9 +18,6 @@ defmodule ArchEthic.BeaconChain do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.Election
-
-  alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Message.RegisterBeaconUpdates
 
@@ -31,8 +26,6 @@ defmodule ArchEthic.BeaconChain do
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-
-  alias ArchEthic.Utils
 
   require Logger
 
@@ -50,36 +43,6 @@ defmodule ArchEthic.BeaconChain do
   end
 
   @doc """
-  Retrieve the beacon summaries storage nodes from a last synchronization date
-  """
-  @spec get_summary_pools(list(DateTime.t()), list(Node.t())) :: Enumerable.t()
-  def get_summary_pools(
-        summary_times,
-        node_list \\ P2P.authorized_nodes()
-      ) do
-    subsets = list_subsets()
-
-    window = Utils.flow_window_from_dates(summary_times, &elem(&1, 0))
-
-    summary_times
-    |> Flow.from_enumerable()
-    |> Flow.flat_map(fn time ->
-      Enum.map(subsets, fn subset -> {DateTime.truncate(time, :second), subset} end)
-    end)
-    |> Flow.partition(window: window, key: {:elem, 1})
-    |> Flow.reduce(fn -> [] end, fn {time, subset}, acc ->
-      [{time, subset, get_beacon_chain_pool(time, subset, node_list)} | acc]
-    end)
-    |> Flow.emit(:state)
-    |> Stream.flat_map(& &1)
-  end
-
-  defp get_beacon_chain_pool(time, subset, node_list) do
-    filter_nodes = Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
-    Election.beacon_storage_nodes(subset, time, filter_nodes)
-  end
-
-  @doc """
   Get the next beacon summary time
   """
   @spec next_summary_date(DateTime.t()) :: DateTime.t()
@@ -90,28 +53,6 @@ defmodule ArchEthic.BeaconChain do
   """
   @spec next_slot(last_sync_date :: DateTime.t()) :: DateTime.t()
   defdelegate next_slot(last_sync_date), to: SlotTimer
-
-  @doc """
-  Retrieve the beacon slots storage nodes from a last synchronization date
-  """
-  @spec get_slot_pools(list(DateTime.t()), list(Node.t())) :: Enumerable.t()
-  def get_slot_pools(slot_times, node_list \\ P2P.authorized_nodes()) do
-    subsets = list_subsets()
-
-    window = Utils.flow_window_from_dates(slot_times, &elem(&1, 0))
-
-    slot_times
-    |> Flow.from_enumerable()
-    |> Flow.flat_map(fn time ->
-      Enum.map(subsets, fn subset -> {DateTime.truncate(time, :second), subset} end)
-    end)
-    |> Flow.partition(window: window, key: {:elem, 1})
-    |> Flow.reduce(fn -> [] end, fn {time, subset}, acc ->
-      [{time, subset, get_beacon_chain_pool(time, subset, node_list)} | acc]
-    end)
-    |> Flow.emit(:state)
-    |> Stream.flat_map(& &1)
-  end
 
   @doc """
   Extract the beacon subset from an address
@@ -255,6 +196,12 @@ defmodule ArchEthic.BeaconChain do
   """
   @spec previous_summary_dates(DateTime.t()) :: Enumerable.t()
   defdelegate previous_summary_dates(date), to: SummaryTimer, as: :previous_summaries
+
+  @doc """
+  Return the next summary datetimes from a given date
+  """
+  @spec next_summary_dates(DateTime.t()) :: Enumerable.t()
+  defdelegate next_summary_dates(date), to: SummaryTimer, as: :next_summaries
 
   @doc """
   Return a list of beacon summaries from a list of transaction addresses

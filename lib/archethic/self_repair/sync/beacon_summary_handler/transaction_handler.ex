@@ -48,8 +48,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   @doc """
   Request the transaction for the closest storage nodes and replicate it locally.
   """
-  @spec download_transaction(TransactionSummary.t(), patch :: binary()) ::
-          :ok | {:error, :invalid_transaction}
+  @spec download_transaction(TransactionSummary.t(), patch :: binary()) :: Transaction.t()
   def download_transaction(
         %TransactionSummary{address: address, type: type, timestamp: _timestamp},
         node_patch
@@ -69,23 +68,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
     case fetch_transaction(storage_nodes, address) do
       {:ok, tx = %Transaction{}} ->
-        node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
-
-        roles =
-          [
-            chain:
-              Replication.chain_storage_nodes_with_type(
-                address,
-                type,
-                node_list,
-                node_list
-              )
-              |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
-            IO: Replication.io_storage_node?(tx, Crypto.last_node_public_key(), node_list)
-          ]
-          |> Utils.get_keys_from_value_match(true)
-
-        :ok = Replication.process_transaction(tx, roles, self_repair?: true)
+        tx
 
       {:error, :network_issue} ->
         Logger.error("Cannot fetch the transaction to sync",
@@ -109,5 +92,25 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
   defp fetch_transaction([], _) do
     {:error, :network_issue}
+  end
+
+  def process_transaction(tx = %Transaction{address: address, type: type}) do
+    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+
+    roles =
+      [
+        chain:
+          Replication.chain_storage_nodes_with_type(
+            address,
+            type,
+            node_list,
+            node_list
+          )
+          |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
+        IO: Replication.io_storage_node?(tx, Crypto.last_node_public_key(), node_list)
+      ]
+      |> Utils.get_keys_from_value_match(true)
+
+    :ok = Replication.process_transaction(tx, roles, self_repair?: true)
   end
 end
