@@ -90,13 +90,11 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   object :ownership do
     field(:secret, :hex)
 
-    field(:authorized_public_keys, list_of(list_of(:authorized_key))) do
-      resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
+    field(:authorized_public_keys, list_of(:authorized_key)) do
+      resolve(fn _, %{source: %{authorized_keys: authorized_keys}} ->
         formatted_authorized_keys =
-          Enum.map(authorized_keys, fn authorized_keys_by_secret ->
-            Enum.map(authorized_keys_by_secret, fn {public_key, encrypted_secret_key} ->
-              %{public_key: public_key, encrypted_secret_key: encrypted_secret_key}
-            end)
+          Enum.map(authorized_keys, fn {public_key, encrypted_secret_key} ->
+            %{public_key: public_key, encrypted_secret_key: encrypted_secret_key}
           end)
 
         {:ok, formatted_authorized_keys}
