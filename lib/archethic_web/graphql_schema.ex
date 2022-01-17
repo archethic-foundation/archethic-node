@@ -97,6 +97,20 @@ defmodule ArchEthicWeb.GraphQLSchema do
         {:ok, Resolver.nodes()}
       end)
     end
+
+    @desc """
+    Query the network to list the transaction on the type
+    """
+    field :network_transactions, list_of(:transaction) do
+      arg(:type, :transaction_type)
+      arg(:page, :integer)
+
+      resolve(fn args, _ ->
+        type = Map.get(args, :type)
+        page = Map.get(args, :page, 1)
+        {:ok, Resolver.network_transactions(type, page)}
+      end)
+    end
   end
 
   subscription do
