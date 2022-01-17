@@ -102,13 +102,13 @@ defmodule ArchEthicWeb.GraphQLSchema do
     Query the network to list the transaction on the type
     """
     field :network_transactions, list_of(:transaction) do
-      arg(:type, :string)
+      arg(:type, :transaction_type)
       arg(:page, :integer)
 
       resolve(fn args, _ ->
         type = Map.get(args, :type)
         page = Map.get(args, :page, 1)
-        {:ok, Resolver.network_transactions(String.to_atom(type), page)}
+        {:ok, Resolver.network_transactions(type, page)}
       end)
     end
   end
