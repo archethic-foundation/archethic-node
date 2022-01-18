@@ -83,9 +83,10 @@ defmodule ArchEthic.P2P do
   Remove a node first public key to the list of nodes globally available.
   """
   @spec set_node_globally_unavailable(first_public_key :: Crypto.key()) :: :ok
-  defdelegate set_node_globally_unavailable(first_public_key),
-    to: MemTable,
-    as: :set_node_unavailable
+  def set_node_globally_unavailable(first_public_key) do
+    MemTable.set_node_unavailable(first_public_key)
+    MemTable.unauthorize_node(first_public_key)
+  end
 
   @doc """
   Set the node's average availability

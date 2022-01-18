@@ -726,7 +726,7 @@ defmodule ArchEthic.P2P.MemTable do
         {8, <<1::1>>}
       ])
 
-    Logger.info("New average availability: #{avg_availability}}",
+    Logger.info("New average availability: #{avg_availability}",
       node: Base.encode16(first_public_key)
     )
 
