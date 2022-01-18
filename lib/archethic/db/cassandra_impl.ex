@@ -231,7 +231,8 @@ defmodule ArchEthic.DB.CassandraImpl do
   def write_transaction_chain(chain) do
     %Transaction{
       address: chain_address,
-      previous_public_key: chain_public_key
+      previous_public_key: chain_public_key,
+      validation_stamp: %ValidationStamp{timestamp: chain_timestamp}
     } = Enum.at(chain, 0)
 
     start = System.monotonic_time()
@@ -277,7 +278,7 @@ defmodule ArchEthic.DB.CassandraImpl do
           Xandra.execute!(conn, insert_lookup_by_last_address_prepared, [
             Transaction.previous_address(tx),
             chain_address,
-            tx_timestamp
+            chain_timestamp
           ])
 
           add_transaction_to_chain(conn, tx_address, tx_timestamp, chain_address)
@@ -425,7 +426,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? PER PARTITION LIMIT 1"
       )
 
     :xandra_conn
@@ -443,7 +444,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ? PER PARTITION LIMIT 1"
       )
 
     :xandra_conn
