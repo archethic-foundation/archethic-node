@@ -122,15 +122,13 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     chain_storage_nodes =
       Replication.chain_storage_nodes_with_type(
         tx.address,
-        tx.type,
-        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+        tx.type
       )
 
     beacon_storage_nodes =
       Replication.beacon_storage_nodes(
         tx.address,
-        DateTime.utc_now(),
-        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+        DateTime.utc_now()
       )
 
     context =
@@ -535,6 +533,16 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       if ValidationContext.atomic_commitment?(new_context) do
         {:next_state, :replication, %{data | context: new_context}}
       else
+        Logger.debug("Received cross validation stamp: #{inspect(cross_validation_stamp)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        Logger.debug("Mining context: #{inspect(context)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
         {:next_state, :consensus_not_reached, %{data | context: new_context}}
       end
     else

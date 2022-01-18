@@ -62,14 +62,7 @@ defmodule ArchEthic.Mining.TransactionContext do
   end
 
   defp previous_nodes_distribution(previous_address, nb_sub_lists, sample_size) do
-    authorized_nodes = P2P.authorized_nodes() |> Enum.filter(&Node.locally_available?/1)
-
-    node_list =
-      if length(authorized_nodes) == 1 do
-        authorized_nodes
-      else
-        Enum.reject(authorized_nodes, &(&1.first_public_key == Crypto.first_node_public_key()))
-      end
+    node_list = P2P.unprioritize_node(P2P.available_nodes(), Crypto.first_node_public_key())
 
     previous_address
     |> Replication.chain_storage_nodes(node_list)

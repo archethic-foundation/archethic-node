@@ -76,21 +76,12 @@ defmodule ArchEthic.Replication.TransactionContext do
     end
   end
 
-  defp replication_nodes(address, timestamp, true) do
+  defp replication_nodes(address, _timestamp, _) do
     address
     |> Replication.chain_storage_nodes()
-    |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
-    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
-  end
-
-  defp replication_nodes(address, timestamp, false) do
-    address
-    |> Replication.chain_storage_nodes()
-    |> Enum.filter(&(DateTime.compare(&1.authorization_date, timestamp) == :lt))
-    |> P2P.nearest_nodes()
-    |> Enum.filter(&Node.locally_available?/1)
+    |> P2P.unprioritize_node(Crypto.first_node_public_key())
   end
 
   defp reply_first([node | rest], message) do
