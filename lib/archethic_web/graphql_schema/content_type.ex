@@ -8,10 +8,10 @@ defmodule ArchEthicWeb.GraphQLSchema.ContentType do
   it will be rendered as plain text otherwise in hexadecimal
   """
   scalar :content do
-    serialize(&Base.encode16/1)
+    serialize(&serialize_content/1)
   end
 
-  def serialize(content) do
+  defp serialize_content(content) do
     if String.printable?(content) do
       content
     else
