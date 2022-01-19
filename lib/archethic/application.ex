@@ -46,6 +46,8 @@ defmodule ArchEthic.Application do
   alias ArchEthicWeb.Endpoint, as: WebEndpoint
   alias ArchEthicWeb.Supervisor, as: WebSupervisor
 
+  alias ArchEthic.Metrics.MetricSupervisor, as: MetricSupervisor
+
   require Logger
 
   def start(_type, _args) do
@@ -80,7 +82,8 @@ defmodule ArchEthic.Application do
        Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
          port: port,
          transport: transport
-       )}
+       )},
+      MetricSupervisor
     ]
 
     opts = [strategy: :rest_for_one, name: ArchEthic.Supervisor]

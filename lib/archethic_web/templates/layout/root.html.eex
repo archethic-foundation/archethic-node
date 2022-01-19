@@ -22,8 +22,15 @@
             <span aria-hidden="true"></span>
           </a>
         </div>
-        <div id="navbar" class="navbar-menu">
+       <div id="navbar" class="navbar-menu">
+        <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NodeStats) %>">
+             thisNode
+            </a>
+
           <div class="navbar-end">
+            <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NetworkStats) %>">
+              Network
+            </a>
             <%= if faucet?() do %>
               <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
                 Faucet
@@ -73,6 +80,32 @@
         <%= @inner_content %>
       </main>
     </div>
+    <style>
+           body{
+                    background: linear-gradient(-45deg, #006cd2,#01d1f3, #a219df, #00a4db);
+                    background-size: 400% 400%;
+                    animation: gradient 15s ease infinite;
+
+                  }
+
+                  @keyframes gradient {
+                    0% {
+                      background-position: 0% 50%;
+                    }
+                    50% {
+                      background-position: 100% 50%;
+                    }
+                    100% {
+                      background-position: 0% 50%;
+                    }
+
+                  }
+
+    </style>
     <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+   <script src="https://cdn.jsdelivr.net/npm/echarts@5.2.2/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-fQybjgWLrvvRgtW6bFlB7jaZrFsaBXjsOMm/tB9LTS58ONXgqbR9W8oWht/amnpF" crossorigin="anonymous"></script>
+
   </body>
 </html>

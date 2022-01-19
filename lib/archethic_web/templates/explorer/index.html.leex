@@ -25,7 +25,7 @@
                   </div>
                 </div>
                 <div class="columns">
-                  
+
                   <div class="column is-3">
                     <div class="box has-text-centered">
                       <p class="heading">Last TPS</p>
@@ -38,6 +38,13 @@
                       <p class="title"><%= @nb_transactions %></p>
                     </div>
                   </div>
+
+                   <div class="column is-full-mobile is-half-tablet is-half-desktop ">
+                       <div id="explorer_charts_echartContainer" class="box" phx-hook="explorer_charts" style="width: 100%; min-height: 200px;">
+                       <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"></canvas></div>
+                      </div>
+
+
                 </div>
               </div>
             </div>
@@ -45,4 +52,3 @@
       </div>
   </div>
 </div>
-
