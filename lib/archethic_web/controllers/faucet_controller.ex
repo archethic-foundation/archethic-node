@@ -40,13 +40,13 @@ defmodule ArchEthicWeb.FaucetController do
   def create_transfer(conn, %{"address" => address}) do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_hash?(recipient_address),
-         :ok <- transfer(recipient_address) do
+         {:ok, tx_addr} <- transfer(recipient_address) do
       conn
       |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
       |> put_resp_header("pragma", "no-cache")
       |> put_resp_header("expires", "0")
       |> put_flash(:info, "Transferred successfully (click to view)")
-      |> render("index.html", address: "", link_address: address)
+      |> render("index.html", address: "", link_address: Base.encode16(tx_addr))
     else
       {:error, _} ->
         conn
@@ -79,24 +79,27 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   defp create_transaction(transaction_index, curve, recipient_address) do
-    Transaction.new(
-      :transfer,
-      %TransactionData{
-        ledger: %Ledger{
-          uco: %UCOLedger{
-            transfers: [
-              %UCOLedger.Transfer{
-                to: recipient_address,
-                amount: 10_000_000_000
-              }
-            ]
+    tx =
+      Transaction.new(
+        :transfer,
+        %TransactionData{
+          ledger: %Ledger{
+            uco: %UCOLedger{
+              transfers: [
+                %UCOLedger.Transfer{
+                  to: recipient_address,
+                  amount: 10_000_000_000
+                }
+              ]
+            }
           }
-        }
-      },
-      @pool_seed,
-      transaction_index,
-      curve
-    )
-    |> ArchEthic.send_new_transaction()
+        },
+        @pool_seed,
+        transaction_index,
+        curve
+      )
+
+    :ok = ArchEthic.send_new_transaction(tx)
+    {:ok, tx.address}
   end
 end
