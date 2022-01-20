@@ -153,7 +153,7 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
 
           value ->
             %{metric_name => value}
-            # _     ->  %{metric_name => 0}
+
         end
       end
     )
@@ -169,17 +169,6 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
     %{metric_name => avg}
   end
 
-  # def fetch_avg(map_of_metrics) do
-  #   Enum.map(map_of_metrics, fn {metric_name, count_n_sum_map} ->
-  #     avg =
-  #       case count_n_sum_map.count == 0 do
-  #         true -> 0
-  #         false -> count_n_sum_map.sum / count_n_sum_map.count
-  #       end
-
-  #     %{metric_name => avg}
-  #   end)
-  # end
 
   def fetch_guage_value(single_metric_map) do
     [value_map | _tail] = single_metric_map.metrics

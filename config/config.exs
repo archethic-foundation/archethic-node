@@ -32,7 +32,8 @@ config :logger, :console,
     :beacon_subset,
     :node,
     :address,
-    :message_id
+    :message_id,
+    :metrics
   ],
   colors: [enabled: true]
 

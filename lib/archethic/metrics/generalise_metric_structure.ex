@@ -141,7 +141,7 @@ defmodule ArchEthic.Metrics.GeneraliseMetricStructure do
     case data do
       "histogram" -> %{"count" => "0", "sum" => "0"}
       "gauge" -> [%{value: "0"}]
-        _     -> [%{value: "0"}]
+      _ -> [%{value: "0"}]
     end
   end
 

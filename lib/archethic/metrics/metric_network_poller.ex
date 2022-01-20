@@ -2,7 +2,7 @@ defmodule ArchEthic.Metrics.MetricNetworkPoller do
   @moduledoc """
   Genserver Provides Telemetry of the network
   """
-
+  require Logger
   use GenServer
   @process_name __MODULE__
   @default_state %{
@@ -63,9 +63,7 @@ defmodule ArchEthic.Metrics.MetricNetworkPoller do
         0 -> @default_state
         1 -> new_state
       end
-      IO.inspect "periodic calcnetwork poller"
-      IO.inspect(new_state.flag)
-
+      Logger.debug("METRICS:MetricNetworkPoller  State=#{inspect recheck_new_state.flag}")
     periodic_metric_aggregation()
     {:noreply, recheck_new_state}
   end

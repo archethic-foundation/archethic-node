@@ -1,0 +1,89 @@
+
+              <h1 style="font-size: 40px; color: #fff;"> Nodes Statistics</h1>
+              <div class="columns">
+                  <div class="column">
+                      <div class="tile is-primary">
+                            <article class="tile is-child p-4 box has-background-white">
+                              <p class="title has-text-dark">
+                              <span phx-hook="node_charts" id="archethic_self_repair_duration">0.000</span>
+                              <span class="subtitle has-text-dark">&nbsp;(ms)</span></p>
+                                <p style="font-size: 20px;"> <b>self_repair_duration</b>   </p>
+                            </article>
+                      </div>
+                  </div>
+                    <div class="column">
+                      <div class="tile is-primary">
+                            <article class="tile is-child p-4 box has-background-white">
+                              <p class="title has-text-dark">
+                              <span phx-hook="node_charts" id="vm_memory_processes">0.000</span>
+                              <span class="subtitle has-text-dark">&nbsp;(kb)</span></p>
+                              <p style="font-size: 20px;"><b>vm_memory_processes</b></p>
+                            </article>
+                      </div>
+                    </div>
+
+                  <div class="column">
+                      <div class="tile is-primary">
+                            <article class="tile is-child p-4 box has-background-white">
+                              <p class="title has-text-dark">
+                              <span phx-hook="node_charts" id="vm_memory_ets">0.000</span>
+                              <span class="subtitle has-text-dark">&nbsp;(kb)</span></p>
+                              <p style="font-size: 20px;">
+                                <b>vm_memory_ets</b>
+                                  </p>    </article>
+                      </div>
+                    </div>
+
+                  <div class="column">
+                      <div class="tile is-primary  ">
+                            <article class="tile is-child p-4 box has-background-white">
+                              <p class="title has-text-dark">
+                              <span phx-hook="node_charts" id="vm_memory_binary">0.000</span>
+                              <span class="subtitle has-text-dark">&nbsp;(kb)</span></p>
+                                <p style="font-size: 20px;">
+                                <b>vm_memory_binary</b>  </p>    </article>
+                      </div>
+                </div>
+              </div>
+
+      <div class="columns is-mobile" style = "display: flex;  flex-direction: row;  flex-wrap: wrap;">
+                      <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                           <div id='archethic_election_validation_nodes_duration'class="box" phx-hook='node_charts' style="width: 100%; height: 224px;">
+                           <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"></canvas></div>
+                      </div>
+
+                      <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                        <div id='archethic_election_storage_nodes_duration'class="box" phx-hook='node_charts' style="width: 100%; height: 224px ;">
+                        <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"> </canvas></div>
+                      </div>
+
+                      <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                        <div id='archethic_mining_pending_transaction_validation_duration' class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                        <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px">  </canvas></div>
+                      </div>
+
+                    <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                        <div id='archethic_mining_proof_of_work_duration'  class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                        <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px">  </canvas>   </div >
+                    </div >
+
+                  <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                      <div id='archethic_mining_full_transaction_validation_duration' class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                      <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px">   </canvas> </div>
+                  </div>
+
+                  <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                      <div id='archethic_contract_parsing_duration' class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                      <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"> </canvas> </div>
+                  </div>
+
+                  <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                      <div id='archethic_mining_fetch_context_duration' class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                      <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"> </canvas> </div>
+                  </div>
+
+                  <div class="column is-full-mobile is-half-tablet is-half-desktop">
+                      <div id='archethic_db_duration' class="box" phx-hook='node_charts' style="width: 100%; height: 224px" >
+                      <canvas id="echartDiv"  phx-update='ignore' style="width: 100%; min-height: 200px"> </canvas> </div>
+                  </div>
+           </div >
