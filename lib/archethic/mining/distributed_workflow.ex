@@ -533,16 +533,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       if ValidationContext.atomic_commitment?(new_context) do
         {:next_state, :replication, %{data | context: new_context}}
       else
-        Logger.debug("Received cross validation stamp: #{inspect(cross_validation_stamp)}",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
-
-        Logger.debug("Mining context: #{inspect(context)}",
-          transaction_address: Base.encode16(tx.address),
-          transaction_type: tx.type
-        )
-
         {:next_state, :consensus_not_reached, %{data | context: new_context}}
       end
     else
@@ -554,8 +544,25 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :enter,
         :wait_cross_validation_stamps,
         :consensus_not_reached,
-        _data = %{context: context = %ValidationContext{transaction: tx}}
+        _data = %{
+          context:
+            context = %ValidationContext{
+              transaction: tx,
+              cross_validation_stamps: cross_validation_stamps,
+              validation_stamp: validation_stamp
+            }
+        }
       ) do
+    Logger.debug("Validation stamp: #{inspect(validation_stamp, limit: :infinity)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    Logger.debug("Cross validation stamps: #{inspect(cross_validation_stamps, limit: :infinity)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     Logger.error("Consensus not reached",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -567,7 +574,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
   def handle_event(
         :enter,
-        :wait_cross_validation_stamps,
+        from_state,
         :replication,
         _data = %{
           start_time: start_time,
@@ -576,32 +583,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
               transaction: %Transaction{address: tx_address, type: type}
             }
         }
-      ) do
+      )
+      when from_state in [:cross_validator, :wait_cross_validation_stamps] do
     Logger.info("Start replication",
       transaction_address: Base.encode16(tx_address),
       transaction_type: type
-    )
-
-    request_replication(context, start_time)
-    :stop
-  end
-
-  def handle_event(
-        :enter,
-        :cross_validator,
-        :replication,
-        _data = %{
-          start_time: start_time,
-          context:
-            context = %ValidationContext{
-              transaction: %Transaction{address: tx_address, type: tx_type},
-              cross_validation_nodes: [_]
-            }
-        }
-      ) do
-    Logger.info("Start replication",
-      transaction_address: Base.encode16(tx_address),
-      transaction_type: tx_type
     )
 
     request_replication(context, start_time)
