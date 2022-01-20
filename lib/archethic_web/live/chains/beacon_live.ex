@@ -74,11 +74,12 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
     |> Task.async_stream(
       fn {address, nodes, patch} ->
-        download_summary(address, nodes, patch)
+        get_beacon_summary_transaction_chain(address, nodes, patch)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
+    |> Enum.filter(&match?({:ok, {:ok, _}}, &1))
     |> Enum.filter(&(!match?({:ok, {:ok, []}}, &1)))
     |> Enum.map(fn {:ok, {:ok, tx_list}} ->
       Enum.map(tx_list, fn %Transaction{data: %TransactionData{content: content}} ->
