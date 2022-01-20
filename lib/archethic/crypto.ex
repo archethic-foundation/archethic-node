@@ -36,6 +36,8 @@ defmodule ArchEthic.Crypto do
   alias __MODULE__.NodeKeystore
   alias __MODULE__.SharedSecretsKeystore
 
+  alias ArchEthic.DB
+
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain
@@ -155,15 +157,7 @@ defmodule ArchEthic.Crypto do
   Retrieve the storage nonce
   """
   @spec storage_nonce() :: binary()
-  def storage_nonce do
-    try do
-      :persistent_term.get(:storage_nonce)
-    rescue
-      _ ->
-        {:ok, nonce} = load_storage_nonce()
-        nonce
-    end
-  end
+  defdelegate storage_nonce, to: SharedSecretsKeystore, as: :get_storage_nonce
 
   @doc """
   Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
@@ -238,10 +232,8 @@ defmodule ArchEthic.Crypto do
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
     storage_nonce = ec_decrypt_with_last_node_key!(encrypted_nonce)
-    storage_nonce_path = storage_nonce_filepath()
-    :ok = File.mkdir_p!(Path.dirname(storage_nonce_path))
-    :ok = File.write(storage_nonce_path, storage_nonce, [:write])
-    :ok = :persistent_term.put(:storage_nonce, storage_nonce)
+    SharedSecretsKeystore.set_storage_nonce(storage_nonce)
+    DB.set_bootstrap_info("storage_nonce", Base.encode16(storage_nonce))
     Logger.info("Storage nonce stored")
   end
 
@@ -1028,32 +1020,6 @@ defmodule ArchEthic.Crypto do
   end
 
   def load_transaction(_), do: :ok
-
-  @spec storage_nonce_filepath() :: binary()
-  def storage_nonce_filepath do
-    rel_filepath =
-      Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:storage_nonce_file)
-
-    Utils.mut_dir(rel_filepath)
-  end
-
-  @doc """
-  Load the storage nonce from the filesystem
-  """
-  @spec load_storage_nonce() :: {:ok, binary()} | {:error, File.posix()}
-  def load_storage_nonce do
-    abs_filepath = storage_nonce_filepath()
-    :ok = File.mkdir_p!(Path.dirname(abs_filepath))
-
-    case File.read(abs_filepath) do
-      {:ok, storage_nonce} ->
-        :persistent_term.put(:storage_nonce, storage_nonce)
-        {:ok, storage_nonce}
-
-      {:error, _} = e ->
-        e
-    end
-  end
 
   @doc """
   Determine the origin of the key from an ID

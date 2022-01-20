@@ -17,7 +17,6 @@ endif
 
 clean:
 	rm -f priv/c_dist/*
-	rm -rf data*
 	mix arch_ethic.clean_db
 
 docker-clean: clean

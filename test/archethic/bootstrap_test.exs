@@ -44,8 +44,6 @@ defmodule ArchEthic.BootstrapTest do
 
   alias ArchEthic.PubSub
 
-  alias ArchEthic.Utils
-
   import Mox
 
   setup do
@@ -58,9 +56,7 @@ defmodule ArchEthic.BootstrapTest do
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
 
-    on_exit(fn ->
-      File.rm(Utils.mut_dir("priv/p2p/last_sync"))
-    end)
+    :ok
   end
 
   describe "run/5" do

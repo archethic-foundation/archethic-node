@@ -4,6 +4,8 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   alias ArchEthic.Crypto
   alias ArchEthic.Crypto.SharedSecretsKeystore
 
+  alias ArchEthic.DB
+
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain
@@ -30,6 +32,8 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     :ets.new(@keystore_table, [:set, :public, :named_table, read_concurrency: true])
     :ets.new(@daily_keys, [:ordered_set, :public, :named_table, read_concurrency: true])
 
+    load_storage_nonce()
+
     node_shared_secrets_chain =
       TransactionChain.list_transactions_by_type(
         :node_shared_secrets,
@@ -52,6 +56,16 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     load_node_shared_secrets_chain(node_shared_secrets_chain)
     {:ok, %{}}
+  end
+
+  defp load_storage_nonce do
+    case DB.get_bootstrap_info("storage_nonce") do
+      nil ->
+        nil
+
+      storage_nonce ->
+        :ets.insert(@keystore_table, {:storage_nonce, storage_nonce})
+    end
   end
 
   defp load_node_shared_secrets_chain(chain) do
@@ -217,5 +231,25 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
   defp previous_keypair(seed, index) do
     Crypto.derive_keypair(seed, index - 1)
+  end
+
+  @doc """
+  Load the storage nonce
+  """
+  @impl SharedSecretsKeystore
+  @spec set_storage_nonce(binary()) :: :ok
+  def set_storage_nonce(storage_nonce) when is_binary(storage_nonce) do
+    true = :ets.insert(@keystore_table, {:storage_nonce, storage_nonce})
+    :ok
+  end
+
+  @doc """
+  Get the storage nonce
+  """
+  @impl SharedSecretsKeystore
+  @spec get_storage_nonce() :: binary()
+  def get_storage_nonce do
+    [{_, nonce}] = :ets.lookup(@keystore_table, :storage_nonce)
+    nonce
   end
 end

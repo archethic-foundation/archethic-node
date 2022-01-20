@@ -30,8 +30,6 @@ defmodule ArchEthicCase do
   setup :set_mox_global
 
   setup do
-    :persistent_term.put(:storage_nonce, "nonce")
-
     Path.wildcard(Utils.mut_dir()) |> Enum.each(&File.rm_rf!/1)
 
     MockDB
@@ -53,6 +51,13 @@ defmodule ArchEthicCase do
     |> stub(:transaction_exists?, fn _ -> false end)
     |> stub(:register_p2p_summary, fn _, _, _, _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
+    |> stub(:get_bootstrap_info, fn
+      "storage_nonce" -> "nonce"
+      "last_sync_time" -> nil
+      "node_keys_index" -> nil
+      "bootstrapping_seeds" -> nil
+    end)
+    |> stub(:set_bootstrap_info, fn _, _ -> :ok end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
@@ -142,6 +147,8 @@ defmodule ArchEthicCase do
     |> stub(:set_node_shared_secrets_key_index, fn index ->
       Agent.update(shared_secrets_counter, fn _ -> index end)
     end)
+    |> stub(:get_storage_nonce, fn -> "nonce" end)
+    |> stub(:set_storage_nonce, fn _ -> :ok end)
 
     MockClient
     |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)

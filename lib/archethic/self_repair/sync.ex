@@ -4,6 +4,8 @@ defmodule ArchEthic.SelfRepair.Sync do
   alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
+  alias ArchEthic.DB
+
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
@@ -14,6 +16,8 @@ defmodule ArchEthic.SelfRepair.Sync do
 
   require Logger
 
+  @bootstrap_info_last_sync_date_key "last_sync_time"
+
   @doc """
   Return the last synchronization date from the previous cycle of self repair
 
@@ -23,33 +27,20 @@ defmodule ArchEthic.SelfRepair.Sync do
   """
   @spec last_sync_date() :: DateTime.t()
   def last_sync_date do
-    case last_sync_date_from_file() do
+    case DB.get_bootstrap_info(@bootstrap_info_last_sync_date_key) do
       nil ->
         Logger.info("Not previous synchronization date")
         Logger.info("We are using the default one")
         default_last_sync_date()
 
-      date ->
+      timestamp ->
+        date =
+          timestamp
+          |> String.to_integer()
+          |> DateTime.from_unix!()
+
         Logger.info("Last synchronization date #{DateTime.to_string(date)}")
         date
-    end
-  end
-
-  defp last_sync_date_from_file do
-    file = last_sync_file()
-
-    if File.exists?(file) do
-      content = File.read!(file)
-
-      with {int, _} <- Integer.parse(content),
-           {:ok, date} <- DateTime.from_unix(int) do
-        Utils.truncate_datetime(date)
-      else
-        _ ->
-          nil
-      end
-    else
-      nil
     end
   end
 
@@ -83,20 +74,9 @@ defmodule ArchEthic.SelfRepair.Sync do
       |> DateTime.to_unix()
       |> Integer.to_string()
 
-    filename = last_sync_file()
-    File.mkdir_p(Path.dirname(filename))
-    File.write!(filename, timestamp, [:write])
+    DB.set_bootstrap_info(@bootstrap_info_last_sync_date_key, timestamp)
 
     Logger.info("Last sync date updated: #{DateTime.to_string(date)}")
-  end
-
-  defp last_sync_file do
-    relative_filepath =
-      :archethic
-      |> Application.get_env(__MODULE__)
-      |> Keyword.get(:last_sync_file, "p2p/last_sync")
-
-    Utils.mut_dir(relative_filepath)
   end
 
   @doc """
@@ -158,5 +138,18 @@ defmodule ArchEthic.SelfRepair.Sync do
 
     nodes = Election.beacon_storage_nodes(subset, time, filter_nodes)
     BeaconSummaryHandler.get_full_beacon_summary(time, subset, nodes)
+  end
+
+  defp aggregate_summaries_by_date({time, subset}, acc, authorized_nodes) do
+    summary = get_beacon_summary(time, subset, authorized_nodes)
+
+    if BeaconSummary.empty?(summary) do
+      acc
+    else
+      acc
+      |> BeaconSummaryAggregate.initialize(summary)
+      |> BeaconSummaryAggregate.add_transaction_summaries(summary)
+      |> BeaconSummaryAggregate.add_p2p_availabilities(summary)
+    end
   end
 end

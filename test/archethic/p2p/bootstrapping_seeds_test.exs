@@ -7,8 +7,6 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
   alias ArchEthic.P2P.BootstrappingSeeds
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.Utils
-
   doctest BootstrappingSeeds
 
   import Mox
@@ -19,21 +17,14 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
   setup do
     Application.delete_env(:archethic, BootstrappingSeeds)
 
-    file_path = Utils.mut_dir("priv/p2p/seeds_test")
-    File.mkdir_p(Path.dirname(file_path))
-
     MockCrypto
     |> stub(:last_public_key, fn -> :crypto.strong_rand_bytes(32) end)
 
-    on_exit(fn ->
-      File.rm_rf(Path.dirname(file_path))
-    end)
-
-    {:ok, %{file_path: file_path}}
+    :ok
   end
 
   describe "start_link/1" do
-    test "should load from file the bootstrapping seeds", %{file_path: file_path} do
+    test "should load from DB the bootstrapping seeds" do
       {pub1, _} = Crypto.generate_deterministic_keypair("seed")
       {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
@@ -42,12 +33,12 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
       127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
       """
 
-      File.write(file_path, seed_str, [:write])
+      MockDB
+      |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> seed_str end)
 
-      {:ok, pid} = BootstrappingSeeds.start_link(backup_file: file_path)
+      {:ok, pid} = BootstrappingSeeds.start_link()
 
-      %{seeds: seeds, backup_file: file} = :sys.get_state(pid)
-      assert file == file_path
+      %{seeds: seeds} = :sys.get_state(pid)
       assert [%Node{port: 3005}, %Node{port: 3003}] = seeds
     end
 
@@ -58,8 +49,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
             "127.0.0.1:3002:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
         )
 
-      %{seeds: seeds, backup_file: file} = :sys.get_state(pid)
-      assert file == ""
+      %{seeds: seeds} = :sys.get_state(pid)
 
       assert [%Node{port: 3002, first_public_key: node_key, transport: :tcp}] = seeds
 
@@ -70,7 +60,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     end
   end
 
-  test "list/0 should return the list of P2P seeds", %{file_path: file_path} do
+  test "list/0 should return the list of P2P seeds" do
     {pub1, _} = Crypto.generate_deterministic_keypair("seed")
     {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
@@ -79,15 +69,16 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
     """
 
-    File.write(file_path, seed_str, [:write])
+    MockDB
+    |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> seed_str end)
 
-    {:ok, _pid} = BootstrappingSeeds.start_link(backup_file: file_path)
+    {:ok, _pid} = BootstrappingSeeds.start_link()
 
     assert [%Node{port: 3005, transport: :tcp}, %Node{port: 3003, transport: :tcp}] =
              BootstrappingSeeds.list()
   end
 
-  test "update/1 should refresh the seeds and flush them to disk", %{file_path: file_path} do
+  test "update/1 should refresh the seeds and flush them to disk" do
     {pub1, _} = Crypto.generate_deterministic_keypair("seed")
     {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
@@ -96,9 +87,16 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
     """
 
-    File.write(file_path, seed_str, [:write])
+    me = self()
 
-    {:ok, _pid} = BootstrappingSeeds.start_link(backup_file: file_path)
+    MockDB
+    |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> seed_str end)
+    |> expect(:set_bootstrap_info, fn "bootstrapping_seeds", seeds ->
+      send(me, {:seeds, seeds})
+      :ok
+    end)
+
+    {:ok, _pid} = BootstrappingSeeds.start_link()
 
     assert [%Node{port: 3005}, %Node{port: 3003}] = BootstrappingSeeds.list()
 
@@ -120,7 +118,8 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     assert :ok = BootstrappingSeeds.update(new_seeds)
     assert new_seeds == BootstrappingSeeds.list()
 
-    assert BootstrappingSeeds.nodes_to_seeds(new_seeds) == File.read!(file_path)
+    new_seeds_stringified = BootstrappingSeeds.nodes_to_seeds(new_seeds)
+    assert_received {:seeds, ^new_seeds_stringified}
   end
 
   test "when receive a node update message should update the seeds list with the top nodes" do
