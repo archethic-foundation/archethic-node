@@ -153,7 +153,6 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
 
           value ->
             %{metric_name => value}
-
         end
       end
     )
@@ -168,7 +167,6 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
 
     %{metric_name => avg}
   end
-
 
   def fetch_guage_value(single_metric_map) do
     [value_map | _tail] = single_metric_map.metrics

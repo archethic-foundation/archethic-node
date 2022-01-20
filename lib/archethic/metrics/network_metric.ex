@@ -28,9 +28,12 @@ defmodule ArchEthic.Metrics.NetworkMetric do
     receive do
       message ->
         case Mint.HTTP.stream(conn, message) do
-          {:ok, conn, responses} ->  {:ok, _conn_close} = Mint.HTTP.close(conn)
-               responses
-           _unknown -> []
+          {:ok, conn, responses} ->
+            {:ok, _conn_close} = Mint.HTTP.close(conn)
+            responses
+
+          _unknown ->
+            []
         end
     end
   end

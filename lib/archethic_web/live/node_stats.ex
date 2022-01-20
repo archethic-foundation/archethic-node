@@ -241,21 +241,18 @@ defmodule ArchEthicWeb.NodeStats do
     """
   end
 
-
-
-    # buffer task async stream
-    def mount(_params, _session, socket) do
-      if connected?(socket) do
-        ArchEthic.Metrics.MetricClient.monitor()
-        :timer.send_interval(1_250, self(), :update)
-      end
-
-      {:ok, socket}
+  # buffer task async stream
+  def mount(_params, _session, socket) do
+    if connected?(socket) do
+      ArchEthic.Metrics.MetricClient.monitor()
+      :timer.send_interval(1_250, self(), :update)
     end
 
-    def handle_info(:update, socket) do
-      new_points = ArchEthic.Metrics.MetricClient.get_this_node_points()
-      {:noreply, socket |> push_event("node_points", %{points: new_points})}
-    end
+    {:ok, socket}
+  end
 
+  def handle_info(:update, socket) do
+    new_points = ArchEthic.Metrics.MetricClient.get_this_node_points()
+    {:noreply, socket |> push_event("node_points", %{points: new_points})}
+  end
 end

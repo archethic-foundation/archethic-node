@@ -63,7 +63,8 @@ defmodule ArchEthic.Metrics.MetricNodePoller do
         0 -> @default_state
         1 -> new_state
       end
-      Logger.debug("METRICS : MetricNodePoller  State=#{inspect recheck_new_state.flag}")
+
+    Logger.debug("METRICS : MetricNodePoller  State=#{inspect(recheck_new_state.flag)}")
     periodic_metric_aggregation()
     {:noreply, recheck_new_state}
   end

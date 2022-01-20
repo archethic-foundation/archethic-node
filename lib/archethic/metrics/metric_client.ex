@@ -34,7 +34,11 @@ defmodule ArchEthic.Metrics.MetricClient do
     ArchEthic.Metrics.MetricNodePoller.set_flag()
     ArchEthic.Metrics.MetricNetworkPoller.set_flag()
     _mref = Process.monitor(from_pid)
-    Logger.debug("METRICS : MetricClient Live _view connections = #{inspect(state.counter+1)}||||")
+
+    Logger.debug(
+      "METRICS : MetricClient Live _view connections = #{inspect(state.counter + 1)}||||"
+    )
+
     {:reply, :ok, %{state | counter: state.counter + 1}}
   end
 
@@ -46,7 +50,11 @@ defmodule ArchEthic.Metrics.MetricClient do
       ArchEthic.Metrics.MetricNetworkPoller.unset_flag()
       Logger.debug("METRICS:MetricClient Polling stopped ")
     end
-    Logger.debug("METRICS:MetricClient Live _view connections = #{inspect(new_state.counter)} ||||")
+
+    Logger.debug(
+      "METRICS:MetricClient Live _view connections = #{inspect(new_state.counter)} ||||"
+    )
+
     {:noreply, new_state}
   end
 end
