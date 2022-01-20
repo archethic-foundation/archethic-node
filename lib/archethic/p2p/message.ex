@@ -5,7 +5,6 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.Account
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary
 

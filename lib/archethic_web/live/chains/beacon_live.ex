@@ -63,35 +63,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   defp list_transaction_by_date(nil), do: []
 
-  defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
-    Enum.map(BeaconChain.list_subsets(), fn subset ->
-      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
-      nodes = Election.beacon_storage_nodes(subset, date, node_list)
-      %Node{network_patch: patch} = P2P.get_node_info()
-
-      {b_address, nodes, patch}
-    end)
-    |> Task.async_stream(
-      fn {address, nodes, patch} ->
-        get_beacon_summary_transaction_chain(address, nodes, patch)
-      end,
-      on_timeout: :kill_task,
-      max_concurrency: 256
-    )
-    |> Enum.filter(&match?({:ok, {:ok, _}}, &1))
-    |> Enum.filter(&(!match?({:ok, {:ok, []}}, &1)))
-    |> Enum.map(fn {:ok, {:ok, tx_list}} ->
-      Enum.map(tx_list, fn %Transaction{data: %TransactionData{content: content}} ->
-        {slot, _} = Slot.deserialize(content)
-        %Slot{transaction_summaries: transaction_summaries} = slot
-        transaction_summaries
-      end)
-    end)
-    |> :lists.flatten()
-  end
-
-  # defp list_transaction_by_date_from_tx_chain(nil), do: []
 
   defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
@@ -290,11 +261,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     |> Enum.sort({:desc, DateTime})
   end
 
-<<<<<<< HEAD
-=======
-  defp get_beacon_summary_transaction_chain(_beacon_address, [], _), do: {:ok, %NotFound{}}
-
->>>>>>> 35ead62... Fix formatting
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
