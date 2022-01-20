@@ -24,6 +24,46 @@ defmodule ArchEthicWeb.BeaconChainLive do
   require Logger
 
   defp list_transaction_by_date(date = %DateTime{}) do
+    Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
+      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
+      node_list = P2P.authorized_nodes()
+      nodes = Election.beacon_storage_nodes(subset, date, node_list)
+
+      Enum.reduce(nodes, acc, fn node, acc ->
+        Map.update(acc, node, [b_address], &[b_address | &1])
+      end)
+    end)
+    |> Stream.transform([], fn
+      {_, []}, acc ->
+        {[], acc}
+
+      {node, addresses}, acc ->
+        addresses_to_fetch = Enum.reject(addresses, &(&1 in acc))
+
+        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses_to_fetch}) do
+          {:ok, %BeaconSummaryList{summaries: summaries}} ->
+            summaries_address_resolved =
+              Enum.map(
+                summaries,
+                &Crypto.derive_beacon_chain_address(&1.subset, &1.summary_time, true)
+              )
+
+            {summaries, acc ++ summaries_address_resolved}
+
+          _ ->
+            {[], acc}
+        end
+    end)
+    |> Stream.map(fn %BeaconSummary{transaction_summaries: transaction_summaries} ->
+      transaction_summaries
+    end)
+    |> Stream.flat_map(& &1)
+    |> Enum.to_list()
+  end
+
+  defp list_transaction_by_date(nil), do: []
+
+  defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
       node_list = P2P.authorized_nodes()
@@ -34,18 +74,23 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end)
     |> Task.async_stream(
       fn {address, nodes, patch} ->
-        BeaconSummaryHandler.download_summary(address, nodes, patch)
+        download_summary(address, nodes, patch)
       end,
       on_timeout: :kill_task,
       max_concurrency: 256
     )
-    |> Stream.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-    |> Enum.flat_map(fn {:ok, {:ok, %BeaconSummary{transaction_summaries: transaction_summaries}}} ->
-      transaction_summaries
+    |> Enum.filter(&(!match?({:ok, {:ok, []}}, &1)))
+    |> Enum.map(fn {:ok, {:ok, tx_list}} ->
+      Enum.map(tx_list, fn %Transaction{data: %TransactionData{content: content}} ->
+        {slot, _} = Slot.deserialize(content)
+        %Slot{transaction_summaries: transaction_summaries} = slot
+        transaction_summaries
+      end)
     end)
+    |> :lists.flatten()
   end
 
-  defp list_transaction_by_date(nil), do: []
+  # defp list_transaction_by_date_from_tx_chain(nil), do: []
 
   defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
