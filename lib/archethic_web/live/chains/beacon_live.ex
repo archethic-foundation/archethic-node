@@ -63,7 +63,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   defp list_transaction_by_date(nil), do: []
 
-
   defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     Enum.map(BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
