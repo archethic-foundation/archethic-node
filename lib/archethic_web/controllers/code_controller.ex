@@ -2,8 +2,6 @@ defmodule ArchEthicWeb.CodeController do
   @moduledoc false
   use ArchEthicWeb, :controller
 
-  alias ArchEthic.Utils
-
   # alias ArchEthic.TransactionChain
 
   # alias ArchEthicWeb.CodeProposalDetailsLive
@@ -27,7 +25,7 @@ defmodule ArchEthicWeb.CodeController do
   # end
 
   def download(conn, _) do
-    archive_file = Utils.mut_dir("priv/archethic_node.zip")
+    archive_file = "/tmp/archethic_node.zip"
 
     case System.cmd("git", ["archive", "-o", archive_file, "master"], cd: @src_dir) do
       {"", 0} ->
