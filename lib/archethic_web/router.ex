@@ -70,6 +70,7 @@ defmodule ArchEthicWeb.Router do
     )
 
     post("/transaction", ArchEthicWeb.API.TransactionController, :new)
+    post("/transaction_fee", ArchEthicWeb.API.TransactionController, :transaction_fee)
 
     forward(
       "/graphiql",
