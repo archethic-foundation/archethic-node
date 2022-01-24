@@ -6,8 +6,9 @@ defmodule ArchEthic.Metrics.MetricClient do
   """
   require Logger
   use GenServer
+
   def start_link(_init_arg) do
-    GenServer.start_link(__MODULE__ , %{ counter: 0 } , name: __MODULE__)
+    GenServer.start_link(__MODULE__, %{counter: 0}, name: __MODULE__)
   end
 
   def init(initial_state) do
