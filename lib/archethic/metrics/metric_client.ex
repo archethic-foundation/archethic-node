@@ -1,33 +1,30 @@
 defmodule ArchEthic.Metrics.MetricClient do
   @moduledoc """
-  gensever
-  Visit dif
+  A genserver Implementation
+  Provides abstraction for querying node_live_metrics and
+  network_live_metrics though get
   """
   require Logger
   use GenServer
-  @process_name __MODULE__
-  @default_state %{
-    counter: 0
-  }
   def start_link(_init_arg) do
-    GenServer.start_link(__MODULE__, @default_state, name: @process_name)
+    GenServer.start_link(__MODULE__ , %{ counter: 0 } , name: __MODULE__)
   end
 
-  def init(_state) do
+  def init(initial_state) do
     Logger.info("Metic-Client Started")
-    {:ok, @default_state}
+    {:ok, initial_state}
   end
 
-  def get_this_node_points() do
+  def subscribe_to_node_updates() do
     ArchEthic.Metrics.MetricNodePoller.get_points()
   end
 
-  def get_network_points() do
+  def subscribe_to_network_updates() do
     ArchEthic.Metrics.MetricNetworkPoller.get_points()
   end
 
   def monitor() do
-    GenServer.call(@process_name, :monitor)
+    GenServer.call(__MODULE__, :monitor)
   end
 
   def handle_call(:monitor, {from_pid, _ref}, state) do

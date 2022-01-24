@@ -23,14 +23,24 @@
           </a>
         </div>
        <div id="navbar" class="navbar-menu">
-        <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NodeStats) %>">
-             thisNode
-            </a>
+
 
           <div class="navbar-end">
-            <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NetworkStats) %>">
-              Network
-            </a>
+
+
+              <div class="navbar-item has-dropdown is-hoverable" >
+              <a class="navbar-link" href="<%= Routes.explorer_path(@conn, :chain) %>">Telemetry </a>
+              <div class="navbar-dropdown is-boxed">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NetworkMetricsLive)%>">
+                  Network
+                </a>
+                <a class="navbar-item" href="<%=  Routes.live_path(@conn, ArchEthicWeb.NodeMetricsLive) %>">
+                  this-Node
+                </a>
+              </div>
+            </div>
+
+
             <%= if faucet?() do %>
               <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
                 Faucet

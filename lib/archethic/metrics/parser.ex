@@ -1,4 +1,4 @@
-defmodule ArchEthic.Metrics.GeneraliseMetricStructure do
+defmodule ArchEthic.Metrics.Parser do
   @moduledoc """
   MetricsDataParser.run() parses metrics data and convert into structured data
   """
@@ -115,7 +115,7 @@ defmodule ArchEthic.Metrics.GeneraliseMetricStructure do
   defp normalize(map_of_type_name_metrics) do
     name1 =
       case Map.fetch(map_of_type_name_metrics, :name) do
-        {:ok, value} -> value
+        {:ok, value} -> String.trim(value)
         :error -> "empty_name1"
       end
 

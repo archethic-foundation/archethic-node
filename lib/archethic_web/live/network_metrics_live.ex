@@ -1,5 +1,7 @@
-defmodule ArchEthicWeb.NetworkStats do
-  @moduledoc false
+defmodule ArchEthicWeb.NetworkMetricsLive do
+  @moduledoc """
+  Live-View for Network-Metric-Dashboard
+  """
 
   use Phoenix.LiveView
   use Phoenix.HTML
@@ -14,7 +16,7 @@ defmodule ArchEthicWeb.NetworkStats do
   end
 
   def handle_info(:update, socket) do
-    data = ArchEthic.Metrics.MetricClient.get_network_points()
+    data = ArchEthic.Metrics.MetricClient.subscribe_to_network_updates()
     {:noreply, socket |> push_event("network_points", %{points: data})}
   end
 
@@ -108,7 +110,7 @@ defmodule ArchEthicWeb.NetworkStats do
                           <div class="tile is-primary">
                                 <article class="tile is-child p-4 box has-background-white">
                                   <p class="title has-text-dark">
-                                  <span phx-hook="network_charts" id="vm_memory_processes_used ">0.000</span>
+                                  <span phx-hook="network_charts" id="vm_memory_processes_used">0.000</span>
                                   <span class="subtitle has-text-dark">&nbsp;(kb)</span></p>
                                   <p style="font-size: 20px;"><b>vm_memory_processes_used</b></p>
                                 </article>

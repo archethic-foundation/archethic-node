@@ -1,6 +1,6 @@
-defmodule ArchEthic.Metrics.MetricHelperFunctions do
+defmodule ArchEthic.Metrics.Helpers do
   @moduledoc """
-  Provides helper functions & data in transformation of metric data
+  Provides helper methods & data in transformation of metrics.
   """
 
   def filter_metrics(data) do
@@ -63,7 +63,7 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
       %{metrics: _, name: "vm_memory_system", type: _} ->
         true
 
-      %{metrics: _, name: "vm_memory_processes_used ", type: _} ->
+      %{metrics: _, name: "vm_memory_processes_used", type: _} ->
         true
 
       %{metrics: _, name: "vm_memory_processes", type: _} ->
@@ -122,7 +122,7 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
       %{"vm_system_counts_atom_count" => value} -> %{:nb21 => value}
       %{"vm_memory_total" => value} -> %{:nb22 => value}
       %{"vm_memory_system" => value} -> %{:nb23 => value}
-      %{"vm_memory_processes_used " => value} -> %{:nb24 => value}
+      %{"vm_memory_processes_used" => value} -> %{:nb24 => value}
       %{"vm_memory_processes" => value} -> %{:nb25 => value}
       %{"vm_memory_ets" => value} -> %{:nb26 => value}
       %{"vm_memory_code" => value} -> %{:nb27 => value}
@@ -274,7 +274,7 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
       "vm_system_counts_atom_count" => 0,
       "vm_memory_total" => 0,
       "vm_memory_system" => 0,
-      "vm_memory_processes_used " => 0,
+      "vm_memory_processes_used" => 0,
       "vm_memory_processes" => 0,
       "vm_memory_ets" => 0,
       "vm_memory_code" => 0,
@@ -309,7 +309,7 @@ defmodule ArchEthic.Metrics.MetricHelperFunctions do
       "vm_system_counts_atom_count" => 0,
       "vm_memory_total" => 0,
       "vm_memory_system" => 0,
-      "vm_memory_processes_used " => 0,
+      "vm_memory_processes_used" => 0,
       "vm_memory_processes" => 0,
       "vm_memory_ets" => 0,
       "vm_memory_code" => 0,

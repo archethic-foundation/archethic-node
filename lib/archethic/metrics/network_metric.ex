@@ -1,18 +1,18 @@
-defmodule ArchEthic.Metrics.NetworkMetric do
+defmodule ArchEthicWeb.Metrics.NetworkCollector do
   @moduledoc """
-  Provides Telemetry of the network
+  Abstraction and Execution of several methods to Poll the network
   """
   def run() do
-    ArchEthic.Metrics.MetricHelperFunctions.retrieve_node_ip_address()
+    ArchEthic.Metrics.Helpers.retrieve_node_ip_address()
     |> Task.async_stream(fn each_node_ip -> establish_connection_to_node(each_node_ip) end)
-    |> ArchEthic.Metrics.MetricHelperFunctions.remove_noise()
-    |> Stream.map(&ArchEthic.Metrics.GeneraliseMetricStructure.run/1)
-    |> Stream.map(&ArchEthic.Metrics.MetricHelperFunctions.filter_metrics/1)
-    |> Stream.map(&ArchEthic.Metrics.MetricHelperFunctions.retrieve_metric_parameter_data/1)
+    |> ArchEthic.Metrics.Helpers.remove_noise()
+    |> Stream.map(&ArchEthic.Metrics.Parser.run/1)
+    |> Stream.map(&ArchEthic.Metrics.Helpers.filter_metrics/1)
+    |> Stream.map(&ArchEthic.Metrics.Helpers.retrieve_metric_parameter_data/1)
     |> Enum.reduce([], fn x, acc -> Enum.concat(acc, x) end)
-    |> ArchEthic.Metrics.MetricHelperFunctions.aggregate_sum_n_count_n_value()
-    |> ArchEthic.Metrics.MetricHelperFunctions.calculate_network_points()
-    |> ArchEthic.Metrics.MetricHelperFunctions.reduce_to_single_map()
+    |> ArchEthic.Metrics.Helpers.aggregate_sum_n_count_n_value()
+    |> ArchEthic.Metrics.Helpers.calculate_network_points()
+    |> ArchEthic.Metrics.Helpers.reduce_to_single_map()
   end
 
   def establish_connection_to_node(ip) do

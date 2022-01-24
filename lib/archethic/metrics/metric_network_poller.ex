@@ -1,17 +1,16 @@
 defmodule ArchEthic.Metrics.MetricNetworkPoller do
   @moduledoc """
-  Genserver Provides Telemetry of the network
+  Provides Telemetry of the network
   """
   require Logger
   use GenServer
-  @process_name __MODULE__
   @default_state %{
     flag: 0,
-    points: ArchEthic.Metrics.MetricHelperFunctions.get_client_metric_default_value()
+    points: ArchEthic.Metrics.Helpers.get_client_metric_default_value()
   }
 
   def start_link(_state) do
-    GenServer.start_link(__MODULE__, @default_state, name: @process_name)
+    GenServer.start_link(__MODULE__, @default_state, name: __MODULE__)
   end
 
   def init(initial_state) do
@@ -24,15 +23,15 @@ defmodule ArchEthic.Metrics.MetricNetworkPoller do
   end
 
   def get_points() do
-    GenServer.call(@process_name, :get_points)
+    GenServer.call(__MODULE__, :get_points)
   end
 
   def set_flag() do
-    GenServer.cast(@process_name, :set_flag)
+    GenServer.cast(__MODULE__, :set_flag)
   end
 
   def unset_flag() do
-    GenServer.cast(@process_name, :unset_flag)
+    GenServer.cast(__MODULE__, :unset_flag)
   end
 
   def handle_cast(:set_flag, state) do
@@ -51,17 +50,17 @@ defmodule ArchEthic.Metrics.MetricNetworkPoller do
     {:reply, response, new_state}
   end
 
-  def handle_info(:periodic_calculation_of_points, current_state) do
+  def handle_info(:periodic_calculation_of_points , current_state) do
     new_state =
-      case current_state.flag do
-        1 -> %{flag: 1, points: get_new_state()}
-        0 -> @default_state
+      case current_state  do
+        %{flag: 1 , points: _} -> %{flag: 1, points: get_new_state()}
+        %{flag: 0 , points: _} -> @default_state
       end
 
     recheck_new_state =
-      case current_state.flag do
-        0 -> @default_state
-        1 -> new_state
+      case current_state do
+        %{flag: 0 , points: _} -> @default_state
+        %{flag: 1 , points: _}  -> new_state
       end
 
     Logger.debug("METRICS:MetricNetworkPoller  State=#{inspect(recheck_new_state.flag)}")
@@ -70,6 +69,6 @@ defmodule ArchEthic.Metrics.MetricNetworkPoller do
   end
 
   defp get_new_state() do
-    ArchEthic.Metrics.NetworkMetric.run()
+    ArchEthicWeb.Metrics.NetworkCollector.run()
   end
 end

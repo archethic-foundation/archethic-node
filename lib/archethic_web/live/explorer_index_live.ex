@@ -16,7 +16,7 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
 
     if connected?(socket) do
       ArchEthic.Metrics.MetricClient.monitor()
-      :timer.send_interval(2_000, self(), :update_explorer_points)
+      :timer.send_interval(1_250, self(), :update_explorer_points)
       PubSub.register_to_new_tps()
     end
 
@@ -33,7 +33,7 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
   end
 
   def handle_info(:update_explorer_points, socket) do
-    data = ArchEthic.Metrics.MetricClient.get_network_points()
+    data = ArchEthic.Metrics.MetricClient.subscribe_to_network_updates()
     {:noreply, socket |> push_event("explorer_stats_points", %{points: data})}
   end
 
