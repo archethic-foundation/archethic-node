@@ -110,21 +110,21 @@ defmodule ArchEthicWeb.BeaconChainLive do
           [next_summary_time | dates]
       end
 
-    transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
-
     BeaconChain.register_to_beacon_pool_updates()
 
     new_assign =
       socket
-      |> assign(:update_time, DateTime.utc_now())
       |> assign(:next_summary_time, next_summary_time)
       |> assign(:dates, beacon_dates)
       |> assign(:current_date_page, 1)
+      |> assign(:update_time, DateTime.utc_now())
       |> assign(
         :transactions,
-        transactions
+        []
       )
+      |> assign(:fetching, true)
 
+    send(self(), {:initial_load, next_summary_time})
     {:ok, new_assign}
   end
 
@@ -139,21 +139,26 @@ defmodule ArchEthicWeb.BeaconChainLive do
           {:noreply,
            push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => 1}))}
         else
-          transactions =
-            if Enum.at(dates, 0) == Enum.at(dates, number - 1) do
-              dates
-              |> Enum.at(number - 1)
-              |> list_transaction_by_date_from_tx_chain()
-            else
-              dates
-              |> Enum.at(number - 1)
-              |> list_transaction_by_date()
-            end
-
           new_assign =
             socket
             |> assign(:current_date_page, number)
-            |> assign(:transactions, transactions)
+            |> assign(:transactions, [])
+            |> assign(:fetching, true)
+
+            if Enum.at(dates, 0) == Enum.at(dates, number - 1) do
+              next_summary_date =
+                dates
+                |> Enum.at(number - 1)
+
+              send(self(), {:initial_load, next_summary_date})
+            else
+              date =
+                dates
+                |> Enum.at(number - 1)
+
+              send(self(), {:load_at, date})
+            end
+
 
           {:noreply, new_assign}
         end
@@ -171,6 +176,29 @@ defmodule ArchEthicWeb.BeaconChainLive do
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("goto", %{"page" => page}, socket) do
     {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
+  end
+
+  def handle_info({:initial_load, next_summary_time}, socket) do
+    transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
+
+    new_socket =
+      socket
+      |> assign(:transactions, transactions)
+      |> assign(:update_time, DateTime.utc_now())
+      |> assign(:fetching, false)
+
+    {:noreply, new_socket}
+  end
+
+  def handle_info({:load_at, date}, socket) do
+    transactions = list_transaction_by_date(date)
+
+    new_assign =
+      socket
+      |> assign(:fetching, false)
+      |> assign(:transactions, transactions)
+
+    {:noreply, new_assign}
   end
 
   def handle_info(
