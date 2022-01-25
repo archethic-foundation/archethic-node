@@ -73,17 +73,20 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
       case get_beacon_summary_transaction_chain(b_address, nodes, patch) do
         {:ok, transactions} ->
-          Stream.map(transactions, fn %Transaction{data: %TransactionData{content: content}} ->
-            {slot, _} = Slot.deserialize(content)
-            %Slot{transaction_summaries: transaction_summaries} = slot
-            transaction_summaries
-          end)
+          transactions
+          |> Stream.map(&deserialize_beacon_transaction/1)
           |> Enum.to_list()
       end
     end)
     |> Enum.map(fn {:ok, txs} -> txs end)
     |> :lists.flatten()
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime}) 
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  defp deserialize_beacon_transaction(%Transaction{data: %TransactionData{content: content}}) do
+    {slot, _} = Slot.deserialize(content)
+    %Slot{transaction_summaries: transaction_summaries} = slot
+    transaction_summaries
   end
 
   def mount(_params, _session, socket) do
@@ -140,20 +143,19 @@ defmodule ArchEthicWeb.BeaconChainLive do
             |> assign(:transactions, [])
             |> assign(:fetching, true)
 
-            if Enum.at(dates, 0) == Enum.at(dates, number - 1) do
-              next_summary_date =
-                dates
-                |> Enum.at(number - 1)
+          if Enum.at(dates, 0) == Enum.at(dates, number - 1) do
+            next_summary_date =
+              dates
+              |> Enum.at(number - 1)
 
-              send(self(), {:initial_load, next_summary_date})
-            else
-              date =
-                dates
-                |> Enum.at(number - 1)
+            send(self(), {:initial_load, next_summary_date})
+          else
+            date =
+              dates
+              |> Enum.at(number - 1)
 
-              send(self(), {:load_at, date})
-            end
-
+            send(self(), {:load_at, date})
+          end
 
           {:noreply, new_assign}
         end
