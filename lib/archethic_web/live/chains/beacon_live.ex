@@ -58,7 +58,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       transaction_summaries
     end)
     |> Stream.flat_map(& &1)
-    |> Enum.to_list()
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 
   defp list_transaction_by_date(nil), do: []
@@ -88,6 +88,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
       end)
     end)
     |> :lists.flatten()
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime}) 
   end
 
   def mount(_params, _session, socket) do
