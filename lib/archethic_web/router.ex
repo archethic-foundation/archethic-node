@@ -25,8 +25,7 @@ defmodule ArchEthicWeb.Router do
     get("/", RootController, :index)
     get("/up", UpController, :up)
     get("/metrics", MetricsController, :index)
-    live("/metrics/this-Node", NodeMetricsLive)
-    live("/metrics/Network", NetworkMetricsLive)
+    live("/metrics/dashboard", NetworkMetricsLive)
 
     if Mix.env() == :dev do
       live_dashboard("/dashboard",

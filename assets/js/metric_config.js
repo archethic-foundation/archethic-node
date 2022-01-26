@@ -1,3 +1,5 @@
+  import * as echarts from  './echarts.min.js';
+  
   //adds 0 to the metric not recieved to avoid charts going blank
   function structure_metric_points(latest_points){
     var points_default_value ={
@@ -31,8 +33,6 @@
       points_default_value[key] = latest_points[key] 
     return  points_default_value;
   }
-
-
 
 function get_visuals_dom(){
   var metric_object , x_axis_data;

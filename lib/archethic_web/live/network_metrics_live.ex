@@ -8,15 +8,13 @@ defmodule ArchEthicWeb.NetworkMetricsLive do
 
   def mount(_params, _session, socket) do
     if connected?(socket) do
-      ArchEthic.Metrics.MetricClient.monitor()
-      :timer.send_interval(1_250, self(), :update)
+      ArchEthic.Metrics.Poller.monitor()
     end
 
     {:ok, socket}
   end
 
-  def handle_info(:update, socket) do
-    data = ArchEthic.Metrics.MetricClient.subscribe_to_network_updates()
+  def handle_info({:update_data, data}, socket) do
     {:noreply, socket |> push_event("network_points", %{points: data})}
   end
 

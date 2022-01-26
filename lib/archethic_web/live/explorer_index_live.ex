@@ -15,8 +15,7 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
     nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
-      ArchEthic.Metrics.MetricClient.monitor()
-      :timer.send_interval(1_250, self(), :update_explorer_points)
+      ArchEthic.Metrics.Poller.monitor()
       PubSub.register_to_new_tps()
     end
 
@@ -32,8 +31,7 @@ defmodule ArchEthicWeb.ExplorerIndexLive do
     View.render(ExplorerView, "index.html", assigns)
   end
 
-  def handle_info(:update_explorer_points, socket) do
-    data = ArchEthic.Metrics.MetricClient.subscribe_to_network_updates()
+  def handle_info({:update_data, data}, socket) do
     {:noreply, socket |> push_event("explorer_stats_points", %{points: data})}
   end
 

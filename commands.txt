@@ -1,5 +1,0 @@
-:observer.start()
-cd assets/ && webpack --mode development && cd .. && make clean && iex -S mix
-ArchEthic.OracleChain.get_uco_price( DateTime.utc_now)
-docker build -t archethic-node . &&  docker-compose up
-
