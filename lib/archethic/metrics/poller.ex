@@ -40,7 +40,7 @@ defmodule ArchEthic.Metrics.Poller do
     GenServer.call(__MODULE__, :monitor)
   end
 
-  def handle_call(:monitor, {pid, __tag} , state) do
+  def handle_call(:monitor, {pid, __tag}, state) do
     _mref = Process.monitor(pid)
     {:reply, :ok, %{state | pid_refs: Map.put(state.pid_refs, pid, nil)}}
   end
