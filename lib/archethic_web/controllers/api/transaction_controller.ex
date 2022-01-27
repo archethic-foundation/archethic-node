@@ -8,6 +8,9 @@ defmodule ArchEthicWeb.API.TransactionController do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
 
+  alias ArchEthic.Mining
+  alias ArchEthic.OracleChain
+
   alias ArchEthicWeb.API.TransactionPayload
   alias ArchEthicWeb.ErrorView
 
@@ -84,6 +87,37 @@ defmodule ArchEthicWeb.API.TransactionController do
     else
       _reason ->
         send_resp(conn, 404, "Not Found")
+    end
+  end
+
+  def transaction_fee(conn, tx) do
+    case TransactionPayload.changeset(tx) do
+      changeset = %{valid?: true} ->
+        uco_price = OracleChain.get_uco_price(DateTime.utc_now())
+        uco_eur = uco_price |> Keyword.fetch!(:eur)
+        uco_usd = uco_price |> Keyword.fetch!(:usd)
+
+        fee =
+          changeset
+          |> TransactionPayload.to_map()
+          |> Transaction.from_map()
+          |> Mining.get_transaction_fee(uco_usd)
+
+        conn
+        |> put_status(:ok)
+        |> json(%{
+          "fee" => fee / 100_000_000,
+          "rates" => %{
+            "usd" => uco_usd,
+            "eur" => uco_eur
+          }
+        })
+
+      changeset ->
+        conn
+        |> put_status(:bad_request)
+        |> put_view(ErrorView)
+        |> render("400.json", changeset: changeset)
     end
   end
 end
