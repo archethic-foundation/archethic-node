@@ -2,8 +2,25 @@ defmodule ArchEthic.Metrics.Helpers do
   @moduledoc """
   Provides helper methods & data in transformation of metrics.
   """
+  alias ArchEthic.DB
+  require Logger
 
   def network_collector() do
+    data = Enum.filter(retrieve_network_metrics(), fn {key, _val} -> req_metrics(key) end)
+    data = Enum.into(data, %{})
+    Map.put(data, "tps", DB.get_latest_tps())
+  end
+
+  def req_metrics(data) do
+    case data do
+      "archethic_mining_proof_of_work_duration" -> true
+      "archethic_mining_full_transaction_validation_duration" -> true
+      "archethic_p2p_send_message_duration" -> true
+      _ -> false
+    end
+  end
+
+  def retrieve_network_metrics() do
     retrieve_node_ip_address()
     |> Task.async_stream(fn each_node_ip -> establish_connection_to_node(each_node_ip) end)
     |> remove_noise()
@@ -45,14 +62,14 @@ defmodule ArchEthic.Metrics.Helpers do
 
   def metric_filter() do
     fn
-      %{metrics: _, name: "archethic_election_validation_nodes_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_election_validation_nodes_duration", type: _} ->
+      #   true
 
-      %{metrics: _, name: "archethic_election_storage_nodes_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_election_storage_nodes_duration", type: _} ->
+      #   true
 
-      %{metrics: _, name: "archethic_mining_pending_transaction_validation_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_mining_pending_transaction_validation_duration", type: _} ->
+      #   true
 
       %{metrics: _, name: "archethic_mining_proof_of_work_duration", type: _} ->
         true
@@ -60,111 +77,71 @@ defmodule ArchEthic.Metrics.Helpers do
       %{metrics: _, name: "archethic_mining_full_transaction_validation_duration", type: _} ->
         true
 
-      %{metrics: _, name: "archethic_contract_parsing_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_contract_parsing_duration", type: _} ->
+      #   true
 
-      %{metrics: _, name: "archethic_mining_fetch_context_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_mining_fetch_context_duration", type: _} ->
+      #   true
 
       %{metrics: _, name: "archethic_p2p_send_message_duration", type: _} ->
         true
 
-      %{metrics: _, name: "archethic_db_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_db_duration", type: _} ->
+      #   true
 
-      %{metrics: _, name: "archethic_self_repair_duration", type: _} ->
-        true
+      # %{metrics: _, name: "archethic_self_repair_duration", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_total_run_queue_lengths_io", type: _} ->
-        true
+      # %{metrics: _, name: "vm_total_run_queue_lengths_io", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_total_run_queue_lengths_cpu", type: _} ->
-        true
+      # %{metrics: _, name: "vm_total_run_queue_lengths_cpu", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_total_run_queue_lengths_total", type: _} ->
-        true
+      # %{metrics: _, name: "vm_total_run_queue_lengths_total", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_system_counts_process_count", type: _} ->
-        true
+      # %{metrics: _, name: "vm_system_counts_process_count", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_system_counts_port_count", type: _} ->
-        true
+      # %{metrics: _, name: "vm_system_counts_port_count", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_system_counts_atom_count", type: _} ->
-        true
+      # %{metrics: _, name: "vm_system_counts_atom_count", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_total", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_total", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_system", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_system", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_processes_used", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_processes_used", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_processes", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_processes", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_ets", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_ets", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_code", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_code", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_binary", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_binary", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_atom_used", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_atom_used", type: _} ->
+      #   true
 
-      %{metrics: _, name: "vm_memory_atom", type: _} ->
-        true
+      # %{metrics: _, name: "vm_memory_atom", type: _} ->
+      #   true
 
       %{metrics: _, name: _, type: _} ->
         false
 
       _ ->
         false
-    end
-  end
-
-  def assign_new_id(data) do
-    Enum.map(data, get_id_function())
-  end
-
-  def get_id_function() do
-    fn
-      %{"archethic_election_validation_nodes_duration" => value} -> %{:nb0 => value}
-      %{"archethic_election_storage_nodes_duration" => value} -> %{:nb1 => value}
-      %{"archethic_mining_pending_transaction_validation_duration" => value} -> %{:nb2 => value}
-      %{"archethic_mining_proof_of_work_duration" => value} -> %{:nb3 => value}
-      %{"archethic_mining_full_transaction_validation_duration" => value} -> %{:nb4 => value}
-      %{"archethic_contract_parsing_duration" => value} -> %{:nb5 => value}
-      %{"archethic_election_validation_nodes_duration" => value} -> %{:nb6 => value}
-      %{"archethic_election_storage_nodes_duration" => value} -> %{:nb7 => value}
-      %{"archethic_mining_pending_transaction_validation_duration" => value} -> %{:nb8 => value}
-      %{"archethic_mining_proof_of_work_duration" => value} -> %{:nb9 => value}
-      %{"archethic_mining_full_transaction_validation_duration" => value} -> %{:nb10 => value}
-      %{"archethic_contract_parsing_duration" => value} -> %{:nb11 => value}
-      %{"archethic_mining_fetch_context_duration" => value} -> %{:nb12 => value}
-      %{"archethic_p2p_send_message_duration" => value} -> %{:nb13 => value}
-      %{"archethic_db_duration" => value} -> %{:nb14 => value}
-      %{"archethic_self_repair_duration" => value} -> %{:nb15 => value}
-      %{"vm_total_run_queue_lengths_io" => value} -> %{:nb16 => value}
-      %{"vm_total_run_queue_lengths_cpu" => value} -> %{:nb17 => value}
-      %{"vm_total_run_queue_lengths_total" => value} -> %{:nb18 => value}
-      %{"vm_system_counts_process_count" => value} -> %{:nb19 => value}
-      %{"vm_system_counts_port_count" => value} -> %{:nb20 => value}
-      %{"vm_system_counts_atom_count" => value} -> %{:nb21 => value}
-      %{"vm_memory_total" => value} -> %{:nb22 => value}
-      %{"vm_memory_system" => value} -> %{:nb23 => value}
-      %{"vm_memory_processes_used" => value} -> %{:nb24 => value}
-      %{"vm_memory_processes" => value} -> %{:nb25 => value}
-      %{"vm_memory_ets" => value} -> %{:nb26 => value}
-      %{"vm_memory_code" => value} -> %{:nb27 => value}
-      %{"vm_memory_binary" => value} -> %{:nb28 => value}
-      %{"vm_memory_atom_used" => value} -> %{:nb29 => value}
-      %{"vm_memory_atom" => value} -> %{:nb30 => value}
     end
   end
 

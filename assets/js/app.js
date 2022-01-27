@@ -73,22 +73,6 @@ Hooks.Logs = {
   }
 }
 
-Hooks.node_charts = {
-  mounted() {
-      var node_metric_obj = metric_config_obj.create_node_live_visuals();
-
-    this.handleEvent("node_points", ({
-      points
-    }) => {
-      console.log(points);
-      console.log("------------------");
-      points = metric_config_obj.structure_metric_points(points)
-      console.log("=================");
-      console.log(points);
-      node_metric_obj = metric_config_obj.update_node_live_visuals(node_metric_obj , points);
-    });
-  }
-}
 
 Hooks.network_charts = {
   mounted() {

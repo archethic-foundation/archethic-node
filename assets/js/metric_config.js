@@ -1,5 +1,4 @@
-  import * as echarts from  './echarts.min.js';
-  
+import * as echarts from 'echarts';
   //adds 0 to the metric not recieved to avoid charts going blank
   function structure_metric_points(latest_points){
     var points_default_value ={
@@ -42,63 +41,10 @@ function get_visuals_dom(){
   return    metric_object = {
     seconds_after_loading_of_this_graph: 0,
     x_axis_data: x_axis_data ,
-  //1
-   archethic_election_validation_nodes_duration:   generateEchartObjects('Election Duration-Validation Nodes','archethic_election_validation_nodes_duration',x_axis_data),
-  //2
-   archethic_election_storage_nodes_duration:   generateEchartObjects('Election Duration-Storage Nodes','archethic_election_storage_nodes_duration',x_axis_data),
-  //3
-   archethic_mining_pending_transaction_validation_duration:   generateEchartObjects('Mining Pending Transaction' , 'archethic_mining_pending_transaction_validation_duration',x_axis_data),
-  //4
    archethic_mining_proof_of_work_duration:   generateEchartObjects( 'Duration(ms):Proof of Work ','archethic_mining_proof_of_work_duration',x_axis_data),
-  //5
    archethic_mining_full_transaction_validation_duration:   generateEchartObjects('Full Transaction Validation','archethic_mining_full_transaction_validation_duration',x_axis_data),
-  //6
-   archethic_contract_parsing_duration:   generateEchartObjects('Duration: Contract Parsing','archethic_contract_parsing_duration',x_axis_data),
-  //7
-   archethic_mining_fetch_context_duration:   generateEchartObjects('Duration: mining_fetch_context','archethic_mining_fetch_context_duration',x_axis_data),
-  //8
-  archethic_db_duration:    generateEchartObjects('Duration: archethic_db_duration','archethic_db_duration',x_axis_data),
-
-
-  //9 cards
-  archethic_self_repair_duration:   document.getElementById("archethic_self_repair_duration"),
-  //10
-  vm_memory_processes:   document.getElementById("vm_memory_processes"),
-  //11
-  vm_memory_ets:    document.getElementById("vm_memory_ets"),
-  //12
-  vm_memory_binary:   document.getElementById("vm_memory_binary"),
-  //13
-  vm_memory_system	:   document.getElementById("vm_memory_system"),
-  //14
-  vm_memory_processes_used:  	document.getElementById("vm_memory_processes_used"),
-
-
-  //15
-  vm_memory_total:   document.getElementById("vm_memory_total"),
-  //16
-  vm_system_counts_process_count:   document.getElementById("vm_system_counts_process_count"), 
-  //17
-  vm_memory_atom:   document.getElementById("vm_memory_atom"),
-  //18
-  vm_total_run_queue_lengths_cpu:   document.getElementById("vm_total_run_queue_lengths_cpu"),
-  //19
-  vm_system_counts_atom_count:   document.getElementById("vm_system_counts_atom_count"),
-  //20
-  vm_total_run_queue_lengths_total:   document.getElementById("vm_total_run_queue_lengths_total"),
-  //21
-  vm_memory_atom_used:   document.getElementById("vm_memory_atom_used"),
-  //22
-  vm_total_run_queue_lengths_io:    document.getElementById("vm_total_run_queue_lengths_io"),
-  //23
-  vm_system_counts_port_count:   document.getElementById("vm_system_counts_port_count"),
-  //24
-  vm_memory_code:   document.getElementById("vm_memory_code"),
-
+  tps:   document.getElementById("tps"),
   archethic_p2p_send_message_duration : generate_echart_guage("archethic_p2p_send_message_duration", 'archethic_p2p_send_message_duration')
-
-
-
   };
 }
 
@@ -265,16 +211,6 @@ function update_guage_data(guage_obj , points , point_name )
 }
 
 
-function create_node_live_visuals(){
-      var  metric_obj = get_visuals_dom();
-    return metric_obj;
-}
-
-function update_node_live_visuals(node_metric_obj , points){
-      // points = metric_config.structure_metric_points(points)
-  return update_live_visuals(node_metric_obj , points);
-}
-
 function create_network_live_visuals(){
  var metric_obj = get_visuals_dom();
     return metric_obj;
@@ -289,58 +225,13 @@ function update_live_visuals(metric_obj , points){
   metric_obj.seconds_after_loading_of_this_graph+= 5;
   var shifted = metric_obj.x_axis_data.shift();
   metric_obj.x_axis_data.push(metric_obj.seconds_after_loading_of_this_graph);
-  //1
-  update_chart_data(metric_obj.archethic_election_validation_nodes_duration , metric_obj.x_axis_data ,points, "archethic_election_validation_nodes_duration" );
-  //2
-  update_chart_data( metric_obj.archethic_election_storage_nodes_duration , metric_obj.x_axis_data , points , "archethic_election_storage_nodes_duration" );
-  //3
-  update_chart_data(metric_obj.archethic_mining_pending_transaction_validation_duration , metric_obj.x_axis_data , points, "archethic_mining_pending_transaction_validation_duration" );
-  //4
   update_chart_data(metric_obj.archethic_mining_proof_of_work_duration, metric_obj.x_axis_data ,points, "archethic_mining_proof_of_work_duration" );
   //5
   update_chart_data( metric_obj.archethic_mining_full_transaction_validation_duration , metric_obj.x_axis_data ,points, "archethic_mining_full_transaction_validation_duration" );
-  //6
-  update_chart_data(metric_obj.archethic_contract_parsing_duration , metric_obj.x_axis_data ,points, "archethic_contract_parsing_duration" )
-  //7
-  update_chart_data( metric_obj.archethic_mining_fetch_context_duration , metric_obj.x_axis_data ,points, "archethic_mining_fetch_context_duration" )
-  //8
-  update_chart_data(metric_obj.archethic_db_duration , metric_obj.x_axis_data ,points , "archethic_db_duration")
-
-  //===============================card
-  //9
-  update_card_data(metric_obj.archethic_self_repair_duration , points , "archethic_self_repair_duration");
-  //10
-  update_card_data(metric_obj.vm_memory_processes , points , "vm_memory_processes");
-  //11
-  update_card_data(metric_obj.vm_memory_ets , points , "vm_memory_ets");
-  //12
-  update_card_data(metric_obj.vm_memory_binary , points , "vm_memory_binary");
-  //13
-  update_card_data(metric_obj.vm_memory_system , points, "vm_memory_system" );
-  //14
-  update_card_data(metric_obj.vm_memory_processes_used  , points, "vm_memory_processes_used" );
-  //15
-  update_card_data( metric_obj.vm_memory_total , points, "vm_memory_total" );
-  //16
-  update_card_data(metric_obj.vm_system_counts_process_count  , points, "vm_system_counts_process_count" );
-  //17
-  update_card_data( metric_obj.vm_memory_atom , points, "vm_memory_atom" );
-  //18
-  update_card_data( metric_obj.vm_total_run_queue_lengths_cpu , points, "vm_total_run_queue_lengths_cpu" );
-  //19
-  update_card_data( metric_obj.vm_system_counts_atom_count , points, "vm_system_counts_atom_count" );
-  //20
-  update_card_data( metric_obj.vm_total_run_queue_lengths_total , points, "vm_total_run_queue_lengths_total" );
-  //21
-  update_card_data( metric_obj.vm_memory_atom_used , points, "vm_memory_atom_used" );
-  //22
-  update_card_data( metric_obj.vm_total_run_queue_lengths_io , points, "vm_total_run_queue_lengths_io" );
-  //23
-  update_card_data( metric_obj.vm_system_counts_port_count , points, "vm_system_counts_port_count" );
-  //24
-  update_card_data( metric_obj.vm_system_counts_port_count , points, "vm_memory_code" );
-  //25
+ 
   update_guage_data( metric_obj.archethic_p2p_send_message_duration , points, "archethic_p2p_send_message_duration" );
+
+  update_chart_data(metric_obj.tps , points ,"tps" )
 
     return metric_obj;
 }
@@ -370,8 +261,6 @@ function update_explorer_live_visuals(explorer_metric_obj, points){
 };
 
   export  {
-    create_node_live_visuals ,  
-    update_node_live_visuals ,
     create_network_live_visuals ,
     update_network_live_visuals , 
     create_explorer_live_visuals , 

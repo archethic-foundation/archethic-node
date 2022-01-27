@@ -82,28 +82,7 @@
         <%= @inner_content %>
       </main>
     </div>
-    <style>
-           body{
-                    background: linear-gradient(-45deg, #006cd2,#01d1f3, #a219df, #00a4db);
-                    background-size: 400% 400%;
-                    animation: gradient 15s ease infinite;
 
-                  }
-
-                  @keyframes gradient {
-                    0% {
-                      background-position: 0% 50%;
-                    }
-                    50% {
-                      background-position: 100% 50%;
-                    }
-                    100% {
-                      background-position: 0% 50%;
-                    }
-
-                  }
-
-    </style>
     <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
 
   </body>
