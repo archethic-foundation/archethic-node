@@ -1,5 +1,6 @@
 defmodule ArchEthic.BeaconChain.SubsetTest do
   use ArchEthicCase, async: false
+  alias ArchEthic.BeaconChain
 
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
@@ -218,5 +219,46 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
 
     send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
     Process.sleep(500)
+  end
+
+  test "subscribed nodes are being getting subscribed & added to beacon pool directly via subset",
+       %{
+         subset: subset,
+         pid: pid
+       } do
+    public_key1 = :crypto.strong_rand_bytes(32)
+    Subset.subscribe_for_beacon_updates(subset, public_key1)
+
+    assert %{subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
+    assert [^public_key1] = Map.get(:sys.get_state(pid), :subscribed_nodes)
+
+    public_key2 = :crypto.strong_rand_bytes(32)
+    Subset.subscribe_for_beacon_updates(subset, public_key2)
+
+    assert %{subscribed_nodes: [^public_key2, ^public_key1]} = :sys.get_state(pid)
+  end
+
+  test "subscribed nodes are being getting subscribed & added to beacon pool via Beacon chain", %{
+    subset: subset,
+    pid: pid
+  } do
+    first_public_key = :crypto.strong_rand_bytes(32)
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: first_public_key,
+      last_public_key:
+        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      available?: true,
+      authorized?: true,
+      authorization_date: ~U[2020-09-01 00:00:00Z]
+    })
+
+    BeaconChain.subscribe_for_beacon_updates(subset, first_public_key)
+
+    assert [^first_public_key] = Map.get(:sys.get_state(pid), :subscribed_nodes)
   end
 end
