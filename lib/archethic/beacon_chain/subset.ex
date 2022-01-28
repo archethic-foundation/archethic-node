@@ -4,9 +4,9 @@ defmodule ArchEthic.BeaconChain.Subset do
   waiting to receive transactions to register in a beacon slot
   """
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Summary
   alias ArchEthic.BeaconChain.SummaryTimer
@@ -24,10 +24,13 @@ defmodule ArchEthic.BeaconChain.Subset do
   alias ArchEthic.P2P.Message.NewBeaconTransaction
   alias ArchEthic.P2P.Message.BeaconUpdate
 
+  alias ArchEthic.PubSub
+
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   alias ArchEthic.Utils
 
@@ -38,15 +41,6 @@ defmodule ArchEthic.BeaconChain.Subset do
   def start_link(opts) do
     subset = Keyword.get(opts, :subset)
     GenServer.start_link(__MODULE__, [subset], name: via_tuple(subset))
-  end
-
-  @doc """
-  Add transaction summary to the current slot for the given subset
-  """
-  @spec add_transaction_summary(subset :: binary(), TransactionSummary.t()) :: :ok
-  def add_transaction_summary(subset, tx_summary = %TransactionSummary{})
-      when is_binary(subset) do
-    GenServer.cast(via_tuple(subset), {:add_transaction_summary, tx_summary})
   end
 
   @doc """
@@ -79,6 +73,8 @@ defmodule ArchEthic.BeaconChain.Subset do
   end
 
   def init([subset]) do
+    PubSub.register_to_new_replication_attestations()
+
     {:ok,
      %{
        node_public_key: Crypto.first_node_public_key(),
@@ -86,48 +82,6 @@ defmodule ArchEthic.BeaconChain.Subset do
        current_slot: %Slot{subset: subset, slot_time: SlotTimer.next_slot(DateTime.utc_now())},
        subscribed_nodes: []
      }}
-  end
-
-  def handle_cast(
-        {:add_transaction_summary,
-         tx_summary = %TransactionSummary{address: address, type: type}},
-        state = %{current_slot: current_slot, subset: subset, subscribed_nodes: subscribed_nodes}
-      ) do
-    if Slot.has_transaction?(current_slot, address) do
-      {:noreply, state}
-    else
-      current_slot = Slot.add_transaction_summary(current_slot, tx_summary)
-
-      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
-        beacon_subset: Base.encode16(subset)
-      )
-
-      P2P.get_nodes_info(subscribed_nodes)
-      |> P2P.broadcast_message(tx_summary)
-
-      # Request the P2P view sampling if the not perfomed from the last 3 seconds
-      case Map.get(state, :sampling_time) do
-        nil ->
-          new_state =
-            state
-            |> Map.put(:current_slot, add_p2p_view(current_slot))
-            |> Map.put(:sampling_time, DateTime.utc_now())
-
-          {:noreply, new_state}
-
-        time ->
-          if DateTime.diff(DateTime.utc_now(), time) > 3 do
-            new_state =
-              state
-              |> Map.put(:current_slot, add_p2p_view(current_slot))
-              |> Map.put(:sampling_time, DateTime.utc_now())
-
-            {:noreply, new_state}
-          else
-            {:noreply, %{state | current_slot: current_slot}}
-          end
-      end
-    end
   end
 
   def handle_cast(
@@ -147,11 +101,11 @@ defmodule ArchEthic.BeaconChain.Subset do
         {:subscribe_node_to_beacon_updates, node_public_key},
         state = %{subscribed_nodes: current_list_of_subscribed_nodes, current_slot: current_slot}
       ) do
-    %Slot{transaction_summaries: transaction_summaries} = current_slot
+    %Slot{transaction_attestations: transaction_attestations} = current_slot
 
-    if Enum.count(transaction_summaries) != 0 do
+    if Enum.empty?(transaction_attestations) do
       P2P.send_message(node_public_key, %BeaconUpdate{
-        transaction_summaries: transaction_summaries
+        transaction_attestations: transaction_attestations
       })
     end
 
@@ -180,6 +134,47 @@ defmodule ArchEthic.BeaconChain.Subset do
     {:noreply, next_state(state, time)}
   end
 
+  def handle_info(
+        {:new_replication_attestation,
+         attestation = %ReplicationAttestation{
+           transaction_summary: %TransactionSummary{
+             address: address,
+             type: type
+           }
+         }},
+        state = %{current_slot: current_slot, subset: subset, subscribed_nodes: subscribed_nodes}
+      ) do
+    if ArchEthic.BeaconChain.subset_from_address(address) == subset do
+      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
+        beacon_subset: Base.encode16(subset)
+      )
+
+      current_slot =
+        Slot.add_transaction_attestation(
+          current_slot,
+          attestation
+        )
+
+      subscribed_nodes
+      |> P2P.get_nodes_info()
+      |> P2P.broadcast_message(attestation)
+
+      # Request the P2P view sampling if the not perfomed from the last 3 seconds
+      if update_p2p_view?(state) do
+        new_state =
+          state
+          |> Map.put(:current_slot, add_p2p_view(current_slot))
+          |> Map.put(:sampling_time, DateTime.utc_now())
+
+        {:noreply, new_state}
+      else
+        {:noreply, %{state | current_slot: current_slot}}
+      end
+    else
+      {:noreply, state}
+    end
+  end
+
   defp handle_slot(
          time,
          current_slot = %Slot{subset: subset},
@@ -196,6 +191,12 @@ defmodule ArchEthic.BeaconChain.Subset do
       end
     end
   end
+
+  defp update_p2p_view?(%{sampling_time: time}) do
+    DateTime.diff(DateTime.utc_now(), time) > 3
+  end
+
+  defp update_p2p_view?(_), do: true
 
   defp dispatch_slot_to_summary_nodes(current_slot = %Slot{subset: subset}, time, node_public_key) do
     beacon_transaction = create_beacon_transaction(current_slot)

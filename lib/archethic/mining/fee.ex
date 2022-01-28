@@ -4,7 +4,9 @@ defmodule ArchEthic.Mining.Fee do
   """
   alias ArchEthic.Bootstrap
 
-  alias ArchEthic.Replication
+  alias ArchEthic.Election
+
+  alias ArchEthic.P2P
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
@@ -87,7 +89,7 @@ defmodule ArchEthic.Mining.Fee do
   defp get_number_replicas(%Transaction{address: address}) do
     # TODO: take the nodes at the time of the transaction's timestamp
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> length()
   end
 

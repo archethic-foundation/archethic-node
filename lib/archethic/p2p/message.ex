@@ -5,7 +5,7 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.Account
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Summary
 
   alias ArchEthic.Contracts
@@ -56,6 +56,7 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.Ping
   alias __MODULE__.RegisterBeaconUpdates
   alias __MODULE__.ReplicateTransaction
+  alias __MODULE__.ReplicateTransactionChain
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionInputList
@@ -68,16 +69,13 @@ defmodule ArchEthic.P2P.Message do
 
   alias ArchEthic.Replication
 
-  alias ArchEthic.TaskSupervisor
-
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionInput
-
-  alias ArchEthic.Utils
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -97,6 +95,7 @@ defmodule ArchEthic.P2P.Message do
           | CrossValidate.t()
           | CrossValidationDone.t()
           | ReplicateTransaction.t()
+          | ReplicateTransactionChain.t()
           | GetLastTransaction.t()
           | GetBalance.t()
           | GetTransactionInputs.t()
@@ -112,6 +111,7 @@ defmodule ArchEthic.P2P.Message do
           | RegisterBeaconUpdates.t()
           | BeaconUpdate.t()
           | TransactionSummary.t()
+          | ReplicationAttestation.t()
 
   @type response ::
           Ok.t()
@@ -247,64 +247,58 @@ defmodule ArchEthic.P2P.Message do
     <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
-  def encode(%ReplicateTransaction{
+  def encode(%ReplicateTransactionChain{
         transaction: tx,
-        roles: roles,
-        ack_storage?: ack_storage?,
-        welcome_node_public_key: welcome_node_public_key
+        ack_storage?: ack_storage?
       }) do
-    roles_bitstring =
-      Enum.reduce(roles, <<0::1, 0::1, 0::1>>, fn
-        :chain, acc ->
-          Utils.set_bitstring_bit(acc, 0)
-
-        :IO, acc ->
-          Utils.set_bitstring_bit(acc, 1)
-
-        :beacon, acc ->
-          Utils.set_bitstring_bit(acc, 2)
-      end)
-
     ack_storage_bit = if ack_storage?, do: 1, else: 0
 
-    <<11::8, Transaction.serialize(tx)::bitstring, roles_bitstring::bitstring, ack_storage_bit::1,
-      welcome_node_public_key::binary>>
+    <<11::8, Transaction.serialize(tx)::bitstring, ack_storage_bit::1>>
   end
 
-  def encode(%AcknowledgeStorage{address: address}) do
-    <<12::8, address::binary>>
+  def encode(%ReplicateTransaction{transaction: tx}) do
+    <<12::8, Transaction.serialize(tx)::bitstring>>
+  end
+
+  def encode(%AcknowledgeStorage{
+        transaction_summary: transaction_summary,
+        node_public_key: node_public_key,
+        signature: signature
+      }) do
+    <<13::8, TransactionSummary.serialize(transaction_summary)::binary, node_public_key::binary,
+      byte_size(signature)::8, signature::binary>>
   end
 
   def encode(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
-    <<13::8, public_key::binary, DateTime.to_unix(timestamp)::32>>
+    <<14::8, public_key::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   def encode(%GetLastTransaction{address: address}) do
-    <<14::8, address::binary>>
-  end
-
-  def encode(%GetBalance{address: address}) do
     <<15::8, address::binary>>
   end
 
-  def encode(%GetTransactionInputs{address: address}) do
+  def encode(%GetBalance{address: address}) do
     <<16::8, address::binary>>
   end
 
-  def encode(%GetTransactionChainLength{address: address}) do
+  def encode(%GetTransactionInputs{address: address}) do
     <<17::8, address::binary>>
   end
 
+  def encode(%GetTransactionChainLength{address: address}) do
+    <<18::8, address::binary>>
+  end
+
   def encode(%GetP2PView{node_public_keys: node_public_keys}) do
-    <<18::8, length(node_public_keys)::16, :erlang.list_to_binary(node_public_keys)::binary>>
+    <<19::8, length(node_public_keys)::16, :erlang.list_to_binary(node_public_keys)::binary>>
   end
 
   def encode(%GetFirstPublicKey{address: address}) do
-    <<19::8, address::binary>>
+    <<20::8, address::binary>>
   end
 
   def encode(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
-    <<20::8, address::binary, DateTime.to_unix(timestamp)::32>>
+    <<21::8, address::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   def encode(%NotifyLastTransactionAddress{
@@ -312,38 +306,42 @@ defmodule ArchEthic.P2P.Message do
         previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<21::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp)::32>>
+    <<22::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp)::32>>
   end
 
   def encode(%GetTransactionSummary{address: address}) do
-    <<22::8, address::binary>>
+    <<23::8, address::binary>>
   end
 
   def encode(%NodeAvailability{public_key: node_public_key}) do
-    <<23::8, node_public_key::binary>>
+    <<24::8, node_public_key::binary>>
   end
 
-  def encode(%Ping{}), do: <<24::8>>
+  def encode(%Ping{}), do: <<25::8>>
 
-  def encode(%GetBeaconSummary{address: address}), do: <<25::8, address::binary>>
+  def encode(%GetBeaconSummary{address: address}), do: <<26::8, address::binary>>
 
   def encode(%NewBeaconTransaction{transaction: tx}),
-    do: <<26::8, Transaction.serialize(tx)::bitstring>>
+    do: <<27::8, Transaction.serialize(tx)::bitstring>>
 
   def encode(%GetBeaconSummaries{addresses: addresses}),
-    do: <<27::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
+    do: <<28::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
 
   def encode(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
-    <<28::8, subset::binary-size(1), node_public_key::binary>>
+    <<29::8, subset::binary-size(1), node_public_key::binary>>
   end
 
-  def encode(%BeaconUpdate{transaction_summaries: transaction_summaries}) do
-    transaction_summaries_bin =
-      transaction_summaries
-      |> Enum.map(&TransactionSummary.serialize/1)
+  def encode(attestation = %ReplicationAttestation{}) do
+    <<30::8, ReplicationAttestation.serialize(attestation)::binary>>
+  end
+
+  def encode(%BeaconUpdate{transaction_attestations: transaction_attestations}) do
+    transaction_attestations_bin =
+      transaction_attestations
+      |> Enum.map(&ReplicationAttestation.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<29::8, length(transaction_summaries)::16, transaction_summaries_bin::bitstring>>
+    <<236::8, length(transaction_attestations)::16, transaction_attestations_bin::bitstring>>
   end
 
   def encode(%BeaconSummaryList{summaries: summaries}) do
@@ -604,42 +602,39 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<11::8, rest::bitstring>>) do
-    {tx,
-     <<chain_role_bit::1, io_role_bit::1, beacon_role_bit::1, ack_storage_bit::1,
-       rest::bitstring>>} = Transaction.deserialize(rest)
-
-    <<curve_id::8, origin_id::8, rest::bitstring>> = rest
-    welcome_key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(welcome_key_size), rest::bitstring>> = rest
-    welcome_public_key = <<curve_id::8, origin_id::8, key::binary>>
-
-    roles =
-      [
-        {:chain, chain_role_bit == 1 || false},
-        {:IO, io_role_bit == 1 || false},
-        {:beacon, beacon_role_bit == 1 || false}
-      ]
-      |> Utils.get_keys_from_value_match(true)
+    {tx, <<ack_storage_bit::1, rest::bitstring>>} = Transaction.deserialize(rest)
 
     ack_storage? = ack_storage_bit == 1 || false
 
-    {%ReplicateTransaction{
+    {%ReplicateTransactionChain{
        transaction: tx,
-       roles: roles,
-       ack_storage?: ack_storage?,
-       welcome_node_public_key: welcome_public_key
+       ack_storage?: ack_storage?
      }, rest}
   end
 
   def decode(<<12::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {tx, rest} = Transaction.deserialize(rest)
 
-    {%AcknowledgeStorage{
-       address: address
+    {%ReplicateTransaction{
+       transaction: tx
      }, rest}
   end
 
   def decode(<<13::8, rest::bitstring>>) do
+    {tx_summary, rest} = TransactionSummary.deserialize(rest)
+
+    {node_public_key,
+     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
+      deserialize_public_key(rest)
+
+    {%AcknowledgeStorage{
+       transaction_summary: tx_summary,
+       node_public_key: node_public_key,
+       signature: signature
+     }, rest}
+  end
+
+  def decode(<<14::8, rest::bitstring>>) do
     {public_key, <<timestamp::32, rest::bitstring>>} = deserialize_public_key(rest)
 
     {%NotifyEndOfNodeSync{
@@ -648,36 +643,36 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<14::8, rest::bitstring>>) do
+  def decode(<<15::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetLastTransaction{address: address}, rest}
   end
 
-  def decode(<<15::8, rest::bitstring>>) do
+  def decode(<<16::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetBalance{address: address}, rest}
   end
 
-  def decode(<<16::8, rest::bitstring>>) do
+  def decode(<<17::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetTransactionInputs{address: address}, rest}
   end
 
-  def decode(<<17::8, rest::bitstring>>) do
+  def decode(<<18::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetTransactionChainLength{address: address}, rest}
   end
 
-  def decode(<<18::8, nb_node_public_keys::16, rest::bitstring>>) do
+  def decode(<<19::8, nb_node_public_keys::16, rest::bitstring>>) do
     {public_keys, rest} = deserialize_public_key_list(rest, nb_node_public_keys, [])
     {%GetP2PView{node_public_keys: public_keys}, rest}
   end
 
-  def decode(<<19::8, rest::bitstring>>) do
+  def decode(<<20::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
 
     {%GetFirstPublicKey{
@@ -685,7 +680,7 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<20::8, rest::bitstring>>) do
+  def decode(<<21::8, rest::bitstring>>) do
     {address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
     {%GetLastTransactionAddress{
@@ -694,7 +689,7 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<21::8, rest::bitstring>>) do
+  def decode(<<22::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
     {previous_address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
@@ -705,19 +700,19 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<22::8, rest::bitstring>>) do
+  def decode(<<23::8, rest::bitstring>>) do
     {address, rest} = deserialize_hash(rest)
     {%GetTransactionSummary{address: address}, rest}
   end
 
-  def decode(<<23::8, rest::binary>>) do
+  def decode(<<24::8, rest::binary>>) do
     {public_key, rest} = deserialize_public_key(rest)
     {%NodeAvailability{public_key: public_key}, rest}
   end
 
-  def decode(<<24::8, rest::binary>>), do: {%Ping{}, rest}
+  def decode(<<25::8, rest::binary>>), do: {%Ping{}, rest}
 
-  def decode(<<25::8, rest::binary>>) do
+  def decode(<<26::8, rest::binary>>) do
     {address, rest} = deserialize_hash(rest)
 
     {
@@ -726,7 +721,7 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<26::8, rest::bitstring>>) do
+  def decode(<<27::8, rest::bitstring>>) do
     {tx = %Transaction{}, rest} = Transaction.deserialize(rest)
 
     {
@@ -735,7 +730,7 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<27::8, nb_addresses::32, rest::bitstring>>) do
+  def decode(<<28::8, nb_addresses::32, rest::bitstring>>) do
     {addresses, rest} = deserialize_hashes(rest, nb_addresses, [])
 
     {
@@ -744,7 +739,7 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<28::8, subset::binary-size(1), rest::binary>>) do
+  def decode(<<29::8, subset::binary-size(1), rest::binary>>) do
     {public_key, rest} = deserialize_public_key(rest)
 
     {
@@ -756,13 +751,17 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<29::8, nb_transaction_summaries::16, rest::bitstring>>) do
-    {transaction_summaries, rest} =
-      deserialize_transaction_summaries(rest, nb_transaction_summaries, [])
+  def decode(<<30::8, rest::bitstring>>) do
+    ReplicationAttestation.deserialize(rest)
+  end
+
+  def decode(<<236::8, nb_transaction_attestations::16, rest::bitstring>>) do
+    {transaction_attestations, rest} =
+      deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
     {
       %BeaconUpdate{
-        transaction_summaries: transaction_summaries
+        transaction_attestations: transaction_attestations
       },
       rest
     }
@@ -984,15 +983,15 @@ defmodule ArchEthic.P2P.Message do
     deserialize_summaries(rest, nb_summaries, [summary | acc])
   end
 
-  defp deserialize_transaction_summaries(rest, 0, _acc), do: {[], rest}
+  defp deserialize_transaction_attestations(rest, 0, _acc), do: {[], rest}
 
-  defp deserialize_transaction_summaries(rest, nb_summaries, acc)
-       when nb_summaries == length(acc),
+  defp deserialize_transaction_attestations(rest, nb_attestations, acc)
+       when nb_attestations == length(acc),
        do: {Enum.reverse(acc), rest}
 
-  defp deserialize_transaction_summaries(rest, nb_summaries, acc) do
-    {summary, rest} = TransactionSummary.deserialize(rest)
-    deserialize_transaction_summaries(rest, nb_summaries, [summary | acc])
+  defp deserialize_transaction_attestations(rest, nb_attestations, acc) do
+    {attestation, rest} = ReplicationAttestation.deserialize(rest)
+    deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
   end
 
   @doc """
@@ -1038,8 +1037,11 @@ defmodule ArchEthic.P2P.Message do
       {:ok, tx} ->
         tx
 
-      _ ->
+      {:error, :transaction_not_exists} ->
         %NotFound{}
+
+      {:error, :invalid_transaction} ->
+        %Error{reason: :invalid_transaction}
     end
   end
 
@@ -1117,40 +1119,45 @@ defmodule ArchEthic.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransaction{
-        transaction: tx = %Transaction{address: address, type: type},
-        roles: roles,
-        ack_storage?: ack_storage?,
-        welcome_node_public_key: welcome_node_public_key
+  def process(%ReplicateTransactionChain{
+        transaction: tx,
+        ack_storage?: ack_storage?
       }) do
-    if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already exists",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
-    else
-      Task.Supervisor.start_child(
-        TaskSupervisor,
-        fn ->
-          Logger.info("Replicate new transaction",
-            transaction_address: Base.encode16(address),
-            transaction_type: type
-          )
+    case Replication.validate_and_store_transaction_chain(tx, ack_storage?: ack_storage?) do
+      :ok ->
+        if ack_storage? do
+          tx_summary = TransactionSummary.from_transaction(tx)
 
-          Replication.process_transaction(tx, roles,
-            ack_storage?: ack_storage?,
-            welcome_node: P2P.get_node_info!(welcome_node_public_key)
-          )
-        end,
-        restart: :temporary
-      )
+          %AcknowledgeStorage{
+            transaction_summary: tx_summary,
+            node_public_key: Crypto.first_node_public_key(),
+            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+          }
+        else
+          %Ok{}
+        end
+
+      {:error, :invalid_transaction} ->
+        %Error{reason: :invalid_transaction}
     end
-
-    %Ok{}
   end
 
-  def process(%AcknowledgeStorage{address: tx_address}) do
-    PubSub.notify_new_transaction(tx_address)
+  def process(%ReplicateTransaction{transaction: tx}) do
+    case Replication.validate_and_store_transaction(tx) do
+      :ok ->
+        %Ok{}
+
+      {:error, :invalid_transaction} ->
+        %Error{reason: :invalid_transaction}
+    end
+  end
+
+  def process(%AcknowledgeStorage{
+        transaction_summary: tx_summary = %TransactionSummary{},
+        node_public_key: node_public_key,
+        signature: signature
+      }) do
+    Mining.acknowledge_storage(tx_summary, node_public_key, signature)
     %Ok{}
   end
 
@@ -1294,16 +1301,20 @@ defmodule ArchEthic.P2P.Message do
     %Ok{}
   end
 
-  def process(%BeaconUpdate{transaction_summaries: transaction_summaries}) do
-    Enum.each(transaction_summaries, fn tx_summary ->
-      :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
-    end)
+  def process(%BeaconUpdate{transaction_attestations: transaction_attestations}) do
+    Enum.each(transaction_attestations, &process/1)
 
     %Ok{}
   end
 
-  def process(tx_summary = %TransactionSummary{}) do
-    :ok = PubSub.notify_added_new_transaction_summary(tx_summary)
-    %Ok{}
+  def process(attestation = %ReplicationAttestation{}) do
+    case ReplicationAttestation.validate(attestation) do
+      :ok ->
+        PubSub.notify_replication_attestation(attestation)
+        %Ok{}
+
+      {:error, :invalid_confirmations_signatures} ->
+        %Error{reason: :invalid_attestation}
+    end
   end
 end

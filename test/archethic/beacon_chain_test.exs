@@ -45,25 +45,6 @@ defmodule ArchEthic.BeaconChainTest do
              239>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
-  test "add_transaction_summary/1 should register a transaction inside a subset" do
-    address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-    assert :ok =
-             BeaconChain.add_transaction_summary(%Transaction{
-               address: address,
-               type: :transfer,
-               validation_stamp: %ValidationStamp{
-                 timestamp: DateTime.utc_now()
-               }
-             })
-
-    subset = BeaconChain.subset_from_address(address)
-    [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
-
-    %{current_slot: %Slot{transaction_summaries: [%TransactionSummary{address: ^address}]}} =
-      :sys.get_state(pid)
-  end
-
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
     public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 

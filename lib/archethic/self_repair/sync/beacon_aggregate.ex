@@ -7,8 +7,9 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
 
   defstruct [:summary_time, transaction_summaries: [], p2p_availabilities: %{}]
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   @type t :: %__MODULE__{
           summary_time: DateTime.t(),
@@ -47,12 +48,13 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
   @spec add_transaction_summaries(t(), BeaconSummary.t()) :: t()
   def add_transaction_summaries(
         aggregate = %__MODULE__{},
-        %BeaconSummary{transaction_summaries: transaction_summaries}
+        %BeaconSummary{transaction_attestations: transaction_attestations}
       ) do
-    transaction_summaries
-    |> Enum.reduce(aggregate, fn summary = %TransactionSummary{}, acc ->
+    transaction_attestations
+    |> Enum.reduce(aggregate, fn %ReplicationAttestation{transaction_summary: transaction_summary},
+                                 acc ->
       Map.update!(acc, :transaction_summaries, fn transaction_summaries ->
-        [summary | transaction_summaries]
+        [transaction_summary | transaction_summaries]
         |> Enum.uniq_by(& &1.address)
         |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
       end)

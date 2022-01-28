@@ -3,12 +3,15 @@ defmodule ArchEthicWeb.BeaconChainLive do
   use ArchEthicWeb, :live_view
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer
+
   alias ArchEthic.Crypto
+
   alias ArchEthic.Election
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.GetTransactionChain
@@ -17,77 +20,15 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Node
   alias ArchEthic.PubSub
+
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
+
   alias ArchEthicWeb.ExplorerView
+
   alias Phoenix.View
+
   require Logger
-
-  defp list_transaction_by_date(date = %DateTime{}) do
-    Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
-      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
-      nodes = Election.beacon_storage_nodes(subset, date, node_list)
-
-      Enum.reduce(nodes, acc, fn node, acc ->
-        Map.update(acc, node, [b_address], &[b_address | &1])
-      end)
-    end)
-    |> Stream.transform([], fn
-      {_, []}, acc ->
-        {[], acc}
-
-      {node, addresses}, acc ->
-        addresses_to_fetch = Enum.reject(addresses, &(&1 in acc))
-
-        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses_to_fetch}) do
-          {:ok, %BeaconSummaryList{summaries: summaries}} ->
-            summaries_address_resolved =
-              Enum.map(
-                summaries,
-                &Crypto.derive_beacon_chain_address(&1.subset, &1.summary_time, true)
-              )
-
-            {summaries, acc ++ summaries_address_resolved}
-
-          _ ->
-            {[], acc}
-        end
-    end)
-    |> Stream.map(fn %BeaconSummary{transaction_summaries: transaction_summaries} ->
-      transaction_summaries
-    end)
-    |> Stream.flat_map(& &1)
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-  end
-
-  defp list_transaction_by_date(nil), do: []
-
-  defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
-    %Node{network_patch: patch} = P2P.get_node_info()
-
-    Task.async_stream(BeaconChain.list_subsets(), fn subset ->
-      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
-      nodes = Election.beacon_storage_nodes(subset, date, node_list)
-
-      case get_beacon_summary_transaction_chain(b_address, nodes, patch) do
-        {:ok, transactions} ->
-          transactions
-          |> Stream.map(&deserialize_beacon_transaction/1)
-          |> Enum.to_list()
-      end
-    end)
-    |> Enum.map(fn {:ok, txs} -> txs end)
-    |> :lists.flatten()
-    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
-  end
-
-  defp deserialize_beacon_transaction(%Transaction{data: %TransactionData{content: content}}) do
-    {slot, _} = Slot.deserialize(content)
-    %Slot{transaction_summaries: transaction_summaries} = slot
-    transaction_summaries
-  end
 
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
@@ -169,8 +110,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
     {:noreply, socket}
   end
 
-  @spec handle_event(<<_::32>>, map, Phoenix.LiveView.Socket.t()) ::
-          {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_event("goto", %{"page" => page}, socket) do
     {:noreply, push_redirect(socket, to: Routes.live_path(socket, __MODULE__, %{"page" => page}))}
   end
@@ -199,7 +138,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
   end
 
   def handle_info(
-        {:added_new_transaction_summary, tx_summary = %TransactionSummary{}},
+        {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}},
         socket = %{
           assigns:
             assigns = %{
@@ -307,4 +246,70 @@ defmodule ArchEthicWeb.BeaconChainLive do
 
   defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, []}
   defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
+
+  defp list_transaction_by_date(date = %DateTime{}) do
+    Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
+      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
+      node_list = P2P.authorized_nodes()
+      nodes = Election.beacon_storage_nodes(subset, date, node_list)
+
+      Enum.reduce(nodes, acc, fn node, acc ->
+        Map.update(acc, node, [b_address], &[b_address | &1])
+      end)
+    end)
+    |> Stream.transform([], fn
+      {_, []}, acc ->
+        {[], acc}
+
+      {node, addresses}, acc ->
+        addresses_to_fetch = Enum.reject(addresses, &(&1 in acc))
+
+        case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses_to_fetch}) do
+          {:ok, %BeaconSummaryList{summaries: summaries}} ->
+            summaries_address_resolved =
+              Enum.map(
+                summaries,
+                &Crypto.derive_beacon_chain_address(&1.subset, &1.summary_time, true)
+              )
+
+            {summaries, acc ++ summaries_address_resolved}
+
+          _ ->
+            {[], acc}
+        end
+    end)
+    |> Stream.map(fn %BeaconSummary{transaction_attestations: transaction_attestations} ->
+      Enum.map(transaction_attestations, & &1.transaction_summary)
+    end)
+    |> Stream.flat_map(& &1)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  defp list_transaction_by_date(nil), do: []
+
+  defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
+    %Node{network_patch: patch} = P2P.get_node_info()
+
+    Task.async_stream(BeaconChain.list_subsets(), fn subset ->
+      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
+      node_list = P2P.authorized_nodes()
+      nodes = Election.beacon_storage_nodes(subset, date, node_list)
+
+      case get_beacon_summary_transaction_chain(b_address, nodes, patch) do
+        {:ok, transactions} ->
+          transactions
+          |> Stream.map(&deserialize_beacon_transaction/1)
+          |> Enum.to_list()
+      end
+    end)
+    |> Enum.map(fn {:ok, txs} -> txs end)
+    |> :lists.flatten()
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  defp deserialize_beacon_transaction(%Transaction{data: %TransactionData{content: content}}) do
+    {slot, _} = Slot.deserialize(content)
+    %Slot{transaction_attestations: transaction_attestations} = slot
+    Enum.map(transaction_attestations, & &1.transaction_summary)
+  end
 end

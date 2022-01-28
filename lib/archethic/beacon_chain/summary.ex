@@ -4,29 +4,32 @@ defmodule ArchEthic.BeaconChain.Summary do
   containing transactions, node updates
   """
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
-
   alias ArchEthic.BeaconChain.Subset.P2PSampling
 
   alias ArchEthic.P2P.Node
+
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   alias ArchEthic.Utils
 
   defstruct [
     :subset,
     :summary_time,
-    transaction_summaries: [],
+    transaction_attestations: [],
     node_availabilities: <<>>,
-    node_average_availabilities: []
+    node_average_availabilities: [],
+    version: 1
   ]
 
   @type t :: %__MODULE__{
           subset: binary(),
           summary_time: DateTime.t(),
-          transaction_summaries: list(TransactionSummary.t()),
+          transaction_attestations: list(ReplicationAttestation.t()),
           node_availabilities: bitstring(),
-          node_average_availabilities: list(float())
+          node_average_availabilities: list(float()),
+          version: pos_integer()
         }
 
   @doc """
@@ -52,13 +55,15 @@ defmodule ArchEthic.BeaconChain.Summary do
       iex> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_summaries: [
-      ...>     %TransactionSummary{
-      ...>       address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>       type: :transfer,
-      ...>       timestamp: ~U[2020-06-25 15:11:53Z]
-      ...>      }
+      ...>   transaction_attestations: [
+      ...>     %ReplicationAttestation {
+      ...>       transaction_summary: %TransactionSummary{
+      ...>         address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>              99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+      ...>         type: :transfer,
+      ...>         timestamp: ~U[2020-06-25 15:11:53Z]
+      ...>       }
+      ...>     }
       ...>   ],
       ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1>>}
       ...>  },
@@ -71,30 +76,34 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...>   %Node{first_public_key: "key3", enrollment_date: ~U[2020-06-25 15:11:00Z]}
       ...> ])
       %Summary{
-          transaction_summaries: [
-            %TransactionSummary{
-                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                        99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-                type: :transfer,
-                timestamp: ~U[2020-06-25 15:11:53Z]
+          transaction_attestations: [
+            %ReplicationAttestation{
+              transaction_summary: %TransactionSummary{
+                  address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+                  type: :transfer,
+                  timestamp: ~U[2020-06-25 15:11:53Z]
+              }
             }
           ],
         node_availabilities: <<1::1, 1::1, 1::1>>,
         node_average_availabilities: [0.75, 0.75, 0.50]
       }
 
-    ### Aggregate the P2P view and the transaction summaries with new node joining during the beacon chain epoch
+    ### Aggregate the P2P view and the transaction attestations with new node joining during the beacon chain epoch
 
       iex> Summary.aggregate_slots(%Summary{}, [
       ...>  %Slot{
       ...>   slot_time: ~U[2020-06-25 15:12:00Z],
-      ...>   transaction_summaries: [
-      ...>     %TransactionSummary{
-      ...>       address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>       type: :transfer,
-      ...>       timestamp: ~U[2020-06-25 15:11:53Z]
-      ...>      }
+      ...>   transaction_attestations: [
+      ...>     %ReplicationAttestation {
+      ...>        transaction_summary: %TransactionSummary{
+      ...>          address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>               99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+      ...>          type: :transfer,
+      ...>          timestamp: ~U[2020-06-25 15:11:53Z]
+      ...>        }
+      ...>     }
       ...>   ],
       ...>   p2p_view: %{ availabilities: <<1::1, 0::1, 1::1, 1::1>>}
       ...>  },
@@ -108,14 +117,16 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...>   %Node{first_public_key: "key4", enrollment_date: ~U[2020-06-25 15:11:45Z]}
       ...> ])
       %Summary{
-          transaction_summaries: [
-            %TransactionSummary{
-                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                        99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-                type: :transfer,
-                timestamp: ~U[2020-06-25 15:11:53Z]
+        transaction_attestations: [
+          %ReplicationAttestation {
+            transaction_summary: %TransactionSummary{
+              address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+              type: :transfer,
+              timestamp: ~U[2020-06-25 15:11:53Z]
             }
-          ],
+          }
+        ],
         node_availabilities: <<1::1, 1::1, 1::1, 1::1>>,
         node_average_availabilities: [0.75, 0.75, 0.50, 1.0]
       }
@@ -127,17 +138,24 @@ defmodule ArchEthic.BeaconChain.Summary do
         ) :: t()
   def aggregate_slots(summary = %__MODULE__{}, slots, subset_nodes) do
     summary
-    |> aggregate_transaction_summaries(slots)
+    |> aggregate_transaction_attestations(slots)
     |> aggregate_availabilities(slots, subset_nodes)
   end
 
-  defp aggregate_transaction_summaries(summary = %__MODULE__{}, slots) do
-    transaction_summaries =
+  defp aggregate_transaction_attestations(summary = %__MODULE__{}, slots) do
+    transaction_attestations =
       slots
-      |> Enum.flat_map(& &1.transaction_summaries)
-      |> Enum.sort_by(& &1.timestamp)
+      |> Enum.flat_map(& &1.transaction_attestations)
+      |> Enum.sort_by(
+        fn %ReplicationAttestation{
+             transaction_summary: %TransactionSummary{timestamp: timestamp}
+           } ->
+          timestamp
+        end,
+        {:asc, DateTime}
+      )
 
-    %{summary | transaction_summaries: transaction_summaries}
+    %{summary | transaction_attestations: transaction_attestations}
   end
 
   defp aggregate_availabilities(summary = %__MODULE__{}, slots, node_list) do
@@ -224,12 +242,12 @@ defmodule ArchEthic.BeaconChain.Summary do
   def from_slot(%Slot{
         subset: subset,
         slot_time: slot_time,
-        transaction_summaries: transaction_summaries
+        transaction_attestations: transaction_attestations
       }) do
     %__MODULE__{
       subset: subset,
       summary_time: slot_time,
-      transaction_summaries: transaction_summaries
+      transaction_attestations: transaction_attestations
     }
   end
 
@@ -241,13 +259,25 @@ defmodule ArchEthic.BeaconChain.Summary do
       iex> %Summary{
       ...>   subset: <<0>>,
       ...>   summary_time: ~U[2021-01-20 00:00:00Z],
-      ...>   transaction_summaries: [
-      ...>     %TransactionSummary{
-      ...>        address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-      ...>        timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>        type: :transfer,
-      ...>        movements_addresses: []
+      ...>   transaction_attestations: [
+      ...>     %ReplicationAttestation {
+      ...>       transaction_summary: %TransactionSummary{
+      ...>          address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+      ...>          timestamp: ~U[2020-06-25 15:11:53Z],
+      ...>          type: :transfer,
+      ...>          movements_addresses: []
+      ...>       },
+      ...>       confirmations: [{0, <<255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
+      ...>         170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
+      ...>         210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
+      ...>         213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253>>}],
+      ...>       signature: <<174, 139, 201, 61, 249, 211, 132, 132, 25, 154, 173, 49, 242, 237, 0, 90, 208,
+      ...>         42, 22, 219, 195, 249, 5, 2, 189, 44, 239, 219, 197, 35, 199, 142, 253, 120,
+      ...>         252, 255, 103, 108, 249, 31, 22, 209, 176, 17, 179, 240, 203, 110, 10, 58,
+      ...>         168, 109, 152, 132, 226, 107, 247, 176, 24, 91, 121, 41, 110, 73>>,
+      ...>       node_public_key: <<0, 0, 108, 38, 151, 199, 14, 108, 103, 216, 182, 27, 220, 2, 205, 231, 140, 33, 119,
+      ...>         140, 99, 151, 160, 179, 202, 155, 23, 227, 200, 234, 61, 170, 62, 85>>
       ...>     }
       ...>   ],
       ...>   node_availabilities: <<1::1, 1::1>>,
@@ -255,12 +285,16 @@ defmodule ArchEthic.BeaconChain.Summary do
       ...> }
       ...> |> Summary.serialize()
       <<
+      # Version
+      1,
       # Subset
       0,
       # Summary time
       96, 7, 114, 128,
-      # Nb transactions summaries
+      # Nb transactions attestations
       0, 0, 0, 1,
+      # Replication attestation version
+      1,
       # Transaction address
       0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
@@ -270,6 +304,27 @@ defmodule ArchEthic.BeaconChain.Summary do
       253,
       # Nb movement addresses
       0, 0,
+      # Validation node public key
+      0, 0, 108, 38, 151, 199, 14, 108, 103, 216, 182, 27, 220, 2, 205, 231, 140, 33, 119,
+      140, 99, 151, 160, 179, 202, 155, 23, 227, 200, 234, 61, 170, 62, 85,
+      # Signature size
+      64,
+      # Validation node signature
+      174, 139, 201, 61, 249, 211, 132, 132, 25, 154, 173, 49, 242, 237, 0, 90, 208,
+      42, 22, 219, 195, 249, 5, 2, 189, 44, 239, 219, 197, 35, 199, 142, 253, 120,
+      252, 255, 103, 108, 249, 31, 22, 209, 176, 17, 179, 240, 203, 110, 10, 58,
+      168, 109, 152, 132, 226, 107, 247, 176, 24, 91, 121, 41, 110, 73,
+      # Nb confirmations
+      1,
+      # Replication storage node position
+      0,
+      # Replication Storage node signature size
+      64,
+      # Replication storage node signature
+      255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
+      170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
+      210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
+      213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253,
       # Nb Node availabilities
       0, 2,
       # Availabilities
@@ -281,15 +336,16 @@ defmodule ArchEthic.BeaconChain.Summary do
   """
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
+        version: 1,
         subset: subset,
         summary_time: summary_time,
-        transaction_summaries: transaction_summaries,
+        transaction_attestations: transaction_attestations,
         node_availabilities: node_availabilities,
         node_average_availabilities: node_average_availabilities
       }) do
-    transaction_summaries_bin =
-      transaction_summaries
-      |> Enum.map(&TransactionSummary.serialize/1)
+    transaction_attestations_bin =
+      transaction_attestations
+      |> Enum.map(&ReplicationAttestation.serialize/1)
       |> :erlang.list_to_binary()
 
     node_average_availabilities_bin =
@@ -299,9 +355,10 @@ defmodule ArchEthic.BeaconChain.Summary do
       end)
       |> :erlang.list_to_binary()
 
-    <<subset::binary, DateTime.to_unix(summary_time)::32, length(transaction_summaries)::32,
-      transaction_summaries_bin::binary, bit_size(node_availabilities)::16,
-      node_availabilities::bitstring, node_average_availabilities_bin::binary>>
+    <<1::8, subset::binary, DateTime.to_unix(summary_time)::32,
+      length(transaction_attestations)::32, transaction_attestations_bin::binary,
+      bit_size(node_availabilities)::16, node_availabilities::bitstring,
+      node_average_availabilities_bin::binary>>
   end
 
   @doc """
@@ -309,22 +366,44 @@ defmodule ArchEthic.BeaconChain.Summary do
 
   ## Examples
 
-      iex> <<0, 96, 7, 114, 128, 0, 0, 0, 1, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      iex> <<1, 0, 96, 7, 114, 128, 0, 0, 0, 1, 1, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...> 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
       ...> 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0,
+      ...> 0, 0, 108, 38, 151, 199, 14, 108, 103, 216, 182, 27, 220, 2, 205, 231, 140, 33, 119,
+      ...> 140, 99, 151, 160, 179, 202, 155, 23, 227, 200, 234, 61, 170, 62, 85,
+      ...> 64, 174, 139, 201, 61, 249, 211, 132, 132, 25, 154, 173, 49, 242, 237, 0, 90, 208,
+      ...> 42, 22, 219, 195, 249, 5, 2, 189, 44, 239, 219, 197, 35, 199, 142, 253, 120,
+      ...> 252, 255, 103, 108, 249, 31, 22, 209, 176, 17, 179, 240, 203, 110, 10, 58,
+      ...> 168, 109, 152, 132, 226, 107, 247, 176, 24, 91, 121, 41, 110, 73,
+      ...> 1, 0, 64, 255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
+      ...> 170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
+      ...> 210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
+      ...> 213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253,
       ...> 0, 2, 1::1, 1::1, 100, 100>>
       ...> |> Summary.deserialize()
       {
       %Summary{
           subset: <<0>>,
           summary_time: ~U[2021-01-20 00:00:00Z],
-          transaction_summaries: [
-            %TransactionSummary{
-                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-                99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
-                timestamp: ~U[2020-06-25 15:11:53.000Z],
-                type: :transfer,
-                movements_addresses: []
+          transaction_attestations: [
+            %ReplicationAttestation{
+              transaction_summary:  %TransactionSummary{
+                  address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                  99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
+                  timestamp: ~U[2020-06-25 15:11:53.000Z],
+                  type: :transfer,
+                  movements_addresses: []
+              },
+              confirmations: [{0, <<255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
+                170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
+                210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
+                213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253>>}],
+              signature: <<174, 139, 201, 61, 249, 211, 132, 132, 25, 154, 173, 49, 242, 237, 0, 90, 208,
+                42, 22, 219, 195, 249, 5, 2, 189, 44, 239, 219, 197, 35, 199, 142, 253, 120,
+                252, 255, 103, 108, 249, 31, 22, 209, 176, 17, 179, 240, 203, 110, 10, 58,
+                168, 109, 152, 132, 226, 107, 247, 176, 24, 91, 121, 41, 110, 73>>,
+              node_public_key: <<0, 0, 108, 38, 151, 199, 14, 108, 103, 216, 182, 27, 220, 2, 205, 231, 140, 33, 119,
+                140, 99, 151, 160, 179, 202, 155, 23, 227, 200, 234, 61, 170, 62, 85>>
             }
           ],
           node_availabilities: <<1::1, 1::1>>,
@@ -335,9 +414,11 @@ defmodule ArchEthic.BeaconChain.Summary do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(
-        <<subset::8, summary_timestamp::32, nb_transaction_summaries::32, rest::bitstring>>
+        <<1::8, subset::8, summary_timestamp::32, nb_transaction_attestations::32,
+          rest::bitstring>>
       ) do
-    {transaction_summaries, rest} = deserialize_tx_summaries(rest, nb_transaction_summaries, [])
+    {transaction_attestations, rest} =
+      deserialize_tx_attestations(rest, nb_transaction_attestations, [])
 
     <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
       rest
@@ -349,22 +430,22 @@ defmodule ArchEthic.BeaconChain.Summary do
     {%__MODULE__{
        subset: <<subset>>,
        summary_time: DateTime.from_unix!(summary_timestamp),
-       transaction_summaries: transaction_summaries,
+       transaction_attestations: transaction_attestations,
        node_availabilities: availabilities,
        node_average_availabilities: node_average_availabilities
      }, rest}
   end
 
-  defp deserialize_tx_summaries(rest, 0, _acc), do: {[], rest}
+  defp deserialize_tx_attestations(rest, 0, _acc), do: {[], rest}
 
-  defp deserialize_tx_summaries(rest, nb_tx_summaries, acc)
-       when length(acc) == nb_tx_summaries do
+  defp deserialize_tx_attestations(rest, nb_tx_attestations, acc)
+       when length(acc) == nb_tx_attestations do
     {Enum.reverse(acc), rest}
   end
 
-  defp deserialize_tx_summaries(rest, nb_tx_summaries, acc) do
-    {tx_summary, rest} = TransactionSummary.deserialize(rest)
-    deserialize_tx_summaries(rest, nb_tx_summaries, [tx_summary | acc])
+  defp deserialize_tx_attestations(rest, nb_tx_attestations, acc) do
+    {tx_attestation, rest} = ReplicationAttestation.deserialize(rest)
+    deserialize_tx_attestations(rest, nb_tx_attestations, [tx_attestation | acc])
   end
 
   @doc """
@@ -407,7 +488,7 @@ defmodule ArchEthic.BeaconChain.Summary do
   """
   @spec empty?(t()) :: boolean()
   def empty?(%__MODULE__{
-        transaction_summaries: [],
+        transaction_attestations: [],
         node_availabilities: <<>>,
         node_average_availabilities: []
       }),

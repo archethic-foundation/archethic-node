@@ -30,25 +30,25 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     {:ok, subset: <<0>>, pid: pid}
   end
 
-  test "add_transaction_summary/2 should publish a transaction into the next beacon block", %{
-    subset: subset,
-    pid: pid
-  } do
-    tx_time = DateTime.utc_now()
-    tx_address = :crypto.strong_rand_bytes(32)
+  # test "add_transaction_summary/2 should publish a transaction into the next beacon block", %{
+  #   subset: subset,
+  #   pid: pid
+  # } do
+  #   tx_time = DateTime.utc_now()
+  #   tx_address = :crypto.strong_rand_bytes(32)
 
-    Subset.add_transaction_summary(subset, %TransactionSummary{
-      address: tx_address,
-      timestamp: tx_time,
-      type: :node
-    })
+  #   Subset.add_transaction_summary(subset, %TransactionSummary{
+  #     address: tx_address,
+  #     timestamp: tx_time,
+  #     type: :node
+  #   })
 
-    assert %{
-             current_slot: %Slot{
-               transaction_summaries: [%TransactionSummary{address: ^tx_address}]
-             }
-           } = :sys.get_state(pid)
-  end
+  #   assert %{
+  #            current_slot: %Slot{
+  #              transaction_summaries: [%TransactionSummary{address: ^tx_address}]
+  #            }
+  #          } = :sys.get_state(pid)
+  # end
 
   test "add_end_of_node_sync/2 should insert end of node synchronization in the beacon slot", %{
     subset: subset,
@@ -65,155 +65,234 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
            } = :sys.get_state(pid)
   end
 
-  test "new slot is created when receive a :create_slot message", %{subset: subset, pid: pid} do
-    tx_time = DateTime.utc_now()
-    tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+  describe "handle_info/1" do
+    test "new transaction summary is added to the slot and include the storage node confirmation",
+         %{pid: pid} do
+      tx_time = DateTime.utc_now()
+      tx_address = :crypto.strong_rand_bytes(32)
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: Crypto.first_node_public_key(),
-      last_public_key: Crypto.first_node_public_key(),
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      tx_summary = %TransactionSummary{
+        address: tx_address,
+        timestamp: tx_time,
+        type: :node
+      }
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-      last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: DateTime.utc_now()
-    })
+      sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
+      node_public_key = Crypto.last_node_public_key()
 
-    Subset.add_transaction_summary(subset, %TransactionSummary{
-      address: tx_address,
-      timestamp: tx_time,
-      type: :keychain,
-      movements_addresses: [
-        <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
-          210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-        <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40, 24,
-          44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
-      ]
-    })
+      send(pid, {:new_transaction_summary, tx_summary, node_public_key, sig})
 
-    public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    ready_time = DateTime.utc_now()
+      assert %{
+               current_slot: %Slot{
+                 transaction_summaries: [
+                   %TransactionSummary{
+                     address: ^tx_address,
+                     confirmations: [{^node_public_key, ^sig}]
+                   }
+                 ]
+               }
+             } = :sys.get_state(pid)
+    end
 
-    Subset.add_end_of_node_sync(subset, %EndOfNodeSync{
-      public_key: public_key,
-      timestamp: ready_time
-    })
+    test "new transaction summary's confirmation added to the slot",
+         %{pid: pid} do
+      tx_time = DateTime.utc_now()
+      tx_address = :crypto.strong_rand_bytes(32)
 
-    me = self()
+      tx_summary = %TransactionSummary{
+        address: tx_address,
+        timestamp: tx_time,
+        type: :node
+      }
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %NewBeaconTransaction{transaction: tx}, _ ->
-        send(me, {:beacon_tx, tx})
-        {:ok, %Ok{}}
+      tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
-      _, %Ping{}, _ ->
-        Process.sleep(10)
-        {:ok, %Ok{}}
-    end)
+      sig1 = Crypto.sign_with_last_node_key(tx_summary_payload)
+      node1_public_key = Crypto.last_node_public_key()
 
-    send(pid, {:create_slot, DateTime.utc_now()})
+      {node2_public_key, node2_private_key} = Crypto.generate_deterministic_keypair("node2")
+      sig2 = Crypto.sign(tx_summary_payload, node2_private_key)
 
-    assert_receive {:beacon_tx,
-                    %Transaction{type: :beacon, data: %TransactionData{content: content}}}
+      send(pid, {:new_transaction_summary, tx_summary, node1_public_key, sig1})
+      send(pid, {:new_transaction_summary, tx_summary, node2_public_key, sig2})
 
-    assert {%Slot{transaction_summaries: [%TransactionSummary{address: ^tx_address}]}, _} =
-             Slot.deserialize(content)
-  end
+      assert %{
+               current_slot: %Slot{
+                 transaction_summaries: [
+                   %TransactionSummary{
+                     address: ^tx_address,
+                     confirmations: confirmations
+                   }
+                 ]
+               }
+             } = :sys.get_state(pid)
 
-  test "new summary is created when the slot time is the summary time", %{
-    subset: subset,
-    pid: pid
-  } do
-    tx_time = DateTime.utc_now()
-    tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      confirmed_public_keys =
+        Enum.map(
+          confirmations,
+          &elem(&1, 0)
+        )
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key:
-        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-      last_public_key:
-        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: ~U[2020-09-01 00:00:00Z]
-    })
+      assert Enum.all?(confirmed_public_keys, &(&1 in [node1_public_key, node2_public_key]))
+    end
 
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      first_public_key:
-        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-      last_public_key:
-        <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      available?: true,
-      authorized?: true,
-      authorization_date: ~U[2020-09-01 00:00:00Z]
-    })
+    test "new slot is created when receive a :create_slot message", %{pid: pid} do
+      tx_time = DateTime.utc_now()
+      tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-    tx_summary = %TransactionSummary{
-      address: tx_address,
-      timestamp: tx_time,
-      type: :keychain,
-      movements_addresses: [
-        <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
-          210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-        <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40, 24,
-          44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
-      ]
-    }
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    Subset.add_transaction_summary(subset, tx_summary)
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
 
-    MockClient
-    |> stub(:send_message, fn
-      _, %NewBeaconTransaction{transaction: tx}, _ ->
-        send(self(), {:beacon_tx, tx})
-        {:ok, %Ok{}}
+      tx_summary = %TransactionSummary{
+        address: tx_address,
+        timestamp: tx_time,
+        type: :keychain,
+        movements_addresses: [
+          <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
+            210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+          <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
+            24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
+        ]
+      }
 
-      _, %Ping{}, _ ->
-        Process.sleep(10)
-        {:ok, %Ok{}}
-    end)
+      tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
-    MockDB
-    |> stub(:write_transaction, fn %Transaction{
-                                     type: :beacon,
-                                     data: %TransactionData{content: content}
-                                   },
-                                   _ ->
-      {%Slot{
-         subset: ^subset,
-         p2p_view: %{
-           availabilities: <<1::1, 1::1>>,
-           network_stats: [%{latency: 0}, %{latency: 0}]
-         }
-       }, _} = Slot.deserialize(content)
+      sig1 = Crypto.sign_with_last_node_key(tx_summary_payload)
+      node1_public_key = Crypto.last_node_public_key()
 
-      :ok
-    end)
+      {node2_public_key, node2_private_key} = Crypto.generate_deterministic_keypair("node2")
+      sig2 = Crypto.sign(tx_summary_payload, node2_private_key)
 
-    send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
-    Process.sleep(500)
+      send(pid, {:new_transaction_summary, tx_summary, node1_public_key, sig1})
+
+      me = self()
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %NewBeaconTransaction{transaction: tx}, _ ->
+          send(me, {:beacon_tx, tx})
+          {:ok, %Ok{}}
+
+        _, %Ping{}, _ ->
+          Process.sleep(10)
+          {:ok, %Ok{}}
+      end)
+
+      Process.sleep(200)
+
+      send(pid, {:create_slot, DateTime.utc_now()})
+
+      assert_receive {:beacon_tx,
+                      %Transaction{type: :beacon, data: %TransactionData{content: content}}}
+
+      assert {%Slot{
+                transaction_summaries: [
+                  %TransactionSummary{address: ^tx_address, confirmations: [{_, _}, {_, _}]}
+                ]
+              }, _} = Slot.deserialize(content)
+    end
+
+    # test "new summary is created when the slot time is the summary time", %{
+    #   subset: subset,
+    #   pid: pid
+    # } do
+    #   tx_time = DateTime.utc_now()
+    #   tx_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+    #   P2P.add_and_connect_node(%Node{
+    #     ip: {127, 0, 0, 1},
+    #     port: 3000,
+    #     first_public_key:
+    #       <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+    #     last_public_key:
+    #       <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+    #     geo_patch: "AAA",
+    #     network_patch: "AAA",
+    #     available?: true,
+    #     authorized?: true,
+    #     authorization_date: ~U[2020-09-01 00:00:00Z]
+    #   })
+
+    #   P2P.add_and_connect_node(%Node{
+    #     ip: {127, 0, 0, 1},
+    #     port: 3000,
+    #     first_public_key:
+    #       <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+    #     last_public_key:
+    #       <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+    #     geo_patch: "AAA",
+    #     network_patch: "AAA",
+    #     available?: true,
+    #     authorized?: true,
+    #     authorization_date: ~U[2020-09-01 00:00:00Z]
+    #   })
+
+    #   tx_summary = %TransactionSummary{
+    #     address: tx_address,
+    #     timestamp: tx_time,
+    #     type: :keychain,
+    #     movements_addresses: [
+    #       <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
+    #         210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+    #       <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
+    #         24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
+    #     ]
+    #   }
+
+    #   Subset.add_transaction_summary(subset, tx_summary)
+
+    #   MockClient
+    #   |> stub(:send_message, fn
+    #     _, %NewBeaconTransaction{transaction: tx}, _ ->
+    #       send(self(), {:beacon_tx, tx})
+    #       {:ok, %Ok{}}
+
+    #     _, %Ping{}, _ ->
+    #       Process.sleep(10)
+    #       {:ok, %Ok{}}
+    #   end)
+
+    #   MockDB
+    #   |> stub(:write_transaction, fn %Transaction{
+    #                                    type: :beacon,
+    #                                    data: %TransactionData{content: content}
+    #                                  },
+    #                                  _ ->
+    #     {%Slot{
+    #        subset: ^subset,
+    #        p2p_view: %{
+    #          availabilities: <<1::1, 1::1>>,
+    #          network_stats: [%{latency: 0}, %{latency: 0}]
+    #        }
+    #      }, _} = Slot.deserialize(content)
+
+    #     :ok
+    #   end)
+
+    #   send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
+    #   Process.sleep(500)
+    # end
   end
 
   test "subscribed nodes are being getting subscribed & added to beacon pool directly via subset",

@@ -6,7 +6,6 @@ defmodule ArchEthic.BeaconChain do
 
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.Slot.Validation, as: SlotValidation
 
   alias ArchEthic.BeaconChain.SlotTimer
@@ -18,14 +17,17 @@ defmodule ArchEthic.BeaconChain do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
+  alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Message.RegisterBeaconUpdates
-
-  alias ArchEthic.PubSub
 
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
+
+  alias ArchEthic.Utils
 
   require Logger
 
@@ -67,18 +69,6 @@ defmodule ArchEthic.BeaconChain do
   @spec subset_from_address(binary()) :: binary()
   def subset_from_address(address) do
     :binary.part(address, 1, 1)
-  end
-
-  @doc """
-  Add a transaction to the beacon chain
-  """
-  @spec add_transaction_summary(Transaction.t()) :: :ok
-  def add_transaction_summary(tx = %Transaction{address: address}) do
-    address
-    |> subset_from_address()
-    |> Subset.add_transaction_summary(TransactionSummary.from_transaction(tx))
-
-    PubSub.notify_new_transaction(address)
   end
 
   @doc """
@@ -149,8 +139,8 @@ defmodule ArchEthic.BeaconChain do
       address != Crypto.derive_beacon_chain_address(subset, slot_time) ->
         {:error, :invalid_address}
 
-      !SlotValidation.valid_transaction_summaries?(slot) ->
-        {:error, :invalid_transaction_summaries}
+      !SlotValidation.valid_transaction_attestations?(slot) ->
+        {:error, :invalid_transaction_attestations}
 
       !SlotValidation.valid_end_of_node_sync?(slot) ->
         {:error, :invalid_end_of_node_sync}
