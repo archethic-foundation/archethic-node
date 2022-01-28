@@ -900,8 +900,13 @@ defmodule ArchEthic.Crypto do
       79>>
 
   """
-  @spec hash(data :: iodata(), algo :: supported_hash(), curve :: supported_curve()) :: versioned_hash()
-  def hash(data, algo \\ Application.get_env(:archethic, __MODULE__)[:default_hash], curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve])
+  @spec hash(data :: iodata(), algo :: supported_hash(), curve :: supported_curve()) ::
+          versioned_hash()
+  def hash(
+        data,
+        algo \\ Application.get_env(:archethic, __MODULE__)[:default_hash],
+        curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve]
+      )
 
   def hash(data, algo, curve) when is_bitstring(data) or is_list(data) do
     data
