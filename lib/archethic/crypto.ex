@@ -870,45 +870,27 @@ defmodule ArchEthic.Crypto do
   ## Examples
 
       iex> Crypto.hash("myfakedata", :sha256)
-      <<0, 0, 78, 137, 232, 16, 150, 235, 9, 199, 74, 41, 189, 246, 110, 65, 252, 17,
+      <<0, 78, 137, 232, 16, 150, 235, 9, 199, 74, 41, 189, 246, 110, 65, 252, 17,
       139, 109, 23, 172, 84, 114, 35, 202, 102, 41, 167, 23, 36, 230, 159, 35>>
 
       iex> Crypto.hash("myfakedata", :blake2b)
-      <<0, 4, 244, 16, 24, 144, 16, 67, 113, 164, 214, 115, 237, 113, 126, 130, 76, 128,
+      <<4, 244, 16, 24, 144, 16, 67, 113, 164, 214, 115, 237, 113, 126, 130, 76, 128,
       99, 78, 223, 60, 179, 158, 62, 239, 245, 85, 4, 156, 10, 2, 94, 95, 19, 166,
       170, 147, 140, 117, 1, 169, 132, 113, 202, 217, 193, 56, 112, 193, 62, 134,
       145, 233, 114, 41, 228, 164, 180, 225, 147, 2, 33, 192, 42, 184>>
 
       iex> Crypto.hash("myfakedata", :sha3_256)
-      <<0, 2, 157, 219, 54, 234, 186, 251, 4, 122, 216, 105, 185, 228, 211, 94, 44, 94,
+      <<2, 157, 219, 54, 234, 186, 251, 4, 122, 216, 105, 185, 228, 211, 94, 44, 94,
       104, 147, 182, 189, 45, 28, 219, 218, 236, 19, 66, 87, 121, 240, 249, 218>>
-
-      iex> Crypto.hash("myfakedata", :sha3_256, :secp256r1)
-      <<1, 2, 157, 219, 54, 234, 186, 251, 4, 122, 216, 105, 185, 228, 211, 94, 44,
-      94, 104, 147, 182, 189, 45, 28, 219, 218, 236, 19, 66, 87, 121, 240, 249,
-      218>>
-
-      iex> Crypto.hash("myfakedata", :sha256, :secp256r1)
-      <<1, 0, 78, 137, 232, 16, 150, 235, 9, 199, 74, 41, 189, 246, 110, 65, 252, 17,
-      139, 109, 23, 172, 84, 114, 35, 202, 102, 41, 167, 23, 36, 230, 159, 35>>
-
-      iex> Crypto.hash("myfakedata", :sha3_512, :secp256k1)
-      <<2, 3, 246, 79, 229, 212, 114, 97, 157, 35, 82, 18, 248, 67, 193, 237, 138,
-      228, 53, 152, 195, 165, 151, 62, 234, 214, 109, 112, 248, 143, 20, 122, 10,
-      170, 188, 188, 220, 106, 237, 22, 11, 10, 229, 205, 245, 212, 136, 113, 96,
-      40, 39, 178, 66, 196, 121, 249, 153, 100, 124, 55, 118, 152, 203, 139, 125,
-      79>>
-
   """
-  @spec hash(data :: iodata(), algo :: supported_hash(), curve :: supported_curve()) :: versioned_hash()
-  def hash(data, algo \\ Application.get_env(:archethic, __MODULE__)[:default_hash], curve \\ Application.get_env(:archethic, __MODULE__)[:default_curve])
+  @spec hash(data :: iodata(), algo :: supported_hash()) :: versioned_hash()
+  def hash(data, algo \\ Application.get_env(:archethic, __MODULE__)[:default_hash])
 
-  def hash(data, algo, curve) when is_bitstring(data) or is_list(data) do
+  def hash(data, algo) when is_bitstring(data) or is_list(data) do
     data
     |> Utils.wrap_binary()
     |> do_hash(algo)
     |> ID.prepend_hash(algo)
-    |> ID.prepend_curve(curve)
   end
 
   defp do_hash(data, :sha256), do: :crypto.hash(:sha256, data)
@@ -984,21 +966,11 @@ defmodule ArchEthic.Crypto do
   Determine if a hash is valid
   """
   @spec valid_hash?(binary()) :: boolean()
-  def valid_hash?(<<0::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
   def valid_hash?(_), do: false
 
   @doc """
