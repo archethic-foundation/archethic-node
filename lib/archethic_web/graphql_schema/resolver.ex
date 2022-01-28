@@ -111,4 +111,9 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
       }
     )
   end
+
+  def network_transactions(type, page) do
+    TransactionChain.list_transactions_by_type(type, [])
+    |> paginate_transactions(page)
+  end
 end

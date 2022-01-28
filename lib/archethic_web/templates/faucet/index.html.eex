@@ -24,6 +24,13 @@
           </button>
         </div>
       </form>
+      <br>
+            Don't have a wallet address? Learn how to create a new one!
+            <br>
+            <br>
+            <a href="https://uniris.io/blog/introducing-archethic-testnet-faucet/" target="_blank" ><button class="button is-light " >
+            Read Blog
+        </button></a>
     </h2>
   </div>
 </div>
