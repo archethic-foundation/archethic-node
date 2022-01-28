@@ -9,6 +9,8 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
 
   alias ArchEthicWeb.GraphQLSchema.Resolver
 
+  alias ArchEthic.TransactionChain.Transaction
+
   @desc "[Transaction] represents a unitary transaction in the ArchEthic network."
   object :transaction do
     field(:version, :integer)
@@ -90,13 +92,11 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   object :ownership do
     field(:secret, :hex)
 
-    field(:authorized_public_keys, list_of(list_of(:authorized_key))) do
-      resolve(fn _, %{source: %{authorized_public_keys: authorized_keys}} ->
+    field(:authorized_public_keys, list_of(:authorized_key)) do
+      resolve(fn _, %{source: %{authorized_keys: authorized_keys}} ->
         formatted_authorized_keys =
-          Enum.map(authorized_keys, fn authorized_keys_by_secret ->
-            Enum.map(authorized_keys_by_secret, fn {public_key, encrypted_secret_key} ->
-              %{public_key: public_key, encrypted_secret_key: encrypted_secret_key}
-            end)
+          Enum.map(authorized_keys, fn {public_key, encrypted_secret_key} ->
+            %{public_key: public_key, encrypted_secret_key: encrypted_secret_key}
           end)
 
         {:ok, formatted_authorized_keys}
@@ -236,4 +236,31 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:address, :hex)
     field(:amount, :amount)
   end
+
+  @desc """
+  The [TransactionType] scalar type represents a transaction type 
+  """
+  scalar :transaction_type do
+    serialize(&Atom.to_string/1)
+    parse(&parse_type/1)
+  end
+
+  @spec parse_type(Absinthe.Blueprint.Input.String.t()) ::
+          {:ok, Transaction.transaction_type()} | :error
+  defp parse_type(%Absinthe.Blueprint.Input.String{value: tx_type}) do
+    transaction_types =
+      Transaction.types()
+      |> Enum.map(&{Atom.to_string(&1), &1})
+      |> Enum.into(%{})
+
+    case Map.get(transaction_types, tx_type) do
+      nil ->
+        :error
+
+      tx_type ->
+        {:ok, tx_type}
+    end
+  end
+
+  defp parse_type(_), do: :error
 end

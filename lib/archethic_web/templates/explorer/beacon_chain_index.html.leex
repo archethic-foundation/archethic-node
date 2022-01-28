@@ -1,6 +1,13 @@
-<h1 class="subtitle is-size-4 heading has-text-white">Beacon chain</h2>
+<article class="message is-info">
+  <div class="message-header ">
+   <h1 class="subtitle is-size-4 heading has-text-white">Beacon chain</h2>
+  </div>
+  <div class="message-body">
+    Beacon Chains are the entire summary of all the transactions based on time slots of the <strong>ARCHEThic</strong> P2P network.
+    Since no node has the physical ability to know the status of each transaction in an unlimited network, Beacon Chains are a specific set of transaction chains responsible for the global synchronization of the network. </a>   </div>
+</article>
+<p class="heading is-size-7 has-text-white">Last Changes From <span><%= format_date(@update_time) %></span></p>
 
-<p class="heading is-size-7 has-text-white">Next Beacon Summary Time <span><%= format_date(@next_summary_time) %></span></p>
 
   <div class="columns">
     <div class="column">
@@ -21,20 +28,18 @@
     </div>
   </div>
 
-
-  <div class="columns">
+<div class="columns">
     <div class="column">
       <div class="box">
-      <%= if Enum.count(@dates)!= 0  do %>
-        <p class="heading is-size-6">Transaction chain for <%=  format_date(Enum.at(@dates, @current_date_page - 1)) %></p>
-        <%else %>
-          <p class="heading is-size-6">Transaction chain for <%=  format_date(@next_summary_time) %></p>
-
-          <p> There is no transaction yet</p>
-      <% end %>
+        <p class="heading is-size-6">Transaction chain for <%=format_date(Enum.at(@dates, @current_date_page - 1))%></p>
         <div class="columns mt-6">
           <div class="column">
-        <%= for tx <- @transactions do %>
+    
+      <%= if @fetching do %>
+        <p>Loading transaction chain...</p>
+      <% end %>
+
+      <%= for tx <- @transactions do %>
           <div class="columns">
             <div class="column is-5-desktop">
               <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>

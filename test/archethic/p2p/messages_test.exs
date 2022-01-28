@@ -37,6 +37,7 @@ defmodule ArchEthic.P2P.MessageTest do
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.P2PView
   alias ArchEthic.P2P.Message.Ping
+  alias ArchEthic.P2P.Message.RegisterBeaconUpdates
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Message.StartMining
   alias ArchEthic.P2P.Message.TransactionChainLength
@@ -831,6 +832,22 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "Error message" do
       msg = %Error{reason: :invalid_transaction}
+
+      assert msg ==
+               msg
+               |> Message.encode()
+               |> Message.decode()
+               |> elem(0)
+    end
+
+    test "Register beacon updates" do
+      subset = <<0>>
+      node_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      msg = %RegisterBeaconUpdates{
+        subset: subset,
+        node_public_key: node_public_key
+      }
 
       assert msg ==
                msg

@@ -139,7 +139,7 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
     slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
 
     Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
-
+    PubSub.notify_current_epoch_of_slot_timer(slot_time)
     Enum.each(list_subset_processes(), &send(&1, {:create_slot, slot_time}))
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
