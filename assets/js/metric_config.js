@@ -35,22 +35,23 @@ import * as echarts from 'echarts';
 
 function get_visuals_dom(){
   var metric_object , x_axis_data;
-  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 
-  return    metric_object = {
+  return    metric_object = 
+  {
     seconds_after_loading_of_this_graph: 0,
     x_axis_data: x_axis_data ,
-   archethic_mining_proof_of_work_duration:   generateEchartObjects( 'Duration(ms):Proof of Work ','archethic_mining_proof_of_work_duration',x_axis_data),
+     archethic_mining_proof_of_work_duration:   generateEchartObjects( 'Duration(ms):Proof of Work ','archethic_mining_proof_of_work_duration',x_axis_data),
    archethic_mining_full_transaction_validation_duration:   generateEchartObjects('Full Transaction Validation','archethic_mining_full_transaction_validation_duration',x_axis_data),
-  tps:   document.getElementById("tps"),
-  archethic_p2p_send_message_duration : generate_echart_guage("archethic_p2p_send_message_duration", 'archethic_p2p_send_message_duration')
+      tps : generate_echart_guage("Transaction-Per-Second", 'tps' ,"tps"),
+      archethic_p2p_send_message_duration: generate_echart_guage("P2P-Send-Message-Duration", 'archethic_p2p_send_message_duration',"ms"),
   };
 }
 
   function generateEchartObjects(heading , echartContainer ,  x_axis_data){
     var y_axis_data = 
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0, 0];
     var chart = echarts.init(document.getElementById(echartContainer));
   
     var option= {
@@ -102,19 +103,19 @@ function get_visuals_dom(){
   }
 
  
-  function generate_echart_guage(heading , eguageContainer  ){
+  function generate_echart_guage(heading , eguageContainer ,units ){
     var guage= echarts.init(document.getElementById(eguageContainer));
   
     var guage_options ={
       title: {
         left: 'center',
-        text: `${heading}(ms)`
+        text: `${heading}`
       },
     series: [
       {
         
         type: 'gauge',
-        center: ['50%', '60%'],
+        center: ['50%', '75%'],
         startAngle: 200,
         endAngle: -20,
         min: 0,
@@ -170,7 +171,7 @@ function get_visuals_dom(){
           offsetCenter: [0, '-15%'],
           fontSize: 20,
           fontWeight: 'bolder',
-          formatter: '{value} (ms)',
+          formatter: `{value} (${units})`,
           color: 'auto'
         },
         data: [
@@ -183,7 +184,7 @@ function get_visuals_dom(){
      guage_options && guage.setOption(guage_options);
   
   
-    return guage
+    return {"guage": guage , "max": 1}
   }
   
 
@@ -199,15 +200,20 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
         data: chart_obj.ydata
       }]
     });
+    console.log("asdasdasd=>",points[point_name])
   }
 
-function update_card_data(card_obj , points ,point_name ){
-    card_obj.textContent = points[point_name]
-  }
+// function update_card_data(card_obj , points ,point_name ){
+//     card_obj.textContent = points[point_name]
+//   }
   
 function update_guage_data(guage_obj , points , point_name )
 {
-  guage_obj.setOption({series: [{data: [{ value: points[point_name] }]}]});
+  var data = points[point_name];
+  if(guage_obj.max <  data ){
+    guage_obj.max = data
+  }
+  guage_obj.guage.setOption({series: [{ max:guage_obj.max ,data: [{ value: data }]}]});
 }
 
 
@@ -222,23 +228,22 @@ function update_network_live_visuals(network_metric_obj , points){
 }
 
 function update_live_visuals(metric_obj , points){
-  metric_obj.seconds_after_loading_of_this_graph+= 5;
+  console.log()
+  metric_obj.seconds_after_loading_of_this_graph+= 10;
   var shifted = metric_obj.x_axis_data.shift();
   metric_obj.x_axis_data.push(metric_obj.seconds_after_loading_of_this_graph);
+  console.log("-------",metric_obj.x_axis_data);
   update_chart_data(metric_obj.archethic_mining_proof_of_work_duration, metric_obj.x_axis_data ,points, "archethic_mining_proof_of_work_duration" );
-  //5
   update_chart_data( metric_obj.archethic_mining_full_transaction_validation_duration , metric_obj.x_axis_data ,points, "archethic_mining_full_transaction_validation_duration" );
- 
   update_guage_data( metric_obj.archethic_p2p_send_message_duration , points, "archethic_p2p_send_message_duration" );
-
-  update_chart_data(metric_obj.tps , points ,"tps" )
+  update_guage_data( metric_obj.tps , points, "tps" );
 
     return metric_obj;
 }
 
 function create_explorer_live_visuals(){
   var obj , x_axis_data;
-  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0, 0];
    obj =  {  
      seconds_after_loading_of_this_graph: 0,
      x_axis_data:  x_axis_data,

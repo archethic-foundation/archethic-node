@@ -84,9 +84,7 @@ Hooks.network_charts = {
       console.log(points);
       console.log("------------------")
       points = metric_config_obj.structure_metric_points(points)
-      console.log("=================")
-      console.log(points);
-      console.log("=================")
+     
       network_metric_obj = metric_config_obj.update_network_live_visuals(network_metric_obj , points);
       
     });
