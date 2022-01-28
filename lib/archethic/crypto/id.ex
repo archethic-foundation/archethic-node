@@ -90,6 +90,11 @@ defmodule ArchEthic.Crypto.ID do
     <<from_hash(algorithm)::8, hash::binary>>
   end
 
+  @spec prepend_curve(binary(), Crypto.supported_curve()) :: <<_::8, _::_*8>>
+  def prepend_curve(hash, curve) do
+    <<from_curve(curve)::8, hash::binary>>
+  end
+
   @doc """
   Prepend each keys by the identifying curve and the origin
 
