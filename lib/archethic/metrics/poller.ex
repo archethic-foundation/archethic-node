@@ -20,15 +20,13 @@ defmodule ArchEthic.Metrics.Poller do
   end
 
   def periodic_metric_aggregation() do
-    Process.send_after(self(), {:periodic_calculation_of_points}, 5_000)
+    Process.send_after(self(), {:periodic_calculation_of_points}, 10_000)
   end
 
   def send_updates(%{data: data, pid_refs: pid_refs}) do
-    Enum.each(pid_refs, fn {pid_k, _pid_v} ->
-      Task.start(fn ->
-        send(pid_k, {:update_data, data})
-      end)
-    end)
+    pid_refs
+    |> Task.async_stream(fn {pid_k, _pid_v} -> send(pid_k, {:update_data, data}) end)
+    |> Stream.run()
   end
 
   def monitor() do

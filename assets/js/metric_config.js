@@ -191,6 +191,8 @@ function get_visuals_dom(){
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   var shifted =     chart_obj.ydata.shift();
     chart_obj.ydata.push(points[point_name]);
+    // chart_obj.ydata.push(Math.random());
+
     chart_obj.chart.setOption({
       xAxis: {
         data: x_axis_data
@@ -200,7 +202,6 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
         data: chart_obj.ydata
       }]
     });
-    console.log("asdasdasd=>",points[point_name])
   }
 
 // function update_card_data(card_obj , points ,point_name ){
@@ -209,7 +210,9 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   
 function update_guage_data(guage_obj , points , point_name )
 {
-  var data = points[point_name];
+  var data = (points[point_name]).toFixed(0);
+  // var data = (Math.random()*100).toFixed(0);
+
   if(guage_obj.max <  data ){
     guage_obj.max = data
   }
