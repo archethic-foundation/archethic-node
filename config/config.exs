@@ -101,7 +101,7 @@ config :archethic, ArchEthicWeb.Endpoint,
     layout: {ArchEthicWeb.LayoutView, "live.html"}
   ]
 
-config :archethic, ArchEthic.Mining, timeout: 3_000
+config :archethic, ArchEthic.Mining, timeout: 60_000
 
 config :archethic, ArchEthic.OracleChain,
   services: [
