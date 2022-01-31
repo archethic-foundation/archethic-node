@@ -44,6 +44,12 @@ defmodule ArchEthicWeb.TransactionSubscriber do
          }},
         state
       ) do
+    Subscription.publish(
+      Endpoint,
+      %{address: tx_address, nb_confirmations: length(confirmations)},
+      transaction_confirmed: tx_address
+    )
+
     case Map.pop(state, tx_address) do
       {nil, state} ->
         {:noreply, state}
@@ -52,12 +58,6 @@ defmodule ArchEthicWeb.TransactionSubscriber do
         :telemetry.execute([:archethic, :transaction_end_to_end_validation], %{
           duration: System.monotonic_time() - start_time
         })
-
-        Subscription.publish(
-          Endpoint,
-          %{address: tx_address, confirmations: length(confirmations)},
-          attest_transaction: tx_address
-        )
 
         {:noreply, state}
     end

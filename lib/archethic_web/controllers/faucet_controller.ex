@@ -3,6 +3,8 @@ defmodule ArchEthicWeb.FaucetController do
 
   use ArchEthicWeb, :controller
 
+  alias ArchEthic.Crypto
+
   alias ArchEthic.TransactionChain.{
     Transaction,
     TransactionData,
@@ -10,7 +12,7 @@ defmodule ArchEthicWeb.FaucetController do
     TransactionData.UCOLedger
   }
 
-  alias ArchEthic.Crypto
+  alias ArchEthicWeb.TransactionSubscriber
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
 
@@ -41,6 +43,8 @@ defmodule ArchEthicWeb.FaucetController do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_hash?(recipient_address),
          {:ok, tx_address} <- transfer(recipient_address) do
+      TransactionSubscriber.register(tx_address, System.monotonic_time())
+
       conn
       |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
       |> put_resp_header("pragma", "no-cache")
