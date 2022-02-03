@@ -20,6 +20,7 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.AcknowledgeStorage
+  alias ArchEthic.P2P.Message.Error
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Message.ReplicateTransactionChain
   alias ArchEthic.P2P.Node
@@ -151,6 +152,8 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
         acc
     end
   end
+
+  defp reduce_confirmations(%Error{}, _acc), do: raise("Invalid transaction")
 
   defp notify(%{
          confirmations: confirmations,

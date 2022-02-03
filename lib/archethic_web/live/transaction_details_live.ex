@@ -31,6 +31,9 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
         PubSub.register_to_new_transaction_by_address(Base.decode16!(address, case: :mixed))
         {:noreply, handle_not_existing_transaction(socket, Base.decode16!(address, case: :mixed))}
 
+      {:error, :invalid_transaction} ->
+        {:noreply, assign(socket, :ko, true)}
+
       _ ->
         {:noreply, handle_invalid_address(socket, address)}
     end
