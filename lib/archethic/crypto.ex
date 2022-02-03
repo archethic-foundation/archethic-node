@@ -920,12 +920,15 @@ defmodule ArchEthic.Crypto do
     <<1, 4, 26, 243, 32, 71, 95, 147, 6, 64, 254, 170, 221, 155, 83, 216, 75, 147, 255, 23, 33, 219, 222, 211, 162, 67, 100, 63, 75, 101, 183, 247, 158, 80, 169, 78, 112, 131, 176, 191, 40, 87, 45, 96, 181, 185, 74, 55, 85, 138, 240, 110, 164, 165, 219, 183, 138, 173, 188, 124, 125, 216, 194, 106, 186, 204>>
   """
   @spec derive_address(publicKey :: key(), algo :: supported_hash()) :: prepended_hash()
-  def derive_address(publicKey, algo \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_hash]) do
+  def derive_address(
+        publicKey,
+        algo \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_hash]
+      ) do
     <<curve_type::8, _rest::binary>> = publicKey
 
     publicKey
-      |>hash(algo)
-      |>ID.prepend_curve(curve_type)
+    |> hash(algo)
+    |> ID.prepend_curve(curve_type)
   end
 
   @doc """
