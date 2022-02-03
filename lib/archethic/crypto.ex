@@ -69,6 +69,13 @@ defmodule ArchEthic.Crypto do
   @type versioned_hash :: <<_::8, _::_*8>>
 
   @typedoc """
+  Binary representing a hash prepend by two bytes
+  - first byte to identify the curve type
+  - second byte to identify hash algorithm of the generated hash
+  """
+  @type prepended_hash :: <<_::16, _::_*8>>
+
+  @typedoc """
   Binary representing a key prepend by two bytes:
   - to identify the elliptic curve for a key
   - to identify the origin of the key derivation (software, TPM)
@@ -898,6 +905,28 @@ defmodule ArchEthic.Crypto do
   defp do_hash(data, :sha3_256), do: :crypto.hash(:sha3_256, data)
   defp do_hash(data, :sha3_512), do: :crypto.hash(:sha3_512, data)
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
+
+  @doc """
+  Generate an address as per ARCHEthic specification
+
+  The fist-byte representing the curve type second-byte representing hash algorithm used and rest is the hash of publicKey as per ARCHEthic specifications .
+
+  ## Examples
+
+    iex> Crypto.derive_address(<<0, 0, 157, 113, 213, 254, 97, 210, 136, 32, 204, 38, 221, 110, 231, 27, 163, 73, 150, 202, 185, 91, 170, 254, 165, 166, 45, 60, 50, 23, 27, 157, 72, 46>>)
+    <<0, 0, 237, 169, 64, 209, 51, 194, 0, 226, 46, 145, 26, 40, 146, 74, 122, 110, 128, 42, 139, 127, 93, 18, 43, 122, 169, 201, 243, 117, 73, 18, 230, 168>>
+
+    iex> Crypto.derive_address(<<1, 0, 4, 248, 44, 107, 181, 219, 4, 20, 188, 213, 46, 31, 29, 116, 140, 39, 108, 242, 117, 190, 25, 128, 173, 250, 36, 119, 76, 23, 39, 168, 210, 107, 180, 174, 216, 221, 151, 80, 232, 26, 8, 236, 107, 115, 135, 147, 42, 38, 86, 78, 197, 95, 163, 64, 214, 91, 47, 62, 99, 103, 63, 150, 41, 25, 39>>, :blake2b)
+    <<1, 4, 26, 243, 32, 71, 95, 147, 6, 64, 254, 170, 221, 155, 83, 216, 75, 147, 255, 23, 33, 219, 222, 211, 162, 67, 100, 63, 75, 101, 183, 247, 158, 80, 169, 78, 112, 131, 176, 191, 40, 87, 45, 96, 181, 185, 74, 55, 85, 138, 240, 110, 164, 165, 219, 183, 138, 173, 188, 124, 125, 216, 194, 106, 186, 204>>
+  """
+  @spec derive_address(publicKey :: key(), algo :: supported_hash()) :: prepended_hash()
+  def derive_address(publicKey, algo \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_hash]) do
+    <<curve_type::8, _rest::binary>> = publicKey
+
+    publicKey
+      |>hash(algo)
+      |>ID.prepend_curve(curve_type)
+  end
 
   @doc """
   Hash the data using the storage nonce stored in memory
