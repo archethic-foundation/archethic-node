@@ -149,7 +149,6 @@ defmodule ArchEthic.Mining do
           address :: binary(),
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes_keys :: list(Crypto.key()),
-          cross_validation_nodes_view :: bitstring(),
           chain_storage_nodes_view :: bitstring(),
           beacon_storage_nodes_view :: bitstring()
         ) ::
@@ -158,7 +157,6 @@ defmodule ArchEthic.Mining do
         tx_address,
         validation_node_public_key,
         previous_storage_nodes_keys,
-        cross_validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       ) do
@@ -167,7 +165,6 @@ defmodule ArchEthic.Mining do
     |> DistributedWorkflow.add_mining_context(
       validation_node_public_key,
       P2P.get_nodes_info(previous_storage_nodes_keys),
-      cross_validation_nodes_view,
       chain_storage_nodes_view,
       beacon_storage_nodes_view
     )

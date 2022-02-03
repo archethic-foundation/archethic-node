@@ -90,7 +90,11 @@ defmodule ArchEthic.Mining.TransactionContext.NodeDistribution do
       end)
 
     if Enum.all?(split, &(length(&1) == sample_size)) do
-      Enum.map(split, &Enum.reverse/1)
+      Enum.map(split, fn list ->
+        list
+        |> Enum.reverse()
+        |> Enum.uniq_by(& &1.first_public_key)
+      end)
     else
       do_split(storage_nodes, nb_sublist, sample_size, split)
     end

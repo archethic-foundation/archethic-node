@@ -56,13 +56,11 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
       )
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
-     beacon_storage_nodes_view,
-     validation_nodes_view} =
+     beacon_storage_nodes_view} =
       TransactionContext.get(
         Transaction.previous_address(tx),
         Enum.map(chain_storage_nodes, & &1.last_public_key),
-        Enum.map(beacon_storage_nodes, & &1.last_public_key),
-        [Crypto.last_node_public_key()]
+        Enum.map(beacon_storage_nodes, & &1.last_public_key)
       )
 
     valid_pending_transaction? =
@@ -87,8 +85,7 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
       unspent_outputs,
       previous_storage_nodes,
       chain_storage_nodes_view,
-      beacon_storage_nodes_view,
-      validation_nodes_view
+      beacon_storage_nodes_view
     )
     |> validate()
     |> replicate_and_aggregate_confirmations()

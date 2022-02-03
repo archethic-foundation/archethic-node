@@ -28,37 +28,38 @@ defmodule ArchEthic.Mining.TransactionContext do
   @spec get(
           previous_tx_address :: binary(),
           chain_storage_node_public_keys :: list(Crypto.key()),
-          beacon_storage_nodes_public_keys :: list(Crypto.key()),
-          validation_node_public_keys :: list(Crypto.key())
+          beacon_storage_nodes_public_keys :: list(Crypto.key())
         ) ::
-          {Transaction.t(), list(UnspentOutput.t()), list(Node.t()), bitstring(), bitstring(),
-           bitstring()}
+          {Transaction.t(), list(UnspentOutput.t()), list(Node.t()), bitstring(), bitstring()}
   def get(
         previous_address,
         chain_storage_node_public_keys,
-        beacon_storage_nodes_public_keys,
-        validation_node_public_keys
+        beacon_storage_node_public_keys
       ) do
-    nodes_distribution = previous_nodes_distribution(previous_address, 5, 3)
+    nodes_distribution = previous_nodes_distribution(previous_address, 2, 3)
 
-    context =
+    node_public_keys =
+      (chain_storage_node_public_keys ++
+         beacon_storage_node_public_keys)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    {prev_tx, utxos, nodes_view, involved_nodes} =
       wrap_async_queries(
         previous_address,
-        chain_storage_node_public_keys,
-        beacon_storage_nodes_public_keys,
-        validation_node_public_keys,
+        node_public_keys,
         nodes_distribution
       )
-      |> Enum.reduce(%{}, &reduce_tasks/2)
 
-    {
-      Map.get(context, :previous_transaction),
-      Map.get(context, :unspent_outputs, []),
-      Map.get(context, :previous_storage_nodes, []),
-      Map.get(context, :chain_storage_nodes_view, <<>>),
-      Map.get(context, :beacon_storage_nodes_view, <<>>),
-      Map.get(context, :validation_nodes_view, <<>>)
-    }
+    {chain_storage_nodes_view, beacon_storage_nodes_view} =
+      aggregate_views(
+        nodes_view,
+        node_public_keys,
+        chain_storage_node_public_keys,
+        beacon_storage_node_public_keys
+      )
+
+    {prev_tx, utxos, involved_nodes, chain_storage_nodes_view, beacon_storage_nodes_view}
   end
 
   defp previous_nodes_distribution(previous_address, nb_sub_lists, sample_size) do
@@ -73,105 +74,106 @@ defmodule ArchEthic.Mining.TransactionContext do
 
   defp wrap_async_queries(
          previous_address,
-         chain_storage_node_public_keys,
-         beacon_storage_nodes_public_keys,
-         validation_node_public_keys,
+         node_public_keys,
          _nodes_distribution = [
            prev_tx_nodes_split,
-           unspent_outputs_nodes_split,
-           chain_storage_nodes_view_split,
-           beacon_storage_nodes_view_split,
-           validation_nodes_view_split
+           unspent_outputs_nodes_split
          ]
        ) do
-    [
-      prev_tx: fn ->
+    prev_tx_task =
+      Task.async(fn ->
         DataFetcher.fetch_previous_transaction(previous_address, prev_tx_nodes_split)
-      end,
-      utxo: fn ->
-        DataFetcher.fetch_unspent_outputs(
-          previous_address,
-          unspent_outputs_nodes_split
-        )
-      end,
-      chain_nodes_view: fn ->
-        DataFetcher.fetch_p2p_view(
-          chain_storage_node_public_keys,
-          chain_storage_nodes_view_split
-        )
-      end,
-      beacon_nodes_view: fn ->
-        DataFetcher.fetch_p2p_view(
-          beacon_storage_nodes_public_keys,
-          beacon_storage_nodes_view_split
-        )
-      end,
-      validation_nodes_view: fn ->
-        DataFetcher.fetch_p2p_view(validation_node_public_keys, validation_nodes_view_split)
+      end)
+
+    utxo_task =
+      Task.async(fn ->
+        DataFetcher.fetch_unspent_outputs(previous_address, unspent_outputs_nodes_split)
+      end)
+
+    nodes_view_task = Task.async(fn -> DataFetcher.fetch_p2p_view(node_public_keys) end)
+
+    {prev_tx, prev_tx_node_involved} =
+      case Task.await(prev_tx_task) do
+        {:ok, tx, node_involved} ->
+          {tx, node_involved}
+
+        {:error, :not_found} ->
+          {nil, nil}
+
+        {:error, :invalid_transaction} ->
+          raise "Invalid previous transaction"
       end
-    ]
-    |> Task.async_stream(
-      fn {domain, fun} ->
-        {domain, fun.()}
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.map(&elem(&1, 1))
+
+    {:ok, utxos, utxo_node_involved} = Task.await(utxo_task)
+    nodes_view = Task.await(nodes_view_task)
+
+    involved_nodes =
+      [prev_tx_node_involved, utxo_node_involved]
+      |> Enum.filter(& &1)
+      |> P2P.distinct_nodes()
+
+    {prev_tx, utxos, nodes_view, involved_nodes}
   end
 
-  defp reduce_tasks({_, {:error, _}}, acc), do: acc
-
-  defp reduce_tasks(
-         {:prev_tx, {:ok, prev_tx = %Transaction{}, node = %Node{}}},
-         acc
+  defp aggregate_views(
+         nodes_view,
+         node_public_keys,
+         chain_storage_node_public_keys,
+         beacon_storage_node_public_keys
        ) do
-    acc
-    |> Map.put(:previous_transaction, prev_tx)
-    |> Map.update(
-      :previous_storage_nodes,
-      [node],
-      &P2P.distinct_nodes([node | &1])
-    )
+    %{chain_nodes_view: chain_nodes_view, beacon_nodes_view: beacon_nodes_view} =
+      ArchEthic.Utils.bitstring_to_integer_list(nodes_view)
+      |> Enum.with_index()
+      |> Enum.reduce(
+        %{
+          chain_nodes_view: Enum.to_list(1..length(chain_storage_node_public_keys)),
+          beacon_nodes_view: Enum.to_list(1..length(beacon_storage_node_public_keys))
+        },
+        &reduce_nodes_view(
+          &1,
+          &2,
+          node_public_keys,
+          chain_storage_node_public_keys,
+          beacon_storage_node_public_keys
+        )
+      )
+      |> Map.update!(:chain_nodes_view, &:erlang.list_to_bitstring/1)
+      |> Map.update!(:beacon_nodes_view, &:erlang.list_to_bitstring/1)
+
+    {chain_nodes_view, beacon_nodes_view}
   end
 
-  defp reduce_tasks({:utxo, {:ok, unspent_outputs, node = %Node{}}}, acc) do
-    acc
-    |> Map.put(:unspent_outputs, unspent_outputs)
-    |> Map.update(
-      :previous_storage_nodes,
-      [node],
-      &P2P.distinct_nodes([node | &1])
-    )
-  end
+  defp reduce_nodes_view(
+         {availability, index},
+         acc,
+         node_public_keys,
+         chain_storage_node_public_keys,
+         beacon_storage_node_public_keys
+       ) do
+    node_public_key = Enum.at(node_public_keys, index)
 
-  defp reduce_tasks({:chain_nodes_view, {:ok, view, node = %Node{}}}, acc) do
-    acc
-    |> Map.put(:chain_storage_nodes_view, view)
-    |> Map.update(
-      :previous_storage_nodes,
-      [node],
-      &P2P.distinct_nodes([node | &1])
-    )
-  end
+    chain_index = Enum.find_index(chain_storage_node_public_keys, &(&1 == node_public_key))
 
-  defp reduce_tasks({:beacon_nodes_view, {:ok, view, node = %Node{}}}, acc) do
-    acc
-    |> Map.put(:beacon_storage_nodes_view, view)
-    |> Map.update(
-      :previous_storage_nodes,
-      [node],
-      &P2P.distinct_nodes([node | &1])
-    )
-  end
+    beacon_index = Enum.find_index(beacon_storage_node_public_keys, &(&1 == node_public_key))
 
-  defp reduce_tasks({:validation_nodes_view, {:ok, view, node = %Node{}}}, acc) do
     acc
-    |> Map.put(:validation_nodes_view, view)
-    |> Map.update(
-      :previous_storage_nodes,
-      [node],
-      &P2P.distinct_nodes([node | &1])
-    )
+    |> Map.update!(:chain_nodes_view, fn view ->
+      case chain_index do
+        nil ->
+          view
+
+        _ ->
+          List.replace_at(view, index, <<availability::1>>)
+      end
+    end)
+    |> Map.update!(:beacon_nodes_view, fn view ->
+      case beacon_index do
+        nil ->
+          view
+
+        _ ->
+          List.replace_at(view, index, <<availability::1>>)
+      end
+    end)
   end
 end

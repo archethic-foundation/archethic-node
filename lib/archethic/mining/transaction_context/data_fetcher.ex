@@ -4,22 +4,28 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcher do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetP2PView
+  alias ArchEthic.P2P.Message.Error
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.P2PView
+  alias ArchEthic.P2P.Message.Ok
+  alias ArchEthic.P2P.Message.Ping
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  require Logger
+
   @doc """
   Retrieve the previous transaction and the first node which replied
   """
   @spec fetch_previous_transaction(binary(), list(Node.t())) ::
-          {:ok, Transaction.t(), Node.t()} | {:error, :not_found} | {:error, :network_issue}
+          {:ok, Transaction.t(), Node.t()}
+          | {:error, :not_found}
+          | {:error, :invalid_transaction}
+          | {:error, :network_issue}
   def fetch_previous_transaction(previous_address, [node | rest]) do
     message = %GetTransaction{address: previous_address}
 
@@ -30,6 +36,9 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcher do
       {:ok, %NotFound{}} ->
         {:error, :not_found}
 
+      {:ok, %Error{reason: :invalid_transaction}} ->
+        {:error, :invalid_transaction}
+
       {:error, _} ->
         fetch_previous_transaction(previous_address, rest)
     end
@@ -38,7 +47,7 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcher do
   def fetch_previous_transaction(_, []), do: {:error, :network_issue}
 
   @doc """
-  Retrieve the previous unspent outputs and the first node which replied
+  Retrieve the previous unspent outputs and the first node which replied.
   """
   @spec fetch_unspent_outputs(address :: binary(), storage_nodes :: list(Node.t())) ::
           {:ok, list(UnspentOutput.t()), Node.t()} | {:error, :network_issue}
@@ -59,22 +68,20 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcher do
   @doc """
   Request to a set a storage nodes the P2P view of some nodes and the first node which replied
   """
-  @spec fetch_p2p_view(
-          node_public_keys :: list(Crypto.key()),
-          storage_nodes :: list(Node.t())
-        ) ::
-          {:ok, p2p_view :: bitstring(), node_involved :: Node.t()} | {:error, :network_issue}
-  def fetch_p2p_view(node_public_keys, [node | rest]) do
-    message = %GetP2PView{node_public_keys: node_public_keys}
-
-    case P2P.send_message(node, message) do
-      {:ok, %P2PView{nodes_view: nodes_view}} ->
-        {:ok, nodes_view, node}
-
-      {:error, _} ->
-        fetch_p2p_view(node_public_keys, rest)
-    end
+  @spec fetch_p2p_view(node_public_keys :: list(Crypto.key())) :: bitstring()
+  def fetch_p2p_view(node_public_keys) do
+    Task.async_stream(
+      node_public_keys,
+      fn node_public_key ->
+        P2P.send_message(node_public_key, %Ping{})
+      end,
+      on_timeout: :kill_task,
+      timeout: 500
+    )
+    |> Enum.map(fn
+      {:ok, {:ok, %Ok{}}} -> <<1::1>>
+      _ -> <<0::1>>
+    end)
+    |> :erlang.list_to_bitstring()
   end
-
-  def fetch_p2p_view(_, []), do: {:error, :network_issue}
 end

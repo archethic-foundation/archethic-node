@@ -13,7 +13,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     unspent_outputs: [],
     cross_validation_stamps: [],
     cross_validation_nodes_confirmation: <<>>,
-    validation_nodes_view: <<>>,
     chain_storage_nodes: [],
     chain_storage_nodes_view: <<>>,
     beacon_storage_nodes: [],
@@ -85,7 +84,6 @@ defmodule ArchEthic.Mining.ValidationContext do
             IO: bitstring()
           },
           cross_validation_stamps: list(CrossValidationStamp.t()),
-          validation_nodes_view: bitstring(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
           valid_pending_transaction?: boolean(),
@@ -574,7 +572,6 @@ defmodule ArchEthic.Mining.ValidationContext do
           list(UnspentOutput.t()),
           list(Node.t()),
           bitstring(),
-          bitstring(),
           bitstring()
         ) :: t()
   def put_transaction_context(
@@ -583,8 +580,7 @@ defmodule ArchEthic.Mining.ValidationContext do
         unspent_outputs,
         previous_storage_nodes,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        validation_nodes_view
+        beacon_storage_nodes_view
       ) do
     context
     |> Map.put(:previous_transaction, previous_transaction)
@@ -592,7 +588,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     |> Map.put(:previous_storage_nodes, previous_storage_nodes)
     |> Map.put(:chain_storage_nodes_view, chain_storage_nodes_view)
     |> Map.put(:beacon_storage_nodes_view, beacon_storage_nodes_view)
-    |> Map.put(:validation_nodes_view, validation_nodes_view)
   end
 
   @doc """
@@ -604,7 +599,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       ...>    previous_storage_nodes: [%Node{first_public_key: "key1"}],
       ...>    chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
       ...>    beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
-      ...>    validation_nodes_view: <<1::1, 1::1, 0::1>>,
       ...>    cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}],
       ...>    cross_validation_nodes_confirmation: <<0::1, 0::1>>
       ...> }
@@ -622,7 +616,6 @@ defmodule ArchEthic.Mining.ValidationContext do
         ],
         chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
         beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
-        validation_nodes_view: <<1::1, 1::1, 1::1>>,
         cross_validation_nodes_confirmation: <<0::1, 1::1>>,
         cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}]
       }
@@ -632,25 +625,22 @@ defmodule ArchEthic.Mining.ValidationContext do
           list(Node.t()),
           bitstring(),
           bitstring(),
-          bitstring(),
           Crypto.key()
         ) :: t()
   def aggregate_mining_context(
         context = %__MODULE__{},
         previous_storage_nodes,
-        validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         from
       )
-      when is_list(previous_storage_nodes) and is_bitstring(validation_nodes_view) and
+      when is_list(previous_storage_nodes) and
              is_bitstring(chain_storage_nodes_view) and
              is_bitstring(beacon_storage_nodes_view) do
     if cross_validation_node?(context, from) do
       context
       |> confirm_validation_node(from)
       |> aggregate_p2p_views(
-        validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       )
@@ -662,21 +652,17 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp aggregate_p2p_views(
          context = %__MODULE__{
-           validation_nodes_view: validation_nodes_view1,
            chain_storage_nodes_view: chain_storage_nodes_view1,
            beacon_storage_nodes_view: beacon_storage_nodes_view1
          },
-         validation_nodes_view2,
          chain_storage_nodes_view2,
          beacon_storage_nodes_view2
        )
-       when is_bitstring(validation_nodes_view2) and is_bitstring(chain_storage_nodes_view2) and
+       when is_bitstring(chain_storage_nodes_view2) and
               is_bitstring(beacon_storage_nodes_view2) do
     %{
       context
-      | validation_nodes_view:
-          Utils.aggregate_bitstring(validation_nodes_view1, validation_nodes_view2),
-        chain_storage_nodes_view:
+      | chain_storage_nodes_view:
           Utils.aggregate_bitstring(chain_storage_nodes_view1, chain_storage_nodes_view2),
         beacon_storage_nodes_view:
           Utils.aggregate_bitstring(beacon_storage_nodes_view1, beacon_storage_nodes_view2)

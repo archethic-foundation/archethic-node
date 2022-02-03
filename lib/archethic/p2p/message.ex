@@ -210,7 +210,6 @@ defmodule ArchEthic.P2P.Message do
   def encode(%AddMiningContext{
         address: address,
         validation_node_public_key: validation_node_public_key,
-        validation_nodes_view: validation_nodes_view,
         chain_storage_nodes_view: chain_storage_nodes_view,
         beacon_storage_nodes_view: beacon_storage_nodes_view,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys
@@ -218,7 +217,6 @@ defmodule ArchEthic.P2P.Message do
     <<8::8, address::binary, validation_node_public_key::binary,
       length(previous_storage_nodes_public_keys)::8,
       :erlang.list_to_binary(previous_storage_nodes_public_keys)::binary,
-      bit_size(validation_nodes_view)::8, validation_nodes_view::bitstring,
       bit_size(chain_storage_nodes_view)::8, chain_storage_nodes_view::bitstring,
       bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring>>
   end
@@ -547,9 +545,7 @@ defmodule ArchEthic.P2P.Message do
     {previous_storage_nodes_keys, rest} =
       deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
 
-    <<validation_nodes_view_size::8,
-      validation_nodes_view::bitstring-size(validation_nodes_view_size),
-      chain_storage_nodes_view_size::8,
+    <<chain_storage_nodes_view_size::8,
       chain_storage_nodes_view::bitstring-size(chain_storage_nodes_view_size),
       beacon_storage_nodes_view_size::8,
       beacon_storage_nodes_view::bitstring-size(beacon_storage_nodes_view_size),
@@ -558,7 +554,6 @@ defmodule ArchEthic.P2P.Message do
     {%AddMiningContext{
        address: <<hash_id::8, address::binary>>,
        validation_node_public_key: <<curve_id::8, origin_id::8, key::binary>>,
-       validation_nodes_view: validation_nodes_view,
        chain_storage_nodes_view: chain_storage_nodes_view,
        beacon_storage_nodes_view: beacon_storage_nodes_view,
        previous_storage_nodes_public_keys: previous_storage_nodes_keys
@@ -1102,7 +1097,6 @@ defmodule ArchEthic.P2P.Message do
         address: tx_address,
         validation_node_public_key: validation_node,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys,
-        validation_nodes_view: validation_nodes_view,
         chain_storage_nodes_view: chain_storage_nodes_view,
         beacon_storage_nodes_view: beacon_storage_nodes_view
       }) do
@@ -1111,7 +1105,6 @@ defmodule ArchEthic.P2P.Message do
         tx_address,
         validation_node,
         previous_storage_nodes_public_keys,
-        validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       )
