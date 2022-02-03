@@ -1145,15 +1145,6 @@ defmodule ArchEthic.P2P.Message do
     end
   end
 
-  def process(%AcknowledgeStorage{
-        transaction_summary: tx_summary = %TransactionSummary{},
-        node_public_key: node_public_key,
-        signature: signature
-      }) do
-    Mining.acknowledge_storage(tx_summary, node_public_key, signature)
-    %Ok{}
-  end
-
   def process(%CrossValidate{
         address: tx_address,
         validation_stamp: stamp,

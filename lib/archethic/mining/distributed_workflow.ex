@@ -26,9 +26,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   alias ArchEthic.Mining.WorkflowRegistry
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.AddMiningContext
   alias ArchEthic.P2P.Message.CrossValidate
   alias ArchEthic.P2P.Message.CrossValidationDone
+  alias ArchEthic.P2P.Message.Error
   alias ArchEthic.P2P.Message.ReplicateTransactionChain
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
@@ -57,7 +59,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
           worker_pid :: pid(),
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes :: list(Node.t()),
-          cross_validation_nodes_view :: bitstring(),
           chain_storage_nodes_view :: bitstring(),
           beacon_storage_nodes_view :: bitstring()
         ) ::
@@ -66,14 +67,13 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         pid,
         validation_node_public_key,
         previous_storage_nodes,
-        cross_validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       ) do
     GenStateMachine.cast(
       pid,
       {:add_mining_context, validation_node_public_key, previous_storage_nodes,
-       cross_validation_nodes_view, chain_storage_nodes_view, beacon_storage_nodes_view}
+       chain_storage_nodes_view, beacon_storage_nodes_view}
     )
   end
 
@@ -111,14 +111,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   @spec add_cross_validation_stamp(worker_pid :: pid(), stamp :: CrossValidationStamp.t()) :: :ok
   def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}) do
     GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
-  end
-
-  @doc """
-  Add an acknowledgment from a storage node about the transaction replication
-  """
-  @spec acknowledge_storage(pid(), TransactionSummary.t(), Crypto.key(), binary()) :: :ok
-  def acknowledge_storage(pid, tx_summary = %TransactionSummary{}, node_public_key, signature) do
-    GenStateMachine.cast(pid, {:add_ack_storage, tx_summary, node_public_key, signature})
   end
 
   def init(opts) do
@@ -254,10 +246,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
           context:
             context = %ValidationContext{
               transaction: tx,
-              coordinator_node: %Node{last_public_key: coordinator_key},
               chain_storage_nodes: chain_storage_nodes,
-              beacon_storage_nodes: beacon_storage_nodes,
-              cross_validation_nodes: cross_validation_nodes
+              beacon_storage_nodes: beacon_storage_nodes
             }
         }
       ) do
@@ -269,13 +259,11 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     start = System.monotonic_time()
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
-     beacon_storage_nodes_view,
-     validation_nodes_view} =
+     beacon_storage_nodes_view} =
       TransactionContext.get(
         Transaction.previous_address(tx),
         Enum.map(chain_storage_nodes, & &1.last_public_key),
-        Enum.map(beacon_storage_nodes, & &1.last_public_key),
-        [coordinator_key | Enum.map(cross_validation_nodes, & &1.last_public_key)]
+        Enum.map(beacon_storage_nodes, & &1.last_public_key)
       )
 
     now = System.monotonic_time()
@@ -301,8 +289,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         unspent_outputs,
         previous_storage_nodes,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        validation_nodes_view
+        beacon_storage_nodes_view
       )
 
     Logger.info("Transaction context retrieved",
@@ -375,8 +362,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
   def handle_event(
         :cast,
-        {:add_mining_context, from, previous_storage_nodes, validation_nodes_view,
-         chain_storage_nodes_view, beacon_storage_nodes_view},
+        {:add_mining_context, from, previous_storage_nodes, chain_storage_nodes_view,
+         beacon_storage_nodes_view},
         :coordinator,
         data = %{
           context:
@@ -395,7 +382,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         ValidationContext.aggregate_mining_context(
           context,
           previous_storage_nodes,
-          validation_nodes_view,
           chain_storage_nodes_view,
           beacon_storage_nodes_view,
           from
@@ -608,16 +594,23 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   end
 
   def handle_event(
-        :cast,
+        :info,
         {:add_ack_storage, tx_summary, node_public_key, signature},
         :replication,
         data = %{start_time: start_time, context: context = %ValidationContext{transaction: tx}}
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
-         ^tx_summary <- TransactionSummary.from_transaction(tx),
+         validated_tx <- ValidationContext.get_validated_transaction(context),
+         ^tx_summary <- TransactionSummary.from_transaction(validated_tx),
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
+      Logger.debug("Received ack storage",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type,
+        node: Base.encode16(node_public_key)
+      )
+
       new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
 
       if ValidationContext.enough_storage_confirmations?(new_context) do
@@ -649,15 +642,17 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         _data = %{
           context:
             context = %ValidationContext{
-              transaction: tx,
               welcome_node: welcome_node = %Node{},
               beacon_storage_nodes: beacon_storage_nodes,
               storage_nodes_confirmations: confirmations
             }
         }
       ) do
+    validated_tx = ValidationContext.get_validated_transaction(context)
+    tx_summary = TransactionSummary.from_transaction(validated_tx)
+
     message = %ReplicationAttestation{
-      transaction_summary: TransactionSummary.from_transaction(tx),
+      transaction_summary: tx_summary,
       confirmations: confirmations
     }
 
@@ -694,7 +689,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
            transaction: %Transaction{address: tx_address, type: tx_type},
            coordinator_node: coordinator_node,
            previous_storage_nodes: previous_storage_nodes,
-           validation_nodes_view: validation_nodes_view,
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view
          },
@@ -710,7 +704,6 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       address: tx_address,
       validation_node_public_key: node_public_key,
       previous_storage_nodes_public_keys: Enum.map(previous_storage_nodes, & &1.last_public_key),
-      validation_nodes_view: validation_nodes_view,
       chain_storage_nodes_view: chain_storage_nodes_view,
       beacon_storage_nodes_view: beacon_storage_nodes_view
     })
@@ -789,6 +782,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       ack_storage?: true
     }
 
+    me = self()
+
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       storage_nodes,
@@ -796,6 +791,19 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       ordered: false,
       on_timeout: :kill_task
     )
+    |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+    |> Stream.map(fn {:ok, {:ok, response}} -> response end)
+    |> Stream.each(fn
+      %Error{} ->
+        send(me, :replication_error)
+
+      %AcknowledgeStorage{
+        transaction_summary: tx_summary,
+        node_public_key: node_public_key,
+        signature: signature
+      } ->
+        send(me, {:add_ack_storage, tx_summary, node_public_key, signature})
+    end)
     |> Stream.run()
   end
 end

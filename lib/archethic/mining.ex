@@ -23,7 +23,6 @@ defmodule ArchEthic.Mining do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -210,20 +209,6 @@ defmodule ArchEthic.Mining do
     tx_address
     |> get_mining_process!()
     |> DistributedWorkflow.add_cross_validation_stamp(stamp)
-  end
-
-  @doc """
-  Add an acknowledgment from a storage node about the transaction replication
-  """
-  @spec acknowledge_storage(TransactionSummary.t(), Crypto.key(), binary()) :: :ok
-  def acknowledge_storage(
-        tx_summary = %TransactionSummary{address: tx_address},
-        node_public_key,
-        signature
-      ) do
-    tx_address
-    |> get_mining_process!()
-    |> DistributedWorkflow.acknowledge_storage(tx_summary, node_public_key, signature)
   end
 
   defp get_mining_process!(tx_address) do
