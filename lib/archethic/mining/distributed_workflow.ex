@@ -595,14 +595,14 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
   def handle_event(
         :info,
-        {:add_ack_storage, tx_summary, node_public_key, signature},
+        {:add_ack_storage, node_public_key, signature},
         :replication,
         data = %{start_time: start_time, context: context = %ValidationContext{transaction: tx}}
       ) do
     with {:ok, node_index} <-
            ValidationContext.get_chain_storage_position(context, node_public_key),
          validated_tx <- ValidationContext.get_validated_transaction(context),
-         ^tx_summary <- TransactionSummary.from_transaction(validated_tx),
+         tx_summary <- TransactionSummary.from_transaction(validated_tx),
          true <-
            Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       Logger.debug("Received ack storage",
@@ -787,22 +787,22 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       storage_nodes,
-      &P2P.send_message(&1, message),
+      fn node ->
+        {P2P.send_message(node, message), node}
+      end,
       ordered: false,
       on_timeout: :kill_task
     )
-    |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
-    |> Stream.map(fn {:ok, {:ok, response}} -> response end)
+    |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
+    |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)
     |> Stream.each(fn
-      %Error{} ->
+      {%Error{}, _node} ->
         send(me, :replication_error)
 
-      %AcknowledgeStorage{
-        transaction_summary: tx_summary,
-        node_public_key: node_public_key,
-        signature: signature
-      } ->
-        send(me, {:add_ack_storage, tx_summary, node_public_key, signature})
+      {%AcknowledgeStorage{
+         signature: signature
+       }, %Node{last_public_key: node_public_key}} ->
+        send(me, {:add_ack_storage, node_public_key, signature})
     end)
     |> Stream.run()
   end

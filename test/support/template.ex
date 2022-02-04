@@ -52,15 +52,23 @@ defmodule ArchEthicCase do
     |> stub(:register_p2p_summary, fn _, _, _, _ -> :ok end)
     |> stub(:get_last_p2p_summaries, fn -> [] end)
     |> stub(:get_bootstrap_info, fn
-      "storage_nonce" -> "nonce"
-      "last_sync_time" -> nil
-      "node_keys_index" -> nil
-      "bootstrapping_seeds" -> nil
+      "storage_nonce" ->
+        "nonce"
+
+      "last_sync_time" ->
+        nil
+
+      "node_keys_index" ->
+        nil
+
+      "bootstrapping_seeds" ->
+        "127.0.0.1:3002:0100044D91A0A1A7CF06A2902D3842F82D2791BCBF3EE6F6DC8DE0F90E53E9991C3CB33684B7B9E66F26E7C9F5302F73C69897BE5F301DE9A63521A08AC4EF34C18728:tcp"
     end)
     |> stub(:set_bootstrap_info, fn _, _ -> :ok end)
 
     {:ok, shared_secrets_counter} = Agent.start_link(fn -> 0 end)
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
+    {:ok, storage_nonce} = Agent.start_link(fn -> "nonce" end)
 
     MockCrypto
     |> stub(:sign_with_first_key, fn data ->
@@ -147,8 +155,8 @@ defmodule ArchEthicCase do
     |> stub(:set_node_shared_secrets_key_index, fn index ->
       Agent.update(shared_secrets_counter, fn _ -> index end)
     end)
-    |> stub(:get_storage_nonce, fn -> "nonce" end)
-    |> stub(:set_storage_nonce, fn _ -> :ok end)
+    |> stub(:get_storage_nonce, fn -> Agent.get(storage_nonce, & &1) end)
+    |> stub(:set_storage_nonce, fn nonce -> Agent.update(storage_nonce, fn _ -> nonce end) end)
 
     MockClient
     |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)

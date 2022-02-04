@@ -3,14 +3,6 @@ defmodule ArchEthic.ReplicationTest do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
-
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
-
   alias ArchEthic.Election
 
   alias ArchEthic.Mining.Fee
@@ -20,7 +12,6 @@ defmodule ArchEthic.ReplicationTest do
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
   alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
@@ -43,8 +34,6 @@ defmodule ArchEthic.ReplicationTest do
   import Mox
 
   setup do
-    start_supervised!({BeaconSlotTimer, [interval: "0 0 * * * *"]})
-
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
@@ -52,113 +41,7 @@ defmodule ArchEthic.ReplicationTest do
     :ok
   end
 
-  describe "chain_storage_node/2" do
-    test "when the transaction is a network transaction, all the nodes are involved" do
-      nodes =
-        Enum.map(1..200, fn i ->
-          %Node{
-            ip: {88, 130, 19, i},
-            port: 3000 + i,
-            last_public_key: :crypto.strong_rand_bytes(32),
-            first_public_key: :crypto.strong_rand_bytes(32),
-            geo_patch: random_patch(),
-            available?: true,
-            authorized?: rem(i, 7) == 0,
-            authorization_date: DateTime.utc_now(),
-            enrollment_date: DateTime.utc_now(),
-            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-          }
-        end)
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-      chain_storage_nodes = Replication.chain_storage_nodes_with_type("@Node1", :node)
-
-      assert Enum.all?(
-               chain_storage_nodes,
-               &(&1.first_public_key in P2P.list_node_first_public_keys())
-             )
-    end
-
-    test "when the transaction is not a network transaction, a shared of nodes is used" do
-      nodes =
-        Enum.map(1..200, fn i ->
-          %Node{
-            ip: {88, 130, 19, i},
-            port: 3000 + i,
-            last_public_key: :crypto.strong_rand_bytes(32),
-            first_public_key: :crypto.strong_rand_bytes(32),
-            geo_patch: random_patch(),
-            available?: true,
-            authorized?: rem(i, 7) == 0,
-            authorization_date: DateTime.utc_now(),
-            enrollment_date: DateTime.utc_now(),
-            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-          }
-        end)
-
-      Enum.each(nodes, &P2P.add_and_connect_node/1)
-
-      chain_storage_nodes =
-        Replication.chain_storage_nodes_with_type("@Alice2", :transfer)
-        |> Enum.map(& &1.last_public_key)
-
-      assert !Enum.all?(nodes, &(&1.last_public_key in chain_storage_nodes))
-    end
-  end
-
-  test "beacon_storage_nodes/2 should list the beacon storage nodes authorized before the transaction timestamp" do
-    nodes = [
-      %Node{
-        ip: {88, 130, 19, 0},
-        port: 3002,
-        last_public_key: :crypto.strong_rand_bytes(32),
-        first_public_key: :crypto.strong_rand_bytes(32),
-        geo_patch: random_patch(),
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now(),
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      },
-      %Node{
-        ip: {88, 130, 19, 1},
-        port: 3005,
-        last_public_key: :crypto.strong_rand_bytes(32),
-        first_public_key: :crypto.strong_rand_bytes(32),
-        geo_patch: random_patch(),
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now(),
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      },
-      %Node{
-        ip: {88, 130, 19, 2},
-        port: 3008,
-        last_public_key: :crypto.strong_rand_bytes(32),
-        first_public_key: :crypto.strong_rand_bytes(32),
-        geo_patch: random_patch(),
-        available?: true,
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-    ]
-
-    Enum.each(nodes, &P2P.add_and_connect_node/1)
-
-    beacon_storage_nodes = Replication.beacon_storage_nodes("@Alice2", DateTime.utc_now())
-
-    beacon_storage_nodes_ip = Enum.map(beacon_storage_nodes, & &1.ip)
-    assert Enum.all?([{88, 130, 19, 2}, {88, 130, 19, 0}], &(&1 in beacon_storage_nodes_ip))
-  end
-
-  defp random_patch do
-    list_char = Enum.concat([?0..?9, ?A..?F])
-    Enum.take_random(list_char, 3) |> List.to_string()
-  end
-
-  test "process_transaction/2" do
+  test "validate_and_store_transaction_chain/2" do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
@@ -172,8 +55,6 @@ defmodule ArchEthic.ReplicationTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
-
-    Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
     me = self()
 
@@ -197,23 +78,46 @@ defmodule ArchEthic.ReplicationTest do
       _, %GetTransactionChain{}, _ ->
         Process.sleep(10)
         {:ok, %TransactionList{transactions: []}}
-
-      _, %ReplicateTransaction{}, _ ->
-        Process.sleep(10)
-        {:ok, %Ok{}}
     end)
 
-    assert :ok = Replication.process_transaction(tx, [:chain, :beacon])
+    assert :ok = Replication.validate_and_store_transaction_chain(tx, [])
 
     Process.sleep(200)
 
     assert_received :replicated
+  end
 
-    subset = BeaconChain.subset_from_address(tx.address)
-    [{pid, _}] = Registry.lookup(BeaconSubsetRegistry, subset)
+  test "validate_and_store_transaction/1" do
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      authorized?: true,
+      last_public_key: Crypto.last_node_public_key(),
+      first_public_key: Crypto.last_node_public_key(),
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
 
-    assert %{current_slot: %Slot{transaction_summaries: [%TransactionSummary{}]}} =
-             :sys.get_state(pid)
+    me = self()
+
+    unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
+    tx = create_valid_transaction(transaction_context(), unspent_outputs)
+
+    MockDB
+    |> expect(:write_transaction, fn _ ->
+      send(me, :replicated)
+      :ok
+    end)
+
+    assert :ok = Replication.validate_and_store_transaction(tx)
+
+    Process.sleep(200)
+
+    assert_received :replicated
   end
 
   defp transaction_context do

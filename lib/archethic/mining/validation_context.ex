@@ -606,7 +606,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       ...>    [%Node{first_public_key: "key2"}],
       ...>    <<1::1, 0::1, 1::1>>,
       ...>    <<1::1, 1::1, 1::1>>,
-      ...>    <<1::1, 1::1, 1::1>>,
       ...>    "key5"
       ...> )
       %ValidationContext{
@@ -617,7 +616,7 @@ defmodule ArchEthic.Mining.ValidationContext do
         chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
         beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
         cross_validation_nodes_confirmation: <<0::1, 1::1>>,
-        cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}]
+        cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}],
       }
   """
   @spec aggregate_mining_context(

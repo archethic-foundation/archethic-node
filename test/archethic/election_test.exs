@@ -5,7 +5,6 @@ defmodule ArchEthic.ElectionTest do
   alias ArchEthic.Election.StorageConstraints
   alias ArchEthic.Election.ValidationConstraints
 
-  alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
@@ -124,7 +123,7 @@ defmodule ArchEthic.ElectionTest do
         Election.validation_nodes(
           tx2,
           "daily_nonce_proof",
-          P2P.authorized_nodes(),
+          authorized_nodes,
           storage_nodes,
           ValidationConstraints.new()
         )
@@ -197,5 +196,107 @@ defmodule ArchEthic.ElectionTest do
                  min_geo_patch_average_availability: fn -> 0.8 end
                })
     end
+  end
+
+  describe "chain_storage_node/2" do
+    test "when the transaction is a network transaction, all the nodes are involved" do
+      nodes =
+        Enum.map(1..200, fn i ->
+          %Node{
+            ip: {88, 130, 19, i},
+            port: 3000 + i,
+            last_public_key: :crypto.strong_rand_bytes(32),
+            first_public_key: :crypto.strong_rand_bytes(32),
+            geo_patch: random_patch(),
+            available?: true,
+            authorized?: rem(i, 7) == 0,
+            authorization_date: DateTime.utc_now(),
+            enrollment_date: DateTime.utc_now(),
+            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+          }
+        end)
+
+      chain_storage_nodes = Election.chain_storage_nodes_with_type("@Node1", :node, nodes)
+      node_public_keys = Enum.map(nodes, & &1.first_public_key)
+
+      assert Enum.all?(
+               chain_storage_nodes,
+               &(&1.first_public_key in node_public_keys)
+             )
+    end
+
+    test "when the transaction is not a network transaction, a shared of nodes is used" do
+      nodes =
+        Enum.map(1..200, fn i ->
+          %Node{
+            ip: {88, 130, 19, i},
+            port: 3000 + i,
+            last_public_key: :crypto.strong_rand_bytes(32),
+            first_public_key: :crypto.strong_rand_bytes(32),
+            geo_patch: random_patch(),
+            available?: true,
+            authorized?: rem(i, 7) == 0,
+            authorization_date: DateTime.utc_now(),
+            enrollment_date: DateTime.utc_now(),
+            reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+          }
+        end)
+
+      chain_storage_nodes =
+        Election.chain_storage_nodes_with_type("@Alice2", :transfer, nodes)
+        |> Enum.map(& &1.last_public_key)
+
+      assert !Enum.all?(nodes, &(&1.last_public_key in chain_storage_nodes))
+    end
+  end
+
+  test "beacon_storage_nodes/2 should list the beacon storage nodes authorized before the transaction timestamp" do
+    nodes = [
+      %Node{
+        ip: {88, 130, 19, 0},
+        port: 3002,
+        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: :crypto.strong_rand_bytes(32),
+        geo_patch: random_patch(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      },
+      %Node{
+        ip: {88, 130, 19, 1},
+        port: 3005,
+        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: :crypto.strong_rand_bytes(32),
+        geo_patch: random_patch(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      },
+      %Node{
+        ip: {88, 130, 19, 2},
+        port: 3008,
+        last_public_key: :crypto.strong_rand_bytes(32),
+        first_public_key: :crypto.strong_rand_bytes(32),
+        geo_patch: random_patch(),
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+    ]
+
+    beacon_storage_nodes = Election.beacon_storage_nodes("@Alice2", DateTime.utc_now(), nodes)
+
+    beacon_storage_nodes_ip = Enum.map(beacon_storage_nodes, & &1.ip)
+    assert Enum.all?([{88, 130, 19, 2}, {88, 130, 19, 0}], &(&1 in beacon_storage_nodes_ip))
+  end
+
+  defp random_patch do
+    list_char = Enum.concat([?0..?9, ?A..?F])
+    Enum.take_random(list_char, 3) |> List.to_string()
   end
 end

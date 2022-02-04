@@ -4,15 +4,10 @@ defmodule ArchEthic.P2P.Message.AcknowledgeStorage do
 
   This message is used during the transaction replication
   """
-  @enforce_keys [:transaction_summary, :node_public_key, :signature]
-  defstruct [:transaction_summary, :node_public_key, :signature]
-
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.TransactionSummary
+  @enforce_keys [:signature]
+  defstruct [:signature]
 
   @type t :: %__MODULE__{
-          transaction_summary: TransactionSummary.t(),
-          node_public_key: Crypto.key(),
           signature: binary()
         }
 end

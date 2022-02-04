@@ -120,6 +120,14 @@ defmodule ArchEthic.Replication do
             %{role: :chain}
           )
 
+          Task.start(fn ->
+            acknowledge_previous_storage_nodes(
+              address,
+              Transaction.previous_address(tx),
+              timestamp
+            )
+          end)
+
           :ok
 
         {:error, reason} ->
@@ -275,7 +283,11 @@ defmodule ArchEthic.Replication do
   @doc """
   Notify the previous storage pool than a new transaction on the chain is present
   """
-  @spec acknowledge_previous_storage_nodes(binary(), binary(), DateTime.t()) :: :ok
+  @spec acknowledge_previous_storage_nodes(
+          tx_address :: binary(),
+          previous_address :: binary(),
+          tx_time :: DateTime.t()
+        ) :: :ok
   def acknowledge_previous_storage_nodes(address, previous_address, timestamp)
       when is_binary(address) and is_binary(previous_address) do
     TransactionChain.register_last_address(previous_address, address, timestamp)

@@ -4,7 +4,6 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.Subset.SummaryCache
@@ -79,7 +78,7 @@ defmodule ArchEthic.BeaconChainTest do
         type: :beacon,
         data: %TransactionData{
           content:
-            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_summaries: []}
+            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_attestations: []}
             |> Slot.serialize()
             |> Utils.wrap_binary()
         },

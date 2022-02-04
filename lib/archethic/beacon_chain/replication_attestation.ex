@@ -177,7 +177,6 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
     confirmations
     |> Enum.all?(fn {node_index, signature} ->
       %Node{first_public_key: node_public_key} = Enum.at(storage_nodes, node_index)
-      {node_public_key, signature}
       Crypto.verify?(signature, tx_summary_payload, node_public_key)
     end)
   end

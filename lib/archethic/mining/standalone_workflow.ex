@@ -114,10 +114,10 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
     Task.async_stream(
       chain_storage_nodes,
       fn node ->
-        P2P.send_message!(node, %ReplicateTransactionChain{
-          transaction: validated_tx,
-          ack_storage?: true
-        })
+        {P2P.send_message!(node, %ReplicateTransactionChain{
+           transaction: validated_tx,
+           ack_storage?: true
+         }), node}
       end,
       on_timeout: :kill_task,
       ordered: false
@@ -135,25 +135,20 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
   end
 
   defp reduce_confirmations(
-         %AcknowledgeStorage{
-           transaction_summary: tx_summary,
-           node_public_key: node_public_key,
-           signature: signature
-         },
-         acc = %{transaction_summary: expected_tx_summary, context: context}
+         {%AcknowledgeStorage{
+            signature: signature
+          }, %Node{last_public_key: node_public_key}},
+         acc = %{transaction_summary: tx_summary, context: context}
        ) do
-    with ^expected_tx_summary <- tx_summary,
-         true <-
-           Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
+    if Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
       {:ok, position} = ValidationContext.get_chain_storage_position(context, node_public_key)
       Map.update!(acc, :confirmations, &[{position, signature} | &1])
     else
-      _ ->
-        acc
+      acc
     end
   end
 
-  defp reduce_confirmations(%Error{}, _acc), do: raise("Invalid transaction")
+  defp reduce_confirmations({%Error{}, _}, _acc), do: raise("Invalid transaction")
 
   defp notify(%{
          confirmations: confirmations,

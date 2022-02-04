@@ -259,12 +259,9 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def encode(%AcknowledgeStorage{
-        transaction_summary: transaction_summary,
-        node_public_key: node_public_key,
         signature: signature
       }) do
-    <<13::8, TransactionSummary.serialize(transaction_summary)::binary, node_public_key::binary,
-      byte_size(signature)::8, signature::binary>>
+    <<13::8, byte_size(signature)::8, signature::binary>>
   end
 
   def encode(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
@@ -615,16 +612,10 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<13::8, rest::bitstring>>) do
-    {tx_summary, rest} = TransactionSummary.deserialize(rest)
-
-    {node_public_key,
-     <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
-      deserialize_public_key(rest)
-
+  def decode(
+        <<13::8, signature_size::8, signature::binary-size(signature_size), rest::bitstring>>
+      ) do
     {%AcknowledgeStorage{
-       transaction_summary: tx_summary,
-       node_public_key: node_public_key,
        signature: signature
      }, rest}
   end
@@ -1122,8 +1113,6 @@ defmodule ArchEthic.P2P.Message do
           tx_summary = TransactionSummary.from_transaction(tx)
 
           %AcknowledgeStorage{
-            transaction_summary: tx_summary,
-            node_public_key: Crypto.first_node_public_key(),
             signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
           }
         else

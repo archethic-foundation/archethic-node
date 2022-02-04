@@ -43,6 +43,9 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     end
 
     test "should load from conf if present" do
+      MockDB
+      |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> nil end)
+
       {:ok, pid} =
         BootstrappingSeeds.start_link(
           genesis_seeds:

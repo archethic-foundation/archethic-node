@@ -34,7 +34,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     :ok
   end
 
-  @tag infrastructure: true
   test "write_transaction/1 should persist the transaction " do
     tx = create_transaction(seed: "seed1")
     assert :ok = Cassandra.write_transaction(tx)
@@ -51,7 +50,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
              Xandra.execute!(:xandra_conn, prepared_tx_query, [tx_address]) |> Enum.at(0)
   end
 
-  @tag infrastructure: true
   describe "write_transaction_chain/1" do
     test "should persist the transaction chain" do
       tx1 = create_transaction(seed: "seed2", index: 0)
@@ -151,7 +149,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     end
   end
 
-  @tag infrastructure: true
   test "list_transactions/1 should stream the entire list of transactions with the requested fields" do
     transactions_to_insert =
       Enum.map(1..500, fn i ->
@@ -165,7 +162,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert Enum.all?(transactions_to_insert, &(&1.address in transaction_addresses_inserted))
   end
 
-  @tag infrastructure: true
   test "get_transaction/2 should retrieve the transaction with the requested fields " do
     tx =
       create_transaction(
@@ -190,7 +186,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert tx.cross_validation_stamps == db_tx.cross_validation_stamps
   end
 
-  @tag infrastructure: true
   test "get_transaction_chain/2 should retrieve the transaction chain with the requested fields" do
     chain = [
       create_transaction(seed: "seed5", index: 1),
@@ -202,12 +197,10 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
   end
 
-  @tag infrastructure: true
   test "add_last_transaction_address/2 should reference a last address for a chain" do
     assert :ok = Cassandra.add_last_transaction_address("@Alice1", "@Alice2", DateTime.utc_now())
   end
 
-  @tag infrastructure: true
   test "list_last_transaction_addresses/0 should retrieve the last transaction addresses" do
     d = DateTime.utc_now() |> Utils.truncate_datetime()
     d1 = DateTime.utc_now() |> DateTime.add(1) |> Utils.truncate_datetime()
@@ -232,7 +225,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
            |> Enum.member?("@Alice4")
   end
 
-  @tag infrastructure: true
   test "chain_size/1 should return the size of a transaction chain" do
     chain = [
       create_transaction(seed: "seed6", index: 1),
@@ -246,7 +238,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert 0 == Cassandra.chain_size(:crypto.strong_rand_bytes(32))
   end
 
-  @tag infrastructure: true
   test "list_transactions_by_type/1 should return the list of transaction by the given type" do
     chain = [
       create_transaction(
@@ -271,7 +262,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert [] == Cassandra.list_transactions_by_type(:node) |> Enum.map(& &1.address)
   end
 
-  @tag infrastructure: true
   test "count_transactions_by_type/1 should return the number of transactions for a given type" do
     chain = [
       create_transaction(seed: "seed8", index: 1, type: :transfer),
@@ -285,7 +275,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert Cassandra.count_transactions_by_type(:node) == 0
   end
 
-  @tag infrastructure: true
   test "get_last_chain_address/1 should return the last transaction address of a chain" do
     tx1 = create_transaction(seed: "seed10", index: 0)
     tx2 = create_transaction(seed: "seed10", index: 1)
@@ -300,7 +289,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert tx3.address == Cassandra.get_last_chain_address(Crypto.hash(tx1.previous_public_key))
   end
 
-  @tag infrastructure: true
   test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime" do
     tx1 = create_transaction(seed: "seed11", index: 0, timestamp: DateTime.utc_now())
 
@@ -337,7 +325,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
              )
   end
 
-  @tag infrastructure: true
   test "get_first_chain_address/1 should return the first transaction address of a chain" do
     tx1 = create_transaction(seed: "seed12", index: 0, timestamp: DateTime.utc_now())
 
@@ -361,7 +348,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert tx1.address == Cassandra.get_first_chain_address(tx3.address)
   end
 
-  @tag infrastructure: true
   test "get_first_public_key/1 should return the first public key from a transaction address of a chain" do
     tx1 = create_transaction(seed: "seed13", index: 0, timestamp: DateTime.utc_now())
 
@@ -385,7 +371,6 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert tx1.previous_public_key == Cassandra.get_first_public_key(tx3.previous_public_key)
   end
 
-  @tag infrastructure: true
   test "register_tps/3 should insert the tps and the nb transactions for a given date" do
     :ok = Cassandra.register_tps(DateTime.utc_now(), 10.0, 10_000)
 
@@ -394,6 +379,22 @@ defmodule ArchEthic.DB.CassandraImplTest do
              |> Xandra.execute!("SELECT * FROM archethic.network_stats_by_date")
              |> Enum.at(0)
              |> Map.get("tps")
+  end
+
+  test "transaction_exists?/1 should return true if the transaction exists" do
+    tx = create_transaction(seed: "seed13", index: 0, timestamp: DateTime.utc_now())
+    :ok = Cassandra.write_transaction(tx)
+    assert true = Cassandra.transaction_exists?(tx.address)
+  end
+
+  test "register_p2p_summary/4 should add an entry for a P2P summary" do
+    assert :ok = Cassandra.register_p2p_summary("nodekey", DateTime.utc_now(), true, 0.9)
+    assert %{"nodekey" => {true, 0.9}} = Cassandra.get_last_p2p_summaries()
+  end
+
+  test "set_bootstrap_info/2 should add an entry for bootstrap" do
+    assert :ok = Cassandra.set_bootstrap_info("storage_nonce", "nonce")
+    assert "nonce" = Cassandra.get_bootstrap_info("storage_nonce")
   end
 
   defp create_transaction(opts) do

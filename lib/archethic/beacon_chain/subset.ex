@@ -103,7 +103,7 @@ defmodule ArchEthic.BeaconChain.Subset do
       ) do
     %Slot{transaction_attestations: transaction_attestations} = current_slot
 
-    if Enum.empty?(transaction_attestations) do
+    if !Enum.empty?(transaction_attestations) do
       P2P.send_message(node_public_key, %BeaconUpdate{
         transaction_attestations: transaction_attestations
       })
