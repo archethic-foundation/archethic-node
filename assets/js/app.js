@@ -1,3 +1,4 @@
+
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
@@ -76,6 +77,7 @@ Hooks.Logs = {
 
 Hooks.network_charts = {
   mounted() {
+
     var network_metric_obj = metric_config_obj.create_network_live_visuals();
     this.handleEvent("network_points", ({
       points

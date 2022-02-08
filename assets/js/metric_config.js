@@ -1,4 +1,5 @@
 import * as echarts from 'echarts';
+
   //adds 0 to the metric not recieved to avoid charts going blank
   function structure_metric_points(latest_points){
     var points_default_value ={
@@ -35,23 +36,21 @@ import * as echarts from 'echarts';
 
 function get_visuals_dom(){
   var metric_object , x_axis_data;
-  x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-
+  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return    metric_object = 
   {
     seconds_after_loading_of_this_graph: 0,
     x_axis_data: x_axis_data ,
-     archethic_mining_proof_of_work_duration:   generateEchartObjects( 'Duration(ms):Proof of Work ','archethic_mining_proof_of_work_duration',x_axis_data),
-   archethic_mining_full_transaction_validation_duration:   generateEchartObjects('Full Transaction Validation','archethic_mining_full_transaction_validation_duration',x_axis_data),
-      tps : generate_echart_guage("Transaction-Per-Second", 'tps' ,"tps"),
-      archethic_p2p_send_message_duration: generate_echart_guage("P2P-Send-Message-Duration", 'archethic_p2p_send_message_duration',"ms"),
+     archethic_mining_proof_of_work_duration:   generateEchartObjects('PoW Duration(ms)','archethic_mining_proof_of_work_duration',x_axis_data),
+   archethic_mining_full_transaction_validation_duration:  generateEchartObjects('Transaction Validation Duration(ms)','archethic_mining_full_transaction_validation_duration',x_axis_data),
+      tps : generate_echart_guage("Transactions Per Second", 'tps' ,"tps"),
+      archethic_p2p_send_message_duration: generate_echart_guage("P2P Message duration (Supervised Multicast)", 'archethic_p2p_send_message_duration',"ms"),
   };
 }
 
   function generateEchartObjects(heading , echartContainer ,  x_axis_data){
     var y_axis_data = 
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0, 0];
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var chart = echarts.init(document.getElementById(echartContainer));
   
     var option= {
@@ -64,7 +63,9 @@ function get_visuals_dom(){
       },
       title: {
         left: 'center',
-        text: ` ${heading}(ms)`
+        text: ` ${heading}` ,
+        textStyle: { color: '#000000',fontSize:16 , fontFamily: 
+         "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"  }
       },
       xAxis: {
         type: 'category',
@@ -79,6 +80,8 @@ function get_visuals_dom(){
       yAxis: {
         boundaryGap: [0, '50%'],
         type: 'value',
+        axisLabel : { formatter: '{value}', textStyle: { color: '#000000',fontSize:16 , fontFamily: 
+         "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"  } },
         splitLine: {
           show: true,
           lineStyle:{color:"lightgrey",width:0.5}
@@ -98,6 +101,10 @@ function get_visuals_dom(){
     };
   
     option && chart.setOption(option);
+    window.addEventListener('resize', function(){
+    chart.resize(); 
+    });
+
     return { chart: chart , ydata: y_axis_data};
   
   }
@@ -109,13 +116,14 @@ function get_visuals_dom(){
     var guage_options ={
       title: {
         left: 'center',
-        text: `${heading}`
+        text: `${heading}`,textStyle: { color: '#000000',fontSize:16 , fontFamily: 
+        "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"  }
       },
     series: [
       {
         
         type: 'gauge',
-        center: ['50%', '75%'],
+        center: ['50%', '74%'],
         startAngle: 200,
         endAngle: -20,
         min: 0,
@@ -141,7 +149,7 @@ function get_visuals_dom(){
           splitNumber: 5,
           lineStyle: {
             width: 2,
-            color: '#cc00ff'
+            color: '#000000'
           }
         },
         splitLine: {
@@ -149,13 +157,13 @@ function get_visuals_dom(){
           length: 14,
           lineStyle: {
             width: 3,
-            color: '#999'
+            color: '#000000'
           }
         },
         axisLabel: {
           distance: -20,
-          color: '#999',
-          fontSize: 20
+          color: '#000000 ',
+          fontSize: 16
         },
         anchor: {
           show: false
@@ -182,16 +190,22 @@ function get_visuals_dom(){
       }    ]};
   
      guage_options && guage.setOption(guage_options);
-  
-  
+     window.addEventListener('resize', function(){
+      guage.resize(); 
+      });
+   
     return {"guage": guage , "max": 1}
   }
   
 
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
+  var new_point = points[point_name];
+  // var new_point = Math.random();
+  console.log(new_point)
+  // var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   var shifted =     chart_obj.ydata.shift();
-    chart_obj.ydata.push(points[point_name]);
-    // chart_obj.ydata.push(Math.random());
+    chart_obj.ydata.push(new_data);
 
     chart_obj.chart.setOption({
       xAxis: {
@@ -210,10 +224,14 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   
 function update_guage_data(guage_obj , points , point_name )
 {
-  var data = (points[point_name]).toFixed(0);
-  // var data = (Math.random()*100).toFixed(0);
+  var new_point = points[point_name];
+  // var new_point = Math.random();
+  console.log(new_point)
+  // var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  var data = new_point.toPrecision(2);
+  // var data = (Math.random()*100).toPrecision(2);
 
-  if(guage_obj.max <  data ){
+  if(data >= guage_obj.max ){
     guage_obj.max = data
   }
   guage_obj.guage.setOption({series: [{ max:guage_obj.max ,data: [{ value: data }]}]});
@@ -222,6 +240,7 @@ function update_guage_data(guage_obj , points , point_name )
 
 function create_network_live_visuals(){
  var metric_obj = get_visuals_dom();
+
     return metric_obj;
 }
 
@@ -246,7 +265,7 @@ function update_live_visuals(metric_obj , points){
 
 function create_explorer_live_visuals(){
   var obj , x_axis_data;
-  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
    obj =  {  
      seconds_after_loading_of_this_graph: 0,
      x_axis_data:  x_axis_data,
@@ -268,10 +287,10 @@ function update_explorer_live_visuals(explorer_metric_obj, points){
       return explorer_metric_obj; 
 };
 
+
   export  {
     create_network_live_visuals ,
     update_network_live_visuals , 
     create_explorer_live_visuals , 
     update_explorer_live_visuals, 
     structure_metric_points}  ;
-

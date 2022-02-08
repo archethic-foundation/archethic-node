@@ -29,7 +29,7 @@
 
 
 
-              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.NetworkMetricsLive)%>">Telemetry </a>
+              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.DashboardLive)%>">Dashboard </a>
 
 
 
