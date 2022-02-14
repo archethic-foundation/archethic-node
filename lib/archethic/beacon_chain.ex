@@ -174,7 +174,7 @@ defmodule ArchEthic.BeaconChain do
         Crypto.hash([subset, <<DateTime.to_unix(date)::32>>])
       )
 
-    Crypto.hash(pub)
+    Crypto.derive_address(pub)
   end
 
   @doc """

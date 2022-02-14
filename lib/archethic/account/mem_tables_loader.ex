@@ -73,7 +73,7 @@ defmodule ArchEthic.Account.MemTablesLoader do
           }
         }
       }) do
-    previous_address = Crypto.hash(previous_public_key)
+    previous_address = Crypto.derive_address(previous_public_key)
 
     UCOLedger.spend_all_unspent_outputs(previous_address)
     NFTLedger.spend_all_unspent_outputs(previous_address)

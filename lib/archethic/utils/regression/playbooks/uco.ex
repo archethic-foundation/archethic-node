@@ -31,7 +31,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
   end
 
   defp single_recipient_transfer(host, port) do
-    recipient_address = Crypto.derive_keypair("recipient_1", 0) |> elem(0) |> Crypto.hash()
+    recipient_address = Crypto.derive_keypair("recipient_1", 0) |> elem(0) |> Crypto.derive_address()
 
     Logger.info(
       "Genesis pool allocation owner is sending 10 UCO to #{Base.encode16(recipient_address)}"

@@ -37,7 +37,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
     contract_owner_address =
       Crypto.derive_keypair("contract_playbook_seed", 0, :ed25519)
       |> elem(0)
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Logger.info(
       "Genesis pool allocation owner is sending 10 UCO to #{Base.encode16(contract_owner_address)}"

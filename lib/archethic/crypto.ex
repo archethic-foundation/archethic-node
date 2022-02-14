@@ -1003,6 +1003,21 @@ defmodule ArchEthic.Crypto do
   def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
   def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
   def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<0::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<0::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<2::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<2::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 4::8, _::binary-size(64)>>), do: true
   def valid_hash?(_), do: false
 
   @doc """

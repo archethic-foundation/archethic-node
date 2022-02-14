@@ -39,7 +39,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   defp next_address do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
-    Crypto.hash(next_public_key)
+    Crypto.derive_address(next_public_key)
   end
 
   @doc """
@@ -87,7 +87,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
     network_pool_address =
       Crypto.number_of_network_pool_keys()
       |> Crypto.network_pool_public_key()
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Transaction.new(
       :node_shared_secrets,

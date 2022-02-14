@@ -95,7 +95,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
     |> Keyword.fetch!(:genesis_seed)
     |> Crypto.derive_keypair(1)
     |> elem(0)
-    |> Crypto.hash()
+    |> Crypto.derive_address()
   end
 
   defmodule Connection do

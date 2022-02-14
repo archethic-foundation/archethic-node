@@ -27,7 +27,7 @@ defmodule ArchEthic.Election do
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Crypto.sign_with_daily_nonce_key(tx_hash, timestamp)
   end
@@ -42,7 +42,7 @@ defmodule ArchEthic.Election do
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Crypto.verify?(proof_of_election, data, daily_nonce_public_key)
   end
@@ -172,7 +172,7 @@ defmodule ArchEthic.Election do
       tx
       |> Transaction.to_pending()
       |> Transaction.serialize()
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     authorized_nodes
     |> sort_validation_nodes_by_key_rotation(sorting_seed, tx_hash)
@@ -340,7 +340,7 @@ defmodule ArchEthic.Election do
   defp sort_validation_nodes_by_key_rotation(nodes, sorting_seed, hash) do
     nodes
     |> Stream.map(fn node = %Node{last_public_key: last_public_key} ->
-      rotated_key = Crypto.hash([last_public_key, hash, sorting_seed])
+      rotated_key = Crypto.derive_address([last_public_key, hash, sorting_seed])
       {rotated_key, node}
     end)
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)

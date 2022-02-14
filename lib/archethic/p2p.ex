@@ -445,12 +445,12 @@ defmodule ArchEthic.P2P do
 
     Returns false when the node with the ip/PORT is found but the chain of keys is followed
 
-      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key1", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.hash("node_key1") }])
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key1", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1") }])
       false
 
     Returns true when the node with the ip/PORT is found but the chain of keys doesn't match
 
-      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key10", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.hash("node_key1")}])
+      iex> P2P.duplicating_node?({127, 0, 0, 1}, 3000, "node_key10", [%Node{ip: {127, 0, 0, 1}, port: 3000, last_address: Crypto.derive_address("node_key1")}])
       true
   """
   @spec duplicating_node?(
@@ -466,7 +466,7 @@ defmodule ArchEthic.P2P do
         false
 
       %Node{last_address: last_address} ->
-        Crypto.hash(prev_public_key) != last_address
+        Crypto.derive_address(prev_public_key) != last_address
     end
   end
 

@@ -110,7 +110,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
     {previous_public_key, next_public_key} = get_transaction_public_keys(type)
 
     %__MODULE__{
-      address: Crypto.hash(next_public_key),
+      address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
       previous_public_key: previous_public_key
@@ -136,7 +136,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
     {next_public_key, _} = Crypto.derive_keypair(seed, index + 1, curve)
 
     %__MODULE__{
-      address: Crypto.hash(next_public_key),
+      address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
       previous_public_key: previous_public_key
@@ -163,7 +163,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
         next_public_key
       ) do
     %__MODULE__{
-      address: Crypto.hash(next_public_key),
+      address: Crypto.derive_address(next_public_key),
       type: type,
       data: data,
       previous_public_key: previous_public_key
@@ -410,7 +410,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
   """
   @spec previous_address(t()) :: binary()
   def previous_address(%__MODULE__{previous_public_key: previous_public_key}),
-    do: Crypto.hash(previous_public_key)
+    do: Crypto.derive_address(previous_public_key)
 
   @doc """
   Determines if the atomic commitment has been reached
