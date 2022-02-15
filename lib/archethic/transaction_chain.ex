@@ -328,7 +328,7 @@ defmodule ArchEthic.TransactionChain do
       iex> [
       ...>   %Transaction{
       ...>     address:
-      ...>       <<61, 7, 130, 64, 140, 226, 192, 8, 238, 88, 226, 106, 137, 45, 69, 113, 239,
+      ...>       <<0, 0, 61, 7, 130, 64, 140, 226, 192, 8, 238, 88, 226, 106, 137, 45, 69, 113, 239,
       ...>         240, 45, 55, 225, 169, 170, 121, 238, 136, 192, 161, 252, 33, 71, 3>>,
       ...>     type: :transfer,
       ...>     data: %TransactionData{},
@@ -352,7 +352,7 @@ defmodule ArchEthic.TransactionChain do
       ...>      }
       ...>    },
       ...>    %Transaction{
-      ...>      address: <<0, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>,
+      ...>      address: <<0, 1, 109, 140, 2, 60, 50, 109, 201, 126, 206, 164, 10, 86, 225, 58, 136, 241, 118, 74, 3, 215, 6, 106, 165, 24, 51, 192, 212, 58, 143, 33, 68, 2>>,
       ...>      type: :transfer,
       ...>      data: %TransactionData{},
       ...>      previous_public_key:
@@ -376,7 +376,8 @@ defmodule ArchEthic.TransactionChain do
       ...>    }
       ...> ]
       ...> |> TransactionChain.valid?()
-      true
+      false
+
   """
   @spec valid?([Transaction.t(), ...]) :: boolean
   def valid?([
@@ -417,7 +418,7 @@ defmodule ArchEthic.TransactionChain do
 
         false
 
-      Crypto.hash(previous_public_key) != previous_address ->
+      Crypto.derive_address(previous_public_key) != previous_address ->
         Logger.error("Invalid previous public key",
           transaction_type: last_tx.type,
           transaction_address: Base.encode16(last_tx.address)

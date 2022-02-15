@@ -21,7 +21,7 @@ defmodule ArchEthic.TransactionChain.TransactionTest do
     test "with type ':node' create a new transaction using the node keys" do
       tx = Transaction.new(:node, %TransactionData{})
 
-      assert tx.address == Crypto.hash(Crypto.next_node_public_key())
+      assert tx.address == Crypto.derive_address(Crypto.next_node_public_key())
       assert tx.previous_public_key == Crypto.last_node_public_key()
 
       assert Crypto.verify?(
@@ -35,7 +35,7 @@ defmodule ArchEthic.TransactionChain.TransactionTest do
       tx = Transaction.new(:node_shared_secrets, %TransactionData{})
 
       assert tx.address ==
-               Crypto.hash(
+               Crypto.derive_address(
                  Crypto.node_shared_secrets_public_key(
                    Crypto.number_of_node_shared_secrets_keys() + 1
                  )
@@ -56,6 +56,6 @@ defmodule ArchEthic.TransactionChain.TransactionTest do
     tx = Transaction.new(:node, %TransactionData{}, "seed", 0)
     tx2 = Transaction.new(:node, %TransactionData{}, "seed", 1)
 
-    assert Crypto.hash(tx2.previous_public_key) == tx.address
+    assert Crypto.derive_address(tx2.previous_public_key) == tx.address
   end
 end
