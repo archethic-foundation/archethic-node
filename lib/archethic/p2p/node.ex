@@ -42,7 +42,7 @@ defmodule ArchEthic.P2P.Node do
       ...>  127, 0, 0, 1,
       ...>  11, 184,
       ...>  1,
-      ...>  0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...>  0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
       ...>  0, 64,
       ...>  63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
@@ -54,7 +54,7 @@ defmodule ArchEthic.P2P.Node do
         {127, 0, 0, 1},
         3000,
         :tcp,
-        <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+        <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
           89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
         <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
          175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
@@ -68,13 +68,14 @@ defmodule ArchEthic.P2P.Node do
           | :error
   def decode_transaction_content(<<ip::binary-size(4), port::16, transport::8, rest::binary>>) do
     with <<ip0, ip1, ip2, ip3>> <- ip,
-         <<reward_address_hash_id::8, rest::binary>> <- rest,
+         <<reward_address_curve_id::8, reward_address_hash_id::8, rest::binary>> <- rest,
          reward_address_size <- Crypto.hash_size(reward_address_hash_id),
          <<reward_address::binary-size(reward_address_size), rest::binary>> <- rest,
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
            _::binary>> <- rest do
       {:ok, {ip0, ip1, ip2, ip3}, port, deserialize_transport(transport),
-       <<reward_address_hash_id::8, reward_address::binary>>, key_certificate}
+       <<reward_address_curve_id::8, reward_address_hash_id::8, reward_address::binary>>,
+       key_certificate}
     else
       _ ->
         :error
@@ -92,7 +93,7 @@ defmodule ArchEthic.P2P.Node do
       ...> {127, 0, 0, 1},
       ...> 3000,
       ...> :tcp,
-      ...> <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...> <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>   89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
       ...> <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
@@ -107,7 +108,7 @@ defmodule ArchEthic.P2P.Node do
       # Transport
       1,
       # Reward address
-      0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
       # Certificate size
       0, 64,
