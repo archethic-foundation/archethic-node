@@ -1062,7 +1062,7 @@ defmodule ArchEthic.Crypto do
   end
 
   def load_transaction(%Transaction{type: :node, address: address}) do
-    if NodeKeystore.next_public_key() |> hash() == address do
+    if derive_address(NodeKeystore.next_public_key()) == address do
       Logger.debug("Node next keypair loaded",
         transaction_address: Base.encode16(address),
         transaction_type: :node
