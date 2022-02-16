@@ -120,11 +120,13 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
     with <<curve_id::8, origin_id::8, rest::binary>> <- content,
          daily_nonce_public_key_size <- Crypto.key_size(curve_id),
          <<daily_nonce_public_key::binary-size(daily_nonce_public_key_size),
-           network_pool_address_hash_id::8, rest::binary>> <- rest,
+           network_pool_address_curve_id::8, network_pool_address_hash_id::8,
+           rest::binary>> <- rest,
          network_pool_address_size <- Crypto.hash_size(network_pool_address_hash_id),
          <<network_pool_address::binary-size(network_pool_address_size), _::binary>> <- rest do
       {:ok, <<curve_id::8, origin_id::8, daily_nonce_public_key::binary>>,
-       <<network_pool_address_hash_id::8, network_pool_address::binary>>}
+       <<network_pool_address_curve_id::8, network_pool_address_hash_id::8,
+         network_pool_address::binary>>}
     else
       _ ->
         :error

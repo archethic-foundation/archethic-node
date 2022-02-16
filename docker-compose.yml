@@ -232,6 +232,7 @@ services:
 
 networks:
   archethic_net:
+    name: archethic_net
     ipam:
       driver: default
       config:
