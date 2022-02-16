@@ -5,8 +5,8 @@ defmodule ArchEthic.TransactionChain.TransactionTest do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  # alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  # alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 

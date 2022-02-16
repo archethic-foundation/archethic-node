@@ -85,7 +85,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetTransaction message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetTransaction{address: address} ==
                %GetTransaction{address: address}
@@ -95,7 +95,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetTransactionChain message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetTransactionChain{address: address} ==
                %GetTransactionChain{address: address}
@@ -105,7 +105,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetUnspentOutputs message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetUnspentOutputs{address: address} ==
                %GetUnspentOutputs{address: address}
@@ -255,8 +255,8 @@ defmodule ArchEthic.P2P.MessageTest do
       msg = %ReplicateTransaction{
         transaction: %Transaction{
           address:
-            <<0, 46, 140, 65, 49, 7, 111, 10, 130, 53, 72, 25, 43, 47, 81, 130, 161, 225, 87, 144,
-              186, 117, 170, 105, 205, 173, 102, 49, 176, 8, 45, 49, 82>>,
+            <<0, 0, 46, 140, 65, 49, 7, 111, 10, 130, 53, 72, 25, 43, 47, 81, 130, 161, 225, 87,
+              144, 186, 117, 170, 105, 205, 173, 102, 49, 176, 8, 45, 49, 82>>,
           type: :transfer,
           data: %TransactionData{},
           previous_public_key:
@@ -332,7 +332,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "AcknowledgeStorage message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %AcknowledgeStorage{
                address: address
@@ -361,7 +361,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetLastTransaction message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetLastTransaction{
                address: address
@@ -375,7 +375,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetBalance message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetBalance{
                address: address
@@ -389,7 +389,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetTransactionInputs message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       assert %GetTransactionInputs{
                address: address
@@ -425,7 +425,7 @@ defmodule ArchEthic.P2P.MessageTest do
         transactions: [
           %Transaction{
             address:
-              <<0, 46, 140, 65, 49, 7, 111, 10, 130, 53, 72, 25, 43, 47, 81, 130, 161, 225, 87,
+              <<0, 0, 46, 140, 65, 49, 7, 111, 10, 130, 53, 72, 25, 43, 47, 81, 130, 161, 225, 87,
                 144, 186, 117, 170, 105, 205, 173, 102, 49, 176, 8, 45, 49, 82>>,
             type: :transfer,
             data: %TransactionData{},
@@ -652,7 +652,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "GetTransactionChainLength message" do
-      address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+      address = <<0::8>> <> <<0::8>> <> :crypto.strong_rand_bytes(32)
 
       msg = %GetTransactionChainLength{
         address: address
@@ -735,7 +735,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "GetFirstPublicKey message" do
       msg = %GetFirstPublicKey{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==
@@ -759,7 +759,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "GetLastTransactionAddress message" do
       msg = %GetLastTransactionAddress{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         timestamp: DateTime.truncate(DateTime.utc_now(), :second)
       }
 
@@ -772,7 +772,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "LastTransactionAddress message" do
       msg = %LastTransactionAddress{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==
@@ -784,7 +784,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "NotifyLastTransactionAddress message" do
       msg = %NotifyLastTransactionAddress{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         previous_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
         timestamp: DateTime.utc_now() |> DateTime.truncate(:second)
       }
@@ -798,7 +798,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "GetTransactionSummary message" do
       msg = %GetTransactionSummary{
-        address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==

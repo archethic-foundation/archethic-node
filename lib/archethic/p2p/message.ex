@@ -491,7 +491,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<3::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {
       %GetTransaction{address: address},
@@ -500,7 +500,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<4::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     case rest do
       <<timestamp::32, rest::bitstring>> ->
@@ -515,7 +515,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<5::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%GetUnspentOutputs{address: address}, rest}
   end
 
@@ -632,7 +632,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<12::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%AcknowledgeStorage{
        address: address
@@ -649,25 +649,25 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<14::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetLastTransaction{address: address}, rest}
   end
 
   def decode(<<15::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetBalance{address: address}, rest}
   end
 
   def decode(<<16::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetTransactionInputs{address: address}, rest}
   end
 
   def decode(<<17::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetTransactionChainLength{address: address}, rest}
   end
@@ -678,7 +678,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<19::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetFirstPublicKey{
        address: address
@@ -686,7 +686,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<20::8, rest::bitstring>>) do
-    {address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
+    {address, <<timestamp::32, rest::bitstring>>} = deserialize_address(rest)
 
     {%GetLastTransactionAddress{
        address: address,
@@ -695,7 +695,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {previous_address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
     {%NotifyLastTransactionAddress{
@@ -706,7 +706,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<22::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%GetTransactionSummary{address: address}, rest}
   end
 
@@ -790,7 +790,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<241::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%LastTransactionAddress{address: address}, rest}
   end
 
