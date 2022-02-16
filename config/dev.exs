@@ -30,7 +30,7 @@ config :archethic, ArchEthic.Bootstrap,
   reward_address:
     System.get_env(
       "ARCHETHIC_REWARD_ADDRESS",
-      Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>)
+      Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
     )
     |> Base.decode16!(case: :mixed)
 
@@ -38,7 +38,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
     %{
       address:
-        "00EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
+        "0000EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
         |> Base.decode16!(case: :mixed),
       amount: 1_000_000_000_000_000
     }

@@ -51,7 +51,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           fee: non_neg_integer()
         }
 
-  @burning_address <<0::8, 0::256>>
+  @burning_address <<0::8, 0::8, 0::256>>
 
   @doc """
   Return the address used for the burning
