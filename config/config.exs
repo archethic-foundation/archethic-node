@@ -45,6 +45,9 @@ config :archethic, :mut_dir, "data"
 
 config :archethic, :marker, "-=%=-=%=-=%=-"
 
+# size represents in mb i.e 1024 * 1024  * 3 bytes
+config :archethic, :transaction_data_content_max_size, 3
+
 config :archethic, ArchEthic.Crypto,
   supported_curves: [
     :ed25519,
