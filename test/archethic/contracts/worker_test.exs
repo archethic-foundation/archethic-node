@@ -56,7 +56,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
     transaction_seed = :crypto.strong_rand_bytes(32)
 
     {pub, _} = Crypto.derive_keypair(transaction_seed, 1)
-    next_address = Crypto.hash(pub)
+    next_address = Crypto.derive_address(pub)
 
     secret = Crypto.aes_encrypt(transaction_seed, aes_key)
     storage_nonce_public_key = Crypto.storage_nonce_public_key()
@@ -85,7 +85,7 @@ defmodule ArchEthic.Contracts.WorkerTest do
     Account.MemTables.UCOLedger.add_unspent_output(
       "@SC1",
       %UnspentOutput{
-        from: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         amount: 100_000_000_000,
         type: :UCO
       },

@@ -20,8 +20,13 @@ defmodule ArchEthic.Contracts.LoaderTest do
 
   describe "load_transaction/1" do
     test "should create a supervised worker for the given transaction with contract code" do
+      {pub0, _} = Crypto.derive_keypair("contract1_seed", 0)
+      {pub1, _} = Crypto.derive_keypair("contract1_seed", 1)
+
+      contract_address = Crypto.derive_address(pub1)
+
       tx = %Transaction{
-        address: "@SC1",
+        address: contract_address,
         data: %TransactionData{
           code: """
           condition transaction: [
@@ -37,11 +42,11 @@ defmodule ArchEthic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: ""
+        previous_public_key: pub0
       }
 
       assert :ok = Loader.load_transaction(tx)
-      [{pid, _}] = Registry.lookup(ContractRegistry, "@SC1")
+      [{pid, _}] = Registry.lookup(ContractRegistry, contract_address)
 
       assert Enum.any?(
                DynamicSupervisor.which_children(ContractSupervisor),
@@ -51,14 +56,18 @@ defmodule ArchEthic.Contracts.LoaderTest do
       assert %{
                contract: %Contract{
                  triggers: [%Trigger{type: :transaction}],
-                 constants: %Constants{contract: %{"address" => "@SC1"}}
+                 constants: %Constants{contract: %{"address" => ^contract_address}}
                }
              } = :sys.get_state(pid)
     end
 
     test "should stop a previous contract for the same chain" do
+      {pub0, _} = Crypto.derive_keypair("contract2_seed", 0)
+      {pub1, _} = Crypto.derive_keypair("contract2_seed", 1)
+      {pub2, _} = Crypto.derive_keypair("contract2_seed", 2)
+
       tx1 = %Transaction{
-        address: Crypto.hash("Alice2"),
+        address: Crypto.derive_address(pub1),
         data: %TransactionData{
           code: """
           condition transaction: [
@@ -74,11 +83,11 @@ defmodule ArchEthic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: "Alice1"
+        previous_public_key: pub0
       }
 
       tx2 = %Transaction{
-        address: Crypto.hash("Alice3"),
+        address: Crypto.derive_address(pub2),
         data: %TransactionData{
           code: """
           condition transaction: [
@@ -94,7 +103,7 @@ defmodule ArchEthic.Contracts.LoaderTest do
           end
           """
         },
-        previous_public_key: "Alice2"
+        previous_public_key: pub1
       }
 
       assert :ok = Loader.load_transaction(tx1)
@@ -113,14 +122,19 @@ defmodule ArchEthic.Contracts.LoaderTest do
   end
 
   test "start_link/1 should load smart contract from DB" do
+    {pub0, _} = Crypto.derive_keypair("contract3_seed", 0)
+    {pub1, _} = Crypto.derive_keypair("contract3_seed", 1)
+
+    contract_address = Crypto.derive_address(pub1)
+
     MockDB
     |> stub(:list_last_transaction_addresses, fn ->
-      ["@SC2"]
+      [contract_address]
     end)
-    |> stub(:get_transaction, fn "@SC2", _ ->
+    |> stub(:get_transaction, fn ^contract_address, _ ->
       {:ok,
        %Transaction{
-         address: "@SC2",
+         address: contract_address,
          data: %TransactionData{
            code: """
            condition transaction: [
@@ -136,12 +150,12 @@ defmodule ArchEthic.Contracts.LoaderTest do
            end
            """
          },
-         previous_public_key: ""
+         previous_public_key: pub0
        }}
     end)
 
     assert {:ok, _} = Loader.start_link()
-    [{pid, _}] = Registry.lookup(ContractRegistry, "@SC2")
+    [{pid, _}] = Registry.lookup(ContractRegistry, contract_address)
 
     assert Enum.any?(
              DynamicSupervisor.which_children(ContractSupervisor),
@@ -151,7 +165,7 @@ defmodule ArchEthic.Contracts.LoaderTest do
     assert %{
              contract: %Contract{
                triggers: [%Trigger{type: :transaction}],
-               constants: %Constants{contract: %{"address" => "@SC2"}}
+               constants: %Constants{contract: %{"address" => ^contract_address}}
              }
            } = :sys.get_state(pid)
   end
