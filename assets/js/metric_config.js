@@ -54,7 +54,19 @@ function get_visuals_dom(){
     var chart = echarts.init(document.getElementById(echartContainer));
   
     var option= {
-    
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+          params = params[0];
+          return (
+            '' +
+            params.value
+          );
+        },
+        axisPointer: {
+          axis: "y"
+        }
+      },
       grid: {
         left: '10%',
         right: '5%',
@@ -93,8 +105,9 @@ function get_visuals_dom(){
           type: 'line',
           symbol: 'none',
            itemStyle: {
-            color: 'rgb(0, 164, 219,0.8)'
-          },
+            color: 'rgb(0, 164, 219,1)'
+          },            
+          z: 10,
           data: y_axis_data
         }
       ]
@@ -199,10 +212,17 @@ function get_visuals_dom(){
   
 
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
+<<<<<<< Updated upstream
   var new_point = points[point_name];
   // var new_point = Math.random();
   console.log(new_point)
   var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+=======
+  var new_point = Math.random();
+  var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  // var new_point = points[point_name];
+  // console.log(new_point)
+>>>>>>> Stashed changes
   // var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   var shifted =     chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
