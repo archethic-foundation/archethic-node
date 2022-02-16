@@ -212,17 +212,10 @@ function get_visuals_dom(){
   
 
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
-<<<<<<< Updated upstream
-  var new_point = points[point_name];
-  // var new_point = Math.random();
-  console.log(new_point)
-  var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-=======
   var new_point = Math.random();
   var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   // var new_point = points[point_name];
   // console.log(new_point)
->>>>>>> Stashed changes
   // var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   var shifted =     chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
