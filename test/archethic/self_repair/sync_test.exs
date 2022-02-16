@@ -71,7 +71,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        reward_address: :crypto.strong_rand_bytes(32),
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         enrollment_date: DateTime.utc_now(),
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
@@ -85,7 +85,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365)),
         geo_patch: "AAA",
         network_patch: "AAA",
-        reward_address: :crypto.strong_rand_bytes(32),
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         enrollment_date: DateTime.utc_now()
       }
 
@@ -98,7 +98,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           available?: true,
           geo_patch: "BBB",
           network_patch: "BBB",
-          reward_address: :crypto.strong_rand_bytes(32),
+          reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           enrollment_date: DateTime.utc_now(),
           authorized?: true,
           authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
@@ -190,7 +190,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
       assert :ok =
                Sync.load_missed_transactions(
-                 DateTime.utc_now() |> DateTime.add(-86_400 * 364),
+                 DateTime.utc_now() |> DateTime.add(-86_400),
                  "AAA"
                )
 

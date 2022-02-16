@@ -185,7 +185,7 @@ defmodule ArchEthic.Crypto do
     subset
     |> derive_beacon_keypair(date, summary?)
     |> elem(0)
-    |> hash()
+    |> derive_address()
   end
 
   @doc """
@@ -223,7 +223,7 @@ defmodule ArchEthic.Crypto do
     date
     |> derive_oracle_keypair(size)
     |> elem(0)
-    |> hash()
+    |> derive_address()
   end
 
   @doc """
