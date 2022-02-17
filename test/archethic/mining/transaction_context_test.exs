@@ -4,10 +4,10 @@ defmodule ArchEthic.Mining.TransactionContextTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetP2PView
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.P2PView
+  alias ArchEthic.P2P.Message.Ping
+  alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
@@ -37,8 +37,8 @@ defmodule ArchEthic.Mining.TransactionContextTest do
         _, %GetTransaction{address: "@Alice1"}, _ ->
           {:ok, %Transaction{}}
 
-        _, %GetP2PView{}, _ ->
-          {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{address: "@Alice1"}, _ ->
           {:ok,
@@ -89,12 +89,8 @@ defmodule ArchEthic.Mining.TransactionContextTest do
       P2P.add_and_connect_node(node2)
       P2P.add_and_connect_node(node3)
 
-      assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>,
-              <<1::1, 1::1>>} =
-               TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"], [
-                 "key1",
-                 "key2"
-               ])
+      assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>} =
+               TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"])
 
       assert involved_nodes
              |> Enum.map(& &1.first_public_key)
