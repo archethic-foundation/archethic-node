@@ -150,6 +150,6 @@ defmodule ArchEthic.Metrics.Parser do
   end
 
   defp normalize_metrics({labels, inner_values}) do
-     Map.put(inner_values, :labels, labels)
+    Map.put(inner_values, :labels, labels)
   end
 end

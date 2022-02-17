@@ -61,30 +61,29 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
-<<<<<<< Updated upstream
-=======
-
   """
   def inject_tps(list_of_lists_of_metric_maps) do
-    Enum.map(list_of_lists_of_metric_maps , fn list_of_maps ->
-       count_by_sum =
-         Enum.reduce(list_of_maps, 1, fn map , acc ->
-              case map do
-               %{"archethic_mining_full_transaction_validation_duration" =>
-               %{ count: count, sum: sum}} ->
-                   case sum == 0 do
-                     true -> 0
-                     false -> count / sum
-                   end
-                _ ->     acc
-             end
-         end)
-         [ %{"tps" => %{count: 1 , sum: count_by_sum}} | list_of_maps]
-     end)
-   end
+    Enum.map(list_of_lists_of_metric_maps, fn list_of_maps ->
+      count_by_sum = Enum.reduce(list_of_maps, 1, fn map, acc -> get_tps(map, acc) end)
+
+      [%{"tps" => %{count: 1, sum: count_by_sum}} | list_of_maps]
+    end)
+  end
+
+  def get_tps(map, acc) do
+    case map do
+      %{"archethic_mining_full_transaction_validation_duration" => %{count: count, sum: sum}} ->
+        case sum == 0 do
+          true -> 0
+          false -> count / sum
+        end
+
+      _ ->
+        acc
+    end
+  end
 
   @doc """
->>>>>>> Stashed changes
   Establishes connection at port 40_000 for given node_ip.In case of error, returns empty list.
   """
   def establish_connection_to_node(ip) do
@@ -132,8 +131,9 @@ defmodule ArchEthic.Metrics.Helpers do
       %{metrics: _, name: "archethic_mining_full_transaction_validation_duration", type: _} ->
         true
 
-     %{metrics: _, name: "archethic_p2p_send_message_duration", type: _} ->
+      %{metrics: _, name: "archethic_p2p_send_message_duration", type: _} ->
         true
+
       # %{metrics: _, name: "archethic_election_validation_nodes_duration", type: _} ->
       #   true
 
@@ -142,7 +142,6 @@ defmodule ArchEthic.Metrics.Helpers do
 
       # %{metrics: _, name: "archethic_mining_pending_transaction_validation_duration", type: _} ->
       #   true
-
 
       # %{metrics: _, name: "archethic_contract_parsing_duration", type: _} ->
       #   true
@@ -381,18 +380,13 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
-<<<<<<< Updated upstream
-    Returns default value to return to
-=======
-    Provides default values for metrics during metric processing.
->>>>>>> Stashed changes
   """
   def get_metric_default_value() do
     %{
       "tps" => %{count: 0, sum: 0},
       "archethic_mining_full_transaction_validation_duration" => %{count: 0, sum: 0},
       "archethic_p2p_send_message_duration" => %{count: 0, sum: 0},
-      "archethic_mining_proof_of_work_duration" => %{count: 0, sum: 0},
+      "archethic_mining_proof_of_work_duration" => %{count: 0, sum: 0}
       # "archethic_election_validation_nodes_duration" => %{count: 0, sum: 0},
       # "archethic_election_storage_nodes_duration" => %{count: 0, sum: 0},
       # "archethic_mining_pending_transaction_validation_duration" => %{count: 0, sum: 0},
@@ -417,7 +411,6 @@ defmodule ArchEthic.Metrics.Helpers do
       # "vm_memory_atom" => 0
     }
   end
-
 
   @doc """
   Method combines maps of metrics of different nodes into a single map of respective metrics
