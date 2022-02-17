@@ -31,7 +31,8 @@ defmodule ArchEthicWeb.TransactionSubscriber do
   end
 
   def handle_cast({:register, tx_address, start_time}, state) do
-    {:noreply, Map.put(state, tx_address, %{status: :pending, start_time: start_time})}
+    {:noreply,
+     Map.put(state, tx_address, %{status: :pending, start_time: start_time, nb_confirmations: 0})}
   end
 
   def handle_info(
@@ -44,22 +45,38 @@ defmodule ArchEthicWeb.TransactionSubscriber do
          }},
         state
       ) do
-    case Map.pop(state, tx_address) do
-      {nil, state} ->
+    %{nb_confirmations: nb_confirmations} = Map.get(state, tx_address, %{nb_confirmations: 0})
+    total_confirmations = nb_confirmations + length(confirmations)
+
+    Subscription.publish(
+      Endpoint,
+      %{address: tx_address, nb_confirmations: total_confirmations},
+      transaction_confirmed: tx_address
+    )
+
+    case Map.get(state, tx_address) do
+      nil ->
         {:noreply, state}
 
-      {%{status: :pending, start_time: start_time}, state} ->
+      %{status: :confirmed} ->
+        new_state =
+          Map.update!(state, tx_address, &Map.put(&1, :nb_confirmations, total_confirmations))
+
+        {:noreply, new_state}
+
+      %{status: :pending, start_time: start_time} ->
         :telemetry.execute([:archethic, :transaction_end_to_end_validation], %{
           duration: System.monotonic_time() - start_time
         })
 
-        Subscription.publish(
-          Endpoint,
-          %{address: tx_address, confirmations: length(confirmations)},
-          attest_transaction: tx_address
-        )
+        new_state =
+          Map.update!(state, tx_address, fn state ->
+            state
+            |> Map.put(:status, :confirmed)
+            |> Map.put(:nb_confirmations, total_confirmations)
+          end)
 
-        {:noreply, state}
+        {:noreply, new_state}
     end
   end
 
@@ -67,9 +84,13 @@ defmodule ArchEthicWeb.TransactionSubscriber do
     now = System.monotonic_time()
 
     new_state =
-      Enum.filter(state, fn {_address, %{status: :pending, start_time: start_time}} ->
-        second_elapsed = System.convert_time_unit(now - start_time, :native, :second)
-        second_elapsed <= 86_400
+      Enum.filter(state, fn
+        {_address, %{status: :confirmed}} ->
+          true
+
+        {_address, %{status: :pending, start_time: start_time}} ->
+          second_elapsed = System.convert_time_unit(now - start_time, :native, :second)
+          second_elapsed <= 3_600
       end)
       |> Enum.into(%{})
 

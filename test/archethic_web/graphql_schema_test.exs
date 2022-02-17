@@ -5,6 +5,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.Balance
   alias ArchEthic.P2P.Message.GetBalance
@@ -22,6 +24,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -353,7 +356,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     end
   end
 
-  describe "subscription: acknowledge_storage" do
+  describe "subscription: transaction_confirmed" do
     test "should be notified when the welcome node get acknowledgment of the transaction stored" do
       addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -362,20 +365,25 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
       subscription_id =
         subscribe(
           socket,
-          "subscription { acknowledge_storage(address: \"#{Base.encode16(addr)}\") { address } }"
+          "subscription { transactionConfirmed(address: \"#{Base.encode16(addr)}\") { address, nbConfirmations } }"
         )
 
-      PubSub.notify_new_transaction(addr)
-
-      MockClient
-      |> stub(:send_message, fn _, %GetTransaction{}, _ ->
-        {:ok, %Transaction{address: addr, type: :transfer, data: %TransactionData{}}}
-      end)
+      PubSub.notify_replication_attestation(%ReplicationAttestation{
+        transaction_summary: %TransactionSummary{
+          address: addr,
+          type: :transfer
+        },
+        confirmations: [{0, :crypto.strong_rand_bytes(64)}]
+      })
 
       assert_push("subscription:data", push)
 
       assert %{
-               result: %{data: %{"acknowledge_storage" => %{"address" => recv_addr}}},
+               result: %{
+                 data: %{
+                   "transactionConfirmed" => %{"address" => recv_addr, "nbConfirmations" => 1}
+                 }
+               },
                subscriptionId: ^subscription_id
              } = push
 
