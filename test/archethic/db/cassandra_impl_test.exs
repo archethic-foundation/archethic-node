@@ -52,32 +52,103 @@ defmodule ArchEthic.DB.CassandraImplTest do
   end
 
   @tag infrastructure: true
-  test "write_transaction_chain/1 should persist the transaction chain" do
-    tx1 = create_transaction(seed: "seed2", index: 0)
-    Process.sleep(100)
-    tx2 = create_transaction(seed: "seed2", index: 1)
+  describe "write_transaction_chain/1" do
+    test "should persist the transaction chain" do
+      tx1 = create_transaction(seed: "seed2", index: 0)
 
-    chain = [tx2, tx1]
-    assert :ok = Cassandra.write_transaction_chain(chain)
+      tx2 =
+        create_transaction(
+          seed: "seed2",
+          index: 1,
+          timestamp: DateTime.utc_now() |> DateTime.add(100)
+        )
 
-    chain_prepared_query =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT * FROM archethic.transaction_chains WHERE chain_address = ? and bucket = ?"
-      )
+      chain = [tx2, tx1]
+      assert :ok = Cassandra.write_transaction_chain(chain)
 
-    chain =
-      Task.async_stream(1..4, fn bucket ->
-        Xandra.execute!(:xandra_conn, chain_prepared_query, [
-          List.first(chain).address,
-          bucket
-        ])
-        |> Enum.to_list()
-      end)
-      |> Enum.map(fn {:ok, res} -> res end)
-      |> Enum.flat_map(& &1)
+      chain_prepared_query =
+        Xandra.prepare!(
+          :xandra_conn,
+          "SELECT * FROM archethic.transaction_chains WHERE chain_address = ? and bucket = ?"
+        )
 
-    assert length(chain) == 2
+      chain =
+        Task.async_stream(1..4, fn bucket ->
+          Xandra.execute!(:xandra_conn, chain_prepared_query, [
+            List.first(chain).address,
+            bucket
+          ])
+          |> Enum.to_list()
+        end)
+        |> Enum.map(fn {:ok, res} -> res end)
+        |> Enum.flat_map(& &1)
+
+      assert length(chain) == 2
+    end
+
+    test "should fill lookup tables" do
+      prepared =
+        Xandra.prepare!(
+          :xandra_conn,
+          "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
+        )
+
+      tx1 = create_transaction(seed: "seed2_2", index: 0)
+      genesis_address = Crypto.hash(tx1.previous_public_key)
+      tx1_address = tx1.address
+
+      assert :ok = Cassandra.write_transaction_chain([tx1])
+
+      assert [%{"last_transaction_address" => ^tx1_address}] =
+               Xandra.execute!(:xandra_conn, prepared, [genesis_address])
+               |> Enum.to_list()
+
+      tx2 =
+        create_transaction(
+          seed: "seed2_2",
+          index: 1,
+          timestamp: DateTime.utc_now() |> DateTime.add(100)
+        )
+
+      tx2_address = tx2.address
+
+      assert :ok = Cassandra.write_transaction_chain([tx2, tx1])
+
+      assert [
+               %{"last_transaction_address" => ^tx2_address},
+               %{"last_transaction_address" => ^tx1_address}
+             ] = Xandra.execute!(:xandra_conn, prepared, [genesis_address]) |> Enum.to_list()
+
+      assert [
+               %{"last_transaction_address" => ^tx2_address}
+             ] = Xandra.execute!(:xandra_conn, prepared, [tx1_address]) |> Enum.to_list()
+
+      tx3 =
+        create_transaction(
+          seed: "seed2_2",
+          index: 2,
+          timestamp: DateTime.utc_now() |> DateTime.add(200)
+        )
+
+      tx3_address = tx3.address
+
+      assert :ok = Cassandra.write_transaction_chain([tx3, tx2, tx1])
+
+      assert [
+               %{"last_transaction_address" => ^tx3_address},
+               %{"last_transaction_address" => ^tx2_address},
+               %{"last_transaction_address" => ^tx1_address}
+             ] = Xandra.execute!(:xandra_conn, prepared, [genesis_address]) |> Enum.to_list()
+
+      assert [
+               %{"last_transaction_address" => ^tx3_address},
+               %{"last_transaction_address" => ^tx2_address}
+             ] = Xandra.execute!(:xandra_conn, prepared, [tx1_address]) |> Enum.to_list()
+
+      assert [
+               %{"last_transaction_address" => ^tx3_address}
+             ] = Xandra.execute!(:xandra_conn, prepared, [tx2_address]) |> Enum.to_list()
+    end
   end
 
   @tag infrastructure: true
