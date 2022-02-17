@@ -33,12 +33,27 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        %TransactionList{transactions: txs} =
-          reply_first(nodes, %GetTransactionChain{address: address})
-
-        txs
+        do_fetch_transaction_chain(nodes, address)
     end
   end
+
+  defp do_fetch_transaction_chain(nodes, address, prev_result \\ nil)
+
+  defp do_fetch_transaction_chain([node | rest], address, _prev_result) do
+    case P2P.send_message(node, %GetTransactionChain{address: address}) do
+      {:ok, %TransactionList{transactions: []}} ->
+        do_fetch_transaction_chain(rest, address, [])
+
+      {:ok, %TransactionList{transactions: transactions}} ->
+        transactions
+
+      {:error, _} ->
+        do_fetch_transaction_chain(rest, address)
+    end
+  end
+
+  defp do_fetch_transaction_chain([], _address, nil), do: raise("Cannot fetch transaction chain")
+  defp do_fetch_transaction_chain([], _address, prev_result), do: prev_result
 
   @doc """
   Fetch the transaction unspent outputs
@@ -51,12 +66,27 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        %UnspentOutputList{unspent_outputs: utxos} =
-          reply_first(nodes, %GetUnspentOutputs{address: address})
-
-        utxos
+        do_fetch_unspent_outputs(nodes, address)
     end
   end
+
+  defp do_fetch_unspent_outputs(nodes, address, prev_result \\ nil)
+
+  defp do_fetch_unspent_outputs([node | rest], address, _prev_result) do
+    case P2P.send_message(node, %GetUnspentOutputs{address: address}) do
+      {:ok, %UnspentOutputList{unspent_outputs: []}} ->
+        do_fetch_unspent_outputs(rest, address, [])
+
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
+        unspent_outputs
+
+      {:error, _} ->
+        do_fetch_unspent_outputs(rest, address)
+    end
+  end
+
+  defp do_fetch_unspent_outputs([], _, nil), do: raise("Cannot fetch unspent outputs")
+  defp do_fetch_unspent_outputs([], _, prev_result), do: prev_result
 
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
@@ -69,12 +99,29 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        %TransactionInputList{inputs: inputs} =
-          reply_first(nodes, %GetTransactionInputs{address: address})
-
-        Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
+        nodes
+        |> do_fetch_inputs(address)
+        |> Enum.filter(&(DateTime.diff(&1.timestamp, timestamp) <= 0))
     end
   end
+
+  defp do_fetch_inputs(nodes, address, prev_result \\ nil)
+
+  defp do_fetch_inputs([node | rest], address, _prev_result) do
+    case P2P.send_message(node, %GetTransactionInputs{address: address}) do
+      {:ok, %TransactionInputList{inputs: []}} ->
+        do_fetch_inputs(rest, address, [])
+
+      {:ok, %TransactionInputList{inputs: inputs}} ->
+        inputs
+
+      {:error, _} ->
+        do_fetch_inputs(rest, address)
+    end
+  end
+
+  defp do_fetch_inputs([], _, nil), do: raise("Cannot fetch inputs")
+  defp do_fetch_inputs([], _, prev_result), do: prev_result
 
   defp replication_nodes(address, _timestamp, _) do
     address
@@ -82,15 +129,5 @@ defmodule ArchEthic.Replication.TransactionContext do
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> P2P.unprioritize_node(Crypto.first_node_public_key())
-  end
-
-  defp reply_first([node | rest], message) do
-    case P2P.send_message(node, message) do
-      {:ok, data} ->
-        data
-
-      {:error, _} ->
-        reply_first(rest, message)
-    end
   end
 end
