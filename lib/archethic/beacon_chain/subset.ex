@@ -291,7 +291,7 @@ defmodule ArchEthic.BeaconChain.Subset do
 
     tx_content =
       %Summary{subset: subset, summary_time: summary_time}
-      |> Summary.aggregate_slots(beacon_slots)
+      |> Summary.aggregate_slots(beacon_slots, P2PSampling.list_nodes_to_sample(subset))
       |> Summary.serialize()
 
     tx =

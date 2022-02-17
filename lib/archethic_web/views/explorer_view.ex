@@ -86,7 +86,6 @@ defmodule ArchEthicWeb.ExplorerView do
     {%Summary{
        subset: subset,
        transaction_summaries: transaction_summaries,
-       end_of_node_synchronizations: end_of_sync,
        node_availabilities: node_availabilities
      }, _} = Summary.deserialize(content)
 
@@ -99,22 +98,11 @@ defmodule ArchEthicWeb.ExplorerView do
         "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(address)} - #{type}"
       end)
 
-    end_of_sync_stringified =
-      Enum.map_join(end_of_sync, ", ", fn %EndOfNodeSync{
-                                            public_key: node_public_key,
-                                            timestamp: timestamp
-                                          } ->
-        "#{DateTime.to_string(DateTime.truncate(timestamp, :second))} - #{Base.encode16(node_public_key)}"
-      end)
-
     """
     Subset: #{Base.encode16(subset)}
 
     Transactions:
     #{transaction_summaries_stringified}
-
-    New node synchronizations
-    #{end_of_sync_stringified}
 
     P2P node availabilites: #{Utils.bitstring_to_integer_list(node_availabilities) |> Enum.join(",")}
     """

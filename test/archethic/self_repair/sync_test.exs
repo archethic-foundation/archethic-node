@@ -9,8 +9,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.BeaconSummaryList
-  alias ArchEthic.P2P.Message.GetBeaconSummaries
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
@@ -20,8 +19,6 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
   alias ArchEthic.TransactionFactory
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
 
   alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
@@ -63,7 +60,6 @@ defmodule ArchEthic.SelfRepair.SyncTest do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
-      # Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
 
       welcome_node = %Node{
         first_public_key: "key1",
@@ -74,7 +70,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         enrollment_date: DateTime.utc_now(),
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
       }
 
       coordinator_node = %Node{
@@ -82,7 +78,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
         available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365)),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10)),
         geo_patch: "AAA",
         network_patch: "AAA",
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
@@ -101,7 +97,20 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           enrollment_date: DateTime.utc_now(),
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
+          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+        },
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          first_public_key: "key4",
+          last_public_key: "key4",
+          available?: true,
+          geo_patch: "BBB",
+          network_patch: "BBB",
+          reward_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now(),
+          authorized?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
         }
       ]
 
@@ -156,27 +165,15 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         ]
       }
 
+      tx_address = tx.address
+
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummaries{addresses: _}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary]}}
+        _, %GetBeaconSummary{}, _ ->
+          {:ok, summary}
 
-        _, %GetTransaction{address: address}, _ ->
-          if address == tx.address do
-            {:ok, tx}
-          else
-            tx_content =
-              summary
-              |> BeaconSummary.serialize()
-              |> Utils.wrap_binary()
-
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{content: tx_content}
-             }}
-          end
+        _, %GetTransaction{address: ^tx_address}, _ ->
+          {:ok, tx}
 
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}
@@ -190,11 +187,11 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
       assert :ok =
                Sync.load_missed_transactions(
-                 DateTime.utc_now() |> DateTime.add(-86_400),
+                 DateTime.utc_now() |> DateTime.add(-86_400 * 10),
                  "AAA"
                )
 
-      assert_receive :storage, 5_000
+      assert_received :storage
     end
   end
 end
