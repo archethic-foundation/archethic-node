@@ -119,15 +119,11 @@ defmodule ArchEthicWeb.GraphQLSchema do
     @desc """
     Subscribe to be notified when a transaction is stored (if acted as welcome node)
     """
-    field :attest_transaction, :transaction_attestation do
+    field :transaction_confirmed, :transaction_attestation do
       arg(:address, non_null(:address))
 
       config(fn args, _info ->
         {:ok, topic: args.address}
-      end)
-
-      resolve(fn address, _, _ ->
-        Resolver.get_transaction(address)
       end)
     end
   end
