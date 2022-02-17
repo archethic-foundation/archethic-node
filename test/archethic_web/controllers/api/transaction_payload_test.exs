@@ -77,6 +77,28 @@ defmodule ArchEthicWeb.API.TransactionPayloadTest do
       assert {"must be hexadecimal", _} = Keyword.get(errors, :content)
     end
 
+    test "should return an error if the content size is greater than content max size" do
+      content = Base.encode16(:crypto.strong_rand_bytes(4 * 1024 * 1024))
+
+      %Ecto.Changeset{
+        valid?: false,
+        changes: %{data: %{errors: errors}}
+      } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{"content" => content}
+        })
+
+      assert {"content size must be lessthan content_max_size", _} = Keyword.get(errors, :content)
+    end
+
     test "should return an error if the code is not a string" do
       %Ecto.Changeset{
         valid?: false,
