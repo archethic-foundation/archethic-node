@@ -2,127 +2,137 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   @moduledoc false
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
+  alias ArchEthic.BeaconChain.Subset.P2PSampling
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
   alias ArchEthic.Crypto
 
   alias ArchEthic.DB
 
-  alias ArchEthic.Election
-
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.BeaconSummaryList
   alias ArchEthic.P2P.Message.GetBeaconSummary
-  alias ArchEthic.P2P.Message.GetBeaconSummaries
-  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
 
+  alias ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate
   alias __MODULE__.TransactionHandler
 
+  alias ArchEthic.TaskSupervisor
+
   alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
 
   alias ArchEthic.Utils
 
   require Logger
 
   @doc """
-  Retrieve the list of missed beacon summaries from a given date.
-
-  Foreach summary time and subset, a list node of nodes will be requested
-  to find out the missing beacon summaries.
-
-  The downloads are performed in batch to avoid overload of messages between nodes.
-  And a track of downloaded beacon summaries is kept to avoid failures and misses.
-
-  Also if the current node is responsible to store the beacon summary, then it will fetch the transaction and store it.
   """
-  @spec get_beacon_summaries(Enumerable.t(), binary()) :: Enumerable.t()
-  def get_beacon_summaries(summary_pools, patch) when is_binary(patch) do
-    summary_pools
-    |> Enum.reduce(%{}, &reduce_beacon_address_by_node/2)
-    |> Enum.sort_by(fn {node, _} -> P2P.network_distance(node.network_patch, patch) end)
-    |> Enum.filter(fn {node, _} -> Node.locally_available?(node) end)
-    |> Stream.transform([], &get_beacon_summaries_by_node/2)
-    |> Stream.map(fn summary ->
-      load_downloaded_summary(summary, patch)
-      summary
-    end)
+  @spec get_full_beacon_summary(DateTime.t(), binary(), list(Node.t())) :: BeaconSummary.t()
+  def get_full_beacon_summary(summary_time, subset, nodes) do
+    summary_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
+
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
+      nodes,
+      fn node ->
+        P2P.send_message(node, %GetBeaconSummary{address: summary_address})
+      end,
+      on_timeout: :kill_task,
+      ordered: false
+    )
+    |> Enum.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
+    |> Enum.map(fn {:ok, {:ok, summary}} -> summary end)
+    |> Enum.reduce(
+      %{
+        transaction_summaries: [],
+        node_availabilities: [],
+        node_average_availabilities: [],
+        end_of_node_synchronizations: []
+      },
+      &do_reduce_beacon_summaries/2
+    )
+    |> aggregate(summary_time, subset)
   end
 
-  defp reduce_beacon_address_by_node({summary_time, subset, nodes}, acc) do
-    beacon_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
-
-    Enum.reduce(nodes, acc, fn node, acc ->
-      Map.update(acc, node, [beacon_address], &[beacon_address | &1])
-    end)
-  end
-
-  defp get_beacon_summaries_by_node({_, []}, acc), do: acc
-
-  defp get_beacon_summaries_by_node(
-         {node, addresses},
-         resolved_addresses
+  defp do_reduce_beacon_summaries(
+         %BeaconSummary{
+           transaction_summaries: transaction_summaries,
+           node_availabilities: node_availabilities,
+           node_average_availabilities: node_average_availabilities
+         },
+         acc
        ) do
-    %{summaries: summaries, resolved_addresses: new_resolved_addresses} =
-      addresses
-      |> Enum.reject(&(&1 in resolved_addresses))
-      |> do_get_beacon_summaries_by_node(node)
-      |> Enum.reduce(%{summaries: [], resolved_addresses: resolved_addresses}, fn summary, acc ->
-        summary_address = get_address_from_summary(summary)
-
-        acc
-        |> Map.update!(:summaries, &[summary | &1])
-        |> Map.update!(:resolved_addresses, &[summary_address | &1])
-      end)
-
-    {summaries, new_resolved_addresses}
+    acc
+    |> Map.update!(
+      :transaction_summaries,
+      &Enum.concat(transaction_summaries, &1)
+    )
+    |> Map.update!(
+      :node_availabilities,
+      &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
+    )
+    |> Map.update!(
+      :node_average_availabilities,
+      &Enum.concat(&1, [node_average_availabilities])
+    )
   end
 
-  defp do_get_beacon_summaries_by_node([], _node), do: []
+  defp aggregate(
+         %{
+           transaction_summaries: tx_summaries,
+           node_availabilities: node_availabilities,
+           node_average_availabilities: node_average_availabilities
+         },
+         summary_time,
+         subset
+       ) do
+    %BeaconSummary{
+      subset: subset,
+      summary_time: summary_time,
+      transaction_summaries: Enum.uniq_by(List.flatten(tx_summaries), & &1.address),
+      node_availabilities: aggregate_node_availabilities(node_availabilities),
+      node_average_availabilities:
+        aggregate_node_average_availabilities(node_average_availabilities)
+    }
+  end
 
-  defp do_get_beacon_summaries_by_node(addresses, node) do
-    addresses
-    # Download beacon summaries by batch of 10 transactions
-    |> Stream.chunk_every(10)
-    |> Stream.map(fn addresses ->
-      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-        {:ok, %BeaconSummaryList{summaries: summaries}} ->
-          summaries
+  defp aggregate_node_availabilities(node_availabilities) do
+    node_availabilities
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+    |> Enum.map(fn availabilities ->
+      # Get the mode of the availabilities
+      frequencies = Enum.frequencies(availabilities)
+      online_frequencies = Map.get(frequencies, 1, 0)
+      offline_frequencies = Map.get(frequencies, 0, 0)
 
-        _ ->
-          []
+      if online_frequencies >= offline_frequencies do
+        1
+      else
+        0
       end
     end)
-    |> Enum.flat_map(& &1)
+    |> List.flatten()
+    |> Enum.map(&<<&1::1>>)
+    |> :erlang.list_to_bitstring()
   end
 
-  defp get_address_from_summary(%BeaconSummary{subset: subset, summary_time: summary_time}) do
-    Crypto.derive_beacon_chain_address(subset, summary_time, true)
+  defp aggregate_node_average_availabilities(avg_availabilities) do
+    avg_availabilities
+    |> Enum.zip()
+    |> Enum.map(&Tuple.to_list/1)
+    |> Enum.map(fn avg_availabilities ->
+      Enum.sum(avg_availabilities) / length(avg_availabilities)
+    end)
   end
 
-  defp load_downloaded_summary(%BeaconSummary{summary_time: summary_time, subset: subset}, patch) do
-    node_list = P2P.distinct_nodes([P2P.get_node_info() | P2P.authorized_nodes()])
-
-    beacon_storage_nodes = Election.beacon_storage_nodes(subset, summary_time, node_list)
-    address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
-
-    closest_nodes =
-      beacon_storage_nodes
-      |> P2P.nearest_nodes(patch)
-      |> Enum.filter(&Node.locally_available?/1)
-
-    with true <- Utils.key_in_node_list?(beacon_storage_nodes, Crypto.first_node_public_key()),
-         false <- TransactionChain.transaction_exists?(address),
-         {:ok, tx} <- fetch_transaction(closest_nodes, address) do
-      TransactionChain.write_transaction(tx)
-    end
-  end
-
+  @doc """
+  Download the beacon summary from the closest nodes given
+  """
+  @spec download_summary(Crypto.versioned_hash(), list(Node.t()), binary()) ::
+          {:ok, BeaconSummary.t() | NotFound.t()} | {:error, any()}
   def download_summary(_beacon_address, [], _), do: {:ok, %NotFound{}}
 
   def download_summary(beacon_address, nodes, patch) do
@@ -147,29 +157,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   defp do_get_download_summary([], _, %NotFound{}), do: {:ok, %NotFound{}}
   defp do_get_download_summary([], _, _), do: {:error, :network_issue}
 
-  defp fetch_transaction([node | rest], address) do
-    case P2P.send_message(node, %GetTransaction{address: address}) do
-      {:ok, tx = %Transaction{}} ->
-        {:ok, tx}
-
-      _ ->
-        fetch_transaction(rest, address)
-    end
-  end
-
-  defp fetch_transaction([], address) do
-    Logger.error("Cannot fetch beacon summary transaction to store",
-      transaction_address: Base.encode16(address),
-      type: :beacon_summary
-    )
-
-    {:error, :network_issue}
-  end
-
   @doc """
-  Process beacon summaries to synchronize the transactions involving.
+  Process beacon summary to synchronize the transactions involving.
 
-  Each transactions from the beacon summaries will be analyzed to determine
+  Each transactions from the beacon summary will be analyzed to determine
   if the node is a storage node for this transaction. If so, it will download the
   transaction from the closest storage nodes and replicate it locally.
 
@@ -178,105 +169,114 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
   Also, the  number of transaction received during the beacon summary interval will be stored.
   """
-  @spec handle_missing_summaries(Enumerable.t() | list(BeaconSummary.t()), binary()) :: :ok
-  def handle_missing_summaries(summaries, node_patch) when is_binary(node_patch) do
-    initial_state = %{transactions: [], ends_of_sync: [], stats: %{}, p2p_availabilities: []}
-
-    summaries
-    |> Enum.reduce(initial_state, &aggregate_summary/2)
-    |> process_summary_aggregate(node_patch)
-  end
-
-  defp aggregate_summary(
-         summary = %BeaconSummary{
-           transaction_summaries: transaction_summaries,
-           end_of_node_synchronizations: ends_of_sync,
-           summary_time: summary_time
-         },
-         acc
-       ) do
-    acc
-    |> Map.update!(:transactions, &(&1 ++ transaction_summaries))
-    |> Map.update!(:ends_of_sync, &(&1 ++ ends_of_sync))
-    |> Map.update!(
-      :p2p_availabilities,
-      &(&1 ++ BeaconSummary.get_node_availabilities(summary, P2P.list_nodes()))
-    )
-    |> update_in([:stats, Access.key(summary_time, 0)], &(&1 + length(transaction_summaries)))
-  end
-
-  defp process_summary_aggregate(
-         %{
-           transactions: transactions,
-           ends_of_sync: ends_of_sync,
-           stats: stats,
-           p2p_availabilities: p2p_availabilities
-         },
-         node_patch
-       ) do
-    synchronize_transactions(transactions, node_patch)
-
-    Enum.each(ends_of_sync, &handle_end_of_node_sync/1)
+  @spec process_summary_aggregate(BeaconSummaryAggregate.t(), binary()) :: :ok
+  def process_summary_aggregate(
+        %BeaconSummaryAggregate{
+          summary_time: summary_time,
+          transaction_summaries: transaction_summaries,
+          p2p_availabilities: p2p_availabilities
+        },
+        node_patch
+      ) do
+    transaction_summaries
+    |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
+    |> Enum.filter(&TransactionHandler.download_transaction?/1)
+    |> synchronize_transactions(node_patch)
 
     p2p_availabilities
-    |> Enum.uniq_by(fn {%Node{first_public_key: node_first_public_key}, _available?,
-                        _avg_availability} ->
-      node_first_public_key
+    |> Enum.reduce(%{}, fn {subset,
+                            %{
+                              node_availabilities: node_availabilities,
+                              node_average_availabilities: node_average_availabilities
+                            }},
+                           acc ->
+      reduce_p2p_availabilities(
+        subset,
+        summary_time,
+        node_availabilities,
+        node_average_availabilities,
+        acc
+      )
     end)
-    |> Enum.each(&update_availabilities(elem(&1, 0), elem(&1, 1), elem(&1, 2)))
+    |> Enum.each(&update_availabilities/1)
 
-    update_statistics(stats)
+    update_statistics(summary_time, length(transaction_summaries))
   end
+
+  defp synchronize_transactions([], _node_patch), do: :ok
 
   defp synchronize_transactions(transaction_summaries, node_patch) do
-    transactions_to_sync =
-      transaction_summaries
-      |> Enum.uniq_by(& &1.address)
-      |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
-      |> Enum.reject(&TransactionChain.transaction_exists?(&1.address))
-      |> Enum.filter(&TransactionHandler.download_transaction?/1)
+    Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
+    Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
-    Logger.info("Need to synchronize #{Enum.count(transactions_to_sync)} transactions")
-    Logger.debug("Transaction to sync #{inspect(transactions_to_sync)}")
-
-    Enum.each(transactions_to_sync, &TransactionHandler.download_transaction(&1, node_patch))
+    transaction_summaries
+    |> Task.async_stream(&TransactionHandler.download_transaction(&1, node_patch))
+    |> Stream.each(fn {:ok, tx} ->
+      TransactionHandler.process_transaction(tx)
+    end)
+    |> Stream.run()
   end
 
-  defp handle_end_of_node_sync(%EndOfNodeSync{public_key: node_public_key, timestamp: timestamp}) do
-    DB.register_p2p_summary(node_public_key, timestamp, true, 1.0)
-    P2P.set_node_globally_available(node_public_key)
+  defp reduce_p2p_availabilities(
+         subset,
+         time,
+         node_availabilities,
+         node_average_availabilities,
+         acc
+       ) do
+    node_list = Enum.filter(P2P.list_nodes(), &(DateTime.diff(&1.enrollment_date, time) <= 0))
+
+    subset_node_list = P2PSampling.list_nodes_to_sample(subset, node_list)
+
+    node_availabilities
+    |> Utils.bitstring_to_integer_list()
+    |> Enum.with_index()
+    |> Enum.reduce(acc, fn {available_bit, index}, acc ->
+      node = Enum.at(subset_node_list, index)
+      avg_availability = Enum.at(node_average_availabilities, index)
+
+      case available_bit do
+        1 ->
+          Map.put(acc, node, %{available?: true, average_availability: avg_availability})
+
+        0 ->
+          Map.put(acc, node, %{available?: false, average_availability: avg_availability})
+      end
+    end)
   end
 
-  defp update_availabilities(%Node{first_public_key: node_key}, available?, avg_availability) do
+  defp update_availabilities(
+         {%Node{first_public_key: node_key},
+          %{available?: available?, average_availability: avg_availability}}
+       ) do
     DB.register_p2p_summary(node_key, DateTime.utc_now(), available?, avg_availability)
 
-    # TODO: fix the split of the network when node have different P2P availabilities causing the system to fail
-    # if available? do
-    #   P2P.set_node_globally_available(node_key)
-    # else
-    #   P2P.set_node_globally_unavailable(node_key)
-    # end
+    if available? do
+      P2P.set_node_globally_available(node_key)
+    else
+      P2P.set_node_globally_unavailable(node_key)
+    end
 
-    # P2P.set_node_average_availability(node_key, avg_availability)
+    P2P.set_node_average_availability(node_key, avg_availability)
   end
 
-  defp update_statistics(stats) do
-    Enum.each(stats, fn {date, nb_transactions} ->
-      previous_summary_time =
-        date
-        |> Utils.truncate_datetime()
-        |> BeaconChain.previous_summary_time()
+  defp update_statistics(_date, 0), do: :ok
 
-      nb_seconds = abs(DateTime.diff(previous_summary_time, date))
-      tps = nb_transactions / nb_seconds
+  defp update_statistics(date, nb_transactions) do
+    previous_summary_time =
+      date
+      |> Utils.truncate_datetime()
+      |> BeaconChain.previous_summary_time()
 
-      DB.register_tps(date, tps, nb_transactions)
+    nb_seconds = abs(DateTime.diff(previous_summary_time, date))
+    tps = nb_transactions / nb_seconds
 
-      Logger.info(
-        "TPS #{tps} on #{Utils.time_to_string(date)} with #{nb_transactions} transactions"
-      )
+    DB.register_tps(date, tps, nb_transactions)
 
-      PubSub.notify_new_tps(tps, nb_transactions)
-    end)
+    Logger.info(
+      "TPS #{tps} on #{Utils.time_to_string(date)} with #{nb_transactions} transactions"
+    )
+
+    PubSub.notify_new_tps(tps, nb_transactions)
   end
 end

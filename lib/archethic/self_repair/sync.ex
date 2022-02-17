@@ -2,14 +2,15 @@ defmodule ArchEthic.SelfRepair.Sync do
   @moduledoc false
 
   alias ArchEthic.BeaconChain
-  # alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
+  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
+
+  alias ArchEthic.Election
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
   alias __MODULE__.BeaconSummaryHandler
-
-  alias ArchEthic.Utils
+  alias __MODULE__.BeaconSummaryAggregate
 
   require Logger
 
@@ -109,40 +110,53 @@ defmodule ArchEthic.SelfRepair.Sync do
   """
   @spec load_missed_transactions(
           last_sync_date :: DateTime.t(),
-          patch :: binary(),
-          bootstrap? :: boolean()
+          patch :: binary()
         ) :: :ok
-  def load_missed_transactions(last_sync_date = %DateTime{}, patch, bootstrap? \\ false)
-      when is_binary(patch) and is_boolean(bootstrap?) do
+  def load_missed_transactions(last_sync_date = %DateTime{}, patch) when is_binary(patch) do
     Logger.info(
       "Fetch missed transactions from last sync date: #{DateTime.to_string(last_sync_date)}"
     )
 
     start = System.monotonic_time()
 
+    authorized_nodes = P2P.authorized_nodes()
+
     last_sync_date
-    |> missed_previous_summaries(patch)
-    |> BeaconSummaryHandler.handle_missing_summaries(patch)
+    |> BeaconChain.next_summary_dates()
+    |> Flow.from_enumerable()
+    |> Flow.flat_map(&subsets_by_times/1)
+    |> Flow.partition(key: {:elem, 0})
+    |> Flow.reduce(
+      fn -> %BeaconSummaryAggregate{} end,
+      &aggregate_summaries_by_date(&1, &2, authorized_nodes)
+    )
+    |> Flow.emit(:state)
+    |> Stream.reject(&BeaconSummaryAggregate.empty?/1)
+    |> Enum.sort_by(& &1.summary_time)
+    |> Enum.each(&BeaconSummaryHandler.process_summary_aggregate(&1, patch))
 
     :telemetry.execute([:archethic, :self_repair], %{duration: System.monotonic_time() - start})
   end
 
-  defp missed_previous_summaries(last_sync_date, patch) do
-    last_sync_date
-    |> BeaconChain.previous_summary_dates()
-    |> Enum.sort({:asc, DateTime})
-    |> tap(fn dates ->
-      Logger.debug("Dates to sync from self-repair cycle #{inspect(Enum.to_list(dates))}")
-    end)
-    |> BeaconChain.get_summary_pools()
-    |> BeaconSummaryHandler.get_beacon_summaries(patch)
+  defp subsets_by_times(time) do
+    subsets = BeaconChain.list_subsets()
+    Enum.map(subsets, fn subset -> {DateTime.truncate(time, :second), subset} end)
   end
 
-  #  defp missed_previous_slots(patch) do
-  #    DateTime.utc_now()
-  #    |> BeaconChain.previous_summary_time()
-  #    |> BeaconChain.get_slot_pools()
-  #    |> BeaconSummaryHandler.get_beacon_slots(patch)
-  #    |> Stream.map(&BeaconSummary.from_slot/1)
-  #  end
+  # defp flow_window do
+  #   Flow.Window.fixed(, :second, fn {date, _} ->
+  #     DateTime.to_unix(date, :millisecond)
+  #   end)
+  # end
+
+  # defp dates_interval_seconds(last_sync_date) do
+  #   DateTime.diff(last_sync_date, BeaconChain.next_summary_date(last_sync_date))
+  # end
+
+  defp get_beacon_summary(time, subset, node_list) do
+    filter_nodes = Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
+
+    nodes = Election.beacon_storage_nodes(subset, time, filter_nodes)
+    BeaconSummaryHandler.get_full_beacon_summary(time, subset, nodes)
+  end
 end

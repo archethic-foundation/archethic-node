@@ -546,26 +546,6 @@ defmodule ArchEthic.Utils do
   end
 
   @doc """
-  Return a Flow.Window.fixed/3 from a list of dates by computing the interval between
-  """
-  @spec flow_window_from_dates(Enumerable.t(), (any() -> integer())) :: Flow.Window.t()
-  def flow_window_from_dates(dates, mapper) when is_function(mapper) do
-    case Enum.take(dates, 2) do
-      [date1, date2] ->
-        diff = DateTime.diff(date2, date1) |> abs()
-
-        if diff > 0 do
-          Flow.Window.fixed(diff, :second, &DateTime.to_unix(mapper.(&1), :millisecond))
-        else
-          Flow.Window.global()
-        end
-
-      _ ->
-        Flow.Window.global()
-    end
-  end
-
-  @doc """
   Clear the mailbox of the current process
   """
   @spec flush_mailbox() :: :ok
