@@ -14,6 +14,7 @@ defmodule ArchEthic.BeaconChain do
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.Subset.P2PSampling
+  alias ArchEthic.BeaconChain.Subset.SummaryCache
   alias ArchEthic.BeaconChain.Summary
   alias ArchEthic.BeaconChain.SummaryTimer
 
@@ -36,15 +37,6 @@ defmodule ArchEthic.BeaconChain do
   require Logger
 
   @doc """
-  Initialize the beacon subsets (from 0 to 255 for a byte capacity)
-  """
-  @spec init_subsets() :: :ok
-  def init_subsets do
-    subsets = Enum.map(0..255, &:binary.encode_unsigned(&1))
-    :persistent_term.put(:beacon_subsets, subsets)
-  end
-
-  @doc """
   List of all transaction subsets (255 subsets for a byte capacity)
 
   ## Examples
@@ -54,7 +46,7 @@ defmodule ArchEthic.BeaconChain do
   """
   @spec list_subsets() :: list(binary())
   def list_subsets do
-    :persistent_term.get(:beacon_subsets)
+    Enum.map(0..255, &:binary.encode_unsigned(&1))
   end
 
   @doc """
@@ -189,16 +181,13 @@ defmodule ArchEthic.BeaconChain do
   @spec load_transaction(Transaction.t()) :: :ok | :error
   def load_transaction(
         tx = %Transaction{
-          address: address,
           type: :beacon,
           data: %TransactionData{content: content}
         }
       ) do
-    with false <- TransactionChain.transaction_exists?(address),
-         {%Slot{subset: subset, slot_time: slot_time} = slot, _} <- Slot.deserialize(content),
+    with {%Slot{subset: subset} = slot, _} <- Slot.deserialize(content),
          :ok <- validate_slot(tx, slot) do
-      summary_address = summary_transaction_address(subset, next_summary_date(slot_time))
-      TransactionChain.write_transaction(tx, summary_address)
+      SummaryCache.add_slot(subset, slot)
     else
       true ->
         :ok
