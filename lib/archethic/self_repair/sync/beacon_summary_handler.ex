@@ -35,7 +35,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
-      nodes,
+      Enum.filter(nodes, &Node.locally_available?/1),
       fn node ->
         P2P.send_message(node, %GetBeaconSummary{address: summary_address})
       end,
