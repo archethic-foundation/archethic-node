@@ -28,7 +28,7 @@ defmodule ArchEthicWeb.API.Schema.TransactionData do
 
   defp validate_content_size(%Ecto.Changeset{} = changeset) do
     validate_change(changeset, :content, fn field, content ->
-      content_size = byte_size(content) / (1024 * 1024)
+      content_size = byte_size(content)
 
       if content_size >= @content_max_size do
         [{field, "content size must be lessthan content_max_size"}]
