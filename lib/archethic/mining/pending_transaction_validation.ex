@@ -42,6 +42,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
     with true <- Transaction.verify_previous_signature?(tx),
          :ok <- validate_contract(tx),
+         :ok <- validate_content_size(tx),
          :ok <- do_accept_transaction(tx) do
       :telemetry.execute(
         [:archethic, :mining, :pending_transaction_validation],
@@ -62,6 +63,16 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
       {:error, reason} = e ->
         Logger.info(reason, transaction_address: Base.encode16(address), transaction_type: type)
         e
+    end
+  end
+
+  defp validate_content_size(%Transaction{data: %TransactionData{content: content}}) do
+    content_max_size = Application.get_env(:archethic, :transaction_data_content_max_size)
+
+    if byte_size(content) >= content_max_size do
+      {:error, "Invalid node transaction with content size greaterthan content_max_size"}
+    else
+      :ok
     end
   end
 

@@ -46,7 +46,7 @@ config :archethic, :mut_dir, "data"
 config :archethic, :marker, "-=%=-=%=-=%=-"
 
 # size represents in bytes binary
-config :archethic, :transaction_data_content_max_size, 3145728
+config :archethic, :transaction_data_content_max_size, 3_145_728
 
 config :archethic, ArchEthic.Crypto,
   supported_curves: [

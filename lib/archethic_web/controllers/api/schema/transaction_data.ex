@@ -1,6 +1,6 @@
 defmodule ArchEthicWeb.API.Schema.TransactionData do
   @moduledoc false
-  @content_max_size Application.get_env(:archethic, :transaction_data_content_max_size)
+  @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
 
   use Ecto.Schema
   import Ecto.Changeset
