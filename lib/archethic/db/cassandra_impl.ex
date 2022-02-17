@@ -585,7 +585,7 @@ defmodule ArchEthic.DB.CassandraImpl do
       node_public_key,
       date,
       available?,
-      avg_availability
+      Float.round(avg_availability, 2)
     ])
 
     :ok
@@ -613,7 +613,7 @@ defmodule ArchEthic.DB.CassandraImpl do
                        "available" => available?,
                        "average_availability" => avg_availability
                      } ->
-      {node_public_key, {available?, avg_availability}}
+      {node_public_key, {available?, Float.round(avg_availability, 2)}}
     end)
     |> Enum.into(%{})
   end
