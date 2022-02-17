@@ -45,12 +45,12 @@ defmodule ArchEthicWeb.FaucetController do
       |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
       |> put_resp_header("pragma", "no-cache")
       |> put_resp_header("expires", "0")
-      |> put_flash(:info, "Transferred successfully (click to view)")
+      |> put_flash(:info, "Transaction submitted (click to see it)")
       |> render("index.html", address: "", link_address: Base.encode16(tx_address))
     else
       {:error, _} ->
         conn
-        |> put_flash(:error, "Unable to transfer")
+        |> put_flash(:error, "Unable to send the transaction")
         |> render("index.html", address: address, link_address: "")
 
       _ ->
