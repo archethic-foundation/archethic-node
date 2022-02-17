@@ -34,17 +34,15 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       assert Sync.last_sync_date() == nil
     end
 
-    test "should get the last sync date from the stored filed file" do
-      file =
-        Application.get_env(:archethic, Sync)
-        |> Keyword.fetch!(:last_sync_file)
-        |> Utils.mut_dir()
-
+    test "should get the last sync date from the db" do
       last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
 
-      new_sync_date = last_sync_date |> DateTime.to_unix() |> Integer.to_string()
-      Path.dirname(file) |> File.mkdir_p!()
-      :ok = File.write!(file, new_sync_date, [:write])
+      MockDB
+      |> stub(:get_bootstrap_info, fn "last_sync_time" ->
+        last_sync_date
+        |> DateTime.to_unix()
+        |> Integer.to_string()
+      end)
 
       assert Sync.last_sync_date() == last_sync_date
     end
@@ -52,8 +50,19 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
   test "store_last_sync_date/1 should store the last sync date into the last sync file" do
     last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
+    last_sync_time = DateTime.to_unix(last_sync_date) |> Integer.to_string()
+
+    me = self()
+
+    MockDB
+    |> stub(:set_bootstrap_info, fn "last_sync_time", time ->
+      send(me, {:last_sync_time, time})
+      :ok
+    end)
+
     :ok = Sync.store_last_sync_date(last_sync_date)
-    assert Sync.last_sync_date() == last_sync_date
+
+    assert_received {:last_sync_time, ^last_sync_time}
   end
 
   describe "load_missed_transactions/2" do

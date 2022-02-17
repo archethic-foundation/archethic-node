@@ -2,12 +2,14 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
   @moduledoc """
   Handle bootstrapping seeds lifecycle
 
-  The networking seeds are firstly fetched either from file or environment variable (dev)
+  The networking seeds are firstly fetched either from a previous flush or from an environment variable
 
   The bootstrapping seeds support flushing updates
   """
 
   alias ArchEthic.Crypto
+
+  alias ArchEthic.DB
 
   alias ArchEthic.PubSub
 
@@ -20,15 +22,11 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
   require Logger
 
   @type options :: [
-          genesis_seeds: binary(),
-          backup_file: binary()
+          genesis_seeds: binary()
         ]
 
   @doc """
   Start the bootstrapping seeds holder
-
-  Options:
-  - File: path from the P2P bootstrapping seeds backup
   """
   @spec start_link(options()) :: GenServer.on_start()
   def start_link(opts \\ []) do
@@ -49,19 +47,19 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
 
   def init(opts) do
     genesis_seeds = Keyword.get(opts, :genesis_seeds, "")
-    backup_file = Keyword.get(opts, :backup_file, "")
 
     seeds =
-      case File.read(backup_file) do
-        {:ok, data} when data != "" ->
-          extract_seeds(data)
-
-        _ ->
-          if genesis_seeds == nil do
+      case DB.get_bootstrap_info("bootstrapping_seeds") do
+        nil ->
+          if genesis_seeds == "" do
             raise "Missing genesis seeds"
           end
 
+          DB.set_bootstrap_info("bootstrapping_seeds", genesis_seeds)
           extract_seeds(genesis_seeds)
+
+        seeds ->
+          extract_seeds(seeds)
       end
 
     Logger.info(
@@ -70,7 +68,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
 
     PubSub.register_to_node_update()
 
-    {:ok, %{seeds: seeds, backup_file: backup_file}}
+    {:ok, %{seeds: seeds}}
   end
 
   def handle_call(:list_seeds, _from, state = %{seeds: seeds}) do
@@ -79,14 +77,13 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
 
   def handle_call({:new_seeds, []}, _from, state), do: {:reply, :ok, state}
 
-  def handle_call({:new_seeds, _seeds}, _from, state = %{backup_file: ""}),
-    do: {:reply, :ok, state}
+  def handle_call({:new_seeds, seeds}, _from, state) do
+    seeds_stringified =
+      seeds
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+      |> nodes_to_seeds()
 
-  def handle_call({:new_seeds, seeds}, _from, state = %{backup_file: file}) do
-    seeds
-    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-    |> nodes_to_seeds
-    |> flush_seeds(file)
+    DB.set_bootstrap_info("bootstrapping_seeds", seeds_stringified)
 
     Logger.info(
       "Bootstrapping seeds list refreshed with #{Enum.map_join(seeds, ", ", &Node.endpoint/1)}"
@@ -95,32 +92,27 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     {:reply, :ok, %{state | seeds: seeds}}
   end
 
-  def handle_info({:node_update, %Node{authorized?: true}}, state = %{backup_file: file}) do
+  def handle_info({:node_update, %Node{authorized?: true}}, state) do
     top_nodes =
       Enum.reject(
         P2P.authorized_nodes(),
         &(&1.first_public_key == Crypto.first_node_public_key())
       )
 
-    top_nodes
-    |> nodes_to_seeds
-    |> flush_seeds(file)
+    if Enum.empty?(top_nodes) do
+      {:noreply, state}
+    else
+      DB.set_bootstrap_info("bootstrapping_seeds", nodes_to_seeds(top_nodes))
 
-    Logger.debug(
-      "Bootstrapping seeds list refreshed with #{Enum.map_join(top_nodes, ", ", &Node.endpoint/1)}"
-    )
+      Logger.debug(
+        "Bootstrapping seeds list refreshed with #{Enum.map_join(top_nodes, ", ", &Node.endpoint/1)}"
+      )
 
-    {:noreply, Map.put(state, :seeds, top_nodes)}
+      {:noreply, Map.put(state, :seeds, top_nodes)}
+    end
   end
 
   def handle_info({:node_update, _}, state), do: {:noreply, state}
-
-  defp flush_seeds(_, ""), do: :ok
-
-  defp flush_seeds(seeds_str, file) do
-    File.mkdir_p(Path.dirname(file))
-    File.write!(file, seeds_str, [:write])
-  end
 
   defp extract_seeds(seeds_str) do
     seeds_str

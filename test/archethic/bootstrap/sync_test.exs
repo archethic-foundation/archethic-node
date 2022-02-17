@@ -249,8 +249,6 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
       :ok = Sync.initialize_network(node_tx)
 
-      assert :persistent_term.get(:storage_nonce) != nil
-
       assert %Node{authorized?: true} = P2P.get_node_info()
       assert 1 == Crypto.number_of_node_shared_secrets_keys()
 
@@ -310,14 +308,22 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
     :ok = P2P.add_and_connect_node(node)
 
+    me = self()
+
     MockClient
     |> expect(:send_message, fn _, %GetStorageNonce{public_key: public_key}, _ ->
       encrypted_nonce = Crypto.ec_encrypt("fake_storage_nonce", public_key)
       {:ok, %EncryptedStorageNonce{digest: encrypted_nonce}}
     end)
 
+    MockCrypto
+    |> stub(:set_storage_nonce, fn nonce ->
+      send(me, {:nonce, nonce})
+      :ok
+    end)
+
     assert :ok = Sync.load_storage_nonce([node])
-    assert "fake_storage_nonce" = :persistent_term.get(:storage_nonce)
+    assert_receive {:nonce, "fake_storage_nonce"}
   end
 
   test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do

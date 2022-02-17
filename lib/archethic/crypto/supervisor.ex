@@ -2,7 +2,6 @@ defmodule ArchEthic.Crypto.Supervisor do
   @moduledoc false
   use Supervisor
 
-  alias ArchEthic.Crypto
   alias ArchEthic.Crypto.Ed25519.LibSodiumPort
   alias ArchEthic.Crypto.KeystoreSupervisor
 
@@ -11,8 +10,6 @@ defmodule ArchEthic.Crypto.Supervisor do
   end
 
   def init(_args) do
-    Crypto.load_storage_nonce()
-
     children = [LibSodiumPort, KeystoreSupervisor]
     Supervisor.init(children, strategy: :rest_for_one)
   end
