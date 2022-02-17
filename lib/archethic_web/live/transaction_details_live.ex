@@ -19,20 +19,27 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
      assign(socket, %{
        exists: false,
        previous_address: nil,
-       transaction: nil
+       transaction: nil,
+       inputs: [],
+       calls: []
      })}
   end
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr),
-         {:ok, tx} <- get_transaction(addr, opts) do
-      {:noreply, handle_transaction(socket, tx)}
-    else
-      {:error, :transaction_not_exists} ->
-        PubSub.register_to_new_transaction_by_address(Base.decode16!(address, case: :mixed))
-        {:noreply, handle_not_existing_transaction(socket, Base.decode16!(address, case: :mixed))}
+         true <- Crypto.valid_hash?(addr) do
+      case get_transaction(addr, opts) do
+        {:ok, tx} ->
+          {:noreply, handle_transaction(socket, tx)}
 
+        {:error, :transaction_not_exists} ->
+          PubSub.register_to_new_transaction_by_address(addr)
+          {:noreply, handle_not_existing_transaction(socket, addr)}
+
+        {:error, :transaction_invalid} ->
+          {:noreply, handle_invalid_transaction(socket, addr)}
+      end
+    else
       _ ->
         {:noreply, handle_invalid_address(socket, address)}
     end
@@ -96,12 +103,10 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
         socket
         |> assign(:error, :network_issue)
         |> assign(:address, address)
-        |> assign(:inputs, [])
-        |> assign(:calls, [])
     end
   end
 
-  def handle_not_existing_transaction(socket, address) do
+  defp handle_not_existing_transaction(socket, address) do
     case ArchEthic.get_transaction_inputs(address) do
       {:ok, inputs} ->
         ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
@@ -116,17 +121,19 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
       {:error, :network_issue} ->
         socket
         |> assign(:address, address)
-        |> assign(:inputs, [])
-        |> assign(:calls, [])
         |> assign(:error, :network_issue)
     end
   end
 
-  def handle_invalid_address(socket, address) do
+  defp handle_invalid_address(socket, address) do
     socket
     |> assign(:address, address)
-    |> assign(:inputs, [])
-    |> assign(:calls, [])
     |> assign(:error, :invalid_address)
+  end
+
+  defp handle_invalid_transaction(socket, address) do
+    socket
+    |> assign(:address, address)
+    |> assign(:ko?, true)
   end
 end
