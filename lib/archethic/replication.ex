@@ -555,8 +555,7 @@ defmodule ArchEthic.Replication do
         chain_storage_node?(
           address,
           type,
-          node_public_key,
-          P2P.authorized_nodes()
+          node_public_key
         ),
       beacon:
         beacon_storage_node?(
@@ -565,11 +564,14 @@ defmodule ArchEthic.Replication do
           node_public_key,
           P2P.authorized_nodes()
         ),
-      IO: io_storage_node?(tx, node_public_key, P2P.authorized_nodes())
+      IO: io_storage_node?(tx, node_public_key)
     ]
     |> Utils.get_keys_from_value_match(true)
   end
 
+  @doc """
+  Determine if a node's public key must be a chain storage node
+  """
   @spec chain_storage_node?(
           binary(),
           Transaction.transaction_type(),
@@ -580,7 +582,7 @@ defmodule ArchEthic.Replication do
         address,
         type,
         public_key,
-        node_list \\ P2P.authorized_nodes()
+        node_list \\ P2P.available_nodes()
       )
       when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
     address
@@ -588,6 +590,9 @@ defmodule ArchEthic.Replication do
     |> Utils.key_in_node_list?(public_key)
   end
 
+  @doc """
+  Determine if a node's public key must be a beacon storage node
+  """
   @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
   def beacon_storage_node?(
         address,
@@ -601,6 +606,9 @@ defmodule ArchEthic.Replication do
     |> Utils.key_in_node_list?(public_key)
   end
 
+  @doc """
+  Determine if a node's public key must be an I/O storage node
+  """
   @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
   def io_storage_node?(
         tx = %Transaction{},
@@ -619,22 +627,19 @@ defmodule ArchEthic.Replication do
   @spec chain_storage_nodes_with_type(
           binary(),
           Transaction.transaction_type(),
-          shard_node_list :: list(Node.t()),
-          network_node_list :: list(Node.t())
+          list(Node.t())
         ) ::
           list(Node.t())
   def chain_storage_nodes_with_type(
         address,
         type,
-        shard_node_list \\ P2P.authorized_nodes(),
-        network_node_list \\ P2P.available_nodes()
+        node_list \\ P2P.available_nodes()
       )
-      when is_binary(address) and is_atom(type) and is_list(shard_node_list) and
-             is_list(network_node_list) do
+      when is_binary(address) and is_atom(type) and is_list(node_list) do
     if Transaction.network_type?(type) do
-      network_node_list
+      node_list
     else
-      chain_storage_nodes(address, shard_node_list)
+      chain_storage_nodes(address, node_list)
     end
   end
 
@@ -642,7 +647,8 @@ defmodule ArchEthic.Replication do
   Return the storage nodes for the transaction chain based on the transaction address and set a nodes
   """
   @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
-  def chain_storage_nodes(address, node_list \\ P2P.authorized_nodes()) when is_binary(address) do
+  def chain_storage_nodes(address, node_list \\ P2P.available_nodes())
+      when is_binary(address) and is_list(node_list) do
     Election.storage_nodes(
       address,
       node_list,
@@ -658,8 +664,9 @@ defmodule ArchEthic.Replication do
         %Transaction{
           validation_stamp: %ValidationStamp{ledger_operations: ops, recipients: recipients}
         },
-        node_list \\ P2P.authorized_nodes()
-      ) do
+        node_list \\ P2P.available_nodes()
+      )
+      when is_list(node_list) do
     operations_nodes = operation_storage_nodes(ops, node_list)
     recipients_nodes = Enum.map(recipients, &chain_storage_nodes(&1, node_list))
 

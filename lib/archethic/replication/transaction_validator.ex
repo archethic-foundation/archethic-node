@@ -308,7 +308,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
 
       {:utxo, false} ->
         Logger.debug(
-          "Invalid unspent outputs - got: #{next_unspent_outputs}, expected: #{inspect(expected_unspent_outputs)}",
+          "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
           transaction_address: Base.encode16(tx.address),
           transaction_type: tx.type
         )
@@ -327,10 +327,10 @@ defmodule ArchEthic.Replication.TransactionValidator do
   end
 
   defp previous_storage_node_public_keys(
-         tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: _timestamp}},
          previous_inputs_unspent_outputs
        ) do
-    node_list = P2P.authorized_nodes(timestamp)
+    node_list = P2P.available_nodes()
 
     inputs_unspent_outputs_storage_nodes =
       previous_inputs_unspent_outputs
