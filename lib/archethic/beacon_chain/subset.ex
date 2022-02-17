@@ -189,14 +189,19 @@ defmodule ArchEthic.BeaconChain.Subset do
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
-      beacon_transaction = create_beacon_transaction(current_slot)
-
-      # Before the summary time, we dispatch to other summary nodes the transaction
-      unless summary_time?(time) do
-        next_time = SlotTimer.next_slot(time)
-        broadcast_beacon_transaction(subset, next_time, beacon_transaction, node_public_key)
+      if summary_time?(time) do
+        SummaryCache.add_slot(subset, current_slot)
+      else
+        dispatch_slot_to_summary_nodes(current_slot, time, node_public_key)
       end
     end
+  end
+
+  defp dispatch_slot_to_summary_nodes(current_slot = %Slot{subset: subset}, time, node_public_key) do
+    beacon_transaction = create_beacon_transaction(current_slot)
+
+    next_time = SlotTimer.next_slot(time)
+    broadcast_beacon_transaction(subset, next_time, beacon_transaction, node_public_key)
   end
 
   defp next_state(state = %{subset: subset}, time) do
@@ -228,6 +233,10 @@ defmodule ArchEthic.BeaconChain.Subset do
     if Enum.empty?(beacon_slots) do
       :ok
     else
+      Logger.debug("Create beacon summary with #{inspect(beacon_slots, limit: :infinity)}",
+        beacon_subset: Base.encode16(subset)
+      )
+
       beacon_slots
       |> create_summary_transaction(subset, time)
       |> TransactionChain.write_transaction()
