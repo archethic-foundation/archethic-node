@@ -2,7 +2,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   use ArchEthicCase
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
 
@@ -12,8 +11,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
+  alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
@@ -22,6 +23,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias ArchEthic.TransactionFactory
 
   alias ArchEthic.TransactionChain.TransactionInput
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
 
@@ -135,6 +137,9 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: inputs}}
+
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok, %UnspentOutputList{unspent_outputs: inputs}}
 
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}

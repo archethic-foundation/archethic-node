@@ -1,25 +1,30 @@
 defmodule ArchEthic.SelfRepair.SyncTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
+  alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionFactory
 
   alias ArchEthic.TransactionChain.TransactionInput
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
 
@@ -70,9 +75,11 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
 
+      welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
+
       welcome_node = %Node{
-        first_public_key: "key1",
-        last_public_key: "key1",
+        first_public_key: elem(welcome_node_keypair, 0),
+        last_public_key: elem(welcome_node_keypair, 0),
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
@@ -94,12 +101,15 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         enrollment_date: DateTime.utc_now()
       }
 
+      storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
+      storage_node_keypair2 = Crypto.derive_keypair("node_keypair", 2)
+
       storage_nodes = [
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: "key3",
-          last_public_key: "key3",
+          first_public_key: elem(storage_node_keypair1, 0),
+          last_public_key: elem(storage_node_keypair1, 0),
           available?: true,
           geo_patch: "BBB",
           network_patch: "BBB",
@@ -111,8 +121,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: "key4",
-          last_public_key: "key4",
+          first_public_key: elem(storage_node_keypair2, 0),
+          last_public_key: elem(storage_node_keypair2, 0),
           available?: true,
           geo_patch: "BBB",
           network_patch: "BBB",
@@ -136,7 +146,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
        }}
     end
 
-    test "should retrieve the missing beacon summaries from the given date", context do
+    test "should retrieve the missing beacon summaries from the given date",
+         context do
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
       |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
@@ -160,16 +171,61 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         send(me, :storage)
         :ok
       end)
-      |> stub(:write_transaction, fn _, _ -> :ok end)
+      |> stub(:write_transaction, fn _, _ ->
+        send(me, :storage)
+        :ok
+      end)
+
+      tx_summary = %TransactionSummary{
+        address: tx.address,
+        type: :transfer,
+        timestamp: DateTime.utc_now()
+      }
+
+      elected_storage_nodes =
+        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.available_nodes())
+
+      welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
+      storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
+      storage_node_keypair2 = Crypto.derive_keypair("node_keypair", 2)
 
       summary = %BeaconSummary{
         subset: <<0>>,
         summary_time: DateTime.utc_now(),
-        transaction_summaries: [
-          %TransactionSummary{
-            address: tx.address,
-            type: :transfer,
-            timestamp: DateTime.utc_now()
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: tx_summary,
+            confirmations:
+              elected_storage_nodes
+              |> Enum.map(fn node ->
+                node_index = Enum.find_index(elected_storage_nodes, &(&1 == node))
+
+                sig =
+                  cond do
+                    node.first_public_key == elem(welcome_node_keypair, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(welcome_node_keypair, 1)
+                      )
+
+                    node.first_public_key == elem(storage_node_keypair1, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(storage_node_keypair1, 1)
+                      )
+
+                    node.first_public_key == elem(storage_node_keypair2, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(storage_node_keypair2, 1)
+                      )
+
+                    node.first_public_key == Crypto.first_node_public_key() ->
+                      Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+                  end
+
+                {node_index, sig}
+              end)
           }
         ]
       }
@@ -187,6 +243,9 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}
 
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
       end)
@@ -196,7 +255,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
       assert :ok =
                Sync.load_missed_transactions(
-                 DateTime.utc_now() |> DateTime.add(-86_400 * 10),
+                 DateTime.utc_now() |> DateTime.add(-86_400),
                  "AAA"
                )
 

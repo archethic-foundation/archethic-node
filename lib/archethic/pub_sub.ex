@@ -8,12 +8,14 @@ defmodule ArchEthic.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
+  alias ArchEthic.BeaconChain.ReplicationAttestation
+
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSubRegistry
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   @doc """
   Notify the registered processes than a new transaction has been validated
@@ -83,6 +85,17 @@ defmodule ArchEthic.PubSub do
   """
   def notify_current_epoch_of_slot_timer(date = %DateTime{}) do
     dispatch(:current_epoch_of_slot_timer, {:current_epoch_of_slot_timer, date})
+  end
+
+  @doc """
+  Notify a new transaction replication attestation received
+  """
+  @spec notify_replication_attestation(ReplicationAttestation.t()) :: :ok
+  def notify_replication_attestation(attestation = %ReplicationAttestation{}) do
+    dispatch(
+      :new_replication_attestation,
+      {:new_replication_attestation, attestation}
+    )
   end
 
   @doc """
@@ -170,6 +183,13 @@ defmodule ArchEthic.PubSub do
   @spec register_to_oracle_data :: {:ok, pid()}
   def register_to_oracle_data do
     Registry.register(PubSubRegistry, :new_oracle_data, [])
+  end
+
+  @doc """
+  Register to new replication attestations
+  """
+  def register_to_new_replication_attestations do
+    Registry.register(PubSubRegistry, :new_replication_attestation, [])
   end
 
   defp dispatch(topic, message) do

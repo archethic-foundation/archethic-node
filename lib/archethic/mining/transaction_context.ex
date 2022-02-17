@@ -7,13 +7,13 @@ defmodule ArchEthic.Mining.TransactionContext do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
   alias __MODULE__.DataFetcher
   alias __MODULE__.NodeDistribution
-
-  alias ArchEthic.Replication
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -65,7 +65,7 @@ defmodule ArchEthic.Mining.TransactionContext do
     node_list = P2P.unprioritize_node(P2P.available_nodes(), Crypto.first_node_public_key())
 
     previous_address
-    |> Replication.chain_storage_nodes(node_list)
+    |> Election.chain_storage_nodes(node_list)
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> NodeDistribution.split_storage_nodes(nb_sub_lists, sample_size)

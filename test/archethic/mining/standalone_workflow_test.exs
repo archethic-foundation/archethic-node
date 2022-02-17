@@ -1,25 +1,27 @@
 defmodule ArchEthic.Mining.StandaloneWorkflowTest do
   use ArchEthicCase
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.Crypto
 
   alias ArchEthic.Mining.StandaloneWorkflow
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetP2PView
+  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.P2PView
-  alias ArchEthic.P2P.Message.ReplicateTransaction
+  alias ArchEthic.P2P.Message.Ping
+  alias ArchEthic.P2P.Message.ReplicateTransactionChain
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -45,8 +47,8 @@ defmodule ArchEthic.Mining.StandaloneWorkflowTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetP2PView{}, _ ->
-        {:ok, %P2PView{nodes_view: <<1::1>>}}
+      _, %Ping{}, _ ->
+        {:ok, %Ok{}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok,
@@ -57,9 +59,17 @@ defmodule ArchEthic.Mining.StandaloneWorkflowTest do
       _, %GetTransaction{}, _ ->
         {:ok, %NotFound{}}
 
-      _, %ReplicateTransaction{}, _ ->
-        send(me, :transaction_replicated)
+      _, %ReplicateTransactionChain{transaction: tx}, _ ->
+        tx_summary = TransactionSummary.from_transaction(tx)
+        sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
 
+        {:ok,
+         %AcknowledgeStorage{
+           signature: sig
+         }}
+
+      _, %ReplicationAttestation{}, _ ->
+        send(me, :transaction_replicated)
         {:ok, %Ok{}}
     end)
 

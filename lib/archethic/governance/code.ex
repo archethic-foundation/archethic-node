@@ -5,12 +5,14 @@ defmodule ArchEthic.Governance.Code do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias __MODULE__.CICD
   alias __MODULE__.Proposal
 
   alias ArchEthic.Governance.Pools
 
-  alias ArchEthic.Replication
+  alias ArchEthic.P2P
 
   alias ArchEthic.TransactionChain
 
@@ -41,7 +43,7 @@ defmodule ArchEthic.Governance.Code do
   """
   @spec testnet_deployment?(binary()) :: boolean()
   def testnet_deployment?(proposal_address) when is_binary(proposal_address) do
-    storage_nodes = Replication.chain_storage_nodes(proposal_address)
+    storage_nodes = Election.chain_storage_nodes(proposal_address, P2P.authorized_nodes())
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       approvals = TransactionChain.list_signatures_for_pending_transaction(proposal_address)

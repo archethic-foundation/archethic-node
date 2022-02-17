@@ -1,45 +1,58 @@
 defmodule ArchEthic.BeaconChain.Slot.Validation do
   @moduledoc false
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
 
   alias ArchEthic.Crypto
+
+  alias ArchEthic.Election
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransactionSummary
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
   @doc """
-  Validate the transaction summaries to ensure the transactions included really exists
+  Validate the transaction attestations to ensure the transactions included really exists
   """
-  @spec valid_transaction_summaries?(Slot.t()) :: boolean()
-  def valid_transaction_summaries?(%Slot{transaction_summaries: transaction_summaries}) do
-    Task.async_stream(transaction_summaries, &do_valid_transaction_summary/1,
+  @spec valid_transaction_attestations?(Slot.t()) :: boolean()
+  def valid_transaction_attestations?(%Slot{transaction_attestations: transaction_attestations}) do
+    Task.async_stream(transaction_attestations, &valid_transaction_attestation/1,
       ordered: false,
       on_timeout: :kill_task
     )
-    |> Enum.filter(&match?({:ok, _}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
-    |> Enum.all?(&match?(true, &1))
+    |> Enum.all?(&match?({:ok, true}, &1))
   end
 
-  defp do_valid_transaction_summary(
-         summary = %TransactionSummary{address: address, timestamp: timestamp}
+  defp valid_transaction_attestation(
+         attestation = %ReplicationAttestation{
+           transaction_summary:
+             tx_summary = %TransactionSummary{
+               address: address,
+               timestamp: timestamp,
+               type: tx_type
+             }
+         }
        ) do
-    storage_nodes = transaction_summary_storage_nodes(address, timestamp)
+    storage_nodes = transaction_storage_nodes(address, timestamp)
 
-    case check_transaction_summary(storage_nodes, address, summary) do
-      :ok ->
-        true
+    with :ok <-
+           ReplicationAttestation.validate(attestation),
+         :ok <- check_transaction_summary(storage_nodes, address, tx_summary) do
+      true
+    else
+      {:error, reason} ->
+        Logger.debug("Invalid attestation #{inspect(reason)} - #{inspect(attestation)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: tx_type
+        )
 
-      {:error, _} ->
         false
     end
   end
@@ -58,13 +71,13 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
 
       {:ok, recv = %TransactionSummary{}} ->
         Logger.debug(
-          "BeaconChain summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}"
+          "Transaction summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}"
         )
 
         {:error, :invalid_summary}
 
       {:ok, %NotFound{}} ->
-        Logger.debug("BeaconChain summary was not found at #{Node.endpoint(node)}")
+        Logger.debug("Transaction summary was not found at #{Node.endpoint(node)}")
         check_transaction_summary(rest, address, expected_summary, timeout)
 
       {:error, :timeout} ->
@@ -77,9 +90,9 @@ defmodule ArchEthic.BeaconChain.Slot.Validation do
 
   defp check_transaction_summary([], _, _, _), do: {:error, :network_issue}
 
-  defp transaction_summary_storage_nodes(address, timestamp) do
+  defp transaction_storage_nodes(address, timestamp) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> Enum.filter(fn %Node{enrollment_date: enrollment_date} ->
       DateTime.compare(DateTime.truncate(enrollment_date, :second), timestamp) == :lt
     end)

@@ -2,6 +2,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
   @moduledoc false
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Subset.P2PSampling
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
 
@@ -46,7 +47,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     |> Enum.map(fn {:ok, {:ok, summary}} -> summary end)
     |> Enum.reduce(
       %{
-        transaction_summaries: [],
+        transaction_attestations: [],
         node_availabilities: [],
         node_average_availabilities: [],
         end_of_node_synchronizations: []
@@ -58,30 +59,39 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
 
   defp do_reduce_beacon_summaries(
          %BeaconSummary{
-           transaction_summaries: transaction_summaries,
+           transaction_attestations: transaction_attestations,
            node_availabilities: node_availabilities,
            node_average_availabilities: node_average_availabilities
          },
          acc
        ) do
-    acc
-    |> Map.update!(
-      :transaction_summaries,
-      &Enum.concat(transaction_summaries, &1)
-    )
-    |> Map.update!(
-      :node_availabilities,
-      &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
-    )
-    |> Map.update!(
-      :node_average_availabilities,
-      &Enum.concat(&1, [node_average_availabilities])
-    )
+    valid_attestations? =
+      Enum.all?(transaction_attestations, fn attestation ->
+        ReplicationAttestation.validate(attestation) == :ok
+      end)
+
+    if valid_attestations? do
+      acc
+      |> Map.update!(
+        :transaction_attestations,
+        &Enum.concat(transaction_attestations, &1)
+      )
+      |> Map.update!(
+        :node_availabilities,
+        &Enum.concat(&1, [Utils.bitstring_to_integer_list(node_availabilities)])
+      )
+      |> Map.update!(
+        :node_average_availabilities,
+        &Enum.concat(&1, [node_average_availabilities])
+      )
+    else
+      acc
+    end
   end
 
   defp aggregate(
          %{
-           transaction_summaries: tx_summaries,
+           transaction_attestations: transaction_attestations,
            node_availabilities: node_availabilities,
            node_average_availabilities: node_average_availabilities
          },
@@ -91,7 +101,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     %BeaconSummary{
       subset: subset,
       summary_time: summary_time,
-      transaction_summaries: Enum.uniq_by(List.flatten(tx_summaries), & &1.address),
+      transaction_attestations:
+        Enum.uniq_by(List.flatten(transaction_attestations), & &1.transaction_summary.address),
       node_availabilities: aggregate_node_availabilities(node_availabilities),
       node_average_availabilities:
         aggregate_node_average_availabilities(node_average_availabilities)

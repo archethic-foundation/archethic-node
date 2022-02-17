@@ -17,8 +17,6 @@ defmodule ArchEthic.Mining do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.Replication
-
   alias ArchEthic.SelfRepair
   alias ArchEthic.SharedSecrets
 
@@ -56,61 +54,58 @@ defmodule ArchEthic.Mining do
   end
 
   @doc """
-  Return the list of validation nodes for a given transaction and the current validation constraints
+  Return the list of candidates nodes for a given transaction type and time for validation and storage
   """
-  @spec transaction_validation_nodes(Transaction.t(), binary(), DateTime.t()) :: list(Node.t())
-  def transaction_validation_nodes(
-        tx = %Transaction{address: address, type: type},
-        sorting_seed,
-        timestamp = %DateTime{}
-      )
-      when is_binary(sorting_seed) do
-    node_list =
-      if Transaction.network_type?(type) do
-        last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(timestamp)
+  @spec transaction_validation_node_list(Transaction.transaction_type(), DateTime.t()) ::
+          list(Node.t())
+  def transaction_validation_node_list(tx_type, time = %DateTime{}) do
+    if Transaction.network_type?(tx_type) do
+      last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(time)
 
-        # Get the authorized nodes which were authorize before the previous self repair date
-        case P2P.authorized_nodes(last_self_repair_date) do
-          # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
-          [] ->
-            P2P.authorized_nodes()
+      # Get the authorized nodes which were authorize before the previous self repair date
+      case P2P.authorized_nodes(last_self_repair_date) do
+        # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
+        [] ->
+          P2P.authorized_nodes()
 
-          authorized_nodes ->
-            authorized_nodes
-        end
-      else
-        P2P.authorized_nodes(timestamp)
+        authorized_nodes ->
+          authorized_nodes
       end
-
-    storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
-
-    constraints = Election.get_validation_constraints()
-
-    Election.validation_nodes(
-      tx,
-      sorting_seed,
-      node_list,
-      storage_nodes,
-      constraints
-    )
+    else
+      P2P.authorized_nodes(time)
+    end
   end
 
   @doc """
   Determines if the election of validation nodes performed by the welcome node is valid
   """
   @spec valid_election?(Transaction.t(), list(Crypto.key())) :: boolean()
-  def valid_election?(tx = %Transaction{validation_stamp: nil}, validation_node_public_keys)
+  def valid_election?(
+        tx = %Transaction{address: tx_address, type: tx_type, validation_stamp: nil},
+        validation_node_public_keys
+      )
       when is_list(validation_node_public_keys) do
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
 
-    validation_node_public_keys ==
-      tx
-      |> transaction_validation_nodes(sorting_seed, DateTime.utc_now())
-      |> Enum.map(& &1.last_public_key)
+    node_list = transaction_validation_node_list(tx_type, DateTime.utc_now())
+    storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
+
+    validation_nodes =
+      Election.validation_nodes(
+        tx,
+        sorting_seed,
+        node_list,
+        storage_nodes,
+        Election.get_validation_constraints()
+      )
+
+    validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
 
   def valid_election?(
         tx = %Transaction{
+          address: tx_address,
+          type: tx_type,
           validation_stamp: %ValidationStamp{timestamp: timestamp, proof_of_election: poe}
         },
         validation_node_public_keys
@@ -122,10 +117,21 @@ defmodule ArchEthic.Mining do
       # Should happens only during the network bootstrapping
       true
     else
+      node_list = transaction_validation_node_list(tx_type, timestamp)
+      storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
+
+      constraints = Election.get_validation_constraints()
+
       with true <-
              Election.valid_proof_of_election?(tx, poe, daily_nonce_public_key),
            nodes = [_ | _] <-
-             transaction_validation_nodes(tx, poe, timestamp),
+             Election.validation_nodes(
+               tx,
+               poe,
+               node_list,
+               storage_nodes,
+               constraints
+             ),
            set_of_validation_node_public_keys <- Enum.map(nodes, & &1.last_public_key) do
         Enum.all?(validation_node_public_keys, &(&1 in set_of_validation_node_public_keys))
       else

@@ -3,6 +3,8 @@ defmodule ArchEthic.Replication.TransactionContext do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
@@ -15,8 +17,6 @@ defmodule ArchEthic.Replication.TransactionContext do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionInput
-
-  alias ArchEthic.Replication
 
   @doc """
   Fetch transaction chain
@@ -78,7 +78,7 @@ defmodule ArchEthic.Replication.TransactionContext do
 
   defp replication_nodes(address, _timestamp, _) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> P2P.unprioritize_node(Crypto.first_node_public_key())

@@ -15,6 +15,8 @@ defmodule ArchEthic.Election do
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias ArchEthic.Utils
 
@@ -556,5 +558,99 @@ defmodule ArchEthic.Election do
     subset
     |> BeaconChain.summary_transaction_address(date)
     |> storage_nodes(nodes, storage_constraints)
+  end
+
+  @doc """
+  Determine if a node's public key must be a chain storage node
+  """
+  @spec chain_storage_node?(
+          binary(),
+          Transaction.transaction_type(),
+          Crypto.key(),
+          list(Node.t())
+        ) :: boolean()
+  def chain_storage_node?(
+        address,
+        type,
+        public_key,
+        node_list
+      )
+      when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
+    address
+    |> chain_storage_nodes_with_type(type, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Determine if a node's public key must be a beacon storage node
+  """
+  @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def beacon_storage_node?(
+        address,
+        timestamp = %DateTime{},
+        public_key,
+        node_list
+      )
+      when is_binary(address) and is_binary(public_key) and is_list(node_list) do
+    address
+    |> beacon_storage_nodes(timestamp, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Determine if a node's public key must be an I/O storage node
+  """
+  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def io_storage_node?(
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: ledger_operations,
+            recipients: recipients
+          }
+        },
+        public_key,
+        node_list
+      )
+      when is_binary(public_key) and is_list(node_list) do
+    addresses = LedgerOperations.movement_addresses(ledger_operations)
+
+    (addresses ++ recipients)
+    |> io_storage_nodes(node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
+  """
+  @spec chain_storage_nodes_with_type(
+          binary(),
+          Transaction.transaction_type(),
+          list(Node.t())
+        ) ::
+          list(Node.t())
+  def chain_storage_nodes_with_type(
+        address,
+        type,
+        node_list
+      )
+      when is_binary(address) and is_atom(type) and is_list(node_list) do
+    if Transaction.network_type?(type) do
+      node_list
+    else
+      chain_storage_nodes(address, node_list)
+    end
+  end
+
+  @doc """
+  Return the storage nodes for the transaction chain based on the transaction address and set a nodes
+  """
+  @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
+  def chain_storage_nodes(address, node_list)
+      when is_binary(address) and is_list(node_list) do
+    storage_nodes(
+      address,
+      node_list,
+      get_storage_constraints()
+    )
   end
 end
