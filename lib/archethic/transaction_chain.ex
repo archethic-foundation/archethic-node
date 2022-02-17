@@ -7,12 +7,12 @@ defmodule ArchEthic.TransactionChain do
 
   alias ArchEthic.DB
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Node
-
-  alias ArchEthic.Replication
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -450,7 +450,7 @@ defmodule ArchEthic.TransactionChain do
   @spec resolve_last_address(binary(), DateTime.t()) :: binary()
   def resolve_last_address(address, timestamp = %DateTime{}) when is_binary(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction_address(address, timestamp)

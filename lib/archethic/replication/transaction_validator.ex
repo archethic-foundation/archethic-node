@@ -12,8 +12,6 @@ defmodule ArchEthic.Replication.TransactionValidator do
 
   alias ArchEthic.OracleChain
 
-  alias ArchEthic.Replication
-
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain
@@ -428,11 +426,11 @@ defmodule ArchEthic.Replication.TransactionValidator do
     inputs_unspent_outputs_storage_nodes =
       previous_inputs_unspent_outputs
       |> Stream.map(& &1.from)
-      |> Stream.flat_map(&Replication.chain_storage_nodes(&1, node_list))
+      |> Stream.flat_map(&Election.chain_storage_nodes(&1, node_list))
       |> Enum.to_list()
 
     P2P.distinct_nodes([
-      Replication.chain_storage_nodes_with_type(
+      Election.chain_storage_nodes_with_type(
         Transaction.previous_address(tx),
         type,
         node_list

@@ -3,13 +3,18 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetTransactionSummary
   alias ArchEthic.P2P.Message.NewTransaction
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -23,17 +28,22 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
       transaction_type: "node"
     )
 
-    Logger.info("Waiting transaction replication",
-      transaction_address: Base.encode16(address),
-      transaction_type: "node"
-    )
-
     do_send_transaction(nodes, tx)
   end
 
   defp do_send_transaction([node | rest], tx) do
     case P2P.send_message(node, %NewTransaction{transaction: tx}) do
       {:ok, %Ok{}} ->
+        Logger.info("Waiting transaction validation",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: "node"
+        )
+
+        storage_nodes =
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
+
+        await_confirmation(tx.address, storage_nodes)
+
         :ok
 
       {:error, _} = e ->
@@ -46,6 +56,24 @@ defmodule ArchEthic.Bootstrap.TransactionHandler do
   end
 
   defp do_send_transaction([], _), do: {:error, :network_issue}
+
+  defp await_confirmation(tx_address, [node | rest]) do
+    case P2P.send_message(node, %GetTransactionSummary{address: tx_address}) do
+      {:ok, %TransactionSummary{address: ^tx_address}} ->
+        :ok
+
+      {:ok, %NotFound{}} ->
+        Process.sleep(200)
+        await_confirmation(tx_address, [node | rest])
+
+      {:error, e} ->
+        Logger.error("Cannot get transaction summary - #{inspect(e)}",
+          node: Base.encode16(node.first_public_key)
+        )
+
+        await_confirmation(tx_address, rest)
+    end
+  end
 
   @doc """
   Create a new node transaction

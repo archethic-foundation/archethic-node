@@ -1,6 +1,6 @@
-defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
+defmodule ArchEthic.TransactionChain.TransactionSummary do
   @moduledoc """
-  Represents transaction validation notification stored in the beacon chain
+  Represents transaction header or extract to summarize it
   """
   defstruct [:timestamp, :address, :type, movements_addresses: []]
 

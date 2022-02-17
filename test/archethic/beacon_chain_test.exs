@@ -4,7 +4,6 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
   alias ArchEthic.BeaconChain.Subset.SummaryCache
@@ -45,25 +44,6 @@ defmodule ArchEthic.BeaconChainTest do
              239>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
-  test "add_transaction_summary/1 should register a transaction inside a subset" do
-    address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-    assert :ok =
-             BeaconChain.add_transaction_summary(%Transaction{
-               address: address,
-               type: :transfer,
-               validation_stamp: %ValidationStamp{
-                 timestamp: DateTime.utc_now()
-               }
-             })
-
-    subset = BeaconChain.subset_from_address(address)
-    [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
-
-    %{current_slot: %Slot{transaction_summaries: [%TransactionSummary{address: ^address}]}} =
-      :sys.get_state(pid)
-  end
-
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
     public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
@@ -98,7 +78,7 @@ defmodule ArchEthic.BeaconChainTest do
         type: :beacon,
         data: %TransactionData{
           content:
-            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_summaries: []}
+            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_attestations: []}
             |> Slot.serialize()
             |> Utils.wrap_binary()
         },
