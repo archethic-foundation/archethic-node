@@ -90,7 +90,7 @@ defmodule ArchEthic.Crypto.ID do
     <<from_hash(algorithm)::8, hash::binary>>
   end
 
-  @spec prepend_curve(Crypto.versioned_hash(), binary()) :: Crypto.prepended_hash()
+  @spec prepend_curve(binary(), integer) :: Crypto.prepended_hash()
   def prepend_curve(hash, curve_type) do
     <<curve_type::8, hash::binary>>
   end
