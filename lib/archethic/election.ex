@@ -269,39 +269,18 @@ defmodule ArchEthic.Election do
 
     storage_nodes =
       nodes
+      |> Enum.sort_by(&Map.get(&1, :authorized?), :desc)
       |> sort_storage_nodes_by_key_rotation(address)
       |> Enum.reduce_while(
-        %{nb_nodes: 0, zones: %{}, nodes: []},
-        fn node = %Node{
-             geo_patch: geo_patch,
-             average_availability: avg_availability
-           },
-           acc ->
-          if storage_constraints_satisfied?(
-               min_geo_patch,
-               min_geo_patch_avg_availability,
-               nb_replicas,
-               acc.nb_nodes,
-               acc.zones
-             ) do
-            {:halt, acc}
-          else
-            new_acc =
-              acc
-              |> Map.update!(:zones, fn zones ->
-                Map.update(
-                  zones,
-                  String.first(geo_patch),
-                  avg_availability,
-                  &(&1 + avg_availability)
-                )
-              end)
-              |> Map.update!(:nb_nodes, &(&1 + 1))
-              |> Map.update!(:nodes, &[node | &1])
-
-            {:cont, new_acc}
-          end
-        end
+        %{
+          nb_nodes: 0,
+          zones: %{},
+          nodes: [],
+          nb_replicas: nb_replicas,
+          min_geo_patch: min_geo_patch,
+          min_geo_patch_avg_availability: min_geo_patch_avg_availability
+        },
+        &reduce_storage_nodes/2
       )
       |> Map.get(:nodes)
       |> Enum.reverse()
@@ -315,13 +294,40 @@ defmodule ArchEthic.Election do
     storage_nodes
   end
 
-  defp storage_constraints_satisfied?(
-         min_geo_patch,
-         min_geo_patch_avg_availability,
-         nb_replicas,
-         nb_nodes,
-         zones
+  defp reduce_storage_nodes(
+         node = %Node{
+           geo_patch: geo_patch,
+           average_availability: avg_availability
+         },
+         acc
        ) do
+    if storage_constraints_satisfied?(acc) do
+      {:halt, acc}
+    else
+      new_acc =
+        acc
+        |> Map.update!(:zones, fn zones ->
+          Map.update(
+            zones,
+            String.first(geo_patch),
+            avg_availability,
+            &(&1 + avg_availability)
+          )
+        end)
+        |> Map.update!(:nb_nodes, &(&1 + 1))
+        |> Map.update!(:nodes, &[node | &1])
+
+      {:cont, new_acc}
+    end
+  end
+
+  defp storage_constraints_satisfied?(%{
+         min_geo_patch: min_geo_patch,
+         min_geo_patch_avg_availability: min_geo_patch_avg_availability,
+         nb_replicas: nb_replicas,
+         nb_nodes: nb_nodes,
+         zones: zones
+       }) do
     length(Map.keys(zones)) >= min_geo_patch and
       Enum.all?(zones, fn {_, avg_availability} ->
         avg_availability >= min_geo_patch_avg_availability

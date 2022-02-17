@@ -38,15 +38,13 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
     chain_storage_nodes =
       Replication.chain_storage_nodes_with_type(
         tx.address,
-        tx.type,
-        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+        tx.type
       )
 
     beacon_storage_nodes =
       Replication.beacon_storage_nodes(
         tx.address,
-        DateTime.utc_now(),
-        P2P.authorized_nodes() |> Enum.filter(& &1.available?)
+        DateTime.utc_now()
       )
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,

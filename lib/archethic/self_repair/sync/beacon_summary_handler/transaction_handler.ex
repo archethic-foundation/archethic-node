@@ -29,7 +29,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         type: type,
         movements_addresses: mvt_addresses
       }) do
-    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
     chain_storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
 
     if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
@@ -95,7 +95,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   end
 
   def process_transaction(tx = %Transaction{address: address, type: type}) do
-    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
+    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
 
     roles =
       [
@@ -103,7 +103,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
           Replication.chain_storage_nodes_with_type(
             address,
             type,
-            node_list,
             node_list
           )
           |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
