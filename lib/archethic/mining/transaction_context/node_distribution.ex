@@ -8,59 +8,59 @@ defmodule ArchEthic.Mining.TransactionContext.NodeDistribution do
   ## Examples
 
       iex> NodeDistribution.split_storage_nodes([
-      ...>   %Node{last_public_key: "key1"},
-      ...>   %Node{last_public_key: "key2"},
-      ...>   %Node{last_public_key: "key3"},
-      ...>   %Node{last_public_key: "key4"},
-      ...>   %Node{last_public_key: "key5"},
-      ...>   %Node{last_public_key: "key6"},
-      ...>   %Node{last_public_key: "key7"},
-      ...>   %Node{last_public_key: "key8"},
-      ...>   %Node{last_public_key: "key9"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"},
+      ...>   %Node{first_public_key: "key4"},
+      ...>   %Node{first_public_key: "key5"},
+      ...>   %Node{first_public_key: "key6"},
+      ...>   %Node{first_public_key: "key7"},
+      ...>   %Node{first_public_key: "key8"},
+      ...>   %Node{first_public_key: "key9"}
       ...> ], 3, 3)
       [
-        [%Node{last_public_key: "key1"}, %Node{last_public_key: "key4"}, %Node{last_public_key: "key7"}],
-        [%Node{last_public_key: "key2"}, %Node{last_public_key: "key5"}, %Node{last_public_key: "key8"}],
-        [%Node{last_public_key: "key3"}, %Node{last_public_key: "key6"}, %Node{last_public_key: "key9"}]
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key7"}],
+        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key5"}, %Node{first_public_key: "key8"}],
+        [%Node{first_public_key: "key3"}, %Node{first_public_key: "key6"}, %Node{first_public_key: "key9"}]
       ]
 
     Distribute across sublist if the number of nodes doesn't match the number of sub lists and sample size
 
       iex> NodeDistribution.split_storage_nodes([
-      ...>   %Node{last_public_key: "key1"},
-      ...>   %Node{last_public_key: "key2"},
-      ...>   %Node{last_public_key: "key3"},
-      ...>   %Node{last_public_key: "key4"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"},
+      ...>   %Node{first_public_key: "key4"}
       ...> ], 3, 3)
       [
-        [%Node{last_public_key: "key1"}, %Node{last_public_key: "key4"}, %Node{last_public_key: "key3"}],
-        [%Node{last_public_key: "key2"}, %Node{last_public_key: "key1"}, %Node{last_public_key: "key4"}],
-        [%Node{last_public_key: "key3"}, %Node{last_public_key: "key2"}, %Node{last_public_key: "key1"}]
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key3"}],
+        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key1"}, %Node{first_public_key: "key4"}],
+        [%Node{first_public_key: "key3"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key1"}]
       ]
 
       iex> NodeDistribution.split_storage_nodes([
-      ...>   %Node{last_public_key: "key1"},
-      ...>   %Node{last_public_key: "key2"},
-      ...>   %Node{last_public_key: "key3"},
-      ...>   %Node{last_public_key: "key4"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"},
+      ...>   %Node{first_public_key: "key4"}
       ...> ], 2, 3)
       [
-        [%Node{last_public_key: "key1"}, %Node{last_public_key: "key3"}, %Node{last_public_key: "key1"}],
-        [%Node{last_public_key: "key2"}, %Node{last_public_key: "key4"}, %Node{last_public_key: "key2"}]
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key3"}],
+        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key4"}]
       ]
 
       iex> NodeDistribution.split_storage_nodes([
-      ...>   %Node{last_public_key: "key1"},
-      ...>   %Node{last_public_key: "key2"},
-      ...>   %Node{last_public_key: "key3"},
-      ...>   %Node{last_public_key: "key4"}
+      ...>   %Node{first_public_key: "key1"},
+      ...>   %Node{first_public_key: "key2"},
+      ...>   %Node{first_public_key: "key3"},
+      ...>   %Node{first_public_key: "key4"}
       ...> ], 5, 3)
       [
-        [%Node{last_public_key: "key1"}, %Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}],
-        [%Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}, %Node{last_public_key: "key4"}],
-        [%Node{last_public_key: "key3"}, %Node{last_public_key: "key4"}, %Node{last_public_key: "key1"}],
-        [%Node{last_public_key: "key4"}, %Node{last_public_key: "key1"}, %Node{last_public_key: "key2"}],
-        [%Node{last_public_key: "key1"}, %Node{last_public_key: "key2"}, %Node{last_public_key: "key3"}]
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}],
+        [%Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}, %Node{first_public_key: "key4"}],
+        [%Node{first_public_key: "key3"}, %Node{first_public_key: "key4"}, %Node{first_public_key: "key1"}],
+        [%Node{first_public_key: "key4"}, %Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}],
+        [%Node{first_public_key: "key1"}, %Node{first_public_key: "key2"}, %Node{first_public_key: "key3"}]
       ]
 
   """
@@ -90,7 +90,11 @@ defmodule ArchEthic.Mining.TransactionContext.NodeDistribution do
       end)
 
     if Enum.all?(split, &(length(&1) == sample_size)) do
-      Enum.map(split, &Enum.reverse/1)
+      Enum.map(split, fn list ->
+        list
+        |> Enum.reverse()
+        |> Enum.uniq_by(& &1.first_public_key)
+      end)
     else
       do_split(storage_nodes, nb_sublist, sample_size, split)
     end
