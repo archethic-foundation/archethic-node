@@ -6,6 +6,8 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSampling do
   alias ArchEthic.P2P.Message.Ping
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.TaskSupervisor
+
   @type p2p_view :: {available? :: boolean(), latency :: non_neg_integer()}
 
   @doc """
@@ -25,14 +27,19 @@ defmodule ArchEthic.BeaconChain.Subset.P2PSampling do
   """
   @spec get_p2p_views(list(Node.t())) :: list(p2p_view())
   def get_p2p_views(nodes) when is_list(nodes) do
-    nodes
-    |> Task.async_stream(&do_sample_p2p_view/1, on_timeout: :kill_task, timeout: 500)
+    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &do_sample_p2p_view/1,
+      on_timeout: :kill_task,
+      timeout: 2_000
+    )
     |> Enum.map(fn
       {:ok, res} ->
         res
 
       {:exit, :timeout} ->
-        {false, 500}
+        {false, 1_000}
+
+      {:error, _} ->
+        {false, 0}
     end)
   end
 
