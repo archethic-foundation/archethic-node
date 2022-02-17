@@ -12,6 +12,7 @@ defmodule ArchEthic.BeaconChain.Subset do
   alias ArchEthic.BeaconChain.SummaryTimer
 
   alias __MODULE__.P2PSampling
+  alias __MODULE__.SummaryCache
 
   alias ArchEthic.BeaconChain.SubsetRegistry
 
@@ -190,19 +191,6 @@ defmodule ArchEthic.BeaconChain.Subset do
     unless Slot.empty?(current_slot) do
       beacon_transaction = create_beacon_transaction(current_slot)
 
-      summary_time =
-        if summary_time?(time) do
-          time
-        else
-          SummaryTimer.next_summary(time)
-        end
-
-      # Local summary node prestore the transaction
-      if beacon_summary_node?(subset, summary_time, node_public_key) do
-        chain_address = beacon_summary_address(subset, summary_time)
-        TransactionChain.write_transaction(beacon_transaction, chain_address)
-      end
-
       # Before the summary time, we dispatch to other summary nodes the transaction
       unless summary_time?(time) do
         next_time = SlotTimer.next_slot(time)
@@ -235,14 +223,12 @@ defmodule ArchEthic.BeaconChain.Subset do
   end
 
   defp handle_summary(time, subset) do
-    chain_address = beacon_summary_address(subset, time)
+    beacon_slots = SummaryCache.pop_slots(subset)
 
-    beacon_chain = TransactionChain.get(chain_address, data: [:content])
-
-    if Enum.empty?(beacon_chain) do
+    if Enum.empty?(beacon_slots) do
       :ok
     else
-      beacon_chain
+      beacon_slots
       |> create_summary_transaction(subset, time)
       |> TransactionChain.write_transaction()
     end
@@ -250,10 +236,6 @@ defmodule ArchEthic.BeaconChain.Subset do
 
   defp summary_time?(time) do
     SummaryTimer.match_interval?(DateTime.truncate(time, :millisecond))
-  end
-
-  defp beacon_summary_address(subset, time) do
-    Crypto.derive_beacon_chain_address(subset, time, true)
   end
 
   defp beacon_slot_node?(subset, slot_time, node_public_key) do
@@ -294,46 +276,22 @@ defmodule ArchEthic.BeaconChain.Subset do
     {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, SlotTimer.previous_slot(slot_time))
     {next_pub, _} = Crypto.derive_beacon_keypair(subset, slot_time)
 
-    tx =
-      Transaction.new_with_keys(
-        :beacon,
-        %TransactionData{content: Slot.serialize(slot) |> Utils.wrap_binary()},
-        prev_pv,
-        prev_pub,
-        next_pub
-      )
-
-    previous_address = Transaction.previous_address(tx)
-
-    prev_tx =
-      case TransactionChain.get_transaction(previous_address) do
-        {:error, :transaction_not_exists} ->
-          nil
-
-        {:ok, prev_tx} ->
-          prev_tx
-      end
-
-    stamp = create_validation_stamp(tx, prev_tx, slot_time)
-
-    %{tx | validation_stamp: stamp}
+    Transaction.new_with_keys(
+      :beacon,
+      %TransactionData{content: Slot.serialize(slot) |> Utils.wrap_binary()},
+      prev_pv,
+      prev_pub,
+      next_pub
+    )
   end
 
-  defp create_summary_transaction(beacon_chain, subset, summary_time) do
+  defp create_summary_transaction(beacon_slots, subset, summary_time) do
     {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, summary_time)
     {pub, _} = Crypto.derive_beacon_keypair(subset, summary_time, true)
 
-    previous_slots =
-      Enum.map(beacon_chain, fn %Transaction{
-                                  data: %TransactionData{content: content}
-                                } ->
-        {slot, _} = Slot.deserialize(content)
-        slot
-      end)
-
     tx_content =
       %Summary{subset: subset, summary_time: summary_time}
-      |> Summary.aggregate_slots(previous_slots)
+      |> Summary.aggregate_slots(beacon_slots)
       |> Summary.serialize()
 
     tx =
@@ -345,20 +303,16 @@ defmodule ArchEthic.BeaconChain.Subset do
         pub
       )
 
-    stamp = create_validation_stamp(tx, Enum.at(beacon_chain, 0), summary_time)
+    stamp =
+      %ValidationStamp{
+        timestamp: summary_time,
+        proof_of_election: <<0::size(512)>>,
+        proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
+        proof_of_work: Crypto.first_node_public_key()
+      }
+      |> ValidationStamp.sign()
+
     %{tx | validation_stamp: stamp}
-  end
-
-  defp create_validation_stamp(tx = %Transaction{}, prev_tx, time = %DateTime{}) do
-    poi = [tx, prev_tx] |> Enum.filter(& &1) |> TransactionChain.proof_of_integrity()
-
-    %ValidationStamp{
-      proof_of_work: Crypto.first_node_public_key(),
-      proof_of_integrity: poi,
-      proof_of_election: <<0::size(512)>>,
-      timestamp: time
-    }
-    |> ValidationStamp.sign()
   end
 
   @doc """
