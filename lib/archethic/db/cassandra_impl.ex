@@ -617,4 +617,31 @@ defmodule ArchEthic.DB.CassandraImpl do
     end)
     |> Enum.into(%{})
   end
+
+  @impl DB
+  @spec get_bootstrap_info(String.t()) :: String.t() | nil
+  def get_bootstrap_info(info) do
+    prepared =
+      Xandra.prepare!(:xandra_conn, "SELECT value FROM archethic.bootstrap_info WHERE name = ?")
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [info])
+    |> Enum.at(0, %{})
+    |> Map.get("value")
+  end
+
+  @impl DB
+  @spec set_bootstrap_info(String.t(), String.t()) :: :ok
+  def set_bootstrap_info(name, value) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.bootstrap_info (name, value) VALUES(?, ?)"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [name, value])
+
+    :ok
+  end
 end
