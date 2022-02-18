@@ -1,8 +1,10 @@
+
 // We need to import the CSS so that webpack will load it.
 // The MiniCssExtractPlugin is used to separate it out into
 // its own CSS file.
 import { } from "../css/app.scss"
 import { } from './ui'
+import * as metric_config_obj from  './metric_config.js';
 
 // webpack automatically bundles all modules in your
 // entry points. Those entry points can be configured
@@ -72,7 +74,50 @@ Hooks.Logs = {
   }
 }
 
+
+Hooks.network_charts = {
+  mounted() {
+
+    var network_metric_obj = metric_config_obj.create_network_live_visuals();
+    this.handleEvent("network_points", ({
+      points
+    }) => {
+      console.log("---------------")
+      console.log(points);
+      console.log("------------------")
+      points = metric_config_obj.structure_metric_points(points)
+     
+      network_metric_obj = metric_config_obj.update_network_live_visuals(network_metric_obj , points);
+      
+    });
+
+  }
+}
+
+
+Hooks.explorer_charts = {
+
+  mounted() {
+    var explorer_metric_obj = metric_config_obj.create_explorer_live_visuals();
+
+      this.handleEvent("explorer_stats_points", ({
+        points
+      }) => {
+        console.log(points);
+        console.log("------------------")
+        points = metric_config_obj.structure_metric_points(points)
+        console.log("=================")
+        console.log(points);
+        console.log("=================")
+        explorer_metric_obj = metric_config_obj.update_explorer_live_visuals(explorer_metric_obj , points);    
+      });
+  }
+}
+
+
+
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
+
 let liveSocket = new LiveSocket("/live", Socket, {
   hooks: Hooks,
   params: { _csrf_token: csrfToken },

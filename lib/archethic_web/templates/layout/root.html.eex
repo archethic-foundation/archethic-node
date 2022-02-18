@@ -22,8 +22,17 @@
             <span aria-hidden="true"></span>
           </a>
         </div>
-        <div id="navbar" class="navbar-menu">
+       <div id="navbar" class="navbar-menu">
+
+
           <div class="navbar-end">
+
+
+
+              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.DashboardLive)%>">Dashboard </a>
+
+
+
             <%= if faucet?() do %>
               <a class="navbar-item" href="<%= Routes.faucet_path(@conn, :index) %>">
                 Faucet
@@ -73,6 +82,8 @@
         <%= @inner_content %>
       </main>
     </div>
+
     <script type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+
   </body>
 </html>
