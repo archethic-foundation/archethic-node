@@ -29,16 +29,21 @@ defmodule ArchEthicWeb.LayoutHelpers do
   end
 
   def format_usd_amount(uco_amount, uco_price) do
-    "#{(uco_price * uco_amount
-        |> to_float()
-        |> Float.parse()
-        |> elem(0))
+    usd_price =
+      (uco_price * uco_amount)
+      |> to_float()
+      |> Float.parse()
+      |> elem(0)
       |> Float.round(2)
-      |> :erlang.float_to_binary([decimals: 2])}$"
+      |> :erlang.float_to_binary(decimals: 2)
+
+    "#{usd_price}$"
   end
 
   def format_full_usd_amount(uco_amount, uco_price_at_time, uco_price_now) do
-    "at time : #{format_usd_amount(uco_amount, uco_price_at_time)}
-    , now : #{format_usd_amount(uco_amount, uco_price_now)}"
+    usd_price_at_time = format_usd_amount(uco_amount, uco_price_at_time)
+    usd_price_now = format_usd_amount(uco_amount, uco_price_now)
+
+    "at time: #{usd_price_at_time}, now: #{usd_price_now}"
   end
 end
