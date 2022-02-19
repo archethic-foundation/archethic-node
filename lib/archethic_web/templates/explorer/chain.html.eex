@@ -81,7 +81,7 @@
                 <div class="level-item has-text-centered">
                     <div>
                         <p class="heading">UCO Balance</p>
-                        <p class="title"><%= @uco_balance %> UCO (<%= (@uco_price[:usd] * @uco_balance |> to_float() |> Float.parse() |> elem(0)) |> Float.ceil(2) %> $)</p>
+                        <p class="title"><%= @uco_balance %> UCO (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)</p>
                     </div>
                 </div>
             </nav>

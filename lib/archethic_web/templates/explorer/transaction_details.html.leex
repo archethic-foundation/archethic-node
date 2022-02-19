@@ -161,6 +161,7 @@
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
                                                     <%= to_float(transfer.amount) %> UCO
+                                                    (<%= format_full_usd_amount(transfer.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                 </div>
                                             </div>
                                         </div>
@@ -333,6 +334,7 @@
                                                         <% :UCO -> %>
                                                             <%= to_float(movement.amount) %>
                                                             <span class="tag is-primary is-light ml-2">UCO</span>
+                                                            (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% {:NFT, nft_address} -> %>
                                                             <%= to_float(movement.amount) %>
                                                             <span class="tag is-success is-light ml-2">NFT</span>
@@ -364,6 +366,7 @@
                                                 <div class="column">
                                                     <%= to_float(movement.amount) %>
                                                     <span class="tag is-primary is-light ml-2">UCO</span>
+                                                    (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                 </div>
                                             </div>
                                         </div>
@@ -389,6 +392,7 @@
                                                     <% :UCO -> %>
                                                         <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-primary is-light ml-2">UCO</span>
+                                                        (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                     <% {:NFT, nft_address} -> %>
                                                         <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-success is-light ml-2">NFT</span>
@@ -407,6 +411,7 @@
                                         <p>
                                             <%= to_float(@transaction.validation_stamp.ledger_operations.fee) %>
                                             <span class="tag is-primary is-light ml-2">UCO</span>
+                                            (<%= format_full_usd_amount(@transaction.validation_stamp.ledger_operations.fee, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                         </p>
                                     </div>
                                 </div>

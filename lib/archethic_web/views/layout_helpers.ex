@@ -27,4 +27,18 @@ defmodule ArchEthicWeb.LayoutHelpers do
   def to_float(number) when is_number(number) do
     :erlang.float_to_binary(number / 100_000_000, [:compact, decimals: 8])
   end
+
+  def format_usd_amount(uco_amount, uco_price) do
+    "#{(uco_price * uco_amount
+        |> to_float()
+        |> Float.parse()
+        |> elem(0))
+      |> Float.round(2)
+      |> :erlang.float_to_binary([decimals: 2])}$"
+  end
+
+  def format_full_usd_amount(uco_amount, uco_price_at_time, uco_price_now) do
+    "at time : #{format_usd_amount(uco_amount, uco_price_at_time)}
+    , now : #{format_usd_amount(uco_amount, uco_price_now)}"
+  end
 end
