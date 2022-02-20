@@ -15,22 +15,19 @@ defmodule ArchEthic.OracleChain.Scheduler do
   alias ArchEthic.OracleChain.Services
   alias ArchEthic.OracleChain.Summary
 
-  alias ArchEthic.TaskSupervisor
-
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
 
-  alias ArchEthic.Utils
-
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  use GenServer
+  use GenStateMachine, callback_mode: [:handle_event_function]
+
   require Logger
 
   def start_link(args \\ [], opts \\ [name: __MODULE__]) do
-    GenServer.start_link(__MODULE__, args, opts)
+    GenStateMachine.start_link(__MODULE__, args, opts)
   end
 
   def init(args) do
@@ -39,110 +36,181 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
     PubSub.register_to_node_update()
 
-    {:ok,
+    {:ok, :idle,
      %{
        polling_interval: polling_interval,
-       summary_interval: summary_interval
+       polling_date: next_date(polling_interval),
+       summary_interval: summary_interval,
+       summary_date: next_date(summary_interval)
      }}
   end
 
-  def handle_info(
-        {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
-        state = %{polling_interval: polling_interval, summary_interval: summary_interval}
-      ) do
-    with ^first_public_key <- Crypto.first_node_public_key(),
-         nil <- Map.get(state, :polling_timer),
-         nil <- Map.get(state, :summary_timer) do
-      polling_timer = schedule_new_polling(polling_interval)
-      summary_timer = schedule_new_summary(summary_interval)
-
-      new_state =
-        state
-        |> Map.put(:polling_timer, polling_timer)
-        |> Map.put(:summary_timer, summary_timer)
-
-      Logger.info("Start the Oracle scheduler")
-      {:noreply, new_state}
-    else
-      _ ->
-        {:noreply, state}
-    end
-  end
-
-  def handle_info(
-        {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
-        state
-      ) do
-    if first_public_key == Crypto.first_node_public_key() do
-      Enum.each([:polling_timer, :summary_timer], &cancel_timer(Map.get(state, &1)))
-
-      new_state =
-        state
-        |> Map.delete(:polling_timer)
-        |> Map.delete(:summary_timer)
-
-      {:noreply, new_state}
-    else
-      {:noreply, state}
-    end
-  end
-
-  def handle_info(
+  def handle_event(
+        :info,
         :poll,
-        state = %{polling_interval: polling_interval, summary_interval: summary_interval}
-      ) do
-    timer = schedule_new_polling(polling_interval)
-    date = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    if trigger_node?(date) do
-      Logger.debug("Trigger oracle data fetching")
-
-      Task.Supervisor.start_child(TaskSupervisor, fn ->
-        summary_date = next_date(summary_interval)
-        handle_polling(summary_date)
-      end)
-
-      {:noreply, Map.put(state, :polling_timer, timer)}
-    else
-      {:noreply, Map.put(state, :polling_timer, timer)}
-    end
-  end
-
-  def handle_info(
-        :summary,
-        state = %{
-          summary_interval: interval
+        :idle,
+        data = %{
+          polling_date: polling_date,
+          summary_date: summary_date
         }
       ) do
-    timer = schedule_new_summary(interval)
-
-    date = DateTime.utc_now() |> DateTime.truncate(:second)
-
-    # Because the time to schedule the transaction can variate in milliseconds,
-    # a node could have stored an OracleSummary transaction but still
-    # receiving a message to create a new summary transaction.
-    # And this would be valid because the second didn't finished yet.
-    # So to prevent an new oracle summary, we are fetching the last transaction on the chain.
-    # If it's not a oracle_summary, then we can propose the summary transaction
-    with true <- last_transaction_not_summary?(date),
-         true <- trigger_node?(date) do
-      Task.Supervisor.start_child(TaskSupervisor, fn ->
-        handle_new_summary(date)
-      end)
+    if DateTime.diff(polling_date, summary_date, :second) == 0 do
+      {:next_state, :summary, data,
+       [
+         {:next_event, :internal, :aggregate},
+         {:next_event, :internal, :update_summary_date},
+         {:next_event, :internal, :fetch_data},
+         {:next_event, :internal, :update_polling_date}
+       ]}
+    else
+      {:next_state, :polling, data,
+       [
+         {:next_event, :internal, :fetch_data},
+         {:next_event, :internal, :update_polling_date}
+       ]}
     end
-
-    new_state =
-      state
-      |> Map.put(:summary_timer, timer)
-
-    {:noreply, new_state, :hibernate}
   end
 
-  def handle_info(:summary, state), do: {:noreply, state}
+  def handle_event(
+        :internal,
+        :fetch_data,
+        :polling,
+        data = %{
+          polling_date: polling_date,
+          summary_date: summary_date
+        }
+      ) do
+    if trigger_node?(polling_date) do
+      chain_size = chain_size(summary_date)
 
-  def handle_cast(
+      {prev_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size)
+
+      new_oracle_data =
+        prev_pub
+        |> Crypto.hash()
+        |> get_oracle_data()
+        |> Services.fetch_new_data()
+
+      if Enum.empty?(new_oracle_data) do
+        Logger.debug("Oracle transaction skipped - no new data")
+        {:next_state, :idle, data}
+      else
+        send_polling_transaction(new_oracle_data, chain_size, summary_date)
+        {:keep_state, data}
+      end
+    else
+      Logger.debug("Oracle transaction skipped - not the trigger node")
+      {:next_state, :idle, data}
+    end
+  end
+
+  def handle_event(
+        :internal,
+        :aggregate,
+        :summary,
+        data = %{summary_date: summary_date}
+      ) do
+    if trigger_node?(summary_date) do
+      Logger.debug("Oracle transaction summary sending")
+
+      send_summary_transaction(summary_date)
+      {:keep_state, data}
+
+      {:next_state, :polling, data}
+    else
+      Logger.debug("Oracle summary skipped - not the trigger node")
+
+      {:next_state, :polling, data}
+    end
+  end
+
+  def handle_event(
+        :internal,
+        :update_polling_date,
+        _state,
+        data = %{polling_date: polling_date, polling_interval: polling_interval}
+      ) do
+    next_polling_date = next_date(polling_interval, polling_date, true)
+
+    new_data =
+      data
+      |> Map.put(:polling_date, next_polling_date)
+      |> Map.put(:polling_timer, schedule_new_polling(next_polling_date))
+
+    {:next_state, :idle, new_data}
+  end
+
+  def handle_event(
+        :internal,
+        :update_summary_date,
+        _state,
+        data = %{summary_date: summary_date, summary_interval: summary_interval}
+      ) do
+    next_summary_date = next_date(summary_interval, summary_date, true)
+    Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
+
+    new_data =
+      data
+      |> Map.put(:summary_date, next_summary_date)
+
+    {:next_state, :polling, new_data}
+  end
+
+  def handle_event(
+        :info,
+        {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
+        _state,
+        data = %{polling_interval: polling_interval, summary_interval: summary_interval}
+      ) do
+    with ^first_public_key <- Crypto.first_node_public_key(),
+         nil <- Map.get(data, :polling_timer) do
+      next_polling_date = next_date(polling_interval)
+      polling_timer = schedule_new_polling(next_polling_date)
+
+      new_data =
+        data
+        |> Map.put(:polling_timer, polling_timer)
+        |> Map.put(:summary_date, next_date(summary_interval))
+        |> Map.put(:polling_date, next_polling_date)
+
+      Logger.info("Start the Oracle scheduler")
+      {:keep_state, new_data}
+    else
+      _ ->
+        :keep_state_and_data
+    end
+  end
+
+  def handle_event(
+        :info,
+        {:node_update, %Node{authorized?: false, first_public_key: first_public_key}},
+        _state,
+        data = %{polling_timer: polling_timer}
+      ) do
+    if first_public_key == Crypto.first_node_public_key() do
+      Process.cancel_timer(polling_timer)
+
+      new_data =
+        data
+        |> Map.delete(:polling_timer)
+
+      {:keep_state, new_data}
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(:info, {:node_update, %Node{authorized?: false}}, _state, _data),
+    do: :keep_state_and_data
+
+  def handle_event(
+        :cast,
         {:new_conf, conf},
-        state = %{polling_interval: old_polling_interval, summary_interval: old_summary_interval}
+        _,
+        data = %{
+          polling_interval: old_polling_interval,
+          summary_interval: old_summary_interval
+        }
       ) do
     summary_interval =
       case Keyword.get(conf, :summary_interval) do
@@ -162,32 +230,32 @@ defmodule ArchEthic.OracleChain.Scheduler do
           new_interval
       end
 
-    new_state =
-      state
+    new_data =
+      data
       |> Map.put(:polling_interval, polling_interval)
       |> Map.put(:summary_interval, summary_interval)
 
-    {:noreply, new_state}
+    {:keep_state, new_data}
   end
 
-  def handle_call(:summary_interval, _from, state = %{summary_interval: summary_interval}) do
-    {:reply, summary_interval, state}
+  def handle_event(
+        {:call, from},
+        :summary_interval,
+        _state,
+        _data = %{summary_interval: summary_interval}
+      ) do
+    {:keep_state_and_data, {:reply, from, summary_interval}}
   end
 
-  defp schedule_new_polling(interval) do
-    seconds = Utils.time_offset(interval)
-    Logger.info("Next oracle polling in #{seconds} seconds")
-    Process.send_after(self(), :poll, seconds * 1000)
-  end
+  defp schedule_new_polling(polling_date) do
+    Logger.info("Next oracle polling at #{DateTime.to_string(polling_date)}")
 
-  defp schedule_new_summary(interval) do
-    seconds = Utils.time_offset(interval)
-    Logger.info("Next oracle summary in #{seconds} seconds")
-    Process.send_after(self(), :summary, seconds * 1000)
+    Process.send_after(
+      self(),
+      :poll,
+      DateTime.diff(polling_date, DateTime.utc_now(), :millisecond)
+    )
   end
-
-  defp cancel_timer(nil), do: :ok
-  defp cancel_timer(timer), do: Process.cancel_timer(timer)
 
   defp trigger_node?(summary_date = %DateTime{}) do
     chain_size = chain_size(summary_date)
@@ -208,60 +276,16 @@ defmodule ArchEthic.OracleChain.Scheduler do
     end
   end
 
-  defp chain_size(summary_date = %DateTime{}) do
-    summary_date
-    |> Crypto.derive_oracle_address(0)
-    |> TransactionChain.get_last_address()
-    |> TransactionChain.size()
-  end
-
-  defp last_transaction_not_summary?(date = %DateTime{}) do
-    last_tx_address =
-      date
-      |> Crypto.derive_oracle_address(0)
-      |> TransactionChain.get_last_address()
-
-    case TransactionChain.get_transaction(last_tx_address, [:type]) do
-      {:ok, %Transaction{type: :oracle_summary}} ->
-        false
-
-      _ ->
-        true
-    end
-  end
-
-  defp get_oracle_data(address) do
-    case TransactionChain.get_transaction(address, data: [:content]) do
-      {:ok, %Transaction{data: %TransactionData{content: previous_content}}} ->
-        Jason.decode!(previous_content)
-
-      _ ->
-        %{}
-    end
-  end
-
-  defp handle_polling(summary_date = %DateTime{}) do
-    chain_size = chain_size(summary_date)
-
+  defp send_polling_transaction(oracle_data, chain_size, summary_date) do
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, chain_size)
 
-    next_data =
-      prev_pub
-      |> Crypto.hash()
-      |> get_oracle_data()
-      |> Services.fetch_new_data()
+    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
 
-    if Enum.empty?(next_data) do
-      Logger.debug("Oracle transaction skipped - no new data")
-    else
-      Logger.debug("Oracle transaction sending - new data")
-
-      {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
-
+    tx =
       Transaction.new_with_keys(
         :oracle,
         %TransactionData{
-          content: Jason.encode!(next_data),
+          content: Jason.encode!(oracle_data),
           code: ~S"""
           condition inherit: [
             # We need to ensure the type stays consistent
@@ -270,7 +294,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
             # We discard the content and code verification
             content: true,
-            
+
             # We ensure the code stay the same
             code: if type == oracle_summary do
               regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
@@ -284,13 +308,16 @@ defmodule ArchEthic.OracleChain.Scheduler do
         prev_pub,
         next_pub
       )
-      |> ArchEthic.send_new_transaction()
 
-      Logger.debug("New data pushed to the oracle")
-    end
+    Task.start(fn -> ArchEthic.send_new_transaction(tx) end)
+
+    Logger.debug("New data pushed to the oracle",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: :oracle
+    )
   end
 
-  defp handle_new_summary(summary_date = %DateTime{}) do
+  defp send_summary_transaction(summary_date) do
     oracle_chain =
       summary_date
       |> Crypto.derive_oracle_address(0)
@@ -302,29 +329,71 @@ defmodule ArchEthic.OracleChain.Scheduler do
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, chain_size)
     {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
 
-    Transaction.new_with_keys(
-      :oracle_summary,
-      %TransactionData{
-        code: """
-          # We stop the inheritance of transaction by ensuring no other
-          # summary transaction will continue on this chain
-          condition inherit: [ content: "" ]
-        """,
-        content:
-          %Summary{transactions: oracle_chain}
-          |> Summary.aggregate()
-          |> Summary.aggregated_to_json()
-      },
-      prev_pv,
-      prev_pub,
-      next_pub
+    aggregated_content =
+      %Summary{transactions: oracle_chain}
+      |> Summary.aggregate()
+      |> Summary.aggregated_to_json()
+
+    tx =
+      Transaction.new_with_keys(
+        :oracle_summary,
+        %TransactionData{
+          code: """
+            # We stop the inheritance of transaction by ensuring no other
+            # summary transaction will continue on this chain
+            condition inherit: [ content: "" ]
+          """,
+          content: aggregated_content
+        },
+        prev_pv,
+        prev_pub,
+        next_pub
+      )
+
+    Logger.debug(
+      "Sending oracle summary transaction - aggregation: #{inspect(aggregated_content)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: :oracle_summary
     )
-    |> ArchEthic.send_new_transaction()
+
+    Task.start(fn -> ArchEthic.send_new_transaction(tx) end)
   end
 
-  defp next_date(interval, date \\ DateTime.utc_now())
+  defp chain_size(summary_date = %DateTime{}) do
+    summary_date
+    |> Crypto.derive_oracle_address(0)
+    |> TransactionChain.get_last_address()
+    |> TransactionChain.size()
+  end
 
-  defp next_date(interval, date = %DateTime{microsecond: {0, 0}}) do
+  defp get_oracle_data(address) do
+    case TransactionChain.get_transaction(address, data: [:content]) do
+      {:ok, %Transaction{data: %TransactionData{content: previous_content}}} ->
+        Jason.decode!(previous_content)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp next_date(interval, date \\ DateTime.utc_now(), force? \\ false) do
+    case date do
+      %DateTime{microsecond: {0, 0}} ->
+        do_next_date(interval, date, true)
+
+      _ ->
+        do_next_date(interval, date, force?)
+    end
+  end
+
+  defp do_next_date(interval, date = %DateTime{}, false) do
+    interval
+    |> CronParser.parse!(true)
+    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date))
+    |> DateTime.from_naive!("Etc/UTC")
+  end
+
+  defp do_next_date(interval, date = %DateTime{}, true) do
     interval
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_dates(DateTime.to_naive(date))
@@ -332,17 +401,10 @@ defmodule ArchEthic.OracleChain.Scheduler do
     |> DateTime.from_naive!("Etc/UTC")
   end
 
-  defp next_date(interval, date = %DateTime{}) do
-    interval
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date))
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
   def config_change(nil), do: :ok
 
   def config_change(conf) do
-    GenServer.cast(__MODULE__, {:new_conf, conf})
+    GenStateMachine.cast(__MODULE__, {:new_conf, conf})
   end
 
   @doc """
@@ -350,6 +412,6 @@ defmodule ArchEthic.OracleChain.Scheduler do
   """
   @spec get_summary_interval :: binary()
   def get_summary_interval do
-    GenServer.call(__MODULE__, :summary_interval)
+    GenStateMachine.call(__MODULE__, :summary_interval)
   end
 end

@@ -42,6 +42,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
       :originSignature
     ])
     |> cast_embed(:data, required: true)
+    |> validate_data()
   end
 
   def to_map(changes, acc \\ %{})
@@ -65,4 +66,13 @@ defmodule ArchEthicWeb.API.TransactionPayload do
   end
 
   def to_map(value, _), do: value
+
+  defp validate_data(%Ecto.Changeset{} = changeset) do
+    validate_change(changeset, :data, fn _, data_changeset ->
+      case data_changeset.valid? do
+        true -> []
+        false -> data_changeset.errors
+      end
+    end)
+  end
 end

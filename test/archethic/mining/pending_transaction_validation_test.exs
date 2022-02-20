@@ -81,6 +81,35 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
                PendingTransactionValidation.validate(tx)
     end
 
+    test "should return an error when a node transaction content is greater than content_max_size " do
+      {public_key, private_key} = Crypto.derive_keypair("seed", 0)
+      {next_public_key, _} = Crypto.derive_keypair("seed", 1)
+      certificate = Crypto.get_key_certificate(public_key)
+
+      content_pretext =
+        <<80, 20, 10, 200, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128,
+          241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>
+
+      random_content = :crypto.strong_rand_bytes(4 * 1024 * 1024)
+
+      content =
+        content_pretext <> random_content <> <<byte_size(certificate)::16, certificate::binary>>
+
+      tx =
+        Transaction.new_with_keys(
+          :node,
+          %TransactionData{
+            content: content
+          },
+          private_key,
+          public_key,
+          next_public_key
+        )
+
+      assert {:error, "Invalid node transaction with content size greaterthan content_max_size"} =
+               PendingTransactionValidation.validate(tx)
+    end
+
     test "should return :ok when a node shared secrets transaction data keys contains existing node public keys with first tx" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},

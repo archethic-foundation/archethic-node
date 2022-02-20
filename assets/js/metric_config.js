@@ -36,30 +36,30 @@ import * as echarts from 'echarts';
 
 function get_visuals_dom(){
   var metric_object , x_axis_data;
-  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data =   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   return    metric_object = 
   {
     seconds_after_loading_of_this_graph: 0,
     x_axis_data: x_axis_data ,
      archethic_mining_proof_of_work_duration:   generateEchartObjects('PoW Duration(ms)','archethic_mining_proof_of_work_duration',x_axis_data),
    archethic_mining_full_transaction_validation_duration:  generateEchartObjects('Transaction Validation Duration(ms)','archethic_mining_full_transaction_validation_duration',x_axis_data),
-      tps : generate_echart_guage("Transactions Per Second", 'tps' ,"tps"),
-      archethic_p2p_send_message_duration: generate_echart_guage("P2P Message duration (Supervised Multicast)", 'archethic_p2p_send_message_duration',"ms"),
+      tps : generate_echart_guage("Transactions Per Second(tps)", 'tps' ),
+      archethic_p2p_send_message_duration: generate_echart_guage("P2P Message duration(ms) (Supervised Multicast)", 'archethic_p2p_send_message_duration',),
   };
 }
 
   function generateEchartObjects(heading , echartContainer ,  x_axis_data){
     var y_axis_data = 
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var chart = echarts.init(document.getElementById(echartContainer));
   
     var option= {
-    
-      grid: {
+
+      grid: { 
         left: '10%',
         right: '5%',
-        bottom: '10%',
-        top:"20%"
+        bottom: '5%',
+        top:"15%"
       },
       title: {
         left: 'center',
@@ -67,9 +67,10 @@ function get_visuals_dom(){
         textStyle: { color: '#000000',fontSize:16 , fontFamily: 
          "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"  }
       },
+
       xAxis: {
         type: 'category',
-        boundaryGap: false,
+        // boundaryGap: false,
         data: x_axis_data,
         show:false,
         splitLine: {
@@ -92,12 +93,15 @@ function get_visuals_dom(){
         {
           type: 'line',
           symbol: 'none',
+          triggerLineEvent:false,
            itemStyle: {
-            color: 'rgb(0, 164, 219,0.8)'
-          },
-          data: y_axis_data
+            color: 'rgb(0, 164, 219,1)'
+          },   
+          silent: true,
+          data: y_axis_data,
         }
       ]
+
     };
   
     option && chart.setOption(option);
@@ -110,10 +114,11 @@ function get_visuals_dom(){
   }
 
  
-  function generate_echart_guage(heading , eguageContainer ,units ){
+  function generate_echart_guage(heading , eguageContainer ){
     var guage= echarts.init(document.getElementById(eguageContainer));
   
     var guage_options ={
+      
       title: {
         left: 'center',
         text: `${heading}`,textStyle: { color: '#000000',fontSize:16 , fontFamily: 
@@ -127,7 +132,7 @@ function get_visuals_dom(){
         startAngle: 200,
         endAngle: -20,
         min: 0,
-        max: 1,
+        max: 0,
         splitNumber: 5,
         itemStyle: {
           color: '#00a4db'
@@ -163,7 +168,10 @@ function get_visuals_dom(){
         axisLabel: {
           distance: -20,
           color: '#000000 ',
-          fontSize: 16
+          fontSize: 16,
+          formatter: function (value) {
+            return exponent_formatter(value);
+            }
         },
         anchor: {
           show: false
@@ -177,9 +185,11 @@ function get_visuals_dom(){
           lineHeight: 40,
           borderRadius: 8,
           offsetCenter: [0, '-15%'],
-          fontSize: 20,
+          fontSize: 16,
           fontWeight: 'bolder',
-          formatter: `{value} (${units})`,
+          formatter: function (value) {
+            return exponent_formatter(value);
+            },
           color: 'auto'
         },
         data: [
@@ -194,19 +204,25 @@ function get_visuals_dom(){
       guage.resize(); 
       });
    
-    return {"guage": guage , "max": 1}
+    return {"guage": guage , "max": 0}
   }
   
-
+function exponent_formatter(new_point) {
+  if(new_point ==0) return 0
+  else if (new_point >100000 || new_point <0.0001 )   return parseFloat(new_point).toExponential(2);     
+  else if (new_point <100000 && new_point >=100 ) return Math.floor(parseFloat(new_point));
+  else if(new_point <100 && new_point >= 0.0001)     return parseFloat(new_point).toPrecision(2);     
+}
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
-  var new_point = points[point_name];
-  // var new_point = Math.random();
-  console.log(new_point)
-  // var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  var new_point = Math.random();
+  var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  // var new_point = points[point_name];
+  // console.log(new_point)
+  // var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   var shifted =     chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
-
+    // console.log(chart_obj.ydata);
+    // console.log(x_axis_data);
     chart_obj.chart.setOption({
       xAxis: {
         data: x_axis_data
@@ -224,17 +240,19 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   
 function update_guage_data(guage_obj , points , point_name )
 {
-  var new_point = points[point_name];
-  // var new_point = Math.random();
-  console.log(new_point)
-  // var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  var data = new_point.toPrecision(2);
-  // var data = (Math.random()*100).toPrecision(2);
-
+  var data =0 ,new_point =0;
+  //  new_point = (Math.random()*100)+(Math.random()*.0010)+(Math.random()*0.001)+(Math.random()*.01)+(Math.random()*0.01);
+   new_point = points[point_name];
+  // console.log(new_point)
+  data = new_point;
   if(data >= guage_obj.max ){
     guage_obj.max = data
   }
-  guage_obj.guage.setOption({series: [{ max:guage_obj.max ,data: [{ value: data }]}]});
+  guage_obj.guage.setOption({series: 
+    [
+      { min: 0,
+        max:guage_obj.max ,splitNumber: 5,
+        data: [{ value: data }]}]});
 }
 
 
@@ -250,11 +268,10 @@ function update_network_live_visuals(network_metric_obj , points){
 }
 
 function update_live_visuals(metric_obj , points){
-  console.log()
+  // console.log()
   metric_obj.seconds_after_loading_of_this_graph+= 10;
   var shifted = metric_obj.x_axis_data.shift();
   metric_obj.x_axis_data.push(metric_obj.seconds_after_loading_of_this_graph);
-  console.log("-------",metric_obj.x_axis_data);
   update_chart_data(metric_obj.archethic_mining_proof_of_work_duration, metric_obj.x_axis_data ,points, "archethic_mining_proof_of_work_duration" );
   update_chart_data( metric_obj.archethic_mining_full_transaction_validation_duration , metric_obj.x_axis_data ,points, "archethic_mining_full_transaction_validation_duration" );
   update_guage_data( metric_obj.archethic_p2p_send_message_duration , points, "archethic_p2p_send_message_duration" );
@@ -265,11 +282,11 @@ function update_live_visuals(metric_obj , points){
 
 function create_explorer_live_visuals(){
   var obj , x_axis_data;
-  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  x_axis_data =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
    obj =  {  
      seconds_after_loading_of_this_graph: 0,
      x_axis_data:  x_axis_data,
-     archethic_mining_full_transaction_validation_duration: generateEchartObjects('Full Transaction Validation','archethic_mining_full_transaction_validation_duration',x_axis_data) 
+     archethic_mining_full_transaction_validation_duration: generateEchartObjects('Transaction Validation duration (ms)','archethic_mining_full_transaction_validation_duration',x_axis_data) 
       };
     return obj;
 };

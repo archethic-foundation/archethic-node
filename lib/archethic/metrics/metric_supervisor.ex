@@ -1,9 +1,7 @@
 defmodule ArchEthic.Metrics.MetricSupervisor do
   @moduledoc """
   Supervisor implementation for child process :
-      ArchEthic.Metrics.MetricClient,
-      ArchEthic.Metrics.MetricNetworkPoller,
-      ArchEthic.Metrics.MetricNodePoller
+      ArchEthic.Metrics.Poller,
       Strat-Used : one for one
   """
   use Supervisor
