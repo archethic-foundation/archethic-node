@@ -213,13 +213,13 @@ function exponent_formatter(new_point) {
   else if (new_point <100000 && new_point >=100 ) return Math.floor(parseFloat(new_point));
   else if(new_point <100 && new_point >= 0.0001)     return parseFloat(new_point).toPrecision(2);     
 }
+
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
-  var new_point = Math.random();
-  var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  // var new_point = points[point_name];
-  // console.log(new_point)
-  // var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  var shifted =     chart_obj.ydata.shift();
+  var data =0 ,new_point =0;
+  new_point = points[point_name];
+  console.log(new_point);
+  new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  var shifted = chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
     // console.log(chart_obj.ydata);
     // console.log(x_axis_data);
@@ -234,16 +234,12 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
     });
   }
 
-// function update_card_data(card_obj , points ,point_name ){
-//     card_obj.textContent = points[point_name]
-//   }
   
 function update_guage_data(guage_obj , points , point_name )
 {
   var data =0 ,new_point =0;
-  //  new_point = (Math.random()*100)+(Math.random()*.0010)+(Math.random()*0.001)+(Math.random()*.01)+(Math.random()*0.01);
    new_point = points[point_name];
-  // console.log(new_point)
+  console.log(new_point);
   data = new_point;
   if(data >= guage_obj.max ){
     guage_obj.max = data
