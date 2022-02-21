@@ -1,7 +1,9 @@
 import Config
 
 # Do not print debug messages in production
-config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "info") |> String.to_atom()
+config :logger,
+  level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "info") |> String.to_atom(),
+  handle_sasl_reports: true
 
 config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "data")
 
