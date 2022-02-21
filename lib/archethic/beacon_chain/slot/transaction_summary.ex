@@ -42,19 +42,19 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
   ## Examples
 
         iex> %TransactionSummary{
-        ...>   address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+        ...>   address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
         ...>     168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
         ...>   timestamp: ~U[2020-06-25 15:11:53Z],
         ...>   type: :transfer,
         ...>   movements_addresses: [
-        ...>      <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+        ...>      <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
         ...>        99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
         ...>   ]
         ...> }
         ...> |> TransactionSummary.serialize()
         <<
         # Address
-        0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+        0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
         168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247,
         # Timestamp
         0, 0, 1, 114, 236, 9, 2, 168,
@@ -63,7 +63,7 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
         # Nb movements addresses
         0, 1,
         # Movement address
-        0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+        0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
         99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12
         >>
   """
@@ -84,19 +84,19 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
 
   ## Example
 
-      iex> <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+      iex> <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
       ...> 168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247, 0, 0, 1, 114, 236, 9, 2, 168,
-      ...> 253, 0, 1, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...> 253, 0, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...> 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
       ...> |> TransactionSummary.deserialize()
       {
         %TransactionSummary{
-          address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+          address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
               168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
             timestamp: ~U[2020-06-25 15:11:53.000Z],
             type: :transfer,
             movements_addresses: [
-              <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+              <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
             ]
         },
@@ -104,7 +104,7 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<hash_id::8, rest::bitstring>>) do
+  def deserialize(<<curve_type::8, hash_id::8, rest::bitstring>>) do
     hash_size = Crypto.hash_size(hash_id)
 
     <<address::binary-size(hash_size), timestamp::64, type::8, nb_movements::16, rest::bitstring>> =
@@ -114,7 +114,7 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
 
     {
       %__MODULE__{
-        address: <<hash_id::8, address::binary>>,
+        address: <<curve_type::8, hash_id::8, address::binary>>,
         timestamp: DateTime.from_unix!(timestamp, :millisecond),
         type: Transaction.parse_type(type),
         movements_addresses: addresses
@@ -129,10 +129,11 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
     {Enum.reverse(acc), rest}
   end
 
-  defp deserialize_addresses(<<hash_id::8, rest::bitstring>>, nb_addresses, acc) do
+  defp deserialize_addresses(<<curve_id::8, hash_id::8, rest::bitstring>>, nb_addresses, acc) do
     hash_size = Crypto.hash_size(hash_id)
     <<address::binary-size(hash_size), rest::bitstring>> = rest
-    deserialize_addresses(rest, nb_addresses, [<<hash_id::8, address::binary>> | acc])
+
+    deserialize_addresses(rest, nb_addresses, [<<curve_id::8, hash_id::8, address::binary>> | acc])
   end
 
   @spec to_map(t()) :: map()

@@ -42,7 +42,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       last_public_key: Crypto.first_node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA",
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -67,7 +67,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       authorization_date: summary_time |> DateTime.add(-10),
       authorized?: true,
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node2 = %Node{
@@ -80,7 +80,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       authorization_date: summary_time |> DateTime.add(-10),
       authorized?: true,
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node3 = %Node{
@@ -93,7 +93,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       authorization_date: summary_time |> DateTime.add(-10),
       authorized?: true,
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     node4 = %Node{
@@ -106,7 +106,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       authorization_date: summary_time |> DateTime.add(-10),
       authorized?: true,
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     P2P.add_and_connect_node(node1)
@@ -120,11 +120,11 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: false
     })
 
-    addr1 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    addr2 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    addr3 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    addr4 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-    addr5 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr3 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr4 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    addr5 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     beacon_summary_address_d = Crypto.derive_beacon_chain_address("D", summary_time, true)
     beacon_summary_address_e = Crypto.derive_beacon_chain_address("E", summary_time, true)
@@ -319,7 +319,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
         available?: true,
         authorization_date: DateTime.utc_now(),
         authorized?: true,
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       P2P.add_and_connect_node(node)
@@ -355,7 +355,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
         network_patch: "AAA",
         authorization_date: DateTime.utc_now(),
         authorized?: true,
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       P2P.add_and_connect_node(node)
@@ -379,8 +379,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
           type: :node,
           seed: "node_seed",
           content:
-            <<127, 0, 0, 1, 3000::16, 1, 0, :crypto.strong_rand_bytes(32)::binary, 64::16,
-              :crypto.strong_rand_bytes(64)::binary>>
+            <<127, 0, 0, 1, 3000::16, 1, 0::8, 0::8, :crypto.strong_rand_bytes(32)::binary,
+              64::16, :crypto.strong_rand_bytes(64)::binary>>
         )
 
       MockClient
@@ -480,8 +480,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
           type: :node,
           seed: "node_seed",
           content:
-            <<127, 0, 0, 1, 3000::16, 1, 0::8, :crypto.strong_rand_bytes(32)::binary, 64::16,
-              :crypto.strong_rand_bytes(64)::binary>>
+            <<127, 0, 0, 1, 3000::16, 1, 0::8, 0::8, :crypto.strong_rand_bytes(32)::binary,
+              64::16, :crypto.strong_rand_bytes(64)::binary>>
         )
 
       summaries = [
@@ -557,7 +557,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       available?: true,
       geo_patch: "BBB",
       network_patch: "BBB",
-      reward_address: :crypto.strong_rand_bytes(32),
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       enrollment_date: DateTime.utc_now()
     }
 
@@ -569,7 +569,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
       geo_patch: "AAA",
       network_patch: "AAA",
-      reward_address: :crypto.strong_rand_bytes(32),
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       enrollment_date: DateTime.utc_now()
     }
 
@@ -582,7 +582,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        reward_address: :crypto.strong_rand_bytes(32),
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         authorization_date: DateTime.utc_now(),
         authorized?: true
       }

@@ -37,7 +37,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
     else
       Enum.any?(mvt_addresses, fn address ->
         io_storage_nodes = Replication.chain_storage_nodes(address, node_list)
-        node_pool_address = Crypto.hash(Crypto.last_node_public_key())
+        node_pool_address = Crypto.derive_address(Crypto.last_node_public_key())
 
         Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) or
           address == node_pool_address

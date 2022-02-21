@@ -491,7 +491,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<3::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {
       %GetTransaction{address: address},
@@ -500,7 +500,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<4::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     case rest do
       <<timestamp::32, rest::bitstring>> ->
@@ -515,7 +515,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<5::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%GetUnspentOutputs{address: address}, rest}
   end
 
@@ -632,7 +632,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<12::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%AcknowledgeStorage{
        address: address
@@ -649,25 +649,25 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<14::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetLastTransaction{address: address}, rest}
   end
 
   def decode(<<15::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetBalance{address: address}, rest}
   end
 
   def decode(<<16::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetTransactionInputs{address: address}, rest}
   end
 
   def decode(<<17::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetTransactionChainLength{address: address}, rest}
   end
@@ -678,7 +678,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<19::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {%GetFirstPublicKey{
        address: address
@@ -686,7 +686,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<20::8, rest::bitstring>>) do
-    {address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
+    {address, <<timestamp::32, rest::bitstring>>} = deserialize_address(rest)
 
     {%GetLastTransactionAddress{
        address: address,
@@ -695,7 +695,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {previous_address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
 
     {%NotifyLastTransactionAddress{
@@ -706,7 +706,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<22::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%GetTransactionSummary{address: address}, rest}
   end
 
@@ -718,7 +718,7 @@ defmodule ArchEthic.P2P.Message do
   def decode(<<24::8, rest::binary>>), do: {%Ping{}, rest}
 
   def decode(<<25::8, rest::binary>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
 
     {
       %GetBeaconSummary{address: address},
@@ -736,7 +736,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<27::8, nb_addresses::32, rest::bitstring>>) do
-    {addresses, rest} = deserialize_hashes(rest, nb_addresses, [])
+    {addresses, rest} = deserialize_addresses(rest, nb_addresses, [])
 
     {
       %GetBeaconSummaries{addresses: addresses},
@@ -790,7 +790,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<241::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = deserialize_address(rest)
     {%LastTransactionAddress{address: address}, rest}
   end
 
@@ -917,6 +917,23 @@ defmodule ArchEthic.P2P.Message do
   defp deserialize_unspent_output_list(rest, nb_unspent_outputs, acc) do
     {unspent_output, rest} = UnspentOutput.deserialize(rest)
     deserialize_unspent_output_list(rest, nb_unspent_outputs, [unspent_output | acc])
+  end
+
+  defp deserialize_address(<<curve_type::8, hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    {<<curve_type::8, hash_id::8, hash::binary>>, rest}
+  end
+
+  defp deserialize_addresses(rest, 0, _), do: {[], rest}
+
+  defp deserialize_addresses(rest, nb_hashes, acc) when length(acc) == nb_hashes do
+    {Enum.reverse(acc), rest}
+  end
+
+  defp deserialize_addresses(rest, nb_hashes, acc) do
+    {hash, rest} = deserialize_address(rest)
+    deserialize_hashes(rest, nb_hashes, [hash | acc])
   end
 
   defp deserialize_hash(<<hash_id::8, rest::bitstring>>) do

@@ -101,7 +101,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
                    %TransactionMovement{
-                     to: <<0::8, 0::256>>,
+                     to: <<0::8, 0::8, 0::256>>,
                      amount: ^network_pool_burn,
                      type: :UCO
                    },

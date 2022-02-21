@@ -255,7 +255,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with previous_address <- Crypto.hash(previous_public_key),
+    with previous_address <- Crypto.derive_address(previous_public_key),
          oracle_chain <-
            TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp]),
          true <- OracleChain.valid_summary?(content, oracle_chain) do

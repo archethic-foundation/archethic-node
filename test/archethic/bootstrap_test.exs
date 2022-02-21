@@ -127,7 +127,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -157,8 +157,8 @@ defmodule ArchEthic.BootstrapTest do
           available?: true,
           enrollment_date: DateTime.utc_now(),
           reward_address:
-            <<245, 206, 118, 231, 188, 183, 250, 138, 217, 84, 176, 169, 37, 230, 8, 17, 147, 90,
-              187, 118, 27, 143, 165, 86, 151, 130, 250, 231, 32, 155, 183, 79>>
+            <<0, 0, 245, 206, 118, 231, 188, 183, 250, 138, 217, 84, 176, 169, 37, 230, 8, 17,
+              147, 90, 187, 118, 27, 143, 165, 86, 151, 130, 250, 231, 32, 155, 183, 79>>
         },
         %Node{
           ip: {127, 0, 0, 1},
@@ -176,8 +176,8 @@ defmodule ArchEthic.BootstrapTest do
           available?: true,
           enrollment_date: DateTime.utc_now(),
           reward_address:
-            <<0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164, 74,
-              201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
+            <<0, 0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164,
+              74, 201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
         }
       ]
 
@@ -276,7 +276,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -304,7 +304,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -328,7 +328,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -364,7 +364,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -379,7 +379,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 

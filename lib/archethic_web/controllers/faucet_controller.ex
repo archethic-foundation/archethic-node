@@ -67,7 +67,7 @@ defmodule ArchEthicWeb.FaucetController do
        when is_bitstring(recipient_address) do
     {gen_pub, _} = Crypto.derive_keypair(@pool_seed, 0, curve)
 
-    pool_gen_address = Crypto.hash(gen_pub)
+    pool_gen_address = Crypto.derive_address(gen_pub)
 
     with {:ok, last_address} <- ArchEthic.get_last_transaction_address(pool_gen_address),
          {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
