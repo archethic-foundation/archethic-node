@@ -233,7 +233,7 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
     });
   }
 
-// update the guaage with new data
+// update the guage with new data
 function update_guage_data(guage_obj , points , point_name )
 {
   var new_data =0 ,new_point =0;
