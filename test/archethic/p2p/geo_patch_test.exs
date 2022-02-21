@@ -31,4 +31,12 @@ defmodule ArchEthic.P2P.GeoPatchTest do
     assert "410" == GeoPatch.from_ip({15, 62, 246, 57})
     assert "266" == GeoPatch.from_ip({109, 164, 214, 168})
   end
+
+  test "from_geo_patch/1 should retrieve coordinates from geo_patch" do
+
+    assert [[33.75, 45], [-22.5, 0]] == GeoPatch.from_geo_patch("511")
+    assert [[33.75, 45], [-90, -67.5]] == GeoPatch.from_geo_patch("500")
+    assert [[33.75, 45], [-135, -112.5]] == GeoPatch.from_geo_patch("410")
+    assert [[45, 56.25], [0, 22.5]] == GeoPatch.from_geo_patch("266")
+  end
 end

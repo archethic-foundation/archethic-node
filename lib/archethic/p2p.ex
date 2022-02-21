@@ -34,6 +34,12 @@ defmodule ArchEthic.P2P do
   defdelegate get_geo_patch(ip), to: GeoPatch, as: :from_ip
 
   @doc """
+  Get range of longitude / latitude coordinates from geographical patch
+  """
+  @spec get_coord_from_geo_patch(binary()) :: list(list(float()))
+  defdelegate get_coord_from_geo_patch(geo_patch), to: GeoPatch, as: :from_geo_patch
+
+  @doc """
   Register a node and establish a connection with
   """
   @spec add_and_connect_node(Node.t()) :: :ok
