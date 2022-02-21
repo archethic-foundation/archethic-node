@@ -29,6 +29,9 @@ defmodule ArchEthic.Metrics.Helpers do
   @doc """
   Responsible for retrieving network metrics.
 
+     retrieve_node_ip_address() -> [ip , ip ,ip]
+
+
   Purpose of this Pipline Method
   |>Enum.reduce([], fn x, acc -> Enum.concat(acc, x) end)
   Expected Pipline Input :
@@ -48,7 +51,7 @@ defmodule ArchEthic.Metrics.Helpers do
   """
   def retrieve_network_metrics() do
     retrieve_node_ip_address()
-    |> Task.async_stream(fn each_node_ip -> establish_connection_to_node(each_node_ip) end)
+    |> Task.async_stream(&establish_connection_to_node(&1))
     |> remove_noise()
     |> Stream.map(&ArchEthic.Metrics.Parser.run/1)
     |> Stream.map(&filter_metrics/1)
@@ -209,6 +212,13 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
+  Fetches the metric name and count,sum of the given histogram metrics.
+  Fetches the metric name and metic value for guage metrics.
+
+  ## Examples
+
+      iex> retrieve_metric_parameter_data(data)
+
   Recieves [[node1_metrics],[node2_metrics],[node3_metrics],...]
   Recieves List of list of metrics , each metric is a map with name and type.
   [[node1_metrics] , [node2_metrics] , ... ] =>
