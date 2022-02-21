@@ -74,7 +74,7 @@ Hooks.Logs = {
   }
 }
 
-
+//metric dashboard hook /metrics/dashboard
 Hooks.network_charts = {
   mounted() {
 
