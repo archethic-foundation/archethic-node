@@ -206,7 +206,8 @@ function generate_echart_guage(heading , eguageContainer ){
    
     return {"guage": guage , "max": 0}
   }
-  
+
+// for proper display of axis labels
 function exponent_formatter(new_point) {
   if(new_point ==0) return 0
   else if (new_point >100000 || new_point <0.0001 )   return parseFloat(new_point).toExponential(2);     
@@ -214,12 +215,12 @@ function exponent_formatter(new_point) {
   else if(new_point <100 && new_point >= 0.0001)     return parseFloat(new_point).toPrecision(2);     
 }
 
+//update the charts with new data
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
-  var data =0 ,new_point =0;
+  var new_data = 0  , new_point =0 ,shifted_value = 0;
   new_point = points[point_name];
-  console.log(new_point);
-  new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  var shifted = chart_obj.ydata.shift();
+  new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  shifted_value =  chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
     chart_obj.chart.setOption({
       xAxis: {
@@ -235,18 +236,17 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   
 function update_guage_data(guage_obj , points , point_name )
 {
-  var data =0 ,new_point =0;
-   new_point = points[point_name];
-  console.log(new_point);
-  data = new_point;
-  if(data >= guage_obj.max ){
-    guage_obj.max = data
+  var new_data =0 ,new_point =0;
+  new_point = points[point_name];
+  new_data = new_point;
+  if(new_data >= guage_obj.max ){
+    guage_obj.max = new_data
   }
   guage_obj.guage.setOption({series: 
     [
       { min: 0,
         max:guage_obj.max ,splitNumber: 5,
-        data: [{ value: data }]}]});
+        data: [{ value: new_data }]}]});
 }
 
 function create_network_live_visuals(){
@@ -261,7 +261,6 @@ function update_network_live_visuals(network_metric_obj , points){
 }
 
 function update_live_visuals(metric_obj , points){
-  // console.log()
   metric_obj.seconds_after_loading_of_this_graph+= 10;
   var shifted = metric_obj.x_axis_data.shift();
   metric_obj.x_axis_data.push(metric_obj.seconds_after_loading_of_this_graph);
