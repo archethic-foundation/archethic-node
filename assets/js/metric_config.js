@@ -48,7 +48,7 @@ function get_visuals_dom(){
   };
 }
 
-  function generateEchartObjects(heading , echartContainer ,  x_axis_data){
+function generateEchartObjects(heading , echartContainer ,  x_axis_data){
     var y_axis_data = 
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var chart = echarts.init(document.getElementById(echartContainer));
@@ -111,10 +111,10 @@ function get_visuals_dom(){
 
     return { chart: chart , ydata: y_axis_data};
   
-  }
+}
 
  
-  function generate_echart_guage(heading , eguageContainer ){
+function generate_echart_guage(heading , eguageContainer ){
     var guage= echarts.init(document.getElementById(eguageContainer));
   
     var guage_options ={
@@ -221,8 +221,6 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
   new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
   var shifted = chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
-    // console.log(chart_obj.ydata);
-    // console.log(x_axis_data);
     chart_obj.chart.setOption({
       xAxis: {
         data: x_axis_data
@@ -250,7 +248,6 @@ function update_guage_data(guage_obj , points , point_name )
         max:guage_obj.max ,splitNumber: 5,
         data: [{ value: data }]}]});
 }
-
 
 function create_network_live_visuals(){
  var metric_obj = get_visuals_dom();
