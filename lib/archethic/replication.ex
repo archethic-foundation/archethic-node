@@ -156,44 +156,53 @@ defmodule ArchEthic.Replication do
           validation_stamp: %ValidationStamp{timestamp: timestamp}
         }
       ) do
-    start_time = System.monotonic_time()
+    if TransactionChain.transaction_exists?(address) do
+      Logger.debug("Transaction already exists",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-    Logger.info("Replication transaction started",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+      :ok
+    else
+      start_time = System.monotonic_time()
 
-    case TransactionValidator.validate(tx) do
-      :ok ->
-        :ok = TransactionChain.write_transaction(tx)
-        ingest_transaction(tx)
+      Logger.info("Replication transaction started",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-        Logger.info("Replication finished",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+      case TransactionValidator.validate(tx) do
+        :ok ->
+          :ok = TransactionChain.write_transaction(tx)
+          ingest_transaction(tx)
 
-        PubSub.notify_new_transaction(address, type, timestamp)
+          Logger.info("Replication finished",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
 
-        :telemetry.execute(
-          [:archethic, :replication, :validation],
-          %{
-            duration: System.monotonic_time() - start_time
-          },
-          %{role: :IO}
-        )
+          PubSub.notify_new_transaction(address, type, timestamp)
 
-        :ok
+          :telemetry.execute(
+            [:archethic, :replication, :validation],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :IO}
+          )
 
-      {:error, reason} ->
-        :ok = TransactionChain.write_ko_transaction(tx)
+          :ok
 
-        Logger.info("Invalid transaction for replication - #{inspect(reason)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+        {:error, reason} ->
+          :ok = TransactionChain.write_ko_transaction(tx)
 
-        {:error, :invalid_transaction}
+          Logger.info("Invalid transaction for replication - #{inspect(reason)}",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          {:error, :invalid_transaction}
+      end
     end
   end
 
