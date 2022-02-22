@@ -12,6 +12,8 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
 
   alias ArchEthicWeb.ExplorerView
 
+  alias ArchEthic.OracleChain
+
   def mount(_params, _session, socket) do
     {:ok,
      assign(socket, %{
@@ -77,6 +79,8 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
          {:ok, inputs} <- ArchEthic.get_transaction_inputs(address) do
       ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
       contract_inputs = Enum.filter(inputs, &(&1.type == :call))
+      uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
+      uco_price_now = DateTime.utc_now() |> OracleChain.get_uco_price()
 
       socket
       |> assign(:transaction, tx)
@@ -85,6 +89,8 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
       |> assign(:inputs, ledger_inputs)
       |> assign(:calls, contract_inputs)
       |> assign(:address, address)
+      |> assign(:uco_price_at_time, uco_price_at_time)
+      |> assign(:uco_price_now, uco_price_now)
     else
       {:error, :network_issue} ->
         socket

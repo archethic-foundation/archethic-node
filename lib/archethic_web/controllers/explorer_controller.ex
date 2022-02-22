@@ -3,6 +3,7 @@ defmodule ArchEthicWeb.ExplorerController do
 
   use ArchEthicWeb, :controller
 
+  alias ArchEthic.OracleChain
   alias ArchEthic.Crypto
   alias ArchEthic.TransactionChain.Transaction
 
@@ -28,13 +29,15 @@ defmodule ArchEthicWeb.ExplorerController do
          true <- Crypto.valid_hash?(addr),
          {:ok, %Transaction{address: last_address}} <- ArchEthic.get_last_transaction(addr),
          {:ok, chain} <- ArchEthic.get_transaction_chain(last_address),
-         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr) do
+         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
+         uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
         transaction_chain: chain,
         chain_size: Enum.count(chain),
         address: addr,
         uco_balance: uco_balance,
-        last_checked?: true
+        last_checked?: true,
+        uco_price: uco_price
       )
     else
       :error ->
@@ -44,7 +47,8 @@ defmodule ArchEthicWeb.ExplorerController do
           address: "",
           last_checked?: true,
           error: :invalid_address,
-          uco_balance: 0
+          uco_balance: 0,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
 
       {:error, _} ->
@@ -54,7 +58,8 @@ defmodule ArchEthicWeb.ExplorerController do
           address: "",
           last_checked?: true,
           error: :network_issue,
-          uco_balance: 0
+          uco_balance: 0,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
 
       false ->
@@ -64,7 +69,8 @@ defmodule ArchEthicWeb.ExplorerController do
           address: "",
           last_checked?: true,
           error: :invalid_address,
-          uco_balance: 0
+          uco_balance: 0,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
 
       _ ->
@@ -73,7 +79,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           address: Base.decode16!(address, case: :mixed),
           last_checked?: true,
-          uco_balance: 0
+          uco_balance: 0,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
     end
   end
@@ -82,13 +89,15 @@ defmodule ArchEthicWeb.ExplorerController do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_hash?(addr),
          {:ok, chain} <- ArchEthic.get_transaction_chain(addr),
-         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr) do
+         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
+         uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
         transaction_chain: chain,
         address: addr,
         chain_size: Enum.count(chain),
         uco_balance: uco_balance,
-        last_checked?: false
+        last_checked?: false,
+        uco_price: uco_price
       )
     else
       :error ->
@@ -98,7 +107,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           uco_balance: 0,
           last_checked?: false,
-          error: :invalid_address
+          error: :invalid_address,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
 
       false ->
@@ -108,7 +118,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           uco_balance: 0,
           last_checked?: false,
-          error: :invalid_address
+          error: :invalid_address,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
 
       {:error, _} ->
@@ -118,7 +129,8 @@ defmodule ArchEthicWeb.ExplorerController do
           chain_size: 0,
           uco_balance: 0,
           last_checked?: false,
-          error: :network_issue
+          error: :network_issue,
+          uco_price: [eur: 0.05, usd: 0.07]
         )
     end
   end
@@ -129,7 +141,8 @@ defmodule ArchEthicWeb.ExplorerController do
       address: "",
       chain_size: 0,
       last_checked?: false,
-      uco_balance: 0
+      uco_balance: 0,
+      uco_price: [eur: 0.05, usd: 0.07]
     )
   end
 end
