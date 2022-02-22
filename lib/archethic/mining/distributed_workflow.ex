@@ -44,7 +44,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
 
   require Logger
 
-  use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :transient
+  use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
 
   @mining_timeout Application.compile_env!(:archethic, [ArchEthic.Mining, :timeout])
 
