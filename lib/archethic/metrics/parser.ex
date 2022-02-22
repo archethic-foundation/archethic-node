@@ -3,9 +3,12 @@ defmodule ArchEthic.Metrics.Parser do
   MetricsDataParser.run() parses metrics data and convert into structured data
   """
 
+  @doc """
+  Convert multi-line metrics data into structured data
+  """
   def run(content) do
     content
-    |> String.split("\n", trim: true)
+    |> String.split(" \n", trim: true)
     |> Enum.reduce(%{current: %{}, metrics: []}, fn line, acc ->
       %{content: line, current: acc.current, metrics: acc.metrics}
       |> parse_help()
