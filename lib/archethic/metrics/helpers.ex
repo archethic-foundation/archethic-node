@@ -214,27 +214,6 @@ defmodule ArchEthic.Metrics.Helpers do
   @doc """
   Fetches the metric name and count,sum of the given histogram metrics.
   Fetches the metric name and metic value for guage metrics.
-
-  ## Examples
-
-      iex> retrieve_metric_parameter_data(data)
-
-  Recieves [[node1_metrics],[node2_metrics],[node3_metrics],...]
-  Recieves List of list of metrics , each metric is a map with name and type.
-  [[node1_metrics] , [node2_metrics] , ... ] =>
-    [
-       [ %{metrics: [],name: "metric_name", type: "metric_name"}] ,
-       [ %{metrics: [],name: "metric_name", type: "metric_name"}] ,
-       ...
-   ]
-   Returns [[node1_metrics],[node2_metrics],[node3_metrics],...]
-   Returns list of list of metrics , where each metric is a map
-   with name and count and sum for histogram type metrics , for
-   metric type guage it is a map with %{"metric_name" => 0}.
-   [
-     [%{"metric_name" => %{ count: 0, sum: 0 }} , %{"metric_name" => %{count: 0, sum: }}], ...],
-     [%{"metric_name" => %{ count: 0, sum: 0 }} , %{"metric_name" => %{count: 0, sum: }}], ...],
-     ...]
   """
   def retrieve_metric_parameter_data(data) do
     Enum.map(data, fn each_metric ->
