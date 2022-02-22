@@ -14,7 +14,7 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
-  Filters out metrics that are not required.
+  Filters out metrics that are not required ,Before reporting to the poller
   """
   def req_metrics(data) do
     case data do
@@ -117,7 +117,7 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
-  To keep only the required metrics.
+  Tampered to change the required metrics.
   """
   def filter_metrics(data) do
     Enum.filter(data, metric_filter())
