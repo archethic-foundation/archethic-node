@@ -1134,6 +1134,9 @@ defmodule ArchEthic.P2P.Message do
           %Ok{}
         end
 
+      {:error, :transaction_already_exists} ->
+        %Error{reason: :transaction_already_exists}
+
       {:error, :invalid_transaction} ->
         %Error{reason: :invalid_transaction}
     end
@@ -1143,6 +1146,9 @@ defmodule ArchEthic.P2P.Message do
     case Replication.validate_and_store_transaction(tx) do
       :ok ->
         %Ok{}
+
+      {:error, :transaction_already_exists} ->
+        %Error{reason: :transaction_already_exists}
 
       {:error, :invalid_transaction} ->
         %Error{reason: :invalid_transaction}

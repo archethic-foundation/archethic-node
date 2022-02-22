@@ -57,7 +57,7 @@ defmodule ArchEthic.Replication do
           validated_tx :: Transaction.t(),
           options :: [ack_storage?: boolean(), self_repair?: boolean()]
         ) ::
-          :ok | {:error, :invalid_transaction}
+          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(
         tx = %Transaction{
           address: address,
@@ -68,12 +68,12 @@ defmodule ArchEthic.Replication do
       )
       when is_list(opts) do
     if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already exists",
+      Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
         transaction_type: type
       )
 
-      :ok
+      {:error, :transaction_already_exists}
     else
       Logger.info("Replication chain started",
         transaction_address: Base.encode16(address),
@@ -148,7 +148,8 @@ defmodule ArchEthic.Replication do
 
   It will validate the new transaction and store the new transaction updating then the internals ledgers and views
   """
-  @spec validate_and_store_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
+  @spec validate_and_store_transaction(Transaction.t()) ::
+          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
   def validate_and_store_transaction(
         tx = %Transaction{
           address: address,
@@ -157,12 +158,12 @@ defmodule ArchEthic.Replication do
         }
       ) do
     if TransactionChain.transaction_exists?(address) do
-      Logger.debug("Transaction already exists",
+      Logger.warning("Transaction already exists",
         transaction_address: Base.encode16(address),
         transaction_type: type
       )
 
-      :ok
+      {:error, :transaction_already_exists}
     else
       start_time = System.monotonic_time()
 
