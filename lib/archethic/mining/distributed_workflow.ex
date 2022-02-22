@@ -247,7 +247,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
             context = %ValidationContext{
               transaction: tx,
               chain_storage_nodes: chain_storage_nodes,
-              beacon_storage_nodes: beacon_storage_nodes
+              beacon_storage_nodes: beacon_storage_nodes,
+              cross_validation_nodes: cross_validation_nodes
             }
         }
       ) do
@@ -300,15 +301,24 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     next_events =
       case state do
         :coordinator ->
-          waiting_time =
+          context_retrieval_time =
             (now - mining_start_time)
             |> :erlang.convert_time_unit(:native, :millisecond)
             |> abs()
 
           transmission_delay = 500
+          nb_cross_validation_nodes = length(cross_validation_nodes)
+
+          waiting_time = (context_retrieval_time + transmission_delay) * nb_cross_validation_nodes
+
+          Logger.debug(
+            "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
+          )
 
           [
-            {{:timeout, :wait_confirmations}, waiting_time + transmission_delay, :any},
+            {{:timeout, :wait_confirmations}, waiting_time, :any},
             {{:timeout, :stop_timeout}, timeout, :any}
           ]
 
