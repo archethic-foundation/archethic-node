@@ -97,8 +97,8 @@ defmodule ArchEthic.P2P.GeoPatch do
   @doc """
   Get range of longitude / latitude coordinates from geo patch
   """
-  @spec from_geo_patch(binary()) :: list(list(float()))
-  def from_geo_patch(geo_patch) do
+  @spec to_coordinates(binary()) :: {{float(), float()}, {float(), float()}}
+  def to_coordinates(geo_patch) do
     [first_patch, second_patch, third_patch] = String.codepoints(geo_patch)
 
     # First range
@@ -180,17 +180,17 @@ defmodule ArchEthic.P2P.GeoPatch do
         lat_tdc_range
       end
 
-    final_lon_range = [
+    final_lon_range = {
       Enum.at(lon_tdc_range, 0) * 2 + lon_sign * lon_add,
       Enum.at(lon_tdc_range, 1) * 2 + lon_sign * lon_add
-    ]
+    }
 
-    final_lat_range = [
+    final_lat_range = {
       Enum.at(lat_tdc_range, 0) * 2 + lat_sign * lat_add,
       Enum.at(lat_tdc_range, 1) * 2 + lat_sign * lat_add
-    ]
+    }
 
-    [final_lon_range, final_lat_range]
+    {final_lon_range, final_lat_range}
   end
 
   defp get_range(patch) when patch == "0", do: [[0.5, 1], [-1, -0.5]]
