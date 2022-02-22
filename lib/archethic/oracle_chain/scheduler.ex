@@ -30,44 +30,99 @@ defmodule ArchEthic.OracleChain.Scheduler do
     GenStateMachine.start_link(__MODULE__, args, opts)
   end
 
+  @doc """
+  Retrieve the summary interval
+  """
+  @spec get_summary_interval :: binary()
+  def get_summary_interval do
+    GenStateMachine.call(__MODULE__, :summary_interval)
+  end
+
+  @doc """
+  Notify the scheduler about the replication of an oracle transaction
+  """
+  @spec ack_transaction(DateTime.t()) :: :ok
+  def ack_transaction(timestamp = %DateTime{}) do
+    GenStateMachine.cast(__MODULE__, {:inc_index, timestamp})
+  end
+
+  def config_change(nil), do: :ok
+
+  def config_change(conf) do
+    GenStateMachine.cast(__MODULE__, {:new_conf, conf})
+  end
+
   def init(args) do
     polling_interval = Keyword.fetch!(args, :polling_interval)
     summary_interval = Keyword.fetch!(args, :summary_interval)
 
     PubSub.register_to_node_update()
 
-    {:ok, :idle,
-     %{
-       polling_interval: polling_interval,
-       polling_date: next_date(polling_interval),
-       summary_interval: summary_interval,
-       summary_date: next_date(summary_interval)
-     }}
+    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+    polling_date = next_date(polling_interval, current_time)
+    summary_date = next_date(summary_interval, current_time)
+
+    case P2P.get_node_info(Crypto.first_node_public_key()) do
+      # Schedule polling for authorized node
+      # This case may happen in case of process restart after crash
+      {:ok, %Node{authorized?: true}} ->
+        polling_timer = schedule_new_polling(polling_date, current_time)
+
+        {:ok, :ready,
+         %{
+           polling_interval: polling_interval,
+           polling_date: polling_date,
+           summary_interval: summary_interval,
+           summary_date: summary_date,
+           indexes: %{summary_date => chain_size(summary_date)},
+           polling_timer: polling_timer
+         }}
+
+      _ ->
+        {:ok, :idle,
+         %{
+           polling_interval: polling_interval,
+           polling_date: polling_date,
+           summary_interval: summary_interval,
+           summary_date: summary_date,
+           indexes: %{}
+         }}
+    end
+  end
+
+  def handle_event(
+        :cast,
+        {:inc_index, timestamp},
+        :ready,
+        data = %{summary_interval: summary_interval, indexes: indexes}
+      ) do
+    next_summary_date = next_date(summary_interval, timestamp)
+
+    case Map.get(indexes, next_summary_date) do
+      nil ->
+        # The scheduler is in ready (aka started) but it's not in a summary cycle
+        :keep_state_and_data
+
+      index ->
+        new_data = Map.update!(data, :indexes, &Map.put(&1, next_summary_date, index + 1))
+        Logger.debug("Next state #{inspect(new_data)}")
+        {:keep_state, new_data}
+    end
   end
 
   def handle_event(
         :info,
         :poll,
-        :idle,
+        :ready,
         data = %{
           polling_date: polling_date,
           summary_date: summary_date
         }
       ) do
     if DateTime.diff(polling_date, summary_date, :second) == 0 do
-      {:next_state, :summary, data,
-       [
-         {:next_event, :internal, :aggregate},
-         {:next_event, :internal, :update_summary_date},
-         {:next_event, :internal, :fetch_data},
-         {:next_event, :internal, :update_polling_date}
-       ]}
+      {:next_state, :summary, data, {:next_event, :internal, :aggregate}}
     else
-      {:next_state, :polling, data,
-       [
-         {:next_event, :internal, :fetch_data},
-         {:next_event, :internal, :update_polling_date}
-       ]}
+      {:next_state, :polling, data, {:next_event, :internal, :fetch_data}}
     end
   end
 
@@ -76,84 +131,99 @@ defmodule ArchEthic.OracleChain.Scheduler do
         :fetch_data,
         :polling,
         data = %{
-          polling_date: polling_date,
-          summary_date: summary_date
+          polling_interval: polling_interval,
+          summary_date: summary_date,
+          indexes: indexes
         }
       ) do
-    if trigger_node?(polling_date) do
-      chain_size = chain_size(summary_date)
+    Logger.debug("Oracle Poll - state: #{inspect(data)}")
 
-      {prev_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size)
+    index = Map.fetch!(indexes, summary_date)
 
+    if trigger_node?(summary_date, index + 1) do
       new_oracle_data =
-        prev_pub
-        |> Crypto.hash()
+        summary_date
+        |> Crypto.derive_oracle_address(index)
         |> get_oracle_data()
         |> Services.fetch_new_data()
 
       if Enum.empty?(new_oracle_data) do
         Logger.debug("Oracle transaction skipped - no new data")
-        {:next_state, :idle, data}
       else
-        send_polling_transaction(new_oracle_data, chain_size, summary_date)
-        {:keep_state, data}
+        send_polling_transaction(new_oracle_data, index, summary_date)
       end
     else
       Logger.debug("Oracle transaction skipped - not the trigger node")
-      {:next_state, :idle, data}
     end
+
+    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+    next_polling_date = next_date(polling_interval, current_time)
+
+    new_data =
+      data
+      |> Map.put(:polling_date, next_polling_date)
+      |> Map.put(:polling_timer, schedule_new_polling(next_polling_date, current_time))
+
+    {:next_state, :ready, new_data}
   end
 
   def handle_event(
         :internal,
         :aggregate,
         :summary,
-        data = %{summary_date: summary_date}
-      ) do
-    if trigger_node?(summary_date) do
+        data = %{summary_date: summary_date, summary_interval: summary_interval, indexes: indexes}
+      )
+      when is_map_key(indexes, summary_date) do
+    Logger.debug("Oracle summary - state: #{inspect(data)}")
+
+    index = Map.fetch!(indexes, summary_date)
+
+    if trigger_node?(summary_date, index + 1) do
       Logger.debug("Oracle transaction summary sending")
-
-      send_summary_transaction(summary_date)
-      {:keep_state, data}
-
-      {:next_state, :polling, data}
+      send_summary_transaction(summary_date, index)
     else
       Logger.debug("Oracle summary skipped - not the trigger node")
-
-      {:next_state, :polling, data}
     end
-  end
 
-  def handle_event(
-        :internal,
-        :update_polling_date,
-        _state,
-        data = %{polling_date: polling_date, polling_interval: polling_interval}
-      ) do
-    next_polling_date = next_date(polling_interval, polling_date, true)
-
-    new_data =
-      data
-      |> Map.put(:polling_date, next_polling_date)
-      |> Map.put(:polling_timer, schedule_new_polling(next_polling_date))
-
-    {:next_state, :idle, new_data}
-  end
-
-  def handle_event(
-        :internal,
-        :update_summary_date,
-        _state,
-        data = %{summary_date: summary_date, summary_interval: summary_interval}
-      ) do
-    next_summary_date = next_date(summary_interval, summary_date, true)
+    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+    next_summary_date = next_date(summary_interval, current_time)
     Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
 
     new_data =
       data
       |> Map.put(:summary_date, next_summary_date)
+      |> Map.update!(:indexes, fn indexes ->
+        # Clean previous indexes
+        indexes
+        |> Map.keys()
+        |> Enum.filter(&(DateTime.diff(&1, next_summary_date) < 0))
+        |> Enum.reduce(indexes, &Map.delete(&2, &1))
+      end)
+      |> Map.update!(:indexes, fn indexes ->
+        # Prevent overwrite, if the oracle transaction was faster than the summary processing
+        if Map.has_key?(indexes, next_summary_date) do
+          indexes
+        else
+          Map.put(indexes, next_summary_date, 0)
+        end
+      end)
 
-    {:next_state, :polling, new_data}
+    {:next_state, :polling, new_data, {:next_event, :internal, :fetch_data}}
+  end
+
+  def handle_event(:internal, :aggregate, :summary, data = %{summary_interval: summary_interval}) do
+    # Discard the oracle summary if there is not previous indexing
+
+    current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+    next_summary_date = next_date(summary_interval, current_time)
+    Logger.info("Next Oracle Summary at #{DateTime.to_string(next_summary_date)}")
+
+    new_data =
+      data
+      |> Map.put(:summary_date, next_summary_date)
+      |> Map.put(:indexes, %{next_summary_date => 0})
+
+    {:next_state, :polling, new_data, {:next_event, :internal, :fetch_data}}
   end
 
   def handle_event(
@@ -164,17 +234,37 @@ defmodule ArchEthic.OracleChain.Scheduler do
       ) do
     with ^first_public_key <- Crypto.first_node_public_key(),
          nil <- Map.get(data, :polling_timer) do
-      next_polling_date = next_date(polling_interval)
-      polling_timer = schedule_new_polling(next_polling_date)
+      current_time = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      next_summary_date = next_date(summary_interval, current_time)
+
+      other_authorized_nodes =
+        P2P.authorized_nodes() |> Enum.reject(&(&1.first_public_key == first_public_key))
 
       new_data =
-        data
-        |> Map.put(:polling_timer, polling_timer)
-        |> Map.put(:summary_date, next_date(summary_interval))
-        |> Map.put(:polling_date, next_polling_date)
+        case other_authorized_nodes do
+          [] ->
+            next_polling_date = next_date(polling_interval, current_time)
+            polling_timer = schedule_new_polling(next_polling_date, current_time)
+
+            data
+            |> Map.put(:polling_timer, polling_timer)
+            |> Map.put(:polling_date, next_polling_date)
+            |> Map.put(:summary_date, next_summary_date)
+            |> Map.put(:indexes, %{next_summary_date => chain_size(next_summary_date)})
+
+          _ ->
+            # Start the polling after the next summary, if there are already authorized nodes
+            polling_timer = schedule_new_polling(next_summary_date, current_time)
+
+            data
+            |> Map.put(:polling_timer, polling_timer)
+            |> Map.put(:polling_date, next_summary_date)
+            |> Map.put(:summary_date, next_summary_date)
+        end
 
       Logger.info("Start the Oracle scheduler")
-      {:keep_state, new_data}
+      {:next_state, :ready, new_data}
     else
       _ ->
         :keep_state_and_data
@@ -247,23 +337,29 @@ defmodule ArchEthic.OracleChain.Scheduler do
     {:keep_state_and_data, {:reply, from, summary_interval}}
   end
 
-  defp schedule_new_polling(polling_date) do
-    Logger.info("Next oracle polling at #{DateTime.to_string(polling_date)}")
+  def handle_event(_event_type, _event, :idle, _data), do: :keep_state_and_data
+
+  defp schedule_new_polling(next_polling_date, current_time = %DateTime{}) do
+    Logger.info("Next oracle polling at #{DateTime.to_string(next_polling_date)}")
 
     Process.send_after(
       self(),
       :poll,
-      DateTime.diff(polling_date, DateTime.utc_now(), :millisecond)
+      DateTime.diff(next_polling_date, current_time, :millisecond)
     )
   end
 
-  defp trigger_node?(summary_date = %DateTime{}) do
-    chain_size = chain_size(summary_date)
+  defp trigger_node?(summary_date = %DateTime{}, index) do
+    authorized_nodes =
+      Enum.filter(
+        P2P.authorized_nodes(),
+        &(DateTime.compare(&1.authorization_date, DateTime.truncate(summary_date, :second)) == :lt)
+      )
 
     storage_nodes =
       summary_date
-      |> Crypto.derive_oracle_address(chain_size)
-      |> Election.storage_nodes(P2P.authorized_nodes())
+      |> Crypto.derive_oracle_address(index)
+      |> Election.storage_nodes(authorized_nodes)
 
     node_public_key = Crypto.first_node_public_key()
 
@@ -276,10 +372,10 @@ defmodule ArchEthic.OracleChain.Scheduler do
     end
   end
 
-  defp send_polling_transaction(oracle_data, chain_size, summary_date) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, chain_size)
+  defp send_polling_transaction(oracle_data, index, summary_date) do
+    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
 
-    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
+    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
 
     tx =
       Transaction.new_with_keys(
@@ -317,17 +413,14 @@ defmodule ArchEthic.OracleChain.Scheduler do
     )
   end
 
-  defp send_summary_transaction(summary_date) do
+  defp send_summary_transaction(summary_date, index) do
     oracle_chain =
       summary_date
-      |> Crypto.derive_oracle_address(0)
-      |> TransactionChain.get_last_address()
+      |> Crypto.derive_oracle_address(index)
       |> TransactionChain.get(data: [:content], validation_stamp: [:timestamp])
 
-    chain_size = Enum.count(oracle_chain)
-
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, chain_size)
-    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, chain_size + 1)
+    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
+    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
 
     aggregated_content =
       %Summary{transactions: oracle_chain}
@@ -376,42 +469,19 @@ defmodule ArchEthic.OracleChain.Scheduler do
     end
   end
 
-  defp next_date(interval, date \\ DateTime.utc_now(), force? \\ false) do
-    case date do
-      %DateTime{microsecond: {0, 0}} ->
-        do_next_date(interval, date, true)
+  defp next_date(interval, from_date = %DateTime{}) do
+    cron_expression = CronParser.parse!(interval, true)
+    naive_from_date = from_date |> DateTime.truncate(:second) |> DateTime.to_naive()
 
-      _ ->
-        do_next_date(interval, date, force?)
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_from_date) do
+      cron_expression
+      |> CronScheduler.get_next_run_dates(naive_from_date)
+      |> Enum.at(1)
+      |> DateTime.from_naive!("Etc/UTC")
+    else
+      cron_expression
+      |> CronScheduler.get_next_run_date!(naive_from_date)
+      |> DateTime.from_naive!("Etc/UTC")
     end
-  end
-
-  defp do_next_date(interval, date = %DateTime{}, false) do
-    interval
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date))
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
-  defp do_next_date(interval, date = %DateTime{}, true) do
-    interval
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_dates(DateTime.to_naive(date))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
-  def config_change(nil), do: :ok
-
-  def config_change(conf) do
-    GenStateMachine.cast(__MODULE__, {:new_conf, conf})
-  end
-
-  @doc """
-  Retrieve the summary interval
-  """
-  @spec get_summary_interval :: binary()
-  def get_summary_interval do
-    GenStateMachine.call(__MODULE__, :summary_interval)
   end
 end
