@@ -1145,10 +1145,12 @@ defmodule ArchEthic.Mining.ValidationContext do
         sub_replication_tree: %{
           IO: sub_tree
         },
-        io_storage_nodes: storage_nodes
+        io_storage_nodes: storage_nodes,
+        chain_storage_nodes: chain_storage_nodes
       }) do
     sub_tree
     |> get_storage_nodes_tree_indexes
     |> Enum.map(&Enum.at(storage_nodes, &1))
+    |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
 end

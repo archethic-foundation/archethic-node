@@ -656,7 +656,7 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       confirmations: confirmations
     }
 
-    P2P.broadcast_message([welcome_node | beacon_storage_nodes], message)
+    P2P.broadcast_message(P2P.distinct_nodes([welcome_node | beacon_storage_nodes]), message)
 
     context
     |> ValidationContext.get_io_replication_nodes()
