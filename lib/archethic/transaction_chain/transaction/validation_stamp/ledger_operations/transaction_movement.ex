@@ -7,6 +7,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias __MODULE__.Type
   alias ArchEthic.Crypto
+  alias ArchEthic.Utils
 
   @typedoc """
   TransactionMovement is composed from:
@@ -73,14 +74,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 0
       ...> >>
       ...> |> TransactionMovement.deserialize()
       {
         %TransactionMovement{
-          to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+          to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 30_000_000,
           type: :UCO
@@ -88,32 +89,31 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ""
       }
 
-      iex> <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
       ...> >>
       ...> |> TransactionMovement.deserialize()
       {
         %TransactionMovement{
-          to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+          to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 30_000_000,
-          type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+          type: {:NFT, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
                         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
         },
         ""
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), amount::64, rest::bitstring>> = rest
+  def deserialize(data) do
+    {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
     {type, rest} = Type.deserialize(rest)
 
     {
       %__MODULE__{
-        to: <<hash_id::8, address::binary>>,
+        to: address,
         amount: amount,
         type: type
       },

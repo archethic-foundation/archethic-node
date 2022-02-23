@@ -35,7 +35,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     subset: subset,
     pid: pid
   } do
-    public_key = :crypto.strong_rand_bytes(32)
+    public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     :ok = Subset.add_end_of_node_sync(subset, %EndOfNodeSync{public_key: public_key})
 
@@ -50,7 +50,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{pid: pid, subset: subset} do
       tx_time = DateTime.utc_now()
-      tx_address = <<0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
       tx_summary = %TransactionSummary{
         address: tx_address,
@@ -83,7 +83,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     test "new transaction summary's confirmation added to the slot",
          %{pid: pid, subset: subset} do
       tx_time = DateTime.utc_now()
-      tx_address = <<0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
       tx_summary = %TransactionSummary{
         address: tx_address,
@@ -128,7 +128,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
 
     test "new slot is created when receive a :create_slot message", %{pid: pid, subset: subset} do
       tx_time = DateTime.utc_now()
-      tx_address = <<0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
+      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -159,9 +159,9 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
         timestamp: tx_time,
         type: :keychain,
         movements_addresses: [
-          <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
-            210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-          <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
+          <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
+            232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+          <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
             24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
         ]
       }
@@ -213,7 +213,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
       pid: pid
     } do
       tx_time = DateTime.utc_now()
-      tx_address = <<0::8, subset::binary-size(1), :crypto.strong_rand_bytes(32)::binary>>
+      tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -248,9 +248,9 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
         timestamp: tx_time,
         type: :keychain,
         movements_addresses: [
-          <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
-            210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-          <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
+          <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
+            232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+          <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
             24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
         ]
       }
@@ -298,13 +298,13 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
          subset: subset,
          pid: pid
        } do
-    public_key1 = :crypto.strong_rand_bytes(32)
+    public_key1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     Subset.subscribe_for_beacon_updates(subset, public_key1)
 
     assert %{subscribed_nodes: [^public_key1]} = :sys.get_state(pid)
     assert [^public_key1] = Map.get(:sys.get_state(pid), :subscribed_nodes)
 
-    public_key2 = :crypto.strong_rand_bytes(32)
+    public_key2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     Subset.subscribe_for_beacon_updates(subset, public_key2)
 
     assert %{subscribed_nodes: [^public_key2, ^public_key1]} = :sys.get_state(pid)
@@ -314,7 +314,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     subset: subset,
     pid: pid
   } do
-    first_public_key = :crypto.strong_rand_bytes(32)
+    first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -332,14 +332,14 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
     me = self()
 
     tx_summary = %TransactionSummary{
-      address: <<0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+      address: <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
       timestamp: DateTime.utc_now(),
       type: :keychain,
       movements_addresses: [
-        <<0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11, 232,
-          210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
-        <<0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40, 24,
-          44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
+        <<0, 0, 109, 2, 63, 124, 238, 101, 213, 214, 64, 58, 218, 10, 35, 62, 202, 12, 64, 11,
+          232, 210, 105, 102, 193, 193, 24, 54, 42, 200, 226, 13, 38, 69>>,
+        <<0, 0, 8, 253, 201, 142, 182, 78, 169, 132, 29, 19, 74, 3, 142, 207, 219, 127, 147, 40,
+          24, 44, 170, 214, 171, 224, 29, 177, 205, 226, 88, 62, 248, 84>>
       ]
     }
 

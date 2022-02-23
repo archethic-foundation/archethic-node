@@ -587,12 +587,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   fee: 10_000_000,
       ...>   transaction_movements: [
       ...>     %TransactionMovement{
-      ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>       to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 102_000_000,
       ...>       type: :UCO
       ...>     },
-      ...>     %TransactionMovement{to: <<0::8, 0::256>> , amount: 1_000_000, type: :UCO}
+      ...>     %TransactionMovement{to: <<0::8, 0::8, 0::256>> , amount: 1_000_000, type: :UCO}
       ...>   ],
       ...>   node_movements: [
       ...>     %NodeMovement{
@@ -604,7 +604,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   ],
       ...>   unspent_outputs: [
       ...>     %UnspentOutput{
-      ...>       from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>       from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 200_000_000,
       ...>       type: :UCO
@@ -618,14 +618,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Nb of transaction movements
       2,
       # Transaction movement recipient
-      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Transaction movement amount (1.2 UCO)
       0, 0, 0, 0, 6, 20, 101, 128,
       # Transaction movement type (UCO)
       0,
       # Network pool burning address
-      0::8, 0::256,
+      0::8, 0::8, 0::256,
       # Amount of fee burnt (0.01)
       0, 0, 0, 0, 0, 15, 66, 64,
       # Type of movement
@@ -644,7 +644,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Nb of unspent outputs
       1,
       # Unspent output origin
-      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Unspent output amount (2 UCO)
       0, 0, 0, 0, 11, 235, 194, 0,
@@ -682,14 +682,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> <<0, 0, 0, 0, 0, 152, 150, 128, 2,
-      ...> 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      ...> 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
-      ...> 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
+      ...> 0, 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
       ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
       ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 0, 137, 84, 64,
       ...> 3, 0, 1, 2,
-      ...> 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
+      ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0>>
       ...> |> LedgerOperations.deserialize()
@@ -698,13 +698,13 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           fee: 10_000_000,
           transaction_movements: [
             %TransactionMovement{
-              to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+              to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 1_020_000_000,
               type: :UCO
             },
             %TransactionMovement {
-              to: <<0::8, 0::256>>,
+              to: <<0::8, 0::8, 0::256>>,
               amount: 1_000_000,
               type: :UCO
             }
@@ -719,7 +719,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ],
           unspent_outputs: [
             %UnspentOutput{
-              from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+              from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 200_000_000,
               type: :UCO,

@@ -27,7 +27,7 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
         iex> %ReplicationAttestation{
         ...>    version: 1,
         ...>    transaction_summary: %TransactionSummary{
-        ...>      address: <<0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216, 164, 4, 187, 38,
+        ...>      address: <<0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216, 164, 4, 187, 38,
         ...>        200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66>>,
         ...>      type: :transfer,
         ...>      timestamp: ~U[2022-01-27 09:14:22Z]
@@ -46,7 +46,7 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
           # Version
           1,
           # Tx address
-          0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
+          0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
           164, 4, 187, 38, 200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66,
           # Timestamp
           0, 0, 1, 126, 154, 208, 125, 176,
@@ -89,7 +89,7 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
 
   ## Examples
 
-      iex> <<1,0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
+      iex> <<1, 0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
       ...> 164, 4, 187, 38, 200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66,
       ...> 0, 0, 1, 126, 154, 208, 125, 176,
       ...> 253,0, 0,
@@ -103,7 +103,7 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
         %ReplicationAttestation{
            version: 1,
            transaction_summary: %TransactionSummary{
-             address: <<0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216, 164, 4, 187, 38,
+             address: <<0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216, 164, 4, 187, 38,
                200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66>>,
              type: :transfer,
              timestamp: ~U[2022-01-27 09:14:22.000Z]

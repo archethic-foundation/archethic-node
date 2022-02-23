@@ -9,6 +9,8 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
+  alias ArchEthic.Utils
+
   @type t() :: %__MODULE__{
           from: Crypto.versioned_hash(),
           amount: pos_integer(),
@@ -24,7 +26,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
   ## Examples
 
       iex> %TransactionInput{
-      ...>    from:  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
+      ...>    from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       ...>       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
       ...>    amount: 1_050_000_000,
       ...>    type: :UCO,
@@ -34,7 +36,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       ...> |> TransactionInput.serialize()
       <<
       # From
-      0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
+      0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
       # Type
       1::1,
@@ -77,7 +79,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
 
   ## Examples
 
-      iex>  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
+      iex>  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
       ...>  166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56,
       ...>  1::1, 1::1, 0::1,
       ...>  0, 0, 0, 0, 62, 149, 186, 128,
@@ -86,7 +88,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       ...> |> TransactionInput.deserialize()
       {
         %TransactionInput{
-          from:  <<0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
+          from:  <<0, 0, 53, 130, 31, 59, 131, 78, 78, 34, 179, 66, 2, 120, 117, 4, 119, 81, 111, 187,
             166, 83, 194, 42, 253, 99, 189, 24, 68, 40, 178, 142, 163, 56>>,
           amount: 1_050_000_000,
           type: :UCO,
@@ -98,10 +100,8 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
       }
   """
   @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring()}
-  def deserialize(<<hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-
-    <<from::binary-size(hash_size), type_bit::1, spent_bit::1, rest::bitstring>> = rest
+  def deserialize(data) when is_bitstring(data) do
+    {address, <<type_bit::1, spent_bit::1, rest::bitstring>>} = Utils.deserialize_address(data)
 
     spent? = if spent_bit == 1, do: true, else: false
 
@@ -111,7 +111,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
 
         {
           %__MODULE__{
-            from: <<hash_id::8, from::binary>>,
+            from: address,
             spent?: spent?,
             reward?: false,
             type: :call,
@@ -129,7 +129,7 @@ defmodule ArchEthic.TransactionChain.TransactionInput do
 
         {
           %__MODULE__{
-            from: <<hash_id::8, from::binary>>,
+            from: address,
             spent?: spent?,
             amount: amount,
             type: movement_type,

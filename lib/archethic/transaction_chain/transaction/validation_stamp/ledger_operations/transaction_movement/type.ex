@@ -4,6 +4,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   """
 
   alias ArchEthic.Crypto
+  alias ArchEthic.Utils
 
   @typedoc """
   Transaction movement can be:
@@ -20,9 +21,9 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   def deserialize(<<0::8, rest::bitstring>>), do: {:UCO, rest}
 
-  def deserialize(<<1::8, hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), rest::bitstring>> = rest
-    {{:NFT, <<hash_id::8, address::binary>>}, rest}
+  def deserialize(<<1::8, rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {{:NFT, address}, rest}
   end
 end

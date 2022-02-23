@@ -92,7 +92,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
         )
 
       tx1 = create_transaction(seed: "seed2_2", index: 0)
-      genesis_address = Crypto.hash(tx1.previous_public_key)
+      genesis_address = Crypto.derive_address(tx1.previous_public_key)
       tx1_address = tx1.address
 
       assert :ok = Cassandra.write_transaction_chain([tx1])
@@ -286,7 +286,9 @@ defmodule ArchEthic.DB.CassandraImplTest do
     assert tx3.address == Cassandra.get_last_chain_address(tx3.address)
     assert tx3.address == Cassandra.get_last_chain_address(tx2.address)
     assert tx3.address == Cassandra.get_last_chain_address(tx1.address)
-    assert tx3.address == Cassandra.get_last_chain_address(Crypto.hash(tx1.previous_public_key))
+
+    assert tx3.address ==
+             Cassandra.get_last_chain_address(Crypto.derive_address(tx1.previous_public_key))
   end
 
   test "get_last_chain_address/2 should return the last transaction address of a chain before a given datetime" do

@@ -4,7 +4,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer do
   """
   defstruct [:to, :amount, conditions: []]
 
-  alias ArchEthic.Crypto
+  alias ArchEthic.Utils
 
   @typedoc """
   Transfer is composed from:
@@ -47,13 +47,13 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer do
   ## Examples
 
       iex> <<
-      ...> 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+      ...> 0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
       ...> 85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14,
       ...> 0, 0, 0, 0, 62, 149, 186, 128>>
       ...> |> Transfer.deserialize()
       {
         %Transfer{
-          to: <<0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
+          to: <<0, 0, 104, 134, 142, 120, 40, 59, 99, 108, 63, 166, 143, 250, 93, 186, 216, 117,
             85, 106, 43, 26, 120, 35, 44, 137, 243, 184, 160, 251, 223, 0, 93, 14>>,
           amount: 1_050_000_000
         },
@@ -61,12 +61,11 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer do
       }
   """
   @spec deserialize(bitstring()) :: {__MODULE__.t(), bitstring}
-  def deserialize(<<hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), amount::64, rest::bitstring>> = rest
+  def deserialize(data) do
+    {address, <<amount::64, rest::bitstring>>} = Utils.deserialize_address(data)
 
     {
-      %__MODULE__{to: <<hash_id::8, address::binary>>, amount: amount},
+      %__MODULE__{to: address, amount: amount},
       rest
     }
   end
