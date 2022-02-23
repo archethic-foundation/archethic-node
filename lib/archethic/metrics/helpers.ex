@@ -8,6 +8,7 @@ defmodule ArchEthic.Metrics.Helpers do
   Converts to map of metrics using
   Main method to transform metrics.Method to do any remaining transformations at last.
   """
+  @spec network_collector() :: %{optional(String.t()) => Float.t()|Integer.t()},
   def network_collector() do
     data = Enum.filter(retrieve_network_metrics(), fn {key, _val} -> req_metrics(key) end)
     Enum.into(data, %{})
