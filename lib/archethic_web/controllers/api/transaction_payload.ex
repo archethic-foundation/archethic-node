@@ -67,7 +67,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
 
   def to_map(value, _), do: value
 
-  defp validate_data(%Ecto.Changeset{} = changeset) do
+  defp validate_data(changeset = %Ecto.Changeset{}) do
     validate_change(changeset, :data, fn _, data_changeset ->
       case data_changeset.valid? do
         true -> []
