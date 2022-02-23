@@ -116,7 +116,6 @@ defmodule ArchEthic.Metrics.Helpers do
     end
   end
 
-
   @doc """
   Fetches the metric name and count,sum of the given histogram metrics.
   Fetches the metric name and metic value for guage metrics.
@@ -208,7 +207,6 @@ defmodule ArchEthic.Metrics.Helpers do
     {sum, count}
   end
 
-
   def retrieve_node_ip_address() do
     Enum.map(ArchEthic.P2P.list_nodes(), fn node_details ->
       ip = :inet.ntoa(node_details.ip)
@@ -243,7 +241,6 @@ defmodule ArchEthic.Metrics.Helpers do
     [head | _tail] = list2
     head
   end
-
 
   @doc """
   Method combines maps of metrics of different nodes into a single map of respective metrics
@@ -304,7 +301,6 @@ defmodule ArchEthic.Metrics.Helpers do
     end)
   end
 
-
   @doc """
   Reduces to a single map of metrics rather than list of maps of metrics
 
@@ -330,8 +326,6 @@ defmodule ArchEthic.Metrics.Helpers do
       end)
     end)
   end
-
-
 
   def update_histogram_acc(metric_name, count, sum, acc) do
     cummlative_sum = get_in(acc, [metric_name, :sum])
@@ -443,7 +437,8 @@ defmodule ArchEthic.Metrics.Helpers do
         false
     end
   end
-  @doc"""
+
+  @doc """
   Returns a default for Metric Poller
   """
   def get_client_metric_default_value() do
