@@ -88,7 +88,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
            port,
            &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
          ) do
-      {:ok, %{"status" => "ok"}} ->
+      {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
 
       _ ->

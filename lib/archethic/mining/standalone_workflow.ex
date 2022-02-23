@@ -148,7 +148,14 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
     end
   end
 
-  defp reduce_confirmations({%Error{}, _}, _acc), do: raise("Invalid transaction")
+  defp reduce_confirmations({%Error{reason: reason}, _}, _acc) do
+    Logger.warning("Invalid transaction #{inspect(reason)}")
+    :error
+  end
+
+  defp reduce_confirmations(_, :error), do: :error
+
+  defp notify(:error), do: :skip
 
   defp notify(%{
          confirmations: confirmations,
