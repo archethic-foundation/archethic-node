@@ -26,7 +26,7 @@ defmodule ArchEthicWeb.API.Schema.TransactionData do
     |> validate_content_size()
   end
 
-  defp validate_content_size(%Ecto.Changeset{} = changeset) do
+  defp validate_content_size(changeset = %Ecto.Changeset{}) do
     validate_change(changeset, :content, fn field, content ->
       content_size = byte_size(content)
 
