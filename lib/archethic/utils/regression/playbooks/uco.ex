@@ -44,6 +44,8 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
 
     Logger.info("Transaction #{Base.encode16(address)} submitted")
 
+    Process.sleep(1_000)
+
     # Ensure the recipient got the 10.0 UCO
     new_balance = Playbook.get_uco_balance(recipient_address, host, port)
 
@@ -53,7 +55,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
 
     Logger.info("#{Base.encode16(recipient_address)} received 10 UCO")
 
-    new_recipient_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    new_recipient_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     Logger.info(
       "#{Base.encode16(recipient_address)} is sending 5 UCO to #{Base.encode16(new_recipient_address)}"
@@ -81,7 +83,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
 
     Logger.info("Transaction #{Base.encode16(address)} submitted")
 
-    Process.sleep(500)
+    Process.sleep(1_000)
 
     # Ensure the second recipient received the 5.0 UCO
     5.0 = Playbook.get_uco_balance(new_recipient_address, host, port)
@@ -96,9 +98,9 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
 
   defp invalid_transfer(host, port) do
     from_seed = :crypto.strong_rand_bytes(32)
-    recipient_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    recipient_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-    :error =
+    {:ok, _tx_address} =
       Playbook.send_transaction(
         from_seed,
         :transfer,
@@ -117,6 +119,10 @@ defmodule ArchEthic.Utils.Regression.Playbook.UCO do
         host,
         port
       )
+
+    Process.sleep(1_000)
+    0.0 = Playbook.get_uco_balance(recipient_address, host, port)
+    0 = Playbook.get_chain_size(from_seed, Crypto.default_curve(), host, port)
 
     Logger.info("Transaction with insufficient funds is rejected")
   end
