@@ -4,7 +4,10 @@ defmodule ArchEthic.Utils do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
+
   alias ArchEthic.Crypto
+
   alias ArchEthic.P2P.Node
 
   import Bitwise
@@ -568,5 +571,45 @@ defmodule ArchEthic.Utils do
       0 ->
         :ok
     end
+  end
+
+  def deserialize_address(<<curve_type::8, hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    {<<curve_type::8, hash_id::8, hash::binary>>, rest}
+  end
+
+  def deserialize_addresses(rest, 0, _), do: {[], rest}
+
+  def deserialize_addresses(rest, nb_addresses, acc) when length(acc) == nb_addresses do
+    {Enum.reverse(acc), rest}
+  end
+
+  def deserialize_addresses(rest, nb_addresses, acc) do
+    {address, rest} = deserialize_address(rest)
+    deserialize_addresses(rest, nb_addresses, [address | acc])
+  end
+
+  def deserialize_hash(<<hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    {<<hash_id::8, hash::binary>>, rest}
+  end
+
+  def deserialize_public_key(<<curve_id::8, origin_id::8, rest::bitstring>>) do
+    key_size = Crypto.key_size(curve_id)
+    <<public_key::binary-size(key_size), rest::bitstring>> = rest
+    {<<curve_id::8, origin_id::8, public_key::binary>>, rest}
+  end
+
+  def deserialize_transaction_attestations(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_transaction_attestations(rest, nb_attestations, acc)
+      when nb_attestations == length(acc),
+      do: {Enum.reverse(acc), rest}
+
+  def deserialize_transaction_attestations(rest, nb_attestations, acc) do
+    {attestation, rest} = ReplicationAttestation.deserialize(rest)
+    deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
   end
 end

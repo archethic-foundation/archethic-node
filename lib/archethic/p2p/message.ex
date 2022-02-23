@@ -77,6 +77,8 @@ defmodule ArchEthic.P2P.Message do
   alias ArchEthic.TransactionChain.TransactionInput
   alias ArchEthic.TransactionChain.TransactionSummary
 
+  alias ArchEthic.Utils
+
   require Logger
 
   @type t :: request() | response()
@@ -467,13 +469,12 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def decode(<<1::8, curve_id::8, origin_id::8, rest::bitstring>>) do
-    key_size = Crypto.key_size(curve_id)
-    <<public_key::binary-size(key_size), rest::bitstring>> = rest
+  def decode(<<1::8, rest::bitstring>>) do
+    {public_key, rest} = Utils.deserialize_public_key(rest)
 
     {
       %GetStorageNonce{
-        public_key: <<curve_id::8, origin_id::8, public_key::binary>>
+        public_key: public_key
       },
       rest
     }
@@ -484,7 +485,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<3::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
 
     {
       %GetTransaction{address: address},
@@ -493,7 +494,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<4::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
 
     case rest do
       <<timestamp::32, rest::bitstring>> ->
@@ -508,7 +509,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<5::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetUnspentOutputs{address: address}, rest}
   end
 
@@ -521,7 +522,7 @@ defmodule ArchEthic.P2P.Message do
     {tx, rest} = Transaction.deserialize(rest)
 
     {welcome_node_public_key, <<nb_validation_nodes::8, rest::bitstring>>} =
-      deserialize_public_key(rest)
+      Utils.deserialize_public_key(rest)
 
     {validation_node_public_keys, rest} =
       deserialize_public_key_list(rest, nb_validation_nodes, [])
@@ -533,11 +534,11 @@ defmodule ArchEthic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<8::8, hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), curve_id::8, origin_id::8, rest::bitstring>> = rest
-    key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(key_size), nb_previous_storage_nodes::8, rest::bitstring>> = rest
+  def decode(<<8::8, rest::bitstring>>) do
+    {tx_address, rest} = Utils.deserialize_address(rest)
+
+    {node_public_key, <<nb_previous_storage_nodes::8, rest::bitstring>>} =
+      Utils.deserialize_public_key(rest)
 
     {previous_storage_nodes_keys, rest} =
       deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
@@ -551,8 +552,8 @@ defmodule ArchEthic.P2P.Message do
     >> = rest
 
     {%AddMiningContext{
-       address: <<hash_id::8, address::binary>>,
-       validation_node_public_key: <<curve_id::8, origin_id::8, key::binary>>,
+       address: tx_address,
+       validation_node_public_key: node_public_key,
        chain_storage_nodes_view: chain_storage_nodes_view,
        beacon_storage_nodes_view: beacon_storage_nodes_view,
        previous_storage_nodes_public_keys: previous_storage_nodes_keys
@@ -560,7 +561,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<9::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {validation_stamp, rest} = ValidationStamp.deserialize(rest)
 
     <<nb_validations::8, tree_size::8, rest::bitstring>> = rest
@@ -586,7 +587,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<10::8, rest::bitstring>>) do
-    {address, rest} = deserialize_hash(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {stamp, rest} = CrossValidationStamp.deserialize(rest)
 
     {%CrossValidationDone{
@@ -623,7 +624,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<14::8, rest::bitstring>>) do
-    {public_key, <<timestamp::32, rest::bitstring>>} = deserialize_public_key(rest)
+    {public_key, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_public_key(rest)
 
     {%NotifyEndOfNodeSync{
        node_public_key: public_key,
@@ -632,22 +633,22 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<15::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetLastTransaction{address: address}, rest}
   end
 
   def decode(<<16::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetBalance{address: address}, rest}
   end
 
   def decode(<<17::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetTransactionInputs{address: address}, rest}
   end
 
   def decode(<<18::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetTransactionChainLength{address: address}, rest}
   end
 
@@ -657,7 +658,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<20::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
 
     {%GetFirstPublicKey{
        address: address
@@ -665,7 +666,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, <<timestamp::32, rest::bitstring>>} = deserialize_address(rest)
+    {address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%GetLastTransactionAddress{
        address: address,
@@ -674,8 +675,8 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<22::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
-    {previous_address, <<timestamp::32, rest::bitstring>>} = deserialize_hash(rest)
+    {address, rest} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        address: address,
@@ -685,19 +686,19 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<23::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%GetTransactionSummary{address: address}, rest}
   end
 
   def decode(<<24::8, rest::binary>>) do
-    {public_key, rest} = deserialize_public_key(rest)
+    {public_key, rest} = Utils.deserialize_public_key(rest)
     {%NodeAvailability{public_key: public_key}, rest}
   end
 
   def decode(<<25::8, rest::binary>>), do: {%Ping{}, rest}
 
   def decode(<<26::8, rest::binary>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
 
     {
       %GetBeaconSummary{address: address},
@@ -715,7 +716,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<28::8, nb_addresses::32, rest::bitstring>>) do
-    {addresses, rest} = deserialize_addresses(rest, nb_addresses, [])
+    {addresses, rest} = Utils.deserialize_addresses(rest, nb_addresses, [])
 
     {
       %GetBeaconSummaries{addresses: addresses},
@@ -724,7 +725,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<29::8, subset::binary-size(1), rest::binary>>) do
-    {public_key, rest} = deserialize_public_key(rest)
+    {public_key, rest} = Utils.deserialize_public_key(rest)
 
     {
       %RegisterBeaconUpdates{
@@ -741,7 +742,7 @@ defmodule ArchEthic.P2P.Message do
 
   def decode(<<236::8, nb_transaction_attestations::16, rest::bitstring>>) do
     {transaction_attestations, rest} =
-      deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
+      Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
     {
       %BeaconUpdate{
@@ -773,12 +774,12 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<241::8, rest::bitstring>>) do
-    {address, rest} = deserialize_address(rest)
+    {address, rest} = Utils.deserialize_address(rest)
     {%LastTransactionAddress{address: address}, rest}
   end
 
   def decode(<<242::8, rest::bitstring>>) do
-    {public_key, rest} = deserialize_public_key(rest)
+    {public_key, rest} = Utils.deserialize_public_key(rest)
     {%FirstPublicKey{public_key: public_key}, rest}
   end
 
@@ -886,7 +887,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   defp deserialize_public_key_list(rest, nb_keys, acc) do
-    {public_key, rest} = deserialize_public_key(rest)
+    {public_key, rest} = Utils.deserialize_public_key(rest)
     deserialize_public_key_list(rest, nb_keys, [public_key | acc])
   end
 
@@ -900,56 +901,6 @@ defmodule ArchEthic.P2P.Message do
   defp deserialize_unspent_output_list(rest, nb_unspent_outputs, acc) do
     {unspent_output, rest} = UnspentOutput.deserialize(rest)
     deserialize_unspent_output_list(rest, nb_unspent_outputs, [unspent_output | acc])
-  end
-
-  defp deserialize_address(<<curve_type::8, hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<hash::binary-size(hash_size), rest::bitstring>> = rest
-    {<<curve_type::8, hash_id::8, hash::binary>>, rest}
-  end
-
-  defp deserialize_addresses(rest, 0, _), do: {[], rest}
-
-  defp deserialize_addresses(rest, nb_hashes, acc) when length(acc) == nb_hashes do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_addresses(rest, nb_hashes, acc) do
-    {hash, rest} = deserialize_address(rest)
-    deserialize_hashes(rest, nb_hashes, [hash | acc])
-  end
-
-  defp deserialize_hash(<<hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<hash::binary-size(hash_size), rest::bitstring>> = rest
-    {<<hash_id::8, hash::binary>>, rest}
-  end
-
-  defp deserialize_hashes(rest, 0, _), do: {[], rest}
-
-  defp deserialize_hashes(rest, nb_hashes, acc) when length(acc) == nb_hashes do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_hashes(rest, nb_hashes, acc) do
-    {hash, rest} = deserialize_hash(rest)
-    deserialize_hashes(rest, nb_hashes, [hash | acc])
-  end
-
-  defp deserialize_public_key(<<curve_id::8, origin_id::8, rest::bitstring>>) do
-    key_size = Crypto.key_size(curve_id)
-    <<public_key::binary-size(key_size), rest::bitstring>> = rest
-    {<<curve_id::8, origin_id::8, public_key::binary>>, rest}
-  end
-
-  defp deserialize_bit_sequences(rest, nb_sequences, _sequence_size, acc)
-       when length(acc) == nb_sequences do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_bit_sequences(rest, nb_sequences, sequence_size, acc) do
-    <<sequence::bitstring-size(sequence_size), rest::bitstring>> = rest
-    deserialize_bit_sequences(rest, nb_sequences, sequence_size, [sequence | acc])
   end
 
   defp deserialize_transaction_inputs(rest, 0, _acc), do: {[], rest}
@@ -970,7 +921,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
-    {nft_address, <<amount::float, rest::bitstring>>} = deserialize_hash(rest)
+    {nft_address, <<amount::float, rest::bitstring>>} = Utils.deserialize_address(rest)
     deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
   end
 
@@ -984,15 +935,14 @@ defmodule ArchEthic.P2P.Message do
     deserialize_summaries(rest, nb_summaries, [summary | acc])
   end
 
-  defp deserialize_transaction_attestations(rest, 0, _acc), do: {[], rest}
+  defp deserialize_bit_sequences(rest, nb_sequences, _sequence_size, acc)
+       when length(acc) == nb_sequences do
+    {Enum.reverse(acc), rest}
+  end
 
-  defp deserialize_transaction_attestations(rest, nb_attestations, acc)
-       when nb_attestations == length(acc),
-       do: {Enum.reverse(acc), rest}
-
-  defp deserialize_transaction_attestations(rest, nb_attestations, acc) do
-    {attestation, rest} = ReplicationAttestation.deserialize(rest)
-    deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
+  defp deserialize_bit_sequences(rest, nb_sequences, sequence_size, acc) do
+    <<sequence::bitstring-size(sequence_size), rest::bitstring>> = rest
+    deserialize_bit_sequences(rest, nb_sequences, sequence_size, [sequence | acc])
   end
 
   @doc """

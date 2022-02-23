@@ -17,6 +17,8 @@ defmodule ArchEthic.BeaconChain.Slot do
 
   alias ArchEthic.TransactionChain.TransactionSummary
 
+  alias ArchEthic.Utils
+
   @type net_stats :: list(%{latency: non_neg_integer()})
 
   defstruct [
@@ -28,10 +30,12 @@ defmodule ArchEthic.BeaconChain.Slot do
       availabilities: <<>>,
       network_stats: []
     },
-    involved_nodes: <<>>
+    involved_nodes: <<>>,
+    version: 1
   ]
 
   @type t :: %__MODULE__{
+          version: pos_integer(),
           subset: binary(),
           slot_time: DateTime.t(),
           transaction_attestations: list(ReplicationAttestation.t()),
@@ -57,12 +61,12 @@ defmodule ArchEthic.BeaconChain.Slot do
       iex> %Slot{}
       ...> |> Slot.add_transaction_attestation(%ReplicationAttestation{
       ...>     transaction_summary: %TransactionSummary{
-      ...>       address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+      ...>       address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
       ...>         168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
       ...>       timestamp: ~U[2020-06-25 15:11:53Z],
       ...>       type: :transfer,
       ...>       movements_addresses: [
-      ...>           <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...>           <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...>           99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
       ...>       ],
       ...>     },
@@ -75,12 +79,12 @@ defmodule ArchEthic.BeaconChain.Slot do
         transaction_attestations: [
           %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
-              address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+              address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
                  168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
               timestamp: ~U[2020-06-25 15:11:53Z],
               type: :transfer,
               movements_addresses: [
-                  <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                  <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                   99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
               ]
             },
@@ -102,12 +106,12 @@ defmodule ArchEthic.BeaconChain.Slot do
        iex> %Slot{transaction_attestations: [
        ...>   %ReplicationAttestation{
        ...>    transaction_summary: %TransactionSummary{
-       ...>      address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+       ...>      address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
        ...>         168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
        ...>      timestamp: ~U[2020-06-25 15:11:53Z],
        ...>      type: :transfer,
        ...>      movements_addresses: [
-       ...>          <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+       ...>          <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
        ...>          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
        ...>      ]
        ...>    },
@@ -120,12 +124,12 @@ defmodule ArchEthic.BeaconChain.Slot do
        ...> ]}
        ...> |> Slot.add_transaction_attestation(%ReplicationAttestation{
        ...>   transaction_summary: %TransactionSummary{
-       ...>      address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+       ...>      address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
        ...>     168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
        ...>      timestamp: ~U[2020-06-25 15:11:53Z],
        ...>      type: :transfer,
        ...>      movements_addresses: [
-       ...>          <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+       ...>          <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
        ...>          99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
        ...>      ],
        ...>    },
@@ -138,12 +142,12 @@ defmodule ArchEthic.BeaconChain.Slot do
          transaction_attestations: [
            %ReplicationAttestation{
              transaction_summary: %TransactionSummary{
-               address:  <<0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+               address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
                   168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
                timestamp: ~U[2020-06-25 15:11:53Z],
                type: :transfer,
                movements_addresses: [
-                   <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                   <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                    99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
                ]
              },
@@ -284,7 +288,7 @@ defmodule ArchEthic.BeaconChain.Slot do
         ...>    transaction_attestations: [
         ...>      %ReplicationAttestation {
         ...>        transaction_summary: %TransactionSummary{
-        ...>          address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+        ...>          address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
         ...>            99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
         ...>          timestamp: ~U[2020-06-25 15:11:53Z],
         ...>          type: :transfer,
@@ -311,6 +315,8 @@ defmodule ArchEthic.BeaconChain.Slot do
         ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>
         ...>  } |> Slot.serialize()
         <<
+        # Version,
+        1,
         # Subset
         0,
         # Slot time
@@ -362,6 +368,7 @@ defmodule ArchEthic.BeaconChain.Slot do
   """
   @spec serialize(t()) :: bitstring()
   def serialize(%__MODULE__{
+        version: 1,
         subset: subset,
         slot_time: slot_time,
         transaction_attestations: transaction_attestations,
@@ -387,7 +394,7 @@ defmodule ArchEthic.BeaconChain.Slot do
       |> Enum.map(fn %{latency: latency} -> <<latency::8>> end)
       |> :erlang.list_to_binary()
 
-    <<subset::binary, DateTime.to_unix(slot_time)::32, length(transaction_attestations)::32,
+    <<1::8, subset::binary, DateTime.to_unix(slot_time)::32, length(transaction_attestations)::32,
       transaction_attestations_bin::binary, length(end_of_node_synchronizations)::16,
       end_of_node_synchronizations_bin::binary, bit_size(availabilities)::16,
       availabilities::bitstring, net_stats_bin::binary, bit_size(involved_nodes)::8,
@@ -399,8 +406,8 @@ defmodule ArchEthic.BeaconChain.Slot do
 
   ## Examples
 
-      iex> <<0, 96, 8, 1, 120, 0, 0, 0, 1,
-      ...>  1, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      iex> <<1, 0, 96, 8, 1, 120, 0, 0, 0, 1,
+      ...>  1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...>  99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
       ...>  0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0,
       ...>  1, 0, 64, 129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
@@ -414,12 +421,13 @@ defmodule ArchEthic.BeaconChain.Slot do
       ...> |> Slot.deserialize()
       {
         %Slot{
+          version: 1,
           subset: <<0>>,
           slot_time: ~U[2021-01-20 10:10:00Z],
           transaction_attestations: [
             %ReplicationAttestation{
               transaction_summary:  %TransactionSummary{
-                address: <<0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+                address: <<0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
                   99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>,
                 timestamp: ~U[2020-06-25 15:11:53.000Z],
                 type: :transfer,
@@ -450,9 +458,11 @@ defmodule ArchEthic.BeaconChain.Slot do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(
-        <<subset::8, slot_timestamp::32, nb_transaction_attestations::32, rest::bitstring>>
+        <<1::8, subset::8, slot_timestamp::32, nb_transaction_attestations::32, rest::bitstring>>
       ) do
-    {tx_attestations, rest} = deserialize_tx_attestations(rest, nb_transaction_attestations, [])
+    {tx_attestations, rest} =
+      Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
+
     <<nb_end_of_sync::16, rest::bitstring>> = rest
 
     {end_of_node_synchronizations, rest} =
@@ -467,6 +477,7 @@ defmodule ArchEthic.BeaconChain.Slot do
 
     {
       %__MODULE__{
+        version: 1,
         subset: <<subset>>,
         slot_time: DateTime.from_unix!(slot_timestamp),
         transaction_attestations: tx_attestations,
@@ -479,18 +490,6 @@ defmodule ArchEthic.BeaconChain.Slot do
       },
       rest
     }
-  end
-
-  defp deserialize_tx_attestations(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_tx_attestations(rest, nb_tx_attestations, acc)
-       when length(acc) == nb_tx_attestations do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_tx_attestations(rest, nb_tx_attestations, acc) do
-    {tx_attestation, rest} = ReplicationAttestation.deserialize(rest)
-    deserialize_tx_attestations(rest, nb_tx_attestations, [tx_attestation | acc])
   end
 
   defp deserialize_end_of_node_synchronizations(rest, 0, _acc), do: {[], rest}
@@ -519,52 +518,6 @@ defmodule ArchEthic.BeaconChain.Slot do
   end
 
   @doc """
-  <<<<<<< HEAD
-  Determines if the beacon slot contains a given transaction
-
-  ## Examples
-
-      iex> %Slot{
-      ...>   transaction_summaries: []
-      ...> }
-      ...> |> Slot.has_transaction?(<<0, 0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
-      ...> 221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>)
-      false
-
-      iex> %Slot{
-      ...>   transaction_summaries: [%TransactionSummary{
-      ...>      address: <<0, 0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
-      ...>               221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>,
-      ...>      timestamp: ~U[2020-06-25 15:11:53Z],
-      ...>      type: :transfer,
-      ...>      movements_addresses: []
-      ...>   }]
-      ...> }
-      ...> |> Slot.has_transaction?(<<0, 0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
-      ...> 221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>)
-      true
-  """
-  @spec has_transaction?(__MODULE__.t(), binary()) :: boolean()
-  def has_transaction?(%__MODULE__{transaction_summaries: transaction_summaries}, address) do
-    Enum.any?(transaction_summaries, &(&1.address == address))
-  end
-
-  @spec has_changes?(t()) :: boolean
-  def has_changes?(%__MODULE__{
-        transaction_summaries: [],
-        end_of_node_synchronizations: [],
-        p2p_view: %{
-          availabilities: <<>>
-        }
-      }) do
-    false
-  end
-
-  def has_changes?(%__MODULE__{}), do: true
-
-  @doc """
-  =======
-  >>>>>>> Add replication attestation
   Retrieve the nodes responsible to manage the slot processing
   """
   @spec involved_nodes(t()) :: list(Node.t())

@@ -2,10 +2,11 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   @moduledoc """
   Represents any transaction data block
   """
-  alias ArchEthic.Crypto
 
   alias __MODULE__.Ledger
   alias __MODULE__.Ownership
+
+  alias ArchEthic.Utils
 
   defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
 
@@ -39,7 +40,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   ...>    }],
   ...>    ledger: %Ledger{},
   ...>    recipients: [
-  ...>      <<0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
+  ...>      <<0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
   ...>        241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31>>
   ...>    ]
   ...> }
@@ -68,7 +69,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   # Number of recipients
   1,
   # Recipient
-  0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
+  0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
   241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
   >>
   """
@@ -109,7 +110,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   ...> 0,
   ...> 0,
   ...> 1,
-  ...> 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
+  ...> 0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
   ...> 241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31
   ...> >>
   ...> |> TransactionData.deserialize()
@@ -133,7 +134,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
             uco: %UCOLedger{}
           },
           recipients: [
-            <<0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
+            <<0, 0, 98, 220, 40, 53, 113, 34, 14, 142, 121, 132, 166, 27, 147, 41, 129, 195, 168,
                241, 217, 111, 115, 164, 99, 135, 86, 123, 17, 195, 106, 248, 173, 31>>
           ]
         },
@@ -176,10 +177,9 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   defp reduce_recipients(rest, nb_recipients, acc) when nb_recipients == length(acc),
     do: {Enum.reverse(acc), rest}
 
-  defp reduce_recipients(<<hash_id::8, rest::bitstring>>, nb_recipients, acc) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), rest::bitstring>> = rest
-    reduce_recipients(rest, nb_recipients, [<<hash_id::8>> <> address | acc])
+  defp reduce_recipients(rest, nb_recipients, acc) do
+    {recipient_address, rest} = Utils.deserialize_address(rest)
+    reduce_recipients(rest, nb_recipients, [recipient_address | acc])
   end
 
   @spec from_map(map()) :: t()

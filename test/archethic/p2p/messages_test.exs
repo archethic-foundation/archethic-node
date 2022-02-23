@@ -408,6 +408,8 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "AcknowledgeStorage message" do
+      signature = :crypto.strong_rand_bytes(32)
+
       assert %AcknowledgeStorage{
                signature: signature
              } ==
@@ -631,7 +633,7 @@ defmodule ArchEthic.P2P.MessageTest do
     end
 
     test "Balance message" do
-      nft_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      nft_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       assert %Balance{
                uco: 1_050_000_000,

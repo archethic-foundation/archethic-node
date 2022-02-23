@@ -53,7 +53,7 @@ defmodule ArchEthic.ReplicationTest do
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now(),
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     me = self()
@@ -99,7 +99,7 @@ defmodule ArchEthic.ReplicationTest do
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now(),
       authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     me = self()
@@ -130,7 +130,7 @@ defmodule ArchEthic.ReplicationTest do
       geo_patch: "BBB",
       network_patch: "BBB",
       enrollment_date: DateTime.utc_now(),
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     coordinator_node = %Node{
@@ -142,7 +142,7 @@ defmodule ArchEthic.ReplicationTest do
       geo_patch: "AAA",
       network_patch: "AAA",
       enrollment_date: DateTime.utc_now(),
-      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
     storage_nodes = [
@@ -253,7 +253,7 @@ defmodule ArchEthic.ReplicationTest do
         available?: true,
         authorization_date: DateTime.utc_now(),
         authorized?: true,
-        reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       })
 
       assert :ok =

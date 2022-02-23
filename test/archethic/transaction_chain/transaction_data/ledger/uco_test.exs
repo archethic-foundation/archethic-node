@@ -15,7 +15,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.UCOLedgerTest do
       transfers =
         Enum.map(transfers, fn {to, amount} ->
           %Transfer{
-            to: <<0::8>> <> to,
+            to: <<0::8, 0::8>> <> to,
             amount: amount
           }
         end)

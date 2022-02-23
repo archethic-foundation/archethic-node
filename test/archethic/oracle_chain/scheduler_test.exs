@@ -136,7 +136,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       assert tx_address ==
                Crypto.derive_oracle_keypair(summary_date, 1)
                |> elem(0)
-               |> Crypto.hash()
+               |> Crypto.derive_address()
 
       assert {:ok, %{"uco" => %{"usd" => 0.2}}} = Services.parse_data(Jason.decode!(content))
 
@@ -219,7 +219,8 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       |> expect(:get_transaction_chain, fn _, _ ->
         [
           %Transaction{
-            address: Crypto.derive_oracle_keypair(summary_date, 1) |> elem(0) |> Crypto.hash(),
+            address:
+              Crypto.derive_oracle_keypair(summary_date, 1) |> elem(0) |> Crypto.derive_address(),
             type: :oracle,
             data: %TransactionData{
               content:
@@ -248,7 +249,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       assert summary_address ==
                Crypto.derive_oracle_keypair(summary_date, 1)
                |> elem(0)
-               |> Crypto.hash()
+               |> Crypto.derive_address()
 
       assert %{
                ^timestamp => %{
@@ -338,7 +339,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       assert tx_address ==
                Crypto.derive_oracle_keypair(summary_date, index + 1)
                |> elem(0)
-               |> Crypto.hash()
+               |> Crypto.derive_address()
 
       assert {:ok, %{"uco" => %{"usd" => ^price}}} = Services.parse_data(Jason.decode!(content))
 
@@ -418,7 +419,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       assert tx_address ==
                Crypto.derive_oracle_keypair(summary_date, index + 1)
                |> elem(0)
-               |> Crypto.hash()
+               |> Crypto.derive_address()
 
       assert {:ok, %{"uco" => %{"usd" => ^price}}} = Services.parse_data(Jason.decode!(content))
 
