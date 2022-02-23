@@ -121,8 +121,13 @@ defmodule ArchEthic.Metrics.Helpers do
   Fetches the metric name and count,sum of the given histogram metrics.
   Fetches the metric name and metic value for guage metrics.
 
+  ## Examples
 
-
+      iex> [ %{ name: "archethic_contract_parsing_duration" , type: "histogram",
+      ...>      metrics: [%{:quantiles =>%{"\\"0.001\\"" => "105"} , "count" => "2" , "sum" => "10" } ]},
+      ...>        %{metrics: [%{value: "1589609"}], name: "vm_memory_atom", type: "gauge"},
+      ...>     ]|>ArchEthic.Metrics.Helpers.retrieve_metric_parameter_data()
+      [%{"archethic_contract_parsing_duration" => %{count: 2.0, sum: 10.0}}, %{"vm_memory_atom" => 1589609.0}]
   """
   def retrieve_metric_parameter_data(data) do
     Enum.map(data, fn each_metric ->
