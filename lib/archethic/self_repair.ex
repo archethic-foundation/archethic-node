@@ -21,7 +21,7 @@ defmodule ArchEthic.SelfRepair do
   """
   @spec bootstrap_sync(last_sync_date :: DateTime.t(), network_patch :: binary()) :: :ok
   def bootstrap_sync(date = %DateTime{}, patch) when is_binary(patch) do
-    Sync.load_missed_transactions(date, patch, true)
+    Sync.load_missed_transactions(date, patch)
     put_last_sync_date(DateTime.utc_now())
   end
 

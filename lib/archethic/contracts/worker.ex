@@ -12,6 +12,8 @@ defmodule ArchEthic.Contracts.Worker do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.Mining
 
   alias ArchEthic.OracleChain
@@ -21,8 +23,6 @@ defmodule ArchEthic.Contracts.Worker do
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.PubSub
-
-  alias ArchEthic.Replication
 
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
@@ -259,7 +259,7 @@ defmodule ArchEthic.Contracts.Worker do
     [%Node{first_public_key: key} | _] =
       next_transaction
       |> Transaction.previous_address()
-      |> Replication.chain_storage_nodes()
+      |> Election.chain_storage_nodes(P2P.authorized_nodes())
 
     # The first storage node of the contract initiate the sending of the new transaction
     if key == Crypto.first_node_public_key() do

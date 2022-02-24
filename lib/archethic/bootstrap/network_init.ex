@@ -7,12 +7,15 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
   alias ArchEthic.Bootstrap
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
+
   alias ArchEthic.Crypto
 
   alias ArchEthic.Election
 
   alias ArchEthic.Mining
 
+  alias ArchEthic.PubSub
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
@@ -29,6 +32,8 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
@@ -120,6 +125,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
     |> Enum.concat([%Transfer{to: network_pool_address, amount: 146_000_000_000_000_000}])
   end
 
+  @spec self_validation(Transaction.t(), list(UnspentOutput.t())) :: Transaction.t()
   def self_validation(tx = %Transaction{}, unspent_outputs \\ []) do
     operations =
       %LedgerOperations{
@@ -154,7 +160,19 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
     }
   end
 
+  @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
-    Replication.process_transaction(tx, [:chain, :IO, :beacon])
+    :ok = Replication.validate_and_store_transaction_chain(tx)
+
+    tx_summary = TransactionSummary.from_transaction(tx)
+
+    attestation = %ReplicationAttestation{
+      transaction_summary: tx_summary,
+      confirmations: [
+        {0, Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))}
+      ]
+    }
+
+    PubSub.notify_replication_attestation(attestation)
   end
 end

@@ -32,4 +32,7 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore do
 
   @callback get_node_shared_key_index() :: non_neg_integer()
   @callback set_node_shared_secrets_key_index(non_neg_integer()) :: :ok
+
+  @callback set_storage_nonce(binary()) :: :ok
+  @callback get_storage_nonce() :: binary()
 end

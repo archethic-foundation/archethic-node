@@ -10,8 +10,6 @@ defmodule ArchEthic do
 
   alias __MODULE__.Mining
 
-  alias __MODULE__.PubSub
-
   alias __MODULE__.P2P
 
   alias __MODULE__.P2P.Message.Balance
@@ -33,14 +31,10 @@ defmodule ArchEthic do
   alias __MODULE__.P2P.Message.TransactionList
   alias __MODULE__.P2P.Node
 
-  alias __MODULE__.Replication
-
-  alias __MODULE__.TaskSupervisor
-
   alias __MODULE__.TransactionChain.Transaction
   alias __MODULE__.TransactionChain.TransactionInput
 
-  @mining_timeout Application.compile_env!(:archethic, [ArchEthic.Mining, :timeout])
+  require Logger
 
   @doc """
   Query the search of the transaction to the dedicated storage pool from the closest nodes
@@ -51,7 +45,7 @@ defmodule ArchEthic do
           | {:error, :transaction_invalid}
           | {:error, :network_issue}
   def search_transaction(address) when is_binary(address) do
-    storage_nodes = Replication.chain_storage_nodes(address)
+    storage_nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
 
     storage_nodes
     |> P2P.nearest_nodes()
@@ -107,7 +101,18 @@ defmodule ArchEthic do
   defp do_send_transaction(tx) do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
-    validation_nodes = Mining.transaction_validation_nodes(tx, sorting_seed, current_date)
+
+    node_list = Mining.transaction_validation_node_list(tx.type, current_date)
+    storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
+
+    validation_nodes =
+      Election.validation_nodes(
+        tx,
+        sorting_seed,
+        node_list,
+        storage_nodes,
+        Election.get_validation_constraints()
+      )
 
     message = %StartMining{
       transaction: tx,
@@ -115,24 +120,7 @@ defmodule ArchEthic do
       validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key)
     }
 
-    t =
-      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
-        PubSub.register_to_new_transaction_by_address(tx.address)
-
-        receive do
-          {:new_transaction, _} ->
-            :ok
-        end
-      end)
-
     P2P.broadcast_message(validation_nodes, message)
-
-    try do
-      Task.await(t, @mining_timeout)
-    catch
-      :exit, {:timeout, _} ->
-        {:error, :network_issue}
-    end
   end
 
   @doc """
@@ -145,7 +133,7 @@ defmodule ArchEthic do
           | {:error, :network_issue}
   def get_last_transaction(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction(address)
@@ -177,7 +165,7 @@ defmodule ArchEthic do
           | {:error, :network_issue}
   def get_last_transaction_address(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_last_transaction_address(address)
@@ -204,7 +192,7 @@ defmodule ArchEthic do
   @spec get_balance(binary) :: {:ok, Account.balance()} | {:error, :network_issue}
   def get_balance(address) when is_binary(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_balance(address)
@@ -229,7 +217,7 @@ defmodule ArchEthic do
           {:ok, list(TransactionInput.t())} | {:error, :network_issue}
   def get_transaction_inputs(address) when is_binary(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_inputs(address)
@@ -253,7 +241,7 @@ defmodule ArchEthic do
   @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain(address) when is_binary(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_chain(address)
@@ -278,7 +266,7 @@ defmodule ArchEthic do
           {:ok, non_neg_integer()} | {:error, :network_issue}
   def get_transaction_chain_length(address) when is_binary(address) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_transaction_chain_length(address)

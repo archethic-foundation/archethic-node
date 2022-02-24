@@ -16,6 +16,8 @@ defmodule ArchEthic.TransactionChain.Transaction do
   alias ArchEthic.TransactionChain.TransactionData.NFTLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
 
+  alias ArchEthic.Utils
+
   defstruct [
     :address,
     :type,
@@ -748,27 +750,22 @@ defmodule ArchEthic.TransactionChain.Transaction do
 
   """
   @spec deserialize(bitstring()) :: {transaction :: t(), rest :: bitstring}
-  def deserialize(
-        _serialized_term = <<version::32, _curve_type::8, hash_algo::8, rest::bitstring>>
-      ) do
-    address_size = Crypto.hash_size(hash_algo)
-    <<address::binary-size(address_size), type::8, rest::bitstring>> = rest
+  def deserialize(_serialized_term = <<version::32, rest::bitstring>>) do
+    {address, <<type::8, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {data, rest} = TransactionData.deserialize(rest)
 
-    <<curve_id::8, origin_id::8, rest::bitstring>> = rest
-    key_size = Crypto.key_size(curve_id)
-
-    <<previous_public_key::binary-size(key_size), previous_signature_size::8,
-      previous_signature::binary-size(previous_signature_size), origin_signature_size::8,
-      origin_signature::binary-size(origin_signature_size), validated::8, rest::bitstring>> = rest
+    {previous_public_key,
+     <<previous_signature_size::8, previous_signature::binary-size(previous_signature_size),
+       origin_signature_size::8, origin_signature::binary-size(origin_signature_size),
+       validated::8, rest::bitstring>>} = Utils.deserialize_public_key(rest)
 
     tx = %__MODULE__{
       version: version,
-      address: <<curve_id::8, hash_algo::8, address::binary>>,
+      address: address,
       type: parse_type(type),
       data: data,
-      previous_public_key: <<curve_id::8, origin_id::8, previous_public_key::binary>>,
+      previous_public_key: previous_public_key,
       previous_signature: previous_signature,
       origin_signature: origin_signature
     }

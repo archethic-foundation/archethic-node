@@ -6,34 +6,34 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.SubsetRegistry
 
   alias ArchEthic.Election
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-
   alias ArchEthic.Mining.DistributedWorkflow, as: Workflow
   alias ArchEthic.Mining.ValidationContext
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.AddMiningContext
   alias ArchEthic.P2P.Message.CrossValidate
   alias ArchEthic.P2P.Message.CrossValidationDone
-  alias ArchEthic.P2P.Message.GetP2PView
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.P2PView
-  alias ArchEthic.P2P.Message.ReplicateTransaction
+  alias ArchEthic.P2P.Message.Ping
+  alias ArchEthic.P2P.Message.ReplicateTransactionChain
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -97,17 +97,14 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         Election.validation_nodes(
           tx,
           sorting_seed,
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type),
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes()),
           P2P.authorized_nodes()
         )
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys}, _ ->
-          {:ok,
-           %P2PView{
-             nodes_view: Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-           }}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -175,14 +172,13 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
         )
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys1}, _ ->
-          view = Enum.reduce(public_keys1, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -235,7 +231,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1, 1::1>>,
         <<0::1, 1::1, 0::1, 1::1>>,
         <<1::1, 1::1, 0::1, 1::1>>
       )
@@ -245,12 +240,10 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
          context: %ValidationContext{
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view,
-           validation_nodes_view: validation_nodes_view,
            cross_validation_nodes_confirmation: confirmed_validation_nodes
          }
        }} = :sys.get_state(coordinator_pid)
 
-      assert validation_nodes_view == <<1::1, 1::1, 1::1>>
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert <<0::1, 1::1>> == confirmed_validation_nodes
@@ -265,14 +258,13 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
         )
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys}, _ ->
-          view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -336,7 +328,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1>>,
         <<0::1, 1::1>>,
         <<1::1, 1::1>>
       )
@@ -344,7 +335,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       {:wait_cross_validation_stamps,
        %{
          context: %ValidationContext{
-           validation_nodes_view: validation_nodes_view,
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view,
            cross_validation_nodes_confirmation: confirmed_cross_validations,
@@ -352,7 +342,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
          }
        }} = :sys.get_state(coordinator_pid)
 
-      assert validation_nodes_view == <<1::1, 1::1>>
       assert confirmed_cross_validations == <<1::1>>
       assert chain_storage_nodes_view == <<1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1>>
@@ -381,14 +370,13 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
         )
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys}, _ ->
-          view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -452,7 +440,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1>>,
         <<0::1, 1::1>>,
         <<1::1, 1::1>>
       )
@@ -462,7 +449,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
       {:wait_cross_validation_stamps,
        %{
          context: %ValidationContext{
-           validation_nodes_view: validation_nodes_view,
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view,
            cross_validation_nodes_confirmation: confirmed_cross_validations,
@@ -470,7 +456,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
          }
        }} = :sys.get_state(coordinator_pid)
 
-      assert validation_nodes_view == <<1::1, 1::1, 1::1>>
       assert confirmed_cross_validations == <<0::1, 1::1>>
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1>>
@@ -501,16 +486,15 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
         )
 
       me = self()
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys}, _ ->
-          view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -587,7 +571,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         Enum.at(validation_nodes, 1).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
         <<1::1, 1::1, 1::1>>
       )
@@ -596,7 +579,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1, 1::1>>,
         <<0::1, 1::1, 0::1>>,
         <<1::1, 1::1, 1::1>>
       )
@@ -677,16 +659,57 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           tx,
           sorting_seed,
           P2P.authorized_nodes(),
-          Replication.chain_storage_nodes_with_type(tx.address, tx.type)
+          Election.chain_storage_nodes_with_type(tx.address, tx.type, P2P.available_nodes())
         )
 
       me = self()
 
+      storage_node_keypair = Crypto.generate_deterministic_keypair("storage_node1")
+
+      storage_node_keypair2 = Crypto.generate_deterministic_keypair("storage_node2")
+
+      P2P.add_and_connect_node(%Node{
+        ip: {80, 10, 20, 102},
+        port: 3006,
+        last_public_key: elem(storage_node_keypair, 0),
+        first_public_key: elem(storage_node_keypair, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {80, 10, 20, 102},
+        port: 3007,
+        last_public_key: elem(storage_node_keypair2, 0),
+        first_public_key: elem(storage_node_keypair2, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        enrollment_date: DateTime.utc_now(),
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      welcome_node = %Node{
+        ip: {80, 10, 20, 102},
+        port: 3005,
+        first_public_key: "key1",
+        last_public_key: "key1",
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      P2P.add_and_connect_node(welcome_node)
+
       MockClient
       |> stub(:send_message, fn
-        _, %GetP2PView{node_public_keys: public_keys}, _ ->
-          view = Enum.reduce(public_keys, <<>>, fn _, acc -> <<1::1, acc::bitstring>> end)
-          {:ok, %P2PView{nodes_view: view}}
+        _, %Ping{}, _ ->
+          {:ok, %Ok{}}
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -711,48 +734,47 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
           send(me, {:cross_validation_done, stamp})
           {:ok, %Ok{}}
 
-        _, %ReplicateTransaction{transaction: tx}, _ ->
-          send(me, {:replicate_transaction, tx})
-          {:ok, %Ok{}}
+        %Node{first_public_key: first_public_key},
+        %ReplicateTransactionChain{transaction: tx},
+        _ ->
+          tx_summary = TransactionSummary.from_transaction(tx)
+
+          {other_validator_pub, other_validator_pv} =
+            Crypto.generate_deterministic_keypair("seed")
+
+          sig =
+            cond do
+              first_public_key == Crypto.first_node_public_key() ->
+                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+
+              first_public_key == elem(storage_node_keypair, 0) ->
+                Crypto.sign(
+                  TransactionSummary.serialize(tx_summary),
+                  elem(storage_node_keypair, 1)
+                )
+
+              first_public_key == elem(storage_node_keypair2, 0) ->
+                Crypto.sign(
+                  TransactionSummary.serialize(tx_summary),
+                  elem(storage_node_keypair2, 1)
+                )
+
+              first_public_key == other_validator_pub ->
+                Crypto.sign(
+                  TransactionSummary.serialize(tx_summary),
+                  other_validator_pv
+                )
+            end
+
+          {:ok,
+           %AcknowledgeStorage{
+             signature: sig
+           }}
+
+        _, %ReplicationAttestation{}, _ ->
+          send(me, :replication_done)
+          %Ok{}
       end)
-
-      P2P.add_and_connect_node(%Node{
-        ip: {80, 10, 20, 102},
-        port: 3006,
-        last_public_key: "key10",
-        first_public_key: "key10",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      P2P.add_and_connect_node(%Node{
-        ip: {80, 10, 20, 102},
-        port: 3007,
-        last_public_key: "key23",
-        first_public_key: "key23",
-        network_patch: "AAA",
-        geo_patch: "AAA",
-        available?: true,
-        enrollment_date: DateTime.utc_now(),
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorized?: true,
-        authorization_date: DateTime.utc_now()
-      })
-
-      welcome_node = %Node{
-        ip: {80, 10, 20, 102},
-        port: 3005,
-        first_public_key: "key1",
-        last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-      }
-
-      P2P.add_and_connect_node(welcome_node)
 
       {:ok, coordinator_pid} =
         Workflow.start_link(
@@ -774,18 +796,18 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         %Node{
           ip: {80, 10, 20, 102},
           port: 3007,
-          first_public_key: "key10",
-          last_public_key: "key10",
-          reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          first_public_key: elem(storage_node_keypair, 0),
+          last_public_key: elem(storage_node_keypair, 0),
+          reward_address: :crypto.strong_rand_bytes(32),
           authorized?: true,
           authorization_date: DateTime.utc_now()
         },
         %Node{
           ip: {80, 10, 20, 102},
           port: 3008,
-          first_public_key: "key23",
-          last_public_key: "key23",
-          reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+          first_public_key: elem(storage_node_keypair2, 0),
+          last_public_key: elem(storage_node_keypair2, 0),
+          reward_address: :crypto.strong_rand_bytes(32),
           authorized?: true,
           authorization_date: DateTime.utc_now()
         }
@@ -797,7 +819,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
         coordinator_pid,
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
-        <<1::1, 1::1>>,
         <<0::1, 1::1, 0::1, 1::1>>,
         <<1::1, 1::1, 1::1, 1::1>>
       )
@@ -812,9 +833,6 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
             tree,
             confirmed_cross_validation_nodes
           )
-
-          Process.sleep(200)
-          assert !Process.alive?(cross_validator_pid)
       end
 
       receive do
@@ -842,13 +860,7 @@ defmodule ArchEthic.Mining.DistributedWorkflowTest do
             Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
           end
 
-          Process.sleep(200)
-          assert !Process.alive?(coordinator_pid)
-
-          # receive do
-          #   {:replicate_transaction, %Transaction{cross_validation_stamps: stamps}} ->
-          #     assert length(stamps) == 1
-          # end
+          assert_receive :replication_done
       end
     end
   end

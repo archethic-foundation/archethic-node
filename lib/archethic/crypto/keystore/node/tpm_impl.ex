@@ -5,7 +5,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   alias ArchEthic.Crypto.ID
   alias ArchEthic.Crypto.NodeKeystore
 
-  alias ArchEthic.Utils
+  alias ArchEthic.DB
+
   alias ArchEthic.Utils.PortHandler
 
   @behaviour NodeKeystore
@@ -15,6 +16,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
   use GenServer
 
   @table_name :archethic_tpm_keystore
+  @bootstrap_info_key "node_keys_index"
 
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
@@ -102,7 +104,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
     :ok = PortHandler.request(port_handler, 5, <<index + 1::16>>)
 
-    File.write!(Utils.mut_dir("crypto/index"), "#{index + 1}")
+    DB.set_bootstrap_info(@bootstrap_info_key, "#{index + 1}")
 
     next_public_key = request_public_key(port_handler, index + 2)
     previous_public_key = request_public_key(port_handler, index + 1)
@@ -182,12 +184,12 @@ defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
 
   defp initialize_tpm(port_handler) do
     nb_keys =
-      case File.read(Utils.mut_dir("crypto/index")) do
-        {:ok, index} ->
-          String.to_integer(index)
-
-        _ ->
+      case DB.get_bootstrap_info(@bootstrap_info_key) do
+        nil ->
           0
+
+        index ->
+          String.to_integer(index)
       end
 
     PortHandler.request(port_handler, 1, <<nb_keys::16>>)

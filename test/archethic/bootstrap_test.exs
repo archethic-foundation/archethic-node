@@ -10,7 +10,6 @@ defmodule ArchEthic.BootstrapTest do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.BootstrappingNodes
   alias ArchEthic.P2P.Message.EncryptedStorageNonce
   alias ArchEthic.P2P.Message.GetBootstrappingNodes
@@ -19,6 +18,8 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
+  alias ArchEthic.P2P.Message.GetTransactionSummary
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.ListNodes
@@ -41,10 +42,7 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-
-  alias ArchEthic.PubSub
-
-  alias ArchEthic.Utils
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -58,9 +56,7 @@ defmodule ArchEthic.BootstrapTest do
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
 
-    on_exit(fn ->
-      File.rm(Utils.mut_dir("priv/p2p/last_sync"))
-    end)
+    :ok
   end
 
   describe "run/5" do
@@ -220,7 +216,6 @@ defmodule ArchEthic.BootstrapTest do
           validated_tx = %{tx | validation_stamp: stamp}
           :ok = TransactionChain.write([validated_tx])
           :ok = Replication.ingest_transaction(validated_tx)
-          :ok = Replication.acknowledge_storage(validated_tx, P2P.get_node_info())
 
           {:ok, %Ok{}}
 
@@ -245,9 +240,8 @@ defmodule ArchEthic.BootstrapTest do
              cross_validation_stamps: [%{}]
            }}
 
-        _, %AcknowledgeStorage{address: address}, _ ->
-          PubSub.notify_new_transaction(address)
-          {:ok, %Ok{}}
+        _, %GetTransactionSummary{address: address}, _ ->
+          {:ok, %TransactionSummary{address: address}}
       end)
 
       :ok

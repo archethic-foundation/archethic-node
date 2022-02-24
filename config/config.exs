@@ -32,7 +32,9 @@ config :logger, :console,
     :beacon_subset,
     :node,
     :address,
-    :message_id
+    :message_id,
+    :replication_roles,
+    :contract
   ],
   colors: [enabled: true]
 
@@ -102,7 +104,7 @@ config :archethic, ArchEthicWeb.Endpoint,
     layout: {ArchEthicWeb.LayoutView, "live.html"}
   ]
 
-config :archethic, ArchEthic.Mining, timeout: 3_000
+config :archethic, ArchEthic.Mining, timeout: 60_000
 
 config :archethic, ArchEthic.OracleChain,
   services: [

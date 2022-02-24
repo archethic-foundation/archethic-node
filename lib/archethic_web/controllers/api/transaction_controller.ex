@@ -13,31 +13,30 @@ defmodule ArchEthicWeb.API.TransactionController do
 
   alias ArchEthicWeb.API.TransactionPayload
   alias ArchEthicWeb.ErrorView
+  alias ArchEthicWeb.TransactionSubscriber
 
   require Logger
 
   def new(conn, params = %{}) do
     case TransactionPayload.changeset(params) do
       changeset = %{valid?: true} ->
-        start = System.monotonic_time()
-
-        res =
+        tx =
           changeset
           |> TransactionPayload.to_map()
           |> Transaction.from_map()
-          |> ArchEthic.send_new_transaction()
 
-        :telemetry.execute([:archethic, :transaction_end_to_end_validation], %{
-          duration: System.monotonic_time() - start
-        })
-
-        case res do
+        case ArchEthic.send_new_transaction(tx) do
           :ok ->
+            TransactionSubscriber.register(tx.address, System.monotonic_time())
+
             conn
             |> put_status(201)
-            |> json(%{status: "ok"})
+            |> json(%{
+              transaction_address: Base.encode16(tx.address),
+              status: "pending"
+            })
 
-          _ ->
+          {:error, :network_issue} ->
             conn
             |> put_status(422)
             |> json(%{status: "error - transaction may be invalid"})

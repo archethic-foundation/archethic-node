@@ -231,7 +231,8 @@ defmodule ArchEthic.DB.CassandraImpl do
   def write_transaction_chain(chain) do
     %Transaction{
       address: chain_address,
-      previous_public_key: chain_public_key
+      previous_public_key: chain_public_key,
+      validation_stamp: %ValidationStamp{timestamp: chain_timestamp}
     } = Enum.at(chain, 0)
 
     start = System.monotonic_time()
@@ -277,7 +278,7 @@ defmodule ArchEthic.DB.CassandraImpl do
           Xandra.execute!(conn, insert_lookup_by_last_address_prepared, [
             Transaction.previous_address(tx),
             chain_address,
-            tx_timestamp
+            chain_timestamp
           ])
 
           add_transaction_to_chain(conn, tx_address, tx_timestamp, chain_address)
@@ -425,7 +426,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ?"
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? PER PARTITION LIMIT 1"
       )
 
     :xandra_conn
@@ -443,7 +444,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ?"
+        "SELECT last_transaction_address FROM archethic.chain_lookup_by_last_address WHERE transaction_address = ? and timestamp <= ? PER PARTITION LIMIT 1"
       )
 
     :xandra_conn
@@ -584,7 +585,7 @@ defmodule ArchEthic.DB.CassandraImpl do
       node_public_key,
       date,
       available?,
-      avg_availability
+      Float.round(avg_availability, 2)
     ])
 
     :ok
@@ -612,8 +613,35 @@ defmodule ArchEthic.DB.CassandraImpl do
                        "available" => available?,
                        "average_availability" => avg_availability
                      } ->
-      {node_public_key, {available?, avg_availability}}
+      {node_public_key, {available?, Float.round(avg_availability, 2)}}
     end)
     |> Enum.into(%{})
+  end
+
+  @impl DB
+  @spec get_bootstrap_info(String.t()) :: String.t() | nil
+  def get_bootstrap_info(info) do
+    prepared =
+      Xandra.prepare!(:xandra_conn, "SELECT value FROM archethic.bootstrap_info WHERE name = ?")
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [info])
+    |> Enum.at(0, %{})
+    |> Map.get("value")
+  end
+
+  @impl DB
+  @spec set_bootstrap_info(String.t(), String.t()) :: :ok
+  def set_bootstrap_info(name, value) do
+    prepared =
+      Xandra.prepare!(
+        :xandra_conn,
+        "INSERT INTO archethic.bootstrap_info (name, value) VALUES(?, ?)"
+      )
+
+    :xandra_conn
+    |> Xandra.execute!(prepared, [name, value])
+
+    :ok
   end
 end

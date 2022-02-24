@@ -67,13 +67,23 @@ defmodule ArchEthic.SelfRepair.SchedulerTest do
       enrollment_date: DateTime.utc_now() |> DateTime.add(-1)
     })
 
-    {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
-
     first_last_sync_date = Sync.last_sync_date()
+
+    me = self()
+
+    MockDB
+    |> stub(:set_bootstrap_info, fn "last_sync_time", time ->
+      send(me, {:last_sync_time, time |> String.to_integer() |> DateTime.from_unix!()})
+      :ok
+    end)
+
+    {:ok, pid} = Scheduler.start_link([interval: "*/1 * * * * * *"], [])
 
     send(pid, :sync)
 
-    Process.sleep(2_000)
-    assert DateTime.compare(Sync.last_sync_date(), first_last_sync_date) == :gt
+    receive do
+      {:last_sync_time, last_sync_date} ->
+        assert DateTime.diff(last_sync_date, first_last_sync_date) > 0
+    end
   end
 end

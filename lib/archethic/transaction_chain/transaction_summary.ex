@@ -1,13 +1,14 @@
-defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
+defmodule ArchEthic.TransactionChain.TransactionSummary do
   @moduledoc """
-  Represents transaction validation notification stored in the beacon chain
+  Represents transaction header or extract to summarize it
   """
   defstruct [:timestamp, :address, :type, movements_addresses: []]
 
-  alias ArchEthic.Crypto
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+
+  alias ArchEthic.Utils
 
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
@@ -104,36 +105,21 @@ defmodule ArchEthic.BeaconChain.Slot.TransactionSummary do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<curve_type::8, hash_id::8, rest::bitstring>>) do
-    hash_size = Crypto.hash_size(hash_id)
+  def deserialize(data) when is_bitstring(data) do
+    {address, <<timestamp::64, type::8, nb_movements::16, rest::bitstring>>} =
+      Utils.deserialize_address(data)
 
-    <<address::binary-size(hash_size), timestamp::64, type::8, nb_movements::16, rest::bitstring>> =
-      rest
-
-    {addresses, rest} = deserialize_addresses(rest, nb_movements, [])
+    {addresses, rest} = Utils.deserialize_addresses(rest, nb_movements, [])
 
     {
       %__MODULE__{
-        address: <<curve_type::8, hash_id::8, address::binary>>,
+        address: address,
         timestamp: DateTime.from_unix!(timestamp, :millisecond),
         type: Transaction.parse_type(type),
         movements_addresses: addresses
       },
       rest
     }
-  end
-
-  defp deserialize_addresses(rest, 0, _), do: {[], rest}
-
-  defp deserialize_addresses(rest, nb_addresses, acc) when length(acc) == nb_addresses do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_addresses(<<curve_id::8, hash_id::8, rest::bitstring>>, nb_addresses, acc) do
-    hash_size = Crypto.hash_size(hash_id)
-    <<address::binary-size(hash_size), rest::bitstring>> = rest
-
-    deserialize_addresses(rest, nb_addresses, [<<curve_id::8, hash_id::8, address::binary>> | acc])
   end
 
   @spec to_map(t()) :: map()

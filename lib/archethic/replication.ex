@@ -20,7 +20,6 @@ defmodule ArchEthic.Replication do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
 
   alias ArchEthic.P2P.Node
@@ -36,181 +35,175 @@ defmodule ArchEthic.Replication do
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionValidator
 
-  alias ArchEthic.TaskSupervisor
-
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias ArchEthic.Utils
-
-  @type role :: :chain | :IO | :beacon
-
-  @type nodes_by_roles :: [
-          chain: list(Node.t()),
-          beacon: list(Node.t()),
-          IO: list(Node.t())
-        ]
 
   require Logger
 
   @doc """
-  Process transaction replication by validating the transaction and process it depending on the storage node role
-  - Chain storage nodes: will download the transaction chain and unspent outputs, ensure the entire correctness and persist a new transaction chain
-  - Beacon chain storage: will verify the transaction integrity and will store the transaction in the beacon chain
-  - IO storage node: will verify the transaction integrity and store the transaction
+  Process a new transaction replication for a new chain handling.
 
-  Once the transaction is stored, the transaction is loaded into the system,
-  so for instance if the transaction is a network transaction, a dedicated behavior will be applied
-  - Node: Identification of a a new node or a node update
-  - Node Shared Secrets: schedule of the node shared secret renewal
-  - Origin Shared Secrets: load the new origin public keys
-  - Code Approval: manage approvals of code proposals
+  It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
+  and update the internal ledger and views
 
   Options:
-  - ack_storage?: Determines if the storage node must notify the welcome node about the replication
+  - ack_storage?: Determines if the storage node must notify the welcome node and beacon chain about the replication
   - self_repair?: Determines if the replication is from a self repair cycle. This switch will be determine to fetch unspent outputs or transaction inputs for a chain role validation
   """
-  @spec process_transaction(
+  @spec validate_and_store_transaction_chain(
           validated_tx :: Transaction.t(),
-          role_list :: list(role()),
-          options :: [ack_storage?: boolean(), welcome_node: Node.t(), self_repair?: boolean()]
+          options :: [ack_storage?: boolean(), self_repair?: boolean()]
         ) ::
-          :ok | {:error, :invalid_transaction}
-  def process_transaction(tx = %Transaction{address: address, type: type}, roles, opts \\ [])
-      when is_list(roles) and is_list(opts) do
-    start = System.monotonic_time()
+          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
+  def validate_and_store_transaction_chain(
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        },
+        opts \\ []
+      )
+      when is_list(opts) do
+    if TransactionChain.transaction_exists?(address) do
+      Logger.warning("Transaction already exists",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-    Logger.info("Replication started",
-      transaction_address: Base.encode16(address),
-      transaction_type: type,
-      replication_roles: roles
-    )
+      {:error, :transaction_already_exists}
+    else
+      Logger.info("Replication chain started",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-    res =
-      if :chain in roles do
-        do_process_transaction_as_chain_storage_node(tx, roles, opts)
-      else
-        do_process_transaction(tx, roles, opts)
-      end
+      start_time = System.monotonic_time()
 
-    :telemetry.execute(
-      [:archethic, :replication, :validation],
-      %{
-        duration: System.monotonic_time() - start
-      },
-      %{roles: roles}
-    )
+      self_repair? = Keyword.get(opts, :self_repair?, false)
 
-    res
-  end
+      Logger.debug("Retrieve chain and unspent outputs...",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-  defp do_process_transaction_as_chain_storage_node(
-         tx = %Transaction{
-           address: address,
-           type: type,
-           validation_stamp: %ValidationStamp{timestamp: timestamp}
-         },
-         roles,
-         opts
-       ) do
-    ack_storage? = Keyword.get(opts, :ack_storage?, false)
-    self_repair? = Keyword.get(opts, :self_repair?, false)
+      {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
 
-    Logger.debug("Retrieve chain and unspent outputs...",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+      Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
 
-    {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+      case TransactionValidator.validate(
+             tx,
+             Enum.at(chain, 0),
+             Enum.to_list(inputs_unspent_outputs)
+           ) do
+        :ok ->
+          :ok = TransactionChain.write(Stream.concat([tx], chain))
+          :ok = ingest_transaction(tx)
 
-    Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
+          PubSub.notify_new_transaction(address, type, timestamp)
 
-    case TransactionValidator.validate(
-           tx,
-           Enum.at(chain, 0),
-           Enum.to_list(inputs_unspent_outputs)
-         ) do
-      :ok ->
-        :ok = TransactionChain.write(Stream.concat([tx], chain))
-        :ok = ingest_transaction(tx)
+          Logger.info("Replication finished",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
 
-        if :beacon in roles do
-          BeaconChain.add_transaction_summary(tx)
-        end
+          :telemetry.execute(
+            [:archethic, :replication, :validation],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :chain}
+          )
 
-        if ack_storage? do
-          welcome_node = Keyword.fetch!(opts, :welcome_node)
-          :ok = acknowledge_storage(tx, welcome_node)
-        else
+          Task.start(fn ->
+            acknowledge_previous_storage_nodes(
+              address,
+              Transaction.previous_address(tx),
+              timestamp
+            )
+          end)
+
           :ok
-        end
 
-        # unless self_repair? do
-        #   forward_replication(tx)
-        # end
+        {:error, reason} ->
+          :ok = TransactionChain.write_ko_transaction(tx)
 
-        Logger.info("Replication finished",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+          Logger.info("Invalid transaction for replication - #{inspect(reason)}",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
 
-        PubSub.notify_new_transaction(address, type, timestamp)
-
-      {:error, reason} ->
-        :ok = TransactionChain.write_ko_transaction(tx)
-
-        Logger.info("Invalid transaction for replication - #{inspect(reason)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
-
-        {:error, :invalid_transaction}
+          {:error, :invalid_transaction}
+      end
     end
   end
 
-  defp do_process_transaction(
-         tx = %Transaction{
-           address: address,
-           type: type,
-           validation_stamp: %ValidationStamp{timestamp: timestamp}
-         },
-         roles,
-         _opts
-       )
-       when is_list(roles) do
-    case TransactionValidator.validate(tx) do
-      :ok ->
-        if :IO in roles do
+  @doc """
+  Process a new transaction replication for the I/O chains.
+
+  It will validate the new transaction and store the new transaction updating then the internals ledgers and views
+  """
+  @spec validate_and_store_transaction(Transaction.t()) ::
+          :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
+  def validate_and_store_transaction(
+        tx = %Transaction{
+          address: address,
+          type: type,
+          validation_stamp: %ValidationStamp{timestamp: timestamp}
+        }
+      ) do
+    if TransactionChain.transaction_exists?(address) do
+      Logger.warning("Transaction already exists",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+
+      {:error, :transaction_already_exists}
+    else
+      start_time = System.monotonic_time()
+
+      Logger.info("Replication transaction started",
+        transaction_address: Base.encode16(address),
+        transaction_type: type
+      )
+
+      case TransactionValidator.validate(tx) do
+        :ok ->
           :ok = TransactionChain.write_transaction(tx)
           ingest_transaction(tx)
-        end
 
-        if :beacon in roles do
-          BeaconChain.add_transaction_summary(tx)
-        end
+          Logger.info("Replication finished",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
 
-        Logger.info("Replication finished",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+          PubSub.notify_new_transaction(address, type, timestamp)
 
-        PubSub.notify_new_transaction(address, type, timestamp)
-        :ok
+          :telemetry.execute(
+            [:archethic, :replication, :validation],
+            %{
+              duration: System.monotonic_time() - start_time
+            },
+            %{role: :IO}
+          )
 
-      {:error, reason} ->
-        :ok = TransactionChain.write_ko_transaction(tx)
+          :ok
 
-        Logger.info("Invalid transaction for replication - #{inspect(reason)}",
-          transaction_address: Base.encode16(address),
-          transaction_type: type
-        )
+        {:error, reason} ->
+          :ok = TransactionChain.write_ko_transaction(tx)
 
-        {:error, :invalid_transaction}
+          Logger.info("Invalid transaction for replication - #{inspect(reason)}",
+            transaction_address: Base.encode16(address),
+            transaction_type: type
+          )
+
+          {:error, :invalid_transaction}
+      end
     end
   end
 
@@ -298,38 +291,13 @@ defmodule ArchEthic.Replication do
   end
 
   @doc """
-  Send an acknowledgment of the replication of the transaction to the welcome node and the previous storage pool
-  """
-  @spec acknowledge_storage(Transaction.t(), Node.t()) :: :ok
-  def acknowledge_storage(
-        tx = %Transaction{
-          address: tx_address,
-          type: tx_type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
-        welcome_node = %Node{}
-      ) do
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
-      P2P.send_message!(welcome_node, %AcknowledgeStorage{address: tx_address})
-
-      Logger.debug("Transaction acknowledgement sent",
-        transaction_address: Base.encode16(tx_address),
-        transaction_type: tx_type,
-        node: Base.encode16(welcome_node.first_public_key)
-      )
-    end)
-
-    Task.Supervisor.start_child(TaskSupervisor, fn ->
-      acknowledge_previous_storage_nodes(tx_address, Transaction.previous_address(tx), timestamp)
-    end)
-
-    :ok
-  end
-
-  @doc """
   Notify the previous storage pool than a new transaction on the chain is present
   """
-  @spec acknowledge_previous_storage_nodes(binary(), binary(), DateTime.t()) :: :ok
+  @spec acknowledge_previous_storage_nodes(
+          tx_address :: binary(),
+          previous_address :: binary(),
+          tx_time :: DateTime.t()
+        ) :: :ok
   def acknowledge_previous_storage_nodes(address, previous_address, timestamp)
       when is_binary(address) and is_binary(previous_address) do
     TransactionChain.register_last_address(previous_address, address, timestamp)
@@ -342,7 +310,7 @@ defmodule ArchEthic.Replication do
 
           if previous_address != next_previous_address do
             previous_storage_nodes =
-              chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
+              Election.chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
 
             if Utils.key_in_node_list?(previous_storage_nodes, Crypto.first_node_public_key()) do
               acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)
@@ -536,163 +504,5 @@ defmodule ArchEthic.Replication do
     OracleChain.load_transaction(tx)
     Reward.load_transaction(tx)
     :ok
-  end
-
-  @doc """
-  Determine the list of roles for a given transaction and a node public key
-  """
-  @spec roles(Transaction.t(), Crypto.key()) :: list(role())
-  def roles(
-        tx = %Transaction{
-          address: address,
-          type: type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        },
-        node_public_key
-      ) do
-    [
-      chain:
-        chain_storage_node?(
-          address,
-          type,
-          node_public_key,
-          P2P.authorized_nodes()
-        ),
-      beacon:
-        beacon_storage_node?(
-          address,
-          timestamp,
-          node_public_key,
-          P2P.authorized_nodes()
-        ),
-      IO: io_storage_node?(tx, node_public_key, P2P.authorized_nodes())
-    ]
-    |> Utils.get_keys_from_value_match(true)
-  end
-
-  @spec chain_storage_node?(
-          binary(),
-          Transaction.transaction_type(),
-          Crypto.key(),
-          list(Node.t())
-        ) :: boolean()
-  def chain_storage_node?(
-        address,
-        type,
-        public_key,
-        node_list \\ P2P.authorized_nodes()
-      )
-      when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
-    address
-    |> chain_storage_nodes_with_type(type, node_list)
-    |> Utils.key_in_node_list?(public_key)
-  end
-
-  @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
-  def beacon_storage_node?(
-        address,
-        timestamp = %DateTime{},
-        public_key,
-        node_list \\ P2P.authorized_nodes()
-      )
-      when is_binary(address) and is_binary(public_key) and is_list(node_list) do
-    address
-    |> beacon_storage_nodes(timestamp, node_list)
-    |> Utils.key_in_node_list?(public_key)
-  end
-
-  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
-  def io_storage_node?(
-        tx = %Transaction{},
-        public_key,
-        node_list \\ P2P.authorized_nodes()
-      )
-      when is_binary(public_key) and is_list(node_list) do
-    tx
-    |> io_storage_nodes(node_list)
-    |> Utils.key_in_node_list?(public_key)
-  end
-
-  @doc """
-  Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
-  """
-  @spec chain_storage_nodes_with_type(
-          binary(),
-          Transaction.transaction_type(),
-          shard_node_list :: list(Node.t()),
-          network_node_list :: list(Node.t())
-        ) ::
-          list(Node.t())
-  def chain_storage_nodes_with_type(
-        address,
-        type,
-        shard_node_list \\ P2P.authorized_nodes(),
-        network_node_list \\ P2P.available_nodes()
-      )
-      when is_binary(address) and is_atom(type) and is_list(shard_node_list) and
-             is_list(network_node_list) do
-    if Transaction.network_type?(type) do
-      network_node_list
-    else
-      chain_storage_nodes(address, shard_node_list)
-    end
-  end
-
-  @doc """
-  Return the storage nodes for the transaction chain based on the transaction address and set a nodes
-  """
-  @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
-  def chain_storage_nodes(address, node_list \\ P2P.authorized_nodes()) when is_binary(address) do
-    Election.storage_nodes(
-      address,
-      node_list,
-      Election.get_storage_constraints()
-    )
-  end
-
-  @doc """
-  Return the storage nodes for the transaction IO and a set of nodes
-  """
-  @spec io_storage_nodes(Transaction.t(), list(Node.t())) :: list(Node.t())
-  def io_storage_nodes(
-        %Transaction{
-          validation_stamp: %ValidationStamp{ledger_operations: ops, recipients: recipients}
-        },
-        node_list \\ P2P.authorized_nodes()
-      ) do
-    operations_nodes = operation_storage_nodes(ops, node_list)
-    recipients_nodes = Enum.map(recipients, &chain_storage_nodes(&1, node_list))
-
-    P2P.distinct_nodes([operations_nodes, recipients_nodes])
-  end
-
-  defp operation_storage_nodes(ops, node_list) do
-    ops
-    |> LedgerOperations.movement_addresses()
-    |> Election.io_storage_nodes(
-      node_list,
-      Election.get_storage_constraints()
-    )
-  end
-
-  @doc """
-  Return the beacon storage nodes for the transaction based on the transaction address, transaction datetime and a set of nodes
-  """
-  @spec beacon_storage_nodes(binary(), DateTime.t(), list(Node.t())) :: list(Node.t())
-  def beacon_storage_nodes(
-        address,
-        timestamp = %DateTime{},
-        node_list \\ P2P.authorized_nodes()
-      )
-      when is_binary(address) and is_list(node_list) do
-    subset = BeaconChain.subset_from_address(address)
-    slot_time = BeaconChain.next_slot(timestamp)
-
-    Election.beacon_storage_nodes(
-      subset,
-      slot_time,
-      node_list,
-      Election.get_storage_constraints()
-    )
   end
 end

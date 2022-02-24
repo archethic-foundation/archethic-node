@@ -1,28 +1,30 @@
 defmodule ArchEthic.SelfRepair.SyncTest do
   use ArchEthicCase, async: false
 
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.BeaconSummaryList
-  alias ArchEthic.P2P.Message.GetBeaconSummaries
+  alias ArchEthic.P2P.Message.GetBeaconSummary
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
+  alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionFactory
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
 
@@ -37,17 +39,15 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       assert Sync.last_sync_date() == nil
     end
 
-    test "should get the last sync date from the stored filed file" do
-      file =
-        Application.get_env(:archethic, Sync)
-        |> Keyword.fetch!(:last_sync_file)
-        |> Utils.mut_dir()
-
+    test "should get the last sync date from the db" do
       last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
 
-      new_sync_date = last_sync_date |> DateTime.to_unix() |> Integer.to_string()
-      Path.dirname(file) |> File.mkdir_p!()
-      :ok = File.write!(file, new_sync_date, [:write])
+      MockDB
+      |> stub(:get_bootstrap_info, fn "last_sync_time" ->
+        last_sync_date
+        |> DateTime.to_unix()
+        |> Integer.to_string()
+      end)
 
       assert Sync.last_sync_date() == last_sync_date
     end
@@ -55,26 +55,38 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
   test "store_last_sync_date/1 should store the last sync date into the last sync file" do
     last_sync_date = DateTime.utc_now() |> DateTime.add(-60) |> Utils.truncate_datetime()
+    last_sync_time = DateTime.to_unix(last_sync_date) |> Integer.to_string()
+
+    me = self()
+
+    MockDB
+    |> stub(:set_bootstrap_info, fn "last_sync_time", time ->
+      send(me, {:last_sync_time, time})
+      :ok
+    end)
+
     :ok = Sync.store_last_sync_date(last_sync_date)
-    assert Sync.last_sync_date() == last_sync_date
+
+    assert_received {:last_sync_time, ^last_sync_time}
   end
 
   describe "load_missed_transactions/2" do
     setup do
       start_supervised!({BeaconSummaryTimer, interval: "0 0 0 * * * *"})
       start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
-      # Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
+
+      welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
 
       welcome_node = %Node{
-        first_public_key: "key1",
-        last_public_key: "key1",
+        first_public_key: elem(welcome_node_keypair, 0),
+        last_public_key: elem(welcome_node_keypair, 0),
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         enrollment_date: DateTime.utc_now(),
         authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
       }
 
       coordinator_node = %Node{
@@ -82,26 +94,42 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
         available?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365)),
+        authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10)),
         geo_patch: "AAA",
         network_patch: "AAA",
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
         enrollment_date: DateTime.utc_now()
       }
 
+      storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
+      storage_node_keypair2 = Crypto.derive_keypair("node_keypair", 2)
+
       storage_nodes = [
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
-          first_public_key: "key3",
-          last_public_key: "key3",
+          first_public_key: elem(storage_node_keypair1, 0),
+          last_public_key: elem(storage_node_keypair1, 0),
           available?: true,
           geo_patch: "BBB",
           network_patch: "BBB",
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           enrollment_date: DateTime.utc_now(),
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 365))
+          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+        },
+        %Node{
+          ip: {127, 0, 0, 1},
+          port: 3000,
+          first_public_key: elem(storage_node_keypair2, 0),
+          last_public_key: elem(storage_node_keypair2, 0),
+          available?: true,
+          geo_patch: "BBB",
+          network_patch: "BBB",
+          reward_address: :crypto.strong_rand_bytes(32),
+          enrollment_date: DateTime.utc_now(),
+          authorized?: true,
+          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
         }
       ]
 
@@ -118,7 +146,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
        }}
     end
 
-    test "should retrieve the missing beacon summaries from the given date", context do
+    test "should retrieve the missing beacon summaries from the given date",
+         context do
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
       |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
@@ -142,44 +171,80 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         send(me, :storage)
         :ok
       end)
-      |> stub(:write_transaction, fn _, _ -> :ok end)
+      |> stub(:write_transaction, fn _, _ ->
+        send(me, :storage)
+        :ok
+      end)
+
+      tx_summary = %TransactionSummary{
+        address: tx.address,
+        type: :transfer,
+        timestamp: DateTime.utc_now()
+      }
+
+      elected_storage_nodes =
+        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.available_nodes())
+
+      welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
+      storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
+      storage_node_keypair2 = Crypto.derive_keypair("node_keypair", 2)
 
       summary = %BeaconSummary{
         subset: <<0>>,
         summary_time: DateTime.utc_now(),
-        transaction_summaries: [
-          %TransactionSummary{
-            address: tx.address,
-            type: :transfer,
-            timestamp: DateTime.utc_now()
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: tx_summary,
+            confirmations:
+              elected_storage_nodes
+              |> Enum.map(fn node ->
+                node_index = Enum.find_index(elected_storage_nodes, &(&1 == node))
+
+                sig =
+                  cond do
+                    node.first_public_key == elem(welcome_node_keypair, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(welcome_node_keypair, 1)
+                      )
+
+                    node.first_public_key == elem(storage_node_keypair1, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(storage_node_keypair1, 1)
+                      )
+
+                    node.first_public_key == elem(storage_node_keypair2, 0) ->
+                      Crypto.sign(
+                        TransactionSummary.serialize(tx_summary),
+                        elem(storage_node_keypair2, 1)
+                      )
+
+                    node.first_public_key == Crypto.first_node_public_key() ->
+                      Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+                  end
+
+                {node_index, sig}
+              end)
           }
         ]
       }
 
+      tx_address = tx.address
+
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummaries{addresses: _}, _ ->
-          {:ok, %BeaconSummaryList{summaries: [summary]}}
+        _, %GetBeaconSummary{}, _ ->
+          {:ok, summary}
 
-        _, %GetTransaction{address: address}, _ ->
-          if address == tx.address do
-            {:ok, tx}
-          else
-            tx_content =
-              summary
-              |> BeaconSummary.serialize()
-              |> Utils.wrap_binary()
-
-            {:ok,
-             %Transaction{
-               address: address,
-               type: :beacon_summary,
-               data: %TransactionData{content: tx_content}
-             }}
-          end
+        _, %GetTransaction{address: ^tx_address}, _ ->
+          {:ok, tx}
 
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: inputs}}
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
@@ -194,7 +259,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
                  "AAA"
                )
 
-      assert_receive :storage, 5_000
+      assert_received :storage
     end
   end
 end

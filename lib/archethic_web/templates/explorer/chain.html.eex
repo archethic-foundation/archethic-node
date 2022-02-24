@@ -81,12 +81,17 @@
                 <div class="level-item has-text-centered">
                     <div>
                         <p class="heading">UCO Balance</p>
-                        <p class="title"><%= to_float(@uco_balance) %> UCO</p>
+                        <p class="title"><%= @uco_balance %> UCO
+                        <%= if @uco_balance > 0 do %>
+                            (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
+                        <% end %>
+                        </p>
+
                     </div>
                 </div>
             </nav>
         </div>
-    </div>   
+    </div>
 
     <%= if Enum.count(@transaction_chain) == 0 do %>
     <p class="heading">No transaction yet existing for this chain<p>

@@ -1,9 +1,9 @@
 defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   @moduledoc false
 
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
-
   alias ArchEthic.Crypto
+
+  alias ArchEthic.Election
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetTransaction
@@ -12,6 +12,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   alias ArchEthic.Replication
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   alias ArchEthic.Utils
 
@@ -29,15 +30,15 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
         type: type,
         movements_addresses: mvt_addresses
       }) do
-    node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
-    chain_storage_nodes = Replication.chain_storage_nodes_with_type(address, type, node_list)
+    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
+    chain_storage_nodes = Election.chain_storage_nodes_with_type(address, type, node_list)
 
     if Utils.key_in_node_list?(chain_storage_nodes, Crypto.first_node_public_key()) do
       true
     else
       Enum.any?(mvt_addresses, fn address ->
-        io_storage_nodes = Replication.chain_storage_nodes(address, node_list)
-        node_pool_address = Crypto.derive_address(Crypto.last_node_public_key())
+        io_storage_nodes = Election.chain_storage_nodes(address, node_list)
+        node_pool_address = Crypto.hash(Crypto.last_node_public_key())
 
         Utils.key_in_node_list?(io_storage_nodes, Crypto.first_node_public_key()) or
           address == node_pool_address
@@ -48,8 +49,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   @doc """
   Request the transaction for the closest storage nodes and replicate it locally.
   """
-  @spec download_transaction(TransactionSummary.t(), patch :: binary()) ::
-          :ok | {:error, :invalid_transaction}
+  @spec download_transaction(TransactionSummary.t(), patch :: binary()) :: Transaction.t()
   def download_transaction(
         %TransactionSummary{address: address, type: type, timestamp: _timestamp},
         node_patch
@@ -62,30 +62,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
     storage_nodes =
       address
-      |> Replication.chain_storage_nodes_with_type(type)
+      |> Election.chain_storage_nodes_with_type(type, P2P.available_nodes())
       |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
     case fetch_transaction(storage_nodes, address) do
       {:ok, tx = %Transaction{}} ->
-        node_list = [P2P.get_node_info() | P2P.authorized_nodes()] |> P2P.distinct_nodes()
-
-        roles =
-          [
-            chain:
-              Replication.chain_storage_nodes_with_type(
-                address,
-                type,
-                node_list,
-                node_list
-              )
-              |> Utils.key_in_node_list?(Crypto.first_node_public_key()),
-            IO: Replication.io_storage_node?(tx, Crypto.last_node_public_key(), node_list)
-          ]
-          |> Utils.get_keys_from_value_match(true)
-
-        :ok = Replication.process_transaction(tx, roles, self_repair?: true)
+        tx
 
       {:error, :network_issue} ->
         Logger.error("Cannot fetch the transaction to sync",
@@ -109,5 +93,26 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
   defp fetch_transaction([], _) do
     {:error, :network_issue}
+  end
+
+  @spec process_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
+  def process_transaction(
+        tx = %Transaction{
+          address: address,
+          type: type
+        }
+      ) do
+    node_list = [P2P.get_node_info() | P2P.available_nodes()] |> P2P.distinct_nodes()
+
+    cond do
+      Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->
+        Replication.validate_and_store_transaction_chain(tx, self_repair: true)
+
+      Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list) ->
+        Replication.validate_and_store_transaction(tx)
+
+      true ->
+        :ok
+    end
   end
 end
