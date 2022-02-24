@@ -27,6 +27,10 @@ defmodule ArchEthicTest do
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
 
+  # Metrics module
+  # ------------------------------
+  alias ArchEthic.Metrics.Services.MetricsEndpoint
+  #------------------------------
   import Mox
 
   describe "search_transaction/1" do
@@ -331,6 +335,22 @@ defmodule ArchEthicTest do
       end)
 
       assert {:ok, 3} == ArchEthic.get_transaction_chain_length("@Alice2")
+    end
+  end
+
+
+
+  describe "MetricsEnpoint test for nope iplist and response" do
+    test "retrieve_nodes_ip_list/0" do
+
+    end
+
+    test "&establish_connection(&1 <- ip_as_string)" do
+
+    end
+
+    test "&contact_endpoint(&1 <- connection_ref)" do
+
     end
   end
 end

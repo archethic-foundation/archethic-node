@@ -131,6 +131,13 @@ config :archethic, ArchEthic.TransactionChain.MemTablesLoader, enabled: false
 
 config :archethic, ArchEthicWeb.FaucetController, enabled: true
 
+# MetricsModule test config
+#------------------------------------------------------------------------------
+config :archethic,
+ metric_endpoint_module: MockMetrics
+#------------------------------------------------------------------------------
+
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :archethic, ArchEthicWeb.Endpoint,

@@ -18,6 +18,6 @@ Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.P
 
 # Mock for Metrics Module
 # ----------------------------------------------------------------
-Mox.defmock(MockMetrics, for: ArchEthic.Metrics.Helpers)
+Mox.defmock(MockMetrics, for: ArchEthic.Metrics.Services.MetricsEndpointBehaviour)
 # ----------------------------------------------------------------
 # end of Mock for Metrics Module
