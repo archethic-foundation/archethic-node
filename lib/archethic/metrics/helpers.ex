@@ -4,7 +4,7 @@ defmodule ArchEthic.Metrics.Helpers do
   """
   require Logger
 
-  @behaviour  ArchEthic.Metrics.MetricEndpoint
+  @behaviour ArchEthic.Metrics.MetricEndpoint
 
   @doc """
   Converts to map of metrics using

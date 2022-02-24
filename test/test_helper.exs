@@ -16,9 +16,8 @@ Mox.defmock(MockDB, for: ArchEthic.DB)
 Mox.defmock(MockGeoIP, for: ArchEthic.P2P.GeoPatch.GeoIP)
 Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl)
 
-
 # Mock for Metrics Module
-#----------------------------------------------------------------
-Mox.defmock(MockMetrics , for: ArchEthic.Metrics.Helpers)
-#----------------------------------------------------------------
+# ----------------------------------------------------------------
+Mox.defmock(MockMetrics, for: ArchEthic.Metrics.Helpers)
+# ----------------------------------------------------------------
 # end of Mock for Metrics Module

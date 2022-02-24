@@ -8,5 +8,4 @@ defmodule ArchEthic.Metrics.MetricEndpoint do
   @callback establish_connection(ip_as_string()) :: response() | []
 
   @callback contact_endpoint(conn_ref()) :: response() | []
-
 end
