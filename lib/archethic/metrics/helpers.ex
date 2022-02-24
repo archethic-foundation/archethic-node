@@ -4,11 +4,12 @@ defmodule ArchEthic.Metrics.Helpers do
   """
   require Logger
 
+  @behaviour  ArchEthic.Metrics.MetricEndpoint
+
   @doc """
   Converts to map of metrics using
   Main method to transform metrics.Method to do any remaining transformations at last.
   """
-  @spec network_collector() :: %{optional(String.t()) => Float.t()|Integer.t()},
   def network_collector() do
     data = Enum.filter(retrieve_network_metrics(), fn {key, _val} -> req_metrics(key) end)
     Enum.into(data, %{})
@@ -52,7 +53,7 @@ defmodule ArchEthic.Metrics.Helpers do
   """
   def retrieve_network_metrics() do
     retrieve_node_ip_address()
-    |> Task.async_stream(&establish_connection_to_node(&1))
+    |> Task.async_stream(&establish_connection(&1))
     |> remove_noise()
     |> Stream.map(&ArchEthic.Metrics.Parser.run/1)
     |> Stream.map(&filter_metrics/1)
@@ -90,9 +91,9 @@ defmodule ArchEthic.Metrics.Helpers do
   @doc """
   Establishes connection at port 40_000 for given node_ip.In case of error, returns empty list.
   """
-  def establish_connection_to_node(ip) do
+  def establish_connection(ip) do
     case Mint.HTTP.connect(:http, ip, 40_000) do
-      {:ok, conn} -> contact_endpoint_for_data(conn)
+      {:ok, conn} -> contact_endpoint(conn)
       _ -> []
     end
   end
@@ -101,7 +102,7 @@ defmodule ArchEthic.Metrics.Helpers do
   Send get request to /metrics endpoint of a node.
   Returns response in case of success, otherwise returns empty list.
   """
-  def contact_endpoint_for_data(conn) do
+  def contact_endpoint(conn) do
     {:ok, conn, _request_ref} = Mint.HTTP.request(conn, "GET", "/metrics", [], [])
 
     receive do

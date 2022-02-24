@@ -34,7 +34,7 @@ echo "Install OpenSSL"
 OPENSSL_VERSION=$(openssl version | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 if [[ $(version_to_int $OPENSSL_VERSION) -lt $(version_to_int "1.1.1") ]]; then
     cd /usr/local/src/
-    sudo wget https://www.openssl.org/source/openssl-1.1.1g.tar.gz 
+    sudo wget --no-check-certificate https://www.openssl.org/source/openssl-1.1.1g.tar.gz 
     sudo tar -xf openssl-1.1.1g.tar.gz 
     cd openssl-1.1.1g 
     sudo ./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib
@@ -55,7 +55,7 @@ echo "Install Erlang & Elixir"
 export DEBIAN_FRONTEND=noninteractive
 export LANG=en_US.UTF-8
 
-wget -O $INSTALL_DIR/erlang-solutions_2.0_all.deb https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb
+wget -O  $INSTALL_DIR/erlang-solutions_2.0_all.deb --no-check-certificate https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb
 
 sudo dpkg -i $INSTALL_DIR/erlang-solutions_2.0_all.deb
 
@@ -67,8 +67,8 @@ echo "Install Libsodium"
 if [[ $(ls /usr/local/lib | grep -c 'libsodium') -gt 0 ]]; then
   echo "Libsodium already installed"
 else
- wget -O $INSTALL_DIR/libsodium-stable.tar.gz https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
- tar zxvf $INSTALL_DIR/libsodium-stable.tar.gz -C $INSTALL_DIR
+ wget -O $INSTALL_DIR/libsodium-stable.tar.gz --no-check-certificate https://download.libsodium.org/libsodium/releases/LATEST.tar.gz
+ tar zxvf --no-check-certificate $INSTALL_DIR/libsodium-stable.tar.gz -C $INSTALL_DIR
  cd $INSTALL_DIR/libsodium-stable
  ./configure
  make
@@ -79,7 +79,7 @@ fi
 
 echo "Install docker"
 
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+curl -fsSL  https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
 sudo add-apt-repository \
    "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
@@ -93,7 +93,7 @@ echo "Install ScyllaDB"
 
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 5e08fbd8b5d6ec9c
 
-sudo curl -L --output /etc/apt/sources.list.d/scylla.list http://downloads.scylladb.com/deb/ubuntu/scylla-4.3-$(lsb_release -s -c).list
+sudo curl -L --output /etc/apt/sources.list.d/scylla.list  http://downloads.scylladb.com/deb/ubuntu/scylla-4.3-$(lsb_release -s -c).list
 
 sudo apt-get update
 sudo apt-get install -y scylla
@@ -104,7 +104,7 @@ sudo update-java-alternatives --jre-headless -s java-1.8.0-openjdk-amd64
 
 sudo scylla_setup --no-raid-setup --no-ec2-check --no-kernel-check --no-verify-package --no-sysconfig-setup --io-setup=1 --no-version-check --no-cpuscaling-setup --no-fstrim-setup --no-memory-setup --no-swap-setup
 
-sudo scylla_memory_setup --memory=8G
+sudo scylla_memory_setup --memory=4G
 sudo scylla_cpuset_setup --cpuset 2
 
 sudo systemctl start scylla-server
@@ -135,7 +135,7 @@ sudo apt -y install \
   acl
 
 cd $INSTALL_DIR
-wget https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
+wget --no-check-certificate https://github.com/tpm2-software/tpm2-tss/releases/download/3.1.0/tpm2-tss-3.1.0.tar.gz
 tar -xf tpm2-tss-3.1.0.tar.gz --one-top-level=tpm2-tss --strip-components 1
 rm tpm2-tss-3.1.0.tar.gz && cd tpm2-tss
 ./configure --with-udevrulesdir=/etc/udev/rules.d

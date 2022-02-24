@@ -118,8 +118,6 @@ config :archethic, ArchEthicWeb.FaucetController,
     |> Base.decode16!(case: :mixed)
 
 # metrics config
-config :archethic , ArchEthic.Metrics.Helpers
-      provider: ArchEthic.Metrics.MetricService.EndpointMetric
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
