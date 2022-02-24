@@ -341,11 +341,11 @@ defmodule ArchEthicTest do
 
 
   describe "MetricsEnpoint test for nope iplist and response" do
-    test "retrieve_nodes_ip_list/0" do
-
-    end
-
     test "&establish_connection(&1 <- ip_as_string)" do
+      MockMetrics
+                |>expect(:establish_connection , fn ip_as_string ->
+                      {:ok , [ {:data , _ , "actual_multiline string_data"} | _ ] }
+                end)
 
     end
 
