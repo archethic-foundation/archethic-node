@@ -1,4 +1,8 @@
 defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
+  @moduledoc """
+  This module provides a REST endpoint for metrics.
+  """
+
   @behaviour ArchEthic.Metrics.Services.MetricsEndpointBehaviour
 
   @node_contact_port 40_000
@@ -43,17 +47,11 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
           | {:push_promise, reference, reference, [{any, any}]}
         ]
   def request_and_wait_for_response(conn_ref) do
-    conn =
-      case Mint.HTTP.request(
-             conn_ref,
-             @node_metric_request_type,
-             @node_metric_endpoint_uri,
-             [],
-             []
-           ) do
-        {:ok, conn, _request_ref} -> conn
-        _ -> []
-      end
+
+   conn = case  Mint.HTTP.request(conn_ref, @node_metric_request_type, @node_metric_endpoint_uri, [], []) do
+      {:ok, conn, _request_ref} -> conn
+       _  -> []
+    end
 
     receive do
       message ->

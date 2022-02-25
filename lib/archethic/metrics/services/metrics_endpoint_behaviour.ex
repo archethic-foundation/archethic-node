@@ -1,4 +1,6 @@
 defmodule ArchEthic.Metrics.Services.MetricsEndpointBehaviour do
+  @moduledoc false
+
   @type ip_as_string() :: String.t()
 
   @type conn_ref() :: [] | Mint.t() | any()

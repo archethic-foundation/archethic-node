@@ -342,7 +342,7 @@ defmodule ArchEthicTest do
           buffer: "",
           host: ip_as_string,
           mode: :active,
-          port: 40000,
+          port: 40_000,
           private: %{},
           proxy_headers: [],
           request: nil,
