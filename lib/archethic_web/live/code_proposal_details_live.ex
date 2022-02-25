@@ -20,7 +20,7 @@ defmodule ArchEthicWeb.CodeProposalDetailsLive do
     end
 
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr),
+         true <- Crypto.valid_address?(addr),
          {:ok, prop} <- Governance.get_code_proposal(addr) do
       new_socket =
         socket
