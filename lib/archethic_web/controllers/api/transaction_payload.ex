@@ -6,7 +6,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
 
   alias ArchEthic.Utils
 
-  alias ArchEthicWeb.API.Types.Hash
+  alias ArchEthicWeb.API.Types.Address
   alias ArchEthicWeb.API.Types.Hex
   alias ArchEthicWeb.API.Types.PublicKey
   alias ArchEthicWeb.API.Types.TransactionType
@@ -15,7 +15,7 @@ defmodule ArchEthicWeb.API.TransactionPayload do
 
   embedded_schema do
     field(:version, :integer)
-    field(:address, Hash)
+    field(:address, Address)
     field(:type, TransactionType)
     embeds_one(:data, TransactionData)
     field(:previousPublicKey, PublicKey)
