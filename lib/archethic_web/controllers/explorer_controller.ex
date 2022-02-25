@@ -13,7 +13,7 @@ defmodule ArchEthicWeb.ExplorerController do
 
   def search(conn, _params = %{"address" => address}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(address),
+         true <- Crypto.valid_address?(address),
          {:ok, tx} <- ArchEthic.search_transaction(address) do
       previous_address = Transaction.previous_address(tx)
 
@@ -26,7 +26,7 @@ defmodule ArchEthicWeb.ExplorerController do
 
   def chain(conn, _params = %{"address" => address, "last" => "on"}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr),
+         true <- Crypto.valid_address?(addr),
          {:ok, %Transaction{address: last_address}} <- ArchEthic.get_last_transaction(addr),
          {:ok, chain} <- ArchEthic.get_transaction_chain(last_address),
          {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
@@ -87,7 +87,7 @@ defmodule ArchEthicWeb.ExplorerController do
 
   def chain(conn, _params = %{"address" => address}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr),
+         true <- Crypto.valid_address?(addr),
          {:ok, chain} <- ArchEthic.get_transaction_chain(addr),
          {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do

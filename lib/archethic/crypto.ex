@@ -995,22 +995,25 @@ defmodule ArchEthic.Crypto do
   def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
   def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
   def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 4::8, _::binary-size(64)>>), do: true
   def valid_hash?(_), do: false
+
+  @doc """
+  Determine if an address is valid
+  """
+  @spec valid_address?(binary()) :: boolean()
+  def valid_address?(<<curve_type::8, rest::binary>>) do
+    curve_types =
+      :archethic
+      |> Application.get_env(__MODULE__)
+      |> Keyword.fetch!(:supported_curves)
+      |> Enum.map(&ID.from_curve/1)
+
+    if curve_type in curve_types do
+      valid_hash?(rest)
+    else
+      false
+    end
+  end
 
   @doc """
   Load the transaction for the Keystore indexing
