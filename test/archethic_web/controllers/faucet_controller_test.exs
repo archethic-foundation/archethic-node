@@ -47,7 +47,7 @@ defmodule ArchEthicWeb.FaucetControllerTest do
 
   describe "create_transfer/2" do
     test "should show success flash with tx URL on valid transaction", %{conn: conn} do
-      recipient_address = "0098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
+      recipient_address = "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
 
       tx =
         Transaction.new(

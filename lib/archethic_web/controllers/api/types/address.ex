@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.API.Types.Hash do
+defmodule ArchEthicWeb.API.Types.Address do
   @moduledoc false
 
   use Ecto.Type
@@ -7,9 +7,9 @@ defmodule ArchEthicWeb.API.Types.Hash do
 
   def type, do: :binary
 
-  def cast(hash) when is_binary(hash) do
-    with {:ok, binary} <- Base.decode16(hash, case: :mixed),
-         true <- Crypto.valid_hash?(binary) do
+  def cast(addr) when is_binary(addr) do
+    with {:ok, binary} <- Base.decode16(addr, case: :mixed),
+         true <- Crypto.valid_address?(binary) do
       {:ok, binary}
     else
       :error ->
@@ -22,8 +22,8 @@ defmodule ArchEthicWeb.API.Types.Hash do
 
   def cast(_), do: {:error, [message: "must be a string"]}
 
-  def load(hash), do: hash
+  def load(addr), do: addr
 
-  def dump(hash) when is_binary(hash), do: Base.encode16(hash)
+  def dump(addr) when is_binary(addr), do: Base.encode16(addr)
   def dump(_), do: :error
 end
