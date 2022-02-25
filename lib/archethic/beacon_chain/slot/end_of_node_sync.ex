@@ -5,6 +5,7 @@ defmodule ArchEthic.BeaconChain.Slot.EndOfNodeSync do
   defstruct [:public_key, :timestamp]
 
   alias ArchEthic.Crypto
+  alias ArchEthic.Utils
 
   @type t :: %__MODULE__{
           public_key: Crypto.key(),
@@ -53,13 +54,12 @@ defmodule ArchEthic.BeaconChain.Slot.EndOfNodeSync do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
-    key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(key_size), timestamp::32, rest::bitstring>> = rest
+  def deserialize(data) when is_bitstring(data) do
+    {public_key, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_public_key(data)
 
     {
       %__MODULE__{
-        public_key: <<curve_id::8, origin_id::8, key::binary>>,
+        public_key: public_key,
         timestamp: DateTime.from_unix!(timestamp)
       },
       rest
