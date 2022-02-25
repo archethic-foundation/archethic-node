@@ -27,10 +27,6 @@ defmodule ArchEthicTest do
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
 
-  # Metrics module
-  # ------------------------------
-  alias ArchEthic.Metrics.Services.MetricsEndpoint
-  #------------------------------
   import Mox
 
   describe "search_transaction/1" do
@@ -338,19 +334,68 @@ defmodule ArchEthicTest do
     end
   end
 
-
-
-  describe "MetricsEnpoint test for nope iplist and response" do
+  describe "Testing the NodeMetricEndpoint Service" do
     test "&establish_connection(&1 <- ip_as_string)" do
       MockMetrics
-                |>expect(:establish_connection , fn ip_as_string ->
-                      {:ok , [ {:data , _ , "actual_multiline string_data"} | _ ] }
-                end)
+      |> expect(:establish_connection, fn ip_as_string ->
+        %Mint.HTTP1{
+          buffer: "",
+          host: ip_as_string,
+          mode: :active,
+          port: 40000,
+          private: %{},
+          proxy_headers: [],
+          request: nil,
+          requests: {[], []},
+          scheme_as_string: "http",
+          socket: "identifer",
+          state: :open,
+          streaming_request: nil,
+          transport: Mint.Core.Transport.TCP
+        }
+      end)
 
-    end
+      MockMetrics
+      |> expect(:contact_endpoint, fn _connection_ref ->
+        [
+          {:status, "reference()", 200},
+          {:headers, "reference()",
+           [
+             {"access-control-allow-credentials", "true"},
+             {"access-control-allow-origin", "*"},
+             {"access-control-expose-headers", ""},
+             {"cache-control", "max-age=0, private, must-revalidate"},
+             {"content-length", "21451"},
+             {"content-type", "text/plain; charset=utf-8"},
+             {"cross-origin-window-policy", "deny"},
+             {"date", "Fri, 25 Feb 2022 10:40:06 GMT"},
+             {"server", "Cowboy"},
+             {"x-content-type-options", "nosniff"},
+             {"x-download-options", "noopen"},
+             {"x-frame-options", "SAMEORIGIN"},
+             {"x-permitted-cross-domain-policies", "none"},
+             {"x-request-id", "FtcBSlRL9jlMYh8AAADC"},
+             {"x-xss-protection", "1; mode=block"}
+           ]},
+          {:data, "reference()", "#metrics"},
+          {:done, "reference()"}
+        ]
+      end)
 
-    test "&contact_endpoint(&1 <- connection_ref)" do
+      conn_ref = MockMetrics.establish_connection("172.16.1.10")
 
+      assert Mint.HTTP1 == conn_ref.__struct__
+      assert conn_ref.host == "172.16.1.10"
+
+      response = MockMetrics.contact_endpoint(conn_ref)
+
+      assert [{:status, "reference()", 200}] ==
+               Enum.filter(response, fn x ->
+                 case x do
+                   {:status, _, _} -> true
+                   _ -> false
+                 end
+               end)
     end
   end
 end

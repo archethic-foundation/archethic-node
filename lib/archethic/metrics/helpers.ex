@@ -3,7 +3,6 @@ defmodule ArchEthic.Metrics.Helpers do
   Provides helper methods & data in transformation of metrics.
   """
   require Logger
-  alias ArchEthic.Metrics.Services.MetricsEndpoint
 
   @doc """
   Converts to map of metrics using
@@ -51,8 +50,11 @@ defmodule ArchEthic.Metrics.Helpers do
     The output is ready to be merged with similar metrics from another nodes.
   """
   def retrieve_network_metrics() do
-    MetricsEndpoint.retrieve_node_ip_address()
-    |> Task.async_stream(&MetricsEndpoint.establish_connection(&1))
+    services().retrieve_node_ip_address()
+    |> Task.async_stream(
+      &(services().establish_connection(&1)
+        |> services().request_and_wait_for_response())
+    )
     |> remove_noise()
     |> Stream.map(&ArchEthic.Metrics.Parser.run/1)
     |> Stream.map(&filter_metrics/1)
@@ -62,6 +64,10 @@ defmodule ArchEthic.Metrics.Helpers do
     |> aggregate_sum_n_count_n_value()
     |> calculate_network_points()
     |> reduce_to_single_map()
+  end
+
+  defp services() do
+    Application.get_env(:archethic, :metrics_endpoint)
   end
 
   @doc """

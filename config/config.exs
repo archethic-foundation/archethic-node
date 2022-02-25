@@ -117,13 +117,13 @@ config :archethic, ArchEthicWeb.FaucetController,
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)
 
-
 # MetricsModule config
-#------------------------------------------------------------------------------
-config :archethic,
- metric_endpoint_module: ArchEthic.Metrics.Helpers.Services.MetricEndpoint
-#------------------------------------------------------------------------------
-
+# --------------------------------------------------
+# config takes app name and key value pairs
+# We define the external services to be loaded at runtime
+# ------------------------------------------------------------------------------
+config :archethic, :metrics_endpoint, ArchEthic.Metrics.Services.MetricsEndpoint
+# ------------------------------------------------------------------------------
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
