@@ -36,8 +36,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
       # register for client to able to get the current added transaction to the beacon pool
-      PubSub.register_to_added_new_transaction_summary()
       PubSub.register_to_current_epoch_of_slot_time()
+      PubSub.register_to_new_replication_attestations()
     end
 
     beacon_dates =
