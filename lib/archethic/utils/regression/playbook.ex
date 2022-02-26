@@ -68,7 +68,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     tx =
       %Transaction{
-        address: Crypto.hash(next_public_key),
+        address: Crypto.derive_address(next_public_key),
         type: tx_type,
         data: transaction_data,
         previous_public_key: previous_public_key
@@ -88,7 +88,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
            port,
            &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
          ) do
-      {:ok, %{"status" => "ok"}} ->
+      {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
 
       _ ->
@@ -168,7 +168,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       seed
       |> Crypto.derive_keypair(0, curve)
       |> elem(0)
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|

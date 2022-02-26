@@ -18,8 +18,8 @@ defmodule ArchEthic.TransactionChain.TransactionData.NFTLedgerTest do
       transfers =
         Enum.map(transfers, fn {nft, {to, amount}} ->
           %Transfer{
-            nft: <<0::8>> <> nft,
-            to: <<0::8>> <> to,
+            nft: <<0::8, 0::8>> <> nft,
+            to: <<0::8, 0::8>> <> to,
             amount: amount
           }
         end)

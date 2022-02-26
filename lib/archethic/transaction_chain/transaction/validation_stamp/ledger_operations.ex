@@ -51,7 +51,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           fee: non_neg_integer()
         }
 
-  @burning_address <<0::8, 0::256>>
+  @burning_address <<0::8, 0::8, 0::256>>
 
   @doc """
   Return the address used for the burning
@@ -122,7 +122,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  )
       %LedgerOperations{
          fee: 50_000_000,
-         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
+         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
          node_movements: [
             %NodeMovement{to: "074CA174E4763A169F714C0D37187C5AC889683B4BBE9B0859C4073A690B7DF1", amount: 10_000_000, roles: [:cross_validation_node] },
             %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]},
@@ -151,7 +151,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  )
       %LedgerOperations{
          fee: 50_000_000,
-         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
+         transaction_movements: [ %TransactionMovement { to: <<0::8, 0::8, 0::256>>, amount: 5_000_000, type: :UCO} ],
          node_movements: [
             %NodeMovement{to: "4D75266A648F6D67576E6C77138C07042077B815FB5255D7F585CD36860DA19E", amount: 8_333_333, roles: [:previous_storage_node]},
             %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 23_333_333, roles: [:coordinator_node, :cross_validation_node, :previous_storage_node] },
@@ -587,12 +587,12 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   fee: 10_000_000,
       ...>   transaction_movements: [
       ...>     %TransactionMovement{
-      ...>       to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>       to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 102_000_000,
       ...>       type: :UCO
       ...>     },
-      ...>     %TransactionMovement{to: <<0::8, 0::256>> , amount: 1_000_000, type: :UCO}
+      ...>     %TransactionMovement{to: <<0::8, 0::8, 0::256>> , amount: 1_000_000, type: :UCO}
       ...>   ],
       ...>   node_movements: [
       ...>     %NodeMovement{
@@ -604,7 +604,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   ],
       ...>   unspent_outputs: [
       ...>     %UnspentOutput{
-      ...>       from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      ...>       from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       ...>           86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
       ...>       amount: 200_000_000,
       ...>       type: :UCO
@@ -618,14 +618,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Nb of transaction movements
       2,
       # Transaction movement recipient
-      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Transaction movement amount (1.2 UCO)
       0, 0, 0, 0, 6, 20, 101, 128,
       # Transaction movement type (UCO)
       0,
       # Network pool burning address
-      0::8, 0::256,
+      0::8, 0::8, 0::256,
       # Amount of fee burnt (0.01)
       0, 0, 0, 0, 0, 15, 66, 64,
       # Type of movement
@@ -644,7 +644,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Nb of unspent outputs
       1,
       # Unspent output origin
-      0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+      0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       # Unspent output amount (2 UCO)
       0, 0, 0, 0, 11, 235, 194, 0,
@@ -682,14 +682,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   ## Examples
 
       iex> <<0, 0, 0, 0, 0, 152, 150, 128, 2,
-      ...> 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
+      ...> 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
-      ...> 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
+      ...> 0, 0, 0::256, 0, 0, 0, 0, 0, 15, 66, 64, 0,
       ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112,
       ...> 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 0, 137, 84, 64,
       ...> 3, 0, 1, 2,
-      ...> 1, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
+      ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0>>
       ...> |> LedgerOperations.deserialize()
@@ -698,13 +698,13 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           fee: 10_000_000,
           transaction_movements: [
             %TransactionMovement{
-              to: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+              to: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 1_020_000_000,
               type: :UCO
             },
             %TransactionMovement {
-              to: <<0::8, 0::256>>,
+              to: <<0::8, 0::8, 0::256>>,
               amount: 1_000_000,
               type: :UCO
             }
@@ -719,7 +719,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ],
           unspent_outputs: [
             %UnspentOutput{
-              from: <<0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
+              from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 200_000_000,
               type: :UCO,
@@ -819,7 +819,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    fee: 50_000_000,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::8, 0::256>>, amount: 5_000_000, type: :UCO}],
       ...>    node_movements: [
       ...>       %NodeMovement{to: "F35EB8260981AC5D8268B7B323277C8FB44D73B81DCC603B0E9CEB4B406A18AD", amount: 5_000_000, roles: [:coordinator_node]},
       ...>       %NodeMovement{to: "5D0AE5A5B686030AD630119F3494B4852E3990BF196C117D574FD32BEB747FC7", amount: 10_000_000, roles: [:cross_validation_node]},
@@ -837,7 +837,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> %LedgerOperations{
       ...>    fee: 50_000_000,
-      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::256>>, amount: 5_000_000, type: :UCO}],
+      ...>    transaction_movements: [%TransactionMovement{to: <<0::8, 0::8,  0::256>>, amount: 5_000_000, type: :UCO}],
       ...>    node_movements: [
       ...>       %NodeMovement{to: "503EF04022CDAA3F0F402A1C2524ED3782E09F228BC16DEB1766051C86880F8D", amount: 25_000_000, roles: [:coordinator_node, :cross_validation_node]},
       ...>       %NodeMovement{to: "5EDA43AA8BBDAB66E4737989D44471F70FDEFD41D9E186507F27A61FA2170B23", amount: 8_333_333, roles: [:previous_storage_node]},

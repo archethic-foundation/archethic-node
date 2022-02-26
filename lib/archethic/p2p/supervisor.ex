@@ -29,11 +29,7 @@ defmodule ArchEthic.P2P.Supervisor do
       MemTable,
       MemTableLoader,
       {Listener, Keyword.put(listener_conf, :port, port)},
-      {BootstrappingSeeds,
-       [
-         backup_file: Utils.mut_dir(Keyword.fetch!(bootstraping_seeds_conf, :backup_file)),
-         genesis_seeds: Keyword.get(bootstraping_seeds_conf, :genesis_seeds)
-       ]}
+      {BootstrappingSeeds, bootstraping_seeds_conf}
     ]
 
     children = Utils.configurable_children(optional_children)

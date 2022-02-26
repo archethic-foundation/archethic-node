@@ -32,10 +32,10 @@ defmodule ArchEthic.Bootstrap do
     reward_address =
       case Keyword.get(args, :reward_address) do
         nil ->
-          Crypto.hash(Crypto.first_node_public_key())
+          Crypto.derive_address(Crypto.first_node_public_key())
 
         "" ->
-          Crypto.hash(Crypto.first_node_public_key())
+          Crypto.derive_address(Crypto.first_node_public_key())
 
         address ->
           address
@@ -222,7 +222,7 @@ defmodule ArchEthic.Bootstrap do
     get_genesis_seed()
     |> Crypto.derive_keypair(1)
     |> elem(0)
-    |> Crypto.hash()
+    |> Crypto.derive_address()
   end
 
   @doc """
@@ -233,7 +233,7 @@ defmodule ArchEthic.Bootstrap do
     get_genesis_seed()
     |> Crypto.derive_keypair(0)
     |> elem(0)
-    |> Crypto.hash()
+    |> Crypto.derive_address()
   end
 
   @doc """

@@ -3,6 +3,8 @@ defmodule ArchEthicWeb.FaucetController do
 
   use ArchEthicWeb, :controller
 
+  alias ArchEthic.Crypto
+
   alias ArchEthic.TransactionChain.{
     Transaction,
     TransactionData,
@@ -10,7 +12,7 @@ defmodule ArchEthicWeb.FaucetController do
     TransactionData.UCOLedger
   }
 
-  alias ArchEthic.Crypto
+  alias ArchEthicWeb.TransactionSubscriber
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
 
@@ -41,16 +43,18 @@ defmodule ArchEthicWeb.FaucetController do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_hash?(recipient_address),
          {:ok, tx_address} <- transfer(recipient_address) do
+      TransactionSubscriber.register(tx_address, System.monotonic_time())
+
       conn
       |> put_resp_header("cache-control", "no-cache, no-store, must-revalidate")
       |> put_resp_header("pragma", "no-cache")
       |> put_resp_header("expires", "0")
-      |> put_flash(:info, "Transferred successfully (click to view)")
+      |> put_flash(:info, "Transaction submitted (click to see it)")
       |> render("index.html", address: "", link_address: Base.encode16(tx_address))
     else
       {:error, _} ->
         conn
-        |> put_flash(:error, "Unable to transfer")
+        |> put_flash(:error, "Unable to send the transaction")
         |> render("index.html", address: address, link_address: "")
 
       _ ->
@@ -67,9 +71,10 @@ defmodule ArchEthicWeb.FaucetController do
        when is_bitstring(recipient_address) do
     {gen_pub, _} = Crypto.derive_keypair(@pool_seed, 0, curve)
 
-    pool_gen_address = Crypto.hash(gen_pub)
+    pool_gen_address = Crypto.derive_address(gen_pub)
 
-    with {:ok, last_address} <- ArchEthic.get_last_transaction_address(pool_gen_address),
+    with {:ok, last_address} <-
+           ArchEthic.get_last_transaction_address(pool_gen_address),
          {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
       create_transaction(last_index, curve, recipient_address)
     else

@@ -36,6 +36,8 @@ defmodule ArchEthic.Crypto do
   alias __MODULE__.NodeKeystore
   alias __MODULE__.SharedSecretsKeystore
 
+  alias ArchEthic.DB
+
   alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain
@@ -67,6 +69,13 @@ defmodule ArchEthic.Crypto do
   Binary representing a hash prepend by a single byte to identify the algorithm of the generated hash
   """
   @type versioned_hash :: <<_::8, _::_*8>>
+
+  @typedoc """
+  Binary representing a hash prepend by two bytes
+  - first byte to identify the curve type
+  - second byte to identify hash algorithm of the generated hash
+  """
+  @type prepended_hash :: <<_::16, _::_*8>>
 
   @typedoc """
   Binary representing a key prepend by two bytes:
@@ -155,15 +164,7 @@ defmodule ArchEthic.Crypto do
   Retrieve the storage nonce
   """
   @spec storage_nonce() :: binary()
-  def storage_nonce do
-    try do
-      :persistent_term.get(:storage_nonce)
-    rescue
-      _ ->
-        {:ok, nonce} = load_storage_nonce()
-        nonce
-    end
-  end
+  defdelegate storage_nonce, to: SharedSecretsKeystore, as: :get_storage_nonce
 
   @doc """
   Generate the address for the beacon chain for a given transaction subset (two first digit of the address)
@@ -178,7 +179,7 @@ defmodule ArchEthic.Crypto do
     subset
     |> derive_beacon_keypair(date, summary?)
     |> elem(0)
-    |> hash()
+    |> derive_address()
   end
 
   @doc """
@@ -216,7 +217,7 @@ defmodule ArchEthic.Crypto do
     date
     |> derive_oracle_keypair(size)
     |> elem(0)
-    |> hash()
+    |> derive_address()
   end
 
   @doc """
@@ -238,10 +239,8 @@ defmodule ArchEthic.Crypto do
   @spec decrypt_and_set_storage_nonce(encrypted_nonce :: binary()) :: :ok
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
     storage_nonce = ec_decrypt_with_last_node_key!(encrypted_nonce)
-    storage_nonce_path = storage_nonce_filepath()
-    :ok = File.mkdir_p!(Path.dirname(storage_nonce_path))
-    :ok = File.write(storage_nonce_path, storage_nonce, [:write])
-    :ok = :persistent_term.put(:storage_nonce, storage_nonce)
+    SharedSecretsKeystore.set_storage_nonce(storage_nonce)
+    DB.set_bootstrap_info("storage_nonce", Base.encode16(storage_nonce))
     Logger.info("Storage nonce stored")
   end
 
@@ -900,6 +899,31 @@ defmodule ArchEthic.Crypto do
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
 
   @doc """
+  Generate an address as per ARCHEthic specification
+
+  The fist-byte representing the curve type second-byte representing hash algorithm used and rest is the hash of publicKey as per ARCHEthic specifications .
+
+  ## Examples
+
+    iex> Crypto.derive_address(<<0, 0, 157, 113, 213, 254, 97, 210, 136, 32, 204, 38, 221, 110, 231, 27, 163, 73, 150, 202, 185, 91, 170, 254, 165, 166, 45, 60, 50, 23, 27, 157, 72, 46>>)
+    <<0, 0, 237, 169, 64, 209, 51, 194, 0, 226, 46, 145, 26, 40, 146, 74, 122, 110, 128, 42, 139, 127, 93, 18, 43, 122, 169, 201, 243, 117, 73, 18, 230, 168>>
+
+    iex> Crypto.derive_address(<<1, 0, 4, 248, 44, 107, 181, 219, 4, 20, 188, 213, 46, 31, 29, 116, 140, 39, 108, 242, 117, 190, 25, 128, 173, 250, 36, 119, 76, 23, 39, 168, 210, 107, 180, 174, 216, 221, 151, 80, 232, 26, 8, 236, 107, 115, 135, 147, 42, 38, 86, 78, 197, 95, 163, 64, 214, 91, 47, 62, 99, 103, 63, 150, 41, 25, 39>>, :blake2b)
+    <<1, 4, 26, 243, 32, 71, 95, 147, 6, 64, 254, 170, 221, 155, 83, 216, 75, 147, 255, 23, 33, 219, 222, 211, 162, 67, 100, 63, 75, 101, 183, 247, 158, 80, 169, 78, 112, 131, 176, 191, 40, 87, 45, 96, 181, 185, 74, 55, 85, 138, 240, 110, 164, 165, 219, 183, 138, 173, 188, 124, 125, 216, 194, 106, 186, 204>>
+  """
+  @spec derive_address(public_key :: key(), algo :: supported_hash()) :: prepended_hash()
+  def derive_address(
+        public_key,
+        algo \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_hash]
+      ) do
+    <<curve_type::8, _rest::binary>> = public_key
+
+    public_key
+    |> hash(algo)
+    |> ID.prepend_curve(curve_type)
+  end
+
+  @doc """
   Hash the data using the storage nonce stored in memory
   """
   @spec hash_with_storage_nonce(data :: iodata()) :: binary()
@@ -971,6 +995,21 @@ defmodule ArchEthic.Crypto do
   def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
   def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
   def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<0::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<0::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<0::8, 4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<1::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<1::8, 4::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 0::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<2::8, 1::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 2::8, _::binary-size(32)>>), do: true
+  def valid_hash?(<<2::8, 3::8, _::binary-size(64)>>), do: true
+  def valid_hash?(<<2::8, 4::8, _::binary-size(64)>>), do: true
   def valid_hash?(_), do: false
 
   @doc """
@@ -1015,7 +1054,7 @@ defmodule ArchEthic.Crypto do
   end
 
   def load_transaction(%Transaction{type: :node, address: address}) do
-    if NodeKeystore.next_public_key() |> hash() == address do
+    if derive_address(NodeKeystore.next_public_key()) == address do
       Logger.debug("Node next keypair loaded",
         transaction_address: Base.encode16(address),
         transaction_type: :node
@@ -1028,32 +1067,6 @@ defmodule ArchEthic.Crypto do
   end
 
   def load_transaction(_), do: :ok
-
-  @spec storage_nonce_filepath() :: binary()
-  def storage_nonce_filepath do
-    rel_filepath =
-      Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:storage_nonce_file)
-
-    Utils.mut_dir(rel_filepath)
-  end
-
-  @doc """
-  Load the storage nonce from the filesystem
-  """
-  @spec load_storage_nonce() :: {:ok, binary()} | {:error, File.posix()}
-  def load_storage_nonce do
-    abs_filepath = storage_nonce_filepath()
-    :ok = File.mkdir_p!(Path.dirname(abs_filepath))
-
-    case File.read(abs_filepath) do
-      {:ok, storage_nonce} ->
-        :persistent_term.put(:storage_nonce, storage_nonce)
-        {:ok, storage_nonce}
-
-      {:error, _} = e ->
-        e
-    end
-  end
 
   @doc """
   Determine the origin of the key from an ID

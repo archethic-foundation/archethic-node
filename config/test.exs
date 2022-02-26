@@ -27,7 +27,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_pools: [
     %{
       address:
-        "0073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
+        "000073bdaf847037115914ff5ca15e52d162db57b5089d5e4bf2005d825592c9c945"
         |> Base.decode16!(case: :mixed),
       amount: 1_000_000_000_000_000
     }

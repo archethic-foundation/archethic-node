@@ -3,6 +3,8 @@ defmodule ArchEthic.Reward do
   Module which handles the rewards and transfer scheduling
   """
 
+  alias ArchEthic.Election
+
   alias ArchEthic.OracleChain
 
   alias ArchEthic.P2P
@@ -11,8 +13,6 @@ defmodule ArchEthic.Reward do
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
-
-  alias ArchEthic.Replication
 
   alias __MODULE__.NetworkPoolScheduler
 
@@ -66,7 +66,7 @@ defmodule ArchEthic.Reward do
     last_address = TransactionChain.resolve_last_address(address, DateTime.utc_now())
 
     last_address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> get_transaction_chain_after(address, date)
   end
@@ -83,7 +83,7 @@ defmodule ArchEthic.Reward do
 
   defp get_reward_unspent_outputs(%Transaction{address: address}) do
     address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> get_unspent_outputs(address)
     |> Enum.filter(&(&1.type == :reward))

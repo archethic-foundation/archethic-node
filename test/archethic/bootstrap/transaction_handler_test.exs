@@ -6,6 +6,7 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
   alias ArchEthic.Bootstrap.TransactionHandler
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetTransactionSummary
   alias ArchEthic.P2P.Message.NewTransaction
   alias ArchEthic.P2P.Message.Ok
 
@@ -13,6 +14,7 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -55,6 +57,10 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
     |> stub(:send_message, fn
       _, %NewTransaction{}, _ ->
         {:ok, %Ok{}}
+
+      _, %GetTransactionSummary{}, _ ->
+        {:ok,
+         %TransactionSummary{address: tx.address, type: :node, timestamp: DateTime.utc_now()}}
     end)
 
     assert :ok = TransactionHandler.send_transaction(tx, [node])

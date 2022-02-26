@@ -10,7 +10,6 @@ defmodule ArchEthic.BootstrapTest do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
   alias ArchEthic.P2P.Message.BootstrappingNodes
   alias ArchEthic.P2P.Message.EncryptedStorageNonce
   alias ArchEthic.P2P.Message.GetBootstrappingNodes
@@ -19,6 +18,8 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
+  alias ArchEthic.P2P.Message.GetTransactionSummary
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.ListNodes
@@ -41,10 +42,7 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
-
-  alias ArchEthic.PubSub
-
-  alias ArchEthic.Utils
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -58,9 +56,7 @@ defmodule ArchEthic.BootstrapTest do
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
 
-    on_exit(fn ->
-      File.rm(Utils.mut_dir("priv/p2p/last_sync"))
-    end)
+    :ok
   end
 
   describe "run/5" do
@@ -127,7 +123,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -157,8 +153,8 @@ defmodule ArchEthic.BootstrapTest do
           available?: true,
           enrollment_date: DateTime.utc_now(),
           reward_address:
-            <<245, 206, 118, 231, 188, 183, 250, 138, 217, 84, 176, 169, 37, 230, 8, 17, 147, 90,
-              187, 118, 27, 143, 165, 86, 151, 130, 250, 231, 32, 155, 183, 79>>
+            <<0, 0, 245, 206, 118, 231, 188, 183, 250, 138, 217, 84, 176, 169, 37, 230, 8, 17,
+              147, 90, 187, 118, 27, 143, 165, 86, 151, 130, 250, 231, 32, 155, 183, 79>>
         },
         %Node{
           ip: {127, 0, 0, 1},
@@ -176,8 +172,8 @@ defmodule ArchEthic.BootstrapTest do
           available?: true,
           enrollment_date: DateTime.utc_now(),
           reward_address:
-            <<0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164, 74,
-              201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
+            <<0, 0, 122, 59, 37, 225, 0, 2, 24, 151, 241, 79, 158, 121, 16, 7, 168, 150, 94, 164,
+              74, 201, 0, 202, 242, 185, 133, 85, 186, 73, 199, 223, 143>>
         }
       ]
 
@@ -220,7 +216,6 @@ defmodule ArchEthic.BootstrapTest do
           validated_tx = %{tx | validation_stamp: stamp}
           :ok = TransactionChain.write([validated_tx])
           :ok = Replication.ingest_transaction(validated_tx)
-          :ok = Replication.acknowledge_storage(validated_tx, P2P.get_node_info())
 
           {:ok, %Ok{}}
 
@@ -245,9 +240,8 @@ defmodule ArchEthic.BootstrapTest do
              cross_validation_stamps: [%{}]
            }}
 
-        _, %AcknowledgeStorage{address: address}, _ ->
-          PubSub.notify_new_transaction(address)
-          {:ok, %Ok{}}
+        _, %GetTransactionSummary{address: address}, _ ->
+          {:ok, %TransactionSummary{address: address}}
       end)
 
       :ok
@@ -276,7 +270,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -304,7 +298,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -328,7 +322,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -364,7 +358,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 
@@ -379,7 +373,7 @@ defmodule ArchEthic.BootstrapTest do
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
-                 "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
+                 "0000610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
                  |> Base.decode16!()
                )
 

@@ -4,9 +4,9 @@ defmodule ArchEthic.BeaconChainTest do
   alias ArchEthic.BeaconChain
   alias ArchEthic.BeaconChain.Slot
   alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer
   alias ArchEthic.BeaconChain.Subset
+  alias ArchEthic.BeaconChain.Subset.SummaryCache
   alias ArchEthic.BeaconChain.SubsetRegistry
   alias ArchEthic.BeaconChain.SummaryTimer
 
@@ -23,8 +23,6 @@ defmodule ArchEthic.BeaconChainTest do
 
   doctest ArchEthic.BeaconChain
 
-  import Mox
-
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
@@ -32,106 +30,18 @@ defmodule ArchEthic.BeaconChainTest do
     :ok
   end
 
-  describe "get_summary_pools/2" do
-    test "with 1 day off" do
-      date_ref = DateTime.utc_now() |> DateTime.add(-86_400)
-      dates = [date_ref]
-
-      pools =
-        BeaconChain.get_summary_pools(dates, [
-          %Node{
-            ip: {127, 0, 0, 1},
-            port: 3000,
-            first_public_key: "key1",
-            last_public_key: "key1",
-            geo_patch: "AAA",
-            available?: true,
-            authorized?: true,
-            authorization_date: date_ref |> DateTime.add(-86_400)
-          },
-          %Node{
-            ip: {127, 0, 0, 1},
-            port: 3000,
-            first_public_key: "key2",
-            last_public_key: "key2",
-            geo_patch: "AAA",
-            available?: true,
-            authorized?: true,
-            authorization_date: date_ref |> DateTime.add(-86_400)
-          }
-        ])
-
-      assert Enum.all?(pools, fn {_, _, nodes} ->
-               assert length(nodes) == 2
-             end)
-    end
-
-    test "with 10 days off" do
-      dates =
-        Enum.map(1..10, fn i ->
-          DateTime.utc_now() |> DateTime.add(86_400 * i)
-        end)
-
-      pools =
-        BeaconChain.get_summary_pools(dates, [
-          %Node{
-            ip: {127, 0, 0, 1},
-            port: 3000,
-            first_public_key: "key1",
-            last_public_key: "key1",
-            geo_patch: "AAA",
-            available?: true,
-            authorized?: true,
-            authorization_date: List.first(dates) |> DateTime.add(-86_400)
-          },
-          %Node{
-            ip: {127, 0, 0, 1},
-            port: 3000,
-            first_public_key: "key2",
-            last_public_key: "key2",
-            geo_patch: "AAA",
-            available?: true,
-            authorized?: true,
-            authorization_date: List.first(dates) |> DateTime.add(-86_400)
-          }
-        ])
-
-      assert Enum.count(pools) == 10 * 256
-      assert Enum.all?(pools, fn {_, _, nodes} -> length(nodes) == 2 end)
-    end
-  end
-
   test "all_subsets/0 should return 256 subsets" do
     assert Enum.map(0..255, &:binary.encode_unsigned(&1)) == BeaconChain.list_subsets()
   end
 
   test "summary_transaction_address/2 should return a address using the storage nonce a subset and a date" do
-    assert <<0, 141, 146, 109, 188, 197, 248, 255, 123, 14, 172, 53, 198, 233, 233, 205, 180, 221,
-             95, 244, 203, 222, 149, 194, 205, 73, 214, 9, 207, 197, 55, 59,
+    assert <<0, 0, 141, 146, 109, 188, 197, 248, 255, 123, 14, 172, 53, 198, 233, 233, 205, 180,
+             221, 95, 244, 203, 222, 149, 194, 205, 73, 214, 9, 207, 197, 55, 59,
              182>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
 
-    assert <<0, 25, 97, 166, 116, 204, 210, 75, 152, 0, 193, 90, 253, 228, 140, 38, 248, 49, 160,
-             210, 186, 181, 32, 203, 157, 110, 67, 255, 181, 80, 96, 160,
+    assert <<0, 0, 25, 97, 166, 116, 204, 210, 75, 152, 0, 193, 90, 253, 228, 140, 38, 248, 49,
+             160, 210, 186, 181, 32, 203, 157, 110, 67, 255, 181, 80, 96, 160,
              239>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
-  end
-
-  test "add_transaction_summary/1 should register a transaction inside a subset" do
-    address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-
-    assert :ok =
-             BeaconChain.add_transaction_summary(%Transaction{
-               address: address,
-               type: :transfer,
-               validation_stamp: %ValidationStamp{
-                 timestamp: DateTime.utc_now()
-               }
-             })
-
-    subset = BeaconChain.subset_from_address(address)
-    [{pid, _}] = Registry.lookup(SubsetRegistry, subset)
-
-    %{current_slot: %Slot{transaction_summaries: [%TransactionSummary{address: ^address}]}} =
-      :sys.get_state(pid)
   end
 
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
@@ -168,7 +78,7 @@ defmodule ArchEthic.BeaconChainTest do
         type: :beacon,
         data: %TransactionData{
           content:
-            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_summaries: []}
+            %Slot{subset: <<0>>, slot_time: DateTime.utc_now(), transaction_attestations: []}
             |> Slot.serialize()
             |> Utils.wrap_binary()
         },
@@ -177,17 +87,9 @@ defmodule ArchEthic.BeaconChainTest do
         }
       }
 
-      me = self()
-
-      MockDB
-      |> expect(:write_transaction, fn %Transaction{type: :beacon}, _chain_address ->
-        send(me, :wrote)
-        :ok
-      end)
-
       assert :ok = BeaconChain.load_transaction(tx)
 
-      assert_receive :wrote
+      assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
     end
   end
 end

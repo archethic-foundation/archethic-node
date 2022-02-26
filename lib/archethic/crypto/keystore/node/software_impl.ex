@@ -8,9 +8,11 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
   alias ArchEthic.Crypto.ID
   alias ArchEthic.Crypto.NodeKeystore
 
-  alias ArchEthic.Utils
+  alias ArchEthic.DB
 
   require Logger
+
+  @bootstrap_info_key "node_keys_index"
 
   @behaviour NodeKeystore
 
@@ -74,12 +76,12 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
     first_keypair = Crypto.derive_keypair(seed, 0)
 
     nb_keys =
-      case File.read(Utils.mut_dir("crypto/index")) do
-        {:ok, index} ->
-          String.to_integer(index)
-
-        _ ->
+      case DB.get_bootstrap_info(@bootstrap_info_key) do
+        nil ->
           0
+
+        index ->
+          String.to_integer(index)
       end
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
@@ -200,7 +202,7 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
     Logger.info("Previous public key will be #{Base.encode16(elem(previous_keypair, 0))}")
     Logger.info("Publication/Last public key will be #{Base.encode16(elem(last_keypair, 0))}")
 
-    File.write!(Utils.mut_dir("crypto/index"), "#{index + 1}")
+    DB.set_bootstrap_info(@bootstrap_info_key, "#{index + 1}")
 
     {:noreply, new_state}
   end

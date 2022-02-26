@@ -5,8 +5,8 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.BeaconChain
+  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Slot, as: BeaconSlot
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
   alias ArchEthic.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
@@ -37,6 +37,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias ArchEthic.TransactionChain.TransactionSummary
   alias ArchEthic.TransactionFactory
 
   import Mox
@@ -101,7 +102,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
                    %TransactionMovement{
-                     to: <<0::8, 0::256>>,
+                     to: <<0::8, 0::8, 0::256>>,
                      amount: ^network_pool_burn,
                      type: :UCO
                    },
@@ -167,8 +168,10 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     %{
       current_slot: %BeaconSlot{
-        transaction_summaries: [
-          %TransactionSummary{address: ^tx_address}
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: %TransactionSummary{address: ^tx_address}
+          }
         ]
       }
     } = :sys.get_state(pid)

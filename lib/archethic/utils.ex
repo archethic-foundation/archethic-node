@@ -4,7 +4,10 @@ defmodule ArchEthic.Utils do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
+  alias ArchEthic.BeaconChain.ReplicationAttestation
+
   alias ArchEthic.Crypto
+
   alias ArchEthic.P2P.Node
 
   import Bitwise
@@ -522,11 +525,22 @@ defmodule ArchEthic.Utils do
   """
   @spec mut_dir(String.t() | nonempty_list(Path.t())) :: Path.t()
   def mut_dir(path) when is_binary(path) do
-    Path.join(Application.get_env(:archethic, :mut_dir), path) |> Path.expand()
+    [
+      Application.app_dir(:archethic),
+      Application.get_env(:archethic, :mut_dir),
+      path
+    ]
+    |> Path.join()
+    |> Path.expand()
   end
 
   def mut_dir(path = [_]) when is_list(path) do
-    Path.join([Application.get_env(:archethic, :mut_dir) | path]) |> Path.expand()
+    [
+      Application.app_dir(:archethic),
+      Application.get_env(:archethic, :mut_dir) | path
+    ]
+    |> Path.join()
+    |> Path.expand()
   end
 
   def mut_dir, do: mut_dir("")
@@ -546,26 +560,6 @@ defmodule ArchEthic.Utils do
   end
 
   @doc """
-  Return a Flow.Window.fixed/3 from a list of dates by computing the interval between
-  """
-  @spec flow_window_from_dates(Enumerable.t(), (any() -> integer())) :: Flow.Window.t()
-  def flow_window_from_dates(dates, mapper) when is_function(mapper) do
-    case Enum.take(dates, 2) do
-      [date1, date2] ->
-        diff = DateTime.diff(date2, date1) |> abs()
-
-        if diff > 0 do
-          Flow.Window.fixed(diff, :second, &DateTime.to_unix(mapper.(&1), :millisecond))
-        else
-          Flow.Window.global()
-        end
-
-      _ ->
-        Flow.Window.global()
-    end
-  end
-
-  @doc """
   Clear the mailbox of the current process
   """
   @spec flush_mailbox() :: :ok
@@ -577,5 +571,45 @@ defmodule ArchEthic.Utils do
       0 ->
         :ok
     end
+  end
+
+  def deserialize_address(<<curve_type::8, hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    {<<curve_type::8, hash_id::8, hash::binary>>, rest}
+  end
+
+  def deserialize_addresses(rest, 0, _), do: {[], rest}
+
+  def deserialize_addresses(rest, nb_addresses, acc) when length(acc) == nb_addresses do
+    {Enum.reverse(acc), rest}
+  end
+
+  def deserialize_addresses(rest, nb_addresses, acc) do
+    {address, rest} = deserialize_address(rest)
+    deserialize_addresses(rest, nb_addresses, [address | acc])
+  end
+
+  def deserialize_hash(<<hash_id::8, rest::bitstring>>) do
+    hash_size = Crypto.hash_size(hash_id)
+    <<hash::binary-size(hash_size), rest::bitstring>> = rest
+    {<<hash_id::8, hash::binary>>, rest}
+  end
+
+  def deserialize_public_key(<<curve_id::8, origin_id::8, rest::bitstring>>) do
+    key_size = Crypto.key_size(curve_id)
+    <<public_key::binary-size(key_size), rest::bitstring>> = rest
+    {<<curve_id::8, origin_id::8, public_key::binary>>, rest}
+  end
+
+  def deserialize_transaction_attestations(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_transaction_attestations(rest, nb_attestations, acc)
+      when nb_attestations == length(acc),
+      do: {Enum.reverse(acc), rest}
+
+  def deserialize_transaction_attestations(rest, nb_attestations, acc) do
+    {attestation, rest} = ReplicationAttestation.deserialize(rest)
+    deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
   end
 end

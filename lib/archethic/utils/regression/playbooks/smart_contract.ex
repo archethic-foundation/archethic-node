@@ -31,13 +31,13 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
   end
 
   defp run_interval_date_trigger(host, port, storage_node_public_key) do
-    recipient_address2 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    recipient_address2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     amount_to_send = trunc(0.1 * 100_000_000)
 
     contract_owner_address =
       Crypto.derive_keypair("contract_playbook_seed", 0, :ed25519)
       |> elem(0)
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Logger.info(
       "Genesis pool allocation owner is sending 10 UCO to #{Base.encode16(contract_owner_address)}"

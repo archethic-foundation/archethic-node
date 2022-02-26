@@ -15,6 +15,8 @@ defmodule ArchEthic.P2P.Node do
 
   alias ArchEthic.P2P
 
+  alias ArchEthic.Utils
+
   defstruct [
     :first_public_key,
     :last_public_key,
@@ -42,7 +44,7 @@ defmodule ArchEthic.P2P.Node do
       ...>  127, 0, 0, 1,
       ...>  11, 184,
       ...>  1,
-      ...>  0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...>  0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
       ...>  0, 64,
       ...>  63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
@@ -54,7 +56,7 @@ defmodule ArchEthic.P2P.Node do
         {127, 0, 0, 1},
         3000,
         :tcp,
-        <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+        <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
           89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
         <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
          175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
@@ -68,13 +70,11 @@ defmodule ArchEthic.P2P.Node do
           | :error
   def decode_transaction_content(<<ip::binary-size(4), port::16, transport::8, rest::binary>>) do
     with <<ip0, ip1, ip2, ip3>> <- ip,
-         <<reward_address_hash_id::8, rest::binary>> <- rest,
-         reward_address_size <- Crypto.hash_size(reward_address_hash_id),
-         <<reward_address::binary-size(reward_address_size), rest::binary>> <- rest,
+         {reward_address, rest} <- Utils.deserialize_address(rest),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
            _::binary>> <- rest do
-      {:ok, {ip0, ip1, ip2, ip3}, port, deserialize_transport(transport),
-       <<reward_address_hash_id::8, reward_address::binary>>, key_certificate}
+      {:ok, {ip0, ip1, ip2, ip3}, port, deserialize_transport(transport), reward_address,
+       key_certificate}
     else
       _ ->
         :error
@@ -92,7 +92,7 @@ defmodule ArchEthic.P2P.Node do
       ...> {127, 0, 0, 1},
       ...> 3000,
       ...> :tcp,
-      ...> <<0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      ...> <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>   89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
       ...> <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
@@ -107,7 +107,7 @@ defmodule ArchEthic.P2P.Node do
       # Transport
       1,
       # Reward address
-      0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
+      0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
       # Certificate size
       0, 64,
@@ -315,9 +315,9 @@ defmodule ArchEthic.P2P.Node do
       ...>   enrollment_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorization_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorized?: true,
-      ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...>   reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>    87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-      ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...>   last_address: <<0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
       ...>    88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
       ...> })
       <<
@@ -348,10 +348,10 @@ defmodule ArchEthic.P2P.Node do
       0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       # Reward address
-      0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
       # Last address
-      0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
       88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
       >>
   """
@@ -404,9 +404,9 @@ defmodule ArchEthic.P2P.Node do
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
       ...> 0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
-      ...> 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+      ...> 0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...> 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
-      ...> 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+      ...> 0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
       ...> 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
       ...> >>)
       {
@@ -425,9 +425,9 @@ defmodule ArchEthic.P2P.Node do
             enrollment_date: ~U[2020-06-26 08:36:11Z],
             authorization_date: ~U[2020-06-26 08:36:11Z],
             authorized?: true,
-            reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
+            reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
               87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-            last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
+            last_address: <<0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
               88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
         },
         ""
@@ -446,22 +446,10 @@ defmodule ArchEthic.P2P.Node do
     authorization_date =
       if authorization_date == 0, do: nil, else: DateTime.from_unix!(authorization_date)
 
-    <<first_curve_id::8, first_origin_id::8, rest::bitstring>> = rest
-    key_size = Crypto.key_size(first_curve_id)
-
-    <<first_key::binary-size(key_size), last_curve_id::8, last_origin_id::8, rest::bitstring>> =
-      rest
-
-    key_size = Crypto.key_size(first_curve_id)
-    <<last_key::binary-size(key_size), rest::bitstring>> = rest
-
-    <<renewal_address_hash_id::8, rest::bitstring>> = rest
-    address_size = Crypto.key_size(renewal_address_hash_id)
-    <<reward_address::binary-size(address_size), rest::bitstring>> = rest
-
-    <<last_address_hash_id::8, rest::bitstring>> = rest
-    address_size = Crypto.key_size(last_address_hash_id)
-    <<last_address::binary-size(address_size), rest::bitstring>> = rest
+    {first_public_key, rest} = Utils.deserialize_public_key(rest)
+    {last_public_key, rest} = Utils.deserialize_public_key(rest)
+    {reward_address, rest} = Utils.deserialize_address(rest)
+    {last_address, rest} = Utils.deserialize_address(rest)
 
     {
       %__MODULE__{
@@ -475,10 +463,10 @@ defmodule ArchEthic.P2P.Node do
         available?: available?,
         authorized?: authorized?,
         authorization_date: authorization_date,
-        first_public_key: <<first_curve_id::8, first_origin_id::8, first_key::binary>>,
-        last_public_key: <<last_curve_id::8, last_origin_id::8, last_key::binary>>,
-        reward_address: <<renewal_address_hash_id::8, reward_address::binary>>,
-        last_address: <<last_address_hash_id::8, last_address::binary>>
+        first_public_key: first_public_key,
+        last_public_key: last_public_key,
+        reward_address: reward_address,
+        last_address: last_address
       },
       rest
     }
