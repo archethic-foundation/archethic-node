@@ -31,9 +31,9 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
   Returns response in case of success, otherwise returns empty list.
   """
   def contact_endpoint(conn_ref) do
-    case Mint.HTTP1 == conn_ref.__struct__ do
-      true -> request_and_wait_for_response(conn_ref)
-      _ -> []
+    case conn_ref do
+      [] -> []
+      _ -> request_and_wait_for_response(conn_ref)
     end
   end
 
@@ -47,11 +47,17 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
           | {:push_promise, reference, reference, [{any, any}]}
         ]
   def request_and_wait_for_response(conn_ref) do
-
-   conn = case  Mint.HTTP.request(conn_ref, @node_metric_request_type, @node_metric_endpoint_uri, [], []) do
-      {:ok, conn, _request_ref} -> conn
-       _  -> []
-    end
+    conn =
+      case Mint.HTTP.request(
+             conn_ref,
+             @node_metric_request_type,
+             @node_metric_endpoint_uri,
+             [],
+             []
+           ) do
+        {:ok, conn, _request_ref} -> conn
+        _ -> []
+      end
 
     receive do
       message ->

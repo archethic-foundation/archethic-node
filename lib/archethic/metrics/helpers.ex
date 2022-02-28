@@ -416,7 +416,7 @@ defmodule ArchEthic.Metrics.Helpers do
       "archethic_mining_full_transaction_validation_duration" => 0,
       "archethic_mining_proof_of_work_duration" => 0,
       "archethic_p2p_send_message_duration" => 0,
-      "tps" => 0,
+      "tps" => 0
       # "archethic_election_validation_nodes_duration" => 0,
       # "archethic_election_storage_nodes_duration" => 0,
       # "archethic_mining_pending_transaction_validation_duration" => 0,
@@ -438,7 +438,7 @@ defmodule ArchEthic.Metrics.Helpers do
       # "vm_memory_code" => 0,
       # "vm_memory_binary" => 0,
       # "vm_memory_atom_used" => 0,
-      "vm_memory_atom" => 0
+      # "vm_memory_atom" => 0
     }
   end
 
@@ -474,5 +474,57 @@ defmodule ArchEthic.Metrics.Helpers do
       # "vm_memory_atom_used" => 0,
       "vm_memory_atom" => 0
     }
+  end
+
+  # Poller Helper functions
+  @doc """
+  Holds Poller default/initial state
+  """
+  def poller_default_state() do
+    %{pid_refs: %{}, data: get_client_metric_default_value()}
+  end
+
+  @doc """
+  Method pushes metric/new_state updates to registered Live Processes
+  """
+  def dipatch_updates(%{data: data, pid_refs: pid_refs}) do
+    pid_refs
+    |> Task.async_stream(fn {pid_k, _pid_v} -> send(pid_k, {:update_data, data}) end)
+    |> Stream.run()
+  end
+
+  @doc """
+  When a new Live-View Procces is created it Add that pid to state: pid_ref
+  , to monitor and dispatch updates to it.
+  """
+  def register_process(pid, state) do
+    new_state = %{state | pid_refs: Map.put(state.pid_refs, pid, nil)}
+    dipatch_updates(new_state)
+    _mref = Process.monitor(pid)
+    new_state
+  end
+
+  @doc """
+  When a Live process terminates it is removed from the new_pid_refs
+  to stop dipacthing updates to it.
+  """
+  def deregister_process(from_pid, state) do
+    {_removed_pid, new_pid_refs} = Map.pop(state.pid_refs, from_pid)
+    %{state | pid_refs: new_pid_refs}
+  end
+
+  def process_new_state(current_state) do
+    case Enum.empty?(current_state.pid_refs) do
+      false ->
+        dipatch_updates(current_state)
+        %{data: get_new_data(), pid_refs: current_state.pid_refs}
+
+      true ->
+        current_state
+    end
+  end
+
+  defp get_new_data() do
+    network_collector()
   end
 end
