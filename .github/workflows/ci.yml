@@ -37,8 +37,8 @@ jobs:
       run: mix deps.get
     - name: Set Formatting
       run: mix format --check-formatted
-    - name: Compile the codebase
-      run: mix compile --warnings-as-errors
+#     - name: Compile the codebase
+#       run: mix compile --warnings-as-errors
     - name: Set credo
       run: mix credo 
     - name: Run tests
