@@ -1,0 +1,46 @@
+name: Elixir CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    name: Build and test
+    runs-on: ubuntu-latest
+    services:
+      cassandra:
+        image: scylladb/scylla
+        ports:
+          - 9042:9042
+        options: --health-cmd "cqlsh --debug" --health-interval 5s --health-retries 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Elixir
+      uses: erlef/setup-beam@988e02bfe678367a02564f65ca2e37726dc0268f
+      with:
+        elixir-version: '1.12.3' # Define the elixir version [required]
+        otp-version: '24.1' # Define the OTP version [required]
+    - name: Restore dependencies cache
+      uses: actions/cache@v2
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Make Clean
+      run: mix clean
+    - name: Install dependencies
+      run: mix deps.get
+    - name: Set Formatting
+      run: mix format --check-formatted
+    - name: Compile the codebase
+      run: mix compile --warnings-as-errors
+    - name: Set credo
+      run: mix credo 
+    - name: Run tests
+      run: mix test --trace
+    - name: Run Dialyzer
+      run: mix dialyzer
