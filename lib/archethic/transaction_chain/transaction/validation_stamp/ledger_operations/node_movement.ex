@@ -6,6 +6,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defstruct [:to, :amount, :roles]
 
   alias ArchEthic.Crypto
+  alias ArchEthic.Utils
 
   @type role() ::
           :coordinator_node | :cross_validation_node | :previous_storage_node
@@ -71,15 +72,13 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
-    key_size = Crypto.key_size(curve_id)
-
-    <<key::binary-size(key_size), amount::64, nb_roles::8, bin_roles::binary-size(nb_roles),
-      rest::bitstring>> = rest
+  def deserialize(data) do
+    {public_key, <<amount::64, nb_roles::8, bin_roles::binary-size(nb_roles), rest::bitstring>>} =
+      Utils.deserialize_public_key(data)
 
     {
       %__MODULE__{
-        to: <<curve_id::8, origin_id::8, key::binary>>,
+        to: public_key,
         amount: amount,
         roles: bin_roles_to_list(bin_roles)
       },

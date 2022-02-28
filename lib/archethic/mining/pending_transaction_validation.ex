@@ -6,6 +6,8 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
 
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Election
+
   alias ArchEthic.Governance
   alias ArchEthic.Governance.Code.Proposal, as: CodeProposal
   alias ArchEthic.Networking
@@ -15,8 +17,6 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
   alias ArchEthic.P2P.Message.FirstPublicKey
   alias ArchEthic.P2P.Message.GetFirstPublicKey
   alias ArchEthic.P2P.Node
-
-  alias ArchEthic.Replication
 
   alias ArchEthic.Reward
 
@@ -255,7 +255,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with previous_address <- Crypto.hash(previous_public_key),
+    with previous_address <- Crypto.derive_address(previous_public_key),
          oracle_chain <-
            TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp]),
          true <- OracleChain.valid_summary?(content, oracle_chain) do
@@ -278,7 +278,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     previous_address = Transaction.previous_address(tx)
 
     previous_address
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> get_first_public_key(previous_address)

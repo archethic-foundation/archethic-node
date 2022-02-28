@@ -13,7 +13,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     unspent_outputs: [],
     cross_validation_stamps: [],
     cross_validation_nodes_confirmation: <<>>,
-    validation_nodes_view: <<>>,
     chain_storage_nodes: [],
     chain_storage_nodes_view: <<>>,
     beacon_storage_nodes: [],
@@ -30,7 +29,8 @@ defmodule ArchEthic.Mining.ValidationContext do
     },
     io_storage_nodes: [],
     previous_storage_nodes: [],
-    valid_pending_transaction?: false
+    valid_pending_transaction?: false,
+    storage_nodes_confirmations: []
   ]
 
   alias ArchEthic.Contracts
@@ -84,10 +84,11 @@ defmodule ArchEthic.Mining.ValidationContext do
             IO: bitstring()
           },
           cross_validation_stamps: list(CrossValidationStamp.t()),
-          validation_nodes_view: bitstring(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
-          valid_pending_transaction?: boolean()
+          valid_pending_transaction?: boolean(),
+          storage_nodes_confirmations:
+            list({node_public_key :: Crypto.key(), signature :: binary()})
         }
 
   @doc """
@@ -571,7 +572,6 @@ defmodule ArchEthic.Mining.ValidationContext do
           list(UnspentOutput.t()),
           list(Node.t()),
           bitstring(),
-          bitstring(),
           bitstring()
         ) :: t()
   def put_transaction_context(
@@ -580,8 +580,7 @@ defmodule ArchEthic.Mining.ValidationContext do
         unspent_outputs,
         previous_storage_nodes,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view,
-        validation_nodes_view
+        beacon_storage_nodes_view
       ) do
     context
     |> Map.put(:previous_transaction, previous_transaction)
@@ -589,7 +588,6 @@ defmodule ArchEthic.Mining.ValidationContext do
     |> Map.put(:previous_storage_nodes, previous_storage_nodes)
     |> Map.put(:chain_storage_nodes_view, chain_storage_nodes_view)
     |> Map.put(:beacon_storage_nodes_view, beacon_storage_nodes_view)
-    |> Map.put(:validation_nodes_view, validation_nodes_view)
   end
 
   @doc """
@@ -601,14 +599,12 @@ defmodule ArchEthic.Mining.ValidationContext do
       ...>    previous_storage_nodes: [%Node{first_public_key: "key1"}],
       ...>    chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
       ...>    beacon_storage_nodes_view: <<1::1, 0::1, 1::1>>,
-      ...>    validation_nodes_view: <<1::1, 1::1, 0::1>>,
       ...>    cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}],
       ...>    cross_validation_nodes_confirmation: <<0::1, 0::1>>
       ...> }
       ...> |> ValidationContext.aggregate_mining_context(
       ...>    [%Node{first_public_key: "key2"}],
       ...>    <<1::1, 0::1, 1::1>>,
-      ...>    <<1::1, 1::1, 1::1>>,
       ...>    <<1::1, 1::1, 1::1>>,
       ...>    "key5"
       ...> )
@@ -619,7 +615,6 @@ defmodule ArchEthic.Mining.ValidationContext do
         ],
         chain_storage_nodes_view: <<1::1, 1::1, 1::1>>,
         beacon_storage_nodes_view: <<1::1, 1::1, 1::1>>,
-        validation_nodes_view: <<1::1, 1::1, 1::1>>,
         cross_validation_nodes_confirmation: <<0::1, 1::1>>,
         cross_validation_nodes: [%Node{last_public_key: "key3"}, %Node{last_public_key: "key5"}]
       }
@@ -629,25 +624,22 @@ defmodule ArchEthic.Mining.ValidationContext do
           list(Node.t()),
           bitstring(),
           bitstring(),
-          bitstring(),
           Crypto.key()
         ) :: t()
   def aggregate_mining_context(
         context = %__MODULE__{},
         previous_storage_nodes,
-        validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view,
         from
       )
-      when is_list(previous_storage_nodes) and is_bitstring(validation_nodes_view) and
+      when is_list(previous_storage_nodes) and
              is_bitstring(chain_storage_nodes_view) and
              is_bitstring(beacon_storage_nodes_view) do
     if cross_validation_node?(context, from) do
       context
       |> confirm_validation_node(from)
       |> aggregate_p2p_views(
-        validation_nodes_view,
         chain_storage_nodes_view,
         beacon_storage_nodes_view
       )
@@ -659,21 +651,17 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp aggregate_p2p_views(
          context = %__MODULE__{
-           validation_nodes_view: validation_nodes_view1,
            chain_storage_nodes_view: chain_storage_nodes_view1,
            beacon_storage_nodes_view: beacon_storage_nodes_view1
          },
-         validation_nodes_view2,
          chain_storage_nodes_view2,
          beacon_storage_nodes_view2
        )
-       when is_bitstring(validation_nodes_view2) and is_bitstring(chain_storage_nodes_view2) and
+       when is_bitstring(chain_storage_nodes_view2) and
               is_bitstring(beacon_storage_nodes_view2) do
     %{
       context
-      | validation_nodes_view:
-          Utils.aggregate_bitstring(validation_nodes_view1, validation_nodes_view2),
-        chain_storage_nodes_view:
+      | chain_storage_nodes_view:
           Utils.aggregate_bitstring(chain_storage_nodes_view1, chain_storage_nodes_view2),
         beacon_storage_nodes_view:
           Utils.aggregate_bitstring(beacon_storage_nodes_view1, beacon_storage_nodes_view2)
@@ -790,9 +778,19 @@ defmodule ArchEthic.Mining.ValidationContext do
   end
 
   defp add_io_storage_nodes(
-         context = %__MODULE__{transaction: tx, validation_stamp: validation_stamp}
+         context = %__MODULE__{
+           validation_stamp: %ValidationStamp{
+             ledger_operations: ledger_ops,
+             recipients: recipients
+           }
+         }
        ) do
-    io_storage_nodes = Replication.io_storage_nodes(%{tx | validation_stamp: validation_stamp})
+    movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
+
+    io_storage_nodes =
+      (movement_addresses ++ recipients)
+      |> Election.io_storage_nodes(P2P.available_nodes())
+
     %{context | io_storage_nodes: io_storage_nodes}
   end
 
@@ -1067,13 +1065,92 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp unspent_storage_nodes(unspent_outputs) do
     unspent_outputs
-    |> Stream.map(&Replication.chain_storage_nodes(&1.from))
+    |> Stream.map(&Election.chain_storage_nodes(&1.from, P2P.available_nodes()))
     |> Enum.to_list()
   end
 
   defp previous_storage_nodes(tx) do
     tx
     |> Transaction.previous_address()
-    |> Replication.chain_storage_nodes()
+    |> Election.chain_storage_nodes(P2P.available_nodes())
+  end
+
+  @doc """
+  Get the chain storage node position
+  """
+  @spec get_chain_storage_position(t(), node_public_key :: Crypto.key()) ::
+          {:ok, non_neg_integer()} | {:error, :not_found}
+  def get_chain_storage_position(
+        %__MODULE__{chain_storage_nodes: chain_storage_nodes},
+        node_public_key
+      ) do
+    node_index = Enum.find_index(chain_storage_nodes, &(&1.first_public_key == node_public_key))
+
+    if node_index == nil do
+      {:error, :not_found}
+    else
+      {:ok, node_index}
+    end
+  end
+
+  @doc """
+  Get the list of chain replication nodes
+  """
+  @spec get_chain_replication_nodes(t()) :: list(Node.t())
+  def get_chain_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          chain: sub_tree
+        },
+        chain_storage_nodes: storage_nodes
+      }) do
+    sub_tree
+    |> get_storage_nodes_tree_indexes
+    |> Enum.map(&Enum.at(storage_nodes, &1))
+  end
+
+  @doc """
+  Add the storage node confirmation
+  """
+  @spec add_storage_confirmation(t(), node_index :: non_neg_integer(), signature :: binary()) ::
+          t()
+  def add_storage_confirmation(
+        context = %__MODULE__{},
+        index,
+        signature
+      ) do
+    Map.update!(context, :storage_nodes_confirmations, &[{index, signature} | &1])
+  end
+
+  @doc """
+  Determine if all the chain storage nodes returned a confirmation
+  """
+  @spec enough_storage_confirmations?(t()) :: boolean()
+  def enough_storage_confirmations?(
+        context = %__MODULE__{
+          storage_nodes_confirmations: storage_nodes_confirmation
+        }
+      ) do
+    nb_confirmed_replications = Enum.count(storage_nodes_confirmation)
+
+    context
+    |> get_chain_replication_nodes
+    |> Enum.count() == nb_confirmed_replications
+  end
+
+  @doc """
+  Get the list of I/O replication nodes
+  """
+  @spec get_io_replication_nodes(t()) :: list(Node.t())
+  def get_io_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          IO: sub_tree
+        },
+        io_storage_nodes: storage_nodes,
+        chain_storage_nodes: chain_storage_nodes
+      }) do
+    sub_tree
+    |> get_storage_nodes_tree_indexes
+    |> Enum.map(&Enum.at(storage_nodes, &1))
+    |> Enum.reject(&Utils.key_in_node_list?(chain_storage_nodes, &1.first_public_key))
   end
 end

@@ -17,6 +17,8 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ownership
 
+  alias ArchEthic.Utils
+
   @type t :: %__MODULE__{
           authorized_nodes: list(Crypto.key()),
           secret: binary(),
@@ -39,7 +41,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   defp next_address do
     key_index = Crypto.number_of_node_shared_secrets_keys()
     next_public_key = Crypto.node_shared_secrets_public_key(key_index + 1)
-    Crypto.hash(next_public_key)
+    Crypto.derive_address(next_public_key)
   end
 
   @doc """
@@ -87,7 +89,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
     network_pool_address =
       Crypto.number_of_network_pool_keys()
       |> Crypto.network_pool_public_key()
-      |> Crypto.hash()
+      |> Crypto.derive_address()
 
     Transaction.new(
       :node_shared_secrets,
@@ -117,14 +119,9 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   """
   @spec decode_transaction_content(binary()) :: {:ok, binary(), binary()} | :error
   def decode_transaction_content(content) when is_binary(content) do
-    with <<curve_id::8, origin_id::8, rest::binary>> <- content,
-         daily_nonce_public_key_size <- Crypto.key_size(curve_id),
-         <<daily_nonce_public_key::binary-size(daily_nonce_public_key_size),
-           network_pool_address_hash_id::8, rest::binary>> <- rest,
-         network_pool_address_size <- Crypto.hash_size(network_pool_address_hash_id),
-         <<network_pool_address::binary-size(network_pool_address_size), _::binary>> <- rest do
-      {:ok, <<curve_id::8, origin_id::8, daily_nonce_public_key::binary>>,
-       <<network_pool_address_hash_id::8, network_pool_address::binary>>}
+    with {daily_nonce_public_key, rest} <- Utils.deserialize_public_key(content),
+         {network_pool_address, _rest} <- Utils.deserialize_address(rest) do
+      {:ok, daily_nonce_public_key, network_pool_address}
     else
       _ ->
         :error

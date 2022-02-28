@@ -190,6 +190,7 @@ services:
     image: prom/prometheus
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    profiles: [ "monitoring" ]
     networks:
       archethic_net:
         ipv4_address: 172.16.1.200
@@ -232,6 +233,7 @@ services:
 
 networks:
   archethic_net:
+    name: archethic_net
     ipam:
       driver: default
       config:

@@ -46,4 +46,7 @@ defmodule ArchEthic.DB do
               (node_public_key :: Crypto.key()) =>
                 {available? :: boolean(), average_availability :: float()}
             }
+
+  @callback get_bootstrap_info(key :: String.t()) :: String.t() | nil
+  @callback set_bootstrap_info(key :: String.t(), value :: String.t()) :: :ok
 end

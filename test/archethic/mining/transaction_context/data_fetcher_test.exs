@@ -4,11 +4,11 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcherTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetP2PView
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.P2PView
+  alias ArchEthic.P2P.Message.Ok
+  alias ArchEthic.P2P.Message.Ping
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
@@ -102,8 +102,8 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcherTest do
 
   describe "fetch_p2p_view/2" do
     test "should retrieve the P2P view for a list of node public keys" do
-      stub(MockClient, :send_message, fn _, %GetP2PView{}, _ ->
-        {:ok, %P2PView{nodes_view: <<1::1, 1::1>>}}
+      stub(MockClient, :send_message, fn _, %Ping{}, _ ->
+        {:ok, %Ok{}}
       end)
 
       node = %Node{
@@ -118,8 +118,7 @@ defmodule ArchEthic.Mining.TransactionContext.DataFetcherTest do
 
       P2P.add_and_connect_node(node)
 
-      assert {:ok, <<1::1, 1::1>>, %Node{first_public_key: "key1"}} =
-               DataFetcher.fetch_p2p_view(["key2", "key3"], [node])
+      assert <<1::1, 0::1>> = DataFetcher.fetch_p2p_view(["key2", "key3"])
     end
   end
 end

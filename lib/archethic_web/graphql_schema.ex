@@ -9,12 +9,14 @@ defmodule ArchEthicWeb.GraphQLSchema do
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
+  alias __MODULE__.TransactionAttestation
 
   import_types(HexType)
   import_types(DateTimeType)
   import_types(TransactionType)
   import_types(SharedSecretsType)
   import_types(P2PType)
+  import_types(TransactionAttestation)
 
   query do
     @desc """
@@ -115,30 +117,13 @@ defmodule ArchEthicWeb.GraphQLSchema do
 
   subscription do
     @desc """
-    Subscribe for any new transaction stored locally
-    """
-    field :new_transaction, :transaction do
-      config(fn _args, _info ->
-        {:ok, topic: "*"}
-      end)
-
-      resolve(fn address, _, _ ->
-        Resolver.get_transaction(address)
-      end)
-    end
-
-    @desc """
     Subscribe to be notified when a transaction is stored (if acted as welcome node)
     """
-    field :acknowledge_storage, :transaction do
+    field :transaction_confirmed, :transaction_attestation do
       arg(:address, non_null(:address))
 
       config(fn args, _info ->
         {:ok, topic: args.address}
-      end)
-
-      resolve(fn address, _, _ ->
-        Resolver.get_transaction(address)
       end)
     end
   end

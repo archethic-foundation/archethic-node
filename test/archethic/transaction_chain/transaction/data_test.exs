@@ -29,11 +29,11 @@ defmodule ArchEthic.TransactionChain.TransactionDataTest do
           pub
         end)
 
-      recipients_addresses = Enum.map(recipients, &(<<0::8>> <> &1))
+      recipients_addresses = Enum.map(recipients, &<<0::8, 0::8, &1::binary>>)
 
       transfers =
         Enum.map(transfers, fn {to, amount} ->
-          %Transfer{to: <<0::8>> <> to, amount: amount}
+          %Transfer{to: <<0::8, 0::8, to::binary>>, amount: amount}
         end)
 
       {tx_data, _} =

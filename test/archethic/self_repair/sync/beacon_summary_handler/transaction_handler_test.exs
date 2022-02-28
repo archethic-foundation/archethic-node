@@ -2,7 +2,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   use ArchEthicCase
 
   alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot.TransactionSummary
   alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
 
@@ -12,8 +11,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
+  alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
@@ -22,6 +23,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias ArchEthic.TransactionFactory
 
   alias ArchEthic.TransactionChain.TransactionInput
+  alias ArchEthic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
 
@@ -93,6 +95,28 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   end
 
   test "download_transaction/2 should download the transaction", context do
+    inputs = [
+      %TransactionInput{
+        from: "@Alice2",
+        amount: 1_000_000_000,
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
+    ]
+
+    tx = TransactionFactory.create_valid_transaction(context, inputs)
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, tx}
+    end)
+
+    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
+    assert ^tx = TransactionHandler.download_transaction(tx_summary, "AAA")
+  end
+
+  test "process_transaction/1 should handle the transaction and replicate it", context do
     me = self()
 
     inputs = [
@@ -106,12 +130,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
 
     tx = TransactionFactory.create_valid_transaction(context, inputs)
 
-    MockDB
-    |> stub(:write_transaction_chain, fn _ ->
-      send(me, :transaction_replicated)
-      :ok
-    end)
-
     MockClient
     |> stub(:send_message, fn
       _, %GetTransaction{}, _ ->
@@ -120,12 +138,20 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: inputs}}
 
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
     end)
 
-    tx_summary = %TransactionSummary{address: "@Alice2", timestamp: DateTime.utc_now()}
-    assert :ok = TransactionHandler.download_transaction(tx_summary, "AAA")
+    MockDB
+    |> stub(:write_transaction_chain, fn _ ->
+      send(me, :transaction_replicated)
+      :ok
+    end)
+
+    assert :ok = TransactionHandler.process_transaction(tx)
 
     assert_received :transaction_replicated
   end

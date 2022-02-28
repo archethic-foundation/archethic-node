@@ -5,8 +5,6 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
   alias ArchEthic.Crypto.Ed25519
   alias ArchEthic.Crypto.NodeKeystore.SoftwareImpl, as: Keystore
 
-  alias ArchEthic.Utils
-
   import Mox
 
   setup :set_mox_global
@@ -26,9 +24,8 @@ defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
     end
 
     test "should set the last keypair based on the previous transaction found" do
-      dump_file = Utils.mut_dir("crypto/index")
-      File.mkdir_p!(Path.dirname(dump_file))
-      File.write(dump_file, "#{3}")
+      MockDB
+      |> stub(:get_bootstrap_info, fn "node_keys_index" -> "3" end)
 
       {:ok, pid} = Keystore.start_link(seed: "fake seed")
 

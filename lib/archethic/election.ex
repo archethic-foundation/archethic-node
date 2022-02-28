@@ -15,6 +15,8 @@ defmodule ArchEthic.Election do
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias ArchEthic.Utils
 
@@ -269,39 +271,18 @@ defmodule ArchEthic.Election do
 
     storage_nodes =
       nodes
+      |> Enum.sort_by(&Map.get(&1, :authorized?), :desc)
       |> sort_storage_nodes_by_key_rotation(address)
       |> Enum.reduce_while(
-        %{nb_nodes: 0, zones: %{}, nodes: []},
-        fn node = %Node{
-             geo_patch: geo_patch,
-             average_availability: avg_availability
-           },
-           acc ->
-          if storage_constraints_satisfied?(
-               min_geo_patch,
-               min_geo_patch_avg_availability,
-               nb_replicas,
-               acc.nb_nodes,
-               acc.zones
-             ) do
-            {:halt, acc}
-          else
-            new_acc =
-              acc
-              |> Map.update!(:zones, fn zones ->
-                Map.update(
-                  zones,
-                  String.first(geo_patch),
-                  avg_availability,
-                  &(&1 + avg_availability)
-                )
-              end)
-              |> Map.update!(:nb_nodes, &(&1 + 1))
-              |> Map.update!(:nodes, &[node | &1])
-
-            {:cont, new_acc}
-          end
-        end
+        %{
+          nb_nodes: 0,
+          zones: %{},
+          nodes: [],
+          nb_replicas: nb_replicas,
+          min_geo_patch: min_geo_patch,
+          min_geo_patch_avg_availability: min_geo_patch_avg_availability
+        },
+        &reduce_storage_nodes/2
       )
       |> Map.get(:nodes)
       |> Enum.reverse()
@@ -315,13 +296,40 @@ defmodule ArchEthic.Election do
     storage_nodes
   end
 
-  defp storage_constraints_satisfied?(
-         min_geo_patch,
-         min_geo_patch_avg_availability,
-         nb_replicas,
-         nb_nodes,
-         zones
+  defp reduce_storage_nodes(
+         node = %Node{
+           geo_patch: geo_patch,
+           average_availability: avg_availability
+         },
+         acc
        ) do
+    if storage_constraints_satisfied?(acc) do
+      {:halt, acc}
+    else
+      new_acc =
+        acc
+        |> Map.update!(:zones, fn zones ->
+          Map.update(
+            zones,
+            String.first(geo_patch),
+            avg_availability,
+            &(&1 + avg_availability)
+          )
+        end)
+        |> Map.update!(:nb_nodes, &(&1 + 1))
+        |> Map.update!(:nodes, &[node | &1])
+
+      {:cont, new_acc}
+    end
+  end
+
+  defp storage_constraints_satisfied?(%{
+         min_geo_patch: min_geo_patch,
+         min_geo_patch_avg_availability: min_geo_patch_avg_availability,
+         nb_replicas: nb_replicas,
+         nb_nodes: nb_nodes,
+         zones: zones
+       }) do
     length(Map.keys(zones)) >= min_geo_patch and
       Enum.all?(zones, fn {_, avg_availability} ->
         avg_availability >= min_geo_patch_avg_availability
@@ -550,5 +558,99 @@ defmodule ArchEthic.Election do
     subset
     |> BeaconChain.summary_transaction_address(date)
     |> storage_nodes(nodes, storage_constraints)
+  end
+
+  @doc """
+  Determine if a node's public key must be a chain storage node
+  """
+  @spec chain_storage_node?(
+          binary(),
+          Transaction.transaction_type(),
+          Crypto.key(),
+          list(Node.t())
+        ) :: boolean()
+  def chain_storage_node?(
+        address,
+        type,
+        public_key,
+        node_list
+      )
+      when is_binary(address) and is_atom(type) and is_binary(public_key) and is_list(node_list) do
+    address
+    |> chain_storage_nodes_with_type(type, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Determine if a node's public key must be a beacon storage node
+  """
+  @spec beacon_storage_node?(binary(), DateTime.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def beacon_storage_node?(
+        address,
+        timestamp = %DateTime{},
+        public_key,
+        node_list
+      )
+      when is_binary(address) and is_binary(public_key) and is_list(node_list) do
+    address
+    |> beacon_storage_nodes(timestamp, node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Determine if a node's public key must be an I/O storage node
+  """
+  @spec io_storage_node?(Transaction.t(), Crypto.key(), list(Node.t())) :: boolean()
+  def io_storage_node?(
+        %Transaction{
+          validation_stamp: %ValidationStamp{
+            ledger_operations: ledger_operations,
+            recipients: recipients
+          }
+        },
+        public_key,
+        node_list
+      )
+      when is_binary(public_key) and is_list(node_list) do
+    addresses = LedgerOperations.movement_addresses(ledger_operations)
+
+    (addresses ++ recipients)
+    |> io_storage_nodes(node_list)
+    |> Utils.key_in_node_list?(public_key)
+  end
+
+  @doc """
+  Return the storage nodes for the transaction chain based on the transaction address, the transaction type and set a nodes
+  """
+  @spec chain_storage_nodes_with_type(
+          binary(),
+          Transaction.transaction_type(),
+          list(Node.t())
+        ) ::
+          list(Node.t())
+  def chain_storage_nodes_with_type(
+        address,
+        type,
+        node_list
+      )
+      when is_binary(address) and is_atom(type) and is_list(node_list) do
+    if Transaction.network_type?(type) do
+      node_list
+    else
+      chain_storage_nodes(address, node_list)
+    end
+  end
+
+  @doc """
+  Return the storage nodes for the transaction chain based on the transaction address and set a nodes
+  """
+  @spec chain_storage_nodes(binary(), list(Node.t())) :: list(Node.t())
+  def chain_storage_nodes(address, node_list)
+      when is_binary(address) and is_list(node_list) do
+    storage_nodes(
+      address,
+      node_list,
+      get_storage_constraints()
+    )
   end
 end

@@ -47,20 +47,26 @@ defmodule CryptoTest do
   end
 
   test "hash_with_storage_nonce/1 should hash a data using the storage nonce" do
-    :persistent_term.put(:storage_nonce, "mynonce")
-    assert Crypto.hash(["mynonce", "hello"]) == Crypto.hash_with_storage_nonce("hello")
+    assert Crypto.hash(["nonce", "hello"]) == Crypto.hash_with_storage_nonce("hello")
   end
 
   test "decrypt_and_set_storage_nonce/1 should decrypt storage nonce using node last key and and load storage nonce" do
     storage_nonce = :crypto.strong_rand_bytes(32)
+
+    me = self()
+
+    MockCrypto
+    |> stub(:set_storage_nonce, fn nonce ->
+      send(me, {:nonce, nonce})
+      :ok
+    end)
 
     assert :ok =
              Crypto.decrypt_and_set_storage_nonce(
                Crypto.ec_encrypt(storage_nonce, Crypto.last_node_public_key())
              )
 
-    assert {:ok, _} = File.read(Crypto.storage_nonce_filepath())
-    File.rm(Crypto.storage_nonce_filepath())
+    assert_received {:nonce, ^storage_nonce}
   end
 
   test "encrypt_storage_nonce/1 should encrypt storage nonce using a public key" do

@@ -37,4 +37,15 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
 
     assert false == SummaryTimer.match_interval?(~U[2021-02-03 13:00:50Z])
   end
+
+  property "next_summaries/1 should retrieve the next summary times from a date" do
+    {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+
+    check all(previous_seconds <- StreamData.positive_integer()) do
+      next_summaries =
+        SummaryTimer.next_summaries(DateTime.utc_now() |> DateTime.add(-previous_seconds))
+
+      assert Enum.count(next_summaries) == previous_seconds
+    end
+  end
 end

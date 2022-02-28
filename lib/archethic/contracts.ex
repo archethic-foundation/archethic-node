@@ -158,20 +158,30 @@ defmodule ArchEthic.Contracts do
       "next" => Constants.from_transaction(next_tx)
     }
 
-    with {:inherit, true} <-
-           {:inherit, Interpreter.valid_conditions?(inherit_conditions, constants)},
-         {:origin, true} <-
-           {:origin, Enum.all?(triggers, &valid_from_trigger?(&1, next_tx, date))} do
+    with :ok <- validate_conditions(inherit_conditions, constants),
+         :ok <- validate_triggers(triggers, next_tx, date) do
       true
     else
-      {:inherit, false} ->
-        Logger.error("Inherit constraints not respected")
-
+      {:error, _} ->
         false
+    end
+  end
 
-      {:origin, false} ->
-        Logger.error("Transaction not processed by a valid smart contract trigger")
-        false
+  defp validate_conditions(inherit_conditions, constants) do
+    if Interpreter.valid_conditions?(inherit_conditions, constants) do
+      :ok
+    else
+      Logger.error("Inherit constraints not respected")
+      {:error, :invalid_inherit_constraints}
+    end
+  end
+
+  defp validate_triggers(triggers, next_tx, date) do
+    if Enum.all?(triggers, &valid_from_trigger?(&1, next_tx, date)) do
+      :ok
+    else
+      Logger.error("Transaction not processed by a valid smart contract trigger")
+      {:error, :invalid_triggers_execution}
     end
   end
 
