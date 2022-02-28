@@ -1,3 +1,4 @@
+# Setup Github CI actions instead of leveraging Git hooks during git push
 name: Elixir CI
 
 on:
