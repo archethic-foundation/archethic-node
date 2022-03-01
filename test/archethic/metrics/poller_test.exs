@@ -1,6 +1,6 @@
 defmodule ArchEthic.Metrics.Pollers_test do
   use ExUnit.Case, async: true
-  alias ArchEthic.Metrics.Poller
+  # alias ArchEthic.Metrics.Poller
 
   # describe "" do
   #   test "Listless.list/0 returns an empty list" do

@@ -479,6 +479,18 @@ defmodule ArchEthic.Metrics.Helpers do
   # Poller Helper functions
   @doc """
   Holds Poller default/initial state
+
+  ## Examples
+      iex> ArchEthic.Metrics.Helpers.poller_default_state()
+      %{
+        data: %{
+            "archethic_mining_full_transaction_validation_duration" => 0,
+            "archethic_mining_proof_of_work_duration" => 0,
+            "archethic_p2p_send_message_duration" => 0,
+            "tps" => 0
+        },
+        pid_refs: %{}
+      }
   """
   def poller_default_state() do
     %{pid_refs: %{}, data: get_client_metric_default_value()}
@@ -496,6 +508,11 @@ defmodule ArchEthic.Metrics.Helpers do
   @doc """
   When a new Live-View Procces is created it Add that pid to state: pid_ref
   , to monitor and dispatch updates to it.
+
+      ## Examples
+
+       iex> ArchEthic.Metrics.Helpers.register_process( :c.pid(0,250,0), ArchEthic.Metrics.Helpers.poller_default_state() )
+
   """
   def register_process(pid, state) do
     new_state = %{state | pid_refs: Map.put(state.pid_refs, pid, nil)}
