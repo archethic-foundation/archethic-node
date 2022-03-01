@@ -6,19 +6,23 @@ defmodule ArchEthic.Metrics.Poller do
   require Logger
   use GenServer
 
+  @spec start_link(any) :: :ignore | {:error, any} | {:ok, pid}
   def start_link(_state) do
     GenServer.start_link(__MODULE__, Helpers.poller_default_state(), name: __MODULE__)
   end
 
+  @spec init(any) :: {:ok, any}
   def init(initial_state) do
     periodic_metric_aggregation()
     {:ok, initial_state}
   end
 
+  @spec periodic_metric_aggregation :: reference
   def periodic_metric_aggregation() do
     Process.send_after(self(), {:periodic_calculation_of_points}, 10_000)
   end
 
+  @spec monitor :: any
   def monitor() do
     GenServer.call(__MODULE__, :monitor)
   end

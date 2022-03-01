@@ -4,10 +4,27 @@ defmodule ArchEthic.Metrics.Helpers do
   """
   require Logger
 
+  # Atomic types
+  @type metrics_name :: String.t()
+  @type guage_metrics :: %{metrics_name() => number()}
+  @type histogram_metrics :: %{metrics_name() => %{count: number(), sum: number()}}
+  @type raw_metric_structure :: %{name: String.t(), type: String.t(), metrics: [any(), ...]}
+
+  @type list_of_raw_metrics :: [raw_metric_structure(), ...]
+  @type list_of_structured_metrics :: [guage_metrics() | histogram_metrics(), ...]
+
+  @type single_metric :: %{required(metrics_name()) => number()}
+  @type single_map_containing_all_metrics :: %{metrics_name() => number()}
+
+  @type list_of_combined_metrics_of_node :: [single_map_containing_all_metrics()]
+  @type list_of_node_metrics :: [single_metric(), ...]
+  @type list_of_all_nodes_metrics :: [list_of_node_metrics(), ...]
+
   @doc """
   Converts to map of metrics using
   Main method to transform metrics.Method to do any remaining transformations at last.
   """
+  @spec network_collector :: single_map_containing_all_metrics()
   def network_collector() do
     data = Enum.filter(retrieve_network_metrics(), fn {key, _val} -> req_metrics(key) end)
     Enum.into(data, %{})
@@ -16,6 +33,7 @@ defmodule ArchEthic.Metrics.Helpers do
   @doc """
   Filters out metrics that are not required ,Before reporting to the poller
   """
+  @spec req_metrics(metrics_name()) :: boolean()
   def req_metrics(data) do
     case data do
       "archethic_mining_proof_of_work_duration" -> true
@@ -28,27 +46,8 @@ defmodule ArchEthic.Metrics.Helpers do
 
   @doc """
   Responsible for retrieving network metrics.
-
-     retrieve_node_ip_address() -> [ip , ip ,ip]
-
-
-  Purpose of this Pipline Method
-  |>Enum.reduce([], fn x, acc -> Enum.concat(acc, x) end)
-  Expected Pipline Input :
-  [[node1_metrics],[node2_metrics],[node3_metrics],...]
-  Recieves list of list of metrics , where each metric is a map
-  with name and count and sum for histogram type metrics , for
-  metric type guage it is a map with %{"metric_name" => 0}.
-   [
-     [%{"metric_name" => %{ count: 0, sum: 0 }} , %{"metric_name" => %{count: 0, sum: }}], ...],
-     [%{"metric_name" => %{ count: 0, sum: 0 }} , %{"metric_name" => %{count: 0, sum: }}], ...],
-     ...]
-  Expected this.Pipline Output :
-    [ %{"metric_name" => %{ count: 0, sum: 0 }} , %{"metric_name" => 0} , %{ } , %{ } , %{ } ...]
-    list of metrics , where metric is a map with name and count and sum for histogram type metrics ,
-    for metric type guage it is a map with %{"metric_name" => 0}.
-    The output is ready to be merged with similar metrics from another nodes.
   """
+  @spec retrieve_network_metrics() :: single_map_containing_all_metrics
   def retrieve_network_metrics() do
     services().retrieve_node_ip_address()
     |> Task.async_stream(
@@ -71,15 +70,21 @@ defmodule ArchEthic.Metrics.Helpers do
   end
 
   @doc """
+  Adds Tps without breaking the retrieve_network_metrics()
   """
+  @spec inject_tps([list_of_structured_metrics(), ...]) :: [list_of_structured_metrics(), ...]
   def inject_tps(list_of_lists_of_metric_maps) do
     Enum.map(list_of_lists_of_metric_maps, fn list_of_maps ->
       count_by_sum = Enum.reduce(list_of_maps, 1, fn map, acc -> get_tps(map, acc) end)
-
       [%{"tps" => %{count: 1, sum: count_by_sum}} | list_of_maps]
     end)
   end
 
+  @doc """
+  Calculate tps from archethic_mining_full_transaction_validation_duration
+  and for another metrics it returns the accumulator
+  """
+  @spec get_tps(guage_metrics() | histogram_metrics(), number()) :: number()
   def get_tps(map, acc) do
     case map do
       %{"archethic_mining_full_transaction_validation_duration" => %{count: count, sum: sum}} ->
@@ -105,6 +110,7 @@ defmodule ArchEthic.Metrics.Helpers do
       ...>     ]|>ArchEthic.Metrics.Helpers.retrieve_metric_parameter_data()
       [%{"archethic_contract_parsing_duration" => %{count: 2.0, sum: 10.0}}, %{"vm_memory_atom" => 1589609.0}]
   """
+  @spec retrieve_metric_parameter_data(list_of_raw_metrics()) :: list_of_structured_metrics
   def retrieve_metric_parameter_data(data) do
     Enum.map(data, fn each_metric ->
       case each_metric.type do
@@ -131,6 +137,10 @@ defmodule ArchEthic.Metrics.Helpers do
     )
   end
 
+  @doc """
+  Calculates the average of the given metric : sum by count.
+  """
+  @spec fetch_avg(String.t(), number(), number()) :: %{String.t() => number}
   def fetch_avg(metric_name, count, sum) do
     avg =
       case count == 0 do
@@ -141,6 +151,10 @@ defmodule ArchEthic.Metrics.Helpers do
     %{metric_name => avg}
   end
 
+  @doc """
+  Fetches the guage metrics from give raw guage metrics
+  """
+  @spec fetch_guage_value(raw_metric_structure()) :: guage_metrics()
   def fetch_guage_value(single_metric_map) do
     [value_map | _tail] = single_metric_map.metrics
 
@@ -153,6 +167,11 @@ defmodule ArchEthic.Metrics.Helpers do
     %{single_metric_map.name => guage_value}
   end
 
+  @doc """
+  Fetches the metric name and count,sum of the given histogram metrics.
+  It also calculates average across multiple labels for histogram_metrics
+  """
+  @spec fetch_histogram_sum_count(raw_metric_structure) :: histogram_metrics()
   def fetch_histogram_sum_count(single_metric_map) do
     list2 =
       Enum.map(single_metric_map.metrics, fn inner_data ->
@@ -168,6 +187,11 @@ defmodule ArchEthic.Metrics.Helpers do
     }
   end
 
+  @doc """
+  Fetches the count,sum of the given histogram metrics.
+  """
+  @spec get_sum_count(%{count: number(), sum: number(), metrics: [any(), ...]}) ::
+          {number(), number()}
   def get_sum_count(inner_data) do
     {count, _} =
       case Map.fetch(inner_data, "count") do
@@ -233,6 +257,11 @@ defmodule ArchEthic.Metrics.Helpers do
       }
 
   """
+  @spec aggregate_sum_n_count_n_value([histogram_metrics() | guage_metrics(), ...]) ::
+          %{
+            metrics_name() => number(),
+            metrics_name() => %{count: number(), sum: number()}
+          }
   def aggregate_sum_n_count_n_value(combined_list_of_map_metric) do
     Enum.reduce(combined_list_of_map_metric, get_metric_default_value(), fn metric_map, acc ->
       [{metric_name, count_or_sum_or_value_map}] = metric_map |> Map.to_list()
@@ -262,6 +291,10 @@ defmodule ArchEthic.Metrics.Helpers do
          %{"vm_memory_atom" => 600.0}
       ]
   """
+  @spec calculate_network_points(%{
+          metrics_name() => number(),
+          metrics_name() => %{count: number(), sum: number()}
+        }) :: [%{metrics_name() => number()}, ...]
   def calculate_network_points(map_of_metrics) do
     Enum.map(map_of_metrics, fn {metric_name, count_or_sum_or_value_map} ->
       case count_or_sum_or_value_map do
@@ -289,6 +322,9 @@ defmodule ArchEthic.Metrics.Helpers do
             "vm_memory_atom" => 600.0
         }
   """
+  @spec reduce_to_single_map([%{metrics_name() => number()}, ...]) :: %{
+          metrics_name() => number()
+        }
   def reduce_to_single_map(data_list_of_maps) do
     Enum.reduce(data_list_of_maps, fn a, b ->
       Map.merge(a, b, fn _key, a1, a2 ->
@@ -534,14 +570,10 @@ defmodule ArchEthic.Metrics.Helpers do
     case Enum.empty?(current_state.pid_refs) do
       false ->
         dipatch_updates(current_state)
-        %{data: get_new_data(), pid_refs: current_state.pid_refs}
+        %{data: network_collector(), pid_refs: current_state.pid_refs}
 
       true ->
         current_state
     end
-  end
-
-  defp get_new_data() do
-    network_collector()
   end
 end

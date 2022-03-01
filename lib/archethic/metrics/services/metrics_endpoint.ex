@@ -9,6 +9,10 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
   @node_metric_endpoint_uri "/metrics"
   @node_metric_request_type "GET"
 
+  @type ip_as_string() :: String.t()
+  @type conn_ref() :: [] | Mint.t() | any()
+
+  @spec retrieve_node_ip_address :: [ip_as_string()]
   def retrieve_node_ip_address() do
     Enum.map(ArchEthic.P2P.list_nodes(), fn node_details ->
       ip = :inet.ntoa(node_details.ip)
@@ -16,6 +20,7 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
     end)
   end
 
+  @spec establish_connection(ip_as_string()) :: [] | Mint.HTTP.t()
   @doc """
   Establishes connection at port 40_000 for given node_ip.In case of error, returns empty list.
   """
@@ -30,6 +35,7 @@ defmodule ArchEthic.Metrics.Services.MetricsEndpoint do
   Send get request to /metrics endpoint of a node.
   Returns response in case of success, otherwise returns empty list.
   """
+  @spec contact_endpoint(conn_ref()) :: [] | Mint.t() | any()
   def contact_endpoint(conn_ref) do
     case conn_ref do
       [] -> []
