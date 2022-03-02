@@ -25,7 +25,7 @@ defmodule ArchEthic.Metrics.Poller do
     GenServer.call(__MODULE__, :monitor)
   end
 
-  def handle_call(:monitor, {pid, __tag}, state) do
+  def handle_call(:monitor, {pid, _tag}, state) do
     {:reply, :ok, Helpers.register_process(pid, state)}
   end
 

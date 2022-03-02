@@ -412,27 +412,24 @@ defmodule ArchEthicTest do
       assert :sys.get_state(dummy_poller_pid) == ArchEthic.Metrics.Helpers.poller_default_state()
 
       # create a dummy client
-      Process.flag(:trap_exit, true)
-      dummy_client_pid  =  spawn(fn ->
-            ArchEthic.Metrics.Poller.monitor()
-                loop()
-            end)
+      dummy_client_pid  =  Task.start(fn ->  ArchEthic.Metrics.Poller_dummy.monitor
+       loop()    end)
+       IO.inspect dummy_client_pid
 
-            IO.inspect(:sys.get_state(dummy_poller_pid))
+      # send( dummy_poller_pid ,[:monitor , {dummy_client_pid , nil}])
+
+      IO.inspect(:sys.get_state(dummy_poller_pid))
       # assert Map.fetch( :sys.get_state(dummy_poller_pid).pid_refs , dummy_client_pid) == nil
 
       # Process.kill(dummy_client_pid)
       # assert Map.fetch( :sys.get_state(dummy_poller_pid).pid_refs , pid) == :error
 
     end
-
-  end
-
-  def loop() do
-    receive do
-     _ -> nil
-     end
-      loop()
+    def loop() do
+      receive do
+       _ -> loop()
+       end
     end
+  end
 
 end
