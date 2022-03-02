@@ -398,4 +398,41 @@ defmodule ArchEthicTest do
                end)
     end
   end
+
+  describe "ArchEthic.Metrics.Poller" do
+
+    test "logice and flow" do
+      # spawn Poller with different name
+      start_options = [
+        options: [name: ArchEthic.Metrics.Poller_dummy],
+        default_state: ArchEthic.Metrics.Helpers.poller_default_state()
+      ]
+      dummy_poller_pid = start_supervised!({ArchEthic.Metrics.Poller, start_options})
+      # assert initial state be default state
+      assert :sys.get_state(dummy_poller_pid) == ArchEthic.Metrics.Helpers.poller_default_state()
+
+      # create a dummy client
+      Process.flag(:trap_exit, true)
+      dummy_client_pid  =  spawn(fn ->
+            ArchEthic.Metrics.Poller.monitor()
+                loop()
+            end)
+
+            IO.inspect(:sys.get_state(dummy_poller_pid))
+      # assert Map.fetch( :sys.get_state(dummy_poller_pid).pid_refs , dummy_client_pid) == nil
+
+      # Process.kill(dummy_client_pid)
+      # assert Map.fetch( :sys.get_state(dummy_poller_pid).pid_refs , pid) == :error
+
+    end
+
+  end
+
+  def loop() do
+    receive do
+     _ -> nil
+     end
+      loop()
+    end
+
 end
