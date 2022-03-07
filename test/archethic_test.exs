@@ -335,28 +335,9 @@ defmodule ArchEthicTest do
   end
 
   describe "Testing the NodeMetricEndpoint Service" do
-    test "&establish_connection(&1 <- ip_as_string)" do
+    test "&get_metrics_from_node(&1 <- ip_as_string)" do
       MockMetrics
-      |> expect(:establish_connection, fn ip_as_string ->
-        %Mint.HTTP1{
-          buffer: "",
-          host: ip_as_string,
-          mode: :active,
-          port: 40_000,
-          private: %{},
-          proxy_headers: [],
-          request: nil,
-          requests: {[], []},
-          scheme_as_string: "http",
-          socket: "identifer",
-          state: :open,
-          streaming_request: nil,
-          transport: Mint.Core.Transport.TCP
-        }
-      end)
-
-      MockMetrics
-      |> expect(:contact_endpoint, fn _connection_ref ->
+      |> expect(:get_metrics_from_node, fn _ip ->
         [
           {:status, "reference()", 200},
           {:headers, "reference()",
@@ -382,12 +363,7 @@ defmodule ArchEthicTest do
         ]
       end)
 
-      conn_ref = MockMetrics.establish_connection("172.16.1.10")
-
-      assert Mint.HTTP1 == conn_ref.__struct__
-      assert conn_ref.host == "172.16.1.10"
-
-      response = MockMetrics.contact_endpoint(conn_ref)
+      response = MockMetrics.get_metrics_from_node("172.16.1.10")
 
       assert [{:status, "reference()", 200}] ==
                Enum.filter(response, fn x ->
@@ -398,5 +374,4 @@ defmodule ArchEthicTest do
                end)
     end
   end
-
 end

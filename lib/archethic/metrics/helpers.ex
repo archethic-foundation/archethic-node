@@ -50,10 +50,7 @@ defmodule ArchEthic.Metrics.Helpers do
   @spec retrieve_network_metrics() :: single_map_containing_all_metrics
   def retrieve_network_metrics() do
     services().retrieve_node_ip_address()
-    |> Task.async_stream(
-      &(services().establish_connection(&1)
-        |> services().request_and_wait_for_response())
-    )
+    |> Task.async_stream(&services().get_metrics_from_node(&1))
     |> remove_noise()
     |> Stream.map(&ArchEthic.Metrics.Parser.run/1)
     |> Stream.map(&filter_metrics/1)
