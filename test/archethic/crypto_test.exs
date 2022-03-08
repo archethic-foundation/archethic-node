@@ -46,10 +46,6 @@ defmodule CryptoTest do
     end
   end
 
-  test "hash_with_storage_nonce/1 should hash a data using the storage nonce" do
-    assert Crypto.hash(["nonce", "hello"]) == Crypto.hash_with_storage_nonce("hello")
-  end
-
   test "decrypt_and_set_storage_nonce/1 should decrypt storage nonce using node last key and and load storage nonce" do
     storage_nonce = :crypto.strong_rand_bytes(32)
 

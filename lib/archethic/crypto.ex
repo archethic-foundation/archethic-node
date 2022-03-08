@@ -924,14 +924,6 @@ defmodule ArchEthic.Crypto do
   end
 
   @doc """
-  Hash the data using the storage nonce stored in memory
-  """
-  @spec hash_with_storage_nonce(data :: iodata()) :: binary()
-  def hash_with_storage_nonce(data) when is_binary(data) or is_list(data) do
-    hash([storage_nonce(), data])
-  end
-
-  @doc """
   Return the size of key using the curve id
 
   ## Examples
