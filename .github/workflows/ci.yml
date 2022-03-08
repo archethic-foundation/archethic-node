@@ -2,15 +2,15 @@ name: Elixir CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, develop, testnet ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, develop, testnet ]
 
 jobs:
   build:
 
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     services:
       cassandra:
         image: scylladb/scylla
