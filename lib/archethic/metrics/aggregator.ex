@@ -20,6 +20,7 @@ defmodule ArchEthic.Metrics.Aggregator do
         %{ "archethic_mining_full_transaction_validation_duration" => %{count: 10, sum: 1.5}}
       ]
   """
+  @spec inject_tps(list(map())) :: list(map())
   def inject_tps(metrics) do
     %{count: count, sum: sum} =
       Enum.reduce(metrics, %{count: 0, sum: 0.0}, fn
@@ -56,6 +57,7 @@ defmodule ArchEthic.Metrics.Aggregator do
         "archethic_p2p_send_message_duration" => %{count: 600, sum: 60}
       }
   """
+  @spec reduce_values(list(map())) :: map()
   def reduce_values(list_of_metrics) do
     list_of_metrics
     |> Enum.map(&Map.to_list/1)
