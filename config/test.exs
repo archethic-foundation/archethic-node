@@ -103,6 +103,9 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds, enabled: false
 
 config :archethic, ArchEthic.Mining.PendingTransactionValidation, validate_node_ip: true
 
+config :archethic, ArchEthic.Metrics.Poller, enabled: false
+config :archethic, ArchEthic.Metrics.Collector, MockMetricsCollector
+
 config :archethic, ArchEthic.Reward.NetworkPoolScheduler, enabled: false
 config :archethic, ArchEthic.Reward.WithdrawScheduler, enabled: false
 
