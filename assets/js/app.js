@@ -74,7 +74,7 @@ Hooks.Logs = {
   }
 }
 
-
+//metric dashboard hook /metrics/dashboard
 Hooks.network_charts = {
   mounted() {
 
@@ -82,9 +82,6 @@ Hooks.network_charts = {
     this.handleEvent("network_points", ({
       points
     }) => {
-      console.log("---------------")
-      console.log(points);
-      console.log("------------------")
       points = metric_config_obj.structure_metric_points(points)
      
       network_metric_obj = metric_config_obj.update_network_live_visuals(network_metric_obj , points);
@@ -103,12 +100,7 @@ Hooks.explorer_charts = {
       this.handleEvent("explorer_stats_points", ({
         points
       }) => {
-        console.log(points);
-        console.log("------------------")
         points = metric_config_obj.structure_metric_points(points)
-        console.log("=================")
-        console.log(points);
-        console.log("=================")
         explorer_metric_obj = metric_config_obj.update_explorer_live_visuals(explorer_metric_obj , points);    
       });
   }
