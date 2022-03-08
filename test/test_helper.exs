@@ -15,3 +15,5 @@ Mox.defmock(MockCrypto,
 Mox.defmock(MockDB, for: ArchEthic.DB)
 Mox.defmock(MockGeoIP, for: ArchEthic.P2P.GeoPatch.GeoIP)
 Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl)
+
+Mox.defmock(MockMetricsCollector, for: ArchEthic.Metrics.Collector)

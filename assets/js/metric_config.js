@@ -48,7 +48,7 @@ function get_visuals_dom(){
   };
 }
 
-  function generateEchartObjects(heading , echartContainer ,  x_axis_data){
+function generateEchartObjects(heading , echartContainer ,  x_axis_data){
     var y_axis_data = 
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     var chart = echarts.init(document.getElementById(echartContainer));
@@ -111,10 +111,10 @@ function get_visuals_dom(){
 
     return { chart: chart , ydata: y_axis_data};
   
-  }
+}
 
  
-  function generate_echart_guage(heading , eguageContainer ){
+function generate_echart_guage(heading , eguageContainer ){
     var guage= echarts.init(document.getElementById(eguageContainer));
   
     var guage_options ={
@@ -206,23 +206,22 @@ function get_visuals_dom(){
    
     return {"guage": guage , "max": 0}
   }
-  
+
+// for proper display of axis labels
 function exponent_formatter(new_point) {
   if(new_point ==0) return 0
   else if (new_point >100000 || new_point <0.0001 )   return parseFloat(new_point).toExponential(2);     
   else if (new_point <100000 && new_point >=100 ) return Math.floor(parseFloat(new_point));
   else if(new_point <100 && new_point >= 0.0001)     return parseFloat(new_point).toPrecision(2);     
 }
+
+//update the charts with new data
 function update_chart_data(chart_obj,x_axis_data ,points, point_name){
-  var new_point = Math.random();
-  var new_data= chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  // var new_point = points[point_name];
-  // console.log(new_point)
-  // var new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
-  var shifted =     chart_obj.ydata.shift();
+  var new_data = 0  , new_point =0 ,shifted_value = 0;
+  new_point = points[point_name];
+  new_data = chart_obj.ydata[chart_obj.ydata.length-1] + new_point;
+  shifted_value =  chart_obj.ydata.shift();
     chart_obj.ydata.push(new_data);
-    // console.log(chart_obj.ydata);
-    // console.log(x_axis_data);
     chart_obj.chart.setOption({
       xAxis: {
         data: x_axis_data
@@ -234,27 +233,21 @@ function update_chart_data(chart_obj,x_axis_data ,points, point_name){
     });
   }
 
-// function update_card_data(card_obj , points ,point_name ){
-//     card_obj.textContent = points[point_name]
-//   }
-  
+// update the guage with new data
 function update_guage_data(guage_obj , points , point_name )
 {
-  var data =0 ,new_point =0;
-  //  new_point = (Math.random()*100)+(Math.random()*.0010)+(Math.random()*0.001)+(Math.random()*.01)+(Math.random()*0.01);
-   new_point = points[point_name];
-  // console.log(new_point)
-  data = new_point;
-  if(data >= guage_obj.max ){
-    guage_obj.max = data
+  var new_data =0 ,new_point =0;
+  new_point = points[point_name];
+  new_data = new_point;
+  if(new_data >= guage_obj.max ){
+    guage_obj.max = new_data
   }
   guage_obj.guage.setOption({series: 
     [
       { min: 0,
         max:guage_obj.max ,splitNumber: 5,
-        data: [{ value: data }]}]});
+        data: [{ value: new_data }]}]});
 }
-
 
 function create_network_live_visuals(){
  var metric_obj = get_visuals_dom();
@@ -268,7 +261,6 @@ function update_network_live_visuals(network_metric_obj , points){
 }
 
 function update_live_visuals(metric_obj , points){
-  // console.log()
   metric_obj.seconds_after_loading_of_this_graph+= 10;
   var shifted = metric_obj.x_axis_data.shift();
   metric_obj.x_axis_data.push(metric_obj.seconds_after_loading_of_this_graph);
