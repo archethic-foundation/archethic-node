@@ -65,6 +65,9 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
 
           :tpm ->
             :hardware
+
+          :on_chain_wallet ->
+            :software
         end
 
       :ok = OriginKeyLookup.add_public_key(family, previous_public_key)
@@ -140,6 +143,9 @@ defmodule ArchEthic.SharedSecrets.MemTablesLoader do
 
         :tpm ->
           :hardware
+
+        :on_chain_wallet ->
+          :software
       end
 
     get_origin_public_keys(
