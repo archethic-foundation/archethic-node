@@ -157,6 +157,7 @@ defmodule ArchEthic.BeaconChain.Subset do
 
       subscribed_nodes
       |> P2P.get_nodes_info()
+      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
       |> P2P.broadcast_message(attestation)
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds

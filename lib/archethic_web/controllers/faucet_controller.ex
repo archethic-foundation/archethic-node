@@ -41,7 +41,7 @@ defmodule ArchEthicWeb.FaucetController do
 
   def create_transfer(conn, %{"address" => address}) do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(recipient_address),
+         true <- Crypto.valid_address?(recipient_address),
          {:ok, tx_address} <- transfer(recipient_address) do
       TransactionSubscriber.register(tx_address, System.monotonic_time())
 

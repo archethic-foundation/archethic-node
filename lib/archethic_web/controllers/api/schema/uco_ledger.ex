@@ -4,11 +4,11 @@ defmodule ArchEthicWeb.API.Schema.UCOLedger do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Types.Hash
+  alias ArchEthicWeb.API.Types.Address
 
   embedded_schema do
     embeds_many :transfers, Transfer do
-      field(:to, Hash)
+      field(:to, Address)
       field(:amount, :integer)
     end
   end
