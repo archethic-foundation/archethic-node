@@ -23,7 +23,7 @@ defmodule ArchEthic.TransactionChain.TransactionData.Ownership do
       iex> %Ownership{authorized_keys: authorized_keys} = Ownership.new(secret, secret_key, [pub])
       iex> Map.keys(authorized_keys)
       [
-        <<0, 0, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96, 203, 174, 116, 191, 211, 
+        <<0, 1, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96, 203, 174, 116, 191, 211, 
         39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161,102>>
       ]
   """

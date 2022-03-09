@@ -35,13 +35,13 @@ defmodule ArchEthic.BeaconChainTest do
   end
 
   test "summary_transaction_address/2 should return a address using the storage nonce a subset and a date" do
-    assert <<0, 0, 141, 146, 109, 188, 197, 248, 255, 123, 14, 172, 53, 198, 233, 233, 205, 180,
-             221, 95, 244, 203, 222, 149, 194, 205, 73, 214, 9, 207, 197, 55, 59,
-             182>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
+    assert <<0, 0, 126, 16, 248, 223, 156, 176, 229, 102, 1, 100, 203, 172, 176, 243, 188, 41, 20,
+             170, 58, 159, 173, 181, 185, 11, 231, 174, 223, 115, 196, 88, 243,
+             197>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
 
-    assert <<0, 0, 25, 97, 166, 116, 204, 210, 75, 152, 0, 193, 90, 253, 228, 140, 38, 248, 49,
-             160, 210, 186, 181, 32, 203, 157, 110, 67, 255, 181, 80, 96, 160,
-             239>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
+    assert <<0, 0, 68, 143, 226, 144, 77, 189, 180, 194, 80, 63, 131, 127, 130, 140, 137, 97, 76,
+             39, 74, 19, 34, 182, 174, 179, 89, 117, 149, 203, 58, 89, 67,
+             68>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
