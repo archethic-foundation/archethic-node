@@ -51,7 +51,7 @@ config :archethic, ArchEthic.P2P.BootstrappingSeeds,
   genesis_seeds:
     System.get_env(
       "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS",
-      "127.0.0.1:3002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
+      "127.0.0.1:3002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
 config :archethic,
@@ -74,7 +74,7 @@ config :archethic, ArchEthic.DB.CassandraImpl,
 config :archethic, ArchEthic.Governance.Pools,
   initial_members: [
     technical_council: [
-      {"00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}
+      {"00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A", 1}
     ],
     ethical_council: [],
     foundation: [],
