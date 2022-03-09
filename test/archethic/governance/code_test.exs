@@ -24,6 +24,7 @@ defmodule ArchEthic.Governance.CodeTest do
     assert !Code.applicable_proposal?(%Proposal{changes: changes, address: "123"})
   end
 
+  @tag infrastructure: true
   test "status should not fail" do
     {status, _branch} = Code.status()
     assert status in [:clean, :dirty]

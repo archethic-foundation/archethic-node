@@ -40,7 +40,8 @@ defmodule ArchEthic.Account.MemTablesLoader do
     :oracle,
     :oracle_summary,
     :node_shared_secrets,
-    :origin_shared_secrets
+    :origin_shared_secrets,
+    :on_chain_wallet
   ]
 
   def start_link(args \\ []) do

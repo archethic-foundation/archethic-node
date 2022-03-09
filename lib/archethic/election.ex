@@ -107,10 +107,10 @@ defmodule ArchEthic.Election do
       ...>     %ValidationConstraints{ validation_number: fn _, 6 -> 3 end, min_geo_patch: fn -> 2 end }
       ...> )
       [
+        %Node{last_public_key: "node1", geo_patch: "AAA"},
         %Node{last_public_key: "node6", geo_patch: "ECA"},
         %Node{last_public_key: "node2", geo_patch: "DEF"},
-        %Node{last_public_key: "node3", geo_patch: "AA0"},
-        %Node{last_public_key: "node5", geo_patch: "F10"},
+        %Node{last_public_key: "node5", geo_patch: "F10"}
       ]
   """
   @spec validation_nodes(
@@ -269,10 +269,12 @@ defmodule ArchEthic.Election do
     min_geo_patch_avg_availability = min_geo_patch_avg_availability_fun.()
     min_geo_patch = min_geo_patch_fun.()
 
+    storage_nonce = Crypto.storage_nonce()
+
     storage_nodes =
       nodes
       |> Enum.sort_by(&Map.get(&1, :authorized?), :desc)
-      |> sort_storage_nodes_by_key_rotation(address)
+      |> sort_storage_nodes_by_key_rotation(address, storage_nonce)
       |> Enum.reduce_while(
         %{
           nb_nodes: 0,
@@ -330,11 +332,14 @@ defmodule ArchEthic.Election do
          nb_nodes: nb_nodes,
          zones: zones
        }) do
-    length(Map.keys(zones)) >= min_geo_patch and
-      Enum.all?(zones, fn {_, avg_availability} ->
-        avg_availability >= min_geo_patch_avg_availability
-      end) and
-      nb_nodes >= nb_replicas
+    if nb_nodes >= nb_replicas do
+      fullfilled_zones =
+        Enum.filter(zones, fn {_, avg} -> avg >= min_geo_patch_avg_availability end)
+
+      length(fullfilled_zones) >= min_geo_patch
+    else
+      false
+    end
   end
 
   # Provide an unpredictable and reproducible list of allowed nodes using a rotating key algorithm
@@ -347,18 +352,18 @@ defmodule ArchEthic.Election do
   # It requires the daily nonce or the storage nonce to be loaded in the Crypto keystore
   defp sort_validation_nodes_by_key_rotation(nodes, sorting_seed, hash) do
     nodes
-    |> Stream.map(fn node = %Node{last_public_key: last_public_key} ->
-      rotated_key = Crypto.hash([last_public_key, hash, sorting_seed])
+    |> Stream.map(fn node = %Node{last_public_key: <<_::8, _::8, public_key::binary>>} ->
+      rotated_key = :crypto.hash(:sha256, [public_key, hash, sorting_seed])
       {rotated_key, node}
     end)
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)
     |> Enum.map(fn {_, n} -> n end)
   end
 
-  defp sort_storage_nodes_by_key_rotation(nodes, hash) do
+  defp sort_storage_nodes_by_key_rotation(nodes, hash, storage_nonce) do
     nodes
-    |> Stream.map(fn node = %Node{first_public_key: last_public_key} ->
-      rotated_key = Crypto.hash_with_storage_nonce([last_public_key, hash])
+    |> Stream.map(fn node = %Node{first_public_key: <<_::8, _::8, public_key::binary>>} ->
+      rotated_key = :crypto.hash(:sha256, [public_key, hash, storage_nonce])
       {rotated_key, node}
     end)
     |> Enum.sort_by(fn {rotated_key, _} -> rotated_key end)

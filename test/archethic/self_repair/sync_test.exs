@@ -114,9 +114,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           geo_patch: "BBB",
           network_patch: "BBB",
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          enrollment_date: DateTime.utc_now(),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+          enrollment_date: DateTime.utc_now()
         },
         %Node{
           ip: {127, 0, 0, 1},
@@ -127,9 +125,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           geo_patch: "BBB",
           network_patch: "BBB",
           reward_address: :crypto.strong_rand_bytes(32),
-          enrollment_date: DateTime.utc_now(),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+          enrollment_date: DateTime.utc_now()
         }
       ]
 
