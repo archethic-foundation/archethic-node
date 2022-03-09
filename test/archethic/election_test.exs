@@ -181,18 +181,16 @@ defmodule ArchEthic.ElectionTest do
       ]
 
       assert [
-               %Node{first_public_key: "Node5", geo_patch: "E3A", average_availability: 0.9},
+               %Node{first_public_key: "Node1", geo_patch: "CCC", average_availability: 0.1},
+               %Node{first_public_key: "Node3", geo_patch: "AFC", average_availability: 0.8},
                %Node{first_public_key: "Node2", geo_patch: "BBB", average_availability: 0.9},
-               %Node{first_public_key: "Node0", geo_patch: "AAA", average_availability: 0.7},
-               %Node{first_public_key: "Node6", geo_patch: "F1A", average_availability: 0.5},
-               %Node{first_public_key: "Node4", geo_patch: "FBA", average_availability: 0.4},
-               %Node{first_public_key: "Node3", geo_patch: "AFC", average_availability: 0.8}
+               %Node{first_public_key: "Node5", geo_patch: "E3A", average_availability: 0.9}
              ] =
                Election.storage_nodes("address", available_nodes, %StorageConstraints{
                  number_replicas: fn _ ->
                    3
                  end,
-                 min_geo_patch: fn -> 4 end,
+                 min_geo_patch: fn -> 3 end,
                  min_geo_patch_average_availability: fn -> 0.8 end
                })
     end
