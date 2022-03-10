@@ -67,19 +67,14 @@ defmodule ArchEthic.DB.CassandraImplTest do
       chain_prepared_query =
         Xandra.prepare!(
           :xandra_conn,
-          "SELECT * FROM archethic.transaction_chains WHERE chain_address = ? and bucket = ?"
+          "SELECT * FROM archethic.transaction_chains WHERE chain_address = ?"
         )
 
       chain =
-        Task.async_stream(1..4, fn bucket ->
-          Xandra.execute!(:xandra_conn, chain_prepared_query, [
-            List.first(chain).address,
-            bucket
-          ])
-          |> Enum.to_list()
-        end)
-        |> Enum.map(fn {:ok, res} -> res end)
-        |> Enum.flat_map(& &1)
+        Xandra.execute!(:xandra_conn, chain_prepared_query, [
+          List.first(chain).address
+        ])
+        |> Enum.to_list()
 
       assert length(chain) == 2
     end
@@ -188,13 +183,21 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
   test "get_transaction_chain/2 should retrieve the transaction chain with the requested fields" do
     chain = [
-      create_transaction(seed: "seed5", index: 1),
-      create_transaction(seed: "seed5", index: 0)
+      create_transaction(seed: "seed5", index: 1, timestamp: DateTime.utc_now()),
+      create_transaction(
+        seed: "seed5",
+        index: 0,
+        timestamp: DateTime.utc_now() |> DateTime.add(-86400)
+      )
     ]
 
     assert :ok = Cassandra.write_transaction_chain(chain)
-    chain = Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
-    assert Enum.all?(chain, &([:address, :type] not in empty_keys(&1)))
+
+    assert received_chain =
+             Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
+
+    assert Enum.map(received_chain, & &1.address) == Enum.map(chain, & &1.address)
+    assert Enum.all?(received_chain, &([:address, :type] not in empty_keys(&1)))
   end
 
   test "add_last_transaction_address/2 should reference a last address for a chain" do

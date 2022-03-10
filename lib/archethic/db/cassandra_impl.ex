@@ -85,7 +85,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
+        "SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address=?"
       )
 
     addresses_to_fetch =
