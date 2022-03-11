@@ -8,7 +8,7 @@ defmodule ArchEthic.P2P.Message.TransactionList do
 
   @type t :: %__MODULE__{
           transactions: list(Transaction.t()),
-          more? : boolean() | nil,
-          page  : nil | number() | any
+          more?: boolean() | nil,
+          page: nil | number() | any
         }
 end
