@@ -9,6 +9,7 @@ defmodule ArchEthic.P2P.Message.GetTransactionChain do
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
-          after: nil | DateTime.t()
+          after: nil | DateTime.t(),
+          page: nil | number() | any
         }
 end

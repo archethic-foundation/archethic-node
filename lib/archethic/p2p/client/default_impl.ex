@@ -47,6 +47,7 @@ defmodule ArchEthic.P2P.Client.DefaultImpl do
         timeout
       ) do
     if node_public_key == Crypto.first_node_public_key() do
+      # if the node was itself just process the message
       {:ok, Message.process(message)}
     else
       case Connection.send_message(node_public_key, message, timeout) do

@@ -645,4 +645,3 @@ defmodule ArchEthic.DB.CassandraImpl do
     :ok
   end
 end
-# //forcommit

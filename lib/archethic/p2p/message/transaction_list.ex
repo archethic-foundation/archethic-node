@@ -7,6 +7,8 @@ defmodule ArchEthic.P2P.Message.TransactionList do
   alias ArchEthic.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
-          transactions: list(Transaction.t())
+          transactions: list(Transaction.t()),
+          more? : boolean() | nil,
+          page  : nil | number() | any
         }
 end
