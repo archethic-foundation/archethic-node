@@ -125,25 +125,28 @@ defmodule ArchEthicWeb.API.TransactionController do
   def origin_public_key_verify(conn, data) do
     case OriginPublicKeyPayload.changeset(data) do
       %{valid?: true} ->
-        cert =
-          data["PublicKey"]
+        public_key =
+          data["publicKey"]
           |> Base.decode16()
           |> elem(1)
-          |> Crypto.get_key_certificate()
 
-        if cert == data["Certificate"] do
+        root_ca_key =
+          public_key
+          |> Crypto.get_root_ca_public_key()
+
+        if Crypto.verify_key_certificate?(public_key, data["certificate"], root_ca_key) do
           conn
           |> put_status(:ok)
           |> json(%{
-            "OriginPublicKey" => "valid",
-            "Certificate" => "valid"
+            "originPublicKey" => "valid",
+            "certificate" => "valid"
           })
         else
           conn
           |> put_status(:ok)
           |> json(%{
-            "OriginPublicKey" => "valid",
-            "Certificate" => "in valid"
+            "originPublicKey" => "valid",
+            "certificate" => "in valid"
           })
         end
 
