@@ -59,7 +59,8 @@ defmodule ArchEthic.ReplicationTest do
     me = self()
 
     unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
-    tx = create_valid_transaction(transaction_context(), unspent_outputs)
+    p2p_context()
+    tx = create_valid_transaction(unspent_outputs)
 
     MockDB
     |> expect(:write_transaction_chain, fn _ ->
@@ -88,24 +89,11 @@ defmodule ArchEthic.ReplicationTest do
   end
 
   test "validate_and_store_transaction/1" do
-    P2P.add_and_connect_node(%Node{
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      authorized?: true,
-      last_public_key: Crypto.last_node_public_key(),
-      first_public_key: Crypto.last_node_public_key(),
-      available?: true,
-      geo_patch: "AAA",
-      network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
-    })
-
     me = self()
 
     unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
-    tx = create_valid_transaction(transaction_context(), unspent_outputs)
+    p2p_context()
+    tx = create_valid_transaction(unspent_outputs)
 
     MockDB
     |> expect(:write_transaction, fn _ ->
@@ -120,7 +108,7 @@ defmodule ArchEthic.ReplicationTest do
     assert_received :replicated
   end
 
-  defp transaction_context do
+  defp p2p_context do
     SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
 
     welcome_node = %Node{
@@ -154,7 +142,6 @@ defmodule ArchEthic.ReplicationTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        authorized?: true,
         authorization_date: DateTime.utc_now(),
         reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
@@ -172,24 +159,13 @@ defmodule ArchEthic.ReplicationTest do
     }
   end
 
-  defp create_valid_transaction(
-         %{
-           coordinator_node: coordinator_node,
-           storage_nodes: storage_nodes
-         },
-         unspent_outputs
-       ) do
+  defp create_valid_transaction(unspent_outputs) do
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
 
     ledger_operations =
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
-      |> LedgerOperations.distribute_rewards(
-        coordinator_node,
-        [coordinator_node],
-        [coordinator_node] ++ storage_nodes
-      )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
     validation_stamp =

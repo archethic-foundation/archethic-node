@@ -209,6 +209,8 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
+      start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
 

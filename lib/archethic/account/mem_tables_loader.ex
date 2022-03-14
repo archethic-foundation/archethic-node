@@ -8,14 +8,10 @@ defmodule ArchEthic.Account.MemTablesLoader do
 
   alias ArchEthic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
-
   alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -29,7 +25,7 @@ defmodule ArchEthic.Account.MemTablesLoader do
     :previous_public_key,
     validation_stamp: [
       :timestamp,
-      ledger_operations: [:node_movements, :unspent_outputs, :transaction_movements]
+      ledger_operations: [:unspent_outputs, :transaction_movements]
     ]
   ]
 
@@ -69,7 +65,6 @@ defmodule ArchEthic.Account.MemTablesLoader do
           timestamp: timestamp,
           ledger_operations: %LedgerOperations{
             unspent_outputs: unspent_outputs,
-            node_movements: node_movements,
             transaction_movements: transaction_movements
           }
         }
@@ -81,7 +76,6 @@ defmodule ArchEthic.Account.MemTablesLoader do
 
     :ok = set_transaction_movements(address, transaction_movements, timestamp)
     :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
-    :ok = set_node_rewards(address, node_movements, timestamp)
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -123,20 +117,6 @@ defmodule ArchEthic.Account.MemTablesLoader do
 
       unspent_output = %UnspentOutput{type: {:NFT, _nft_address}} ->
         NFTLedger.add_unspent_output(address, unspent_output, timestamp)
-    end)
-  end
-
-  defp set_node_rewards(address, node_movements, timestamp) do
-    node_movements
-    |> Enum.filter(&(&1.amount > 0))
-    |> Enum.each(fn %NodeMovement{to: to, amount: amount} ->
-      %Node{reward_address: reward_address} = P2P.get_node_info!(to)
-
-      UCOLedger.add_unspent_output(
-        reward_address,
-        %UnspentOutput{amount: amount, from: address, type: :UCO, reward?: true},
-        timestamp
-      )
     end)
   end
 end

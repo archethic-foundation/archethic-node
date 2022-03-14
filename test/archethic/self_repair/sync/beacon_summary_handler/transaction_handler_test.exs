@@ -65,7 +65,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
         geo_patch: "BBB",
         network_patch: "BBB",
         reward_address: :crypto.strong_rand_bytes(32),
-        authorized?: true,
         authorization_date: DateTime.utc_now()
       }
     ]
@@ -94,7 +93,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
              })
   end
 
-  test "download_transaction/2 should download the transaction", context do
+  test "download_transaction/2 should download the transaction" do
     inputs = [
       %TransactionInput{
         from: "@Alice2",
@@ -104,7 +103,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
       }
     ]
 
-    tx = TransactionFactory.create_valid_transaction(context, inputs)
+    tx = TransactionFactory.create_valid_transaction(inputs)
 
     MockClient
     |> stub(:send_message, fn
@@ -116,7 +115,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
     assert ^tx = TransactionHandler.download_transaction(tx_summary, "AAA")
   end
 
-  test "process_transaction/1 should handle the transaction and replicate it", context do
+  test "process_transaction/1 should handle the transaction and replicate it" do
     me = self()
 
     inputs = [
@@ -128,7 +127,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
       }
     ]
 
-    tx = TransactionFactory.create_valid_transaction(context, inputs)
+    tx = TransactionFactory.create_valid_transaction(inputs)
 
     MockClient
     |> stub(:send_message, fn

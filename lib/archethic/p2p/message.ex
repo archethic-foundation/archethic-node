@@ -1196,7 +1196,7 @@ defmodule ArchEthic.P2P.Message do
            :type,
            validation_stamp: [
              :timestamp,
-             ledger_operations: [:node_movements, :transaction_movements]
+             ledger_operations: [:transaction_movements]
            ]
          ]) do
       {:ok, tx} ->
