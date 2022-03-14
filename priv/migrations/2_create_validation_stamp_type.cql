@@ -9,8 +9,7 @@ CREATE TYPE IF NOT EXISTS archethic.ledger_operations_unspent_output(
   "from" blob,
   amount bigint,
   type varchar,
-  nft_address blob,
-  reward boolean
+  nft_address blob
 );
 
 CREATE TYPE IF NOT EXISTS archethic.ledger_operations(

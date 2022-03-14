@@ -390,8 +390,6 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Unspent output amount (2 UCO)
       0, 0, 0, 0, 11, 235, 194, 0,
       # Unspent output type (UCO)
-      0,
-      # Unspent output reward?
       0
       >>
   """
@@ -422,7 +420,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
       ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
-      ...> 0, 0, 0, 0, 11, 235, 194, 0, 0, 0>>
+      ...> 0, 0, 0, 0, 11, 235, 194, 0, 0>>
       ...> |> LedgerOperations.deserialize()
       {
         %LedgerOperations{
@@ -440,8 +438,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
               from: <<0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
                 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207>>,
               amount: 200_000_000,
-              type: :UCO,
-              reward?: false
+              type: :UCO
             }
           ]
         },
