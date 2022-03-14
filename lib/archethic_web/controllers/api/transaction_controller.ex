@@ -10,8 +10,10 @@ defmodule ArchEthicWeb.API.TransactionController do
 
   alias ArchEthic.Mining
   alias ArchEthic.OracleChain
+  alias ArchEthic.Crypto
 
   alias ArchEthicWeb.API.TransactionPayload
+  alias ArchEthicWeb.API.OriginPublicKeyPayload
   alias ArchEthicWeb.ErrorView
   alias ArchEthicWeb.TransactionSubscriber
 
@@ -111,6 +113,39 @@ defmodule ArchEthicWeb.API.TransactionController do
             "eur" => uco_eur
           }
         })
+
+      changeset ->
+        conn
+        |> put_status(:bad_request)
+        |> put_view(ErrorView)
+        |> render("400.json", changeset: changeset)
+    end
+  end
+
+  def origin_public_key_verify(conn, data) do
+    case OriginPublicKeyPayload.changeset(data) do
+      %{valid?: true} ->
+        cert =
+          data["PublicKey"]
+          |> Base.decode16()
+          |> elem(1)
+          |> Crypto.get_key_certificate()
+
+        if cert == data["Certificate"] do
+          conn
+          |> put_status(:ok)
+          |> json(%{
+            "OriginPublicKey" => "valid",
+            "Certificate" => "valid"
+          })
+        else
+          conn
+          |> put_status(:ok)
+          |> json(%{
+            "OriginPublicKey" => "valid",
+            "Certificate" => "in valid"
+          })
+        end
 
       changeset ->
         conn
