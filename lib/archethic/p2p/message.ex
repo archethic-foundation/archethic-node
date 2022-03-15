@@ -996,25 +996,17 @@ defmodule ArchEthic.P2P.Message do
     end
   end
 
-  # current page state contains the page state that has already been with the node
+  # current page state contains binary offset to resume from the query
   def process(%GetTransactionChain{
         address: tx_address,
-        after: after_time = %DateTime{},
+        after: after_time,
         page: current_page_state
       }) do
-    {chain, new_page_state, more?} =
+    {chain, more?, new_page_state} =
       tx_address
       |> TransactionChain.get(after_time: after_time, page: current_page_state)
 
-    # new_page_state contains the  page number of data being sent
-    %TransactionList{transactions: chain, page: new_page_state, more?: more?}
-  end
-
-  def process(%GetTransactionChain{address: tx_address, after: nil, page: current_page_state}) do
-    {chain, new_page_state, more?} =
-      tx_address
-      |> TransactionChain.get(after_time: nil, page: current_page_state)
-
+    # new_page_state contains binary offset
     %TransactionList{transactions: chain, page: new_page_state, more?: more?}
   end
 

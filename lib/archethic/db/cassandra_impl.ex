@@ -74,38 +74,6 @@ defmodule ArchEthic.DB.CassandraImpl do
     end
   end
 
-  # @impl DB
-  # @doc """
-  # Fetch the transaction chain by address and project the requested fields from the transactions
-  # """
-  # @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
-  # def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
-  #   start = System.monotonic_time()
-
-  #   addresses_to_fetch =
-  #     page_stream
-  #     |> Stream.flat_map(& &1)
-  #     |> Enum.map(fn %{"transaction_address" => tx_address} ->
-  #       tx_address
-  #     end)
-  #     |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
-
-  #   # Chunk the reads while leveraging concurrency
-  #   # avoiding a connection to be open too long to read many transactions
-  #   chain =
-  #     addresses_to_fetch
-  #     |> Task.async_stream(&chunk_get_transaction(&1, fields))
-  #     |> Stream.filter(&match?({:ok, _}, &1))
-  #     |> Stream.map(fn {:ok, transactions} -> transactions end)
-  #     |> Enum.flat_map(& &1)
-
-  #   :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-  #     query: "get_transaction_chain"
-  #   })
-
-  #   chain
-  # end
-
   @impl DB
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
@@ -120,20 +88,17 @@ defmodule ArchEthic.DB.CassandraImpl do
     start = System.monotonic_time()
 
     {query, query_params} = get_transaction_chain_query(address, options)
-    prepared_statement = Xandra.prepare!(:xandra_conn , query)
+    prepared_statement = Xandra.prepare!(:xandra_conn, query)
 
     execute_options = get_transaction_chain_options(address, options)
-
-    {:ok, page} = Xandra.execute(:xandra_conn , prepared_statement, query_params, execute_options)
+    # edgecases/errors here are handled by process crash
+    {:ok, page} = Xandra.execute(:xandra_conn, prepared_statement, query_params, execute_options)
 
     paging_state = page.paging_state
     more? = page.paging_state != nil
 
-    addresses_to_fetch =
-      Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
-
     chain =
-      addresses_to_fetch
+      Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
       |> chunk_get_transaction(fields)
       |> Enum.flat_map(& &1)
 
@@ -144,9 +109,8 @@ defmodule ArchEthic.DB.CassandraImpl do
     {chain, more?, paging_state}
   end
 
-  defp get_transaction_chain_query(address, after_time: after_time, page: _current_page_state)
-       when is_nil(after_time) do
-    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? ",
+  defp get_transaction_chain_query(address, after_time: nil, page: _current_page_state) do
+    {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
      [address]}
   end
 
@@ -355,13 +319,9 @@ defmodule ArchEthic.DB.CassandraImpl do
     :ok
   end
 
-  # defp bucket_from_date(%DateTime{month: month}) do
-  #   div(month + 2, 3)
-  # end
-
   defp format_result_to_transaction(res) do
     res
-    |> Map.drop(["bucket", "chain_address", "timestamp"])
+    |> Map.drop(["chain_address", "timestamp"])
     |> Utils.atomize_keys(true)
     |> Transaction.from_map()
   end
@@ -411,15 +371,13 @@ defmodule ArchEthic.DB.CassandraImpl do
         "SELECT COUNT(*) as size FROM archethic.transaction_chains WHERE chain_address=? "
       )
 
-
-      :xandra_conn
-      |> Xandra.execute!(prepared, [address])
-      |> Enum.at(0, %{})
-      |> Map.get("size", 0)
-      |> Enum.reduce(0, fn {:ok, size}, acc ->
-        acc + size
-      end)
-
+    :xandra_conn
+    |> Xandra.execute!(prepared, [address])
+    |> Enum.at(0, %{})
+    |> Map.get("size", 0)
+    |> Enum.reduce(0, fn {:ok, size}, acc ->
+      acc + size
+    end)
   end
 
   @impl DB
