@@ -187,7 +187,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
       create_transaction(
         seed: "seed5",
         index: 0,
-        timestamp: DateTime.utc_now() |> DateTime.add(-86400)
+        timestamp: DateTime.utc_now() |> DateTime.add(-86_400)
       )
     ]
 
