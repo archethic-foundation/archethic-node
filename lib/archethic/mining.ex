@@ -18,7 +18,6 @@ defmodule ArchEthic.Mining do
   alias ArchEthic.P2P.Node
 
   alias ArchEthic.SelfRepair
-  alias ArchEthic.SharedSecrets
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
@@ -100,45 +99,6 @@ defmodule ArchEthic.Mining do
       )
 
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
-  end
-
-  def valid_election?(
-        tx = %Transaction{
-          address: tx_address,
-          type: tx_type,
-          validation_stamp: %ValidationStamp{timestamp: timestamp, proof_of_election: poe}
-        },
-        validation_node_public_keys
-      )
-      when is_list(validation_node_public_keys) do
-    daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(timestamp)
-
-    if daily_nonce_public_key == SharedSecrets.genesis_daily_nonce_public_key() do
-      # Should happens only during the network bootstrapping
-      true
-    else
-      node_list = transaction_validation_node_list(tx_type, timestamp)
-      storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
-
-      constraints = Election.get_validation_constraints()
-
-      with true <-
-             Election.valid_proof_of_election?(tx, poe, daily_nonce_public_key),
-           nodes = [_ | _] <-
-             Election.validation_nodes(
-               tx,
-               poe,
-               node_list,
-               storage_nodes,
-               constraints
-             ),
-           set_of_validation_node_public_keys <- Enum.map(nodes, & &1.last_public_key) do
-        Enum.all?(validation_node_public_keys, &(&1 in set_of_validation_node_public_keys))
-      else
-        _ ->
-          false
-      end
-    end
   end
 
   @doc """

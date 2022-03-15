@@ -52,7 +52,6 @@ defmodule ArchEthic.P2P.MessageTest do
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionInput
@@ -195,15 +194,6 @@ defmodule ArchEthic.P2P.MessageTest do
           ledger_operations: %LedgerOperations{
             fee: 1_000_000,
             transaction_movements: [],
-            node_movements: [
-              %NodeMovement{
-                to:
-                  <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99, 217,
-                    105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-                amount: 1_000_000,
-                roles: [:coordinator_node]
-              }
-            ],
             unspent_outputs: []
           },
           signature:
@@ -289,15 +279,6 @@ defmodule ArchEthic.P2P.MessageTest do
             ledger_operations: %LedgerOperations{
               fee: 1_000_000,
               transaction_movements: [],
-              node_movements: [
-                %NodeMovement{
-                  to:
-                    <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99,
-                      217, 105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-                  amount: 1_000_000,
-                  roles: [:coordinator_node]
-                }
-              ],
               unspent_outputs: []
             },
             signature:
@@ -367,15 +348,6 @@ defmodule ArchEthic.P2P.MessageTest do
             ledger_operations: %LedgerOperations{
               fee: 1_000_000,
               transaction_movements: [],
-              node_movements: [
-                %NodeMovement{
-                  to:
-                    <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99,
-                      217, 105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79, 88>>,
-                  amount: 1_000_000,
-                  roles: [:coordinator_node]
-                }
-              ],
               unspent_outputs: []
             },
             signature:
@@ -534,16 +506,6 @@ defmodule ArchEthic.P2P.MessageTest do
               ledger_operations: %LedgerOperations{
                 fee: 1_000_000,
                 transaction_movements: [],
-                node_movements: [
-                  %NodeMovement{
-                    to:
-                      <<0, 0, 92, 208, 222, 119, 27, 128, 82, 69, 163, 128, 196, 105, 19, 18, 99,
-                        217, 105, 80, 238, 155, 239, 91, 54, 82, 200, 16, 121, 32, 83, 63, 79,
-                        88>>,
-                    amount: 1_000_000,
-                    roles: [:coordinator_node]
-                  }
-                ],
                 unspent_outputs: []
               },
               signature:
