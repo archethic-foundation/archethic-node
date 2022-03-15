@@ -145,15 +145,15 @@ defmodule ArchEthic.BeaconChain.Subset do
         state = %{current_slot: current_slot, subset: subset, subscribed_nodes: subscribed_nodes}
       ) do
     if ArchEthic.BeaconChain.subset_from_address(address) == subset do
-      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
-        beacon_subset: Base.encode16(subset)
-      )
-
-      current_slot =
+      new_slot =
         Slot.add_transaction_attestation(
           current_slot,
           attestation
         )
+
+      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
+        beacon_subset: Base.encode16(subset)
+      )
 
       subscribed_nodes
       |> P2P.get_nodes_info()
@@ -164,12 +164,12 @@ defmodule ArchEthic.BeaconChain.Subset do
       if update_p2p_view?(state) do
         new_state =
           state
-          |> Map.put(:current_slot, add_p2p_view(current_slot))
+          |> Map.put(:current_slot, add_p2p_view(new_slot))
           |> Map.put(:sampling_time, DateTime.utc_now())
 
         {:noreply, new_state}
       else
-        {:noreply, %{state | current_slot: current_slot}}
+        {:noreply, %{state | current_slot: new_slot}}
       end
     else
       {:noreply, state}
