@@ -118,11 +118,12 @@ defmodule ArchEthic.BeaconChain do
       ) do
     with {%Slot{subset: subset} = slot, _} <- Slot.deserialize(content),
          :ok <- validate_slot(tx, slot) do
+      Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
+        beacon_subset: Base.encode16(subset)
+      )
+
       SummaryCache.add_slot(subset, slot)
     else
-      true ->
-        :ok
-
       {:error, _} = e ->
         Logger.error("Invalid beacon slot #{inspect(e)}")
         :error
