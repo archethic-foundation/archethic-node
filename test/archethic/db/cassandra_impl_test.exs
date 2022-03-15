@@ -435,14 +435,8 @@ defmodule ArchEthic.DB.CassandraImplTest do
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
 
-    context = %{
-      welcome_node: welcome_node,
-      coordinator_node: coordinator_node,
-      storage_nodes: storage_nodes
-    }
-
     inputs = Keyword.get(opts, :inputs, [])
-    TransactionFactory.create_valid_transaction(context, inputs, opts)
+    TransactionFactory.create_valid_transaction(inputs, opts)
   end
 
   defp empty_keys(tx) do

@@ -1191,18 +1191,11 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%GetTransactionSummary{address: address}) do
-    case TransactionChain.get_transaction(address, [
-           :address,
-           :type,
-           validation_stamp: [
-             :timestamp,
-             ledger_operations: [:node_movements, :transaction_movements]
-           ]
-         ]) do
-      {:ok, tx} ->
-        TransactionSummary.from_transaction(tx)
+    case TransactionChain.get_transaction_summary(address) do
+      {:ok, summary} ->
+        summary
 
-      _ ->
+      {:error, :not_found} ->
         %NotFound{}
     end
   end

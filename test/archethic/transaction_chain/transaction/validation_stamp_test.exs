@@ -8,7 +8,6 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -42,26 +41,14 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
   defp gen_ledger_operations do
     gen all(
           fee <- StreamData.positive_integer(),
-          node_movements <- StreamData.list_of(gen_node_movement()),
           transaction_movements <- StreamData.list_of(gen_transaction_movement()),
           unspent_outputs <- StreamData.list_of(gen_unspent_outputs())
         ) do
       %LedgerOperations{
         fee: fee,
-        node_movements: node_movements,
         transaction_movements: transaction_movements,
         unspent_outputs: unspent_outputs
       }
-    end
-  end
-
-  defp gen_node_movement do
-    gen all(
-          to <- StreamData.binary(length: 33),
-          amount <- StreamData.positive_integer(),
-          roles <- gen_roles()
-        ) do
-      %NodeMovement{to: to, amount: amount, roles: Enum.take(roles, 1)}
     end
   end
 
@@ -91,11 +78,5 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStampTest do
         ) do
       %UnspentOutput{from: from, amount: amount, type: type}
     end
-  end
-
-  defp gen_roles do
-    [:coordinator_node, :cross_validation_node, :previous_storage_node]
-    |> StreamData.one_of()
-    |> StreamData.uniq_list_of(min_length: 1, max_length: 3, max_tries: 100)
   end
 end

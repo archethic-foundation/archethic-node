@@ -41,7 +41,6 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
@@ -197,20 +196,7 @@ defmodule ArchEthic.BootstrapTest do
             timestamp: DateTime.utc_now(),
             proof_of_work: "",
             proof_of_integrity: "",
-            ledger_operations: %LedgerOperations{
-              node_movements: [
-                %NodeMovement{
-                  to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                  amount: 100_000_000,
-                  roles: [
-                    :welcome_node,
-                    :coordinator_node,
-                    :cross_validation_node,
-                    :previous_storage_node
-                  ]
-                }
-              ]
-            }
+            ledger_operations: %LedgerOperations{}
           }
 
           validated_tx = %{tx | validation_stamp: stamp}

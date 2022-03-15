@@ -16,7 +16,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   alias ArchEthic.Mining
 
   alias ArchEthic.PubSub
-  alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
 
@@ -133,11 +132,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.distribute_rewards(
-        %Node{last_public_key: Crypto.last_node_public_key()},
-        [%Node{last_public_key: Crypto.last_node_public_key()}],
-        []
-      )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
     validation_stamp =

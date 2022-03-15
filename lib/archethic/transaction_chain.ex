@@ -20,6 +20,7 @@ defmodule ArchEthic.TransactionChain do
 
   alias __MODULE__.Transaction
   alias __MODULE__.Transaction.ValidationStamp
+  alias __MODULE__.TransactionSummary
 
   require Logger
 
@@ -469,4 +470,25 @@ defmodule ArchEthic.TransactionChain do
   end
 
   defp get_last_transaction_address([], address, _), do: address
+
+  @doc """
+  Get a transaction summary from a transaction address
+  """
+  @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
+  def get_transaction_summary(address) do
+    case get_transaction(address, [
+           :address,
+           :type,
+           validation_stamp: [
+             :timestamp,
+             ledger_operations: [:fee, :transaction_movements]
+           ]
+         ]) do
+      {:ok, tx} ->
+        {:ok, TransactionSummary.from_transaction(tx)}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
 end
