@@ -3,13 +3,13 @@ defmodule ArchEthic.P2P.Message.GetTransactionChain do
   Represents a message to request an entire transaction chain
   """
   @enforce_keys [:address]
-  defstruct [:address, :after]
+  defstruct [:address, :after , :page]
 
   alias ArchEthic.Crypto
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),
           after: nil | DateTime.t(),
-          page: nil | number() | any
+          page: nil | binary()
         }
 end

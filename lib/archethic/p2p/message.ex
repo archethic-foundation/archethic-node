@@ -1004,7 +1004,7 @@ defmodule ArchEthic.P2P.Message do
       }) do
     {chain, new_page_state, more?} =
       tx_address
-      |> TransactionChain.get(after_time: date, page: current_page_state)
+      |> TransactionChain.get(after_time: after_time, page: current_page_state)
 
     # new_page_state contains the  page number of data being sent
     %TransactionList{transactions: chain, page: new_page_state, more?: more?}
@@ -1013,7 +1013,7 @@ defmodule ArchEthic.P2P.Message do
   def process(%GetTransactionChain{address: tx_address, after: nil, page: current_page_state}) do
     {chain, new_page_state, more?} =
       tx_address
-      |> TransactionChain.get(after_time: 0, page: current_page_state)
+      |> TransactionChain.get(after_time: nil, page: current_page_state)
 
     %TransactionList{transactions: chain, page: new_page_state, more?: more?}
   end

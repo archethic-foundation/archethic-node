@@ -74,51 +74,96 @@ defmodule ArchEthic.DB.CassandraImpl do
     end
   end
 
+  # @impl DB
+  # @doc """
+  # Fetch the transaction chain by address and project the requested fields from the transactions
+  # """
+  # @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
+  # def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
+  #   start = System.monotonic_time()
+
+  #   addresses_to_fetch =
+  #     page_stream
+  #     |> Stream.flat_map(& &1)
+  #     |> Enum.map(fn %{"transaction_address" => tx_address} ->
+  #       tx_address
+  #     end)
+  #     |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
+
+  #   # Chunk the reads while leveraging concurrency
+  #   # avoiding a connection to be open too long to read many transactions
+  #   chain =
+  #     addresses_to_fetch
+  #     |> Task.async_stream(&chunk_get_transaction(&1, fields))
+  #     |> Stream.filter(&match?({:ok, _}, &1))
+  #     |> Stream.map(fn {:ok, transactions} -> transactions end)
+  #     |> Enum.flat_map(& &1)
+
+  #   :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+  #     query: "get_transaction_chain"
+  #   })
+
+  #   chain
+  # end
+
   @impl DB
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
-  @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
-  def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
+  @spec get_transaction_chain(binary(), list()) :: {Enumerable.t(), boolean(), binary()}
+  def get_transaction_chain(
+        address,
+        [after_time: _after_time, page: _current_page_state] = options \\ [],
+        fields \\ []
+      )
+      when is_binary(address) and is_list(fields) and is_list(options) do
     start = System.monotonic_time()
 
-    prepared =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address=?"
-      )
+    {query, query_params} = get_transaction_chain_query(address, options)
+    prepared_statement = Xandra.prepare!(:xandra_conn , query)
+
+    execute_options = get_transaction_chain_options(address, options)
+
+    {:ok, page} = Xandra.execute(:xandra_conn , prepared_statement, query_params, execute_options)
+
+    paging_state = page.paging_state
+    more? = page.paging_state != nil
 
     addresses_to_fetch =
-      1..4
-      |> Task.async_stream(
-        fn bucket ->
-          :xandra_conn
-          |> Xandra.stream_pages!(prepared, [address, bucket], page_size: 10)
-          |> Stream.flat_map(& &1)
-          |> Enum.map(fn %{"transaction_address" => tx_address} ->
-            tx_address
-          end)
-        end,
-        max_concurrency: 4
-      )
-      |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
+      Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
 
-    # Chunk the reads while leveraging concurrency
-    # avoiding a connection to be open too long to read many transactions
     chain =
       addresses_to_fetch
-      |> Enum.chunk_every(10)
-      |> Task.async_stream(&chunk_get_transaction(&1, fields))
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Stream.map(fn {:ok, transactions} -> transactions end)
+      |> chunk_get_transaction(fields)
       |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
 
-    chain
+    {chain, more?, paging_state}
   end
+
+  defp get_transaction_chain_query(address, after_time: after_time, page: _current_page_state)
+       when is_nil(after_time) do
+    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? ",
+     [address]}
+  end
+
+  defp get_transaction_chain_query(address,
+         after_time: %DateTime{} = after_time,
+         page: _current_page_state
+       ) do
+    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp >=  ? ",
+     [address, after_time]}
+  end
+
+  defp get_transaction_chain_options(_address, after_time: _after_time, page: nil),
+    do: [page_size: 10]
+
+  defp get_transaction_chain_options(_address, after_time: _after_time, page: current_page_state)
+       when is_binary(current_page_state),
+       do: [page_size: 10, paging_state: current_page_state]
 
   defp chunk_get_transaction(addresses, fields) do
     Xandra.run(:xandra_conn, fn conn ->
@@ -298,12 +343,11 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         conn,
-        "INSERT INTO archethic.transaction_chains(chain_address, bucket, transaction_address, transaction_timestamp) VALUES(?, ?, ?, ?)"
+        "INSERT INTO archethic.transaction_chains(chain_address, transaction_address, transaction_timestamp) VALUES( ?, ?, ?)"
       )
 
     Xandra.execute!(conn, prepared, [
       chain_address,
-      bucket_from_date(tx_timestamp),
       tx_address,
       tx_timestamp
     ])
@@ -311,9 +355,9 @@ defmodule ArchEthic.DB.CassandraImpl do
     :ok
   end
 
-  defp bucket_from_date(%DateTime{month: month}) do
-    div(month + 2, 3)
-  end
+  # defp bucket_from_date(%DateTime{month: month}) do
+  #   div(month + 2, 3)
+  # end
 
   defp format_result_to_transaction(res) do
     res
@@ -364,22 +408,18 @@ defmodule ArchEthic.DB.CassandraImpl do
     prepared =
       Xandra.prepare!(
         :xandra_conn,
-        "SELECT COUNT(*) as size FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
+        "SELECT COUNT(*) as size FROM archethic.transaction_chains WHERE chain_address=? "
       )
 
-    Task.async_stream(
-      1..4,
-      fn bucket ->
-        :xandra_conn
-        |> Xandra.execute!(prepared, [address, bucket])
-        |> Enum.at(0, %{})
-        |> Map.get("size", 0)
-      end,
-      ordered: false
-    )
-    |> Enum.reduce(0, fn {:ok, size}, acc ->
-      acc + size
-    end)
+
+      :xandra_conn
+      |> Xandra.execute!(prepared, [address])
+      |> Enum.at(0, %{})
+      |> Map.get("size", 0)
+      |> Enum.reduce(0, fn {:ok, size}, acc ->
+        acc + size
+      end)
+
   end
 
   @impl DB

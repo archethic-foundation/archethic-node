@@ -2,13 +2,13 @@ defmodule ArchEthic.P2P.Message.TransactionList do
   @moduledoc """
   Represents a message with a list of transactions
   """
-  defstruct transactions: []
+  defstruct [:more? , :page, transactions: [],  ]
 
   alias ArchEthic.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transactions: list(Transaction.t()),
-          more?: boolean() | nil,
-          page: nil | number() | any
+          more?: boolean(),
+          page: nil | binary()
         }
 end

@@ -75,40 +75,37 @@ defmodule ArchEthic.Replication.TransactionContext do
 
       nodes ->
         # returns {:ok , []} else returns error
-        replicate_transaction_chain(nodes, address, timestamp)
+        replicate_transaction_chain(nodes, address, timestamp, nil ,[])
     end
   end
 
-  @doc """
 
-  """
-  defp replicate_transaction_chain(
-         nodes,
-         address,
-         time_after = %DateTime{},
-         page_state \\ nil,
-         prev_result \\ nil
-       )
+
 
   defp replicate_transaction_chain(
          [node | rest],
          address,
          time_after = %DateTime{},
          page_state \\ nil,
-         _prev_result
+         _prev_result \\ nil
        ) do
     case P2P.send_message(node, %GetTransactionChain{
            address: address,
            after: time_after,
            page: page_state
          }) do
+        # ------------------------------------------------------------------
+      #  case 0: erraneou cases
+      {:ok, %TransactionList{transactions: [], more?: _, page:  nil}} ->
+        replicate_transaction_chain(rest, address, time_after, nil, [])
+
       # ------------------------------------------------------------------
       #  case 1: if  txn_chain have many transactions and more than one page of data and more page  is pending
       #  then process transactions and request for next page data from same node against same time after
       #  if any error look for same data and time_after from another nodes
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} when page > 0 ->
+      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}}  ->
         case process_transactions(transactions, address, time_after, page) do
-          {:ok, new_time_after} ->
+          {:ok, _new_time_after} ->
             replicate_transaction_chain([node | rest], address, time_after, page, [])
 
           {:error, _} ->
@@ -120,7 +117,7 @@ defmodule ArchEthic.Replication.TransactionContext do
       #  then process transactions and get new_time_after from last transaction.
       #  then fetch for more Txn chain against same address and new_time_after from last_transaction
       #  from the remaining nodes, with page state nil.if error proceed with rest of nodes
-      {:ok, %TransactionList{transactions: transactions, more?: false, page: page}} when page >= 0 ->
+      {:ok, %TransactionList{transactions: transactions, more?: false, page: page}} ->
         case process_transactions(transactions, address, time_after, page) do
           {:ok, new_time_after} ->
             replicate_transaction_chain(rest, address, new_time_after, nil, [])
@@ -129,19 +126,16 @@ defmodule ArchEthic.Replication.TransactionContext do
             replicate_transaction_chain(rest, address, time_after, nil, [])
         end
 
-      # ------------------------------------------------------------------
-      #  case 0: erraneou cases
-      {:ok, %TransactionList{transactions: _ | [], more?: _, page: _ | nil}} ->
-        replicate_transaction_chain(rest, address, time_after, nil, [])
+
     end
   end
 
-  # return error if we cant fetch the transactions w.r.t address
-  defp replicate_transaction_chain([], _address, _time_after, _page_state, nil), do: {:error, []}
+   # return error if we cant fetch the transactions w.r.t address
+   defp replicate_transaction_chain([], _address, _time_after, _page_state, nil), do: {:error, []}
 
-  # determines end of recusion by marking empty nodes list and return {:ok , []}
-  defp replicate_transaction_chain([], _address, _time_after, _page_state, prev_result),
-    do: {:ok, prev_result}
+   # determines end of recusion by marking empty nodes list and return {:ok , []}
+   defp replicate_transaction_chain([], _address, _time_after, _page_state, prev_result),
+     do: {:ok, prev_result}
 
   defp process_transactions(_transactions, _address, time_after, _page) do
     # case write_to_db(transactions,address,page)// includes validate.veridfytxndo
