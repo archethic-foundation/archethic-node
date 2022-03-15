@@ -81,51 +81,60 @@ defmodule ArchEthic.DB.CassandraImpl do
   @spec get_transaction_chain(binary(), list()) :: {Enumerable.t(), boolean(), binary()}
   def get_transaction_chain(
         address,
-        [after_time: _after_time, page: _current_page_state] = options \\ [],
+         options \\ [],
         fields \\ []
       )
       when is_binary(address) and is_list(fields) and is_list(options) do
     start = System.monotonic_time()
-
     {query, query_params} = get_transaction_chain_query(address, options)
     prepared_statement = Xandra.prepare!(:xandra_conn, query)
 
     execute_options = get_transaction_chain_options(address, options)
     # edgecases/errors here are handled by process crash
-    {:ok, page} = Xandra.execute(:xandra_conn, prepared_statement, query_params, execute_options)
-
+    {:ok, page} =  Xandra.execute( :xandra_conn , prepared_statement, query_params, execute_options )
     paging_state = page.paging_state
     more? = page.paging_state != nil
 
+    addresses_to_fetch =
+    Enum.map( page , fn %{"transaction_address" => tx_address} ->  tx_address end)
+
     chain =
-      Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
-      |> chunk_get_transaction(fields)
-      |> Enum.flat_map(& &1)
+            addresses_to_fetch
+          |> chunk_get_transaction(fields)
+      # |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
 
-    {chain, more?, paging_state}
+    [chain: chain , more?: more? , paging_state: paging_state]
   end
 
-  defp get_transaction_chain_query(address, after_time: nil, page: _current_page_state) do
+  defp get_transaction_chain_query(address, [] ) do
+    {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
+     [address]}
+  end
+
+  defp get_transaction_chain_query(address, [after_time: nil, page: _current_page_state]) do
     {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
      [address]}
   end
 
   defp get_transaction_chain_query(address,
-         after_time: %DateTime{} = after_time,
-         page: _current_page_state
+        [ after_time: %DateTime{} = after_time,
+         page: _current_page_state]
        ) do
     {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp >=  ? ",
      [address, after_time]}
   end
 
-  defp get_transaction_chain_options(_address, after_time: _after_time, page: nil),
+  defp get_transaction_chain_options(_address,[]),
     do: [page_size: 10]
 
-  defp get_transaction_chain_options(_address, after_time: _after_time, page: current_page_state)
+  defp get_transaction_chain_options(_address,[after_time: _after_time, page: nil]),
+    do: [page_size: 10]
+
+  defp get_transaction_chain_options(_address,[ after_time: _after_time, page: current_page_state])
        when is_binary(current_page_state),
        do: [page_size: 10, paging_state: current_page_state]
 

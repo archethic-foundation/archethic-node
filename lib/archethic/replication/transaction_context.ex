@@ -33,36 +33,38 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        do_fetch_transaction_chain(nodes, {address, timestamp, _page_state = nil})
+        do_fetch_transaction_chain(nodes, {address, timestamp, _page_state = nil}, [])
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, fetch_options, prev_result \\ nil)
+  # defp do_fetch_transaction_chain(nodes, fetch_options, prev_result )
 
-  defp do_fetch_transaction_chain([node | rest], fetch_options, _prev_result) do
+  defp do_fetch_transaction_chain([node | rest], fetch_options, prev_result) do
     {address, time_after, page_state} = fetch_options
 
     message = %GetTransactionChain{address: address, after: time_after, page: page_state}
+    # query all the nodes and keep uniqure txn only ends when no more nodes to query
 
     case P2P.send_message(node, message) do
       {:ok, %TransactionList{transactions: [], more?: _, page: _}} ->
-        do_fetch_transaction_chain(rest, {address, time_after, page_state}, [])
+        do_fetch_transaction_chain(rest, {address, time_after, page_state}, prev_result)
 
       {:ok, %TransactionList{transactions: transactions, more?: true, page: paging_state}} ->
-        process_transactions(transactions, address)
-        # transactions
-        do_fetch_transaction_chain([node | rest], {address, time_after, paging_state})
-
-      # return txn or not?
+        do_fetch_transaction_chain(
+          [node | rest],
+          {address, time_after, paging_state},
+          [List.flatten(transactions) | List.flatten(prev_result)] |> Enum.uniq()
+        )
 
       {:ok, %TransactionList{transactions: transactions, more?: false, page: _paging_state}} ->
-        process_transactions(transactions, address)
-        do_fetch_transaction_chain(rest, {address, time_after, nil})
-
-      # return txn or not?
+        do_fetch_transaction_chain(
+          rest,
+          {address, time_after, nil},
+          [List.flatten(transactions) | List.flatten(prev_result)] |> Enum.uniq()
+        )
 
       {:error, _} ->
-        do_fetch_transaction_chain(rest, address)
+        do_fetch_transaction_chain(rest, {address, time_after, nil}, prev_result)
     end
   end
 
@@ -70,10 +72,6 @@ defmodule ArchEthic.Replication.TransactionContext do
     do: raise("Cannot fetch transaction chain")
 
   defp do_fetch_transaction_chain([], _fetch_options, prev_result), do: prev_result
-
-  defp process_transactions(transaction_list, _address) do
-    Enum.each(transaction_list, &ArchEthic.Replication.validate_and_store_transaction(&1))
-  end
 
   @doc """
   Fetch the transaction unspent outputs
