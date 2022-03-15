@@ -139,7 +139,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       tx_summary = %TransactionSummary{
         address: addr1,
         timestamp: DateTime.utc_now(),
-        type: :transfer
+        type: :transfer,
+        fee: 100_000_000
       }
 
       storage_nodes =
@@ -195,7 +196,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
             transaction_summary: %TransactionSummary{
               address: addr1,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           }
         ]
@@ -209,14 +211,16 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
             transaction_summary: %TransactionSummary{
               address: addr1,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           },
           %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
               address: addr2,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           }
         ]

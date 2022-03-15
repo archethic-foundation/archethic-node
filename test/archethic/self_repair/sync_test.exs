@@ -174,7 +174,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       tx_summary = %TransactionSummary{
         address: tx.address,
         type: :transfer,
-        timestamp: DateTime.utc_now()
+        timestamp: DateTime.utc_now(),
+        fee: 100_000_000
       }
 
       elected_storage_nodes =
