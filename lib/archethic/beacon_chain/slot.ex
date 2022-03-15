@@ -175,6 +175,78 @@ defmodule ArchEthic.BeaconChain.Slot do
            }
          ]
        }
+
+    Append transaction attestations
+
+       iex> %Slot{transaction_attestations: [
+       ...>   %ReplicationAttestation{
+       ...>    transaction_summary: %TransactionSummary{
+       ...>      address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+       ...>         168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
+       ...>      timestamp: ~U[2020-06-25 15:11:53Z],
+       ...>      type: :transfer,
+       ...>      movements_addresses: [],
+       ...>      fee: 10_000_000
+       ...>    },
+       ...>    confirmations: [{0, <<185, 37, 172, 79, 189, 197, 94, 202, 41, 160, 222, 127, 227, 180, 133, 62, 76,
+       ...>      29, 230, 10, 100, 79, 47, 49, 139, 117, 0, 64, 89, 229, 228, 214, 6, 49, 119,
+       ...>      32, 180, 47, 189, 143, 239, 156, 56, 234, 236, 128, 17, 79, 236, 211, 124,
+       ...>      158, 142, 23, 151, 43, 50, 153, 52, 195, 144, 226, 247, 65>>
+       ...>    }]
+       ...>  }
+       ...> ]}
+       ...> |> Slot.add_transaction_attestation(%ReplicationAttestation{
+       ...>   transaction_summary: %TransactionSummary{
+       ...>      address: <<0, 0, 63, 243, 35, 90, 94, 187, 142, 185, 202, 188, 247, 248, 215, 170, 18, 115, 50,
+       ...>        235, 117, 27, 105, 90, 132, 206, 105, 234, 200, 227, 176, 210, 46, 69>>,
+       ...>      timestamp: ~U[2020-06-25 15:11:53Z],
+       ...>      type: :transfer,
+       ...>      movements_addresses: [],
+       ...>      fee: 10_000_000
+       ...>    },
+       ...>    confirmations: [{1, <<89, 98, 246, 6, 202, 116, 247, 88, 69, 148, 188, 173, 34, 0, 194, 108, 169,
+       ...>      155, 63, 197, 200, 6, 31, 148, 57, 152, 195, 154, 181, 14, 77, 9, 161, 38,
+       ...>      239, 151, 241, 35, 93, 254, 65, 201, 152, 57, 187, 225, 86, 235, 56, 206, 134,
+       ...>      141, 174, 141, 29, 28, 173, 17, 4, 78, 129, 33, 68, 4>>}],
+       ...> })
+       %Slot{
+         transaction_attestations: [
+           %ReplicationAttestation{
+             transaction_summary: %TransactionSummary{
+               address: <<0, 0, 63, 243, 35, 90, 94, 187, 142, 185, 202, 188, 247, 248, 215, 170, 18, 115, 50,
+                 235, 117, 27, 105, 90, 132, 206, 105, 234, 200, 227, 176, 210, 46, 69>>,
+               timestamp: ~U[2020-06-25 15:11:53Z],
+               type: :transfer,
+               movements_addresses: [],
+               fee: 10_000_000
+             },
+             confirmations: [{1, <<89, 98, 246, 6, 202, 116, 247, 88, 69, 148, 188, 173, 34, 0, 194, 108, 169,
+               155, 63, 197, 200, 6, 31, 148, 57, 152, 195, 154, 181, 14, 77, 9, 161, 38,
+               239, 151, 241, 35, 93, 254, 65, 201, 152, 57, 187, 225, 86, 235, 56, 206, 134,
+               141, 174, 141, 29, 28, 173, 17, 4, 78, 129, 33, 68, 4>>}]
+           },
+           %ReplicationAttestation{
+             transaction_summary: %TransactionSummary{
+               address:  <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
+                  168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247>>,
+               timestamp: ~U[2020-06-25 15:11:53Z],
+               type: :transfer,
+               movements_addresses: [],
+               fee: 10_000_000
+             },
+             confirmations: [
+               {
+                 0,
+                 <<185, 37, 172, 79, 189, 197, 94, 202, 41, 160, 222, 127, 227, 180, 133, 62, 76,
+                   29, 230, 10, 100, 79, 47, 49, 139, 117, 0, 64, 89, 229, 228, 214, 6, 49, 119,
+                   32, 180, 47, 189, 143, 239, 156, 56, 234, 236, 128, 17, 79, 236, 211, 124,
+                   158, 142, 23, 151, 43, 50, 153, 52, 195, 144, 226, 247, 65>>
+               }
+             ]
+           }
+         ]
+       }
+
   """
   @spec add_transaction_attestation(
           __MODULE__.t(),
@@ -193,7 +265,7 @@ defmodule ArchEthic.BeaconChain.Slot do
            &(&1.transaction_summary.address == tx_address)
          ) do
       nil ->
-        %{slot | transaction_attestations: [attestation]}
+        Map.update!(slot, :transaction_attestations, &[attestation | &1])
 
       index ->
         add_transaction_attestation_confirmations(slot, index, confirmations)
