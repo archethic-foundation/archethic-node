@@ -32,7 +32,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
   def initiator? do
     %Node{first_public_key: initiator_key} =
       next_address()
-      |> Election.storage_nodes(P2P.authorized_nodes())
+      |> Election.storage_nodes(P2P.authorized_nodes(DateTime.utc_now()))
       |> List.first()
 
     initiator_key == Crypto.first_node_public_key()

@@ -17,7 +17,7 @@ defmodule ArchEthic.Mining do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
-  alias ArchEthic.SelfRepair
+  # alias ArchEthic.SelfRepair
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
@@ -57,22 +57,32 @@ defmodule ArchEthic.Mining do
   """
   @spec transaction_validation_node_list(Transaction.transaction_type(), DateTime.t()) ::
           list(Node.t())
-  def transaction_validation_node_list(tx_type, time = %DateTime{}) do
-    if Transaction.network_type?(tx_type) do
-      last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(time)
-
-      # Get the authorized nodes which were authorize before the previous self repair date
-      case P2P.authorized_nodes(last_self_repair_date) do
+  def transaction_validation_node_list(_tx_type, time = %DateTime{}) do
+    case P2P.authorized_nodes(time) do
+      [] ->
         # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
-        [] ->
-          P2P.authorized_nodes()
+        P2P.authorized_nodes()
 
-        authorized_nodes ->
-          authorized_nodes
-      end
-    else
-      P2P.authorized_nodes(time)
+      nodes ->
+        nodes
     end
+
+    # if Transaction.network_type?(tx_type) do
+    #  #last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(time)
+    #  #
+
+    #  ## Get the authorized nodes which were authorize before the previous self repair date
+    #  #case P2P.authorized_nodes(last_self_repair_date) do
+    #  #  # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
+    #  #  [] ->
+    #  #    P2P.authorized_nodes()
+
+    #  #  authorized_nodes ->
+    #  #    authorized_nodes
+    #  #end
+    # else
+    #  P2P.authorized_nodes(time)
+    # end
   end
 
   @doc """
