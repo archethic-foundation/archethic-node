@@ -82,26 +82,12 @@ defmodule ArchEthic.DB.CassandraImpl do
   def get_transaction_chain(address, fields \\ []) when is_binary(address) and is_list(fields) do
     start = System.monotonic_time()
 
-    prepared =
-      Xandra.prepare!(
-        :xandra_conn,
-        "SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
-      )
-
     addresses_to_fetch =
-      1..4
-      |> Task.async_stream(
-        fn bucket ->
-          :xandra_conn
-          |> Xandra.stream_pages!(prepared, [address, bucket], page_size: 10)
-          |> Stream.flat_map(& &1)
-          |> Enum.map(fn %{"transaction_address" => tx_address} ->
-            tx_address
-          end)
-        end,
-        max_concurrency: 4
-      )
-      |> Enum.flat_map(fn {:ok, addresses} -> addresses end)
+      :xandra_conn
+      |> do_get_transaction_chain(address, [:transaction_address])
+      |> Enum.map(fn %{"transaction_address" => tx_address} ->
+        tx_address
+      end)
 
     # Chunk the reads while leveraging concurrency
     # avoiding a connection to be open too long to read many transactions
@@ -118,6 +104,26 @@ defmodule ArchEthic.DB.CassandraImpl do
     })
 
     chain
+  end
+
+  defp do_get_transaction_chain(conn, address, fields) do
+    prepared =
+      Xandra.prepare!(
+        conn,
+        "SELECT #{CQL.list_to_cql(fields)} FROM archethic.transaction_chains WHERE chain_address=? and bucket=?"
+      )
+
+    1..4
+    |> Task.async_stream(
+      fn bucket ->
+        :xandra_conn
+        |> Xandra.stream_pages!(prepared, [address, bucket], page_size: 10)
+        |> Stream.flat_map(& &1)
+        |> Enum.to_list()
+      end,
+      max_concurrency: 4
+    )
+    |> Enum.flat_map(fn {:ok, entries} -> entries end)
   end
 
   defp chunk_get_transaction(addresses, fields) do
@@ -143,6 +149,18 @@ defmodule ArchEthic.DB.CassandraImpl do
     Xandra.run(:xandra_conn, fn conn ->
       do_write_transaction(conn, tx)
       add_transaction_to_chain(conn, tx_address, tx_timestamp, tx_address)
+
+      # Add transaction to the previous chain
+      do_get_transaction_chain(conn, Transaction.previous_address(tx), [
+        :transaction_address,
+        :transaction_timestamp
+      ])
+      |> Enum.each(fn %{
+                        "transaction_address" => prev_tx_address,
+                        "transaction_timestamp" => prev_tx_timestamp
+                      } ->
+        add_transaction_to_chain(conn, prev_tx_address, prev_tx_timestamp, tx_address)
+      end)
     end)
   end
 
