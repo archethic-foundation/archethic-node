@@ -142,8 +142,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
        }}
     end
 
-    test "should retrieve the missing beacon summaries from the given date",
-         context do
+    test "should retrieve the missing beacon summaries from the given date" do
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
       |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
@@ -158,7 +157,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         }
       ]
 
-      tx = TransactionFactory.create_valid_transaction(context, inputs)
+      tx = TransactionFactory.create_valid_transaction(inputs)
 
       me = self()
 
@@ -175,7 +174,8 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       tx_summary = %TransactionSummary{
         address: tx.address,
         type: :transfer,
-        timestamp: DateTime.utc_now()
+        timestamp: DateTime.utc_now(),
+        fee: 100_000_000
       }
 
       elected_storage_nodes =

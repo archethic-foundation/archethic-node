@@ -141,7 +141,6 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
-    field(:node_movements, list_of(:node_movement))
     field(:unspent_outputs, list_of(:unspent_output))
     field(:fee, :amount)
   end
@@ -193,17 +192,6 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :address)
-  end
-
-  @desc """
-  [NodeMovement] represents node transaction movement
-  It includes:
-  - To: node public key
-  - Amount: reward (UCO)
-  """
-  object :node_movement do
-    field(:to, :public_key)
-    field(:amount, :amount)
   end
 
   @desc """

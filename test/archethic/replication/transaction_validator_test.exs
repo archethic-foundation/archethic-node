@@ -46,8 +46,7 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
         last_public_key: "key3",
         available?: true,
         geo_patch: "BBB",
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1),
-        authorized?: true
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       }
     ]
 
@@ -65,101 +64,67 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
   end
 
   describe "validate/2" do
-    test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached",
-         context do
+    test "should return {:error, :invalid_atomic_commitment} when the atomic commitment is not reached" do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert {:error, :invalid_atomic_commitment} =
-               context
-               |> TransactionFactory.create_transaction_with_not_atomic_commitment(
-                 unspent_outputs
-               )
+               TransactionFactory.create_transaction_with_not_atomic_commitment(unspent_outputs)
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_proof_of_work} when an invalid proof of work",
-         context do
+    test "should return {:error, :invalid_proof_of_work} when an invalid proof of work" do
       assert {:error, :invalid_proof_of_work} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_proof_of_work([])
+               TransactionFactory.create_transaction_with_invalid_proof_of_work()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_proof_of_election} when an invalid proof of work",
-         context do
+    test "should return {:error, :invalid_proof_of_election} when an invalid proof of work" do
       assert {:error, :invalid_proof_of_election} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_proof_of_election([])
+               TransactionFactory.create_transaction_with_invalid_proof_of_election()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_validation_stamp_signature} when the validation stamp signature is invalid",
-         context do
-      assert {:error, :invalid_validation_stamp_signature} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_validation_stamp_signature(
-                 []
-               )
+    test "should return {:error, :invalid_node_election} when the validation stamp signature is invalid" do
+      assert {:error, :invalid_node_election} =
+               TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_transaction_fee} when the fees are invalid",
-         context do
+    test "should return {:error, :invalid_transaction_fee} when the fees are invalid" do
       assert {:error, :invalid_transaction_fee} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_fee([])
+               TransactionFactory.create_transaction_with_invalid_fee()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_transaction_movements} when the transaction movements are invalid",
-         context do
+    test "should return {:error, :invalid_transaction_movements} when the transaction movements are invalid" do
       assert {:error, :invalid_transaction_movements} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_transaction_movements([])
+               TransactionFactory.create_transaction_with_invalid_transaction_movements()
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, ::invalid_cross_validation_nodes_movements} when the node movements are invalid",
-         context do
-      unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
-
-      assert {:error, :invalid_cross_validation_nodes_movements} =
-               context
-               |> TransactionFactory.create_transaction_with_invalid_node_movements(
-                 unspent_outputs
-               )
-               |> TransactionValidator.validate()
-    end
-
-    test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies",
-         context do
+    test "should return {:error, :invalid_transaction_with_inconsistencies} when there is an atomic commitment but with inconsistencies" do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert {:error, :invalid_transaction_with_inconsistencies} =
-               context
-               |> TransactionFactory.create_valid_transaction_with_inconsistencies(
-                 unspent_outputs
-               )
+               TransactionFactory.create_valid_transaction_with_inconsistencies(unspent_outputs)
                |> TransactionValidator.validate()
     end
 
-    test "should return :ok when the transaction is valid", context do
+    test "should return :ok when the transaction is valid" do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert :ok =
-               context
-               |> TransactionFactory.create_valid_transaction(unspent_outputs)
+               TransactionFactory.create_valid_transaction(unspent_outputs)
                |> TransactionValidator.validate()
     end
   end
 
   describe "validate/3" do
-    test "should return :ok when the transaction is valid", context do
+    test "should return :ok when the transaction is valid" do
       unspent_outputs = [%UnspentOutput{from: "@Alice2", amount: 1_000_000_000, type: :UCO}]
 
       assert :ok =
-               context
-               |> TransactionFactory.create_valid_transaction(unspent_outputs)
+               TransactionFactory.create_valid_transaction(unspent_outputs)
                |> TransactionValidator.validate(nil, unspent_outputs)
     end
   end
