@@ -213,7 +213,11 @@ defmodule ArchEthic.Replication.TransactionValidator do
 
       _ ->
         storage_nodes =
-          Election.chain_storage_nodes_with_type(tx_address, tx_type, P2P.available_nodes())
+          Election.chain_storage_nodes_with_type(
+            tx_address,
+            tx_type,
+            P2P.authorized_nodes(tx_timestamp)
+          )
 
         validation_nodes =
           Election.validation_nodes(
