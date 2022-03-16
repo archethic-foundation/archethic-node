@@ -46,14 +46,14 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.available_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
@@ -106,7 +106,7 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     Logger.info(
-      "Send validated transaction to #{Enum.map_join(chain_storage_nodes, ",", &"#{Node.endpoint(&1)}")}",
+      "Send transaction to storage nodes: #{Enum.map_join(chain_storage_nodes, ",", &"#{Node.endpoint(&1)}")}",
       transaction_address: Base.encode16(validated_tx.address),
       transaction_type: validated_tx.type
     )
@@ -178,18 +178,33 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
       confirmations: confirmations
     }
 
-    P2P.broadcast_message(
-      P2P.distinct_nodes([welcome_node | beacon_storage_nodes]),
-      attestation
-    )
+    [welcome_node | beacon_storage_nodes]
+    |> P2P.distinct_nodes()
+    |> tap(fn nodes ->
+      Logger.debug("Send attestation to #{Enum.map_join(nodes, ",", &"#{Node.endpoint(&1)}")}",
+        transaction_address: Base.encode16(tx_summary.address),
+        transaction_type: tx_summary.type
+      )
+    end)
+    |> P2P.broadcast_message(attestation)
   end
 
-  defp notify_io_nodes(%ValidationContext{
-         io_storage_nodes: io_storage_nodes,
-         transaction: tx,
-         chain_storage_nodes: chain_storage_nodes
-       }) do
+  defp notify_io_nodes(
+         context = %ValidationContext{
+           io_storage_nodes: io_storage_nodes,
+           chain_storage_nodes: chain_storage_nodes
+         }
+       ) do
+    validated_tx = ValidationContext.get_validated_transaction(context)
+
     (io_storage_nodes -- chain_storage_nodes)
-    |> P2P.broadcast_message(%ReplicateTransaction{transaction: tx})
+    |> tap(fn nodes ->
+      Logger.debug(
+        "Send transaction to IO nodes: #{Enum.map_join(nodes, ",", &"#{Node.endpoint(&1)}")}",
+        transaction_address: Base.encode16(validated_tx.address),
+        transaction_type: validated_tx.type
+      )
+    end)
+    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
   end
 end

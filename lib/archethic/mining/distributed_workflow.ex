@@ -127,14 +127,14 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.available_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     context =

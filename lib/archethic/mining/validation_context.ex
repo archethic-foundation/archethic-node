@@ -770,17 +770,22 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp add_io_storage_nodes(
          context = %__MODULE__{
+           transaction: %Transaction{type: type},
            validation_stamp: %ValidationStamp{
              ledger_operations: ledger_ops,
              recipients: recipients
            }
          }
        ) do
-    movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
-
     io_storage_nodes =
-      (movement_addresses ++ recipients)
-      |> Election.io_storage_nodes(P2P.available_nodes())
+      if Transaction.network_type?(type) do
+        P2P.available_nodes()
+      else
+        movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
+
+        (movement_addresses ++ recipients)
+        |> Election.io_storage_nodes(P2P.available_nodes())
+      end
 
     %{context | io_storage_nodes: io_storage_nodes}
   end
