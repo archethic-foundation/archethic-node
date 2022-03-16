@@ -49,18 +49,14 @@ defmodule ArchEthic.Replication.TransactionContext do
       {:ok, %TransactionList{transactions: [], more?: _, page: _}} ->
         do_fetch_transaction_chain(rest, {address, time_after, page_state}, prev_result)
 
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: paging_state}} ->
-        do_fetch_transaction_chain(
-          [node | rest],
-          {address, time_after, paging_state},
-          [List.flatten(transactions) | List.flatten(prev_result)] |> Enum.uniq()
-        )
+      {:ok, %TransactionList{transactions: transactions, more?: true, page: _paging_state}} ->
+            [transactions]
 
       {:ok, %TransactionList{transactions: transactions, more?: false, page: _paging_state}} ->
         do_fetch_transaction_chain(
           rest,
           {address, time_after, nil},
-          [List.flatten(transactions) | List.flatten(prev_result)] |> Enum.uniq()
+          List.flatten([transactions | prev_result]) |> Enum.uniq()
         )
 
       {:error, _} ->
