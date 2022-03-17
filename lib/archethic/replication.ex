@@ -89,7 +89,9 @@ defmodule ArchEthic.Replication do
         transaction_type: type
       )
 
-      {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+
+      { [chain: chain, paging_state: _paging_state]  , inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+
 
       Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
         transaction_address: Base.encode16(address),
@@ -211,6 +213,8 @@ defmodule ArchEthic.Replication do
          tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
          self_repair?
        ) do
+
+
     if Transaction.network_type?(type) do
       do_fetch_context_for_network_transaction(tx, timestamp, self_repair?)
     else
@@ -220,6 +224,7 @@ defmodule ArchEthic.Replication do
 
   defp do_fetch_context_for_network_transaction(tx, timestamp, self_repair?) do
     previous_address = Transaction.previous_address(tx)
+
 
     Logger.debug(
       "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) locally",
@@ -237,7 +242,10 @@ defmodule ArchEthic.Replication do
           transaction_address: Base.encode16(tx.address)
         )
 
-        TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
+
+       data = TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
+       require IEx; IEx.pry
+        data
       else
         previous_chain
       end
@@ -248,6 +256,8 @@ defmodule ArchEthic.Replication do
   end
 
   defp fetch_context_for_regular_transaction(tx, timestamp, self_repair?) do
+
+
     previous_address = Transaction.previous_address(tx)
 
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
@@ -258,10 +268,14 @@ defmodule ArchEthic.Replication do
             transaction_address: Base.encode16(tx.address)
           )
 
-          TransactionContext.fetch_transaction_chain(previous_address, timestamp)
+          data = TransactionContext.fetch_transaction_chain(previous_address, timestamp)
+          require IEx; IEx.pry
+
         end),
         Task.async(fn ->
           fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
+
+
         end)
       ])
 

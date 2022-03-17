@@ -73,7 +73,7 @@ defmodule ArchEthic.Replication.TransactionContext do
   defp do_fetch_transaction_chain([], _fetch_options, nil),
     do: raise("Cannot fetch transaction chain")
 
-  defp do_fetch_transaction_chain([], _fetch_options, prev_result), do: [prev_result]
+  defp do_fetch_transaction_chain([], _fetch_options, prev_result), do: prev_result
 
   @doc """
   Fetch the transaction unspent outputs
