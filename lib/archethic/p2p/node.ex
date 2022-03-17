@@ -44,6 +44,7 @@ defmodule ArchEthic.P2P.Node do
       iex> Node.decode_transaction_content(<<
       ...>  127, 0, 0, 1,
       ...>  11, 184,
+      ...>  15, 160,
       ...>  1,
       ...>  0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
@@ -56,6 +57,7 @@ defmodule ArchEthic.P2P.Node do
       { :ok,
         {127, 0, 0, 1},
         3000,
+        4000,
         :tcp,
         <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
           89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
@@ -94,6 +96,7 @@ defmodule ArchEthic.P2P.Node do
       iex> Node.encode_transaction_content(
       ...> {127, 0, 0, 1},
       ...> 3000,
+      ...> 4000,
       ...> :tcp,
       ...> <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>   89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
@@ -107,6 +110,8 @@ defmodule ArchEthic.P2P.Node do
       127,0, 0, 1,
       # Port
       11, 184,
+      # HTTP Port
+      15, 160,
       # Transport
       1,
       # Reward address
@@ -333,6 +338,8 @@ defmodule ArchEthic.P2P.Node do
       127, 0, 0, 1,
       # Port
       11, 184,
+      # http Port
+      15, 160,
       # Transport (1: TCP)
       1,
       # Geo patch
@@ -367,6 +374,7 @@ defmodule ArchEthic.P2P.Node do
   def serialize(%__MODULE__{
         ip: {o1, o2, o3, o4},
         port: port,
+        http_port: http_port,
         transport: transport,
         first_public_key: first_public_key,
         last_public_key: last_public_key,
@@ -389,7 +397,7 @@ defmodule ArchEthic.P2P.Node do
 
     avg_bin = trunc(average_availability * 100)
 
-    <<ip_bin::binary-size(4), port::16, serialize_transport(transport)::8,
+    <<ip_bin::binary-size(4), port::16, http_port::16, serialize_transport(transport)::8,
       geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
       DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
@@ -405,7 +413,7 @@ defmodule ArchEthic.P2P.Node do
   ## Examples
 
       iex> Node.deserialize(<<
-      ...> 127, 0, 0, 1, 11, 184, 1, "FA9", "AVC", 80,
+      ...> 127, 0, 0, 1, 11, 184, 15, 160, 1, "FA9", "AVC", 80,
       ...> 94, 245, 179, 123, 1::1,
       ...> 1::1, 94, 245, 179, 123,
       ...> 0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
@@ -425,6 +433,7 @@ defmodule ArchEthic.P2P.Node do
               92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
             ip: {127, 0, 0, 1},
             port: 3000,
+            http_port: 4000,
             transport: :tcp,
             geo_patch: "FA9",
             network_patch: "AVC",
@@ -443,9 +452,10 @@ defmodule ArchEthic.P2P.Node do
   """
   @spec deserialize(bitstring()) :: {ArchEthic.P2P.Node.t(), bitstring}
   def deserialize(
-        <<ip_bin::binary-size(4), port::16, transport::8, geo_patch::binary-size(3),
-          network_patch::binary-size(3), average_availability::8, enrollment_date::32,
-          available::1, authorized::1, authorization_date::32, rest::bitstring>>
+        <<ip_bin::binary-size(4), port::16, http_port::16, transport::8,
+          geo_patch::binary-size(3), network_patch::binary-size(3), average_availability::8,
+          enrollment_date::32, available::1, authorized::1, authorization_date::32,
+          rest::bitstring>>
       ) do
     <<o1, o2, o3, o4>> = ip_bin
     available? = if available == 1, do: true, else: false
@@ -463,6 +473,7 @@ defmodule ArchEthic.P2P.Node do
       %__MODULE__{
         ip: {o1, o2, o3, o4},
         port: port,
+        http_port: http_port,
         transport: deserialize_transport(transport),
         geo_patch: geo_patch,
         network_patch: network_patch,

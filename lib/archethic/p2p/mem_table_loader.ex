@@ -92,12 +92,6 @@ defmodule ArchEthic.P2P.MemTableLoader do
       reward_address: reward_address
     }
 
-    IO.inspect(node,
-      label: "<---------- [node] ---------->",
-      limit: :infinity,
-      printable_limit: :infinity
-    )
-
     if first_node_change?(first_public_key, previous_public_key) do
       node
       |> Node.enroll(timestamp)

@@ -422,6 +422,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
       %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: "key3",
         last_public_key: "key3",
         available?: true,

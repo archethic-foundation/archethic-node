@@ -118,7 +118,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     seeds_str
     |> String.split("\n", trim: true)
     |> Enum.map(fn seed ->
-      [ip, port, public_key, transport] = String.split(seed, ":")
+      [ip, port, http_port, public_key, transport] = String.split(seed, ":")
       {:ok, ip} = ip |> String.to_charlist() |> :inet.parse_address()
 
       patch = GeoPatch.from_ip(ip)
@@ -126,6 +126,7 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
       %Node{
         ip: ip,
         port: String.to_integer(port),
+        http_port: String.to_integer(http_port),
         last_public_key: Base.decode16!(public_key, case: :mixed),
         first_public_key: Base.decode16!(public_key, case: :mixed),
         geo_patch: patch,
@@ -144,9 +145,9 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
 
   ## Examples
 
-      iex> [ %Node{ip: {127, 0, 0, 1}, port: 3000, first_public_key: "mykey", transport: :tcp} ]
+      iex> [ %Node{ip: {127, 0, 0, 1}, port: 3000, http_port: 4000, first_public_key: "mykey", transport: :tcp} ]
       ...> |> BootstrappingSeeds.nodes_to_seeds()
-      "127.0.0.1:3000:6D796B6579:tcp"
+      "127.0.0.1:3000:4000:6D796B6579:tcp"
   """
   @spec nodes_to_seeds(list(Node.t())) :: binary()
   def nodes_to_seeds(nodes) when is_list(nodes) do
@@ -154,11 +155,13 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
     |> Enum.reduce([], fn %Node{
                             ip: ip,
                             port: port,
+                            http_port: http_port,
                             first_public_key: public_key,
                             transport: transport
                           },
                           acc ->
-      acc ++ ["#{:inet_parse.ntoa(ip)}:#{port}:#{Base.encode16(public_key)}:#{transport}"]
+      acc ++
+        ["#{:inet_parse.ntoa(ip)}:#{port}:#{http_port}:#{Base.encode16(public_key)}:#{transport}"]
     end)
     |> Enum.join("\n")
   end

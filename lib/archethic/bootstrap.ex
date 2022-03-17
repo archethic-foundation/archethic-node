@@ -91,12 +91,6 @@ defmodule ArchEthic.Bootstrap do
         reward_address
       )
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
-    IO.inspect(http_port,
-      label: "<---------- [http_port] ---------->",
-      limit: :infinity,
-      printable_limit: :infinity
-    )
-
     network_patch =
       case P2P.get_node_info(Crypto.first_node_public_key()) do
         {:ok, %Node{network_patch: patch}} ->
