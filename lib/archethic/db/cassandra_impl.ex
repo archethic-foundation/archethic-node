@@ -79,19 +79,18 @@ defmodule ArchEthic.DB.CassandraImpl do
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
   @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
-  def get_transaction_chain(
-        address,
-        options \\ [],
-        fields \\ []
-      )
-      when is_binary(address) and is_list(fields) and is_list(options) do
+  def get_transaction_chain(address, all_fields \\ [])
+      when is_binary(address) and is_list(all_fields) do
     start = System.monotonic_time()
+
+    {options, fields} = Enum.split_while(all_fields, &get_options_and_fields(&1))
+
     {query, query_params} = get_transaction_chain_query(address, options)
     prepared_statement = Xandra.prepare!(:xandra_conn, query)
 
     execute_options = get_transaction_chain_options(address, options)
     # edgecases/errors here are handled by process crash
-    {:ok, page} = Xandra.execute(:xandra_conn, prepared_statement, query_params, execute_options)
+    {:ok, page} = Xandra.execute!(:xandra_conn, prepared_statement, query_params, execute_options)
     paging_state = page.paging_state
 
     addresses_to_fetch =
@@ -110,20 +109,44 @@ defmodule ArchEthic.DB.CassandraImpl do
     [chain: chain, page: paging_state]
   end
 
+  def get_options_and_fields({key, _value}) do
+    case key do
+      :after -> true
+      :page -> true
+      _ -> false
+    end
+  end
+
   defp get_transaction_chain_query(address, []) do
     {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
      [address]}
   end
 
-  defp get_transaction_chain_query(address, after_time: nil, page: _current_page_state) do
+  defp get_transaction_chain_query(address, after: nil, page: _current_page_state) do
     {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
      [address]}
   end
 
+  defp get_transaction_chain_query(address, after: nil) do
+    {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
+     [address]}
+  end
+
+  defp get_transaction_chain_query(address, page: _current_page_state) do
+    {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
+     [address]}
+  end
+
+  # crash when after not given in %DateTime format
   defp get_transaction_chain_query(address,
-         after_time: %DateTime{} = after_time,
+         after: %DateTime{} = after_time,
          page: _current_page_state
        ) do
+    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp >=  ? ",
+     [address, after_time]}
+  end
+
+  defp get_transaction_chain_query(address, after: %DateTime{} = after_time) do
     {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp >=  ? ",
      [address, after_time]}
   end
@@ -131,10 +154,17 @@ defmodule ArchEthic.DB.CassandraImpl do
   defp get_transaction_chain_options(_address, []),
     do: [page_size: 10]
 
-  defp get_transaction_chain_options(_address, after_time: _after_time, page: nil),
+  defp get_transaction_chain_options(_address, after: _after_time),
     do: [page_size: 10]
 
-  defp get_transaction_chain_options(_address, after_time: _after_time, page: current_page_state)
+  defp get_transaction_chain_options(_address, after: _after_time, page: nil),
+    do: [page_size: 10]
+
+  defp get_transaction_chain_options(_address, after: _after_time, page: current_page_state)
+       when is_binary(current_page_state),
+       do: [page_size: 10, paging_state: current_page_state]
+
+  defp get_transaction_chain_options(_address, page: current_page_state)
        when is_binary(current_page_state),
        do: [page_size: 10, paging_state: current_page_state]
 
