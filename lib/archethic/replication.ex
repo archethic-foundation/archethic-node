@@ -89,15 +89,11 @@ defmodule ArchEthic.Replication do
         transaction_type: type
       )
 
-      # IO.inspect(tx, label: " fetchContext-------------------------------------------")
 
       data =
         fetch_context(tx, self_repair?)
-        |> IO.inspect(label: "---fetch_context--o/p--------------------------------------")
 
       {chain, inputs_unspent_outputs} = data
-      # IO.inspect(chain, label: "chain_after output")
-      # IO.inspect(inputs_unspent_outputs, label: "inputs_unspent_outputs_after output")
 
       Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
         transaction_address: Base.encode16(address),
@@ -229,9 +225,6 @@ defmodule ArchEthic.Replication do
   defp do_fetch_context_for_network_transaction(tx, timestamp, self_repair?) do
     previous_address = Transaction.previous_address(tx)
 
-    # IO.inspect(previous_address,
-    #   label: "do fetch context for network txn-------------------------------------------"
-    # )
 
     Logger.debug(
       "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) locally",
@@ -239,9 +232,7 @@ defmodule ArchEthic.Replication do
     )
 
     [chain: previous_chain, page: _paging_state] = TransactionChain.get(previous_address)
-    # |> IO.inspect(
-    #   label: "txnchain.getprev add-------------------------------------------"
-    # )
+
 
     # If the transaction is missing (orphan) and the previous chain has not been synchronized
     # We request other nodes to give us the information
@@ -253,10 +244,7 @@ defmodule ArchEthic.Replication do
         )
 
         TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
-        |> IO.inspect(
-          label:
-            "do_fetchtionContext.fetch_transaction_chain(previou-------------------------------------------"
-        )
+
       else
         previous_chain
       end

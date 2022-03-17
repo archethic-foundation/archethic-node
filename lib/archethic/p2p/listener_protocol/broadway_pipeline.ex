@@ -58,13 +58,9 @@ defmodule ArchEthic.P2P.ListenerProtocol.BroadwayPipeline do
     BroadwayMessage.update_data(message, fn data ->
       message =
         data
-        |>IO.inspect(label: "Broadway Messag data")
         |> decode()
-        |>IO.inspect(label: "Broadway Message decode")
         |> process()
-        |>IO.inspect(label: "Broadway Message process")
         |> encode()
-        |>IO.inspect(label: "Broadway Message encode")
 
       transport.send(socket, message)
     end)

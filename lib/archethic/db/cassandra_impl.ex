@@ -90,7 +90,8 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     execute_options = get_transaction_chain_options(address, options)
     # edgecases/errors here are handled by process crash
-    {:ok, page} = Xandra.execute!(:xandra_conn, prepared_statement, query_params, execute_options)
+
+    page = Xandra.execute!(:xandra_conn, prepared_statement, query_params, execute_options)
     paging_state = page.paging_state
 
     addresses_to_fetch =

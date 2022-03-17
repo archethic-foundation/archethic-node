@@ -44,7 +44,7 @@ defmodule ArchEthic.Replication.TransactionContext do
 
     message = %GetTransactionChain{address: address, after: time_after, page: page_state}
     # query all the nodes and keep uniqure txn only ends when no more nodes to query
-    IO.inspect(message, label: "asdasdasd----------")
+
     case P2P.send_message(node, message) do
       {:ok, %TransactionList{transactions: [], page: _}} ->
         do_fetch_transaction_chain(rest, {address, time_after, page_state}, prev_result)

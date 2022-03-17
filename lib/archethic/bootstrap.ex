@@ -141,10 +141,8 @@ defmodule ArchEthic.Bootstrap do
 
       tx =
         TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
-        |> IO.inspect(label: "inside start bootstrap")
 
       Sync.initialize_network(tx)
-      |> IO.inspect(label: "post bootstrap")
 
       post_bootstrap(sync?: false)
       SelfRepair.put_last_sync_date(DateTime.utc_now())
