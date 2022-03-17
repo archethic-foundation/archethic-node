@@ -24,6 +24,7 @@ defmodule ArchEthic.P2P.Node do
     :reward_address,
     :ip,
     :port,
+    :http_port,
     :geo_patch,
     :network_patch,
     :enrollment_date,
@@ -65,16 +66,18 @@ defmodule ArchEthic.P2P.Node do
       }
   """
   @spec decode_transaction_content(binary()) ::
-          {:ok, :inet.ip_address(), :inet.port_number(), P2P.supported_transport(),
-           reward_address :: binary(), key_certificate :: binary()}
+          {:ok, :inet.ip_address(), :inet.port_number(), :inet.port_number(),
+           P2P.supported_transport(), reward_address :: binary(), key_certificate :: binary()}
           | :error
-  def decode_transaction_content(<<ip::binary-size(4), port::16, transport::8, rest::binary>>) do
+  def decode_transaction_content(
+        <<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>
+      ) do
     with <<ip0, ip1, ip2, ip3>> <- ip,
          {reward_address, rest} <- Utils.deserialize_address(rest),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
            _::binary>> <- rest do
-      {:ok, {ip0, ip1, ip2, ip3}, port, deserialize_transport(transport), reward_address,
-       key_certificate}
+      {:ok, {ip0, ip1, ip2, ip3}, port, http_port, deserialize_transport(transport),
+       reward_address, key_certificate}
     else
       _ ->
         :error
@@ -121,6 +124,7 @@ defmodule ArchEthic.P2P.Node do
   @spec encode_transaction_content(
           :inet.ip_address(),
           :inet.port_number(),
+          :inet.port_number(),
           P2P.supported_transport(),
           binary(),
           binary()
@@ -128,12 +132,13 @@ defmodule ArchEthic.P2P.Node do
   def encode_transaction_content(
         {ip1, ip2, ip3, ip4},
         port,
+        http_port,
         transport,
         reward_address,
         key_certificate
       ) do
-    <<ip1, ip2, ip3, ip4, port::16, serialize_transport(transport)::8, reward_address::binary,
-      byte_size(key_certificate)::16, key_certificate::binary>>
+    <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
+      reward_address::binary, byte_size(key_certificate)::16, key_certificate::binary>>
   end
 
   @type t() :: %__MODULE__{
@@ -143,6 +148,7 @@ defmodule ArchEthic.P2P.Node do
           reward_address: nil | Crypto.key(),
           ip: nil | :inet.ip_address(),
           port: nil | :inet.port_number(),
+          http_port: nil | :inet.port_number(),
           geo_patch: nil | binary(),
           network_patch: nil | binary(),
           available?: boolean(),
@@ -159,13 +165,14 @@ defmodule ArchEthic.P2P.Node do
   """
   @spec cast(tuple()) :: __MODULE__.t()
   def cast(
-        {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
+        {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
          average_availability, availability_history, enrollment_date, transport, reward_address,
          last_address}
       ) do
     %__MODULE__{
       ip: ip,
       port: port,
+      http_port: http_port,
       first_public_key: first_public_key,
       last_public_key: last_public_key,
       geo_patch: geo_patch,
@@ -307,6 +314,7 @@ defmodule ArchEthic.P2P.Node do
       ...>     92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226>>,
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   transport: :tcp,
       ...>   geo_patch: "FA9",
       ...>   network_patch: "AVC",

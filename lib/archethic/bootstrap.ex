@@ -27,6 +27,7 @@ defmodule ArchEthic.Bootstrap do
   def start_link(args \\ []) do
     ip = Networking.get_node_ip()
     port = Keyword.get(args, :port)
+    http_port = Keyword.get(args, :http_port)
     transport = Keyword.get(args, :transport)
 
     reward_address =
@@ -50,6 +51,7 @@ defmodule ArchEthic.Bootstrap do
     Task.start_link(__MODULE__, :run, [
       ip,
       port,
+      http_port,
       transport,
       bootstrapping_seeds,
       last_sync_date,
@@ -73,13 +75,28 @@ defmodule ArchEthic.Bootstrap do
   @spec run(
           :inet.ip_address(),
           :inet.port_number(),
+          :inet.port_number(),
           P2P.supported_transport(),
           list(Node.t()),
           DateTime.t() | nil,
           Crypto.versioned_hash()
         ) :: :ok
-  def run(ip = {_, _, _, _}, port, transport, bootstrapping_seeds, last_sync_date, reward_address)
+  def run(
+        ip = {_, _, _, _},
+        port,
+        http_port,
+        transport,
+        bootstrapping_seeds,
+        last_sync_date,
+        reward_address
+      )
       when is_number(port) and is_list(bootstrapping_seeds) and is_binary(reward_address) do
+    IO.inspect(http_port,
+      label: "<---------- [http_port] ---------->",
+      limit: :infinity,
+      printable_limit: :infinity
+    )
+
     network_patch =
       case P2P.get_node_info(Crypto.first_node_public_key()) do
         {:ok, %Node{network_patch: patch}} ->
@@ -89,10 +106,11 @@ defmodule ArchEthic.Bootstrap do
           P2P.get_geo_patch(ip)
       end
 
-    if should_bootstrap?(ip, port, transport, last_sync_date) do
+    if should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
       start_bootstrap(
         ip,
         port,
+        http_port,
         transport,
         bootstrapping_seeds,
         last_sync_date,
@@ -105,12 +123,12 @@ defmodule ArchEthic.Bootstrap do
     end
   end
 
-  defp should_bootstrap?(_ip, _port, _, nil), do: true
+  defp should_bootstrap?(_ip, _port, _http_port, _, nil), do: true
 
-  defp should_bootstrap?(ip, port, transport, last_sync_date) do
+  defp should_bootstrap?(ip, port, http_port, transport, last_sync_date) do
     case P2P.get_node_info(Crypto.first_node_public_key()) do
       {:ok, _} ->
-        if Sync.require_update?(ip, port, transport, last_sync_date) do
+        if Sync.require_update?(ip, port, http_port, transport, last_sync_date) do
           Logger.debug("Node chain need to updated")
           true
         else
@@ -127,6 +145,7 @@ defmodule ArchEthic.Bootstrap do
   defp start_bootstrap(
          ip,
          port,
+         http_port,
          transport,
          bootstrapping_seeds,
          last_sync_date,
@@ -138,7 +157,10 @@ defmodule ArchEthic.Bootstrap do
     if Sync.should_initialize_network?(bootstrapping_seeds) do
       Logger.info("This node should initialize the network!!")
       Logger.debug("Create first node transaction")
-      tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+
+      tx =
+        TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
+
       Sync.initialize_network(tx)
 
       post_bootstrap(sync?: false)
@@ -150,6 +172,7 @@ defmodule ArchEthic.Bootstrap do
         first_initialization(
           ip,
           port,
+          http_port,
           transport,
           network_patch,
           bootstrapping_seeds,
@@ -158,9 +181,19 @@ defmodule ArchEthic.Bootstrap do
 
         post_bootstrap(patch: network_patch, sync?: true)
       else
-        if Sync.require_update?(ip, port, transport, last_sync_date) do
+        if Sync.require_update?(ip, port, http_port, transport, last_sync_date) do
           Logger.info("Update node chain...")
-          update_node(ip, port, transport, network_patch, bootstrapping_seeds, reward_address)
+
+          update_node(
+            ip,
+            port,
+            http_port,
+            transport,
+            network_patch,
+            bootstrapping_seeds,
+            reward_address
+          )
+
           post_bootstrap(patch: network_patch, sync?: true)
         else
           post_bootstrap(patch: network_patch, sync?: false)
@@ -186,19 +219,29 @@ defmodule ArchEthic.Bootstrap do
     :persistent_term.put(:archethic_up, :up)
   end
 
-  defp first_initialization(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
+  defp first_initialization(
+         ip,
+         port,
+         http_port,
+         transport,
+         patch,
+         bootstrapping_seeds,
+         reward_address
+       ) do
     Enum.each(bootstrapping_seeds, &P2P.add_and_connect_node/1)
 
     {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
-    tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+    tx =
+      TransactionHandler.create_node_transaction(ip, port, http_port, transport, reward_address)
+
     :ok = TransactionHandler.send_transaction(tx, closest_nodes)
 
     :ok = Sync.load_storage_nonce(closest_nodes)
     :ok = Sync.load_node_list(closest_nodes)
   end
 
-  defp update_node(ip, port, transport, patch, bootstrapping_seeds, reward_address) do
+  defp update_node(ip, port, http_port, transport, patch, bootstrapping_seeds, reward_address) do
     case Enum.reject(
            bootstrapping_seeds,
            &(&1.first_public_key == Crypto.first_node_public_key())
@@ -209,7 +252,15 @@ defmodule ArchEthic.Bootstrap do
       _ ->
         {:ok, closest_nodes} = Sync.get_closest_nodes_and_renew_seeds(bootstrapping_seeds, patch)
 
-        tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+        tx =
+          TransactionHandler.create_node_transaction(
+            ip,
+            port,
+            http_port,
+            transport,
+            reward_address
+          )
+
         :ok = TransactionHandler.send_transaction(tx, closest_nodes)
     end
   end
