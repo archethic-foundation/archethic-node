@@ -78,7 +78,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
-  @spec get_transaction_chain(binary(), list()) :: {Enumerable.t(), boolean(), binary()}
+  @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
   def get_transaction_chain(
         address,
         options \\ [],
@@ -97,11 +97,12 @@ defmodule ArchEthic.DB.CassandraImpl do
     addresses_to_fetch =
       Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
 
+
     chain =
       addresses_to_fetch
       |> chunk_get_transaction(fields)
+      # |> Enum.flat_map(& &1)
 
-    # |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"

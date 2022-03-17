@@ -51,7 +51,11 @@ defmodule ArchEthic.Replication.TransactionContext do
 
       {:ok, %TransactionList{transactions: transactions, page: paging_state}}
       when not is_nil(paging_state) ->
-        [transactions]
+        do_fetch_transaction_chain(
+          rest,
+          {address, time_after, nil},
+          List.flatten([transactions | prev_result]) |> Enum.uniq()
+        )
 
       {:ok, %TransactionList{transactions: transactions, page: paging_state}}
       when is_nil(paging_state) ->
@@ -69,7 +73,7 @@ defmodule ArchEthic.Replication.TransactionContext do
   defp do_fetch_transaction_chain([], _fetch_options, nil),
     do: raise("Cannot fetch transaction chain")
 
-  defp do_fetch_transaction_chain([], _fetch_options, prev_result), do: prev_result
+  defp do_fetch_transaction_chain([], _fetch_options, prev_result), do: [prev_result]
 
   @doc """
   Fetch the transaction unspent outputs
