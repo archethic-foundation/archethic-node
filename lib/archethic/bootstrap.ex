@@ -138,8 +138,13 @@ defmodule ArchEthic.Bootstrap do
     if Sync.should_initialize_network?(bootstrapping_seeds) do
       Logger.info("This node should initialize the network!!")
       Logger.debug("Create first node transaction")
-      tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+
+      tx =
+        TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+        |> IO.inspect(label: "inside start bootstrap")
+
       Sync.initialize_network(tx)
+      |> IO.inspect(label: "post bootstrap")
 
       post_bootstrap(sync?: false)
       SelfRepair.put_last_sync_date(DateTime.utc_now())

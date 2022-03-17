@@ -89,9 +89,15 @@ defmodule ArchEthic.Replication do
         transaction_type: type
       )
 
+      # IO.inspect(tx, label: " fetchContext-------------------------------------------")
 
-      { [chain: chain, paging_state: _paging_state]  , inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+      data =
+      fetch_context(tx, self_repair?)
+      |> IO.inspect(label: "---fetch_context--o/p--------------------------------------")
 
+      { chain, inputs_unspent_outputs} = data
+        # IO.inspect(chain, label: "chain_after output")
+        # IO.inspect(inputs_unspent_outputs, label: "inputs_unspent_outputs_after output")
 
       Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
         transaction_address: Base.encode16(address),
@@ -213,8 +219,6 @@ defmodule ArchEthic.Replication do
          tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
          self_repair?
        ) do
-
-
     if Transaction.network_type?(type) do
       do_fetch_context_for_network_transaction(tx, timestamp, self_repair?)
     else
@@ -225,13 +229,20 @@ defmodule ArchEthic.Replication do
   defp do_fetch_context_for_network_transaction(tx, timestamp, self_repair?) do
     previous_address = Transaction.previous_address(tx)
 
+    # IO.inspect(previous_address,
+    #   label: "do fetch context for network txn-------------------------------------------"
+    # )
 
     Logger.debug(
       "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) locally",
       transaction_address: Base.encode16(tx.address)
     )
 
-    previous_chain = TransactionChain.get(previous_address)
+    [chain: previous_chain, page: _paging_state] =
+      TransactionChain.get(previous_address)
+      # |> IO.inspect(
+      #   label: "txnchain.getprev add-------------------------------------------"
+      # )
 
     # If the transaction is missing (orphan) and the previous chain has not been synchronized
     # We request other nodes to give us the information
@@ -242,10 +253,11 @@ defmodule ArchEthic.Replication do
           transaction_address: Base.encode16(tx.address)
         )
 
-
-       data = TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
-       require IEx; IEx.pry
-        data
+        TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
+        |> IO.inspect(
+          label:
+            "do_fetchtionContext.fetch_transaction_chain(previou-------------------------------------------"
+        )
       else
         previous_chain
       end
@@ -256,8 +268,6 @@ defmodule ArchEthic.Replication do
   end
 
   defp fetch_context_for_regular_transaction(tx, timestamp, self_repair?) do
-
-
     previous_address = Transaction.previous_address(tx)
 
     [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
@@ -268,14 +278,10 @@ defmodule ArchEthic.Replication do
             transaction_address: Base.encode16(tx.address)
           )
 
-          data = TransactionContext.fetch_transaction_chain(previous_address, timestamp)
-          require IEx; IEx.pry
-
+          TransactionContext.fetch_transaction_chain(previous_address, timestamp)
         end),
         Task.async(fn ->
           fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
-
-
         end)
       ])
 

@@ -97,18 +97,17 @@ defmodule ArchEthic.DB.CassandraImpl do
     addresses_to_fetch =
       Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
 
-
     chain =
       addresses_to_fetch
       |> chunk_get_transaction(fields)
-      # |> Enum.flat_map(& &1)
 
+    # |> Enum.flat_map(& &1)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
 
-    [chain: chain, paging_state: paging_state]
+    [chain: chain, page: paging_state]
   end
 
   defp get_transaction_chain_query(address, []) do

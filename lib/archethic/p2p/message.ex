@@ -1028,8 +1028,7 @@ defmodule ArchEthic.P2P.Message do
       tx_address
       |> TransactionChain.get(after_time: after_time, page: current_page_state)
 
-    [chain: chain, paging_state: paging_state] =
-      results
+    [chain: chain, page: paging_state] = results
 
     # new_page_state contains binary offset
     %TransactionList{transactions: chain, page: paging_state}
