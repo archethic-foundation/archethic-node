@@ -436,7 +436,9 @@ defmodule ArchEthic.Mining.ValidationContext do
     sub_chain_tree = Enum.at(chain_tree, validator_index)
 
     sub_beacon_tree = Enum.at(beacon_tree, validator_index)
-    sub_io_tree = Enum.at(io_tree, validator_index)
+
+    # IO tree can be empty, if there are not recipients
+    sub_io_tree = Enum.at(io_tree, validator_index, [])
 
     %{
       context
@@ -1072,6 +1074,13 @@ defmodule ArchEthic.Mining.ValidationContext do
   Get the list of I/O replication nodes
   """
   @spec get_io_replication_nodes(t()) :: list(Node.t())
+  def get_io_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          IO: []
+        }
+      }),
+      do: []
+
   def get_io_replication_nodes(%__MODULE__{
         sub_replication_tree: %{
           IO: sub_tree
