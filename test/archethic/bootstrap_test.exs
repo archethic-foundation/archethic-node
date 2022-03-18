@@ -119,6 +119,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -253,6 +254,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -268,6 +270,7 @@ defmodule ArchEthic.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
+          http_port: 4000,
           first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
@@ -281,6 +284,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -305,6 +309,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {200, 50, 20, 10},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -328,6 +333,7 @@ defmodule ArchEthic.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
+          http_port: 4000,
           first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
@@ -341,6 +347,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -356,6 +363,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),

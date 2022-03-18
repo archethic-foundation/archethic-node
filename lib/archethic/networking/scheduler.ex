@@ -55,7 +55,7 @@ defmodule ArchEthic.Networking.Scheduler do
 
   defp do_update do
     Logger.info("Start networking update")
-    {p2p_port, _} = open_ports()
+    {p2p_port, web_port} = open_ports()
     ip = IPLookup.get_node_ip()
 
     %Node{ip: prev_ip, reward_address: reward_address, transport: transport} = P2P.get_node_info()
@@ -68,6 +68,7 @@ defmodule ArchEthic.Networking.Scheduler do
           Node.encode_transaction_content(
             ip,
             p2p_port,
+            web_port,
             transport,
             reward_address,
             key_certificate

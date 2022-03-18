@@ -87,11 +87,10 @@ defmodule ArchEthic.Metrics.Poller do
   defp process_new_state(current_state = %{pid_refs: pid_refs}) do
     case Enum.empty?(pid_refs) do
       false ->
-        new_data = Collector.retrieve_network_metrics(Collector.retrieve_node_ip_addresses())
-
-        new_state = %{current_state | data: new_data}
-        dipatch_updates(new_state)
-        new_state
+        Collector.get_node_endpoints()
+        |> Collector.retrieve_network_metrics()
+        |> then(&Map.put(current_state, :data, &1))
+        |> tap(&dipatch_updates/1)
 
       true ->
         current_state
