@@ -170,7 +170,7 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(date = %DateTime{}) do
-    {oracle_chain, _paging_state} =
+    {oracle_chain, _more?, _paging_state} =
       date
       |> Crypto.derive_oracle_address(0)
       |> TransactionChain.get_last_address()

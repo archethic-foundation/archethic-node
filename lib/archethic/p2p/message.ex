@@ -458,14 +458,24 @@ defmodule ArchEthic.P2P.Message do
     <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "PAGE_NIL">>
   end
 
-  def encode(%TransactionList{transactions: transactions, page: paging_state}) do
+  def encode(%TransactionList{transactions: transactions, more?: true, page: paging_state}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, paging_state>>
+    <<251::8, Enum.count(transactions)::32, "TRUE", transaction_bin::bitstring, paging_state>>
+  end
+
+  def encode(%TransactionList{transactions: transactions, more?: false, page: paging_state}) do
+    transaction_bin =
+      transactions
+      |> Stream.map(&Transaction.serialize/1)
+      |> Enum.to_list()
+      |> :erlang.list_to_bitstring()
+
+    <<251::8, Enum.count(transactions)::32, "FALSE", transaction_bin::bitstring, paging_state>>
   end
 
   def encode(tx = %Transaction{}) do
@@ -875,14 +885,14 @@ defmodule ArchEthic.P2P.Message do
     {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
 
     case rest do
-      <<"PAGE_NIL">> ->
-        {%TransactionList{transactions: transactions, page: nil}, rest}
+      <<"FALSE", "PAGE_NIL">> ->
+        {%TransactionList{transactions: transactions, more?: false, page: nil}, rest}
 
-      <<paging_state::binary()>> ->
-        {%TransactionList{transactions: transactions, page: paging_state}, rest}
+      <<"TRUE", paging_state::binary()>> ->
+        {%TransactionList{transactions: transactions, more?: true, page: paging_state}, rest}
 
       _ ->
-        {%TransactionList{transactions: transactions, page: nil}, rest}
+        {%TransactionList{transactions: transactions, more?: false, page: nil}, rest}
     end
   end
 
@@ -1044,12 +1054,12 @@ defmodule ArchEthic.P2P.Message do
         after: after_time,
         page: paging_state
       }) do
-    {chain, paging_state} =
+    {chain, more?, paging_state} =
       tx_address
       |> TransactionChain.get(after: after_time, page: paging_state)
 
     # new_page_state contains binary offset
-    %TransactionList{transactions: chain, page: paging_state}
+    %TransactionList{transactions: chain, page: paging_state, more?: more?}
   end
 
   def process(%GetUnspentOutputs{address: tx_address}) do

@@ -226,7 +226,7 @@ defmodule ArchEthic.Replication do
       transaction_address: Base.encode16(tx.address)
     )
 
-    {previous_chain, _paging_state} = TransactionChain.get(previous_address)
+    {previous_chain, _more?, _paging_state} = TransactionChain.get(previous_address)
 
     # If the transaction is missing (orphan) and the previous chain has not been synchronized
     # We request other nodes to give us the information
