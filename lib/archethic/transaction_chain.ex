@@ -96,7 +96,7 @@ defmodule ArchEthic.TransactionChain do
   """
   @spec get(binary(), list()) ::
           Enumerable.t() | {list(Transaction.t()), boolean(), binary()}
-  defdelegate get(address, fields \\ []), to: DB, as: :get_transaction_chain
+  defdelegate get(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
   Persist only one transaction
