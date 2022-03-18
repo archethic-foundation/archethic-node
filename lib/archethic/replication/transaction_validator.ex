@@ -129,7 +129,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
     if Enum.all?(stamps, &(&1.inconsistencies == [])) do
       :ok
     else
-      Logger.debug("Inconsistencies: #{inspect(Enum.map(stamps, & &1.inconsistencies))}")
+      Logger.error("Inconsistencies: #{inspect(Enum.map(stamps, & &1.inconsistencies))}")
       {:error, :invalid_transaction_with_inconsistencies}
     end
   end
@@ -150,7 +150,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
     if Transaction.verify_origin_signature?(tx, pow) do
       :ok
     else
-      Logger.debug("Invalid proof of work #{Base.encode16(pow)}",
+      Logger.error("Invalid proof of work #{Base.encode16(pow)}",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
       )
@@ -173,7 +173,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
        ) do
       :ok
     else
-      Logger.debug(
+      Logger.error(
         "Invalid proof of election - checking public key: #{Base.encode16(daily_nonce_public_key)}",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
@@ -257,7 +257,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
     if fee == get_transaction_fee(tx) do
       :ok
     else
-      Logger.debug(
+      Logger.error(
         "Invalid fee: #{inspect(fee)}",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
@@ -294,7 +294,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
        ) do
       :ok
     else
-      Logger.debug(
+      Logger.error(
         "Invalid movements: #{inspect(ops.transaction_movements)}",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
@@ -310,7 +310,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
   defp validate_no_additional_errors(
          tx = %Transaction{validation_stamp: %ValidationStamp{errors: errors}}
        ) do
-    Logger.debug(
+    Logger.info(
       "Contains errors: #{inspect(errors)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -367,7 +367,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
     if same? do
       :ok
     else
-      Logger.debug(
+      Logger.error(
         "Invalid unspent outputs - got: #{inspect(next_unspent_outputs)}, expected: #{inspect(expected_unspent_outputs)}",
         transaction_address: Base.encode16(tx.address),
         transaction_type: tx.type
