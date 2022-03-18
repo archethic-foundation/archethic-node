@@ -7,10 +7,10 @@ defmodule ArchEthic.Metrics.Collector do
   alias ArchEthic.Metrics.Parser
   alias ArchEthic.P2P
 
-  @callback fetch_metrics(:inet.ip_address()) :: {:ok, String.t()} | {:error, any()}
+  @callback fetch_metrics({:inet.ip_address(), port()}) :: {:ok, String.t()} | {:error, any()}
 
   @doc """
-  Get the list of Node IP addresses
+  Get the list of Node endpoints
   """
   @spec get_node_endpoints() :: list({:inet.ip_address(), port()})
   def get_node_endpoints() do
