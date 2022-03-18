@@ -241,7 +241,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
     message = %GetTransactionChain{address: address, page: Keyword.get(opts, :page)}
 
     case P2P.send_message(node, message) do
-      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+      {:ok, %TransactionList{transactions: transactions, more?: false, page: _}} ->
         Enum.uniq_by(acc ++ transactions, & &1.address)
 
       {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} ->
@@ -262,7 +262,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, _, _), do: {:error, :network_issue}
+  defp do_get_download_summary_transaction_chain([], _, _, []), do: {:error, :network_issue}
+  defp do_get_download_summary_transaction_chain([], _, _, acc), do: {:ok, acc}
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->

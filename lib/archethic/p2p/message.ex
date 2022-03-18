@@ -990,7 +990,6 @@ defmodule ArchEthic.P2P.Message do
   @doc """
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
   """
-  @spec process(request()) :: response()
   def process(%GetBootstrappingNodes{patch: patch}) do
     top_nodes = P2P.authorized_nodes()
 
@@ -1038,7 +1037,7 @@ defmodule ArchEthic.P2P.Message do
     end
   end
 
-  # current page state contains binary offset to resume from the query
+  # paging_state recieved  contains binary offset for next page , to be used for query
   def process(%GetTransactionChain{
         address: tx_address,
         after: after_time,
@@ -1048,7 +1047,8 @@ defmodule ArchEthic.P2P.Message do
       tx_address
       |> TransactionChain.get([], after: after_time, page: paging_state)
 
-    # new_page_state contains binary offset
+    # empty list for fields/cols to be processed
+    # new_page_state contains binary offset for the next page
     %TransactionList{transactions: chain, page: paging_state, more?: more?}
   end
 
@@ -1199,6 +1199,8 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
+  # Returns the length of the transaction chain
+  @spec process(%GetTransactionChainLength{}) :: %TransactionChainLength{}
   def process(%GetTransactionChainLength{address: address}) do
     %TransactionChainLength{
       length: TransactionChain.size(address)

@@ -83,16 +83,25 @@ defmodule ArchEthic.DB.CassandraImpl do
   def get_transaction_chain(address, fields \\ [], options \\ [])
       when is_binary(address) and is_list(fields) and is_list(options) do
     start = System.monotonic_time()
+
+    # options required for query options if passed otherwise nil
+    # keyword returns nil if not present
     page = Keyword.get(options, :page)
     after_time = Keyword.get(options, :after)
 
+    # gets the query as per the address and after time value
     {query, query_params} = get_transaction_chain_query(address, after_time)
     prepared_statement = Xandra.prepare!(:xandra_conn, query)
 
+    # query_options to check for paging_state , if passed include it
     query_options = get_transaction_chain_options(page)
 
     page = Xandra.execute!(:xandra_conn, prepared_statement, query_params, query_options)
+
+    # page.paging_state is returns binary() page offset for next page
+    # it returns nil if no more pages are there
     paging_state = page.paging_state
+    # more tell more page are there ? , it depdends on paging_state
     more? = paging_state != nil
 
     addresses_to_fetch =
@@ -109,11 +118,13 @@ defmodule ArchEthic.DB.CassandraImpl do
     {chain, more?, paging_state}
   end
 
+  # when no after time is provided , nil is passed
   defp get_transaction_chain_query(address, nil) do
     {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",
      [address]}
   end
 
+  # when time is given in datatime format
   defp get_transaction_chain_query(
          address,
          after_time
@@ -125,9 +136,9 @@ defmodule ArchEthic.DB.CassandraImpl do
   defp get_transaction_chain_options(nil),
     do: [page_size: 10]
 
-  defp get_transaction_chain_options(current_page_state)
-       when is_binary(current_page_state),
-       do: [page_size: 10, paging_state: current_page_state]
+  defp get_transaction_chain_options(paging_state)
+       when is_binary(paging_state),
+       do: [page_size: 10, paging_state: paging_state]
 
   defp chunk_get_transaction(addresses, fields) do
     Xandra.run(:xandra_conn, fn conn ->
@@ -363,6 +374,9 @@ defmodule ArchEthic.DB.CassandraImpl do
   end
 
   @impl DB
+  @doc """
+  Returns the nb of transactions w.r.t the given Chain_address
+  """
   @spec chain_size(binary()) :: non_neg_integer()
   def chain_size(address) do
     prepared =
