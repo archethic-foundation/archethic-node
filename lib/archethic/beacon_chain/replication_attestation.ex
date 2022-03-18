@@ -160,13 +160,18 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
           :ok
           | {:error, :invalid_confirmations_signatures}
   def validate(%__MODULE__{
-        transaction_summary: tx_summary = %TransactionSummary{address: tx_address, type: tx_type},
+        transaction_summary:
+          tx_summary = %TransactionSummary{
+            address: tx_address,
+            type: tx_type,
+            timestamp: timestamp
+          },
         confirmations: confirmations
       }) do
     tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
     storage_nodes =
-      Election.chain_storage_nodes_with_type(tx_address, tx_type, P2P.available_nodes())
+      Election.chain_storage_nodes_with_type(tx_address, tx_type, P2P.authorized_nodes(timestamp))
 
     if valid_confirmations?(confirmations, tx_summary_payload, storage_nodes) do
       :ok

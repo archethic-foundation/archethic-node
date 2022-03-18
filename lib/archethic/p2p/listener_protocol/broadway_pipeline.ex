@@ -73,23 +73,23 @@ defmodule ArchEthic.P2P.ListenerProtocol.BroadwayPipeline do
       sender_public_key: sender_public_key
     } = MessageEnvelop.decode(data)
 
-    Logger.debug("Receive message #{Message.name(message)}",
-      node: Base.encode16(sender_public_key),
-      message_id: message_id
-    )
+    #    Logger.debug("Receive message #{Message.name(message)}",
+    #      node: Base.encode16(sender_public_key),
+    #      message_id: message_id
+    #    )
 
     MemTable.increase_node_availability(sender_public_key)
     {System.monotonic_time(:millisecond), message_id, message, sender_public_key}
   end
 
-  defp process({start_time, message_id, message, sender_public_key}) do
+  defp process({_start_time, message_id, message, sender_public_key}) do
     response = Message.process(message)
-    end_time = System.monotonic_time(:millisecond)
+    # end_time = System.monotonic_time(:millisecond)
 
-    Logger.debug("Message #{Message.name(message)} processed in #{end_time - start_time} ms",
-      node: Base.encode16(sender_public_key),
-      message_id: message_id
-    )
+    #    Logger.debug("Message #{Message.name(message)} processed in #{end_time - start_time} ms",
+    #      node: Base.encode16(sender_public_key),
+    #      message_id: message_id
+    #    )
 
     {message_id, response, sender_public_key}
   end

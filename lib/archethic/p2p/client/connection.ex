@@ -143,10 +143,10 @@ defmodule ArchEthic.P2P.Client.Connection do
         node_public_key
       )
 
-    Logger.debug("Sending #{Message.name(message)}",
-      node: Base.encode16(node_public_key),
-      message_id: request_id
-    )
+    #    Logger.debug("Sending #{Message.name(message)}",
+    #      node: Base.encode16(node_public_key),
+    #      message_id: request_id
+    #    )
 
     case transport.handle_send(socket, message_envelop) do
       :ok ->
@@ -235,10 +235,10 @@ defmodule ArchEthic.P2P.Client.Connection do
              start_time: start_time,
              message_name: message_name
            }, new_state} ->
-            Logger.debug("Message #{message_name} took #{end_time - start_time} ms",
-              message_id: message_id,
-              node_public_key: node_public_key
-            )
+            #            Logger.debug("Message #{message_name} took #{end_time - start_time} ms",
+            #              message_id: message_id,
+            #              node_public_key: node_public_key
+            #            )
 
             :telemetry.execute(
               [:archethic, :p2p, :send_message],

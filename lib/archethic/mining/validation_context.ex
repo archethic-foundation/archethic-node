@@ -436,7 +436,9 @@ defmodule ArchEthic.Mining.ValidationContext do
     sub_chain_tree = Enum.at(chain_tree, validator_index)
 
     sub_beacon_tree = Enum.at(beacon_tree, validator_index)
-    sub_io_tree = Enum.at(io_tree, validator_index)
+
+    # IO tree can be empty, if there are not recipients
+    sub_io_tree = Enum.at(io_tree, validator_index, [])
 
     %{
       context
@@ -770,17 +772,22 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp add_io_storage_nodes(
          context = %__MODULE__{
+           transaction: %Transaction{type: type},
            validation_stamp: %ValidationStamp{
              ledger_operations: ledger_ops,
              recipients: recipients
            }
          }
        ) do
-    movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
-
     io_storage_nodes =
-      (movement_addresses ++ recipients)
-      |> Election.io_storage_nodes(P2P.available_nodes())
+      if Transaction.network_type?(type) do
+        P2P.available_nodes()
+      else
+        movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
+
+        (movement_addresses ++ recipients)
+        |> Election.io_storage_nodes(P2P.available_nodes())
+      end
 
     %{context | io_storage_nodes: io_storage_nodes}
   end
@@ -1067,6 +1074,13 @@ defmodule ArchEthic.Mining.ValidationContext do
   Get the list of I/O replication nodes
   """
   @spec get_io_replication_nodes(t()) :: list(Node.t())
+  def get_io_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          IO: []
+        }
+      }),
+      do: []
+
   def get_io_replication_nodes(%__MODULE__{
         sub_replication_tree: %{
           IO: sub_tree

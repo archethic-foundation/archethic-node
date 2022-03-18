@@ -106,6 +106,12 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     addresses_to_fetch =
       Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
+    addresses_to_fetch =
+      :xandra_conn
+      |> do_get_transaction_chain(address, [:transaction_address])
+      |> Enum.map(fn %{"transaction_address" => tx_address} ->
+        tx_address
+      end)
 
     chain =
       addresses_to_fetch
@@ -136,9 +142,6 @@ defmodule ArchEthic.DB.CassandraImpl do
   defp get_transaction_chain_options(nil),
     do: [page_size: 10]
 
-  defp get_transaction_chain_options(paging_state)
-       when is_binary(paging_state),
-       do: [page_size: 10, paging_state: paging_state]
 
   defp chunk_get_transaction(addresses, fields) do
     Xandra.run(:xandra_conn, fn conn ->
@@ -163,6 +166,18 @@ defmodule ArchEthic.DB.CassandraImpl do
     Xandra.run(:xandra_conn, fn conn ->
       do_write_transaction(conn, tx)
       add_transaction_to_chain(conn, tx_address, tx_timestamp, tx_address)
+
+      # Add transaction to the previous chain
+      do_get_transaction_chain(conn, Transaction.previous_address(tx), [
+        :transaction_address,
+        :transaction_timestamp
+      ])
+      |> Enum.each(fn %{
+                        "transaction_address" => prev_tx_address,
+                        "transaction_timestamp" => prev_tx_timestamp
+                      } ->
+        add_transaction_to_chain(conn, prev_tx_address, prev_tx_timestamp, tx_address)
+      end)
     end)
   end
 
