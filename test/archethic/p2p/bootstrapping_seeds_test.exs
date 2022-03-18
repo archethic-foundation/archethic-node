@@ -28,8 +28,8 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
     seed_str = """
-    127.0.0.1:3005:4000:#{Base.encode16(pub1)}:tcp
-    127.0.0.1:3003:4000:#{Base.encode16(pub2)}:tcp
+    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
+    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
     """
 
     [seed_str: seed_str]
@@ -55,7 +55,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
       {:ok, pid} =
         BootstrappingSeeds.start_link(
           genesis_seeds:
-            "127.0.0.1:3002:4000:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+            "127.0.0.1:3002:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
         )
 
       %{seeds: seeds} = :sys.get_state(pid)
@@ -101,14 +101,12 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
       %Node{
         ip: {90, 20, 10, 20},
         port: 3002,
-        http_port: 4000,
         first_public_key: :crypto.strong_rand_bytes(32),
         transport: :tcp
       },
       %Node{
         ip: {100, 50, 115, 80},
         port: 3002,
-        http_port: 4000,
         first_public_key: :crypto.strong_rand_bytes(32),
         transport: :tcp
       }
@@ -125,7 +123,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     {:ok, _pid} =
       BootstrappingSeeds.start_link(
         genesis_seeds:
-          "127.0.0.1:3002:4000:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
+          "127.0.0.1:3002:0000DB9539BEEA59B659DDC0A1E20910F74BDCFA41166BB1DF0D6489506BB137D491:tcp"
       )
 
     P2P.add_and_connect_node(%Node{

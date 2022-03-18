@@ -7,12 +7,13 @@ defmodule ArchEthic.Metrics.Collector do
   alias ArchEthic.Metrics.Parser
   alias ArchEthic.P2P
 
-  @callback fetch_metrics({:inet.ip_address(), port()}) :: {:ok, String.t()} | {:error, any()}
+  @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
+              {:ok, String.t()} | {:error, any()}
 
   @doc """
   Get the list of Node endpoints
   """
-  @spec get_node_endpoints() :: list({:inet.ip_address(), port()})
+  @spec get_node_endpoints() :: list({:inet.ip_address(), :inet.port_number()})
   def get_node_endpoints() do
     Enum.map(P2P.authorized_nodes(), &{&1.ip, &1.http_port})
   end
