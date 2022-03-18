@@ -95,7 +95,7 @@ defmodule ArchEthic.TransactionChain do
   The returned list is ordered chronologically.
   """
   @spec get(binary(), list()) ::
-          Enumerable.t() | [chain: list(Transaction.t()), page: binary()]
+          Enumerable.t() | {list(Transaction.t()), binary()}
   defdelegate get(address, fields \\ []), to: DB, as: :get_transaction_chain
 
   @doc """

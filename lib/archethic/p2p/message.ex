@@ -520,23 +520,23 @@ defmodule ArchEthic.P2P.Message do
     {address, rest} = Utils.deserialize_address(rest)
 
     case rest do
-      # case1-3 timestamp & page are present
-      <<timestamp::32, paging_state::binary()>> ->
-        date = DateTime.from_unix!(timestamp)
-        {%GetTransactionChain{address: address, after: date, page: paging_state}, rest}
+      # both are absent and time_after and page_state
+      <<"TIME_NIL", "PAGE_NIL", rest::bitstring>> ->
+        {%GetTransactionChain{address: address, after: nil, page: nil}, rest}
+
+      # time is absent
+      <<"TIME_NIL", paging_state::binary()>> ->
+        {%GetTransactionChain{address: address, after: nil, page: paging_state}, rest}
 
       # case2: page_state absent
       <<timestamp::32, "PAGE_NIL">> ->
         date = DateTime.from_unix!(timestamp)
         {%GetTransactionChain{address: address, after: date, page: nil}, rest}
 
-      # time is absent
-      <<"TIME_NIL", paging_state::binary()>> ->
-        {%GetTransactionChain{address: address, after: nil, page: paging_state}, rest}
-
-      # both are absent and time_after and page_state
-      <<"TIME_NIL", "PAGE_NIL", rest::bitstring>> ->
-        {%GetTransactionChain{address: address, after: nil, page: nil}, rest}
+      # case1-3 timestamp & page are present
+      <<timestamp::32, paging_state::binary()>> ->
+        date = DateTime.from_unix!(timestamp)
+        {%GetTransactionChain{address: address, after: date, page: paging_state}, rest}
     end
   end
 
@@ -1044,11 +1044,9 @@ defmodule ArchEthic.P2P.Message do
         after: after_time,
         page: paging_state
       }) do
-    results =
+    {chain, paging_state} =
       tx_address
       |> TransactionChain.get(after: after_time, page: paging_state)
-
-    [chain: chain, page: paging_state] = results
 
     # new_page_state contains binary offset
     %TransactionList{transactions: chain, page: paging_state}

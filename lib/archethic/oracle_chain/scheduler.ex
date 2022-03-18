@@ -414,7 +414,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   end
 
   defp send_summary_transaction(summary_date, index) do
-    [chain: oracle_chain, page: _] =
+    {oracle_chain, _paging_state} =
       summary_date
       |> Crypto.derive_oracle_address(index)
       |> TransactionChain.get(data: [:content], validation_stamp: [:timestamp])

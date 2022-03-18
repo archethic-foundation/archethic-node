@@ -33,21 +33,21 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        do_fetch_transaction_chain(nodes, {address, timestamp, _page_state = nil}, [])
+        do_fetch_transaction_chain(nodes, {address, timestamp, _paging_state = nil}, [])
     end
   end
 
   # defp do_fetch_transaction_chain(nodes, fetch_options, prev_result )
 
   defp do_fetch_transaction_chain([node | rest], fetch_options, prev_result) do
-    {address, time_after, page_state} = fetch_options
+    {address, time_after, paging_state} = fetch_options
 
-    message = %GetTransactionChain{address: address, after: time_after, page: page_state}
+    message = %GetTransactionChain{address: address, after: time_after, page: paging_state}
     # query all the nodes and keep uniqure txn only ends when no more nodes to query
 
     case P2P.send_message(node, message) do
       {:ok, %TransactionList{transactions: [], page: _}} ->
-        do_fetch_transaction_chain(rest, {address, time_after, page_state}, prev_result)
+        do_fetch_transaction_chain(rest, {address, time_after, paging_state}, prev_result)
 
       {:ok, %TransactionList{transactions: transactions, page: paging_state}}
       when not is_nil(paging_state) ->

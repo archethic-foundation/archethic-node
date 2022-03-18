@@ -78,12 +78,12 @@ defmodule ArchEthic.DB.CassandraImpl do
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
-  @spec get_transaction_chain(binary(), list()) :: Enumerable.t()
+  @spec get_transaction_chain(binary(), list()) :: {list(Transaction.t()), binary()}
   def get_transaction_chain(address, all_fields \\ [])
       when is_binary(address) and is_list(all_fields) do
     start = System.monotonic_time()
 
-    {options, fields} = Enum.split_while(all_fields, &get_options_and_fields(&1))
+    {options, fields} = Enum.split_while(all_fields, &get_options_and_fields?(&1))
 
     {query, query_params} = get_transaction_chain_query(address, options)
     prepared_statement = Xandra.prepare!(:xandra_conn, query)
@@ -107,16 +107,10 @@ defmodule ArchEthic.DB.CassandraImpl do
       query: "get_transaction_chain"
     })
 
-    [chain: chain, page: paging_state]
+    {chain, paging_state}
   end
 
-  def get_options_and_fields({key, _value}) do
-    case key do
-      :after -> true
-      :page -> true
-      _ -> false
-    end
-  end
+  def get_options_and_fields?({key, _value}), do: key in [:after, :page]
 
   defp get_transaction_chain_query(address, []) do
     {" SELECT transaction_address   FROM archethic.transaction_chains WHERE chain_address = ? ",

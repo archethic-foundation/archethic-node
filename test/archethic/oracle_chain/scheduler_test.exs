@@ -217,7 +217,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
 
       MockDB
       |> expect(:get_transaction_chain, fn _, _ ->
-        [
+        { [
           %Transaction{
             address:
               Crypto.derive_oracle_keypair(summary_date, 1) |> elem(0) |> Crypto.derive_address(),
@@ -232,7 +232,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
             },
             validation_stamp: %ValidationStamp{timestamp: ~U[2021-12-10 10:05:00Z]}
           }
-        ]
+        ], nil }
       end)
 
       send(pid, :poll)

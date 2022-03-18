@@ -139,8 +139,7 @@ defmodule ArchEthic.Bootstrap do
       Logger.info("This node should initialize the network!!")
       Logger.debug("Create first node transaction")
 
-      tx =
-        TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
+      tx = TransactionHandler.create_node_transaction(ip, port, transport, reward_address)
 
       Sync.initialize_network(tx)
 

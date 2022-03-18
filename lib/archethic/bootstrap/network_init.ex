@@ -156,7 +156,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
   @spec self_replication(Transaction.t()) :: :ok
   def self_replication(tx = %Transaction{}) do
-    # IO.inspect(tx, label: "self replication tx-------------------------------------------")
     :ok = Replication.validate_and_store_transaction_chain(tx)
 
     tx_summary = TransactionSummary.from_transaction(tx)
