@@ -228,23 +228,47 @@ defmodule ArchEthicWeb.BeaconChainLive do
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
-    |> do_get_download_summary_transaction_chain(beacon_address, nil)
+    |> do_get_download_summary_transaction_chain({beacon_address, nil, false, nil}, [])
   end
 
-  defp do_get_download_summary_transaction_chain([node | rest], address, prev_result) do
-    case P2P.send_message(node, %GetTransactionChain{address: address}) do
-      {:ok, %TransactionList{transactions: transactions}} ->
-        {:ok, transactions}
+  defp do_get_download_summary_transaction_chain(
+         nodes = [node | rest],
+         {address, time_after, more?, paging_state},
+         prev_result
+       ) do
+    message = %GetTransactionChain{address: address, after: time_after, page: paging_state}
+
+    case P2P.send_message(node, message) do
+      {:ok, %TransactionList{transactions: [], more?: _more?, page: _paging_state}} ->
+        []
+
+      {:ok, %TransactionList{transactions: transactions, more?: true, page: _paging_state}} ->
+        do_get_download_summary_transaction_chain(
+          nodes,
+          {address, time_after, more?, paging_state},
+          List.flatten([transactions | prev_result]) |> Enum.uniq()
+        )
+
+      {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}} ->
+        {:ok, List.flatten([transactions | prev_result]) |> Enum.uniq()}
 
       {:ok, %NotFound{}} ->
-        do_get_download_summary_transaction_chain(rest, address, %NotFound{})
+        do_get_download_summary_transaction_chain(
+          rest,
+          {address, time_after, _more = false, _paging_state = nil},
+          prev_result
+        )
 
       {:error, _} ->
-        do_get_download_summary_transaction_chain(rest, address, prev_result)
+        do_get_download_summary_transaction_chain(
+          rest,
+          {address, time_after, _more = false, _paging_state = nil},
+          prev_result
+        )
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, []}
+  defp do_get_download_summary_transaction_chain([], _, []), do: {:ok, []}
   defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
 
   defp list_transaction_by_date(date = %DateTime{}) do

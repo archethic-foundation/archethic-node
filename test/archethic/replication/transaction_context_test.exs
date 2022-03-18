@@ -22,7 +22,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
   test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
     |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-      {:ok, %TransactionList{transactions: [%Transaction{}]}}
+      {:ok, %TransactionList{transactions: [%Transaction{}], more?: false, page: nil}}
     end)
 
     P2P.add_and_connect_node(%Node{

@@ -448,14 +448,14 @@ defmodule ArchEthic.P2P.Message do
     <<250::8, Enum.count(unspent_outputs)::32, unspent_outputs_bin::binary>>
   end
 
-  def encode(%TransactionList{transactions: transactions, page: nil}) do
+  def encode(%TransactionList{transactions: transactions, more?: false, page: nil}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "PAGE_NIL">>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "FALSE", "PAGE_NIL">>
   end
 
   def encode(%TransactionList{transactions: transactions, more?: true, page: paging_state}) do
@@ -465,17 +465,7 @@ defmodule ArchEthic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, "TRUE", transaction_bin::bitstring, paging_state>>
-  end
-
-  def encode(%TransactionList{transactions: transactions, more?: false, page: paging_state}) do
-    transaction_bin =
-      transactions
-      |> Stream.map(&Transaction.serialize/1)
-      |> Enum.to_list()
-      |> :erlang.list_to_bitstring()
-
-    <<251::8, Enum.count(transactions)::32, "FALSE", transaction_bin::bitstring, paging_state>>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "TRUE", paging_state>>
   end
 
   def encode(tx = %Transaction{}) do

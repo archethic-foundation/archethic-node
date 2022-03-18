@@ -82,7 +82,8 @@ defmodule ArchEthic.DB.CassandraImpl do
   def get_transaction_chain(address, all_fields \\ [])
       when is_binary(address) and is_list(all_fields) do
     start = System.monotonic_time()
-
+    # order matter first query options should be passed first
+    # then field options should be passed
     {options, fields} = Enum.split_while(all_fields, &get_options_and_fields?(&1))
 
     {query, query_params} = get_transaction_chain_query(address, options)
@@ -111,8 +112,13 @@ defmodule ArchEthic.DB.CassandraImpl do
     {chain, more?, paging_state}
   end
 
-  def get_options_and_fields?({key, _value}) do
-    key in [:after, :page]
+  # order matter first query options should be passed first
+  # then field options should be passed
+  def get_options_and_fields?(element) do
+    case element do
+      {key, _value} -> key in [:after, :page]
+      _ -> false
+    end
   end
 
   defp get_transaction_chain_query(address, []) do

@@ -249,7 +249,7 @@ defmodule ArchEthic do
 
   defp get_transaction_chain([node | rest], address) do
     case P2P.send_message(node, %GetTransactionChain{address: address}) do
-      {:ok, %TransactionList{transactions: transactions}} ->
+      {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}} ->
         {:ok, transactions}
 
       {:error, _} ->

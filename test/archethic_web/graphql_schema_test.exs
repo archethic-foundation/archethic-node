@@ -206,7 +206,9 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
       |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
         {:ok,
          %TransactionList{
-           transactions: transactions
+           transactions: transactions,
+           more?: false,
+           page: nil
          }}
       end)
 
@@ -236,7 +238,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: transactions}}
+        {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}}
       end)
 
       last_addr = List.last(transactions).address

@@ -193,7 +193,7 @@ defmodule ArchEthic.DB.CassandraImplTest do
 
     assert :ok = Cassandra.write_transaction_chain(chain)
 
-    assert received_chain =
+    assert {received_chain, _more?, _paging_state} =
              Cassandra.get_transaction_chain(List.first(chain).address, [:address, :type])
 
     assert Enum.map(received_chain, & &1.address) == Enum.map(chain, & &1.address)

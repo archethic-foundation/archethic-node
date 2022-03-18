@@ -243,7 +243,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           {:ok, %UnspentOutputList{unspent_outputs: inputs}}
 
         _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: []}}
+          {:ok, %TransactionList{transactions: [], more?: false, page: nil}}
       end)
 
       MockDB

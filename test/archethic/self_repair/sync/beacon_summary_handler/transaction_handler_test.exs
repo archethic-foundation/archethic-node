@@ -141,7 +141,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
         {:ok, %UnspentOutputList{unspent_outputs: inputs}}
 
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, page: nil}}
     end)
 
     MockDB
