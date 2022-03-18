@@ -22,13 +22,14 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
     assert %Transaction{
              data: %TransactionData{
                content:
-                 <<127, 0, 0, 1, 3000::16, 1, _::binary-size(33), cert_size::16,
+                 <<127, 0, 0, 1, 3000::16, 4000::16, 1, _::binary-size(33), cert_size::16,
                    _::binary-size(cert_size)>>
              }
            } =
              TransactionHandler.create_node_transaction(
                {127, 0, 0, 1},
                3000,
+               4000,
                :tcp,
                <<0::8, :crypto.strong_rand_bytes(32)::binary>>
              )
@@ -38,6 +39,7 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 4390,
+      http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1",
       available?: true
@@ -49,6 +51,7 @@ defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
       TransactionHandler.create_node_transaction(
         {127, 0, 0, 1},
         3000,
+        4000,
         :tcp,
         "00610F69B6C5C3449659C99F22956E5F37AA6B90B473585216CF4931DAF7A0AB45"
       )

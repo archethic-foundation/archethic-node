@@ -56,12 +56,13 @@ defmodule ArchEthic.Bootstrap.Sync do
   @spec require_update?(
           :inet.ip_address(),
           :inet.port_number(),
+          :inet.port_number(),
           P2P.supported_transport(),
           DateTime.t() | nil
         ) :: boolean()
-  def require_update?(_ip, _port, _transport, nil), do: false
+  def require_update?(_ip, _port, _http_port, _transport, nil), do: false
 
-  def require_update?(ip, port, transport, last_sync_date) do
+  def require_update?(ip, port, http_port, transport, last_sync_date) do
     first_node_public_key = Crypto.first_node_public_key()
 
     case P2P.list_nodes() do
@@ -72,8 +73,15 @@ defmodule ArchEthic.Bootstrap.Sync do
         diff_sync = DateTime.diff(DateTime.utc_now(), last_sync_date, :second)
 
         case P2P.get_node_info(first_node_public_key) do
-          {:ok, %Node{ip: prev_ip, port: prev_port, transport: prev_transport}}
-          when ip != prev_ip or port != prev_port or diff_sync > @out_of_sync_date_threshold or
+          {:ok,
+           %Node{
+             ip: prev_ip,
+             port: prev_port,
+             http_port: prev_http_port,
+             transport: prev_transport
+           }}
+          when ip != prev_ip or port != prev_port or http_port != prev_http_port or
+                 diff_sync > @out_of_sync_date_threshold or
                  prev_transport != transport ->
             true
 

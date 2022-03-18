@@ -34,12 +34,13 @@ defmodule ArchEthicWeb.ExplorerView do
   end
 
   def format_transaction_content(:node, content) do
-    {:ok, ip, port, transport, reward_address, key_certificate} =
+    {:ok, ip, port, http_port, transport, reward_address, key_certificate} =
       Node.decode_transaction_content(content)
 
     """
     IP: #{:inet.ntoa(ip)}
     Port: #{port}
+    HTPPort: #{http_port}
     Transport: #{transport}
     Reward address: #{Base.encode16(reward_address)}
     Key certificate: #{Base.encode16(key_certificate)}

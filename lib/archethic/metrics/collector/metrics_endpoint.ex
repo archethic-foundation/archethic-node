@@ -11,20 +11,15 @@ defmodule ArchEthic.Metrics.Collector.MetricsEndpoint do
   @node_metric_request_type "GET"
 
   @impl Collector
-  def fetch_metrics(ip_address) do
-    with {:ok, conn_ref} <- establish_connection(ip_address),
+  def fetch_metrics({ip_address, http_port}) do
+    with {:ok, conn_ref} <- establish_connection(ip_address, http_port),
          {:ok, conn, _req_ref} <- request(conn_ref) do
       stream_responses(conn)
     end
   end
 
-  defp establish_connection(ip) do
-    port =
-      Application.get_env(:archethic, ArchEthicWeb.Endpoint)
-      |> Keyword.get(:http)
-      |> Keyword.get(:port)
-
-    Mint.HTTP.connect(:http, ip |> :inet.ntoa() |> to_string(), port)
+  defp establish_connection(ip, http_port) do
+    Mint.HTTP.connect(:http, ip |> :inet.ntoa() |> to_string(), http_port)
   end
 
   defp request(conn_ref) do

@@ -43,9 +43,9 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
           :node,
           %TransactionData{
             content:
-              <<80, 20, 10, 200, 3000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
-                115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31,
-                64, 157, 137, byte_size(certificate)::16, certificate::binary>>
+              <<80, 20, 10, 200, 3000::16, 4000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149,
+                253, 24, 115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190,
+                207, 31, 64, 157, 137, byte_size(certificate)::16, certificate::binary>>
           },
           "seed",
           0
@@ -68,9 +68,9 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
           :node,
           %TransactionData{
             content:
-              <<80, 20, 100, 50, 3000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
-                115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31,
-                64, 157, 137, byte_size(certificate)::16, certificate::binary>>
+              <<80, 20, 100, 50, 3000::16, 4000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149,
+                253, 24, 115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190,
+                207, 31, 64, 157, 137, byte_size(certificate)::16, certificate::binary>>
           },
           private_key,
           public_key,
@@ -87,8 +87,9 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       certificate = Crypto.get_key_certificate(public_key)
 
       content_pretext =
-        <<80, 20, 10, 200, 3000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128,
-          241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>
+        <<80, 20, 10, 200, 3000::16, 4000::16, 1, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24,
+          115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64,
+          157, 137>>
 
       random_content = :crypto.strong_rand_bytes(4 * 1024 * 1024)
 
@@ -114,6 +115,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: "node_key1",
         last_public_key: "node_key1",
         available?: true
@@ -122,6 +124,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: "node_key2",
         last_public_key: "node_key2",
         available?: true
@@ -170,6 +173,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: "node1",
         last_public_key: "node1",
         geo_patch: "AAA",

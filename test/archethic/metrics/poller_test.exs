@@ -61,6 +61,7 @@ defmodule ArchEthic.Metrics.PollerTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3002,
+      http_port: 4000,
       first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       geo_patch: "AAA",

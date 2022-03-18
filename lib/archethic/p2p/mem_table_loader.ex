@@ -77,11 +77,13 @@ defmodule ArchEthic.P2P.MemTableLoader do
 
     first_public_key = TransactionChain.get_first_public_key(previous_public_key)
 
-    {:ok, ip, port, transport, reward_address, _} = Node.decode_transaction_content(content)
+    {:ok, ip, port, http_port, transport, reward_address, _} =
+      Node.decode_transaction_content(content)
 
     node = %Node{
       ip: ip,
       port: port,
+      http_port: http_port,
       first_public_key: first_public_key,
       last_public_key: previous_public_key,
       geo_patch: GeoPatch.from_ip(ip),

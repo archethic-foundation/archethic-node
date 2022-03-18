@@ -46,6 +46,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   geo_patch: "AFZ",
@@ -72,7 +73,7 @@ defmodule ArchEthic.P2P.MemTable do
       {
         # Discovery table
         [{
-          "key1", "key2", {127, 0, 0, 1}, 3000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :tcp,
+          "key1", "key2", {127, 0, 0, 1}, 3000, 4000, "AFZ", "AAA", 0.9, <<1::1, 1::1>>, ~U[2020-10-22 23:19:45.797109Z], :tcp,
           <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
             87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
@@ -92,6 +93,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   geo_patch: "AFZ",
@@ -112,6 +114,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> :ok = MemTable.add_node(%Node{
       ...>   ip: {80, 20, 10, 122},
       ...>   port: 5000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key5",
       ...>   average_availability: 90,
@@ -128,6 +131,7 @@ defmodule ArchEthic.P2P.MemTable do
         "key5",
         {80, 20, 10, 122},
         5000,
+        4000,
         "AFZ",
         "AAA",
         90,
@@ -183,6 +187,7 @@ defmodule ArchEthic.P2P.MemTable do
          last_public_key: last_public_key,
          ip: ip,
          port: port,
+         http_port: http_port,
          geo_patch: geo_patch,
          network_patch: network_patch,
          enrollment_date: enrollment_date,
@@ -194,7 +199,7 @@ defmodule ArchEthic.P2P.MemTable do
        }) do
     :ets.insert(
       @discovery_table,
-      {first_public_key, last_public_key, ip, port, geo_patch, network_patch,
+      {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
        average_availability, availability_history, enrollment_date, transport, reward_address,
        last_address}
     )
@@ -205,6 +210,7 @@ defmodule ArchEthic.P2P.MemTable do
          last_public_key: last_public_key,
          ip: ip,
          port: port,
+         http_port: http_port,
          geo_patch: geo_patch,
          network_patch: network_patch,
          average_availability: average_availability,
@@ -218,29 +224,30 @@ defmodule ArchEthic.P2P.MemTable do
       {2, last_public_key},
       {3, ip},
       {4, port},
-      {10, transport},
-      {11, reward_address},
-      {12, last_address}
+      {5, http_port},
+      {11, transport},
+      {12, reward_address},
+      {13, last_address}
     ])
 
     if geo_patch != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{5, geo_patch}])
+      :ets.update_element(@discovery_table, first_public_key, [{6, geo_patch}])
     end
 
     if network_patch != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{6, network_patch}])
+      :ets.update_element(@discovery_table, first_public_key, [{7, network_patch}])
     end
 
     if average_availability != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{7, average_availability}])
+      :ets.update_element(@discovery_table, first_public_key, [{8, average_availability}])
     end
 
     if availability_history != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{8, availability_history}])
+      :ets.update_element(@discovery_table, first_public_key, [{9, availability_history}])
     end
 
     if enrollment_date != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{9, enrollment_date}])
+      :ets.update_element(@discovery_table, first_public_key, [{10, enrollment_date}])
     end
   end
 
@@ -258,6 +265,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -271,6 +279,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -310,6 +319,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -343,6 +353,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -350,6 +361,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3",
       ...>   authorized?: true,
@@ -388,6 +400,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -395,6 +408,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3",
       ...>   available?: true,
@@ -433,6 +447,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -440,6 +455,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3"
       ...> }
@@ -461,6 +477,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node1 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -468,6 +485,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node2 = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key3",
       ...>   last_public_key: "key3",
       ...>   authorized?: true,
@@ -491,6 +509,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> :ok = MemTable.add_node(%Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key1",
       ...> })
@@ -518,6 +537,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> :ok = MemTable.add_node(%Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key1",
       ...>   authorized?: true,
@@ -547,6 +567,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -558,6 +579,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -585,6 +607,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -609,6 +632,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2"
       ...> }
@@ -634,6 +658,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   availability_history: <<0::1>>
@@ -645,13 +670,13 @@ defmodule ArchEthic.P2P.MemTable do
   @spec increase_node_availability(first_public_key :: Crypto.key()) :: :ok
   def increase_node_availability(first_public_key) when is_binary(first_public_key) do
     if :ets.member(@discovery_table, first_public_key) do
-      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 9) do
         <<1::1, _::bitstring>> ->
           :ok
 
         <<0::1, _::bitstring>> = history ->
           new_history = <<1::1, history::bitstring>>
-          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          true = :ets.update_element(@discovery_table, first_public_key, {9, new_history})
           Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
           notify_node_update(first_public_key)
           :ok
@@ -670,6 +695,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   availability_history: <<1::1>>
@@ -681,13 +707,13 @@ defmodule ArchEthic.P2P.MemTable do
   @spec decrease_node_availability(first_public_key :: Crypto.key()) :: :ok
   def decrease_node_availability(first_public_key) when is_binary(first_public_key) do
     if :ets.member(@discovery_table, first_public_key) do
-      case :ets.lookup_element(@discovery_table, first_public_key, 8) do
+      case :ets.lookup_element(@discovery_table, first_public_key, 9) do
         <<0::1, _::bitstring>> ->
           :ok
 
         <<1::1, _::bitstring>> = history ->
           new_history = <<0::1, history::bitstring>>
-          true = :ets.update_element(@discovery_table, first_public_key, {8, new_history})
+          true = :ets.update_element(@discovery_table, first_public_key, {9, new_history})
           Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
           notify_node_update(first_public_key)
           :ok
@@ -706,6 +732,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   average_availability: 0.4
@@ -722,8 +749,8 @@ defmodule ArchEthic.P2P.MemTable do
       when is_binary(first_public_key) and is_float(avg_availability) do
     true =
       :ets.update_element(@discovery_table, first_public_key, [
-        {7, avg_availability},
-        {8, <<1::1>>}
+        {8, avg_availability},
+        {9, <<1::1>>}
       ])
 
     Logger.info("New average availability: #{avg_availability}}",
@@ -743,6 +770,7 @@ defmodule ArchEthic.P2P.MemTable do
       iex> node = %Node{
       ...>   ip: {127, 0, 0, 1},
       ...>   port: 3000,
+      ...>   http_port: 4000,
       ...>   first_public_key: "key1",
       ...>   last_public_key: "key2",
       ...>   network_patch: "AAA"
@@ -755,7 +783,7 @@ defmodule ArchEthic.P2P.MemTable do
           :ok
   def update_node_network_patch(first_public_key, patch)
       when is_binary(first_public_key) and is_binary(patch) do
-    true = :ets.update_element(@discovery_table, first_public_key, [{6, patch}])
+    true = :ets.update_element(@discovery_table, first_public_key, [{7, patch}])
     Logger.info("New network patch: #{patch}}", node: Base.encode16(first_public_key))
     notify_node_update(first_public_key)
     :ok

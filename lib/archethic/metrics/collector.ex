@@ -7,22 +7,23 @@ defmodule ArchEthic.Metrics.Collector do
   alias ArchEthic.Metrics.Parser
   alias ArchEthic.P2P
 
-  @callback fetch_metrics(:inet.ip_address()) :: {:ok, String.t()} | {:error, any()}
+  @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
+              {:ok, String.t()} | {:error, any()}
 
   @doc """
-  Get the list of Node IP addresses
+  Get the list of Node endpoints
   """
-  @spec retrieve_node_ip_addresses() :: list(:inet.ip_address())
-  def retrieve_node_ip_addresses do
-    Enum.map(P2P.authorized_nodes(), & &1.ip)
+  @spec get_node_endpoints() :: list({:inet.ip_address(), :inet.port_number()})
+  def get_node_endpoints() do
+    Enum.map(P2P.authorized_nodes(), &{&1.ip, &1.http_port})
   end
 
   @doc """
   Responsible for retrieving network metrics.
   """
-  @spec retrieve_network_metrics(list(:inet.ip_address())) :: map()
-  def retrieve_network_metrics(node_ip_addresses) do
-    Task.async_stream(node_ip_addresses, &service().fetch_metrics(&1))
+  @spec retrieve_network_metrics(list({:inet.ip_address(), port()})) :: map()
+  def retrieve_network_metrics(node_endpoints) do
+    Task.async_stream(node_endpoints, &service().fetch_metrics(&1))
     |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
     |> Stream.map(fn {:ok, {:ok, result}} -> result end)
     |> Stream.map(&Parser.extract_from_string/1)
