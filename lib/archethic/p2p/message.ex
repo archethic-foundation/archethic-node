@@ -1200,7 +1200,6 @@ defmodule ArchEthic.P2P.Message do
   end
 
   # Returns the length of the transaction chain
-  @spec process(%GetTransactionChainLength{}) :: %TransactionChainLength{}
   def process(%GetTransactionChainLength{address: address}) do
     %TransactionChainLength{
       length: TransactionChain.size(address)
