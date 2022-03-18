@@ -12,17 +12,17 @@ defmodule ArchEthic.Metrics.Collector do
   @doc """
   Get the list of Node IP addresses
   """
-  @spec retrieve_node_ip_addresses() :: list(:inet.ip_address())
-  def retrieve_node_ip_addresses do
-    Enum.map(P2P.authorized_nodes(), & &1.ip)
+  @spec retrieve_node_ip_addresses_and_http_ports() :: list({:inet.ip_address(), port()})
+  def retrieve_node_ip_addresses_and_http_ports do
+    Enum.map(P2P.authorized_nodes(), &{&1.ip, &1.http_port})
   end
 
   @doc """
   Responsible for retrieving network metrics.
   """
-  @spec retrieve_network_metrics(list(:inet.ip_address())) :: map()
-  def retrieve_network_metrics(node_ip_addresses) do
-    Task.async_stream(node_ip_addresses, &service().fetch_metrics(&1))
+  @spec retrieve_network_metrics(list({:inet.ip_address(), port()})) :: map()
+  def retrieve_network_metrics(node_ip_addresses_with_http_port) do
+    Task.async_stream(node_ip_addresses_with_http_port, &service().fetch_metrics(&1))
     |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
     |> Stream.map(fn {:ok, {:ok, result}} -> result end)
     |> Stream.map(&Parser.extract_from_string/1)
