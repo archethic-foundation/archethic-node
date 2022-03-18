@@ -184,15 +184,15 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def encode(%GetTransactionChain{address: tx_address, after: nil, page: nil}) do
-    <<4::8, tx_address::binary, "TIME_NIL", "PAGE_NIL">>
+    <<4::8, tx_address::binary, 0::32, "">>
   end
 
   def encode(%GetTransactionChain{address: tx_address, after: date = %DateTime{}, page: nil}) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, "PAGE_NIL">>
+    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, "">>
   end
 
   def encode(%GetTransactionChain{address: tx_address, after: nil, page: paging_state}) do
-    <<4::8, tx_address::binary, "TIME_NIL", paging_state>>
+    <<4::8, tx_address::binary, 0::32, paging_state>>
   end
 
   def encode(%GetTransactionChain{
@@ -455,7 +455,7 @@ defmodule ArchEthic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "FALSE", "PAGE_NIL">>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1, "">>
   end
 
   def encode(%TransactionList{transactions: transactions, more?: true, page: paging_state}) do
@@ -465,7 +465,7 @@ defmodule ArchEthic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, "TRUE", paging_state>>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1, paging_state>>
   end
 
   def encode(tx = %Transaction{}) do
@@ -521,15 +521,15 @@ defmodule ArchEthic.P2P.Message do
 
     case rest do
       # both are absent and time_after and page_state
-      <<"TIME_NIL", "PAGE_NIL", rest::bitstring>> ->
+      <<0::32, "", rest::bitstring>> ->
         {%GetTransactionChain{address: address, after: nil, page: nil}, rest}
 
       # time is absent
-      <<"TIME_NIL", paging_state::binary()>> ->
+      <<0::32, paging_state::binary()>> ->
         {%GetTransactionChain{address: address, after: nil, page: paging_state}, rest}
 
       # case2: page_state absent
-      <<timestamp::32, "PAGE_NIL">> ->
+      <<timestamp::32, "">> ->
         date = DateTime.from_unix!(timestamp)
         {%GetTransactionChain{address: address, after: date, page: nil}, rest}
 
@@ -875,10 +875,10 @@ defmodule ArchEthic.P2P.Message do
     {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
 
     case rest do
-      <<"FALSE", "PAGE_NIL">> ->
+      <<0::1, "">> ->
         {%TransactionList{transactions: transactions, more?: false, page: nil}, rest}
 
-      <<"TRUE", paging_state::binary()>> ->
+      <<1::1, paging_state::binary()>> ->
         {%TransactionList{transactions: transactions, more?: true, page: paging_state}, rest}
 
       _ ->
