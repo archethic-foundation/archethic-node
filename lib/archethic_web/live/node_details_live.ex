@@ -25,7 +25,7 @@ defmodule ArchEthicWeb.NodeDetailsLive do
          true <- Crypto.valid_public_key?(pub),
          {:ok, node = %Node{last_public_key: last_public_key}} <-
            P2P.get_node_info(pub) do
-      node_address = Crypto.hash(last_public_key)
+      node_address = Crypto.derive_address(last_public_key)
 
       PubSub.register_to_node_update()
 
