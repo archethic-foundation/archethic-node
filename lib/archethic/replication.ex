@@ -133,7 +133,7 @@ defmodule ArchEthic.Replication do
         {:error, reason} ->
           :ok = TransactionChain.write_ko_transaction(tx)
 
-          Logger.info("Invalid transaction for replication - #{inspect(reason)}",
+          Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )
@@ -197,7 +197,7 @@ defmodule ArchEthic.Replication do
         {:error, reason} ->
           :ok = TransactionChain.write_ko_transaction(tx)
 
-          Logger.info("Invalid transaction for replication - #{inspect(reason)}",
+          Logger.warning("Invalid transaction for replication - #{inspect(reason)}",
             transaction_address: Base.encode16(address),
             transaction_type: type
           )
