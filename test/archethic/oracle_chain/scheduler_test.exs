@@ -216,7 +216,7 @@ defmodule ArchEthic.OracleChain.SchedulerTest do
       #    |> DateTime.from_naive!("Etc/UTC")
 
       MockDB
-      |> expect(:get_transaction_chain, fn _, _ ->
+      |> expect(:get_transaction_chain, fn _, _, _ ->
         {[
            %Transaction{
              address:
