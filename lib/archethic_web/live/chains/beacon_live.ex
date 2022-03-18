@@ -13,7 +13,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetBeaconSummaries
   alias ArchEthic.P2P.Message.BeaconSummaryList
@@ -228,48 +227,42 @@ defmodule ArchEthicWeb.BeaconChainLive do
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
-    |> do_get_download_summary_transaction_chain({beacon_address, nil, false, nil}, [])
+    |> do_get_download_summary_transaction_chain(beacon_address)
   end
+
+  defp do_get_download_summary_transaction_chain(nodes, address, opts \\ [], acc \\ [])
 
   defp do_get_download_summary_transaction_chain(
          nodes = [node | rest],
-         {address, time_after, more?, paging_state},
-         prev_result
+         address,
+         opts,
+         acc
        ) do
-    message = %GetTransactionChain{address: address, after: time_after, page: paging_state}
+    message = %GetTransactionChain{address: address, page: Keyword.get(opts, :page)}
 
     case P2P.send_message(node, message) do
-      {:ok, %TransactionList{transactions: [], more?: _more?, page: _paging_state}} ->
-        []
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        Enum.uniq_by(acc ++ transactions, & &1.address)
 
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: _paging_state}} ->
+      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} ->
         do_get_download_summary_transaction_chain(
           nodes,
-          {address, time_after, more?, paging_state},
-          List.flatten([transactions | prev_result]) |> Enum.uniq()
-        )
-
-      {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}} ->
-        {:ok, List.flatten([transactions | prev_result]) |> Enum.uniq()}
-
-      {:ok, %NotFound{}} ->
-        do_get_download_summary_transaction_chain(
-          rest,
-          {address, time_after, _more = false, _paging_state = nil},
-          prev_result
+          address,
+          [page: page],
+          Enum.uniq_by(acc ++ transactions, & &1.address)
         )
 
       {:error, _} ->
         do_get_download_summary_transaction_chain(
           rest,
-          {address, time_after, _more = false, _paging_state = nil},
-          prev_result
+          address,
+          opts,
+          acc
         )
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, []), do: {:ok, []}
-  defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
+  defp do_get_download_summary_transaction_chain([], _, _, _), do: {:error, :network_issue}
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->

@@ -247,17 +247,25 @@ defmodule ArchEthic do
     |> get_transaction_chain(address)
   end
 
-  defp get_transaction_chain([node | rest], address) do
-    case P2P.send_message(node, %GetTransactionChain{address: address}) do
+  defp get_transaction_chain(nodes, address, opts \\ [], acc \\ [])
+
+  defp get_transaction_chain([node | rest], address, opts, acc) do
+    case P2P.send_message(node, %GetTransactionChain{
+           address: address,
+           page: Keyword.get(opts, :page)
+         }) do
       {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}} ->
         {:ok, transactions}
 
+      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} ->
+        get_transaction_chain([node | rest], address, [page: page], acc ++ transactions)
+
       {:error, _} ->
-        get_transaction_chain(rest, address)
+        get_transaction_chain(rest, address, opts, acc)
     end
   end
 
-  defp get_transaction_chain([], _), do: {:error, :network_issue}
+  defp get_transaction_chain([], _, _, _), do: {:error, :network_issue}
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes
