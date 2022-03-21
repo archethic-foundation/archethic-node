@@ -53,6 +53,7 @@ defmodule ArchEthicWeb.Router do
     live("/chain/beacon", BeaconChainLive)
 
     live("/nodes", NodeListLive)
+    live("/nodes/worldmap", WorldMapLive)
     live("/node/:public_key", NodeDetailsLive)
 
     live("/code/viewer", CodeViewerLive)
