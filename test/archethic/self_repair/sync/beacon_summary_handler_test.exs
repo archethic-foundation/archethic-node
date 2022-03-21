@@ -398,7 +398,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
           {:ok, transfer_tx}
 
         _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: [], more?: false, page: nil}}
+          {:ok, %TransactionList{transactions: []}}
 
         _, %GetTransactionInputs{address: _}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}

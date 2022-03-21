@@ -78,7 +78,7 @@ defmodule ArchEthic.ReplicationTest do
 
       _, %GetTransactionChain{}, _ ->
         Process.sleep(10)
-        {:ok, %TransactionList{transactions: [], more?: false, page: nil}}
+        {:ok, %TransactionList{transactions: []}}
     end)
 
     assert :ok = Replication.validate_and_store_transaction_chain(tx, [])

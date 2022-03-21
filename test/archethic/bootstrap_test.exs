@@ -69,7 +69,7 @@ defmodule ArchEthic.BootstrapTest do
           {:ok, %UnspentOutputList{unspent_outputs: []}}
 
         _, %GetTransactionChain{}, _ ->
-          {:ok, %TransactionList{transactions: [], more?: false, page: nil}}
+          {:ok, %TransactionList{transactions: []}}
 
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
