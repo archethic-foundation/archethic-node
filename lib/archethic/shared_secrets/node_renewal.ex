@@ -114,6 +114,35 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
     )
   end
 
+  @spec new_origin_shared_secrets_transaction(
+          origin_public_keys :: list(Crypto.key()),
+          secret_key :: binary()
+        ) :: Transaction.t()
+  def new_origin_shared_secrets_transaction(
+        origin_public_keys \\ [<<0::0, 0::0, :crypto.strong_rand_bytes(32)::binary>>],
+        secret_key \\ :crypto.strong_rand_bytes(32)
+      )
+      when is_binary(secret_key) and
+             is_list(origin_public_keys) do
+    {new_shared_origin_pub_key, new_shared_origin_priv_key} = Crypto.generate_random_keypair()
+    origin_public_key = Enum.at(origin_public_keys, 0)
+
+    encrypted_origin_shared_priv_key =
+      Crypto.ec_encrypt(new_shared_origin_priv_key, origin_public_key)
+
+    secret = encrypted_origin_shared_priv_key
+
+    Transaction.new(
+      :origin_shared_secrets,
+      %TransactionData{
+        content: new_shared_origin_pub_key,
+        ownerships: [
+          Ownership.new(secret, secret_key, origin_public_keys)
+        ]
+      }
+    )
+  end
+
   @doc """
   Decode the transaction content from the node renewal transaction
   """

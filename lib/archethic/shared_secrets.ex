@@ -63,6 +63,20 @@ defmodule ArchEthic.SharedSecrets do
               to: NodeRenewal
 
   @doc """
+  Create a new transaction for origin shared secrets renewal generating secret encrypted origin priv keys using the aes key
+  for the authorized nodes public keys
+  """
+  @spec new_origin_shared_secrets_transaction(
+          origin_public_keys :: list(Crypto.key()),
+          aes_key :: binary()
+        ) :: Transaction.t()
+  defdelegate new_origin_shared_secrets_transaction(
+                origin_public_keys,
+                aes_key
+              ),
+              to: NodeRenewal
+
+  @doc """
   Load the transaction into the Shared Secrets context
   by filling memory tables and setup the new node shared secret renewal if applicable.
 

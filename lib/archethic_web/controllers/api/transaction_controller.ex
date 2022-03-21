@@ -124,17 +124,17 @@ defmodule ArchEthicWeb.API.TransactionController do
 
   def origin_public_key_verify(conn, data) do
     case OriginPublicKeyPayload.changeset(data) do
-      %{valid?: true} ->
-        public_key =
-          data["publicKey"]
-          |> Base.decode16()
-          |> elem(1)
+      changeset = %{valid?: true} ->
+        %Ecto.Changeset{changes: changes} = changeset
+
+        public_key = Map.get(changes, :publicKey)
+        certificate = Map.get(changes, :certificate)
 
         root_ca_key =
           public_key
           |> Crypto.get_root_ca_public_key()
 
-        if Crypto.verify_key_certificate?(public_key, data["certificate"], root_ca_key) do
+        if Crypto.verify_key_certificate?(public_key, certificate, root_ca_key) do
           conn
           |> put_status(:ok)
           |> json(%{

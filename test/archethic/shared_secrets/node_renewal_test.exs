@@ -38,6 +38,27 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
     assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end
 
+  test "new_origin_shared_secrets_transaction/2 should create a new origin shared secrets transaction" do
+    aes_key = :crypto.strong_rand_bytes(32)
+    origin_public_key = Crypto.first_node_public_key()
+
+    %Transaction{
+      type: :origin_shared_secrets,
+      data: %TransactionData{
+        ownerships: [ownership = %Ownership{}],
+        content: _content
+      }
+    } =
+      SharedSecrets.new_origin_shared_secrets_transaction(
+        [origin_public_key],
+        aes_key
+      )
+
+    assert Ownership.authorized_public_key?(ownership, Crypto.first_node_public_key())
+
+    # assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
+  end
+
   describe "initiator?/0" do
     test "should return false when the first elected node is not the current node" do
       P2P.add_and_connect_node(%Node{
