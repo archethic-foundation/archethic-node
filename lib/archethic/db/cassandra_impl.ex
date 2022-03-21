@@ -128,7 +128,7 @@ defmodule ArchEthic.DB.CassandraImpl do
          address,
          after_time
        ) do
-    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp >=  ? ",
+    {" SELECT transaction_address FROM archethic.transaction_chains WHERE chain_address = ? AND transaction_timestamp < ? ",
      [address, after_time]}
   end
 
