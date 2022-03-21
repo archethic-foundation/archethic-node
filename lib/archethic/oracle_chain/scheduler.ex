@@ -454,11 +454,11 @@ defmodule ArchEthic.OracleChain.Scheduler do
 
   defp get_chain(address, opts \\ [], acc \\ []) do
     case TransactionChain.get(address, [data: [:content], validation_stamp: [:timestamp]], opts) do
-      {transactions, false, _page} ->
-        Enum.uniq_by(acc ++ transactions, & &1.address)
+      {transactions, false, _paging_state} ->
+        acc ++ transactions
 
-      {transactions, true, page} ->
-        get_chain(address, [page: page], acc ++ transactions)
+      {transactions, true, paging_state} ->
+        get_chain(address, [paging_state: paging_state], acc ++ transactions)
     end
   end
 

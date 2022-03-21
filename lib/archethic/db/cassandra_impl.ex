@@ -78,7 +78,7 @@ defmodule ArchEthic.DB.CassandraImpl do
   @doc """
   Fetch the transaction chain by address and project the requested fields from the transactions
   """
-  @spec get_transaction_chain(binary(), list(), page: binary(), after: DateTime.t()) ::
+  @spec get_transaction_chain(binary(), list(), paging_state: nil | binary(), after: DateTime.t()) ::
           {list(Transaction.t()), boolean(), binary()}
   def get_transaction_chain(address, fields \\ [], options \\ [])
       when is_binary(address) and is_list(fields) and is_list(options) do
@@ -86,23 +86,23 @@ defmodule ArchEthic.DB.CassandraImpl do
 
     # options required for query options if passed otherwise nil
     # keyword returns nil if not present
-    page = Keyword.get(options, :page)
+    paging_state = Keyword.get(options, :paging_state)
     after_time = Keyword.get(options, :after)
 
     # gets the query as per the address and after time value
     {query, query_params} = get_transaction_chain_query(address, after_time)
     prepared_statement = Xandra.prepare!(:xandra_conn, query)
 
-    # query_options to check for paging_state , if passed include it
-    query_options = get_transaction_chain_options(page)
+    query_options = get_query_options(paging_state)
 
     page = Xandra.execute!(:xandra_conn, prepared_statement, query_params, query_options)
 
     # page.paging_state is returns binary() page offset for next page
     # it returns nil if no more pages are there
-    paging_state = page.paging_state
-    # more tell more page are there ? , it depdends on paging_state
-    more? = paging_state != nil
+    new_paging_state = page.paging_state
+
+    # determines if there are more pages from the paging state
+    more? = new_paging_state != nil
 
     addresses_to_fetch =
       Enum.map(page, fn %{"transaction_address" => tx_address} -> tx_address end)
@@ -114,8 +114,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
-
-    {chain, more?, paging_state}
+    {chain, more?, new_paging_state}
   end
 
   # when no after time is provided , nil is passed
@@ -133,8 +132,8 @@ defmodule ArchEthic.DB.CassandraImpl do
      [address, after_time]}
   end
 
-  defp get_transaction_chain_options(nil),
-    do: [page_size: 10]
+  defp get_query_options(nil), do: [page_size: 10]
+  defp get_query_options(paging_state), do: [page_size: 10, paging_state: paging_state]
 
   defp chunk_get_transaction(addresses, fields) do
     Xandra.run(:xandra_conn, fn conn ->

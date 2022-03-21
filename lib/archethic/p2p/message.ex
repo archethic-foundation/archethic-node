@@ -183,24 +183,29 @@ defmodule ArchEthic.P2P.Message do
     <<3::8, tx_address::binary>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, after: nil, page: nil}) do
-    <<4::8, tx_address::binary, 0::32, "">>
-  end
-
-  def encode(%GetTransactionChain{address: tx_address, after: date = %DateTime{}, page: nil}) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, "">>
-  end
-
-  def encode(%GetTransactionChain{address: tx_address, after: nil, page: paging_state}) do
-    <<4::8, tx_address::binary, 0::32, paging_state>>
+  def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: nil}) do
+    <<4::8, tx_address::binary, 0::32, 0::8>>
   end
 
   def encode(%GetTransactionChain{
         address: tx_address,
         after: date = %DateTime{},
-        page: paging_state
+        paging_state: nil
       }) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, paging_state>>
+    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, 0::8>>
+  end
+
+  def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: paging_state}) do
+    <<4::8, tx_address::binary, 0::32, byte_size(paging_state)::8, paging_state::binary>>
+  end
+
+  def encode(%GetTransactionChain{
+        address: tx_address,
+        after: date = %DateTime{},
+        paging_state: paging_state
+      }) do
+    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, byte_size(paging_state)::8,
+      paging_state::binary>>
   end
 
   def encode(%GetUnspentOutputs{address: tx_address}) do
@@ -448,24 +453,25 @@ defmodule ArchEthic.P2P.Message do
     <<250::8, Enum.count(unspent_outputs)::32, unspent_outputs_bin::binary>>
   end
 
-  def encode(%TransactionList{transactions: transactions, more?: false, page: nil}) do
+  def encode(%TransactionList{transactions: transactions, more?: false}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1, "">>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1>>
   end
 
-  def encode(%TransactionList{transactions: transactions, more?: true, page: paging_state}) do
+  def encode(%TransactionList{transactions: transactions, more?: true, paging_state: paging_state}) do
     transaction_bin =
       transactions
       |> Stream.map(&Transaction.serialize/1)
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1, paging_state>>
+    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 1::1,
+      byte_size(paging_state)::8, paging_state::binary>>
   end
 
   def encode(tx = %Transaction{}) do
@@ -517,27 +523,29 @@ defmodule ArchEthic.P2P.Message do
 
   #
   def decode(<<4::8, rest::bitstring>>) do
-    {address, rest} = Utils.deserialize_address(rest)
+    {address,
+     <<timestamp::32, paging_state_size::8, paging_state::binary-size(paging_state_size),
+       rest::bitstring>>} = Utils.deserialize_address(rest)
 
-    case rest do
-      # both are absent and time_after and page_state
-      <<0::32, "", rest::bitstring>> ->
-        {%GetTransactionChain{address: address, after: nil, page: nil}, rest}
+    after_time =
+      case timestamp do
+        0 -> nil
+        _ -> DateTime.from_unix!(timestamp)
+      end
 
-      # time is absent
-      <<0::32, paging_state::binary()>> ->
-        {%GetTransactionChain{address: address, after: nil, page: paging_state}, rest}
+    paging_state =
+      case paging_state do
+        "" ->
+          nil
 
-      # case2: page_state absent
-      <<timestamp::32, "">> ->
-        date = DateTime.from_unix!(timestamp)
-        {%GetTransactionChain{address: address, after: date, page: nil}, rest}
+        _ ->
+          paging_state
+      end
 
-      # case1-3 timestamp & page are present
-      <<timestamp::32, paging_state::binary()>> ->
-        date = DateTime.from_unix!(timestamp)
-        {%GetTransactionChain{address: address, after: date, page: paging_state}, rest}
-    end
+    {
+      %GetTransactionChain{address: address, after: after_time, paging_state: paging_state},
+      rest
+    }
   end
 
   def decode(<<5::8, rest::bitstring>>) do
@@ -883,14 +891,18 @@ defmodule ArchEthic.P2P.Message do
     {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
 
     case rest do
-      <<0::1, "">> ->
-        {%TransactionList{transactions: transactions, more?: false, page: nil}, rest}
+      <<0::1, rest::bitstring>> ->
+        {
+          %TransactionList{transactions: transactions, more?: false},
+          rest
+        }
 
-      <<1::1, paging_state::binary()>> ->
-        {%TransactionList{transactions: transactions, more?: true, page: paging_state}, rest}
-
-      _ ->
-        {%TransactionList{transactions: transactions, more?: false, page: nil}, rest}
+      <<1::1, paging_state_size::8, paging_state::binary-size(paging_state_size),
+        rest::bitstring>> ->
+        {
+          %TransactionList{transactions: transactions, more?: true, paging_state: paging_state},
+          rest
+        }
     end
   end
 
@@ -1049,15 +1061,15 @@ defmodule ArchEthic.P2P.Message do
   def process(%GetTransactionChain{
         address: tx_address,
         after: after_time,
-        page: paging_state
+        paging_state: paging_state
       }) do
     {chain, more?, paging_state} =
       tx_address
-      |> TransactionChain.get([], after: after_time, page: paging_state)
+      |> TransactionChain.get([], after: after_time, paging_state: paging_state)
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page
-    %TransactionList{transactions: chain, page: paging_state, more?: more?}
+    %TransactionList{transactions: chain, paging_state: paging_state, more?: more?}
   end
 
   def process(%GetUnspentOutputs{address: tx_address}) do

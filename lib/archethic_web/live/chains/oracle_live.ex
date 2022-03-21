@@ -189,10 +189,10 @@ defmodule ArchEthicWeb.OracleChainLive do
   defp get_transaction_chain(address, opts \\ [], acc \\ []) do
     case TransactionChain.get(address, [:address, :type, validation_stamp: [:timestamp]], opts) do
       {transactions, false, _} ->
-        transactions
+        acc ++ transactions
 
-      {transactions, true, page} ->
-        get_transaction_chain(address, [page: page], acc ++ transactions)
+      {transactions, true, paging_state} ->
+        get_transaction_chain(address, [paging_state: paging_state], acc ++ transactions)
     end
   end
 end

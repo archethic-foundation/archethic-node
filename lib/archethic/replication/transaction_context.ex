@@ -35,54 +35,49 @@ defmodule ArchEthic.Replication.TransactionContext do
       nodes ->
         do_fetch_transaction_chain(
           nodes,
-          {address, timestamp, _more? = false, _paging_state = nil},
-          _acc = []
+          address,
+          timestamp
         )
     end
   end
 
-  # defp do_fetch_transaction_chain(
-  #        nodes,
-  #        {address, timestamp, more?, paging_state},
-  #        prev_result \\ []
-  #      )
+  defp do_fetch_transaction_chain(nodes, address, time_after, page \\ nil, acc \\ [])
 
   defp do_fetch_transaction_chain(
          nodes = [node | rest],
-         {address, time_after, more?, paging_state},
-         prev_result
+         address,
+         time_after,
+         paging_state,
+         acc
        ) do
-    message = %GetTransactionChain{address: address, after: time_after, page: paging_state}
-    # query all the nodes and keep uniqure txn only ends when no more nodes to query
-    # if there are more than two elements in tuple , use maps <- design concepts
-    case P2P.send_message(node, message) do
-      {:ok, %TransactionList{transactions: [], more?: _more?, page: _paging_state}} ->
-        []
+    message = %GetTransactionChain{
+      address: address,
+      after: time_after,
+      paging_state: paging_state
+    }
 
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: paging_state}} ->
+    # query the nodes and keep unique txn
+    # ends where there aren't more transactions to load or no more responding nodes
+    case P2P.send_message(node, message) do
+      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
         do_fetch_transaction_chain(
           nodes,
-          {address, time_after, true, paging_state},
-          List.flatten([transactions | prev_result]) |> Enum.uniq()
+          address,
+          time_after,
+          paging_state,
+          Enum.uniq_by(acc ++ transactions, & &1.address)
         )
 
-      {:ok, %TransactionList{transactions: transactions, more?: false, page: _paging_state}} ->
-        List.flatten([transactions | prev_result]) |> Enum.uniq()
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        Enum.uniq_by(acc ++ transactions, & &1.address)
 
       {:error, _} ->
-        do_fetch_transaction_chain(rest, {address, time_after, more?, paging_state}, prev_result)
+        do_fetch_transaction_chain(rest, address, time_after, paging_state, acc)
     end
   end
 
-  defp do_fetch_transaction_chain([], {_address, _time_after, _more?, _paging_state}, []),
+  defp do_fetch_transaction_chain([], _address, _time_after, _paging_state, _acc),
     do: raise("Cannot fetch transaction chain")
-
-  defp do_fetch_transaction_chain(
-         [],
-         {_address, _time_after, _more?, _paging_state},
-         prev_result
-       ),
-       do: prev_result
 
   @doc """
   Fetch the transaction unspent outputs

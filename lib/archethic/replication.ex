@@ -252,8 +252,8 @@ defmodule ArchEthic.Replication do
       {transactions, false, _} ->
         acc ++ transactions
 
-      {transactions, true, page} ->
-        fetch_local_chain(address, [page: page], acc ++ transactions)
+      {transactions, true, paging_state} ->
+        fetch_local_chain(address, [paging_state: paging_state], acc ++ transactions)
     end
   end
 

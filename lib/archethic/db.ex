@@ -14,7 +14,7 @@ defmodule ArchEthic.DB do
   @callback get_transaction_chain(
               binary(),
               fields :: list(),
-              opts :: [page: binary(), after: DateTime.t()]
+              opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
   @callback write_transaction(Transaction.t(), binary()) :: :ok

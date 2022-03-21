@@ -238,17 +238,20 @@ defmodule ArchEthicWeb.BeaconChainLive do
          opts,
          acc
        ) do
-    message = %GetTransactionChain{address: address, page: Keyword.get(opts, :page)}
+    message = %GetTransactionChain{
+      address: address,
+      paging_state: Keyword.get(opts, :paging_state)
+    }
 
     case P2P.send_message(node, message) do
-      {:ok, %TransactionList{transactions: transactions, more?: false, page: _}} ->
-        Enum.uniq_by(acc ++ transactions, & &1.address)
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        {:ok, Enum.uniq_by(acc ++ transactions, & &1.address)}
 
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} ->
+      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
         do_get_download_summary_transaction_chain(
           nodes,
           address,
-          [page: page],
+          [paging_state: paging_state],
           Enum.uniq_by(acc ++ transactions, & &1.address)
         )
 
@@ -262,8 +265,7 @@ defmodule ArchEthicWeb.BeaconChainLive do
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, _, []), do: {:error, :network_issue}
-  defp do_get_download_summary_transaction_chain([], _, _, acc), do: {:ok, acc}
+  defp do_get_download_summary_transaction_chain([], _, _, _), do: {:error, :network_issue}
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
@@ -313,12 +315,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
       node_list = P2P.authorized_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
-      case get_beacon_summary_transaction_chain(b_address, nodes, patch) do
-        {:ok, transactions} ->
-          transactions
-          |> Stream.map(&deserialize_beacon_transaction/1)
-          |> Enum.to_list()
-      end
+      {:ok, transactions} = get_beacon_summary_transaction_chain(b_address, nodes, patch)
+
+      transactions
+      |> Stream.map(&deserialize_beacon_transaction/1)
+      |> Enum.to_list()
     end)
     |> Enum.map(fn {:ok, txs} -> txs end)
     |> :lists.flatten()

@@ -252,13 +252,18 @@ defmodule ArchEthic do
   defp get_transaction_chain([node | rest], address, opts, acc) do
     case P2P.send_message(node, %GetTransactionChain{
            address: address,
-           page: Keyword.get(opts, :page)
+           paging_state: Keyword.get(opts, :paging_state)
          }) do
-      {:ok, %TransactionList{transactions: transactions, more?: false, page: nil}} ->
-        {:ok, transactions}
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        {:ok, Enum.uniq_by(acc ++ transactions, & &1.address) }
 
-      {:ok, %TransactionList{transactions: transactions, more?: true, page: page}} ->
-        get_transaction_chain([node | rest], address, [page: page], acc ++ transactions)
+      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
+        get_transaction_chain(
+          [node | rest],
+          address,
+          [paging_state: paging_state],
+          Enum.uniq_by(acc ++ transactions, & &1.address)
+        )
 
       {:error, _} ->
         get_transaction_chain(rest, address, opts, acc)
