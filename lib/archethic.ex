@@ -255,7 +255,7 @@ defmodule ArchEthic do
            paging_state: Keyword.get(opts, :paging_state)
          }) do
       {:ok, %TransactionList{transactions: transactions, more?: false}} ->
-        {:ok, Enum.uniq_by(acc ++ transactions, & &1.address) }
+        {:ok, Enum.uniq_by(acc ++ transactions, & &1.address)}
 
       {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
         get_transaction_chain(

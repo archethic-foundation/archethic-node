@@ -114,6 +114,7 @@ defmodule ArchEthic.DB.CassandraImpl do
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "get_transaction_chain"
     })
+
     {chain, more?, new_paging_state}
   end
 
