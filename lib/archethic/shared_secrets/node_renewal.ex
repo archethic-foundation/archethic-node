@@ -119,23 +119,38 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
           secret_key :: binary()
         ) :: Transaction.t()
   def new_origin_shared_secrets_transaction(
-        origin_public_keys \\ [<<0::0, 0::0, :crypto.strong_rand_bytes(32)::binary>>],
-        secret_key \\ :crypto.strong_rand_bytes(32)
+        origin_public_keys,
+        secret_key
       )
       when is_binary(secret_key) and
              is_list(origin_public_keys) do
-    {new_shared_origin_pub_key, new_shared_origin_priv_key} = Crypto.generate_random_keypair()
-    origin_public_key = Enum.at(origin_public_keys, 0)
+    new_shared_origin_keys = 1..10 |> Enum.map(fn _ -> Crypto.generate_random_keypair() end)
 
-    encrypted_origin_shared_priv_key =
-      Crypto.ec_encrypt(new_shared_origin_priv_key, origin_public_key)
+    new_origin_shared_pub_keys_list =
+      new_shared_origin_keys
+      |> Enum.map(fn {pub, _priv} -> pub end)
 
-    secret = encrypted_origin_shared_priv_key
+    new_origin_shared_priv_keys_list =
+      new_shared_origin_keys
+      |> Enum.map(fn {_pub, priv} -> priv end)
+
+    new_origin_shared_pub_keys =
+      new_origin_shared_pub_keys_list
+      |> Enum.reduce(fn x, acc -> acc <> x end)
+
+    new_origin_shared_priv_keys =
+      new_origin_shared_priv_keys_list
+      |> Enum.reduce(fn x, acc -> acc <> x end)
+
+    encrypted_origin_shared_priv_keys =
+      Crypto.aes_encrypt(new_origin_shared_priv_keys, secret_key)
+
+    secret = encrypted_origin_shared_priv_keys
 
     Transaction.new(
       :origin_shared_secrets,
       %TransactionData{
-        content: new_shared_origin_pub_key,
+        content: new_origin_shared_pub_keys,
         ownerships: [
           Ownership.new(secret, secret_key, origin_public_keys)
         ]

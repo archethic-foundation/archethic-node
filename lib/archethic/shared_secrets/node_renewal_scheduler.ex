@@ -124,7 +124,12 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
 
     ArchEthic.send_new_transaction(tx)
 
-    tx = NodeRenewal.new_origin_shared_secrets_transaction()
+    tx =
+      NodeRenewal.new_origin_shared_secrets_transaction(
+        [Crypto.first_node_public_key()],
+        :crypto.strong_rand_bytes(32)
+      )
+
     ArchEthic.send_new_transaction(tx)
 
     Logger.info(
