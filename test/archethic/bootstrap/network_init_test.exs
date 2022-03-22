@@ -172,7 +172,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     MockClient
     |> stub(:send_message, fn
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -217,7 +217,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     MockClient
     |> stub(:send_message, fn
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}

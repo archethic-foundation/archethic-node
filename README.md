@@ -125,7 +125,7 @@ Requires working `docker-compose`
 
 To run few `archethic-node`s in testnet one could use mix task `archethic.testnet`:
 ```bash
-mix archethic.testnet 5
+mix arch_ethic.testnet 5
 ```
 
 The task will generate `docker-compose.json` (for 5 nodes with seeds: node1, node2, node3, node4, node5), and run `docker-compose -f docker-compose.json up` which in turn will build `archethic-node` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.

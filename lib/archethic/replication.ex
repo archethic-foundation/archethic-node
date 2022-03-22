@@ -226,7 +226,7 @@ defmodule ArchEthic.Replication do
       transaction_address: Base.encode16(tx.address)
     )
 
-    previous_chain = TransactionChain.get(previous_address)
+    previous_chain = fetch_local_chain(previous_address)
 
     # If the transaction is missing (orphan) and the previous chain has not been synchronized
     # We request other nodes to give us the information
@@ -245,6 +245,16 @@ defmodule ArchEthic.Replication do
     inputs_unspent_outputs = fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
 
     {previous_chain, inputs_unspent_outputs}
+  end
+
+  defp fetch_local_chain(address, opts \\ [], acc \\ []) do
+    case TransactionChain.get(address, [], opts) do
+      {transactions, false, _} ->
+        acc ++ transactions
+
+      {transactions, true, paging_state} ->
+        fetch_local_chain(address, [paging_state: paging_state], acc ++ transactions)
+    end
   end
 
   defp fetch_context_for_regular_transaction(tx, timestamp, self_repair?) do

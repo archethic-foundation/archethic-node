@@ -173,7 +173,7 @@ defmodule ArchEthicWeb.OracleChainLive do
     date
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
-    |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
+    |> get_transaction_chain()
     |> Stream.map(fn %Transaction{
                        address: address,
                        type: type,
@@ -185,4 +185,14 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(nil), do: []
+
+  defp get_transaction_chain(address, opts \\ [], acc \\ []) do
+    case TransactionChain.get(address, [:address, :type, validation_stamp: [:timestamp]], opts) do
+      {transactions, false, _} ->
+        acc ++ transactions
+
+      {transactions, true, paging_state} ->
+        get_transaction_chain(address, [paging_state: paging_state], acc ++ transactions)
+    end
+  end
 end
