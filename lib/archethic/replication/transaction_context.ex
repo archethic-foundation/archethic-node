@@ -35,24 +35,21 @@ defmodule ArchEthic.Replication.TransactionContext do
       nodes ->
         do_fetch_transaction_chain(
           nodes,
-          address,
-          timestamp
+          address
         )
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, time_after, page \\ nil, acc \\ [])
+  defp do_fetch_transaction_chain(nodes, address, page \\ nil, acc \\ [])
 
   defp do_fetch_transaction_chain(
          nodes = [node | rest],
          address,
-         time_after,
          paging_state,
          acc
        ) do
     message = %GetTransactionChain{
       address: address,
-      after: time_after,
       paging_state: paging_state
     }
 
@@ -63,7 +60,6 @@ defmodule ArchEthic.Replication.TransactionContext do
         do_fetch_transaction_chain(
           nodes,
           address,
-          time_after,
           paging_state,
           Enum.uniq_by(acc ++ transactions, & &1.address)
         )
@@ -72,11 +68,11 @@ defmodule ArchEthic.Replication.TransactionContext do
         Enum.uniq_by(acc ++ transactions, & &1.address)
 
       {:error, _} ->
-        do_fetch_transaction_chain(rest, address, time_after, paging_state, acc)
+        do_fetch_transaction_chain(rest, address, paging_state, acc)
     end
   end
 
-  defp do_fetch_transaction_chain([], _address, _time_after, _paging_state, _acc),
+  defp do_fetch_transaction_chain([], _address, _paging_state, _acc),
     do: raise("Cannot fetch transaction chain")
 
   @doc """
@@ -160,7 +156,5 @@ defmodule ArchEthic.Replication.TransactionContext do
     |> Enum.filter(&Node.locally_available?/1)
     # Reorder a list of nodes to ensure the current node is only called at the end
     |> P2P.unprioritize_node(Crypto.first_node_public_key())
-
-    # returns a list of node
   end
 end
