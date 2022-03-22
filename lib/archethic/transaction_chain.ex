@@ -94,8 +94,9 @@ defmodule ArchEthic.TransactionChain do
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
-  @spec get(binary(), list()) :: Enumerable.t() | list(Transaction.t())
-  defdelegate get(address, fields \\ []), to: DB, as: :get_transaction_chain
+  @spec get(binary(), list()) ::
+          Enumerable.t() | {list(Transaction.t()), boolean(), binary()}
+  defdelegate get(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
   Persist only one transaction

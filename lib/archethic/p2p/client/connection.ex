@@ -56,6 +56,7 @@ defmodule ArchEthic.P2P.Client.Connection do
     end
   end
 
+  # fetch cnnoection details from registery for a node from its public key
   defp via_tuple(public_key), do: {:via, Registry, {ConnectionRegistry, public_key}}
 
   def init(arg) do

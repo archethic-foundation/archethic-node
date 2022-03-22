@@ -33,27 +33,47 @@ defmodule ArchEthic.Replication.TransactionContext do
         []
 
       nodes ->
-        do_fetch_transaction_chain(nodes, address)
+        do_fetch_transaction_chain(
+          nodes,
+          address
+        )
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, prev_result \\ nil)
+  defp do_fetch_transaction_chain(nodes, address, page \\ nil, acc \\ [])
 
-  defp do_fetch_transaction_chain([node | rest], address, _prev_result) do
-    case P2P.send_message(node, %GetTransactionChain{address: address}) do
-      {:ok, %TransactionList{transactions: []}} ->
-        do_fetch_transaction_chain(rest, address, [])
+  defp do_fetch_transaction_chain(
+         nodes = [node | rest],
+         address,
+         paging_state,
+         acc
+       ) do
+    message = %GetTransactionChain{
+      address: address,
+      paging_state: paging_state
+    }
 
-      {:ok, %TransactionList{transactions: transactions}} ->
-        transactions
+    # query the nodes and keep unique txn
+    # ends where there aren't more transactions to load or no more responding nodes
+    case P2P.send_message(node, message) do
+      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
+        do_fetch_transaction_chain(
+          nodes,
+          address,
+          paging_state,
+          Enum.uniq_by(acc ++ transactions, & &1.address)
+        )
+
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        Enum.uniq_by(acc ++ transactions, & &1.address)
 
       {:error, _} ->
-        do_fetch_transaction_chain(rest, address)
+        do_fetch_transaction_chain(rest, address, paging_state, acc)
     end
   end
 
-  defp do_fetch_transaction_chain([], _address, nil), do: raise("Cannot fetch transaction chain")
-  defp do_fetch_transaction_chain([], _address, prev_result), do: prev_result
+  defp do_fetch_transaction_chain([], _address, _paging_state, _acc),
+    do: raise("Cannot fetch transaction chain")
 
   @doc """
   Fetch the transaction unspent outputs
@@ -125,9 +145,16 @@ defmodule ArchEthic.Replication.TransactionContext do
 
   defp replication_nodes(address, _timestamp, _) do
     address
+    # returns the storage nodes for the transaction chain based on the transaction address
+    # from a list of available node
     |> Election.chain_storage_nodes(P2P.available_nodes())
+    #  Returns the nearest storages nodes from the local node as per the patch
+    #  when the input is a list of nodes
     |> P2P.nearest_nodes()
+    # Determine if the node is locally available based on its availability history.
+    # If the last exchange with node was succeed the node is considered as available
     |> Enum.filter(&Node.locally_available?/1)
+    # Reorder a list of nodes to ensure the current node is only called at the end
     |> P2P.unprioritize_node(Crypto.first_node_public_key())
   end
 end
