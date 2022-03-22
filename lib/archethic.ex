@@ -102,7 +102,7 @@ defmodule ArchEthic do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
-    node_list = Mining.transaction_validation_node_list(tx.type, current_date)
+    node_list = Mining.transaction_validation_node_list(current_date)
     storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
 
     validation_nodes =

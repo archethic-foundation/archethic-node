@@ -350,11 +350,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   end
 
   defp trigger_node?(summary_date = %DateTime{}, index) do
-    authorized_nodes =
-      Enum.filter(
-        P2P.authorized_nodes(),
-        &(DateTime.compare(&1.authorization_date, DateTime.truncate(summary_date, :second)) == :lt)
-      )
+    authorized_nodes = P2P.authorized_nodes(summary_date)
 
     storage_nodes =
       summary_date

@@ -15,6 +15,8 @@ defmodule ArchEthic.Replication.TransactionValidatorTest do
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  @moduletag :capture_log
+
   setup do
     SharedSecrets.add_origin_public_key(:software, Crypto.first_node_public_key())
 

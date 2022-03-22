@@ -203,7 +203,7 @@ defmodule ArchEthic.Replication.TransactionValidator do
            cross_validation_stamps: cross_validation_stamps
          }
        ) do
-    authorized_nodes = Mining.transaction_validation_node_list(tx_type, tx_timestamp)
+    authorized_nodes = Mining.transaction_validation_node_list(tx_timestamp)
     daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(tx_timestamp)
 
     case authorized_nodes do

@@ -170,8 +170,17 @@ defmodule ArchEthic.BeaconChain.ReplicationAttestation do
       }) do
     tx_summary_payload = TransactionSummary.serialize(tx_summary)
 
-    storage_nodes =
-      Election.chain_storage_nodes_with_type(tx_address, tx_type, P2P.authorized_nodes(timestamp))
+    authorized_nodes =
+      case P2P.authorized_nodes(timestamp) do
+        # Should only happens when the network bootstrap
+        [] ->
+          P2P.authorized_nodes()
+
+        nodes ->
+          nodes
+      end
+
+    storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, authorized_nodes)
 
     if valid_confirmations?(confirmations, tx_summary_payload, storage_nodes) do
       :ok
