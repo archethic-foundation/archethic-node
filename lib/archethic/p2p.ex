@@ -120,7 +120,7 @@ defmodule ArchEthic.P2P do
   @spec authorized_node?(Crypto.key()) :: boolean()
   def authorized_node?(node_public_key \\ Crypto.first_node_public_key())
       when is_binary(node_public_key) do
-    Utils.key_in_node_list?(authorized_nodes(DateTime.utc_now()), node_public_key)
+    Utils.key_in_node_list?(authorized_nodes(), node_public_key)
   end
 
   @doc """
@@ -136,12 +136,10 @@ defmodule ArchEthic.P2P do
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
   def authorized_nodes(date = %DateTime{}) do
-    Enum.filter(MemTable.authorized_nodes(), fn %Node{
-                                                  available?: available?,
-                                                  authorization_date: authorization_date
-                                                } ->
-      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) <= 0 and
-        available?
+    Enum.filter(authorized_nodes(), fn %Node{
+                                         authorization_date: authorization_date
+                                       } ->
+      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
     end)
   end
 

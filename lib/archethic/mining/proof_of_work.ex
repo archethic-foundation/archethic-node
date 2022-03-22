@@ -149,11 +149,11 @@ defmodule ArchEthic.Mining.ProofOfWork do
     end
   end
 
-  defp do_list_origin_public_keys_candidates(%Transaction{type: type})
-       when type in [:node_shared_secrets, :oracle] do
-    P2P.list_authorized_public_keys()
+  defp do_list_origin_public_keys_candidates(%Transaction{type: type}) do
+    if Transaction.network_type?(type) do
+      P2P.list_authorized_public_keys()
+    else
+      SharedSecrets.list_origin_public_keys()
+    end
   end
-
-  defp do_list_origin_public_keys_candidates(%Transaction{}),
-    do: SharedSecrets.list_origin_public_keys()
 end

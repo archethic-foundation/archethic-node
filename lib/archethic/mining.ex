@@ -17,8 +17,6 @@ defmodule ArchEthic.Mining do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
 
-  # alias ArchEthic.SelfRepair
-
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
@@ -53,11 +51,11 @@ defmodule ArchEthic.Mining do
   end
 
   @doc """
-  Return the list of candidates nodes for a given transaction type and time for validation and storage
+  Return the list of candidates nodes for validation and storage
   """
-  @spec transaction_validation_node_list(Transaction.transaction_type(), DateTime.t()) ::
+  @spec transaction_validation_node_list(DateTime.t()) ::
           list(Node.t())
-  def transaction_validation_node_list(_tx_type, time = %DateTime{}) do
+  def transaction_validation_node_list(time = %DateTime{}) do
     case P2P.authorized_nodes(time) do
       [] ->
         # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
@@ -66,23 +64,6 @@ defmodule ArchEthic.Mining do
       nodes ->
         nodes
     end
-
-    # if Transaction.network_type?(tx_type) do
-    #  #last_self_repair_date = SelfRepair.get_previous_scheduler_repair_time(time)
-    #  #
-
-    #  ## Get the authorized nodes which were authorize before the previous self repair date
-    #  #case P2P.authorized_nodes(last_self_repair_date) do
-    #  #  # If there are not nodes from this date, it means a boostrapping time, so we take all the authorized nodes
-    #  #  [] ->
-    #  #    P2P.authorized_nodes()
-
-    #  #  authorized_nodes ->
-    #  #    authorized_nodes
-    #  #end
-    # else
-    #  P2P.authorized_nodes(time)
-    # end
   end
 
   @doc """
@@ -96,7 +77,7 @@ defmodule ArchEthic.Mining do
       when is_list(validation_node_public_keys) do
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
 
-    node_list = transaction_validation_node_list(tx_type, DateTime.utc_now())
+    node_list = transaction_validation_node_list(DateTime.utc_now())
     storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
 
     validation_nodes =
