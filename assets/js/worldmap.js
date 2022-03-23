@@ -125,6 +125,12 @@ function renderItem(params, api) {
 }
 
 export function updateWorldmap(worldmapDatas) {
+  // calculate new min and max number of nodes
+  const temp = worldmapDatas.map(data => data.nb_of_nodes)
+
+  const minNbOfNodes = Math.min(...temp)
+  const maxNbOfNodes = Math.max(...temp)
+
   if (map) {
     map.setOption({
       series: [
@@ -132,7 +138,11 @@ export function updateWorldmap(worldmapDatas) {
           name: 'nodes',
           data: formatData(worldmapDatas)
         }
-      ]
+      ],
+      visualMap: {
+        min: minNbOfNodes,
+        max: maxNbOfNodes
+      }
     })
   }
 }
