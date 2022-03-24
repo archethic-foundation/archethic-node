@@ -1,4 +1,9 @@
 defmodule ArchEthic.P2P.GeoPatchTest do
+  @moduledoc """
+  This module defines the test case to be used by
+  geopatch tests.
+  """
+
   use ExUnit.Case
 
   alias ArchEthic.P2P.GeoPatch
@@ -26,9 +31,9 @@ defmodule ArchEthic.P2P.GeoPatchTest do
       end
     end)
 
-    assert "511" == GeoPatch.from_ip({88, 22, 30, 229})
-    assert "500" == GeoPatch.from_ip({161, 235, 112, 33})
-    assert "410" == GeoPatch.from_ip({15, 62, 246, 57})
-    assert "266" == GeoPatch.from_ip({109, 164, 214, 168})
+    assert "3F7" == GeoPatch.from_ip({88, 22, 30, 229})
+    assert "3C9" == GeoPatch.from_ip({161, 235, 112, 33})
+    assert "3A6" == GeoPatch.from_ip({15, 62, 246, 57})
+    assert "401" == GeoPatch.from_ip({109, 164, 214, 168})
   end
 end
