@@ -7,6 +7,7 @@ defmodule ArchEthic.TransactionChain.Transaction.CrossValidationStamp do
 
   alias ArchEthic.Crypto
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias ArchEthic.Utils
 
   @type inconsistency() ::
           :timestamp
@@ -157,17 +158,16 @@ defmodule ArchEthic.TransactionChain.Transaction.CrossValidationStamp do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(<<curve_id::8, origin_id::8, rest::bitstring>>) do
-    key_size = Crypto.key_size(curve_id)
-
-    <<key::binary-size(key_size), signature_size::8, signature::binary-size(signature_size),
-      nb_inconsistencies::8, rest::bitstring>> = rest
+  def deserialize(data) do
+    {public_key,
+     <<signature_size::8, signature::binary-size(signature_size), nb_inconsistencies::8,
+       rest::bitstring>>} = Utils.deserialize_public_key(data)
 
     {inconsistencies, rest} = reduce_inconsistencies(rest, nb_inconsistencies, [])
 
     {
       %__MODULE__{
-        node_public_key: <<curve_id::8, origin_id::8, key::binary>>,
+        node_public_key: public_key,
         signature: signature,
         inconsistencies: inconsistencies
       },
