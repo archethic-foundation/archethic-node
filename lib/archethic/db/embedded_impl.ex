@@ -7,7 +7,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
- # @behaviour ArchEthic.DB
+  # @behaviour ArchEthic.DB
 
   @spec write_transaction_chain(list(Transaction.t())) :: :ok
   def write_transaction_chain(chain) do
@@ -40,5 +40,5 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   end
 
   defdelegate get_transaction(address, fields \\ []), to: Reader
-  defdelegate get_transaction_chain(address, fields \\ [], paging_state \\ nil), to: Reader
+  defdelegate get_transaction_chain(address, fields \\ [], opts \\ []), to: Reader
 end

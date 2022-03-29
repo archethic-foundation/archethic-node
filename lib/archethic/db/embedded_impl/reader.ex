@@ -7,6 +7,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.Reader do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.Utils
 
+  @page_size 10
+
   @spec get_transaction(binary(), list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) do
@@ -35,15 +37,30 @@ defmodule ArchEthic.DB.EmbeddedImpl.Reader do
     end
   end
 
-  @spec get_transaction_chain(binary(), list(), binary() | nil) :: { list(Transaction.t()), boolean(), binary() }
-  def get_transaction_chain(address, fields \\ [], _opts \\ []) do
+  @spec get_transaction_chain(binary(), list(), binary() | nil) ::
+          {list(Transaction.t()), boolean(), binary()}
+  def get_transaction_chain(address, fields \\ [], opts \\ []) do
     case Index.get_tx_entry(address) do
       {:error, :not_exists} ->
         []
 
       {:ok, %{file: file}} ->
         fd = File.open!(file, [:binary, :read])
-        scan_chain(fd, fields)
+
+        # Set the file cursor position to the paging state
+        position =
+          case Keyword.get(opts, :paging_state) do
+            nil ->
+              :file.position(fd, 0)
+              0
+
+            paging_address ->
+              {:ok, %{offset: offset, size: size}} = Index.get_tx_entry(paging_address)
+              :file.position(fd, offset + size)
+              offset + size
+          end
+
+        scan_chain(fd, fields, position)
     end
   end
 
@@ -79,23 +96,28 @@ defmodule ArchEthic.DB.EmbeddedImpl.Reader do
     end
   end
 
-  defp scan_chain(fd, fields, position \\ 0, acc \\ []) do
+  defp scan_chain(fd, fields, position, acc \\ []) do
     case :file.read(fd, 8) do
       {:ok, <<size::32, version::32>>} ->
-        data = read_transaction(fd, fields, size, 0)
+        if length(acc) == @page_size do
+          %Transaction{address: address} = List.first(acc)
+          {Enum.reverse(acc), true, address}
+        else
+          data = read_transaction(fd, fields, size, 0)
 
-        tx =
-          data
-          |> Enum.reduce(%{version: version}, fn {column, data}, acc ->
-            Encoding.decode(version, column, data, acc)
-          end)
-          |> Utils.atomize_keys()
-          |> Transaction.from_map()
+          tx =
+            data
+            |> Enum.reduce(%{version: version}, fn {column, data}, acc ->
+              Encoding.decode(version, column, data, acc)
+            end)
+            |> Utils.atomize_keys()
+            |> Transaction.from_map()
 
-        scan_chain(fd, fields, position + 8 + size, [tx | acc])
+          scan_chain(fd, fields, position + 8 + size, [tx | acc])
+        end
 
       :eof ->
-        acc
+        {Enum.reverse(acc), false, nil}
     end
   end
 

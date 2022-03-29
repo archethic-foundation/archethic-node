@@ -23,13 +23,6 @@ defmodule ArchEthic.DB.EmbeddedTest do
     %{db_path: db_path}
   end
 
-  # describe "start_link/1" do
-  #  test "should initialize the folders of the embedded database", %{ db_path: db_path} do
-  #    assert File.dir?(Application.app_dir(:archethic, "data_test"))
-  #    assert File.dir?(Application.app_dir(:archethic, "data_test/chains"))
-  #  end
-  # end
-
   describe "write_transaction_chain/1" do
     test "should persist a transaction chain in the dedicated file", %{db_path: db_path} do
       tx = TransactionFactory.create_valid_transaction()
@@ -57,7 +50,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       genesis_address = Transaction.previous_address(tx1)
 
       tx2 = TransactionFactory.create_valid_transaction([], index: 1)
-      :ok = EmbeddedImpl.write_transaction_chain([tx2, tx1])
+      :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
 
       filename = Path.join(db_path, "chains/#{Base.encode16(genesis_address)}")
 
@@ -194,13 +187,41 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
     test "should return the list of all the transactions related to transaction's address chain" do
       tx1 = TransactionFactory.create_valid_transaction([], index: 0)
-      tx2 = TransactionFactory.create_valid_transaction([], index: 1)
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: DateTime.add(DateTime.utc_now(), 100)
+        )
 
       _genesis_address = Transaction.previous_address(tx1)
 
-      :ok = EmbeddedImpl.write_transaction_chain([tx2, tx1])
+      :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
 
-      assert [^tx2, ^tx1] = EmbeddedImpl.get_transaction_chain(tx2.address)
+      assert {[^tx1, ^tx2], false, nil} = EmbeddedImpl.get_transaction_chain(tx2.address)
+    end
+
+    test "should return a page and its paging state" do
+      transactions =
+        Enum.map(1..20, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+
+      {page, true, paging_state} =
+        EmbeddedImpl.get_transaction_chain(List.first(transactions).address)
+
+      assert length(page) == 10
+      assert page == Enum.take(transactions, 10)
+      assert paging_state == List.last(page).address
+
+      {page2, false, nil} = EmbeddedImpl.get_transaction_chain(List.first(transactions).address, [], paging_state: paging_state)
+      assert length(page2) == 10
+      assert page2 == Enum.slice(transactions, 10, 10)
     end
   end
 end
