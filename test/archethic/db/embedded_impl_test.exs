@@ -219,9 +219,36 @@ defmodule ArchEthic.DB.EmbeddedTest do
       assert page == Enum.take(transactions, 10)
       assert paging_state == List.last(page).address
 
-      {page2, false, nil} = EmbeddedImpl.get_transaction_chain(List.first(transactions).address, [], paging_state: paging_state)
+      {page2, false, nil} =
+        EmbeddedImpl.get_transaction_chain(List.first(transactions).address, [],
+          paging_state: paging_state
+        )
+
       assert length(page2) == 10
       assert page2 == Enum.slice(transactions, 10, 10)
+    end
+  end
+
+  describe "chain_size/1" do
+    test "should return 0 when there are not transactions" do
+      assert 0 == EmbeddedImpl.chain_size(:crypto.strong_rand_bytes(32))
+    end
+
+    test "should return the number of transaction in a chain" do
+      transactions =
+        Enum.map(1..20, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+      
+      Enum.each(1..20, fn i ->
+        assert i == EmbeddedImpl.chain_size(Enum.at(transactions, i-1).address)
+      end)
+
     end
   end
 end

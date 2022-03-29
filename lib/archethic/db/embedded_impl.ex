@@ -41,4 +41,12 @@ defmodule ArchEthic.DB.EmbeddedImpl do
 
   defdelegate get_transaction(address, fields \\ []), to: Reader
   defdelegate get_transaction_chain(address, fields \\ [], opts \\ []), to: Reader
+
+  @doc """
+  Return the size of a transaction chain
+  """
+  @spec chain_size(binary()) :: non_neg_integer()
+  def chain_size(address) do
+    length(Index.get_chain_addresses(address))
+  end
 end
