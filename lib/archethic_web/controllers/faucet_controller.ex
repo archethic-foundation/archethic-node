@@ -42,11 +42,10 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    FaucetRateLimiter.register(address, System.monotonic_time())
-
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
-         %{archived?: false} <- FaucetRateLimiter.get_address_archive_status(address),
+         %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(address),
+         :ok <- FaucetRateLimiter.register(address, System.monotonic_time()),
          {:ok, tx_address} <- transfer(recipient_address) do
       TransactionSubscriber.register(tx_address, System.monotonic_time())
 
@@ -62,15 +61,15 @@ defmodule ArchEthicWeb.FaucetController do
         |> put_flash(:error, "Unable to send the transaction")
         |> render("index.html", address: address, link_address: "")
 
-      %{archived?: true, archived_since: archived_since} ->
+      %{blocked?: true, blocked_since: blocked_since} ->
         now = System.monotonic_time()
-        archived_elapsed_time = System.convert_time_unit(now - archived_since, :native, :second)
-        archived_elapsed_diff = div(@faucet_rate_limit_expiry, 1000) - archived_elapsed_time
+        blocked_elapsed_time = System.convert_time_unit(now - blocked_since, :native, :second)
+        blocked_elapsed_diff = div(@faucet_rate_limit_expiry, 1000) - blocked_elapsed_time
 
         conn
         |> put_flash(
           :error,
-          "Blocked address temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(archived_elapsed_diff)}"
+          "Blocked address temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
         )
         |> render("index.html", address: address, link_address: "")
 

@@ -5,7 +5,7 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
 
   @faucet_rate_limit Application.compile_env!(:archethic, :faucet_rate_limit)
   @faucet_rate_limit_expiry Application.compile_env!(:archethic, :faucet_rate_limit_expiry)
-  @archive_period_expiry @faucet_rate_limit_expiry
+  @block_period_expiry @faucet_rate_limit_expiry
   @clean_time @faucet_rate_limit_expiry
 
   def start_link(opts) do
@@ -31,9 +31,9 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     GenServer.call(__MODULE__, {:clean, address})
   end
 
-  def get_address_archive_status(address)
+  def get_address_block_status(address)
       when is_binary(address) do
-    GenServer.call(__MODULE__, {:archive_status, address})
+    GenServer.call(__MODULE__, {:block_status, address})
   end
 
   # Server Call backs
@@ -49,12 +49,12 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
   end
 
   @impl GenServer
-  def handle_call({:archive_status, address}, _from, state) do
+  def handle_call({:block_status, address}, _from, state) do
     reply =
       if address_state = Map.get(state, address) do
         address_state
       else
-        %{archived?: false}
+        %{blocked?: false}
       end
 
     {:reply, reply, state}
@@ -71,8 +71,8 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
       start_time: start_time,
       last_time: start_time,
       tx_count: 1,
-      archived?: false,
-      archived_since: nil
+      blocked?: false,
+      blocked_since: nil
     }
 
     updated_state =
@@ -80,12 +80,12 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
         %{tx_count: tx_count} = transaction when tx_count + 1 == @faucet_rate_limit ->
           tx_count = transaction.tx_count + 1
 
-          Process.send_after(self(), {:clean, address}, @archive_period_expiry)
+          Process.send_after(self(), {:clean, address}, @block_period_expiry)
 
           %{
             transaction
-            | archived?: true,
-              archived_since: System.monotonic_time(),
+            | blocked?: true,
+              blocked_since: System.monotonic_time(),
               last_time: start_time,
               tx_count: tx_count + 1
           }
@@ -113,7 +113,7 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
       Enum.filter(state, fn
         {_address, %{last_time: start_time}} ->
           millisecond_elapsed = System.convert_time_unit(now - start_time, :native, :millisecond)
-          millisecond_elapsed <= @archive_period_expiry
+          millisecond_elapsed <= @block_period_expiry
       end)
       |> Enum.into(%{})
 
