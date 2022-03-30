@@ -2,6 +2,9 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   @moduledoc false
 
   alias ArchEthic.Crypto
+  alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.FirstPublicKey
+  alias ArchEthic.P2P.Message.GetFirstPublicKey
 
   @doc """
   Match a regex expression
@@ -79,12 +82,12 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   end
 
   @doc ~S"""
-  Match a json path expression 
+  Match a json path expression
 
   ## Examples
 
        iex> Library.json_path_match?("{\"1622541930\":{\"uco\":{\"eur\":0.176922,\"usd\":0.21642}}}", "$.*.uco.usd")
-       true     
+       true
   """
   @spec json_path_match?(binary(), binary()) :: boolean()
   def json_path_match?(text, path) when is_binary(text) and is_binary(path) do
@@ -149,4 +152,32 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   def size(binary) when is_binary(binary), do: byte_size(binary)
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
+
+  @doc """
+  Get the genesis address of the chain
+
+  ## Examples
+      iex> Library.get_genesis_address(<<0, 0, 0, 0, 69, 146, 167, 234, 5, 140, 176, 153, 180, 63, 89, 227, 234, 38,
+      ...>  40, 183, 0, 147, 95, 93, 91, 199, 212, 230, 199, 153, 11, 18, 245, 175, 160,173>>)
+      <<0, 0, 56, 134, 60, 170, 220, 117, 85, 171, 6, 1, 117, 80, 8, 163, 188, 8, 99,
+       98, 45, 85, 71, 117, 62, 246, 213, 66, 182, 168, 185, 14, 243, 212>>
+
+  """
+  def get_genesis_address() do
+    address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+
+    node = P2P.list_nodes() |> Enum.at(0)
+
+    first_address =
+      case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+        %FirstPublicKey{public_key: key} ->
+          key
+
+        _ ->
+          <<0::288>>
+      end
+
+    {pub, _priv} = Crypto.derive_keypair(first_address, 0)
+    Crypto.derive_address(pub)
+  end
 end
