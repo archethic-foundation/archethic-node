@@ -97,10 +97,18 @@ defmodule ArchEthic.MixProject do
 
   defp aliases do
     [
+      # Intial developer Setup
       "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
+      # When Changes are not registered by compiler | any()
       "dev.clean": ["cmd make clean", "clean", "format", "compile"],
+      # Must be run before git push --no-verify | any(dialyzer issue)
       "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
-      "dev.docker": ["docker build -t archethic-node ."]
+      # docker test-net with 3 nodes
+      "dev.docker": ["cmd docker build -t archethic-node .", "cmd docker-compose up"],
+      # docker testnet  with 5 nodes
+      "dev.testnet": ["cmd mix arch_ethic.testnet 5"],
+      # Cleans docker
+      "dev.debug_docker": ["cmd docker-compose down"]
     ]
   end
 end
