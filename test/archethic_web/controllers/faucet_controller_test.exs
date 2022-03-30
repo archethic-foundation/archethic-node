@@ -51,6 +51,7 @@ defmodule ArchEthicWeb.FaucetControllerTest do
     test "should show success flash with tx URL on valid transaction", %{conn: conn} do
       recipient_address = "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
       FaucetRateLimiter.clean_address(recipient_address)
+
       tx =
         Transaction.new(
           :transfer,
@@ -100,7 +101,7 @@ defmodule ArchEthicWeb.FaucetControllerTest do
 
     test "should show error flash on faucet rate limit is reached", %{conn: conn} do
       faucet_rate_limit = Application.get_env(:archethic, :faucet_rate_limit)
-      
+
       recipient_address = "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
 
       tx =
@@ -137,8 +138,8 @@ defmodule ArchEthicWeb.FaucetControllerTest do
           {:ok, %Ok{}}
       end)
 
-      faucet_requests = 
-        for _request_index <- 1..faucet_rate_limit+1 do
+      faucet_requests =
+        for _request_index <- 1..(faucet_rate_limit + 1) do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 

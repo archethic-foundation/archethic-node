@@ -37,15 +37,18 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
   end
 
   # Server Call backs
+  @impl GenServer
   def init(_) do
     schedule_clean()
     {:ok, %{}}
   end
 
+  @impl GenServer
   def handle_call(:reset, _from, _state) do
     {:reply, :ok, %{}}
   end
 
+  @impl GenServer
   def handle_call({:archive_status, address}, _from, state) do
     reply =
       if address_state = Map.get(state, address) do
@@ -57,10 +60,12 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     {:reply, reply, state}
   end
 
+  @impl GenServer
   def handle_call({:clean, address}, _from, state) do
     {:reply, :ok, Map.delete(state, address)}
   end
 
+  @impl GenServer
   def handle_cast({:register, address, start_time}, state) do
     transaction = Map.get(state, address)
 
@@ -89,6 +94,7 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     {:noreply, Map.put(state, address, transaction_info)}
   end
 
+  @impl GenServer
   def handle_cast({:archive, address}, state) do
     transaction = Map.get(state, address)
     transaction = %{transaction | archived?: true, archived_since: System.monotonic_time()}
@@ -96,10 +102,12 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     {:noreply, new_state}
   end
 
+  @impl GenServer
   def handle_info({:clean, address}, state) do
     {:noreply, Map.delete(state, address)}
   end
 
+  @impl GenServer
   def handle_info(:clean, state) do
     schedule_clean()
     now = System.monotonic_time()
