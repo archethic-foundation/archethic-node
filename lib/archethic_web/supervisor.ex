@@ -6,7 +6,7 @@ defmodule ArchEthicWeb.Supervisor do
   alias ArchEthic.Networking
 
   alias ArchEthicWeb.Endpoint
-  alias ArchEthicWeb.TransactionSubscriber
+  alias ArchEthicWeb.{FaucetRateLimiter, TransactionSubscriber}
 
   require Logger
 
@@ -25,7 +25,8 @@ defmodule ArchEthicWeb.Supervisor do
       # Start the endpoint when the application starts
       Endpoint,
       {Absinthe.Subscription, Endpoint},
-      TransactionSubscriber
+      TransactionSubscriber,
+      FaucetRateLimiter
     ]
 
     opts = [strategy: :one_for_one]

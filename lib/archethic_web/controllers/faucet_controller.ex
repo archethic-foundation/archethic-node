@@ -41,6 +41,8 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
+    FaucetRateLimiter.register(address, System.monotonic_time())
+
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
          %{archived?: false} <- FaucetRateLimiter.get_address_archive_status(address),
@@ -59,9 +61,15 @@ defmodule ArchEthicWeb.FaucetController do
         |> put_flash(:error, "Unable to send the transaction")
         |> render("index.html", address: address, link_address: "")
 
-      %{archived?: true} ->
+      %{archived?: true, archived_since: archived_since} ->
+        now = System.monotonic_time()
+        archived_elapsed_time = System.convert_time_unit(now - archived_since, :native, :second)
+
         conn
-        |> put_flash(:error, "Archived address")
+        |> put_flash(
+          :error,
+          "Archived address, Try after #{ArchEthic.Utils.seconds_to_hh_mm_ss(archived_elapsed_time)}"
+        )
         |> render("index.html", address: address, link_address: "")
 
       _ ->
