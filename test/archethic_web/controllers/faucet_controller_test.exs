@@ -145,7 +145,7 @@ defmodule ArchEthicWeb.FaucetControllerTest do
 
       conn = List.last(faucet_requests)
 
-      assert html_response(conn, 200) =~ "Archived address"
+      assert html_response(conn, 200) =~ "Blocked address"
     end
   end
 end

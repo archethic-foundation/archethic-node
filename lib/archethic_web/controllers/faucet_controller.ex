@@ -70,7 +70,7 @@ defmodule ArchEthicWeb.FaucetController do
         conn
         |> put_flash(
           :error,
-          "Archived address, Try after #{ArchEthic.Utils.seconds_to_human_readable(archived_elapsed_diff)}"
+          "Blocked address temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(archived_elapsed_diff)}"
         )
         |> render("index.html", address: address, link_address: "")
 
