@@ -17,9 +17,18 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
   """
   @spec register(binary(), non_neg_integer()) :: :ok
 
+  ## Client Call backs
   def register(address, start_time)
       when is_binary(address) and is_integer(start_time) do
     GenServer.cast(__MODULE__, {:register, address, start_time})
+  end
+
+  def reset() do
+    GenServer.call(__MODULE__, :reset)
+  end
+
+  def clean_address(address) do
+    GenServer.call(__MODULE__, {:clean, address})
   end
 
   def get_address_archive_status(address)
@@ -27,9 +36,14 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     GenServer.call(__MODULE__, {:archive_status, address})
   end
 
+  # Server Call backs
   def init(_) do
     schedule_clean()
     {:ok, %{}}
+  end
+
+  def handle_call(:reset, _from, _state) do
+    {:reply, :ok, %{}}
   end
 
   def handle_call({:archive_status, address}, _from, state) do
@@ -41,6 +55,10 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
       end
 
     {:reply, reply, state}
+  end
+
+  def handle_call({:clean, address}, _from, state) do
+    {:reply, :ok, Map.delete(state, address)}
   end
 
   def handle_cast({:register, address, start_time}, state) do

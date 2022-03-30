@@ -618,12 +618,13 @@ defmodule ArchEthic.Utils do
 
   ## Examples
 
-      iex> ArchEthic.Utils.seconds_to_hh_mm_ss(3666)
+      iex> ArchEthic.Utils.seconds_to_human_readable(3666)
       "1 hour 01 minute 06 second"
   """
-  def seconds_to_hh_mm_ss(0), do: "00:00:00"
+  def seconds_to_human_readable(0), do: "00:00:00"
 
-  def seconds_to_hh_mm_ss(seconds) do
+  def seconds_to_human_readable(seconds) do
+    seconds = round(seconds)
     units = [3600, 60, 1]
 
     [h | t] =

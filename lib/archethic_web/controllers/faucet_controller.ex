@@ -16,6 +16,7 @@ defmodule ArchEthicWeb.FaucetController do
   alias ArchEthicWeb.FaucetRateLimiter
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
+  @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
 
   plug(:enabled)
 
@@ -64,11 +65,12 @@ defmodule ArchEthicWeb.FaucetController do
       %{archived?: true, archived_since: archived_since} ->
         now = System.monotonic_time()
         archived_elapsed_time = System.convert_time_unit(now - archived_since, :native, :second)
+        archived_elapsed_diff = div(@faucet_rate_limit_expiry, 1000) - archived_elapsed_time
 
         conn
         |> put_flash(
           :error,
-          "Archived address, Try after #{ArchEthic.Utils.seconds_to_hh_mm_ss(archived_elapsed_time)}"
+          "Archived address, Try after #{ArchEthic.Utils.seconds_to_human_readable(archived_elapsed_diff)}"
         )
         |> render("index.html", address: address, link_address: "")
 
