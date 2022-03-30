@@ -12,6 +12,7 @@ defmodule ArchEthic.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      aliases: aliases(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
@@ -91,6 +92,15 @@ defmodule ArchEthic.MixProject do
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
       {:knigge, "~> 1.4"}
+    ]
+  end
+
+  defp aliases do
+    [
+      "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
+      "dev.clean": ["cmd make clean", "clean", "format", "compile"],
+      "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
+      "dev.docker": ["docker build -t archethic-node ."]
     ]
   end
 end
