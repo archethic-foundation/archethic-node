@@ -612,4 +612,27 @@ defmodule ArchEthic.Utils do
     {attestation, rest} = ReplicationAttestation.deserialize(rest)
     deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
   end
+
+  @doc """
+  Convert the seconds to human readable format
+
+  ## Examples
+
+      iex> ArchEthic.Utils.seconds_to_hh_mm_ss(3666)
+      "1 hour 01 minute 06 second"
+  """
+  def seconds_to_hh_mm_ss(0), do: "00:00:00"
+
+  def seconds_to_hh_mm_ss(seconds) do
+    units = [3600, 60, 1]
+
+    [h | t] =
+      Enum.map_reduce(units, seconds, fn unit, val -> {div(val, unit), rem(val, unit)} end)
+      |> elem(0)
+      |> Enum.drop_while(&match?(0, &1))
+
+    {h, t} = if length(t) == 0, do: {0, [h]}, else: {h, t}
+
+    "#{h} hour #{t |> Enum.map_join(" minute ", fn term -> term |> Integer.to_string() |> String.pad_leading(2, "0") end)} second"
+  end
 end
