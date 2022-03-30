@@ -67,39 +67,36 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
 
   @impl GenServer
   def handle_cast({:register, address, start_time}, state) do
-    transaction = Map.get(state, address)
+    initial_tx_setup = %{
+      start_time: start_time,
+      last_time: start_time,
+      tx_count: 1,
+      archived?: false,
+      archived_since: nil
+    }
 
-    transaction_info =
-      if transaction do
-        tx_count = transaction.tx_count + 1
+    updated_state =
+      Map.update(state, address, initial_tx_setup, fn
+        %{tx_count: tx_count} = transaction when tx_count + 1 == @faucet_rate_limit ->
+          tx_count = transaction.tx_count + 1
 
-        if tx_count == @faucet_rate_limit do
-          GenServer.cast(__MODULE__, {:archive, address})
           Process.send_after(self(), {:clean, address}, @archive_period_expiry)
-        end
 
-        transaction
-        |> Map.put(:last_time, start_time)
-        |> Map.put(:tx_count, tx_count)
-      else
-        %{
-          start_time: start_time,
-          last_time: start_time,
-          tx_count: 1,
-          archived?: false,
-          archived_since: nil
-        }
-      end
+          %{
+            transaction
+            | archived?: true,
+              archived_since: System.monotonic_time(),
+              last_time: start_time,
+              tx_count: tx_count + 1
+          }
 
-    {:noreply, Map.put(state, address, transaction_info)}
-  end
+        %{tx_count: tx_count} = transaction ->
+          transaction
+          |> Map.put(:last_time, start_time)
+          |> Map.put(:tx_count, tx_count + 1)
+      end)
 
-  @impl GenServer
-  def handle_cast({:archive, address}, state) do
-    transaction = Map.get(state, address)
-    transaction = %{transaction | archived?: true, archived_since: System.monotonic_time()}
-    new_state = Map.put(state, address, transaction)
-    {:noreply, new_state}
+    {:noreply, updated_state}
   end
 
   @impl GenServer

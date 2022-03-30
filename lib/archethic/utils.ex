@@ -635,6 +635,7 @@ defmodule ArchEthic.Utils do
     {h, t} = if length(t) == 0, do: {0, [h]}, else: {h, t}
 
     base_unit = if length(t) > 1, do: "hour", else: "minute"
+
     "#{h} #{base_unit} #{t |> Enum.map_join(" minute ", fn term -> term |> Integer.to_string() |> String.pad_leading(2, "0") end)} second"
   end
 end

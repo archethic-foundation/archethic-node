@@ -42,7 +42,6 @@ defmodule ArchEthicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    
     FaucetRateLimiter.register(address, System.monotonic_time())
 
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
