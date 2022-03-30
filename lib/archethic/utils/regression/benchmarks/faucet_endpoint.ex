@@ -1,6 +1,7 @@
 defmodule ArchEthic.Utils.Regression.FaucetEndpoint do
-  @moduledoc false
-
+  @moduledoc """
+  Contacts Testnet Faucet For UCOs
+  """
   alias ArchEthic.Utils.Regression.Benchmark.FaucetProvider
 
   @behaviour FaucetProvider
