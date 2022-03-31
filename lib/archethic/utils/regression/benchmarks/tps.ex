@@ -7,6 +7,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
   require Logger
 
   alias ArchEthic.Utils.Regression.Benchmark
+  # alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
 
   @behaviour Benchmark
 

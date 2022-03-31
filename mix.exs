@@ -91,7 +91,9 @@ defmodule ArchEthic.MixProject do
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
-      {:knigge, "~> 1.4"}
+      {:knigge, "~> 1.4"},
+      # required for mint https requests
+      {:castore, "~> 0.1.0"}
     ]
   end
 
