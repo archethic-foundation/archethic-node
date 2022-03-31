@@ -24,6 +24,9 @@
           </button>
         </div>
       </form>
+      <div>
+        <small class="text-warning note" > <b>NOTE : </b> <%= faucet_rate_limit_message() %></small>
+      </div>
       <br>
             Don't have a wallet address? Learn how to create a new one!
             <br>

@@ -53,3 +53,38 @@
       100% {opacity: 0;}
     }
 }
+
+.note{
+  opacity: .9;
+}
+// colors
+.text-primary{
+  color: $primary;
+}
+.text-secondary{
+  color: $gray;
+}
+.text-success{
+  color: $success;
+}
+.text-danger{
+  color: $danger;
+}
+.text-warning{
+  color: $warning;
+}
+.text-info{
+  color: $info;
+}
+.text-light{
+  color: $light;
+}
+.text-dark{
+  color: $dark;
+}
+.text-muted{
+  color: $gray;
+}
+.text-white{
+  color: $white;
+}
