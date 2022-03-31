@@ -8,29 +8,38 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
   @block_period_expiry @faucet_rate_limit_expiry
   @clean_time @faucet_rate_limit_expiry
 
+  @type address_status :: %{
+          start_time: non_neg_integer(),
+          last_time: non_neg_integer(),
+          tx_count: non_neg_integer(),
+          blocked?: boolean(),
+          blocked_since: non_neg_integer()
+        }
+
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
+
+  ## Client Call backs
 
   @doc """
   Register a faucet transaction address to monitor
   """
   @spec register(binary(), non_neg_integer()) :: :ok
-
-  ## Client Call backs
   def register(address, start_time)
       when is_binary(address) and is_integer(start_time) do
     GenServer.cast(__MODULE__, {:register, address, start_time})
   end
 
-  def reset() do
-    GenServer.call(__MODULE__, :reset)
-  end
-
+  @doc """
+  Cleans particular address.
+  """
+  @spec clean_address(binary()) :: :ok
   def clean_address(address) do
     GenServer.call(__MODULE__, {:clean, address})
   end
 
+  @spec get_address_block_status(binary()) :: address_status()
   def get_address_block_status(address)
       when is_binary(address) do
     GenServer.call(__MODULE__, {:block_status, address})
@@ -41,11 +50,6 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
   def init(_) do
     schedule_clean()
     {:ok, %{}}
-  end
-
-  @impl GenServer
-  def handle_call(:reset, _from, _state) do
-    {:reply, :ok, %{}}
   end
 
   @impl GenServer
