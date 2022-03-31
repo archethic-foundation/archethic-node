@@ -43,10 +43,10 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
   end
 
   def get_address(seed) do
-    {next_public_key, _next_private_key} =
-      Crypto.derive_keypair(seed, 0 + 1, Crypto.default_curve())
+    {public_key, _private_key} =
+      Crypto.derive_keypair(seed, 0 , Crypto.default_curve())
 
-    Crypto.derive_address(next_public_key)
+    Crypto.derive_address(public_key)
   end
 
   def get_transaction_data(recipient_address) do
