@@ -1,4 +1,4 @@
-defmodule ArchEthic.DB.EmbeddedImpl.Index do
+defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   use GenServer
 
   alias ArchEthic.Crypto
@@ -10,15 +10,15 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   def init(_) do
     :ets.new(:archethic_db_tx_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_file_stats, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(:archethic_db_chain_index, [:set, :named_table, :public, read_concurrency: true])
 
-    :ets.new(:archethic_db_last_address_index, [
+    :ets.new(:archethic_db_last_index, [
       :ordered_set,
       :named_table,
       :public,
       read_concurrency: true
     ])
 
+    :ets.new(:archethic_db_first_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_type_index, [:bag, :named_table, :public, read_concurrency: true])
 
     :ets.new(:archethic_db_public_key_index, [:set, :named_table, :public, read_concurrency: true])
@@ -31,8 +31,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   """
   @spec add_tx(binary(), binary(), binary(), non_neg_integer()) :: :ok
   def add_tx(tx_address, genesis_address, file, size) do
-    last_offset = get_last_offset(genesis_address)
-
+    {last_offset, _nb_txs} = get_file_stats(genesis_address)
+    
     true =
       :ets.insert(
         :archethic_db_tx_index,
@@ -40,17 +40,57 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
          %{file: file, size: size, offset: last_offset, genesis_address: genesis_address}}
       )
 
-    true = :ets.insert(:archethic_db_file_stats, {genesis_address, last_offset + size})
+    :ets.update_counter(
+      :archethic_db_file_stats,
+      genesis_address,
+      [
+        {2, size},
+        {3, 1}
+      ],
+      {genesis_address, 0, 0}
+    )
+
     :ok
   end
 
-  defp get_last_offset(genesis_address) do
+  defp get_file_stats(genesis_address) do
     case :ets.lookup(:archethic_db_file_stats, genesis_address) do
-      [] ->
-        0
+      [{_, last_offset, nb_txs}] ->
+        {last_offset, nb_txs}
 
-      [{_, offset}] ->
-        offset
+      [] ->
+        {0, 0}
+    end
+  end
+
+  @doc """
+  Flag the genesis address for this given transaction address and the address as last for the genesis
+  """
+  @spec add_first_and_last_reference(binary(), binary(), DateTime.t()) :: :ok
+  def add_first_and_last_reference(tx_address, genesis_address, datetime = %DateTime{}) do
+    unix_time = DateTime.to_unix(datetime)
+    true = :ets.insert(:archethic_db_first_index, {tx_address, genesis_address})
+
+    true =
+      :ets.insert(:archethic_db_last_index, {{genesis_address, unix_time}, tx_address})
+
+    :ok
+  end
+
+  @doc """
+  Return the size of a given transaction chain
+  """
+  @spec chain_size(binary()) :: non_neg_integer()
+  def chain_size(address) do
+    # Get the genesis address for the given transaction's address
+    case get_tx_entry(address) do
+      {:ok, %{genesis_address: genesis_address}} ->
+        # Get the chain file stats including the nb of transactions written
+        {_, nb_txs} = get_file_stats(genesis_address)
+        nb_txs
+
+      {:error, :not_exists} ->
+        0
     end
   end
 
@@ -77,31 +117,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   end
 
   @doc """
-  List transaction addresses for a given chain
-  """
-  @spec get_chain_addresses(binary()) :: list(binary())
-  def get_chain_addresses(address) do
-    case :ets.lookup(:archethic_db_chain_index, address) do
-      [] ->
-        []
-
-      [{_, addresses}] ->
-        addresses
-    end
-  end
-
-  @doc """
-  Insert entry to define the transaction addresses of a chain
-  """
-  @spec set_chain_addresses(binary(), list(binary())) :: :ok
-  def set_chain_addresses(_chain_address, []), do: :ok
-
-  def set_chain_addresses(chain_address, transaction_addresses) do
-    true = :ets.insert(:archethic_db_chain_index, {chain_address, transaction_addresses})
-    :ok
-  end
-
-  @doc """
   List all the transaction addresses for a given type
   """
   @spec get_addresses_by_type(Transaction.transaction_type()) :: list(binary())
@@ -124,10 +139,17 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   Insert entry to define the last chain address of an address, sorted by date of the transaction
   """
   @spec set_last_chain_address(binary(), binary(), DateTime.t()) :: :ok
-  def set_last_chain_address(previous_address, address, datetime = %DateTime{}) do
+  def set_last_chain_address(previous_address, new_address, datetime = %DateTime{}) do
     unix_time = DateTime.to_unix(datetime)
-    true = :ets.insert(:archethic_db_last_address_index, {{previous_address, unix_time}, address})
-    :ok
+
+    case get_tx_entry(previous_address) do
+      {:ok, %{genesis_address: genesis_address}} ->
+        true = :ets.insert(:archethic_db_last_index, {{genesis_address, unix_time}, new_address})
+        :ok
+
+      {:error, :not_exists} ->
+        :ok
+    end
   end
 
   @doc """
@@ -137,31 +159,55 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   def get_last_chain_address(address, datetime = %DateTime{}) do
     unix_time = DateTime.to_unix(datetime)
 
-    # We first check if there is some address indexed for the given date
-    case :ets.lookup(:archethic_db_last_address_index, {address, unix_time}) do
-      [{_, last_address}] ->
-        last_address
-
-      [] ->
-        # Then we get the latest before this date
-        lookup =
-          case :ets.prev(:archethic_db_last_address_index, {address, unix_time}) do
-            :"$end_of_table" ->
-              :ets.lookup(:archethic_db_last_address_index, {address, unix_time})
-
-            key ->
-              :ets.lookup(:archethic_db_last_address_index, key)
-          end
-
-        case lookup do
-          [] ->
-            # If finaly we got nothing, we return the given address to search
+    # We get the genesis address of this given transaction address
+    case get_tx_entry(address) do
+      {:ok, %{genesis_address: genesis_address}} ->
+        case lookup_previous_address(genesis_address, unix_time) do
+          nil ->
             address
+          last_address ->
+            last_address
+        end
+      {:error, :not_exists} ->
 
-          [{_, last_address}] ->
+        # We try to search with given address as genesis address
+        case lookup_previous_address(address, unix_time) do
+          nil ->
+            address
+          last_address ->
             last_address
         end
     end
+  end
+
+  defp lookup_previous_address(genesis_address, unix_time) do
+        # We first check if there is some address indexed for the given date
+        case :ets.lookup(:archethic_db_last_index, {genesis_address, unix_time}) do
+          [{_, last_address}] ->
+            last_address
+
+          [] ->
+            # Then we get the latest before this date
+            lookup =
+              case :ets.prev(:archethic_db_last_index, {genesis_address, unix_time}) do
+                :"$end_of_table" ->
+                  :ets.lookup(:archethic_db_last_index, {genesis_address, unix_time})
+
+                key ->
+                  :ets.lookup(:archethic_db_last_index, key)
+                
+              end
+
+            case lookup do
+              [] ->
+                # If finaly we got nothing, we return the given address to search
+                nil
+
+              [{_, last_address}] ->
+                last_address
+            end
+        end
+
   end
 
   @doc """
@@ -171,12 +217,12 @@ defmodule ArchEthic.DB.EmbeddedImpl.Index do
   """
   @spec get_first_chain_address(binary()) :: binary()
   def get_first_chain_address(address) do
-    case :ets.lookup(:archethic_db_chain_index, address) do
+    case :ets.lookup(:archethic_db_first_index, address) do
       [] ->
         address
 
-      [{_, addresses}] ->
-        List.last(addresses)
+      [{_, first_address}] ->
+        first_address
     end
   end
 

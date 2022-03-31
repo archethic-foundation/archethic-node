@@ -1,7 +1,7 @@
 defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   @moduledoc false
 
-  alias ArchEthic.DB.EmbeddedImpl.Index
+  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
   alias ArchEthic.DB.EmbeddedImpl.Encoding
 
   alias ArchEthic.TransactionChain.Transaction
@@ -12,7 +12,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   @spec get_transaction(binary(), list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) do
-    case Index.get_tx_entry(address) do
+    case ChainIndex.get_tx_entry(address) do
       {:error, :not_exists} ->
         {:error, :transaction_not_exists}
 
@@ -40,7 +40,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   @spec get_transaction_chain(binary(), list(), binary() | nil) ::
           {list(Transaction.t()), boolean(), binary()}
   def get_transaction_chain(address, fields \\ [], opts \\ []) do
-    case Index.get_tx_entry(address) do
+    case ChainIndex.get_tx_entry(address) do
       {:error, :not_exists} ->
         []
 
@@ -55,7 +55,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
               0
 
             paging_address ->
-              {:ok, %{offset: offset, size: size}} = Index.get_tx_entry(paging_address)
+              {:ok, %{offset: offset, size: size}} = ChainIndex.get_tx_entry(paging_address)
               :file.position(fd, offset + size)
               offset + size
           end

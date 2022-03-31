@@ -1,7 +1,7 @@
 defmodule ArchEthic.DB.EmbeddedImpl.ChainChainReader.est() do
   use ArchEthicCase
 
-  alias ArchEthic.DB.EmbeddedImpl.Index
+  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
   alias ArchEthic.DB.EmbeddedImpl.ChainReader
   alias ArchEthic.DB.EmbeddedImpl.ChainChainWriter
 
@@ -9,7 +9,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainChainReader.est() do
   alias ArchEthic.TransactionFactory
 
   setup do
-    Index.start_link()
+    ChainIndex.start_link()
     db_path = Application.app_dir(:archethic, "data_test")
     {:ok, _} = ChainWriter.start_link(path: db_path)
 

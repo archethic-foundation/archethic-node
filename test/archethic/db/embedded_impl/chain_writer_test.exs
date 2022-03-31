@@ -1,13 +1,13 @@
 defmodule ArchEthic.DB.EmbeddedImpl.ChainWriterTest do
   use ArchEthicCase
 
-  alias ArchEthic.DB.EmbeddedImpl.Index
+  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
   alias ArchEthic.DB.EmbeddedImpl.ChainWriter
 
   alias ArchEthic.TransactionFactory
 
   setup do
-    Index.start_link()
+    ChainIndex.start_link()
     db_path = Application.app_dir(:archethic, "data_test")
     {:ok, _} = ChainWriter.start_link(path: db_path)
 

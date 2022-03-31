@@ -4,7 +4,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
   use GenServer
 
   alias ArchEthic.DB.EmbeddedImpl.Encoding
-  alias ArchEthic.DB.EmbeddedImpl.Index
+  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
@@ -16,14 +16,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
   @doc """
   Append a transaction to a file for the given genesis address
   """
-  @spec append_transaction(binary(), Transaction.t()) ::
-          :ok | {:error, :transaction_already_exists}
-  def append_transaction(genesis_address, tx = %Transaction{address: tx_address}) do
-    if Index.transaction_exists?(tx_address) do
-      {:error, :transaction_already_exists}
-    else
-      :ok = GenServer.call(__MODULE__, {:append_tx, genesis_address, tx})
-    end
+  @spec append_transaction(binary(), Transaction.t()) :: :ok
+  def append_transaction(genesis_address, tx = %Transaction{}) do
+    GenServer.call(__MODULE__, {:append_tx, genesis_address, tx})
   end
 
   @doc """
@@ -69,19 +64,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
     {:reply, :ok, state}
   end
 
-  def handle_cast({:register_tps, date, tps, nb_transactions}, state = %{db_path: db_path}) do
-    filename = Path.join(db_path, "stats")
-
-    File.write!(
-      filename,
-      <<1::8, DateTime.to_unix(date)::32, tps::float-64, nb_transactions::32>>
-    )
-
-    {:noreply, state}
-  end
-
   defp index_transaction(
-         tx = %Transaction{
+         %Transaction{
            address: tx_address,
            type: tx_type,
            previous_public_key: previous_public_key,
@@ -91,22 +75,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
          genesis_address,
          encoded_size
        ) do
-    Index.add_tx(tx_address, genesis_address, filename, encoded_size)
-    Index.add_tx_type(tx_type, tx_address)
-
-    previous_address = Transaction.previous_address(tx)
-
-    previous_chain_addresses = Index.get_chain_addresses(previous_address)
-
-    Index.set_chain_addresses(tx_address, [tx_address | previous_chain_addresses])
-
-    # For all the chain transaction addresses, set the new transaction as the latest one
-    Enum.each(
-      [tx_address | previous_chain_addresses],
-      &Index.set_last_chain_address(&1, tx_address, timestamp)
-    )
-
-    # Create a lookup of the address and the previous public key
-    Index.set_public_key_lookup(tx_address, previous_public_key)
+    ChainIndex.add_tx(tx_address, genesis_address, filename, encoded_size)
+    ChainIndex.add_tx_type(tx_type, tx_address)
+    ChainIndex.set_public_key_lookup(tx_address, previous_public_key)
+    ChainIndex.add_first_and_last_reference(tx_address, genesis_address, timestamp)
   end
 end

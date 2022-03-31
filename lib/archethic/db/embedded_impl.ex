@@ -2,7 +2,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   alias ArchEthic.Crypto
 
   alias __MODULE__.BootstrapInfo
-  alias __MODULE__.Index
+  alias __MODULE__.ChainIndex
   alias __MODULE__.ChainReader
   alias __MODULE__.ChainWriter
   alias __MODULE__.P2PView
@@ -15,6 +15,14 @@ defmodule ArchEthic.DB.EmbeddedImpl do
 
   # @behaviour ArchEthic.DB
 
+  @doc """
+  Write the transaction chain through the a chain writer which will
+  happens the transactions to the chain's file
+
+  If a transaction already exists it will be discarded
+
+  Indexes will then be filled with the relative transactions
+  """
   @spec write_transaction_chain(list(Transaction.t())) :: :ok
   def write_transaction_chain(chain) do
     sorted_chain = Enum.sort_by(chain, & &1.validation_stamp.timestamp, {:asc, DateTime})
@@ -23,38 +31,55 @@ defmodule ArchEthic.DB.EmbeddedImpl do
     genesis_address = Transaction.previous_address(first_tx)
 
     Enum.each(sorted_chain, fn tx ->
-      ChainWriter.append_transaction(genesis_address, tx)
+      unless ChainIndex.transaction_exists?(tx.address) do
+        ChainWriter.append_transaction(genesis_address, tx)
+      end
     end)
   end
 
   @spec write_transaction(Transaction.t()) :: :ok
-  def write_transaction(tx) do
-    previous_address = Transaction.previous_address(tx)
+  def write_transaction(tx = %Transaction{}) do
+    if ChainIndex.transaction_exists?(tx.address) do
+      {:error, :transaction_already_exists}
+    else
+      previous_address = Transaction.previous_address(tx)
 
-    case Index.get_tx_entry(previous_address) do
-      {:ok, %{genesis_address: genesis_address}} ->
-        ChainWriter.append_transaction(genesis_address, tx)
+      case ChainIndex.get_tx_entry(previous_address) do
+        {:ok, %{genesis_address: genesis_address}} ->
+          ChainWriter.append_transaction(genesis_address, tx)
 
-      {:error, :not_exists} ->
-        ChainWriter.append_transaction(previous_address, tx)
+        {:error, :not_exists} ->
+          ChainWriter.append_transaction(previous_address, tx)
+      end
     end
   end
 
+  @doc """
+  Determine if the transaction exists or not
+  """
   @spec transaction_exists?(binary()) :: boolean()
-  def transaction_exists?(address) do
-    Index.transaction_exists?(address)
-  end
+  defdelegate transaction_exists?(address), to: ChainIndex
 
+  @doc """
+  Get a transaction at the given address
+  """
+  @spec get_transaction(binary(), list()) ::
+          {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   defdelegate get_transaction(address, fields \\ []), to: ChainReader
+
+  @doc """
+  Get a transaction chain
+
+  The returned values will be splitted according to the pagination state presents in the options
+  """
+  @spec get_transaction_chain(binary(), list(), list()) :: list(Transaction.t())
   defdelegate get_transaction_chain(address, fields \\ [], opts \\ []), to: ChainReader
 
   @doc """
   Return the size of a transaction chain
   """
   @spec chain_size(binary()) :: non_neg_integer()
-  def chain_size(address) do
-    length(Index.get_chain_addresses(address))
-  end
+  defdelegate chain_size(address), to: ChainIndex
 
   @doc """
   List all the transaction by the given type
@@ -63,7 +88,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
           Enumerable.t() | list(Transaction.t())
   def list_transactions_by_type(type, fields \\ []) do
     type
-    |> Index.get_addresses_by_type()
+    |> ChainIndex.get_addresses_by_type()
     |> Stream.map(fn address ->
       {:ok, tx} = get_transaction(address, fields)
       tx
@@ -76,7 +101,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
   def count_transactions_by_type(type) do
     type
-    |> Index.get_addresses_by_type()
+    |> ChainIndex.get_addresses_by_type()
     |> length()
   end
 
@@ -85,35 +110,35 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   """
   @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
   def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now()) do
-    Index.get_last_chain_address(address, date)
+    ChainIndex.get_last_chain_address(address, date)
   end
 
   @doc """
   Reference a last address from a previous address
   """
   @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
-  def add_last_transaction_address(previous_address, address, date = %DateTime{}) do
-    Index.set_last_chain_address(previous_address, address, date)
-  end
+  defdelegate add_last_transaction_address(previous_address, address, date),
+    to: ChainIndex,
+    as: :set_last_chain_address
 
   @doc """
   Return the first address of given chain's address
   """
   @spec get_first_chain_address(binary()) :: binary()
-  defdelegate get_first_chain_address(address), to: Index
+  defdelegate get_first_chain_address(address), to: ChainIndex
 
   @doc """
   Return the first public key of given chain's public key
   """
   @spec get_first_public_key(Crypto.key()) :: binary()
-  defdelegate get_first_public_key(public_key), to: Index
+  defdelegate get_first_public_key(public_key), to: ChainIndex
 
   @doc """
   List all the transactions
   """
   @spec list_transactions(list()) :: Enumerable.t() | list(Transactions.t())
   def list_transactions(fields \\ []) do
-    Index.list_all_addresses()
+    ChainIndex.list_all_addresses()
     |> Stream.map(fn address ->
       {:ok, tx} = get_transaction(address, fields)
       tx
