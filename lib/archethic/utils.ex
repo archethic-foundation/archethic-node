@@ -620,6 +620,12 @@ defmodule ArchEthic.Utils do
 
       iex> ArchEthic.Utils.seconds_to_human_readable(3666)
       "1 hour 01 minute 06 second"
+
+      iex> ArchEthic.Utils.seconds_to_human_readable(66)
+      "1 minute 06 second"
+
+      iex> ArchEthic.Utils.seconds_to_human_readable(6)
+      "0 minute 06 second"
   """
   def seconds_to_human_readable(0), do: "00:00:00"
 
@@ -632,7 +638,7 @@ defmodule ArchEthic.Utils do
       |> elem(0)
       |> Enum.drop_while(&match?(0, &1))
 
-    {h, t} = if length(t) == 0, do: {0, [h]}, else: {h, t}
+    {h, t} = if t == [], do: {0, [h]}, else: {h, t}
 
     base_unit = if length(t) > 1, do: "hour", else: "minute"
 
