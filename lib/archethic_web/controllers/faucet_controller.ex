@@ -69,7 +69,7 @@ defmodule ArchEthicWeb.FaucetController do
         conn
         |> put_flash(
           :error,
-          "Blocked address temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
+          "Blocked address as you exceeded usage limit of UCO temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
         )
         |> render("index.html", address: address, link_address: "")
 
