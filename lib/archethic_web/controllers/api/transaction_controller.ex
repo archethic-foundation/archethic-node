@@ -163,9 +163,7 @@ defmodule ArchEthicWeb.API.TransactionController do
   end
 
   def create_new_origin_shared_secret_tx(origin_public_key) do
-    aes_key =
-      <<200, 161, 216, 155, 119, 51, 4, 103, 76, 61, 205, 106, 243, 97, 236, 219, 223, 87, 122,
-        44, 162, 15, 61, 233, 101, 41, 236, 9, 188, 108, 15, 65>>
+    aes_key = :crypto.strong_rand_bytes(32)
 
     SharedSecrets.new_origin_shared_secrets_transaction(
       [origin_public_key],

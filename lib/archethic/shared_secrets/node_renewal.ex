@@ -138,8 +138,6 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
 
     new_origin_shared_priv_keys = :erlang.list_to_binary(new_origin_shared_priv_keys_list)
 
-    origin_public_keys_bin = :erlang.list_to_binary(origin_public_keys)
-
     encrypted_origin_shared_priv_keys =
       Crypto.aes_encrypt(new_origin_shared_priv_keys, secret_key)
 
@@ -148,7 +146,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewal do
     Transaction.new(
       :origin_shared_secrets,
       %TransactionData{
-        content: <<origin_public_keys_bin <> new_origin_shared_pub_keys>>,
+        content: new_origin_shared_pub_keys,
         ownerships: [
           Ownership.new(secret, secret_key, origin_public_keys)
         ]
