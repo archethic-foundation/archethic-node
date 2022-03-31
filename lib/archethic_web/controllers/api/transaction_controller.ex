@@ -7,7 +7,7 @@ defmodule ArchEthicWeb.API.TransactionController do
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
-
+  alias ArchEthic.SharedSecrets
   alias ArchEthic.Mining
   alias ArchEthic.OracleChain
   alias ArchEthic.Crypto
@@ -126,8 +126,10 @@ defmodule ArchEthicWeb.API.TransactionController do
     case OriginPublicKeyPayload.changeset(data) do
       changeset = %{valid?: true} ->
         %Ecto.Changeset{changes: changes} = changeset
-
         public_key = Map.get(changes, :publicKey)
+
+        # create_new_origin_shared_secret_tx(public_key)
+
         certificate = Map.get(changes, :certificate)
 
         root_ca_key =
@@ -135,6 +137,8 @@ defmodule ArchEthicWeb.API.TransactionController do
           |> Crypto.get_root_ca_public_key()
 
         if Crypto.verify_key_certificate?(public_key, certificate, root_ca_key) do
+          # create_new_origin_shared_secret_tx(decoded_public_key)
+
           conn
           |> put_status(:ok)
           |> json(%{
@@ -156,5 +160,17 @@ defmodule ArchEthicWeb.API.TransactionController do
         |> put_view(ErrorView)
         |> render("400.json", changeset: changeset)
     end
+  end
+
+  def create_new_origin_shared_secret_tx(origin_public_key) do
+    aes_key =
+      <<200, 161, 216, 155, 119, 51, 4, 103, 76, 61, 205, 106, 243, 97, 236, 219, 223, 87, 122,
+        44, 162, 15, 61, 233, 101, 41, 236, 9, 188, 108, 15, 65>>
+
+    SharedSecrets.new_origin_shared_secrets_transaction(
+      [origin_public_key],
+      aes_key
+    )
+    |> ArchEthic.send_new_transaction()
   end
 end
