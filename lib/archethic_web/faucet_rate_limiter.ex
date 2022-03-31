@@ -31,9 +31,7 @@ defmodule ArchEthicWeb.FaucetRateLimiter do
     GenServer.cast(__MODULE__, {:register, address, start_time})
   end
 
-  @doc """
-  Cleans particular address.
-  """
+  @doc false
   @spec clean_address(binary()) :: :ok
   def clean_address(address) do
     GenServer.call(__MODULE__, {:clean, address})
