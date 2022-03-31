@@ -20,14 +20,15 @@ defmodule ArchEthicWeb.Supervisor do
 
     try_open_port(Keyword.get(endpoint_conf, :http))
 
-    children = [
-      {Phoenix.PubSub, [name: ArchEthicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
-      # Start the endpoint when the application starts
-      Endpoint,
-      {Absinthe.Subscription, Endpoint},
-      TransactionSubscriber,
-      FaucetRateLimiter
-    ]
+    children =
+      [
+        {Phoenix.PubSub, [name: ArchEthicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
+        # Start the endpoint when the application starts
+        Endpoint,
+        {Absinthe.Subscription, Endpoint},
+        TransactionSubscriber
+      ]
+      |> add_facucet_rate_limit_child()
 
     opts = [strategy: :one_for_one]
     Supervisor.init(children, opts)
@@ -38,5 +39,15 @@ defmodule ArchEthicWeb.Supervisor do
   defp try_open_port(conf) do
     port = Keyword.get(conf, :port)
     Networking.try_open_port(port, false)
+  end
+
+  defp add_facucet_rate_limit_child(children) do
+    faucet_config = Application.get_env(:archethic, ArchEthicWeb.FaucetController, [])
+
+    if faucet_config[:enabled] do
+      children ++ [FaucetRateLimiter]
+    else
+      children
+    end
   end
 end
