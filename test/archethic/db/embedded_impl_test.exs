@@ -2,9 +2,12 @@ defmodule ArchEthic.DB.EmbeddedTest do
   use ArchEthicCase
 
   alias ArchEthic.DB.EmbeddedImpl
+  alias ArchEthic.DB.EmbeddedImpl.BootstrapInfo
   alias ArchEthic.DB.EmbeddedImpl.Encoding
   alias ArchEthic.DB.EmbeddedImpl.Index
-  alias ArchEthic.DB.EmbeddedImpl.Writer
+  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
+  alias ArchEthic.DB.EmbeddedImpl.P2PView
+  alias ArchEthic.DB.EmbeddedImpl.StatsInfo
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
@@ -14,7 +17,12 @@ defmodule ArchEthic.DB.EmbeddedTest do
   setup do
     Index.start_link()
     db_path = Application.app_dir(:archethic, "data_test")
-    {:ok, _} = Writer.start_link(path: db_path)
+    File.mkdir_p!(db_path)
+
+    {:ok, _} = ChainWriter.start_link(path: db_path)
+    {:ok, _} = BootstrapInfo.start_link(path: db_path)
+    {:ok, _} = StatsInfo.start_link(path: db_path)
+    {:ok, _} = P2PView.start_link(path: db_path)
 
     on_exit(fn ->
       File.rm_rf!(Application.app_dir(:archethic, "data_test"))
@@ -194,8 +202,6 @@ defmodule ArchEthic.DB.EmbeddedTest do
           timestamp: DateTime.add(DateTime.utc_now(), 100)
         )
 
-      _genesis_address = Transaction.previous_address(tx1)
-
       :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
 
       assert {[^tx1, ^tx2], false, nil} = EmbeddedImpl.get_transaction_chain(tx2.address)
@@ -244,11 +250,406 @@ defmodule ArchEthic.DB.EmbeddedTest do
         end)
 
       EmbeddedImpl.write_transaction_chain(transactions)
-      
-      Enum.each(1..20, fn i ->
-        assert i == EmbeddedImpl.chain_size(Enum.at(transactions, i-1).address)
-      end)
 
+      Enum.each(1..20, fn i ->
+        assert i == EmbeddedImpl.chain_size(Enum.at(transactions, i - 1).address)
+      end)
+    end
+  end
+
+  describe "list_transactions_by_type/2" do
+    test "should return the transactions for a given type" do
+      tx_node =
+        TransactionFactory.create_valid_transaction([],
+          type: :node,
+          seed: "seed1"
+        )
+
+      tx_transfer =
+        TransactionFactory.create_valid_transaction([],
+          type: :transfer,
+          seed: "seed2"
+        )
+
+      EmbeddedImpl.write_transaction(tx_node)
+      EmbeddedImpl.write_transaction(tx_transfer)
+
+      assert [^tx_node] = EmbeddedImpl.list_transactions_by_type(:node) |> Enum.to_list()
+      assert [^tx_transfer] = EmbeddedImpl.list_transactions_by_type(:transfer) |> Enum.to_list()
+    end
+  end
+
+  describe "count_transactions_by_type/1" do
+    test "should return 0 when there are no transactions for a given type" do
+      assert 0 == EmbeddedImpl.count_transactions_by_type(:transfer)
+    end
+
+    test "should return the nb of transactions for a given type" do
+      tx_node1 =
+        TransactionFactory.create_valid_transaction([],
+          type: :node,
+          seed: "seed1"
+        )
+
+      tx_node2 =
+        TransactionFactory.create_valid_transaction([],
+          type: :node,
+          seed: "seed2"
+        )
+
+      EmbeddedImpl.write_transaction(tx_node1)
+      EmbeddedImpl.write_transaction(tx_node2)
+
+      assert 2 == EmbeddedImpl.count_transactions_by_type(:node)
+    end
+  end
+
+  describe "get_last_chain_address/1" do
+    test "should get the last address of chain" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          index: 2,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+
+      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx1.address)
+      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx2.address)
+      assert tx3.address == EmbeddedImpl.get_last_chain_address(tx3.address)
+      assert tx3.address == EmbeddedImpl.get_last_chain_address(Transaction.previous_address(tx1))
+    end
+  end
+
+  describe "get_last_chain_address/2" do
+    test "should return the same given address if not previous chain" do
+      address = :crypto.strong_rand_bytes(32)
+      assert ^address = EmbeddedImpl.get_last_chain_address(address)
+    end
+
+    test "should get the last address of chain for the exact time of last address timestamp" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          index: 2,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+
+      assert tx3.address ==
+               EmbeddedImpl.get_last_chain_address(tx3.address, tx3.validation_stamp.timestamp)
+
+      assert tx2.address ==
+               EmbeddedImpl.get_last_chain_address(tx2.address, tx2.validation_stamp.timestamp)
+
+      assert tx1.address ==
+               EmbeddedImpl.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
+
+      # assert tx1.address ==
+      #         EmbeddedImpl.get_last_chain_address(
+      #           Transaction.previous_address(tx1),
+      #           tx1.validation_stamp.timestamp
+      #         )
+    end
+
+    test "should get the last address of a chain before given date" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          index: 2,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+
+      assert tx3.address ==
+               EmbeddedImpl.get_last_chain_address(tx2.address, tx3.validation_stamp.timestamp)
+
+      assert tx3.address ==
+               EmbeddedImpl.get_last_chain_address(tx1.address, tx3.validation_stamp.timestamp)
+
+      assert tx2.address ==
+               EmbeddedImpl.get_last_chain_address(
+                 tx1.address,
+                 DateTime.add(tx2.validation_stamp.timestamp, 100)
+               )
+
+      assert tx2.address ==
+               EmbeddedImpl.get_last_chain_address(tx1.address, tx2.validation_stamp.timestamp)
+
+      assert tx1.address ==
+               EmbeddedImpl.get_last_chain_address(
+                 tx1.address,
+                 DateTime.add(tx1.validation_stamp.timestamp, 100)
+               )
+    end
+  end
+
+  describe "get_first_chain_address" do
+    test "should return the same given address if not previous chain" do
+      address = :crypto.strong_rand_bytes(32)
+      assert ^address = EmbeddedImpl.get_first_chain_address(address)
+    end
+
+    test "should return the first address of a chain" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          index: 2,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+
+      # genesis_address = Transaction.previous_address(tx1)
+
+      assert tx1.address == EmbeddedImpl.get_first_chain_address(tx3.address)
+      assert tx1.address == EmbeddedImpl.get_first_chain_address(tx2.address)
+      assert tx1.address == EmbeddedImpl.get_first_chain_address(tx1.address)
+    end
+  end
+
+  describe "get_first_public_key" do
+    test "should return the same given public key if not previous chain" do
+      public_key = :crypto.strong_rand_bytes(32)
+      assert ^public_key = EmbeddedImpl.get_first_public_key(public_key)
+    end
+
+    test "should return the public key of a chain" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          index: 2,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1, tx2, tx3])
+
+      assert tx1.previous_public_key == EmbeddedImpl.get_first_public_key(tx3.previous_public_key)
+      assert tx1.previous_public_key == EmbeddedImpl.get_first_public_key(tx2.previous_public_key)
+      assert tx1.previous_public_key == EmbeddedImpl.get_first_public_key(tx1.previous_public_key)
+    end
+  end
+
+  describe "list_transactions" do
+    test "should stream all the transactions" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed1",
+          type: :node,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed2",
+          type: :transfer,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx3 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed3",
+          type: :oracle,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.write_transaction(tx2)
+      EmbeddedImpl.write_transaction(tx3)
+
+      types = EmbeddedImpl.list_transactions([:type]) |> Enum.map(& &1.type)
+      assert Enum.all?(types, &(&1 in [:node, :transfer, :oracle]))
+    end
+  end
+
+  describe "list_last_transaction_addresses" do
+    test "should return all the last transaction addresses" do
+      tx1_1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed1",
+          type: :node,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx1_2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed1",
+          index: 1,
+          type: :node,
+          timestamp: ~U[2020-04-30 10:13:00Z]
+        )
+
+      tx2_1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed2",
+          type: :transfer,
+          timestamp: ~U[2020-04-02 10:13:00Z]
+        )
+
+      tx2_2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed2",
+          index: 1,
+          type: :transfer,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      tx3_1 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed3",
+          type: :oracle,
+          timestamp: ~U[2020-04-10 10:13:00Z]
+        )
+
+      tx3_2 =
+        TransactionFactory.create_valid_transaction([],
+          seed: "seed3",
+          type: :oracle,
+          index: 1,
+          timestamp: ~U[2020-04-11 10:13:00Z]
+        )
+
+      EmbeddedImpl.write_transaction_chain([tx1_1, tx1_2])
+      EmbeddedImpl.write_transaction_chain([tx2_1, tx2_2])
+      EmbeddedImpl.write_transaction_chain([tx3_1, tx3_2])
+
+      last_addresses = EmbeddedImpl.list_last_transaction_addresses()
+      assert Enum.all?(last_addresses, &(&1 in [tx1_2.address, tx2_2.address, tx3_2.address]))
+    end
+  end
+
+  describe "Stats info" do
+    test "should get the latest tps from the stats file" do
+      date = DateTime.utc_now()
+
+      :ok = EmbeddedImpl.register_tps(date, 10.0, 10_000)
+      assert 10.0 == EmbeddedImpl.get_latest_tps()
+
+      :ok = EmbeddedImpl.register_tps(DateTime.add(date, 86_400), 5.0, 5_000)
+
+      assert 5.0 == EmbeddedImpl.get_latest_tps()
+    end
+
+    test "should get the latest nb of transactions" do
+      :ok = EmbeddedImpl.register_tps(DateTime.utc_now(), 10.0, 10_000)
+      assert 10_000 = EmbeddedImpl.get_nb_transactions()
+
+      :ok = EmbeddedImpl.register_tps(DateTime.utc_now() |> DateTime.add(86_400), 5.0, 5_000)
+      assert 15_000 = EmbeddedImpl.get_nb_transactions()
+    end
+  end
+
+  describe "Bootstrap info" do
+    test "should get bootstrap info" do
+      EmbeddedImpl.set_bootstrap_info("hello", "world")
+      assert "world" == EmbeddedImpl.get_bootstrap_info("hello")
+    end
+  end
+
+  describe "P2P summaries listing" do
+    test "should register new P2P summary " do
+      node_public_key = :crypto.strong_rand_bytes(32)
+      EmbeddedImpl.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 0.8)
+      assert %{^node_public_key => {true, 0.8}} = EmbeddedImpl.get_last_p2p_summaries()
+
+      node_public_key2 = :crypto.strong_rand_bytes(32)
+      EmbeddedImpl.register_p2p_summary(node_public_key2, DateTime.utc_now(), true, 0.5)
+      summaries = EmbeddedImpl.get_last_p2p_summaries()
+
+      assert node_public_key in Map.keys(summaries)
+      assert node_public_key2 in Map.keys(summaries)
+    end
+
+    test "should register update P2P summaries and get the latest one" do
+      node_public_key = :crypto.strong_rand_bytes(32)
+      EmbeddedImpl.register_p2p_summary(node_public_key, DateTime.utc_now(), true, 0.8)
+
+      EmbeddedImpl.register_p2p_summary(
+        node_public_key,
+        DateTime.utc_now() |> DateTime.add(86_400),
+        true,
+        0.4
+      )
+
+      assert %{^node_public_key => {true, 0.4}} = EmbeddedImpl.get_last_p2p_summaries()
+    end
+  end
+
+  describe "add_last_transaction_address/3" do
+    test "should register a new address to a previous address" do
+      tx1 =
+        TransactionFactory.create_valid_transaction([],
+          index: 0,
+          timestamp: ~U[2020-03-30 10:13:00Z]
+        )
+
+      tx2 =
+        TransactionFactory.create_valid_transaction([],
+          index: 1
+        )
+
+      EmbeddedImpl.write_transaction(tx1)
+      EmbeddedImpl.add_last_transaction_address(tx1.address, tx2.address, DateTime.utc_now())
+
+      assert tx2.address == EmbeddedImpl.get_last_chain_address(tx1.address)
     end
   end
 end

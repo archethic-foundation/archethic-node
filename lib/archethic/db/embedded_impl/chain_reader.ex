@@ -1,4 +1,4 @@
-defmodule ArchEthic.DB.EmbeddedImpl.Reader do
+defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   @moduledoc false
 
   alias ArchEthic.DB.EmbeddedImpl.Index
