@@ -107,6 +107,12 @@ defmodule ArchEthic.MixProject do
       "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
       # docker test-net with 3 nodes
       "dev.docker": ["cmd docker build -t archethic-node .", "cmd docker-compose up"],
+      # benchmark
+      "dev.bench": [
+        "cmd docker build -t archethic-node .",
+        "cmd docker-compose up",
+        "cmd docker-compose up bench"
+      ],
       # docker testnet  with 5 nodes
       "dev.testnet": ["cmd mix arch_ethic.testnet 5"],
       # Cleans docker
