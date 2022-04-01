@@ -15,10 +15,12 @@ defmodule ArchEthic.DB.EmbeddedTest do
   alias ArchEthic.TransactionFactory
 
   setup do
-    ChainIndex.start_link()
     db_path = Application.app_dir(:archethic, "data_test")
     File.mkdir_p!(db_path)
 
+    :persistent_term.put(:archethic_db_path, db_path)
+
+    {:ok, _} = ChainIndex.start_link()
     {:ok, _} = ChainWriter.start_link(path: db_path)
     {:ok, _} = BootstrapInfo.start_link(path: db_path)
     {:ok, _} = StatsInfo.start_link(path: db_path)
@@ -38,7 +40,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
       genesis_address = Transaction.previous_address(tx)
 
-      filename = Path.join(db_path, "chains/#{Base.encode16(genesis_address)}")
+      filename = ChainWriter.chain_path(db_path, genesis_address)
       assert File.exists?(filename)
 
       contents = File.read!(filename)
@@ -48,7 +50,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
       assert {:ok,
               %{file: ^filename, size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
-               ChainIndex.get_tx_entry(tx.address)
+               ChainIndex.get_tx_entry(tx.address, db_path)
     end
 
     test "should append transaction to an existing chain", %{db_path: db_path} do
@@ -60,8 +62,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       tx2 = TransactionFactory.create_valid_transaction([], index: 1)
       :ok = EmbeddedImpl.write_transaction_chain([tx1, tx2])
 
-      filename = Path.join(db_path, "chains/#{Base.encode16(genesis_address)}")
-
+      filename = ChainWriter.chain_path(db_path, genesis_address)
       assert File.exists?(filename)
 
       contents = File.read!(filename)
@@ -73,7 +74,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
       assert {:ok,
               %{file: ^filename, size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
-               ChainIndex.get_tx_entry(tx1.address)
+               ChainIndex.get_tx_entry(tx1.address, db_path)
 
       assert {:ok,
               %{
@@ -81,7 +82,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
                 size: ^size_tx2,
                 offset: ^size_tx1,
                 genesis_address: ^genesis_address
-              }} = ChainIndex.get_tx_entry(tx2.address)
+              }} = ChainIndex.get_tx_entry(tx2.address, db_path)
     end
   end
 
@@ -91,8 +92,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       :ok = EmbeddedImpl.write_transaction(tx1)
 
       genesis_address = Transaction.previous_address(tx1)
-
-      filename = Path.join(db_path, "chains/#{Base.encode16(genesis_address)}")
+      filename = ChainWriter.chain_path(db_path, genesis_address)
 
       assert File.exists?(filename)
 
@@ -103,7 +103,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
       assert {:ok,
               %{file: ^filename, size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
-               ChainIndex.get_tx_entry(tx1.address)
+               ChainIndex.get_tx_entry(tx1.address, db_path)
     end
 
     test "should write single transaction and append to an existing chain", %{db_path: db_path} do
@@ -114,7 +114,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       :ok = EmbeddedImpl.write_transaction(tx2)
 
       genesis_address = Transaction.previous_address(tx1)
-      filename = Path.join(db_path, "chains/#{Base.encode16(genesis_address)}")
+      filename = ChainWriter.chain_path(db_path, genesis_address)
 
       assert File.exists?(filename)
 
@@ -131,7 +131,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
                 size: ^size_tx2,
                 offset: ^size_tx1,
                 genesis_address: ^genesis_address
-              }} = ChainIndex.get_tx_entry(tx2.address)
+              }} = ChainIndex.get_tx_entry(tx2.address, db_path)
     end
   end
 
@@ -329,7 +329,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       assert tx3.address == EmbeddedImpl.get_last_chain_address(tx1.address)
       assert tx3.address == EmbeddedImpl.get_last_chain_address(tx2.address)
       assert tx3.address == EmbeddedImpl.get_last_chain_address(tx3.address)
-      assert tx3.address == EmbeddedImpl.get_last_chain_address(Transaction.previous_address(tx1) )
+      assert tx3.address == EmbeddedImpl.get_last_chain_address(Transaction.previous_address(tx1))
     end
   end
 
@@ -369,7 +369,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       assert tx1.address ==
                EmbeddedImpl.get_last_chain_address(tx1.address, tx1.validation_stamp.timestamp)
 
-       assert tx1.address ==
+      assert tx1.address ==
                EmbeddedImpl.get_last_chain_address(
                  Transaction.previous_address(tx1),
                  tx1.validation_stamp.timestamp

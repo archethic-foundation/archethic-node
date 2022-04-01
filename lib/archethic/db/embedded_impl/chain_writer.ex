@@ -34,14 +34,13 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
     db_path = Keyword.get(arg, :path)
     setup_folders(db_path)
 
-    :ets.new(:archethic_db_info, [:public, :named_table])
-    :ets.insert(:archethic_db_info, {:path, db_path})
-
     {:ok, %{db_path: db_path}}
   end
 
   defp setup_folders(path) do
-    File.mkdir_p!(Path.join(path, "chains"))
+    path
+    |> base_path()
+    |> File.mkdir_p!()
   end
 
   def handle_call(
@@ -49,7 +48,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
         _from,
         state = %{db_path: db_path}
       ) do
-    filename = Path.join([db_path, "chains", Base.encode16(genesis_address)])
+    filename = chain_path(db_path, genesis_address)
 
     data = Encoding.encode(tx)
 
@@ -59,13 +58,13 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
       [:append, :binary]
     )
 
-    index_transaction(tx, filename, genesis_address, byte_size(data))
+    index_transaction(tx, filename, genesis_address, byte_size(data), db_path)
 
     {:reply, :ok, state}
   end
 
   defp index_transaction(
-         %Transaction{
+         tx = %Transaction{
            address: tx_address,
            type: tx_type,
            previous_public_key: previous_public_key,
@@ -73,11 +72,31 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
          },
          filename,
          genesis_address,
-         encoded_size
+         encoded_size,
+         db_path
        ) do
-    ChainIndex.add_tx(tx_address, genesis_address, filename, encoded_size)
-    ChainIndex.add_tx_type(tx_type, tx_address)
-    ChainIndex.set_public_key_lookup(tx_address, previous_public_key)
-    ChainIndex.add_first_and_last_reference(tx_address, genesis_address, timestamp)
+    previous_address = Transaction.previous_address(tx)
+
+    ChainIndex.add_tx(tx_address, genesis_address, filename, encoded_size, db_path)
+    ChainIndex.add_tx_type(tx_type, tx_address, db_path)
+    ChainIndex.set_last_chain_address(previous_address, tx_address, timestamp, db_path)
+    ChainIndex.set_public_key(genesis_address, previous_public_key, timestamp, db_path)
+  end
+
+  @doc """
+  Return the path of the chain storage location
+  """
+  @spec chain_path(String.t(), binary()) :: String.t()
+  def chain_path(db_path, genesis_address)
+      when is_binary(genesis_address) and is_binary(db_path) do
+    Path.join([base_path(db_path), Base.encode16(genesis_address)])
+  end
+
+  @doc """
+  Return the chain base path
+  """
+  @spec base_path(String.t()) :: String.t()
+  def base_path(db_path) do
+    Path.join([db_path, "chains"])
   end
 end

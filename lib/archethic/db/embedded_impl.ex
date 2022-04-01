@@ -9,11 +9,25 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   alias __MODULE__.StatsInfo
 
   alias ArchEthic.TransactionChain.Transaction
+
   alias ArchEthic.Utils
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
   # @behaviour ArchEthic.DB
+
+  def db_path do
+    try do
+      :persistent_term.get(:archethic_db_path)
+    rescue
+      ArgumentError ->
+        path =
+          Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:path) |> Utils.mut_dir()
+
+        :persistent_term.put(:archethic_db_path, path)
+        path
+    end
+  end
 
   @doc """
   Write the transaction chain through the a chain writer which will
@@ -44,7 +58,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
     else
       previous_address = Transaction.previous_address(tx)
 
-      case ChainIndex.get_tx_entry(previous_address) do
+      case ChainIndex.get_tx_entry(previous_address, db_path()) do
         {:ok, %{genesis_address: genesis_address}} ->
           ChainWriter.append_transaction(genesis_address, tx)
 
@@ -58,14 +72,18 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   Determine if the transaction exists or not
   """
   @spec transaction_exists?(binary()) :: boolean()
-  defdelegate transaction_exists?(address), to: ChainIndex
+  def transaction_exists?(address) when is_binary(address) do
+    ChainIndex.transaction_exists?(address)
+  end
 
   @doc """
   Get a transaction at the given address
   """
   @spec get_transaction(binary(), list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  defdelegate get_transaction(address, fields \\ []), to: ChainReader
+  def get_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
+    ChainReader.get_transaction(address, fields, db_path())
+  end
 
   @doc """
   Get a transaction chain
@@ -73,22 +91,27 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   The returned values will be splitted according to the pagination state presents in the options
   """
   @spec get_transaction_chain(binary(), list(), list()) :: list(Transaction.t())
-  defdelegate get_transaction_chain(address, fields \\ [], opts \\ []), to: ChainReader
+  def get_transaction_chain(address, fields \\ [], opts \\ [])
+      when is_binary(address) and is_list(fields) and is_list(opts) do
+    ChainReader.get_transaction_chain(address, fields, opts, db_path())
+  end
 
   @doc """
   Return the size of a transaction chain
   """
   @spec chain_size(binary()) :: non_neg_integer()
-  defdelegate chain_size(address), to: ChainIndex
+  def chain_size(address) when is_binary(address) do
+    ChainIndex.chain_size(address, db_path())
+  end
 
   @doc """
   List all the transaction by the given type
   """
   @spec list_transactions_by_type(Transaction.transaction_type(), list()) ::
           Enumerable.t() | list(Transaction.t())
-  def list_transactions_by_type(type, fields \\ []) do
+  def list_transactions_by_type(type, fields \\ []) when is_atom(type) and is_list(fields) do
     type
-    |> ChainIndex.get_addresses_by_type()
+    |> ChainIndex.get_addresses_by_type(db_path())
     |> Stream.map(fn address ->
       {:ok, tx} = get_transaction(address, fields)
       tx
@@ -99,46 +122,51 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   Count the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()
-  def count_transactions_by_type(type) do
-    type
-    |> ChainIndex.get_addresses_by_type()
-    |> length()
+  def count_transactions_by_type(type) when is_atom(type) do
+    ChainIndex.count_transactions_by_type(type)
   end
 
   @doc """
   Return the last address from the given transaction's address until the given date
   """
   @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
-  def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now()) do
-    ChainIndex.get_last_chain_address(address, date)
+  def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now())
+      when is_binary(address) do
+    ChainIndex.get_last_chain_address(address, date, db_path())
   end
 
   @doc """
   Reference a last address from a previous address
   """
   @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
-  defdelegate add_last_transaction_address(previous_address, address, date),
-    to: ChainIndex,
-    as: :set_last_chain_address
+  def add_last_transaction_address(previous_address, address, date = %DateTime{})
+      when is_binary(previous_address) and is_binary(address) do
+    ChainIndex.set_last_chain_address(previous_address, address, date, db_path())
+  end
 
   @doc """
   Return the first address of given chain's address
   """
   @spec get_first_chain_address(binary()) :: binary()
-  defdelegate get_first_chain_address(address), to: ChainIndex
+  def get_first_chain_address(address) when is_binary(address) do
+    ChainIndex.get_first_chain_address(address, db_path())
+  end
 
   @doc """
   Return the first public key of given chain's public key
   """
   @spec get_first_public_key(Crypto.key()) :: binary()
-  defdelegate get_first_public_key(public_key), to: ChainIndex
+  def get_first_public_key(public_key) when is_binary(public_key) do
+    ChainIndex.get_first_public_key(public_key, db_path())
+  end
 
   @doc """
   List all the transactions
   """
   @spec list_transactions(list()) :: Enumerable.t() | list(Transactions.t())
-  def list_transactions(fields \\ []) do
-    ChainIndex.list_all_addresses()
+  def list_transactions(fields \\ []) when is_list(fields) do
+    db_path()
+    |> ChainIndex.list_all_addresses()
     |> Stream.map(fn address ->
       {:ok, tx} = get_transaction(address, fields)
       tx
@@ -148,17 +176,10 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   List all the last transaction chain addresses
   """
-  @spec list_last_transaction_addresses() :: list(binary())
+  @spec list_last_transaction_addresses() :: Enumerbable.t()
   def list_last_transaction_addresses do
-    case File.ls(Utils.mut_dir("chains")) do
-      {:ok, files} ->
-        files
-        |> Enum.map(&Base.decode16!(&1, case: :mixed))
-        |> Enum.map(&get_last_chain_address/1)
-
-      {:error, _} ->
-        []
-    end
+    ChainIndex.list_genesis_addresses()
+    |> Stream.map(&get_last_chain_address/1)
   end
 
   @doc """

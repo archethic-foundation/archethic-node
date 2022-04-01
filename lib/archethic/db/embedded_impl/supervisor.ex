@@ -9,18 +9,16 @@ defmodule ArchEthic.DB.EmbeddedImpl.Supervisor do
   alias ArchEthic.DB.EmbeddedImpl.P2PView
   alias ArchEthic.DB.EmbeddedImpl.StatsInfo
 
-  alias ArchEthic.Utils
-
   def start_link(arg \\ []) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
   def init(_arg) do
-    path = Utils.mut_dir("db")
+    path = ArchEthic.DB.EmbeddedImpl.db_path()
     File.mkdir_p!(path)
 
     children = [
-      Index,
+      {Index, path: path},
       {ChainWriter, path: path},
       {BootstrapInfo, path: path},
       {P2PView, path: path},

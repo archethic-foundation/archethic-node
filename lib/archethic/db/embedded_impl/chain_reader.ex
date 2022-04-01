@@ -2,6 +2,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   @moduledoc false
 
   alias ArchEthic.DB.EmbeddedImpl.ChainIndex
+  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
   alias ArchEthic.DB.EmbeddedImpl.Encoding
 
   alias ArchEthic.TransactionChain.Transaction
@@ -9,15 +10,16 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
 
   @page_size 10
 
-  @spec get_transaction(binary(), list()) ::
+  @spec get_transaction(binary(), list(), String.t()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
-  def get_transaction(address, fields \\ []) do
-    case ChainIndex.get_tx_entry(address) do
+  def get_transaction(address, fields, db_path) do
+    case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         {:error, :transaction_not_exists}
 
-      {:ok, %{file: file, offset: offset}} ->
-        fd = File.open!(file, [:binary, :read])
+      {:ok, %{offset: offset, genesis_address: genesis_address}} ->
+        filepath = ChainWriter.chain_path(db_path, genesis_address)
+        fd = File.open!(filepath, [:binary, :read])
         :file.position(fd, offset)
 
         {:ok, <<size::32, version::32>>} = :file.pread(fd, offset, 8)
@@ -37,10 +39,10 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  @spec get_transaction_chain(binary(), list(), binary() | nil) ::
+  @spec get_transaction_chain(binary(), list(), binary() | nil, String.t()) ::
           {list(Transaction.t()), boolean(), binary()}
-  def get_transaction_chain(address, fields \\ [], opts \\ []) do
-    case ChainIndex.get_tx_entry(address) do
+  def get_transaction_chain(address, fields, opts, db_path) do
+    case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         []
 
@@ -55,7 +57,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
               0
 
             paging_address ->
-              {:ok, %{offset: offset, size: size}} = ChainIndex.get_tx_entry(paging_address)
+              {:ok, %{offset: offset, size: size}} =
+                ChainIndex.get_tx_entry(paging_address, db_path)
+
               :file.position(fd, offset + size)
               offset + size
           end
