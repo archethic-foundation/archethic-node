@@ -50,6 +50,7 @@ defmodule ArchEthic.MixProject do
 
       # Dev
       {:benchee, "~> 1.0"},
+      {:benchee_html, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
@@ -91,9 +92,7 @@ defmodule ArchEthic.MixProject do
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
-      {:knigge, "~> 1.4"},
-      # required for mint https requests
-      {:castore, "~> 0.1.0"}
+      {:knigge, "~> 1.4"}
     ]
   end
 
@@ -109,6 +108,7 @@ defmodule ArchEthic.MixProject do
       "dev.docker": ["cmd docker build -t archethic-node .", "cmd docker-compose up"],
       # benchmark
       "dev.bench": [
+        "cmd docker-compose down",
         "cmd docker build -t archethic-node .",
         "cmd docker-compose up",
         "cmd docker-compose up bench"
@@ -116,7 +116,7 @@ defmodule ArchEthic.MixProject do
       # docker testnet  with 5 nodes
       "dev.testnet": ["cmd mix arch_ethic.testnet 5"],
       # Cleans docker
-      "dev.debug_docker": ["cmd docker-compose down"]
+      "dev.debug_docker": ["cmd docker system prune -a", "cmd docker-compose down"]
     ]
   end
 end

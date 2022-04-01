@@ -11,8 +11,8 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   alias ArchEthic.Crypto
 
-  def withdraw_uco_via_host(recipient_address, host, port) do
-    Playbook.send_funds_to(recipient_address, host, port)
+  def withdraw_uco_via_host(recipient_address, host, port, amount) do
+    Playbook.send_funds_to(recipient_address, host, port, amount)
   end
 
   def preliminaries() do
