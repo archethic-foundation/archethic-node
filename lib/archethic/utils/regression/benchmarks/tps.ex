@@ -14,7 +14,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
   def plan([host | _nodes], _opts) do
     Logger.debug("tps========================= host  #{inspect(host)}")
 
-    port = Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
+    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
 
     Logger.debug("tps========================= host  #{inspect(port)}")
 
