@@ -156,15 +156,8 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   @doc """
   Get the genesis address of the chain
 
-  ## Examples
-      iex> Library.get_genesis_address(<<0, 0, 0, 0, 69, 146, 167, 234, 5, 140, 176, 153, 180, 63, 89, 227, 234, 38,
-      ...>  40, 183, 0, 147, 95, 93, 91, 199, 212, 230, 199, 153, 11, 18, 245, 175, 160,173>>)
-      <<0, 0, 56, 134, 60, 170, 220, 117, 85, 171, 6, 1, 117, 80, 8, 163, 188, 8, 99,
-       98, 45, 85, 71, 117, 62, 246, 213, 66, 182, 168, 185, 14, 243, 212>>
-
   """
-  def get_genesis_address() do
-    address = <<0::8>> <> :crypto.strong_rand_bytes(32)
+  def get_genesis_address(address) do
 
     node = P2P.list_nodes() |> Enum.at(0)
 
