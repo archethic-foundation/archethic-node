@@ -34,12 +34,12 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
 
   def benchmark(alice, bob, host, port) do
     Task.async_stream(
-      1..100,
+      1..1000,
       fn x ->
         Logger.debug("tps========================= loaded  #{inspect(x)}")
         TPSHelper.dispatch_transactions(alice, bob, host, port)
       end,
-      max_concurrenct: System.schedulers_online() * 10
+      max_concurrenct: System.schedulers_online() * 50
     )
   end
 end
