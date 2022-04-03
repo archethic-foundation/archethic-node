@@ -17,3 +17,5 @@ Mox.defmock(MockGeoIP, for: ArchEthic.P2P.GeoPatch.GeoIP)
 Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl)
 
 Mox.defmock(MockMetricsCollector, for: ArchEthic.Metrics.Collector)
+
+Application.put_env(:archethic, ArchEthic.P2P.GeoPatch.GeoIP, MockGeoIP)

@@ -11,7 +11,7 @@ defmodule ArchEthic.P2P.GeoPatchTest do
   import Mox
 
   test "from_ip/1 should compute patch from coordinates" do
-    expect(MockGeoIP, :get_coordinates, fn ip ->
+    stub(MockGeoIP, :get_coordinates, fn ip ->
       case ip do
         # Spain (Alicante)
         {88, 22, 30, 229} ->
@@ -28,12 +28,17 @@ defmodule ArchEthic.P2P.GeoPatchTest do
         # Switzerland (Zurich)
         {109, 164, 214, 168} ->
           {47.366670, 8.550000}
+
+        # Edge value
+        {1, 2, 3, 4} ->
+          {-45.0, 0.0}
       end
     end)
 
-    assert "3F7" == GeoPatch.from_ip({88, 22, 30, 229})
-    assert "3C9" == GeoPatch.from_ip({161, 235, 112, 33})
-    assert "3A6" == GeoPatch.from_ip({15, 62, 246, 57})
-    assert "401" == GeoPatch.from_ip({109, 164, 214, 168})
+    assert "F1B" == GeoPatch.from_ip({88, 22, 30, 229})
+    assert "C1D" == GeoPatch.from_ip({161, 235, 112, 33})
+    assert "A1A" == GeoPatch.from_ip({15, 62, 246, 57})
+    assert "021" == GeoPatch.from_ip({109, 164, 214, 168})
+    assert "0E0" == GeoPatch.from_ip({1, 2, 3, 4})
   end
 end

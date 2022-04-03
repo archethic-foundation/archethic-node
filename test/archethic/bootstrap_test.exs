@@ -305,6 +305,9 @@ defmodule ArchEthic.BootstrapTest do
       MockDB
       |> stub(:get_first_public_key, fn _ -> first_public_key end)
 
+      MockGeoIP
+      |> stub(:get_coordinates, fn {200, 50, 20, 10} -> {0.0, 0.0} end)
+
       assert :ok =
                Bootstrap.run(
                  {200, 50, 20, 10},
