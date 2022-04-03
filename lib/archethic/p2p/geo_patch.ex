@@ -24,16 +24,21 @@ defmodule ArchEthic.P2P.GeoPatch do
   end
 
   defp compute_random_patch do
-    list_char = Enum.concat([?0..?9, ?A..?F])
-    Enum.take_random(list_char, 3) |> List.to_string()
+    list_char1 = Enum.concat([?0..?9, ?A..?F])
+    list_char2 = Enum.concat([?0..?3, ?C..?F])
+
+    Enum.take_random(list_char1, 2)
+    |> List.insert_at(1, Enum.take_random(list_char2, 1))
+    |> List.to_string()
   end
 
   defp compute_patch(lat, lon) do
-    lat_pos = (lat + 90) / 11.25
     lon_pos = (lon + 180) / 22.5
+    # Adding 4 to have second digit hex value from C to 3
+    lat_pos = (lat + 90) / 22.5 + 4
 
-    first_digit = main_index_patch(trunc(lat_pos))
-    second_digit = main_index_patch(trunc(lon_pos))
+    first_digit = main_index_patch(trunc(lon_pos))
+    second_digit = main_index_patch(trunc(lat_pos))
 
     lat_precision = ((lat_pos - trunc(lat_pos)) / 0.25) |> trunc()
     lon_precision = ((lon_pos - trunc(lon_pos)) / 0.25) |> trunc()
