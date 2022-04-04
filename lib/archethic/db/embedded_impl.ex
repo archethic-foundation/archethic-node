@@ -56,6 +56,9 @@ defmodule ArchEthic.DB.EmbeddedImpl do
     end)
   end
 
+  @doc """
+  Write a single transaction and append it to its chain
+  """
   @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{}) do
     if ChainIndex.transaction_exists?(tx.address) do
@@ -76,7 +79,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Determine if the transaction exists or not
   """
-  @spec transaction_exists?(binary()) :: boolean()
+  @spec transaction_exists?(address :: binary()) :: boolean()
   def transaction_exists?(address) when is_binary(address) do
     ChainIndex.transaction_exists?(address)
   end
@@ -84,7 +87,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Get a transaction at the given address
   """
-  @spec get_transaction(binary(), list()) ::
+  @spec get_transaction(address :: binary(), fields :: list()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields \\ []) when is_binary(address) and is_list(fields) do
     ChainReader.get_transaction(address, fields, db_path())
@@ -95,7 +98,9 @@ defmodule ArchEthic.DB.EmbeddedImpl do
 
   The returned values will be splitted according to the pagination state presents in the options
   """
-  @spec get_transaction_chain(binary(), list(), list()) :: list(Transaction.t())
+  @spec get_transaction_chain(address :: binary(), fields :: list(), opts :: list()) ::
+          {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
+           paging_state :: nil | binary()}
   def get_transaction_chain(address, fields \\ [], opts \\ [])
       when is_binary(address) and is_list(fields) and is_list(opts) do
     ChainReader.get_transaction_chain(address, fields, opts, db_path())
@@ -104,7 +109,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Return the size of a transaction chain
   """
-  @spec chain_size(binary()) :: non_neg_integer()
+  @spec chain_size(address :: binary()) :: non_neg_integer()
   def chain_size(address) when is_binary(address) do
     ChainIndex.chain_size(address, db_path())
   end
@@ -112,7 +117,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   List all the transaction by the given type
   """
-  @spec list_transactions_by_type(Transaction.transaction_type(), list()) ::
+  @spec list_transactions_by_type(Transaction.transaction_type(), fields :: list()) ::
           Enumerable.t() | list(Transaction.t())
   def list_transactions_by_type(type, fields \\ []) when is_atom(type) and is_list(fields) do
     type
@@ -134,7 +139,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Return the last address from the given transaction's address until the given date
   """
-  @spec get_last_chain_address(binary(), DateTime.t()) :: binary()
+  @spec get_last_chain_address(address :: binary(), until :: DateTime.t()) :: binary()
   def get_last_chain_address(address, date = %DateTime{} \\ DateTime.utc_now())
       when is_binary(address) do
     ChainIndex.get_last_chain_address(address, date, db_path())
@@ -143,7 +148,11 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Reference a last address from a previous address
   """
-  @spec add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
+  @spec add_last_transaction_address(
+          previous_address :: binary(),
+          address :: binary(),
+          tx_time :: DateTime.t()
+        ) :: :ok
   def add_last_transaction_address(previous_address, address, date = %DateTime{})
       when is_binary(previous_address) and is_binary(address) do
     ChainIndex.set_last_chain_address(previous_address, address, date, db_path())
@@ -152,7 +161,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Return the first address of given chain's address
   """
-  @spec get_first_chain_address(binary()) :: binary()
+  @spec get_first_chain_address(address :: binary()) :: binary()
   def get_first_chain_address(address) when is_binary(address) do
     ChainIndex.get_first_chain_address(address, db_path())
   end
@@ -160,7 +169,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Return the first public key of given chain's public key
   """
-  @spec get_first_public_key(Crypto.key()) :: binary()
+  @spec get_first_public_key(public_key :: Crypto.key()) :: Crypto.key()
   def get_first_public_key(public_key) when is_binary(public_key) do
     ChainIndex.get_first_public_key(public_key, db_path())
   end
@@ -168,7 +177,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   List all the transactions
   """
-  @spec list_transactions(list()) :: Enumerable.t() | list(Transactions.t())
+  @spec list_transactions(fields :: list()) :: Enumerable.t() | list(Transaction.t())
   def list_transactions(fields \\ []) when is_list(fields) do
     db_path()
     |> ChainIndex.list_all_addresses()
@@ -181,7 +190,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   List all the last transaction chain addresses
   """
-  @spec list_last_transaction_addresses() :: Enumerbable.t()
+  @spec list_last_transaction_addresses() :: Enumerable.t() | list(binary())
   def list_last_transaction_addresses do
     ChainIndex.list_genesis_addresses()
     |> Stream.map(&get_last_chain_address/1)
@@ -190,7 +199,8 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @doc """
   Register the new stats from a self-repair cycle
   """
-  @spec register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
+  @spec register_tps(time :: DateTime.t(), tps :: float(), nb_transactions :: non_neg_integer()) ::
+          :ok
   defdelegate register_tps(date, tps, nb_transactions), to: StatsInfo, as: :new_stats
 
   @doc """
@@ -207,12 +217,30 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   @spec set_bootstrap_info(String.t(), String.t()) :: :ok
   defdelegate set_bootstrap_info(key, value), to: BootstrapInfo, as: :set
 
-  @spec get_bootstrap_info(binary()) :: String.t() | nil
+  @spec get_bootstrap_info(key :: binary()) :: String.t() | nil
   defdelegate get_bootstrap_info(key), to: BootstrapInfo, as: :get
 
+  @doc """
+  Return the last node views from the last self-repair cycle
+  """
+  @spec register_p2p_summary(
+          Crypto.key(),
+          DateTime.t(),
+          available? :: boolean(),
+          avg_availability :: float()
+        ) :: :ok
   defdelegate register_p2p_summary(node_public_key, date, available?, avg_availability),
     to: P2PView,
     as: :add_node_view
 
+  @doc """
+  Register a new node view from the last self-repair cycle 
+  """
+  @spec get_last_p2p_summaries() :: %{
+          (node_public_key :: Crypto.key()) => {
+            available? :: boolean(),
+            average_availability :: float()
+          }
+        }
   defdelegate get_last_p2p_summaries, to: P2PView, as: :get_views
 end

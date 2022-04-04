@@ -20,7 +20,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
     :persistent_term.put(:archethic_db_path, db_path)
 
-    {:ok, _} = ChainIndex.start_link()
+    {:ok, _} = ChainIndex.start_link(path: db_path)
     {:ok, _} = ChainWriter.start_link(path: db_path)
     {:ok, _} = BootstrapInfo.start_link(path: db_path)
     {:ok, _} = StatsInfo.start_link(path: db_path)
@@ -49,7 +49,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       filesize = byte_size(contents)
 
       assert {:ok,
-              %{file: ^filename, size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
+              %{size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx.address, db_path)
     end
 
@@ -73,12 +73,11 @@ defmodule ArchEthic.DB.EmbeddedTest do
       size_tx2 = Encoding.encode(tx2) |> byte_size()
 
       assert {:ok,
-              %{file: ^filename, size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
+              %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx1.address, db_path)
 
       assert {:ok,
               %{
-                file: ^filename,
                 size: ^size_tx2,
                 offset: ^size_tx1,
                 genesis_address: ^genesis_address
@@ -102,7 +101,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       size_tx1 = Encoding.encode(tx1) |> byte_size()
 
       assert {:ok,
-              %{file: ^filename, size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
+              %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx1.address, db_path)
     end
 
@@ -127,7 +126,6 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
       assert {:ok,
               %{
-                file: ^filename,
                 size: ^size_tx2,
                 offset: ^size_tx1,
                 genesis_address: ^genesis_address
@@ -190,7 +188,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
   describe "get_transaction_chain/2" do
     test "should return an empty list when the transaction chain is not found" do
-      assert [] = EmbeddedImpl.get_transaction_chain(:crypto.strong_rand_bytes(32))
+      assert {[], false, ""} = EmbeddedImpl.get_transaction_chain(:crypto.strong_rand_bytes(32))
     end
 
     test "should return the list of all the transactions related to transaction's address chain" do

@@ -10,7 +10,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
 
   @page_size 10
 
-  @spec get_transaction(binary(), list(), String.t()) ::
+  @spec get_transaction(address :: binary(), fields :: list(), db_path :: String.t()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields, db_path) do
     case ChainIndex.get_tx_entry(address, db_path) do
@@ -19,12 +19,15 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
 
       {:ok, %{offset: offset, genesis_address: genesis_address}} ->
         filepath = ChainWriter.chain_path(db_path, genesis_address)
+
+        # Open the file as the position from the transaction in the chain file
         fd = File.open!(filepath, [:binary, :read])
         :file.position(fd, offset)
 
         {:ok, <<size::32, version::32>>} = :file.pread(fd, offset, 8)
         column_names = fields_to_column_names(fields)
 
+        # Read the transaction and extract requested columns from the fields arg
         tx =
           read_transaction(fd, column_names, size, 0)
           |> Enum.reduce(%{version: version}, fn {column, data}, acc ->
@@ -39,15 +42,22 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  @spec get_transaction_chain(binary(), list(), binary() | nil, String.t()) ::
-          {list(Transaction.t()), boolean(), binary()}
+  @spec get_transaction_chain(
+          address :: binary(),
+          fields :: list(),
+          opts :: list(),
+          db_path :: String.t()
+        ) ::
+          {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
+           paging_state :: nil | binary()}
   def get_transaction_chain(address, fields, opts, db_path) do
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         {[], false, ""}
 
-      {:ok, %{file: file}} ->
-        fd = File.open!(file, [:binary, :read])
+      {:ok, %{genesis_address: genesis_address}} ->
+        filepath = ChainWriter.chain_path(db_path, genesis_address)
+        fd = File.open!(filepath, [:binary, :read])
 
         # Set the file cursor position to the paging state
         position =
@@ -64,6 +74,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
               offset + size
           end
 
+        # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
         {transactions, more?, paging_state} = scan_chain(fd, fields, position)
         :file.close(fd)
         {transactions, more?, paging_state}

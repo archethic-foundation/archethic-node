@@ -3,7 +3,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   Manage the indexing of the transaction chains for both file and memory storage
   """
 
-
   use GenServer
 
   alias ArchEthic.Crypto
@@ -314,8 +313,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Insert transaction's address for a given transaction's type in its corresponding file
   """
-  @spec add_tx_type(Transaction.transaction_type(), Transaction.transaction_type(), binary()) ::
-          :ok | {:error, any()}
+  @spec add_tx_type(Transaction.transaction_type(), binary(), String.t()) ::
+          :ok
   def add_tx_type(type, address, db_path) do
     File.write!(type_path(db_path, type), address, [:append, :binary])
     :ets.update_counter(:archethic_db_type_stats, type, {2, 1}, {type, 0})
@@ -368,6 +367,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
           [] ->
             # If not present, the we search in the index file
             unix_time = DateTime.utc_now() |> DateTime.to_unix()
+
             search_last_address_until(genesis_address, unix_time, db_path) || address
 
           [{_, last_address}] ->
@@ -397,24 +397,12 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
     # We get the genesis address of this given transaction address
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
-        case search_last_address_until(genesis_address, unix_time, db_path) do
-          {:error, :not_exists} ->
-            address
-
-          {:ok, last_address} ->
-            last_address
-        end
+        search_last_address_until(genesis_address, unix_time, db_path) || address
 
       {:error, :not_exists} ->
         # We try to search with given address as genesis address
         # Then `address` acts the genesis address
-        case search_last_address_until(address, unix_time, db_path) do
-          {:error, :not_exists} ->
-            address
-
-          {:ok, last_address} ->
-            last_address
-        end
+        search_last_address_until(address, unix_time, db_path) || address
     end
   end
 
@@ -423,11 +411,10 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
 
     case File.open(filepath, [:binary, :read]) do
       {:ok, fd} ->
-        last_address = do_search_last_address_until(fd, until)
-        {:ok, last_address}
+        do_search_last_address_until(fd, until)
 
       {:error, _} ->
-        {:error, :not_exists}
+        nil
     end
   end
 
@@ -528,7 +515,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Stream all the file stats entries to indentify the addresses
   """
-  @spec list_all_addresses(String.t()) :: list(binary())
+  @spec list_all_addresses(String.t()) :: Enumerable.t() | list(binary())
   def list_all_addresses(db_path) do
     list_genesis_addresses()
     |> Stream.map(&scan_chain(&1, db_path))
