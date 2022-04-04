@@ -48,8 +48,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       assert contents == Encoding.encode(tx)
       filesize = byte_size(contents)
 
-      assert {:ok,
-              %{size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
+      assert {:ok, %{size: ^filesize, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx.address, db_path)
     end
 
@@ -72,8 +71,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       size_tx1 = Encoding.encode(tx1) |> byte_size()
       size_tx2 = Encoding.encode(tx2) |> byte_size()
 
-      assert {:ok,
-              %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
+      assert {:ok, %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx1.address, db_path)
 
       assert {:ok,
@@ -100,8 +98,7 @@ defmodule ArchEthic.DB.EmbeddedTest do
       assert contents == Encoding.encode(tx1)
       size_tx1 = Encoding.encode(tx1) |> byte_size()
 
-      assert {:ok,
-              %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
+      assert {:ok, %{size: ^size_tx1, offset: 0, genesis_address: ^genesis_address}} =
                ChainIndex.get_tx_entry(tx1.address, db_path)
     end
 
