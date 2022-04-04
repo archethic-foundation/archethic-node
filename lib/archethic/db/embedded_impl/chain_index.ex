@@ -3,30 +3,124 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
 
   alias ArchEthic.Crypto
   alias ArchEthic.DB.EmbeddedImpl.ChainWriter
+  alias ArchEthic.TransactionChain.Transaction
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  def init(_opts) do
+  def init(opts) do
+    db_path = Keyword.fetch!(opts, :path)
+
     :ets.new(:archethic_db_tx_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_chain_stats, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
 
-    {:ok, %{}}
+    :ets.new(:archethic_db_bloom_filters, [:set, :named_table, :public, read_concurrency: true])
+
+    fill_tables(db_path)
+
+    {:ok, %{db_path: db_path}}
   end
 
-  # TODO: handle loading data into memory on startup
+  defp fill_tables(db_path) do
+    Enum.each(0..255, fn subset ->
+      bloom_filter = BloomFilter.new(256, 0.001)
+      :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
+      subset_summary_filename = index_summary_path(db_path, subset)
+      scan_summary_table(subset_summary_filename)
+    end)
+
+    fill_type_stats(db_path)
+  end
+
+  defp scan_summary_table(filename) do
+    case File.open(filename, [:binary, :read]) do
+      {:ok, fd} ->
+        do_scan_summary_table(fd)
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp do_scan_summary_table(fd) do
+    with {:ok, <<current_curve_id::8, current_hash_type::8>>} <- :file.read(fd, 2),
+         hash_size <- Crypto.hash_size(current_hash_type),
+         {:ok, current_digest} <- :file.read(fd, hash_size),
+         {:ok, <<genesis_curve_id::8, genesis_hash_type::8>>} <- :file.read(fd, 2),
+         hash_size <- Crypto.hash_size(genesis_hash_type),
+         {:ok, genesis_digest} <- :file.read(fd, hash_size),
+         {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
+      current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
+      genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
+
+      # Fill the bloom filters
+      <<subset::8, address_digest::binary>> = current_digest
+      [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
+      bloom_filter = BloomFilter.add(bloom_filter, address_digest)
+      :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
+
+      # Register last addresses of genesis address
+      true = :ets.insert(:archethic_db_last_index, {genesis_address, current_address})
+
+      true =
+        :ets.insert(
+          :archethic_db_tx_index,
+          {current_address, %{size: size, offset: offset, genesis_address: genesis_address}}
+        )
+
+      :ets.update_counter(
+        :archethic_db_chain_stats,
+        genesis_address,
+        [
+          {2, size},
+          {3, 1}
+        ],
+        {genesis_address, 0, 0}
+      )
+
+      do_scan_summary_table(fd)
+    else
+      :eof ->
+        :file.close(fd)
+        nil
+    end
+  end
+
+  defp fill_type_stats(db_path) do
+    Enum.each(Transaction.types(), fn type ->
+      case File.open(type_path(db_path, type), [:read, :binary]) do
+        {:ok, fd} ->
+          nb_txs = do_scan_types(fd)
+          :ets.insert(:archethic_db_type_stats, {type, nb_txs})
+
+        {:error, _} ->
+          :ets.insert(:archethic_db_type_stats, {type, 0})
+      end
+    end)
+  end
+
+  defp do_scan_types(fd, acc \\ 0) do
+    with {:ok, <<_curve_id::8, hash_id::8>>} <- :file.read(fd, 2),
+         hash_size <- Crypto.hash_size(hash_id),
+         {:ok, _digest} <- :file.read(fd, hash_size) do
+      do_scan_types(fd, acc + 1)
+    else
+      :eof ->
+        :file.close(fd)
+        acc
+    end
+  end
 
   @doc """
   Add transaction indexing inserting lookup back on file and on memory for fast lookup by genesis
   """
-  @spec add_tx(binary(), binary(), binary(), non_neg_integer(), db_path :: String.t()) :: :ok
+  @spec add_tx(binary(), binary(), non_neg_integer(), db_path :: String.t()) :: :ok
   def add_tx(
-        tx_address = <<_::8, _::8, subset::8, _::binary>>,
+        tx_address = <<_::8, _::8, subset::8, digest::binary>>,
         genesis_address,
-        file,
         size,
         db_path
       ) do
@@ -43,8 +137,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
     true =
       :ets.insert(
         :archethic_db_tx_index,
-        {tx_address,
-         %{size: size, offset: last_offset, genesis_address: genesis_address, file: file}}
+        {tx_address, %{size: size, offset: last_offset, genesis_address: genesis_address}}
       )
 
     :ets.update_counter(
@@ -57,10 +150,16 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
       {genesis_address, 0, 0}
     )
 
+    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
+    bloom_filter = BloomFilter.add(bloom_filter, digest)
+    :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
+
     :ok
   end
 
-  defp get_file_stats(genesis_address) do
+  @spec get_file_stats(binary()) ::
+          {offset :: non_neg_integer(), nb_transactions :: non_neg_integer()}
+  def get_file_stats(genesis_address) do
     case :ets.lookup(:archethic_db_chain_stats, genesis_address) do
       [{_, last_offset, nb_txs}] ->
         {last_offset, nb_txs}
@@ -91,9 +190,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   Determine if a transaction exists
   """
   @spec transaction_exists?(binary()) :: boolean()
-  def transaction_exists?(address) do
-    # TODO: implement bloom filter to detect the existence of the tx even if not in memory
-    :ets.member(:archethic_db_tx_index, address)
+  def transaction_exists?(address = <<_::8, _::8, subset::8, digest::binary>>) do
+    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
+    :ets.member(:archethic_db_tx_index, address) or BloomFilter.has?(bloom_filter, digest)
   end
 
   @doc """
@@ -113,20 +212,23 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp search_tx_entry(search_address = <<_::8, _::8, digest::binary>>, db_path) do
-    # TODO: add bloom filter to reduce overhead in case of non existing transaction
     <<subset::8, _::binary>> = digest
+    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
 
-    case File.open(index_summary_path(db_path, subset), [:binary, :read]) do
-      {:ok, fd} ->
-        case do_search_tx_entry(fd, search_address) do
-          nil ->
-            :file.close(fd)
-            {:error, :not_exists}
+    with true <- BloomFilter.has?(bloom_filter, digest),
+         {:ok, fd} <- File.open(index_summary_path(db_path, subset), [:binary, :read]) do
+      case do_search_tx_entry(fd, search_address) do
+        nil ->
+          :file.close(fd)
+          {:error, :not_exists}
 
-          {genesis_address, size, offset} ->
-            :file.close(fd)
-            {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
-        end
+        {genesis_address, size, offset} ->
+          :file.close(fd)
+          {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
+      end
+    else
+      false ->
+        {:error, :not_exists}
 
       {:error, _} ->
         {:error, :not_exists}
@@ -207,10 +309,12 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Insert transaction's address for a given transaction's type in its corresponding file
   """
-  @spec add_tx_type(Transaction.transaction_type(), binary(), binary()) :: :ok | {:error, any()}
+  @spec add_tx_type(Transaction.transaction_type(), Transaction.transaction_type(), binary()) ::
+          :ok | {:error, any()}
   def add_tx_type(type, address, db_path) do
     File.write!(type_path(db_path, type), address, [:append, :binary])
     :ets.update_counter(:archethic_db_type_stats, type, {2, 1}, {type, 0})
+    :ok
   end
 
   @doc """
@@ -251,6 +355,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec get_last_chain_address(address :: binary(), db_path :: String.t()) :: binary()
   def get_last_chain_address(address, db_path) do
+    # We try with a transaction on a chain, to identity the genesis address
     case get_tx_entry(address, db_path) do
       {:ok, %{genesis_address: genesis_address}} ->
         # Search in the latest in memory index
@@ -265,7 +370,14 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
         end
 
       {:error, :not_exists} ->
-        address
+
+        # We try if the request address is the genesis address to fetch the in memory index
+        case :ets.lookup(:archethic_db_last_index, address) do
+          [] ->
+            address
+          [{_, last_address}] ->
+            last_address
+        end
     end
   end
 
@@ -428,7 +540,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
       fn acc ->
         case acc do
           [] ->
-            case :ets.first(:archethic_db_chain_stats)  do
+            case :ets.first(:archethic_db_chain_stats) do
               :"$end_of_table" -> {:halt, acc}
               first_key -> {[first_key], first_key}
             end
@@ -465,11 +577,11 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp index_summary_path(db_path, subset) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(<<subset>>)}-summary.dat"])
+    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(<<subset>>)}-summary"])
   end
 
   defp chain_addresses_path(db_path, genesis_address) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-addresses.dat"])
+    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-addresses"])
   end
 
   defp type_path(db_path, type) do
@@ -477,6 +589,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp chain_keys_path(db_path, genesis_address) do
-    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-keys.dat"])
+    Path.join([ChainWriter.base_path(db_path), "#{Base.encode16(genesis_address)}-keys"])
   end
 end

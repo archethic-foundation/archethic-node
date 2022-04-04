@@ -58,7 +58,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
       [:append, :binary]
     )
 
-    index_transaction(tx, filename, genesis_address, byte_size(data), db_path)
+    index_transaction(tx, genesis_address, byte_size(data), db_path)
 
     {:reply, :ok, state}
   end
@@ -70,14 +70,13 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
            previous_public_key: previous_public_key,
            validation_stamp: %ValidationStamp{timestamp: timestamp}
          },
-         filename,
          genesis_address,
          encoded_size,
          db_path
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    ChainIndex.add_tx(tx_address, genesis_address, filename, encoded_size, db_path)
+    ChainIndex.add_tx(tx_address, genesis_address, encoded_size, db_path)
     ChainIndex.add_tx_type(tx_type, tx_address, db_path)
     ChainIndex.set_last_chain_address(previous_address, tx_address, timestamp, db_path)
     ChainIndex.set_public_key(genesis_address, previous_public_key, timestamp, db_path)
