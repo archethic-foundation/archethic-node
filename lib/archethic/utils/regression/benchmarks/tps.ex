@@ -13,41 +13,30 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
 
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
-    {alice, bob} = TPSHelper.preliminaries()
-
-    TPSHelper.withdraw_uco_via_host(alice.address, host, port, _amount = 100)
-    TPSHelper.withdraw_uco_via_host(bob.address, host, port, _amount = 100)
+    parallel_txns = 200
 
     scenario = %{
-      "tps" => fn nb_of_txns ->
-        benchmark(alice, bob, host, port, nb_of_txns)
+      "tps" => fn {{sender_seed, transaction_data}, host, port} ->
+        benchmark({{sender_seed, transaction_data}, host, port})
       end
+    }
+
+    inputs = %{
+      "#{parallel_txns} transactions" => {host, port}
     }
 
     {scenario,
      [
-       inputs: %{
-         "100 transactions" => Enum.to_list(1..100)
-         #  "1000 transactions" => Enum.to_list(1..1_000),
-         #  "2000 transactions" => Enum.to_list(1..2_000)
-         #  "10_000 transactions" => Enum.to_list(1..10_000)
-         #  error after 100 txns
-         #  /opt/app/releases/0.13.1/libexec/erts.sh: line 66:   153 Killed                  "$__erl" -boot_var ERTS_LIB_DIR "$RELEASE_ROOT_DIR/lib" -boot "${RELEASE_ROOT_DIR}/bin/start_clean" ${SYS_CONFIG_PATH:+-config "${SYS_CONFIG_PATH}"} -pa "${CONSOLIDATED_DIR}" ${EXTRA_CODE_PATHS:+-pa "${EXTRA_CODE_PATHS}"} "$@"
-         #  "100_000 transactions" => Enum.to_list(1..100_000),
-         #  "1_000_000 transactions" => Enum.to_list(1..1_000_0000)
-       },
-       print: [benchmarking: true]
+       before_each: fn {host, port} -> TPSHelper.before_each_scenario_instance({host, port}) end,
+       print: [benchmarking: true],
+       parallel: 200,
+       inputs: inputs
      ]}
   end
 
-  def benchmark(alice, bob, host, port, nb_of_txns) do
-    Task.async_stream(
-      nb_of_txns,
-      fn x ->
-        Logger.debug("tps========================= loaded  #{inspect(x)}")
-        TPSHelper.dispatch_transactions(alice, bob, host, port)
-      end,
-      max_concurrenct: System.schedulers_online() * 100
-    )
+  # it sends one txn from send to reciever
+  # It takes sender seed and reciever address to create a transaction
+  def benchmark({{sender_seed, transaction_data}, host, port}) do
+    TPSHelper.send_transaction({{sender_seed, transaction_data}, host, port})
   end
 end
