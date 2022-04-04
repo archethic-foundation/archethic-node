@@ -96,13 +96,18 @@ defmodule ArchEthic.Replication do
         transaction_type: type
       )
 
+      # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
              tx,
              Enum.at(chain, 0),
              Enum.to_list(inputs_unspent_outputs)
            ) do
         :ok ->
-          :ok = TransactionChain.write(Stream.concat([tx], chain))
+          :ok =
+            [tx | chain]
+            |> Enum.reverse()
+            |> TransactionChain.write()
+
           :ok = ingest_transaction(tx)
 
           PubSub.notify_new_transaction(address, type, timestamp)
@@ -120,6 +125,8 @@ defmodule ArchEthic.Replication do
             %{role: :chain}
           )
 
+          # Notify previous pools about a new transaction in the chain
+          # TODO: let the validation nodes leverages this part, once they got enough confirmations
           Task.start(fn ->
             acknowledge_previous_storage_nodes(
               address,
