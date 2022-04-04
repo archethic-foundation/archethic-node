@@ -57,15 +57,25 @@ defmodule ArchEthic.Replication.TransactionContext do
     # ends where there aren't more transactions to load or no more responding nodes
     case P2P.send_message(node, message) do
       {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
+        chain =
+          [transactions | acc]
+          |> List.flatten()
+          |> Enum.uniq_by(& &1.address)
+
         do_fetch_transaction_chain(
           nodes,
           address,
           paging_state,
-          Enum.uniq_by(acc ++ transactions, & &1.address)
+          chain
         )
 
       {:ok, %TransactionList{transactions: transactions, more?: false}} ->
-        Enum.uniq_by(acc ++ transactions, & &1.address)
+        chain =
+          [transactions | acc]
+          |> List.flatten()
+          |> Enum.uniq_by(& &1.address)
+
+        chain
 
       {:error, _} ->
         do_fetch_transaction_chain(rest, address, paging_state, acc)

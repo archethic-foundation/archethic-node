@@ -250,7 +250,7 @@ defmodule ArchEthic.Replication do
   defp fetch_local_chain(address, opts \\ [], acc \\ []) do
     case TransactionChain.get(address, [], opts) do
       {transactions, false, _} ->
-        acc ++ transactions
+        List.flatten([transactions | acc])
 
       {transactions, true, paging_state} ->
         fetch_local_chain(address, [paging_state: paging_state], acc ++ transactions)
