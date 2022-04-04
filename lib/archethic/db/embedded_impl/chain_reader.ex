@@ -74,8 +74,10 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
               offset + size
           end
 
+        column_names = fields_to_column_names(fields)
+
         # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-        {transactions, more?, paging_state} = scan_chain(fd, fields, position)
+        {transactions, more?, paging_state} = scan_chain(fd, column_names, position)
         :file.close(fd)
         {transactions, more?, paging_state}
     end
@@ -138,9 +140,47 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp fields_to_column_names(_fields, acc \\ [], prepend \\ "")
+  @doc """
 
-  defp fields_to_column_names([{k, v} | rest], acc, prepend = "") do
+  ## Examples
+
+      iex> ChainReader.fields_to_column_names([:address, :previous_public_key, validation_stamp: [:timestamp]])
+      [
+         "address",
+         "previous_public_key",
+         "validation_stamp.timestamp"
+      ]
+      
+      iex> ChainReader.fields_to_column_names([:address, :previous_public_key, validation_stamp: [ledger_operations: [:fee,  :transaction_movements]]])
+      [
+         "address",
+         "previous_public_key",
+         "validation_stamp.ledger_operations.transaction_movements",
+         "validation_stamp.ledger_operations.fee",
+      ]
+      
+      iex> ChainReader.fields_to_column_names([
+      ...>  :address, 
+      ...>  :previous_public_key, 
+      ...>  data: [:content], 
+      ...>  validation_stamp: [
+      ...>    :timestamp, 
+      ...>    ledger_operations: [ :fee,  :transaction_movements ]
+      ...>  ]
+      ...> ])
+      [
+         "address",
+         "previous_public_key",
+         "data.content",
+         "validation_stamp.ledger_operations.transaction_movements",
+         "validation_stamp.ledger_operations.fee",
+         "validation_stamp.timestamp"
+      ]
+  """
+  @spec fields_to_column_names(list()) :: list(binary())
+  def fields_to_column_names(_fields, acc \\ [], prepend \\ "")
+
+  def fields_to_column_names([{k, v} | rest], acc, prepend = "") do
     fields_to_column_names(
       rest,
       List.flatten([fields_to_column_names(v, [], Atom.to_string(k)) | acc]),
@@ -148,30 +188,29 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
     )
   end
 
-  defp fields_to_column_names([{k, v} | rest], acc, prepend) do
+  def fields_to_column_names([{k, v} | rest], acc, prepend) do
     nested_prepend = "#{prepend}.#{Atom.to_string(k)}"
 
     fields_to_column_names(
       rest,
-      ["#{fields_to_column_names(v, [], nested_prepend)}" | acc],
+      [fields_to_column_names(v, [], nested_prepend) | acc],
       prepend
     )
   end
 
-  defp fields_to_column_names([key | rest], acc, prepend = "") do
+  def fields_to_column_names([key | rest], acc, prepend = "") do
     fields_to_column_names(rest, [Atom.to_string(key) | acc], prepend)
   end
 
-  defp fields_to_column_names([key | rest], acc, prepend) do
+  def fields_to_column_names([key | rest], acc, prepend) do
     fields_to_column_names(rest, ["#{prepend}.#{Atom.to_string(key)}" | acc], prepend)
   end
 
-  defp fields_to_column_names([], acc, _prepend) do
-    acc
-    |> Enum.reverse()
+  def fields_to_column_names([], acc, _prepend) do
+    Enum.reverse(acc)
   end
 
-  defp fields_to_column_names(field, acc, prepend) do
+  def fields_to_column_names(field, acc, prepend) do
     fields_to_column_names([], ["#{prepend}.#{Atom.to_string(field)}" | acc])
   end
 end
