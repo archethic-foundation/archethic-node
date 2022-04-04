@@ -1,4 +1,9 @@
 defmodule ArchEthic.DB.EmbeddedImpl do
+  @moduledoc """
+  Custom database implementation for ArchEthic storage layer using File for transaction chain storages and index backup 
+  while using a key value in memory for fast lookup
+  """
+
   alias ArchEthic.Crypto
 
   alias __MODULE__.BootstrapInfo

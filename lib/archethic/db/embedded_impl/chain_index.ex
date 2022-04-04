@@ -1,4 +1,9 @@
 defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
+  @moduledoc """
+  Manage the indexing of the transaction chains for both file and memory storage
+  """
+
+
   use GenServer
 
   alias ArchEthic.Crypto
@@ -537,23 +542,23 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   def list_genesis_addresses do
     Stream.resource(
       fn -> [] end,
-      fn acc ->
-        case acc do
-          [] ->
-            case :ets.first(:archethic_db_chain_stats) do
-              :"$end_of_table" -> {:halt, acc}
-              first_key -> {[first_key], first_key}
-            end
-
-          acc ->
-            case :ets.next(:archethic_db_chain_stats, acc) do
-              :"$end_of_table" -> {:halt, acc}
-              next_key -> {[next_key], next_key}
-            end
-        end
-      end,
+      &stream_genesis_addresses/1,
       fn _ -> :ok end
     )
+  end
+
+  defp stream_genesis_addresses(acc = []) do
+    case :ets.first(:archethic_db_chain_stats) do
+      :"$end_of_table" -> {:halt, acc}
+      first_key -> {[first_key], first_key}
+    end
+  end
+
+  defp stream_genesis_addresses(acc) do
+    case :ets.next(:archethic_db_chain_stats, acc) do
+      :"$end_of_table" -> {:halt, acc}
+      next_key -> {[next_key], next_key}
+    end
   end
 
   defp scan_chain(genesis_address, db_path) do
