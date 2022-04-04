@@ -370,11 +370,11 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
         end
 
       {:error, :not_exists} ->
-
         # We try if the request address is the genesis address to fetch the in memory index
         case :ets.lookup(:archethic_db_last_index, address) do
           [] ->
             address
+
           [{_, last_address}] ->
             last_address
         end

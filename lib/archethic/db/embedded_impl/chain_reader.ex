@@ -44,7 +44,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
   def get_transaction_chain(address, fields, opts, db_path) do
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
-        []
+        {[], false, ""}
 
       {:ok, %{file: file}} ->
         fd = File.open!(file, [:binary, :read])
@@ -64,7 +64,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
               offset + size
           end
 
-        scan_chain(fd, fields, position)
+        {transactions, more?, paging_state} = scan_chain(fd, fields, position)
+        :file.close(fd)
+        {transactions, more?, paging_state}
     end
   end
 

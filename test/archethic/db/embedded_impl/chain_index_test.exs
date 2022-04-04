@@ -53,7 +53,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndexTest do
 
       assert {100, 1} = ChainIndex.get_file_stats(genesis_address)
 
-      :ets.tab2list(:archethic_db_last_index) 
+      :ets.tab2list(:archethic_db_last_index)
       assert ^tx_address = ChainIndex.get_last_chain_address(genesis_address, db_path)
 
       # Remove the transaction from the cache and try the bloom filter
