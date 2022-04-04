@@ -19,16 +19,18 @@ defmodule ArchEthic.DB.EmbeddedImpl do
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
-  # @behaviour ArchEthic.DB
+  @behaviour ArchEthic.DB
 
+  @doc """
+  Return the path of the database folder
+  """
+  @spec db_path() :: String.t()
   def db_path do
     try do
       :persistent_term.get(:archethic_db_path)
     rescue
       ArgumentError ->
-        path =
-          Application.get_env(:archethic, __MODULE__) |> Keyword.fetch!(:path) |> Utils.mut_dir()
-
+        path = Utils.mut_dir()
         :persistent_term.put(:archethic_db_path, path)
         path
     end
