@@ -4,7 +4,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.P2PView do
   use GenServer
 
   alias ArchEthic.Crypto
-  alias ArchEthic.Utils
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -54,37 +53,37 @@ defmodule ArchEthic.DB.EmbeddedImpl.P2PView do
   end
 
   defp load_from_file(fd, acc \\ %{}) do
-    case :file.read(fd, 1) do
-      {:ok,
-       <<public_key_size::8, public_key::binary-size(public_key_size), timestamp::32,
-         available::1, avg_availability::8>>} ->
-        available? = if available == 1, do: true, else: false
+    with {:ok, <<public_key_size::8>>} <- :file.read(fd, 1),
+         {:ok,
+          <<public_key::binary-size(public_key_size), timestamp::32, available::8,
+            avg_availability::8>>} <- :file.read(fd, public_key_size + 6) do
+      available? = if available == 1, do: true, else: false
 
-        case Map.get(acc, public_key) do
-          nil ->
-            load_from_file(
-              fd,
-              Map.put(acc, public_key, %{
-                available?: available?,
-                average_availability: avg_availability / 100,
-                timestamp: timestamp
-              })
-            )
+      case Map.get(acc, public_key) do
+        nil ->
+          load_from_file(
+            fd,
+            Map.put(acc, public_key, %{
+              available?: available?,
+              avg_availability: avg_availability / 100,
+              timestamp: timestamp
+            })
+          )
 
-          %{timestamp: prev_timestamp} when timestamp > prev_timestamp ->
-            load_from_file(
-              fd,
-              Map.put(acc, public_key, %{
-                available?: available?,
-                average_availability: avg_availability / 100,
-                timestamp: timestamp
-              })
-            )
+        %{timestamp: prev_timestamp} when timestamp > prev_timestamp ->
+          load_from_file(
+            fd,
+            Map.put(acc, public_key, %{
+              available?: available?,
+              avg_availability: avg_availability / 100,
+              timestamp: timestamp
+            })
+          )
 
-          _ ->
-            load_from_file(fd, acc)
-        end
-
+        _ ->
+          load_from_file(fd, acc)
+      end
+    else
       :eof ->
         Enum.map(acc, fn {node_public_key,
                           %{available?: available?, avg_availability: avg_availability}} ->
@@ -109,15 +108,14 @@ defmodule ArchEthic.DB.EmbeddedImpl.P2PView do
   end
 
   defp append_to_file(filepath, public_key, date, available?, avg_availability) do
-    fd = File.open!(filepath, [:binary, :append])
     available_bit = if available?, do: 1, else: 0
     avg_availability_int = (avg_availability * 100) |> trunc()
 
-    IO.binwrite(
-      fd,
+    File.write!(
+      filepath,
       <<byte_size(public_key)::8, public_key::binary, DateTime.to_unix(date)::32,
-        available_bit::1, avg_availability_int::8>>
-      |> Utils.wrap_binary()
+        available_bit::8, avg_availability_int::8>>,
+      [:binary, :append]
     )
   end
 end
