@@ -81,16 +81,20 @@ defmodule ArchEthic.Replication.TransactionContext do
               {:halt, address}
 
             {address, paging_state, size} ->
-              case fetch_transaction_chain(nodes, address, paging_state) do
-                {transactions, false, _} ->
-                  {[transactions], {:end, size + length(transactions)}}
-
-                {transactions, true, paging_state} ->
-                  {[transactions], {address, paging_state, size + length(transactions)}}
-              end
+              do_stream_chain(nodes, address, paging_state, size)
           end,
           fn _ -> :ok end
         )
+    end
+  end
+
+  defp do_stream_chain(nodes, address, paging_state, size) do
+    case fetch_transaction_chain(nodes, address, paging_state) do
+      {transactions, false, _} ->
+        {[transactions], {:end, size + length(transactions)}}
+
+      {transactions, true, paging_state} ->
+        {[transactions], {address, paging_state, size + length(transactions)}}
     end
   end
 
