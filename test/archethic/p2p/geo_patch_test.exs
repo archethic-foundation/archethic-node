@@ -31,7 +31,7 @@ defmodule ArchEthic.P2P.GeoPatchTest do
 
         # Edge value
         {1, 2, 3, 4} ->
-          {-45.0, 0.0}
+          {90, 180}
       end
     end)
 
@@ -39,6 +39,6 @@ defmodule ArchEthic.P2P.GeoPatchTest do
     assert "C1D" == GeoPatch.from_ip({161, 235, 112, 33})
     assert "A1A" == GeoPatch.from_ip({15, 62, 246, 57})
     assert "021" == GeoPatch.from_ip({109, 164, 214, 168})
-    assert "0E0" == GeoPatch.from_ip({1, 2, 3, 4})
+    assert "8C0" == GeoPatch.from_ip({1, 2, 3, 4})
   end
 end

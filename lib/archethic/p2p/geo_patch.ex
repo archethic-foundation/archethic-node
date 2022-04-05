@@ -33,6 +33,10 @@ defmodule ArchEthic.P2P.GeoPatch do
   end
 
   defp compute_patch(lat, lon) do
+    # convert 90 and 180 to -90 and -180 to not get an out of bound index for array
+    lat = if(lat == 90, do: -90) || lat
+    lon = if(lon == 180, do: -180) || lon
+
     lon_pos = (lon + 180) / 22.5
     # Adding 4 to have second digit hex value from C to 3
     lat_pos = (lat + 90) / 22.5 + 4
