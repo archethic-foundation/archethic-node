@@ -36,7 +36,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.P2PView do
 
   def init(opts) do
     db_path = Keyword.get(opts, :path)
-    filepath = Path.join(db_path, "p2p_view.dat")
+    filepath = Path.join(db_path, "p2p_view")
 
     {:ok, %{filepath: filepath, views: %{}}, {:continue, :load_from_file}}
   end

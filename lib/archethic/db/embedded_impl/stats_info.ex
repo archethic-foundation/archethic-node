@@ -57,7 +57,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.StatsInfo do
 
   def init(opts) do
     db_path = Keyword.get(opts, :path)
-    filepath = Path.join(db_path, "stats.dat")
+    filepath = Path.join(db_path, "stats")
     fd = File.open!(filepath, [:binary, :read, :append])
 
     {:ok, %{fd: fd, filepath: filepath, tps: 0.0, nb_transactions: 0},

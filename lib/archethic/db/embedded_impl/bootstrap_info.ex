@@ -17,7 +17,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.BootstrapInfo do
 
   def init(opts \\ []) do
     db_path = Keyword.get(opts, :path)
-    filepath = Path.join(db_path, "bootstrap.dat")
+    filepath = Path.join(db_path, "bootstrap")
 
     {:ok, %{data: %{}, filepath: filepath}, {:continue, :load_data}}
   end
