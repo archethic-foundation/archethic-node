@@ -89,25 +89,23 @@ defmodule ArchEthic.Replication do
         transaction_type: type
       )
 
-      {chain, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
-
-      Logger.debug("Size of the chain retrieved: #{Enum.count(chain)}",
-        transaction_address: Base.encode16(address),
-        transaction_type: type
-      )
+      {previous_tx, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
 
       # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
              tx,
-             Enum.at(chain, 0),
+             previous_tx,
              Enum.to_list(inputs_unspent_outputs)
            ) do
         :ok ->
-          :ok =
-            [tx | chain]
-            |> Enum.reverse()
-            |> TransactionChain.write()
+          # Stream the insertion of the chain
+          tx
+          |> stream_previous_chain()
+          |> Stream.reject(&Enum.empty?/1)
+          |> Stream.each(&TransactionChain.write/1)
+          |> Stream.run()
 
+          :ok = TransactionChain.write_transaction(tx)
           :ok = ingest_transaction(tx)
 
           PubSub.notify_new_transaction(address, type, timestamp)
@@ -215,96 +213,171 @@ defmodule ArchEthic.Replication do
   end
 
   defp fetch_context(
-         tx = %Transaction{type: type, validation_stamp: %ValidationStamp{timestamp: timestamp}},
+         tx = %Transaction{type: type},
          self_repair?
        ) do
     if Transaction.network_type?(type) do
-      do_fetch_context_for_network_transaction(tx, timestamp, self_repair?)
+      fetch_context_for_network_transaction(tx, self_repair?)
     else
-      fetch_context_for_regular_transaction(tx, timestamp, self_repair?)
+      fetch_context_for_regular_transaction(tx, self_repair?)
     end
   end
 
-  defp do_fetch_context_for_network_transaction(tx, timestamp, self_repair?) do
+  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
-      "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) locally",
-      transaction_address: Base.encode16(tx.address)
+      "Try to fetch network previous transaction locally (#{Base.encode16(previous_address)})",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
     )
-
-    previous_chain = fetch_local_chain(previous_address)
 
     # If the transaction is missing (orphan) and the previous chain has not been synchronized
     # We request other nodes to give us the information
-    previous_chain =
-      if Enum.empty?(previous_chain) do
-        Logger.debug(
-          "Try to fetch network transaction chain (previous address: #{Base.encode16(previous_address)}) from remote nodes (possibility of an orphan state)",
-          transaction_address: Base.encode16(tx.address)
-        )
+    previous_transaction =
+      case TransactionChain.get_transaction(previous_address) do
+        {:ok, tx = %Transaction{}} ->
+          tx
 
-        TransactionContext.fetch_transaction_chain(previous_address, timestamp, true)
-      else
-        previous_chain
+        {:error, :transaction_not_exists} ->
+          Logger.debug(
+            "Try to fetch network previous transaction (#{Base.encode16(previous_address)}) from remote nodes (possibility of an orphan state)",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: tx.type
+          )
+
+          TransactionContext.fetch_transaction(previous_address)
       end
 
-    inputs_unspent_outputs = fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
+    Logger.debug("Previous transaction #{inspect(previous_transaction)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
 
-    {previous_chain, inputs_unspent_outputs}
+    inputs_unspent_outputs = fetch_inputs_unspent_outputs(tx, self_repair?)
+
+    {previous_transaction, inputs_unspent_outputs}
   end
 
-  defp fetch_local_chain(address, opts \\ [], acc \\ []) do
-    case TransactionChain.get(address, [], opts) do
-      {transactions, false, _} ->
-        List.flatten([transactions | acc])
+  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?) do
+    previous_address = Transaction.previous_address(tx)
 
-      {transactions, true, paging_state} ->
-        fetch_local_chain(address, [paging_state: paging_state], acc ++ transactions)
+    t1 =
+      Task.async(fn ->
+        Logger.debug(
+          "Fetch previous transaction #{Base.encode16(previous_address)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        TransactionContext.fetch_transaction(previous_address)
+      end)
+
+    t2 =
+      Task.async(fn ->
+        fetch_inputs_unspent_outputs(tx, self_repair?)
+      end)
+
+    previous_transaction = Task.await(t1)
+    inputs_unspent_outputs = Task.await(t2)
+
+    Logger.debug("Previous transaction #{inspect(previous_transaction)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    {previous_transaction, inputs_unspent_outputs}
+  end
+
+  defp fetch_inputs_unspent_outputs(
+         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}},
+         _self_repair = true
+       ) do
+    previous_address = Transaction.previous_address(tx)
+
+    Logger.debug(
+      "Fetch inputs for #{Base.encode16(previous_address)}",
+      transaction_address: Base.encode16(previous_address),
+      transaction_type: tx.type
+    )
+
+    previous_address
+    |> TransactionContext.fetch_transaction_inputs(tx_time)
+    |> tap(fn inputs ->
+      Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
+        transaction_address: Base.encode16(tx.address),
+        type: tx.type
+      )
+    end)
+  end
+
+  defp fetch_inputs_unspent_outputs(tx = %Transaction{}, _self_repair = false) do
+    previous_address = Transaction.previous_address(tx)
+
+    Logger.debug(
+      "Fetch unspent outputs for #{Base.encode16(previous_address)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    previous_address
+    |> TransactionContext.fetch_unspent_outputs()
+    |> tap(fn utxos ->
+      Logger.debug(
+        "Got #{inspect(utxos)} for #{Base.encode16(previous_address)}",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: tx.type
+      )
+    end)
+  end
+
+  defp stream_previous_chain(tx = %Transaction{type: type}) do
+    previous_address = Transaction.previous_address(tx)
+
+    if Transaction.network_type?(type) do
+      stream_network_tx_chain(tx)
+    else
+      TransactionContext.stream_transaction_chain(previous_address)
     end
   end
 
-  defp fetch_context_for_regular_transaction(tx, timestamp, self_repair?) do
+  defp stream_network_tx_chain(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
+    if TransactionChain.transaction_exists?(previous_address) do
+      stream_local_chain(previous_address)
+    else
+      Logger.debug(
+        "Try to fetch network transaction chain from remote nodes (possibility of an orphan state)",
+        transaction_address: Base.encode16(previous_address),
+        transaction_type: tx.type
+      )
 
-    [{%Task{}, {:ok, previous_chain}}, {%Task{}, {:ok, inputs_unspent_outputs}}] =
-      Task.yield_many([
-        Task.async(fn ->
-          Logger.debug(
-            "Fetch transaction chain (previous address: #{Base.encode16(previous_address)})",
-            transaction_address: Base.encode16(tx.address)
+      TransactionContext.stream_transaction_chain(previous_address)
+    end
+  end
+
+  defp stream_local_chain(address) do
+    Stream.resource(
+      fn -> {address, nil, 0} end,
+      fn
+        {:end, size} ->
+          Logger.debug("Size of the chain retrieved: #{size}",
+            transaction_address: Base.encode16(address)
           )
 
-          TransactionContext.fetch_transaction_chain(previous_address, timestamp)
-        end),
-        Task.async(fn ->
-          fetch_inputs_unspent_outputs(tx, timestamp, self_repair?)
-        end)
-      ])
+          {:halt, address}
 
-    {previous_chain, inputs_unspent_outputs}
-  end
+        {address, paging_state, size} ->
+          case TransactionChain.get(address, [], paging_state: paging_state) do
+            {transactions, false, _} ->
+              {[transactions], {:end, size + length(transactions)}}
 
-  defp fetch_inputs_unspent_outputs(tx, timestamp, _self_repair = true) do
-    previous_address = Transaction.previous_address(tx)
-
-    Logger.debug(
-      "Fetch inputs from previous transaction (#{Base.encode16(previous_address)})",
-      transaction_address: Base.encode16(tx.address)
+            {transactions, true, paging_state} ->
+              {[transactions], {address, paging_state, size + length(transactions)}}
+          end
+      end,
+      fn _ -> :ok end
     )
-
-    TransactionContext.fetch_transaction_inputs(previous_address, timestamp)
-  end
-
-  defp fetch_inputs_unspent_outputs(tx, timestamp, _self_repair = false) do
-    previous_address = Transaction.previous_address(tx)
-
-    Logger.debug(
-      "Fetch unspent outputs from previous transaction (#{Base.encode16(previous_address)})",
-      transaction_address: Base.encode16(tx.address)
-    )
-
-    TransactionContext.fetch_unspent_outputs(previous_address, timestamp)
   end
 
   @doc """
