@@ -343,6 +343,7 @@ defmodule ArchEthic.Replication do
 
   defp stream_network_tx_chain(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
+
     if TransactionChain.transaction_exists?(previous_address) do
       stream_local_chain(previous_address)
     else

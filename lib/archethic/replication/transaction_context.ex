@@ -62,7 +62,8 @@ defmodule ArchEthic.Replication.TransactionContext do
   @doc """
   Stream transaction chain
   """
-  @spec stream_transaction_chain(address :: Crypto.versioned_hash()) :: Enumerable.t() | list(Transaction.t())
+  @spec stream_transaction_chain(address :: Crypto.versioned_hash()) ::
+          Enumerable.t() | list(Transaction.t())
   def stream_transaction_chain(address) when is_binary(address) do
     case replication_nodes(address) do
       [] ->
