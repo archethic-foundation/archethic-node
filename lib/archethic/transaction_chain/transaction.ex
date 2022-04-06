@@ -824,8 +824,11 @@ defmodule ArchEthic.TransactionChain.Transaction do
         nil ->
           nil
 
-        type ->
-          String.to_atom(type)
+        type when is_binary(type) ->
+          String.to_existing_atom(type)
+
+        type when is_atom(type) ->
+          type
       end
 
     %__MODULE__{

@@ -13,8 +13,10 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   alias ArchEthic.P2P.Message.EncryptedStorageNonce
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.GetStorageNonce
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.ListNodes
   alias ArchEthic.P2P.Message.NodeList
@@ -44,6 +46,9 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     |> stub(:send_message, fn
       _, %GetLastTransactionAddress{address: address}, _ ->
         {:ok, %LastTransactionAddress{address: address}}
+
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}

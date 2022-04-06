@@ -15,8 +15,10 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -121,6 +123,9 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
@@ -141,7 +146,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> stub(:write_transaction_chain, fn _chain ->
+    |> stub(:write_transaction, fn ^tx ->
       send(me, :write_transaction)
       :ok
     end)
@@ -171,6 +176,9 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
@@ -181,7 +189,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> expect(:write_transaction_chain, fn [tx] ->
+    |> expect(:write_transaction, fn tx ->
       send(me, {:transaction, tx})
       :ok
     end)
@@ -216,6 +224,9 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   test "init_genesis_wallets/1 should initialize genesis wallets" do
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 

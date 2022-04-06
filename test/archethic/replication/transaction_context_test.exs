@@ -6,6 +6,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
   alias ArchEthic.Crypto
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionList
@@ -19,7 +20,28 @@ defmodule ArchEthic.Replication.TransactionContextTest do
 
   import Mox
 
-  test "fetch_transaction_chain/1 should retrieve the previous transaction chain" do
+  test "fetch_transaction/1 should retrieve the transaction" do
+    MockClient
+    |> stub(:send_message, fn _, %GetTransaction{}, _ ->
+      {:ok, %Transaction{}}
+    end)
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
+    assert %Transaction{} = TransactionContext.fetch_transaction("@Alice1")
+  end
+
+  test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
     |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
       {:ok, %TransactionList{transactions: [%Transaction{}]}}
@@ -38,7 +60,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     })
 
     assert 1 =
-             TransactionContext.fetch_transaction_chain("@Alice1", DateTime.utc_now())
+             TransactionContext.stream_transaction_chain("@Alice1")
              |> Enum.count()
   end
 
@@ -76,7 +98,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
-             TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
+             TransactionContext.fetch_unspent_outputs("@Alice1")
              |> Enum.to_list()
   end
 
@@ -114,7 +136,7 @@ defmodule ArchEthic.Replication.TransactionContextTest do
     })
 
     assert [%UnspentOutput{from: "@Bob3", amount: 19_300_000, type: :UCO}] =
-             TransactionContext.fetch_unspent_outputs("@Alice1", DateTime.utc_now())
+             TransactionContext.fetch_unspent_outputs("@Alice1")
              |> Enum.to_list()
   end
 end

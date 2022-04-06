@@ -15,6 +15,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
@@ -162,11 +163,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       me = self()
 
       MockDB
-      |> stub(:write_transaction_chain, fn _ ->
-        send(me, :storage)
-        :ok
-      end)
-      |> stub(:write_transaction, fn _, _ ->
+      |> stub(:write_transaction, fn ^tx ->
         send(me, :storage)
         :ok
       end)
@@ -235,6 +232,9 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, tx}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}

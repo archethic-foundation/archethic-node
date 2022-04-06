@@ -6,9 +6,11 @@ defmodule ArchEthic.Replication.TransactionContext do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -18,70 +20,114 @@ defmodule ArchEthic.Replication.TransactionContext do
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionInput
 
+  require Logger
+
   @doc """
-  Fetch transaction chain
+  Fetch transaction
   """
-  @spec fetch_transaction_chain(
-          address :: Crypto.versioned_hash(),
-          timestamp :: DateTime.t(),
-          force_remote_download? :: boolean()
-        ) :: list(Transaction.t())
-  def fetch_transaction_chain(address, timestamp = %DateTime{}, force_remote_download? \\ false)
-      when is_binary(address) and is_boolean(force_remote_download?) do
-    case replication_nodes(address, timestamp, force_remote_download?) do
+  @spec fetch_transaction(address :: Crypto.versioned_hash()) :: Transaction.t() | nil
+  def fetch_transaction(address) when is_binary(address) do
+    case replication_nodes(address) do
+      [] ->
+        nil
+
+      nodes ->
+        fetch_transaction(nodes, address)
+    end
+  end
+
+  defp fetch_transaction(
+         _nodes = [node | rest],
+         address
+       ) do
+    message = %GetTransaction{
+      address: address
+    }
+
+    case P2P.send_message(node, message) do
+      {:ok, tx = %Transaction{}} ->
+        tx
+
+      {:ok, %NotFound{}} ->
+        nil
+
+      {:error, _} ->
+        fetch_transaction(rest, address)
+    end
+  end
+
+  defp fetch_transaction([], _address),
+    do: raise("Cannot fetch transaction chain")
+
+  @doc """
+  Stream transaction chain
+  """
+  @spec stream_transaction_chain(address :: Crypto.versioned_hash()) ::
+          Enumerable.t() | list(Transaction.t())
+  def stream_transaction_chain(address) when is_binary(address) do
+    case replication_nodes(address) do
       [] ->
         []
 
       nodes ->
-        do_fetch_transaction_chain(
-          nodes,
-          address
+        Stream.resource(
+          fn -> {address, nil, 0} end,
+          fn
+            {:end, size} ->
+              Logger.debug("Size of the chain retrieved: #{size}",
+                transaction_address: Base.encode16(address)
+              )
+
+              {:halt, address}
+
+            {address, paging_state, size} ->
+              do_stream_chain(nodes, address, paging_state, size)
+          end,
+          fn _ -> :ok end
         )
     end
   end
 
-  defp do_fetch_transaction_chain(nodes, address, page \\ nil, acc \\ [])
+  defp do_stream_chain(nodes, address, paging_state, size) do
+    case fetch_transaction_chain(nodes, address, paging_state) do
+      {transactions, false, _} ->
+        {[transactions], {:end, size + length(transactions)}}
 
-  defp do_fetch_transaction_chain(
-         nodes = [node | rest],
+      {transactions, true, paging_state} ->
+        {[transactions], {address, paging_state, size + length(transactions)}}
+    end
+  end
+
+  defp fetch_transaction_chain(
+         _nodes = [node | rest],
          address,
-         paging_state,
-         acc
+         paging_state
        ) do
     message = %GetTransactionChain{
       address: address,
       paging_state: paging_state
     }
 
-    # query the nodes and keep unique txn
-    # ends where there aren't more transactions to load or no more responding nodes
     case P2P.send_message(node, message) do
-      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
-        do_fetch_transaction_chain(
-          nodes,
-          address,
-          paging_state,
-          Enum.uniq_by(acc ++ transactions, & &1.address)
-        )
-
-      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
-        Enum.uniq_by(acc ++ transactions, & &1.address)
+      {:ok,
+       %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->
+        {transactions, more?, paging_state}
 
       {:error, _} ->
-        do_fetch_transaction_chain(rest, address, paging_state, acc)
+        fetch_transaction_chain(rest, address, paging_state)
     end
   end
 
-  defp do_fetch_transaction_chain([], _address, _paging_state, _acc),
+  defp fetch_transaction_chain([], _address, _paging_state),
     do: raise("Cannot fetch transaction chain")
 
   @doc """
   Fetch the transaction unspent outputs
   """
-  @spec fetch_unspent_outputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
+  @spec fetch_unspent_outputs(address :: Crypto.versioned_hash()) ::
           list(UnspentOutput.t())
-  def fetch_unspent_outputs(address, timestamp) when is_binary(address) do
-    case replication_nodes(address, timestamp, false) do
+  def fetch_unspent_outputs(address) when is_binary(address) do
+    case replication_nodes(address) do
       [] ->
         []
 
@@ -111,10 +157,10 @@ defmodule ArchEthic.Replication.TransactionContext do
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
   """
-  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), timestamp :: DateTime.t()) ::
+  @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
           list(TransactionInput.t())
   def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
-    case replication_nodes(address, timestamp, false) do
+    case replication_nodes(address) do
       [] ->
         []
 
@@ -143,7 +189,7 @@ defmodule ArchEthic.Replication.TransactionContext do
   defp do_fetch_inputs([], _, nil), do: raise("Cannot fetch inputs")
   defp do_fetch_inputs([], _, prev_result), do: prev_result
 
-  defp replication_nodes(address, _timestamp, _) do
+  defp replication_nodes(address) do
     address
     # returns the storage nodes for the transaction chain based on the transaction address
     # from a list of available node

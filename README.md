@@ -41,7 +41,6 @@ Current implemented features:
 
 ### Short term
 These are the features will be implemented very soon (already in the pipe of the core team)
-- BeaconChain explorer with real feed of the transaction in a sharded network
 - Decentralized Wallet & Identity
 - Yubikey integration for node enrollment and key management
 - Provide exception on the smart contract inherit constraints
@@ -67,9 +66,6 @@ Requirements:
 Platforms supported:
 - Linux (Ubuntu 18.04)
 - Mac OS X
-
-Requires ScyllaDB/Cassandra installation to use for the backend storage
-(We recommand ScyllaDB as it's better in resource consumption and performances)
 
 ## Development
 
@@ -118,19 +114,6 @@ To run the playbooks to validate non regression:
 ```bash
 docker-compose up validate
 ```
-
-### Automation
-
-Requires working `docker-compose`
-
-To run few `archethic-node`s in testnet one could use mix task `archethic.testnet`:
-```bash
-mix arch_ethic.testnet 5
-```
-
-The task will generate `docker-compose.json` (for 5 nodes with seeds: node1, node2, node3, node4, node5), and run `docker-compose -f docker-compose.json up` which in turn will build `archethic-node` image, and spawn 5 containers. To destroy these containers run `docker-compose -f docker-compose.json down` and use `docker image rm` to remove the image.
-
-Run `mix help archethic.testnet` to see how to tweak the task.
 
 ## Contribution
 
