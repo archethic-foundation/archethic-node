@@ -38,6 +38,12 @@ config :logger, :console,
   ],
   colors: [enabled: true]
 
+# Faucet rate limit in Number of transactions
+config :archethic, :faucet_rate_limit, 3
+
+# Faucet rate limit Expiry time in milliseconds
+config :archethic, :faucet_rate_limit_expiry, 3_600_000
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
