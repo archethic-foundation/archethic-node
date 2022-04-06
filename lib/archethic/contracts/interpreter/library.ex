@@ -5,6 +5,7 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.FirstPublicKey
   alias ArchEthic.P2P.Message.GetFirstPublicKey
+  alias ArchEthic.P2P.Message.NotFound
 
   @doc """
   Match a regex expression
@@ -157,20 +158,22 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   Get the genesis address of the chain
 
   """
+  @spec get_genesis_address(binary()) ::
+          binary() | {:error, :network_issue} | {:error, :enoaddress}
   def get_genesis_address(address) do
+    address = Base.decode16!(address)
 
-    node = P2P.list_nodes() |> Enum.at(0)
+    with [node | _rest] <- P2P.available_nodes(),
+         public_key_request <- %GetFirstPublicKey{address: address},
+         {:ok, %FirstPublicKey{public_key: key}} <- P2P.send_message(node, public_key_request) do
+      {pub, _priv} = Crypto.derive_keypair(key, 0)
+      Crypto.derive_address(pub)
+    else
+      [] ->
+        {:error, :network_issue}
 
-    first_address =
-      case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
-        %FirstPublicKey{public_key: key} ->
-          key
-
-        _ ->
-          <<0::288>>
-      end
-
-    {pub, _priv} = Crypto.derive_keypair(first_address, 0)
-    Crypto.derive_address(pub)
+      {:ok, %NotFound{}} ->
+        {:error, :enoaddress}
+    end
   end
 end
