@@ -25,7 +25,9 @@ defmodule ArchEthic.TransactionFactory do
     seed = Keyword.get(opts, :seed, "seed")
     index = Keyword.get(opts, :index, 0)
     content = Keyword.get(opts, :content, "")
-    timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
+
+    timestamp =
+      Keyword.get(opts, :timestamp, DateTime.utc_now()) |> DateTime.truncate(:millisecond)
 
     tx = Transaction.new(type, %TransactionData{content: content}, seed, index)
 

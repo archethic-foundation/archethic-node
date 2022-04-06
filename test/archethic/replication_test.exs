@@ -8,9 +8,11 @@ defmodule ArchEthic.ReplicationTest do
   alias ArchEthic.Mining.Fee
 
   alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.Ok
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -63,7 +65,7 @@ defmodule ArchEthic.ReplicationTest do
     tx = create_valid_transaction(unspent_outputs)
 
     MockDB
-    |> expect(:write_transaction_chain, fn _ ->
+    |> expect(:write_transaction, fn ^tx ->
       send(me, :replicated)
       :ok
     end)
@@ -79,6 +81,9 @@ defmodule ArchEthic.ReplicationTest do
       _, %GetTransactionChain{}, _ ->
         Process.sleep(10)
         {:ok, %TransactionList{transactions: []}}
+
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     assert :ok = Replication.validate_and_store_transaction_chain(tx, [])

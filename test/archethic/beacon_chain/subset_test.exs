@@ -279,8 +279,7 @@ defmodule ArchEthic.BeaconChain.SubsetTest do
       |> stub(:write_transaction, fn %Transaction{
                                        type: :beacon,
                                        data: %TransactionData{content: content}
-                                     },
-                                     _ ->
+                                     } ->
         {%Slot{
            subset: ^subset,
            p2p_view: %{
