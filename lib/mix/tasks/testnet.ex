@@ -16,7 +16,7 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
     * `-s`, `--subnet` - use subnet for the network, default "#{@subnet}"
     * `-i`, `--image` - use image name for built container, default "#{@image}"
     * `-d`, `--detach` - run testnet in background, default "#{@detach}"
-    * `--run/--no-run` - atuomatically run `docker-compose up`, default "#{@run}"
+    * `--run/--no-run` - automatically run `docker-compose up`, default "#{@run}"
 
   ## Command line arguments
     * `seeds` - list of seeds

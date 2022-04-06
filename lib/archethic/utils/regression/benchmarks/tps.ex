@@ -13,7 +13,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
 
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
-    parallel_txns = 200
+    parallel_txns = 100
 
     scenario = %{
       "tps" => fn {{sender_seed, transaction_data}, host, port} ->
@@ -29,7 +29,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.TPS do
      [
        before_each: fn {host, port} -> TPSHelper.before_each_scenario_instance({host, port}) end,
        print: [benchmarking: true],
-       parallel: 200,
+       parallel: 100,
        inputs: inputs
      ]}
   end

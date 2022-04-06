@@ -105,18 +105,15 @@ defmodule ArchEthic.MixProject do
       # Must be run before git push --no-verify | any(dialyzer issue)
       "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
       # docker test-net with 3 nodes
-      "dev.docker": ["cmd docker build -t archethic-node .", "cmd docker-compose up"],
-      # benchmark
-      "dev.bench": [
+      "dev.docker": [
         "cmd docker-compose down",
         "cmd docker build -t archethic-node .",
-        "cmd docker-compose up",
-        "cmd docker-compose up bench"
+        "cmd docker-compose up"
       ],
-      # docker testnet  with 5 nodes
-      "dev.testnet": ["cmd mix arch_ethic.testnet 5"],
+      # benchmark
+      "dev.bench": ["cmd docker-compose up bench"],
       # Cleans docker
-      "dev.debug_docker": ["cmd docker system prune -a", "cmd docker-compose down"]
+      "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"]
     ]
   end
 end
