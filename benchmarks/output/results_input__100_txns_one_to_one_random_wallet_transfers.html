@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <title>Benchee Report</title>
+  <meta charset="utf-8">
+  <meta http-equiv="content-type" content="text/html; charset=utf8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+    <link rel="stylesheet" type="text/css" href="assets/stylesheets/benchee.css">
+    <link rel="stylesheet" type="text/css" href="assets/fontello/css/fontello.css">
+  
+</head>
+
+  <body>
+
+    <div class="header">
+  <h1>benchee report</h1>
+  
+  <span class="input-label">
+    Input: 100 Txns
+  </span>
+
+
+  <span class="version-note">
+  <a href="javascript:toggleSystemDataInfo();" title="Click to toggle system info">System info</a>
+</span>
+
+</div>
+
+
+    <article id="system-info" class="benchee-systeminfo" >
+  <h3>System info</h3>
+  <ul class="benchee-systeminfo-list">
+    <li>Elixir: 1.13.0</li>
+    <li>Erlang: 24.2.1</li>
+    <li>Operating system: Linux</li>
+    <li>Available memory: 7.73 GB</li>
+    <li>CPU Information: Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz</li>
+    <li>Number of Available Cores: 8</li>
+  </ul>
+</article>
+
+
+    
+      <article>
+        <h2>
+          <a name="run_time" href="#run_time">One to One Random wallet Transfers Run Time</a>
+          <a href="https://github.com/PragTob/benchee_html/wiki/Chart-Types#individual">
+            <i
+              class="benchee-help-icon icon-question-circle-o"
+              title="Graphs showing the individual run time distribution for One to One Random wallet Transfers.
+  Run Times Histogram shows the distribution of occurrences of specific run times in buckets.
+  Raw Run Times shows all individual recorded run times in the order they were recorded in."
+            ></i>
+          </a>
+        </h2>
+
+        <section>
+          <table>
+  <thead>
+    <tr>
+      <th class="text-left">Name</th>
+      
+        <th>Iterations per Second</th>
+      
+      <th>Average</th>
+      <th>Deviation</th>
+      <th>Median</th>
+      <th>Mode</th>
+      <th>Minimum</th>
+      <th>Maximum</th>
+      <th>Sample size</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+      
+      <tr>
+        
+          <td class="text-left">One to One Random wallet Transfers</td>
+        
+        
+          <td>35.99</td>
+          <td>27.79 ms</td>
+          <td>±303.22%</td>
+          <td>0.157 ms</td>
+          <td>none</td>
+          <td>0.0829 ms</td>
+          <td>429.84 ms</td>
+        
+        <td>98</td>
+      </tr>
+    
+  </tbody>
+</table>
+
+        </section>
+
+        <section class="benchee-plot-container">
+          <div id="run-times-histogram" class="plot"></div>
+        </section>
+        <section class="benchee-plot-container">
+          <div id="raw-run-times" class="plot"></div>
+        </section>
+      </article>
+    
+
+    
+
+    <footer>
+      <a href="https://github.com/PragTob/benchee" target="blank">benchee version: 1.0.1 </a>
+<br/>
+<a href="https://github.com/PragTob/benchee_html" target="blank">benchee_html version: 1.0.0</a>
+
+
+    </footer>
+
+    
+  <script src="assets/javascripts/plotly-1.30.1.min.js"></script>
+  <script src="assets/javascripts/benchee.js"></script>
+
+
+
+    <script>
+      var scenario = {"name":"One to One Random wallet Transfers","job_name":"One to One Random wallet Transfers","input_name":"Input: 100 Txns","run_time_data":{"statistics":{"absolute_difference":null,"average":27786552.244897958,"ips":35.98863188158277,"maximum":429838209.0,"median":156784.5,"minimum":82925.0,"mode":null,"percentiles":{"50":156784.5,"99":429838209.0},"relative_less":null,"relative_more":null,"sample_size":98,"std_dev":84253354.17039075,"std_dev_ips":109.12339614151163,"std_dev_ratio":3.0321629480268095},"samples":[222933.0,207306.0,285050.0,143147.0,165540.0,184942.0,124452.0,194669720.0,197389.0,146548.0,294461.0,179513383.0,137404.0,184757.0,1872133.0,429838209.0,186773.0,137401.0,161257.0,133147.0,131741.0,157405.0,177149.0,139839.0,2663205.0,591895.0,667566.0,197503.0,197944364.0,536029.0,112650.0,157264.0,136157.0,82925.0,149538.0,140319.0,155194.0,370251.0,288596.0,511197.0,474067.0,375121791.0,122632.0,111758.0,128848.0,3.87586e8,134620.0,135343.0,143688.0,106948.0,149813.0,114635.0,177642.0,203821.0,123411.0,129090.0,126677.0,100810.0,166678891.0,137248.0,211730.0,139605.0,138415.0,144486.0,128201.0,176995.0,155789.0,113583.0,147783.0,177472.0,194784.0,177263870.0,110452.0,108672.0,138553.0,181509117.0,162740.0,146189.0,156305.0,2116961.0,119887.0,134520.0,171102.0,450644.0,104923.0,106240.0,958302.0,168317.0,243585117.0,130090.0,217797.0,164472.0,166508411.0,102471.0,142393.0,125810.0,194856.0,130594.0]},"memory_usage_data":{"statistics":{"absolute_difference":null,"average":null,"ips":null,"maximum":null,"median":null,"minimum":null,"mode":null,"percentiles":null,"relative_less":null,"relative_more":null,"sample_size":0,"std_dev":null,"std_dev_ips":null,"std_dev_ratio":null},"samples":[]},"tag":null};
+
+      var inputHeadline = " (Input: 100 Txns)"
+
+      
+        drawRunTimeHistogram(scenario, inputHeadline);
+        drawRawRunTimeChart(scenario, inputHeadline);
+      
+
+      
+    </script>
+  </body>
+</html>
