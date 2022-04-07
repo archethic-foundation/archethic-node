@@ -92,8 +92,8 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.NodeTPS do
         case message do
           {:deploy, from} ->
             case TPSHelper.deploy_txn(txn) do
-              {:ok} -> _a=send(from, {:ok, self()})
-              {:error} -> _a =send(from, {:error, self()})
+              {:ok} -> _a = send(from, {:ok, self()})
+              {:error} -> _a = send(from, {:error, self()})
             end
         end
     end
