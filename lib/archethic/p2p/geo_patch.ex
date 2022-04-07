@@ -33,7 +33,7 @@ defmodule ArchEthic.P2P.GeoPatch do
   end
 
   defp compute_patch(lat, lon) do
-    # convert 90 and 180 to -90 and -180 to not get an out of bound index for array
+    # convert 90 and 180 to -90 and -180 to not get an out of bound index
     lat = if(lat == 90, do: -90) || lat
     lon = if(lon == 180, do: -180) || lon
 
@@ -54,18 +54,18 @@ defmodule ArchEthic.P2P.GeoPatch do
   end
 
   defp main_index_patch(index) do
-    ['8', '9', 'A', 'B', 'C', 'D', 'E', 'F', '0', '1', '2', '3', '4', '5', '6', '7']
-    |> Enum.at(index)
+    {'8', '9', 'A', 'B', 'C', 'D', 'E', 'F', '0', '1', '2', '3', '4', '5', '6', '7'}
+    |> elem(index)
   end
 
   defp precision_index_patch(index1, index2) do
-    [
-      ['0', '1', '2', '3'],
-      ['4', '5', '6', '7'],
-      ['8', '9', 'A', 'B'],
-      ['C', 'D', 'E', 'F']
-    ]
-    |> Enum.at(index1)
-    |> Enum.at(index2)
+    {
+      {'0', '1', '2', '3'},
+      {'4', '5', '6', '7'},
+      {'8', '9', 'A', 'B'},
+      {'C', 'D', 'E', 'F'}
+    }
+    |> elem(index1)
+    |> elem(index2)
   end
 end
