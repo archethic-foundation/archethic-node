@@ -12,7 +12,6 @@ defmodule ArchEthic.MixProject do
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      aliases: aliases(),
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
@@ -50,7 +49,6 @@ defmodule ArchEthic.MixProject do
 
       # Dev
       {:benchee, "~> 1.0"},
-      {:benchee_html, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
@@ -93,27 +91,6 @@ defmodule ArchEthic.MixProject do
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
       {:knigge, "~> 1.4"}
-    ]
-  end
-
-  defp aliases do
-    [
-      # Intial developer Setup
-      "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
-      # When Changes are not registered by compiler | any()
-      "dev.clean": ["cmd make clean", "clean", "format", "compile"],
-      # Must be run before git push --no-verify | any(dialyzer issue)
-      "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
-      # docker test-net with 3 nodes
-      "dev.docker": [
-        "cmd docker-compose down",
-        "cmd docker build -t archethic-node .",
-        "cmd docker-compose up"
-      ],
-      # benchmark
-      "dev.bench": ["cmd docker-compose up bench"],
-      # Cleans docker
-      "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"]
     ]
   end
 end

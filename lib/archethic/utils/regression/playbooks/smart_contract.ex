@@ -18,12 +18,9 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
     Crypto.Ed25519.LibSodiumPort.start_link()
 
     Logger.info("Play smart contract transactions on #{inspect(nodes)} with #{inspect(opts)}")
-    # port recieved is 4000
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
-    # returns nth element of list
-    # :rand = random numbe geneator b/w 1 to length of list of nodes
     host = :lists.nth(:rand.uniform(length(nodes)), nodes)
-    # run smat contracts on randomly chosen nodes
+
     run_smart_contracts(host, port)
   end
 

@@ -29,9 +29,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
     end
   end
 
-  def send_funds_to(recipient_address, host, port, amount \\ 10)
-
-  def send_funds_to(recipient_address, host, port, amount) do
+  def send_funds_to(recipient_address, host, port, amount \\ 10) do
     send_transaction(
       @faucet_seed,
       :transfer,
