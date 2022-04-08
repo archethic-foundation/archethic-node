@@ -32,6 +32,22 @@ defmodule ArchEthic.P2P.GeoPatchTest do
         # Edge value
         {1, 2, 3, 4} ->
           {90, 180}
+
+        # France (Bordeaux)
+        {1, 1, 1, 1} ->
+          {44.828114, -0.584424}
+
+        # France (Limoges)
+        {2, 2, 2, 2} ->
+          {45.819792, 1.256239}
+
+        # US (Las Vegas)
+        {3, 3, 3, 3} ->
+          {36.165362, -115.102552}
+
+        # US (Phoenix)
+        {4, 4, 4, 4} ->
+          {33.456609, -112.033383}
       end
     end)
 
@@ -40,5 +56,9 @@ defmodule ArchEthic.P2P.GeoPatchTest do
     assert "A1A" == GeoPatch.from_ip({15, 62, 246, 57})
     assert "021" == GeoPatch.from_ip({109, 164, 214, 168})
     assert "8C0" == GeoPatch.from_ip({1, 2, 3, 4})
+    assert "F1F" == GeoPatch.from_ip({1, 1, 1, 1})
+    assert "020" == GeoPatch.from_ip({2, 2, 2, 2})
+    assert "A1B" == GeoPatch.from_ip({3, 3, 3, 3})
+    assert "B14" == GeoPatch.from_ip({4, 4, 4, 4})
   end
 end
