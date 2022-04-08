@@ -47,6 +47,7 @@ defmodule ArchEthicCase do
     |> stub(:chain_size, fn _ -> 0 end)
     |> stub(:list_transactions_by_type, fn _, _ -> [] end)
     |> stub(:count_transactions_by_type, fn _ -> 0 end)
+    |> stub(:list_addresses_by_type, fn _ -> [] end)
     |> stub(:list_transactions, fn _ -> [] end)
     |> stub(:transaction_exists?, fn _ -> false end)
     |> stub(:register_p2p_summary, fn _, _, _, _ -> :ok end)
