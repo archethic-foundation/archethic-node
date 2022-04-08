@@ -612,4 +612,26 @@ defmodule ArchEthic.Utils do
     {attestation, rest} = ReplicationAttestation.deserialize(rest)
     deserialize_transaction_attestations(rest, nb_attestations, [attestation | acc])
   end
+
+  def deserialize_public_key_list(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_public_key_list(rest, nb_keys, acc) when length(acc) == nb_keys do
+    {Enum.reverse(acc), rest}
+  end
+
+  def deserialize_public_key_list(rest, nb_keys, acc) do
+    {public_key, rest} = deserialize_public_key(rest)
+    deserialize_public_key_list(rest, nb_keys, [public_key | acc])
+  end
+
+  def deserialize_node_list(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_node_list(rest, nb_nodes, acc) when length(acc) == nb_nodes do
+    {Enum.reverse(acc), rest}
+  end
+
+  def deserialize_node_list(rest, nb_nodes, acc) do
+    {node, rest} = Node.deserialize(rest)
+    deserialize_node_list(rest, nb_nodes, [node | acc])
+  end
 end
