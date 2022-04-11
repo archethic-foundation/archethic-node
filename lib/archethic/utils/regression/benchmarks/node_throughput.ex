@@ -1,16 +1,15 @@
-defmodule ArchEthic.Utils.Regression.NodeThroughput do
+defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   @moduledoc """
   Using Publically exposed Api To Benchmark
   """
 
   # alias modules
+  # alias ArchEthic.Utils.Regression.Benchmarks.Helpers.Helper
   alias ArchEthic.Utils.Regression.Benchmark
-
   # behaviour
   @behaviour Benchmark
 
   @impl true
-
   def plan([host | _nodes], opts) do
     IO.inspect(host, label: "host var")
     IO.inspect(opts, label: "opts")
