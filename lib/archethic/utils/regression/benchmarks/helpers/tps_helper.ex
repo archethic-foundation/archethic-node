@@ -1,23 +1,39 @@
 defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   @moduledoc """
-  Povides methods to help with benchmarking TPS.
+    Helper Method for Exposed api Benchmaking
   """
-  # Modules req
+
+  # module alias
   alias ArchEthic.Crypto
 
-  alias ArchEthic.TransactionChain.{
-    Transaction,
-    TransactionData,
-    TransactionData.Ledger,
-    TransactionData.UCOLedger
-  }
+  alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Ledger
+  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
+  alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
-  alias ArchEthicWeb.TransactionSubscriber
+  #  alias ArchEthicWeb.TransactionSubscriber
 
-  # module variables
+  alias ArchEthic.Utils.WebClient
+
+  #  module constants
   @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
 
+  @genesis_origin_private_key "01009280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
+                              |> Base.decode16!()
+
+  def get_curve(), do: Crypto.default_curve()
+
   def random_seed(), do: Integer.to_string(System.unique_integer([:monotonic]))
+
+  def derive_keypair(seed, index \\ 0), do: Crypto.derive_keypair(seed, index, get_curve())
+
+  def acquire_genesis_address({pbKey, _privKey}), do: Crypto.derive_address(pbKey)
+
+  def get_address(pbKey), do: Crypto.derive_address(pbKey)
 
   @spec faucet_enabled?() :: {:ok, boolean()}
   def faucet_enabled?(),
@@ -27,123 +43,194 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       true
     }
 
-  def get_curve(), do: Crypto.default_curve()
-
-  # hash of genesis public key
-  def acquire_genesis_address({genesis_pbKey, _privKey}), do: derive_address(genesis_pbKey)
-  def acquire_genesis_address(genesis_pbKey), do: derive_address(genesis_pbKey)
-
-  # hash of public key
-  def derive_address(pbKey), do: Crypto.derive_address(pbKey)
-
-  def derive_keys(seed, index \\ 0), do: Crypto.derive_keypair(seed, index, get_curve())
-
-  def allocate_funds(recipient_address) do
+  def allocate_funds(recipient_address, host, port) do
     with {:ok, true} <- faucet_enabled?(),
          {:ok, recipient_address} <- Base.decode16(recipient_address, case: :mixed),
-         true <- Crypto.valid_address?(recipient_address),
-         {:ok, tx_address} <- transfer_dummy_uco(recipient_address) do
-      TransactionSubscriber.register(tx_address, System.monotonic_time())
-      {:ok, tx_address}
+         true <- Crypto.valid_address?(recipient_address) do
+      @pool_seed
+      |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
+      |> deploy_txn(host, port)
     else
-      _ -> {:error, :raise}
+      _ -> raise "Allocate Funds: formalities failed"
     end
   end
 
-  def transfer_dummy_uco(recipient_address) when is_bitstring(recipient_address) do
-    pool_gen_address = derive_keys(@pool_seed) |> acquire_genesis_address()
-
-    with {:ok, last_address} <-
-           ArchEthic.get_last_transaction_address(pool_gen_address),
-         {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
-      faucet_create_transaction(last_index, get_curve(), recipient_address)
-    else
-      {:error, _} = e ->
-        e
-    end
-  end
-
-  defp faucet_create_transaction(transaction_index, curve, recipient_address) do
-    tx =
-      Transaction.new(
-        :transfer,
-        %TransactionData{
-          ledger: %Ledger{
-            uco: %UCOLedger{
-              transfers: [
-                %UCOLedger.Transfer{
-                  to: recipient_address,
-                  amount: 10_000_000_000
-                }
-              ]
+  def get_transaction_data(recipient_address, amount),
+    do: %TransactionData{
+      ledger: %Ledger{
+        uco: %UCOLedger{
+          transfers: [
+            %Transfer{
+              to: recipient_address,
+              amount: amount
             }
-          }
-        },
-        @pool_seed,
-        transaction_index,
-        curve
+          ]
+        }
+      }
+    }
+
+  def get_chain_size(seed, host, port) do
+    IO.inspect(binding())
+    genesis_address = seed |> derive_keypair() |> acquire_genesis_address()
+
+    query =
+      ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
+
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+      {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
+        0
+
+      {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
+        chain_length
+    end
+  end
+
+  def build_txn(emitter_seed, recipient_address, txn_type, host, port, amount \\ 1_000_000) do
+    txn_data = get_transaction_data(recipient_address, amount)
+
+    chain_length = get_chain_size(emitter_seed, host, port)
+
+    {prev_pbKey, prev_privKey} = derive_keypair(emitter_seed, chain_length)
+
+    {next_pbKey, _next_privKey} = derive_keypair(emitter_seed, chain_length + 1)
+    IO.inspect(binding())
+
+    %Transaction{
+      address: get_address(next_pbKey),
+      type: txn_type,
+      data: txn_data,
+      previous_public_key: prev_pbKey
+    }
+    |> Transaction.previous_sign_transaction(prev_privKey)
+    |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+  end
+
+  def deploy_txn(txn, host, port) do
+    case dispatch_txn_to_public_endpoint(txn, host, port) do
+      {:ok, txn_address} ->
+        verify_replication(txn_address, host, port)
+
+      {:error, nil} ->
+        raise "Sending txn failed"
+    end
+  end
+
+  def dispatch_txn_to_public_endpoint(txn, host, port) do
+    true =
+      Crypto.verify?(
+        txn.previous_signature,
+        Transaction.extract_for_previous_signature(txn) |> Transaction.serialize(),
+        txn.previous_public_key
       )
 
-    case ArchEthic.send_new_transaction(tx) do
-      :ok ->
-        {:ok, tx.address}
+    case WebClient.with_connection(
+           host,
+           port,
+           &WebClient.json(&1, "/api/transaction", txn_to_json(txn))
+         ) do
+      {:ok, %{"status" => "pending"}} ->
+        {:ok, txn.address}
 
-      {:error, _} = e ->
-        e
+      _ ->
+        {:error, nil}
     end
   end
 
-  # tested works fines till here
-  def valid_transfer(recipient_address) do
-    with {:ok, true} <- faucet_enabled?(),
-         true <- Crypto.valid_address?(recipient_address) do
-      {:ok, recipient_address}
-    else
-      _ -> {:error, nil}
-    end
+  def verify_replication(txn_address, host, port) do
+    IO.inspect("nothing")
+
+    query =
+      "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
+
+    socket = get_socket(host, port)
+
+    data = :gen_tcp.send(socket, query)
+    IO.inspect(data, label: " data======")
+    {:ok}
+    #   %{
+    #   result: %{
+    #     data: %{
+    #       "transactionConfirmed" => %{"address" => recv_addr, "nbConfirmations" => 1}
+    #     }
+    #   },
+    #   subscriptionId: ^subscription_id
+    # }
   end
 
-  def transfer(sender_seed, recipient_address) do
-    {:ok, recipient_address} = valid_transfer(recipient_address)
-    sender_genesis_address = sender_seed |> derive_keys() |> acquire_genesis_address()
+  def get_socket(host, port) do
+    {:ok, socket} =
+      host
+      |> to_charlist()
+      |> :inet.getaddr(:inet)
+      |> :gen_tcp.connect(port, [:binary, active: true, packet: 4])
 
-    with {:ok, last_address} <-
-           ArchEthic.get_last_transaction_address(sender_genesis_address),
-         {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
-      create_transaction(sender_seed, last_index, recipient_address)
-    else
-      {:error, _} = e ->
-        e
-    end
+    socket
   end
 
-  def create_transaction(sender_seed, txn_index, recipient_address) do
-    Transaction.new(
-      :transfer,
-      %TransactionData{
-        ledger: %Ledger{
-          uco: %UCOLedger{
-            transfers: [
-              %UCOLedger.Transfer{
-                to: recipient_address,
-                amount: 1_000_000
-              }
-            ]
+  defp txn_to_json(%Transaction{
+         version: version,
+         address: address,
+         type: type,
+         data: %TransactionData{
+           ledger: %Ledger{
+             uco: %UCOLedger{transfers: uco_transfers},
+             nft: %NFTLedger{transfers: nft_transfers}
+           },
+           code: code,
+           content: content,
+           recipients: recipients,
+           ownerships: ownerships
+         },
+         previous_public_key: previous_public_key,
+         previous_signature: previous_signature,
+         origin_signature: origin_signature
+       }) do
+    %{
+      "version" => version,
+      "address" => Base.encode16(address),
+      "type" => Atom.to_string(type),
+      "previousPublicKey" => Base.encode16(previous_public_key),
+      "previousSignature" => Base.encode16(previous_signature),
+      "originSignature" => Base.encode16(origin_signature),
+      "data" => %{
+        "ledger" => %{
+          "uco" => %{
+            "transfers" =>
+              Enum.map(uco_transfers, fn %Transfer{to: to, amount: amount} ->
+                %{"to" => Base.encode16(to), "amount" => amount}
+              end)
+          },
+          "nft" => %{
+            "transfers" =>
+              Enum.map(nft_transfers, fn %NFTTransfer{
+                                           to: to,
+                                           amount: amount,
+                                           nft: nft_address
+                                         } ->
+                %{"to" => Base.encode16(to), "amount" => amount, "nft" => nft_address}
+              end)
           }
-        }
-      },
-      sender_seed,
-      txn_index
-    )
-  end
-
-  def deploy_txn(txn) do
-    case ArchEthic.send_new_transaction(txn) do
-      :ok ->
-        {:ok}
-
-      {:error, _} = e ->
-        e
-    end
+        },
+        "code" => code,
+        "content" => content,
+        "recipients" => Enum.map(recipients, &Base.encode16(&1)),
+        "ownerships" =>
+          Enum.map(ownerships, fn %Ownership{
+                                    secret: secret,
+                                    authorized_keys: authorized_keys
+                                  } ->
+            %{
+              "secret" => Base.encode16(secret),
+              "authorizedKeys" =>
+                Enum.map(authorized_keys, fn {public_key, encrypted_secret_key} ->
+                  %{
+                    "publicKey" => Base.encode16(public_key),
+                    "encryptedSecretKey" => Base.encode16(encrypted_secret_key)
+                  }
+                end)
+            }
+          end)
+      }
+    }
   end
 end
