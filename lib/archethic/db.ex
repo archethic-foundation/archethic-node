@@ -3,12 +3,11 @@ defmodule ArchEthic.DB do
 
   alias ArchEthic.Crypto
 
-  alias __MODULE__.CassandraImpl
+  alias __MODULE__.EmbeddedImpl
   alias ArchEthic.TransactionChain.Transaction
 
-  use Knigge, otp_app: :archethic, default: CassandraImpl
+  use Knigge, otp_app: :archethic, default: EmbeddedImpl
 
-  @callback migrate() :: :ok
   @callback get_transaction(address :: binary(), fields :: list()) ::
               {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   @callback get_transaction_chain(
@@ -17,7 +16,6 @@ defmodule ArchEthic.DB do
               opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
-  @callback write_transaction(Transaction.t(), binary()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok

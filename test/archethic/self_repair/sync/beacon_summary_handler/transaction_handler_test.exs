@@ -12,6 +12,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -128,11 +129,15 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
     ]
 
     tx = TransactionFactory.create_valid_transaction(inputs)
+    tx_address = tx.address
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetTransaction{}, _ ->
+      _, %GetTransaction{address: ^tx_address}, _ ->
         {:ok, tx}
+
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
 
       _, %GetTransactionInputs{}, _ ->
         {:ok, %TransactionInputList{inputs: inputs}}
@@ -145,7 +150,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
     end)
 
     MockDB
-    |> stub(:write_transaction_chain, fn _ ->
+    |> stub(:write_transaction, fn ^tx ->
       send(me, :transaction_replicated)
       :ok
     end)

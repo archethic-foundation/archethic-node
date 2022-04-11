@@ -16,7 +16,6 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.GetStorageNonce
   alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionSummary
   alias ArchEthic.P2P.Message.GetUnspentOutputs
@@ -25,6 +24,7 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.ListNodes
   alias ArchEthic.P2P.Message.NewTransaction
   alias ArchEthic.P2P.Message.NodeList
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -38,7 +38,6 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.SharedSecrets.NodeRenewalScheduler
 
   alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias ArchEthic.TransactionChain.TransactionSummary
@@ -70,6 +69,9 @@ defmodule ArchEthic.BootstrapTest do
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
@@ -219,13 +221,15 @@ defmodule ArchEthic.BootstrapTest do
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
 
-        _, %GetTransaction{address: address}, _ ->
-          {:ok,
-           %Transaction{
-             address: address,
-             validation_stamp: %ValidationStamp{},
-             cross_validation_stamps: [%{}]
-           }}
+        # _, %GetTransaction{address: address}, _ ->
+        #   {:ok,
+        #    %Transaction{
+        #      address: address,
+        #      validation_stamp: %ValidationStamp{},
+        #      cross_validation_stamps: [%{}]
+        #    }}
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetTransactionSummary{address: address}, _ ->
           {:ok, %TransactionSummary{address: address}}

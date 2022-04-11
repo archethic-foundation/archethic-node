@@ -28,24 +28,22 @@ defmodule ArchEthicWeb.OracleChainLive do
     end
 
     next_summary_date = OracleChain.next_summary_date(DateTime.utc_now())
-
-    last_tx =
-      TransactionChain.list_transactions_by_type(:oracle,
-        data: [:content],
-        validation_stamp: [:timestamp]
-      )
-      |> Enum.at(0)
+    next_first_oracle_address = Crypto.derive_oracle_address(next_summary_date, 0)
 
     {last_oracle_data, update_time} =
-      case last_tx do
-        nil ->
-          {%{}, nil}
-
-        %Transaction{
-          data: %TransactionData{content: content},
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        } ->
+      case TransactionChain.get_last_transaction(next_first_oracle_address,
+             data: [:content],
+             validation_stamp: [:timestamp]
+           ) do
+        {:ok,
+         %Transaction{
+           data: %TransactionData{content: content},
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
+         }} ->
           {Jason.decode!(content), timestamp}
+
+        {:error, :transaction_not_exists} ->
+          {%{}, nil}
       end
 
     oracle_dates =

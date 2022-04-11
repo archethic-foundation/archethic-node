@@ -1,7 +1,7 @@
 File.rm_rf!(ArchEthic.Utils.mut_dir())
 
 ExUnit.start(
-  exclude: [:infrastructure, :CI, :CD, :oracle_provider],
+  exclude: [:infrastructure, :CI, :CD, :oracle_provider, :benchmark],
   timeout: :infinity,
   max_failures: 1
 )

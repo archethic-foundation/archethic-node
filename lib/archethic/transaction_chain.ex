@@ -117,16 +117,6 @@ defmodule ArchEthic.TransactionChain do
     )
   end
 
-  def write_transaction(tx = %Transaction{address: address, type: type}, chain_address) do
-    DB.write_transaction(tx, chain_address)
-    KOLedger.remove_transaction(address)
-
-    Logger.info("Transaction stored",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
-  end
-
   @doc """
   Persist a new transaction chain
   """
