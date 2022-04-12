@@ -2,6 +2,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   @moduledoc """
   Using Publically exposed Api To Benchmark
   """
+  require Logger
 
   # alias modules
 
@@ -17,11 +18,12 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   @behaviour Benchmark
 
   def plan([host | _nodes], _opts) do
-    port = Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
-    IO.inspect(binding())
+    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+
+    Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
     scenario = %{
-      "One to One Random wallet Transfers" => benchmark(host, port)
+      "One to One Random wallet Transfers" => fn ->  benchmark(host, port) end
     }
 
     opts = [
