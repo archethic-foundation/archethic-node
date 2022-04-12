@@ -23,7 +23,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
     scenario = %{
-      "One to One Random wallet Transfers" => fn ->  benchmark(host, port) end
+      "One to One Random wallet Transfers" => fn -> benchmark(host, port) end
     }
 
     opts = [
@@ -38,7 +38,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def benchmark(host, port) do
-    via_playbook(host, port)
+    via_helpers(host, port)
   end
 
   def via_playbook(host, port) do
