@@ -45,7 +45,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   def allocate_funds(recipient_address, host, port) do
     with {:ok, true} <- faucet_enabled?(),
-         {:ok, recipient_address} <- Base.decode16(recipient_address, case: :mixed),
+         #  {:ok, recipient_address} <- Base.decode16(recipient_address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address) do
       @pool_seed
       |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
@@ -70,18 +70,22 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     }
 
   def get_chain_size(seed, host, port) do
-    IO.inspect(binding())
     genesis_address = seed |> derive_keypair() |> acquire_genesis_address()
 
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+    IO.inspect(binding(), label: "get chain size")
+
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query), :http, timeout: 5_000) do
       {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
         0
 
       {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
         chain_length
+
+      {:error, a} ->
+        raise "chain size failed #{a}"
     end
   end
 
@@ -145,7 +149,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     socket = get_socket(host, port)
 
     data = :gen_tcp.send(socket, query)
-    IO.inspect(data, label: " data======")
+    IO.inspect(data, label: " data====verify_replication==")
     {:ok}
     #   %{
     #   result: %{
@@ -162,8 +166,10 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       host
       |> to_charlist()
       |> :inet.getaddr(:inet)
+      |> elem(1)
       |> :gen_tcp.connect(port, [:binary, active: true, packet: 4])
 
+    # :gen_tcp.connect("127.0.0.1", 3002, [:binary, active: true, packet: 4],5_000)
     socket
   end
 
