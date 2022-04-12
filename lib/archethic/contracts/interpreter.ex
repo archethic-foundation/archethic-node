@@ -646,7 +646,7 @@ defmodule ArchEthic.Contracts.Interpreter do
        ) do
     {node, acc}
   end
-  
+
   # Whitelist the used of functions in the actions
   defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})
        when fun_name in @transaction_statements_functions_names,

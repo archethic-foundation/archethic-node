@@ -170,7 +170,8 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
     else
       [] ->
         {:error, :network_issue}
-# TODO NotFound is not a valid behaviour of P2P GetFirstPublicKey need to address this issue after P2P GetFirstPublicKey
+
+      # TODO NotFound is not a valid behaviour of P2P GetFirstPublicKey need to address this issue after P2P GetFirstPublicKey
       {:ok, %NotFound{}} ->
         address
     end
