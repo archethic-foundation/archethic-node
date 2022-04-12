@@ -159,21 +159,20 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
 
   """
   @spec get_genesis_address(binary()) ::
-          binary() | {:error, :network_issue} | {:error, :enoaddress}
+          binary() | {:error, :network_issue}
   def get_genesis_address(address) do
     address = Base.decode16!(address)
 
     with [node | _rest] <- P2P.available_nodes(),
          public_key_request <- %GetFirstPublicKey{address: address},
          {:ok, %FirstPublicKey{public_key: key}} <- P2P.send_message(node, public_key_request) do
-      {pub, _priv} = Crypto.derive_keypair(key, 0)
-      Crypto.derive_address(pub)
+      Crypto.derive_address(key)
     else
       [] ->
         {:error, :network_issue}
-
+# TODO NotFound is not a valid behaviour of P2P GetFirstPublicKey need to address this issue after P2P GetFirstPublicKey
       {:ok, %NotFound{}} ->
-        {:error, :enoaddress}
+        address
     end
   end
 end

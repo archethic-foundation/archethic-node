@@ -639,6 +639,14 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp prewalk(node = {{:atom, "size"}, _, []}, acc = {:ok, %{scope: :condition}}),
     do: {node, acc}
 
+  # Whitelist the get_genesis_address/1 function in actions
+  defp prewalk(
+         node = {{:atom, "get_genesis_address"}, _, [_address]},
+         acc = {:ok, %{scope: :actions}}
+       ) do
+    {node, acc}
+  end
+  
   # Whitelist the used of functions in the actions
   defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})
        when fun_name in @transaction_statements_functions_names,
