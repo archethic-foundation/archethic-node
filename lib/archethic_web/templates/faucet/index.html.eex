@@ -1,11 +1,24 @@
-<%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, @link_address) do%>
-  <p class="alert alert-info" role="alert"><%= get_flash(@conn, :info) %></p>
-<% end %>
-<p class="alert alert-danger" role="alert"><%= get_flash(@conn, :error) %></p>
+<div class="container is-max-widescreen">
+    <%= if info = get_flash(@conn, :info) do %>
+      <div class="notification is-info is-link has-text-centered"> 
+        <div class="delete"></div>
+      <%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, @link_address) do%>
+        <%= info %>
+      <% end %>
+      </div>
+    <% end %>
+
+  <%= if error = get_flash(@conn, :error) do %>
+    <div class="notification is-danger has-text-centered"> 
+      <div class="delete"></div>
+      <%= error %>
+    </div>
+  <% end %>
+</div>
+
 <div class="hero is-medium is-bold is-large explorer-main">
 <div class="hero-body">
-  <div class="container">
-
+  <div class="container is-max-widescreen">
     <h1 class="title main_title">ArchEthic Faucet</h1>
     <h2 class="subtitle main_subtitle">
       <div class="columns">
