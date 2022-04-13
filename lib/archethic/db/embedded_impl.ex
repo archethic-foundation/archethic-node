@@ -131,6 +131,14 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Stream all the addresses for a transaction type
+  """
+  @spec list_addresses_by_type(Transaction.transaction_type()) :: Enumerable.t() | list(binary())
+  def list_addresses_by_type(type) when is_atom(type) do
+    ChainIndex.get_addresses_by_type(type, db_path())
+  end
+
+  @doc """
   Count the number of transactions for a given type
   """
   @spec count_transactions_by_type(Transaction.transaction_type()) :: non_neg_integer()

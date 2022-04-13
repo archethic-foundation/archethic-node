@@ -26,6 +26,9 @@ defmodule ArchEthic.DB do
               Enumerable.t()
   @callback count_transactions_by_type(type :: Transaction.transaction_type()) ::
               non_neg_integer()
+
+  @callback list_addresses_by_type(Transaction.transaction_type()) ::
+              Enumerable.t() | list(binary())
   @callback get_last_chain_address(binary()) :: binary()
   @callback get_last_chain_address(binary(), DateTime.t()) :: binary()
   @callback get_first_chain_address(binary()) :: binary()

@@ -44,6 +44,12 @@ defmodule ArchEthic.TransactionChain do
   defdelegate count_transactions_by_type(type), to: DB
 
   @doc """
+  Stream all the addresses for a transaction type
+  """
+  @spec list_addresses_by_type(Transaction.transaction_type()) :: Enumerable.t() | list(binary())
+  defdelegate list_addresses_by_type(type), to: DB
+
+  @doc """
   Get the last transaction address from a transaction chain
   """
   @spec get_last_address(binary()) :: binary()
