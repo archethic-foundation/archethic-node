@@ -39,11 +39,14 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def benchmark(host, port) do
     via_helpers(host, port)
+    # via_playbook(host, port)
   end
 
+  # gives error via playbook methods,
+  # erro : thrown is invalid txns
   def via_playbook(host, port) do
     alias ArchEthic.Utils.Regression.Playbook
-    IO.inspect(binding(), label: "txn_process")
+    # IO.inspect(binding(), label: "txn_process")
 
     {sender_seed, receiver_seed} = {TPSHelper.random_seed(), TPSHelper.random_seed()}
 
@@ -74,7 +77,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def via_helpers(host, port) do
-    IO.inspect(binding(), label: "results")
+    # IO.inspect(binding(), label: "results")
 
     txn_list =
       Enum.map([1], fn _x ->
@@ -92,7 +95,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def txn_process(host, port) do
     # sender , receiver
-    IO.inspect(binding(), label: "txn_process")
+    # IO.inspect(binding(), label: "txn_process")
 
     {sender_seed, receiver_seed} = {TPSHelper.random_seed(), TPSHelper.random_seed()}
 

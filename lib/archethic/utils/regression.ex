@@ -15,7 +15,7 @@ defmodule ArchEthic.Utils.Regression do
   alias ArchEthic.Utils.WebClient
 
   @playbooks [UCO, SmartContract]
-  @benchmarks [ NodeThroughput, P2PMessage]
+  @benchmarks [NodeThroughput, P2PMessage]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")

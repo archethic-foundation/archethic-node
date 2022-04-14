@@ -5,6 +5,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   # module alias
   alias ArchEthic.Crypto
+  alias Mint.WebSocket
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
@@ -47,9 +48,14 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     with {:ok, true} <- faucet_enabled?(),
          #  {:ok, recipient_address} <- Base.decode16(recipient_address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address) do
-      @pool_seed
-      |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
-      |> deploy_txn(host, port)
+      txn =
+        @pool_seed
+        |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
+
+      IO.inspect(Base.encode16(txn.address), label: "======tx addressin allocate funds====")
+      Process.sleep(10_000)
+
+      deploy_txn(txn, host, port)
     else
       _ -> raise "Allocate Funds: formalities failed"
     end
@@ -75,9 +81,11 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
 
-    IO.inspect(binding(), label: "get chain size")
+    IO.inspect("def get_chain_size(", label: "get chain size")
 
-    case WebClient.with_connection(host, port, &WebClient.query(&1, query), :http, timeout: 5_000) do
+    case WebClient.with_connection("#{host}", port, &WebClient.query(&1, query), :http,
+           timeout: 5_000
+         ) do
       {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
         0
 
@@ -97,7 +105,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     {prev_pbKey, prev_privKey} = derive_keypair(emitter_seed, chain_length)
 
     {next_pbKey, _next_privKey} = derive_keypair(emitter_seed, chain_length + 1)
-    IO.inspect(binding())
+    IO.inspect("def build_txn(emitter_seed,", label: "build_txn")
 
     %Transaction{
       address: get_address(next_pbKey),
@@ -110,9 +118,13 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def deploy_txn(txn, host, port) do
+    subscribe_to_replication =
+      Task.async(fn -> register_for_replication_attestation(txn.address, host, port) end)
+
     case dispatch_txn_to_public_endpoint(txn, host, port) do
-      {:ok, txn_address} ->
-        verify_replication(txn_address, host, port)
+      {:ok, _txn_address} ->
+        Task.await(subscribe_to_replication)
+        |> IO.inspect(label: "replication output")
 
       {:error, nil} ->
         raise "Sending txn failed"
@@ -140,16 +152,45 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     end
   end
 
-  def verify_replication(txn_address, host, port) do
-    IO.inspect("nothing")
+  def register_for_replication_attestation(txn_address, host, port) do
+    IO.inspect("inside replication")
 
     query =
       "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-    socket = get_socket(host, port)
+    {:ok, conn} = HTTP.connect(:http, "#{host}", port)
+    {:ok, conn, ref} = WebSocket.upgrade(:ws, conn, "/socket", [])
+    http_reply_message = receive(do: (message -> message))
+    {:ok, conn, [{:status, ^ref, status}, {:headers, ^ref, resp_headers}, {:done, ^ref}]} =
+    WebSocket.stream(conn, http_reply_message)
 
-    data = :gen_tcp.send(socket, query)
-    IO.inspect(data, label: " data====verify_replication==")
+    {:ok, conn, websocket} =
+      WebSocket.new(conn, ref, status, resp_headers)
+
+
+
+    {:ok, websocket, data} = WebSocket.encode(websocket, {:text, query})
+    {:ok, conn} = WebSocket.stream_request_body(conn, ref, data)
+
+    IO.inspect(data, label: "eos data")
+
+
+    echo_message = receive(do: (message -> message))
+    {:ok, _conn, [{:data, ^ref, data}]} = WebSocket.stream(conn, echo_message)
+    {:ok, _websocket, [{:text, "hello world"}]} = WebSocket.decode(websocket, data)
+
+    IO.inspect(data, label: "eos data")
+# socket = get_socket(host, port)
+
+    # data = :gen_tcp.send(socket, query)
+    # IO.inspect(data, label: "socket response")
+
+    # case :gen_tcp.recv(socket, 0) do
+    #   {:ok, a} -> a |> IO.inspect(label: "Response socket recieve")
+    #   {:error, b} -> b |> IO.inspect(label: "error socket recieve")
+    # end
+
+    # :gen_tcp.close(socket)
     {:ok}
     #   %{
     #   result: %{
@@ -162,14 +203,17 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def get_socket(host, port) do
+    # "/socket"
     {:ok, socket} =
+    # "ws://localhost/socket"
+    # "ws://#{localhost}/socket"
       host
       |> to_charlist()
       |> :inet.getaddr(:inet)
       |> elem(1)
-      |> :gen_tcp.connect(port, [:binary, active: true, packet: 4])
+      |> :gen_tcp.connect(port, [:binary, active: false])
 
-    # :gen_tcp.connect("127.0.0.1", 3002, [:binary, active: true, packet: 4],5_000)
+    # :gen_tcp.connect("localhost/socket", 4000, [:binary, active: true, packet: 4],5_000)
     socket
   end
 
