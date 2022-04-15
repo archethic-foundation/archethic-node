@@ -57,6 +57,10 @@ defmodule ArchEthic.MixProject do
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
       # {:broadway_dashboard, "~> 0.2.0", only: :dev},
+      {:gun, "~> 2.0", hex: :grpc_gun},
+      # {:gun, "~> 1.3"}
+      # {:websockex, "~> 0.4.3"}
+      # {:mint_web_socket, "~> 1.0"}
 
       # Test
       {:mox, "~> 0.5.2", only: [:test]},

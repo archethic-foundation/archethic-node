@@ -5,7 +5,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   # module alias
   alias ArchEthic.Crypto
-  alias Mint.WebSocket
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
@@ -152,34 +151,56 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     end
   end
 
-  def register_for_replication_attestation(txn_address, host, port) do
+  def register_for_replication_attestation(txn_address, _host, _port) do
     IO.inspect("inside replication")
 
-    query =
+    _query =
       "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-    {:ok, conn} = HTTP.connect(:http, "#{host}", port)
-    {:ok, conn, ref} = WebSocket.upgrade(:ws, conn, "/socket", [])
-    http_reply_message = receive(do: (message -> message))
-    {:ok, conn, [{:status, ^ref, status}, {:headers, ^ref, resp_headers}, {:done, ^ref}]} =
-    WebSocket.stream(conn, http_reply_message)
+      # {ok, conn_pid} = :gun.open("#{host}", port)
+      # |>IO.inpsect(label: "1")
+      # # wait for gun_up message
+      # {ok, protocol} = :gun.await_up(conn_pid)
+      # |>IO.inpsect(label: "2")
 
-    {:ok, conn, websocket} =
-      WebSocket.new(conn, ref, status, resp_headers)
+      # stream_ref = :gun.ws_upgrade(conn_pid, "/socket")
+      # |>IO.inpsect(label: "3")
 
-
-
-    {:ok, websocket, data} = WebSocket.encode(websocket, {:text, query})
-    {:ok, conn} = WebSocket.stream_request_body(conn, ref, data)
-
-    IO.inspect(data, label: "eos data")
+      # # |>IO.inpsect(label:"3")
 
 
-    echo_message = receive(do: (message -> message))
-    {:ok, _conn, [{:data, ^ref, data}]} = WebSocket.stream(conn, echo_message)
-    {:ok, _websocket, [{:text, "hello world"}]} = WebSocket.decode(websocket, data)
+      # case   :gun.ws_send(conn_pid, stream_ref, {text, query}) do
+      #   b -> IO.inspect(b, label: "4")
+      #   # handle_frame(conn_pid, stream_ref, frame)
+      # end
 
-    IO.inspect(data, label: "eos data")
+      # :gun.close(conn_pid)
+
+    end
+    # {:ok, conn} = HTTP.connect(:http, "#{host}", port)
+    # {:ok, conn, ref} = WebSocket.upgrade(:ws, conn, "/socket", [])
+    # http_reply_message = receive(do: (message -> message))
+    # {:ok, conn, [{:status, ^ref, status}, {:headers, ^ref, resp_headers}, {:done, ^ref}]} =
+    # WebSocket.stream(conn, http_reply_message)
+
+    # {:ok, conn, websocket} =
+    #   WebSocket.new(conn, ref, status, resp_headers)
+
+
+
+    # {:ok, websocket, data} = WebSocket.encode(websocket, {:text, query})
+    # {:ok, conn} = WebSocket.stream_request_body(conn, ref, data)
+
+    # IO.inspect(data, label: "eos data")
+
+
+    # echo_message = receive(do: (message -> message))
+    # {:ok, _conn, [{:data, ^ref, data}]} = WebSocket.stream(conn, echo_message)
+    # {:ok, _websocket, [{:text, "hello world"}]} = WebSocket.decode(websocket, data)
+
+    # IO.inspect(data, label: "eos data")
+
+    # building webscoket failed attempt 1
 # socket = get_socket(host, port)
 
     # data = :gen_tcp.send(socket, query)
@@ -191,7 +212,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     # end
 
     # :gen_tcp.close(socket)
-    {:ok}
+    # {:ok}
     #   %{
     #   result: %{
     #     data: %{
@@ -200,7 +221,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     #   },
     #   subscriptionId: ^subscription_id
     # }
-  end
 
   def get_socket(host, port) do
     # "/socket"
