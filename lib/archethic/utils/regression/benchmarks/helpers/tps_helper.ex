@@ -157,61 +157,8 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     _query =
       "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-      # {ok, conn_pid} = :gun.open("#{host}", port)
-      # |>IO.inpsect(label: "1")
-      # # wait for gun_up message
-      # {ok, protocol} = :gun.await_up(conn_pid)
-      # |>IO.inpsect(label: "2")
-
-      # stream_ref = :gun.ws_upgrade(conn_pid, "/socket")
-      # |>IO.inpsect(label: "3")
-
-      # # |>IO.inpsect(label:"3")
-
-
-      # case   :gun.ws_send(conn_pid, stream_ref, {text, query}) do
-      #   b -> IO.inspect(b, label: "4")
-      #   # handle_frame(conn_pid, stream_ref, frame)
-      # end
-
-      # :gun.close(conn_pid)
-
     end
-    # {:ok, conn} = HTTP.connect(:http, "#{host}", port)
-    # {:ok, conn, ref} = WebSocket.upgrade(:ws, conn, "/socket", [])
-    # http_reply_message = receive(do: (message -> message))
-    # {:ok, conn, [{:status, ^ref, status}, {:headers, ^ref, resp_headers}, {:done, ^ref}]} =
-    # WebSocket.stream(conn, http_reply_message)
 
-    # {:ok, conn, websocket} =
-    #   WebSocket.new(conn, ref, status, resp_headers)
-
-
-
-    # {:ok, websocket, data} = WebSocket.encode(websocket, {:text, query})
-    # {:ok, conn} = WebSocket.stream_request_body(conn, ref, data)
-
-    # IO.inspect(data, label: "eos data")
-
-
-    # echo_message = receive(do: (message -> message))
-    # {:ok, _conn, [{:data, ^ref, data}]} = WebSocket.stream(conn, echo_message)
-    # {:ok, _websocket, [{:text, "hello world"}]} = WebSocket.decode(websocket, data)
-
-    # IO.inspect(data, label: "eos data")
-
-    # building webscoket failed attempt 1
-# socket = get_socket(host, port)
-
-    # data = :gen_tcp.send(socket, query)
-    # IO.inspect(data, label: "socket response")
-
-    # case :gen_tcp.recv(socket, 0) do
-    #   {:ok, a} -> a |> IO.inspect(label: "Response socket recieve")
-    #   {:error, b} -> b |> IO.inspect(label: "error socket recieve")
-    # end
-
-    # :gen_tcp.close(socket)
     # {:ok}
     #   %{
     #   result: %{
@@ -222,20 +169,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     #   subscriptionId: ^subscription_id
     # }
 
-  def get_socket(host, port) do
-    # "/socket"
-    {:ok, socket} =
-    # "ws://localhost/socket"
-    # "ws://#{localhost}/socket"
-      host
-      |> to_charlist()
-      |> :inet.getaddr(:inet)
-      |> elem(1)
-      |> :gen_tcp.connect(port, [:binary, active: false])
-
-    # :gen_tcp.connect("localhost/socket", 4000, [:binary, active: true, packet: 4],5_000)
-    socket
-  end
 
   defp txn_to_json(%Transaction{
          version: version,
