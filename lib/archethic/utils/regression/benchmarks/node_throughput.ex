@@ -19,6 +19,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    {:ok, host} = :inet.getaddr(to_charlist(host), :inet)
 
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
@@ -78,25 +79,27 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def via_helpers(host, port) do
     # IO.inspect(binding(), label: "results")
-
     txn_list =
       Enum.map([1], fn _x ->
         txn_process(host, port)
       end)
 
     _results =
-      Enum.map(txn_list, fn txn ->
+      Enum.map(txn_list, fn {_, _, txn} ->
         case TPSHelper.deploy_txn(txn, host, port) do
           {:ok} -> :ok
           {:error} -> :error
         end
       end)
+
+    IO.inspect(
+      Enum.map(txn_list, fn {txn_address, recipient_address, _} ->
+        TPSHelper.verify_txn_as_txn_chain(txn_address, recipient_address, host, port)
+      end)
+    )
   end
 
   def txn_process(host, port) do
-    # sender , receiver
-    # IO.inspect(binding(), label: "txn_process")
-
     {sender_seed, receiver_seed} = {TPSHelper.random_seed(), TPSHelper.random_seed()}
 
     sender_seed
@@ -109,7 +112,10 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
       |> TPSHelper.derive_keypair()
       |> TPSHelper.acquire_genesis_address()
 
-    sender_seed
-    |> TPSHelper.build_txn(recipient_address, recipient_address, :transfer, host, port)
+    txn =
+      sender_seed
+      |> TPSHelper.build_txn(recipient_address, recipient_address, :transfer, host, port)
+
+    {txn.address, recipient_address, txn}
   end
 end

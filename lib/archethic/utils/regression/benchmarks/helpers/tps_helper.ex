@@ -18,6 +18,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   #  alias ArchEthicWeb.TransactionSubscriber
 
   alias ArchEthic.Utils.WebClient
+  # alias ArcEthic.Utils.Regression.Helpers.WSClient
 
   #  module constants
   @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
@@ -52,7 +53,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
         |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
 
       IO.inspect(Base.encode16(txn.address), label: "======tx addressin allocate funds====")
-      Process.sleep(10_000)
 
       deploy_txn(txn, host, port)
     else
@@ -82,9 +82,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
     IO.inspect("def get_chain_size(", label: "get chain size")
 
-    case WebClient.with_connection("#{host}", port, &WebClient.query(&1, query), :http,
-           timeout: 5_000
-         ) do
+    case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
       {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
         0
 
@@ -117,16 +115,30 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def deploy_txn(txn, host, port) do
-    subscribe_to_replication =
-      Task.async(fn -> register_for_replication_attestation(txn.address, host, port) end)
+    # replication_subscription = register_for_replication_attestation(txn.address, host, port)
 
     case dispatch_txn_to_public_endpoint(txn, host, port) do
       {:ok, _txn_address} ->
-        Task.await(subscribe_to_replication)
+        :ok
+
+        # Task.await(replication_subscription)
         |> IO.inspect(label: "replication output")
 
       {:error, nil} ->
         raise "Sending txn failed"
+    end
+  end
+
+  def verify_txn_as_txn_chain(txn_address, recipient_address, host, port) do
+    query =
+      "query { last_transaction(address: \"#{Base.encode16(recipient_address)}\") { address } }"
+
+    case WebClient.with_connection("#{host}", port, &WebClient.query(&1, query)) do
+      {:ok, %{"data" => %{"last_transaction" => %{"address" => address}}}} ->
+        {:ok, address == txn_address}
+
+      _ ->
+        {:error, false}
     end
   end
 
@@ -151,37 +163,19 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     end
   end
 
-  def register_for_replication_attestation(txn_address, _host, _port) do
-    IO.inspect("inside replication")
+  # def register_for_replication_attestation(txn_address, host, port) do
+  #   IO.inspect("inside replication")
 
-    _query =
-      "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
-      txn_address  = "0000c084b09c60e3bde2d0a81df08b20d82d8b6dfc1d39bc3dfa5e41b731718f09e1"
-      query =
-           "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
+  #   query =
+  #     "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-     {:ok, conn} = Mint.HTTP.connect(:http, "localhost", 4_000)
-       #  |>IO.inspect(label: "1")
-     {:ok, conn, ref} = Mint.WebSocket.upgrade(:ws, conn, "/socket/websocket?vsn=2.0.0", [
-       Mint.WebSocket.PerMessageDeflate
-     ])
-     |>IO.inspect(label: "2")
+  #   {conn, ws, ref} = WSClient.create_websocket(host, port, "/socket/websocket?vsn=2.0.0")
 
+  #   reply = WSClient.send_message(query, conn, ws, ref)
+  #   WSClient.close_websocket(conn, ws, ref)
 
-     http_reply_message = receive(do: (message -> message))
-     |>IO.inspect(label: "3")
-
-  end
-
-  # {:ok}
-  #   %{
-  #   result: %{
-  #     data: %{
-  #       "transactionConfirmed" => %{"address" => recv_addr, "nbConfirmations" => 1}
-  #     }
-  #   },
-  #   subscriptionId: ^subscription_id
-  # }
+  #   reply
+  # end
 
   defp txn_to_json(%Transaction{
          version: version,
