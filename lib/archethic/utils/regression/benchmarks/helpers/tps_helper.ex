@@ -18,7 +18,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   #  alias ArchEthicWeb.TransactionSubscriber
 
   alias ArchEthic.Utils.WebClient
-  # alias ArcEthic.Utils.Regression.Helpers.WSClient
+  alias ArcEthic.Utils.Regression.Helpers.WSClient
 
   #  module constants
   @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
@@ -75,7 +75,13 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     }
 
   def get_chain_size(seed, host, port) do
-    genesis_address = seed |> derive_keypair() |> acquire_genesis_address()
+    genesis_address =
+      seed
+      |> Crypto.derive_keypair(0, get_curve())
+      |> elem(0)
+      |> Crypto.derive_address()
+
+    IO.inspect(binding())
 
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
@@ -88,6 +94,9 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
       {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
         chain_length
+
+      {:ok, %{"data" => %{"last_transaction" => nil}, "errors" => _}} ->
+        0
 
       {:error, a} ->
         raise "chain size failed #{a}"
@@ -115,13 +124,13 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def deploy_txn(txn, host, port) do
-    # replication_subscription = register_for_replication_attestation(txn.address, host, port)
+    replication_subscription = register_for_replication_attestation(txn.address, host, port)
 
     case dispatch_txn_to_public_endpoint(txn, host, port) do
       {:ok, _txn_address} ->
-        :ok
+        {:ok}
 
-        # Task.await(replication_subscription)
+        Task.await(replication_subscription)
         |> IO.inspect(label: "replication output")
 
       {:error, nil} ->
@@ -129,18 +138,19 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     end
   end
 
-  def verify_txn_as_txn_chain(txn_address, recipient_address, host, port) do
-    query =
-      "query { last_transaction(address: \"#{Base.encode16(recipient_address)}\") { address } }"
+  # def verify_txn_as_txn_chain(txn_address, recipient_address, host, port) do
+  #  IO.inspect(binding())
+  #   query =
+  #     "query { last_transaction(address: \"#{Base.encode16(recipient_address)}\") { address } }"
 
-    case WebClient.with_connection("#{host}", port, &WebClient.query(&1, query)) do
-      {:ok, %{"data" => %{"last_transaction" => %{"address" => address}}}} ->
-        {:ok, address == txn_address}
+  #   case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
+  #     {:ok, %{"data" => %{"last_transaction" => %{"address" => address}}}} ->
+  #       {:ok, address == txn_address}
 
-      _ ->
-        {:error, false}
-    end
-  end
+  #     _ ->
+  #       {:error, false}
+  #   end
+  # end
 
   def dispatch_txn_to_public_endpoint(txn, host, port) do
     true =
@@ -163,19 +173,20 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     end
   end
 
-  # def register_for_replication_attestation(txn_address, host, port) do
-  #   IO.inspect("inside replication")
+  def register_for_replication_attestation(txn_address, host, port) do
+    IO.inspect("inside replication")
+    IO.inspect(binding())
 
-  #   query =
-  #     "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
+    query =
+      "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-  #   {conn, ws, ref} = WSClient.create_websocket(host, port, "/socket/websocket?vsn=2.0.0")
+    {conn, ws, ref} = WSClient.create_websocket(host, port, "/socket/websocket?vsn=2.0.0")
 
-  #   reply = WSClient.send_message(query, conn, ws, ref)
-  #   WSClient.close_websocket(conn, ws, ref)
+    reply = WSClient.send_message(query, conn, ws, ref)
+    WSClient.close_websocket(conn, ws, ref)
 
-  #   reply
-  # end
+    reply
+  end
 
   defp txn_to_json(%Transaction{
          version: version,

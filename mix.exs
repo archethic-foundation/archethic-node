@@ -57,6 +57,8 @@ defmodule ArchEthic.MixProject do
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
       {:mint_web_socket, "~> 1.0"},
+      {:websockex, "~> 0.4.3"},
+
 
       # Test
       {:mox, "~> 0.5.2", only: [:test]},

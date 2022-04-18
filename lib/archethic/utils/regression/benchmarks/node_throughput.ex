@@ -19,7 +19,6 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
-    {:ok, host} = :inet.getaddr(to_charlist(host), :inet)
 
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
@@ -92,11 +91,11 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
         end
       end)
 
-    IO.inspect(
-      Enum.map(txn_list, fn {txn_address, recipient_address, _} ->
-        TPSHelper.verify_txn_as_txn_chain(txn_address, recipient_address, host, port)
-      end)
-    )
+    # IO.inspect(
+    #   Enum.map(txn_list, fn {txn_address, recipient_address, _} ->
+    #     TPSHelper.verify_txn_as_txn_chain(txn_address, recipient_address, host, port)
+    #   end)
+    # )
   end
 
   def txn_process(host, port) do
@@ -114,7 +113,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
     txn =
       sender_seed
-      |> TPSHelper.build_txn(recipient_address, recipient_address, :transfer, host, port)
+      |> TPSHelper.build_txn(recipient_address, :transfer, host, port)
 
     {txn.address, recipient_address, txn}
   end

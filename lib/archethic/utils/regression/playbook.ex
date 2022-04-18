@@ -76,9 +76,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       |> Transaction.previous_sign_transaction(previous_private_key)
       |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
 
-    IO.inspect(Base.encode16(tx.address), label: "======tx address====")
-    Process.sleep(20_000)
-
     true =
       Crypto.verify?(
         tx.previous_signature,
