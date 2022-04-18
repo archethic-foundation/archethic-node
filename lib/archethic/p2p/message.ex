@@ -1227,12 +1227,9 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%GetFirstPublicKey{address: address}) do
-    case TransactionChain.get_first_transaction(address, [:previous_public_key]) do
-      {:ok, %Transaction{previous_public_key: key}} ->
+    case TransactionChain.get_first_public_key(address) do
+      key ->
         %FirstPublicKey{public_key: key}
-
-      {:error, :transaction_not_exists} ->
-        %NotFound{}
     end
   end
 
