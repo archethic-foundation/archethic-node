@@ -26,20 +26,23 @@ defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
       timestamp = ~U[2021-10-10 00:00:00Z]
 
       MockDB
-      |> expect(:count_transactions_by_type, fn
+      |> stub(:count_transactions_by_type, fn
         :node_rewards -> 1
+        :node_shared_secrets -> 1
       end)
-      |> expect(:list_transactions_by_type, fn :node_shared_secrets, _ ->
-        [
-          %Transaction{
-            data: %TransactionData{
-              ownerships: [Ownership.new(secrets, aes_key, [Crypto.last_node_public_key()])]
-            },
-            validation_stamp: %ValidationStamp{
-              timestamp: timestamp
-            }
-          }
-        ]
+      |> expect(:list_addresses_by_type, fn :node_shared_secrets ->
+        [:crypto.strong_rand_bytes(32)]
+      end)
+      |> expect(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             ownerships: [Ownership.new(secrets, aes_key, [Crypto.last_node_public_key()])]
+           },
+           validation_stamp: %ValidationStamp{
+             timestamp: timestamp
+           }
+         }}
       end)
 
       {:ok, _pid} = Keystore.start_link()

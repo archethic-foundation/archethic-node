@@ -98,10 +98,14 @@ config :archethic, ArchEthic.P2P.Listener, enabled: false
 config :archethic, ArchEthic.P2P.MemTableLoader, enabled: false
 config :archethic, ArchEthic.P2P.MemTable, enabled: false
 config :archethic, ArchEthic.P2P.Client, MockClient
+config :archethic, ArchEthic.P2P.GeoPatch.GeoIP, MockGeoIP
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds, enabled: false
 
 config :archethic, ArchEthic.Mining.PendingTransactionValidation, validate_node_ip: true
+
+config :archethic, ArchEthic.Metrics.Poller, enabled: false
+config :archethic, ArchEthic.Metrics.Collector, MockMetricsCollector
 
 config :archethic, ArchEthic.Reward.NetworkPoolScheduler, enabled: false
 config :archethic, ArchEthic.Reward.WithdrawScheduler, enabled: false

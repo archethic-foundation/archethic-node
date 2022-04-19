@@ -63,7 +63,7 @@ defmodule ArchEthic.Crypto do
   @typedoc """
   List of the supported key origins
   """
-  @type supported_origin :: :software | :tpm
+  @type supported_origin :: :software | :tpm | :on_chain_wallet
 
   @typedoc """
   Binary representing a hash prepend by a single byte to identify the algorithm of the generated hash
@@ -346,12 +346,12 @@ defmodule ArchEthic.Crypto do
 
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed")
       iex> pub
-      <<0, 0, 91, 43, 89, 132, 233, 51, 190, 190, 189, 73, 102, 74, 55, 126, 44, 117, 50,
+      <<0, 1, 91, 43, 89, 132, 233, 51, 190, 190, 189, 73, 102, 74, 55, 126, 44, 117, 50,
       36, 220, 249, 242, 73, 105, 55, 83, 190, 3, 75, 113, 199, 247, 165>>
 
       iex> {pub, _} = Crypto.generate_deterministic_keypair("myseed", :secp256r1)
       iex> pub
-      <<1, 0, 4, 140, 235, 188, 198, 146, 160, 92, 132, 81, 177, 113, 230, 39, 220, 122,
+      <<1, 1, 4, 140, 235, 188, 198, 146, 160, 92, 132, 81, 177, 113, 230, 39, 220, 122,
       112, 231, 18, 90, 66, 156, 47, 54, 192, 141, 44, 45, 223, 115, 28, 30, 48,
       105, 253, 171, 105, 87, 148, 108, 150, 86, 128, 28, 102, 163, 51, 28, 57, 33,
       133, 109, 49, 202, 92, 184, 138, 187, 26, 123, 45, 5, 94, 180, 250>>
@@ -924,14 +924,6 @@ defmodule ArchEthic.Crypto do
   end
 
   @doc """
-  Hash the data using the storage nonce stored in memory
-  """
-  @spec hash_with_storage_nonce(data :: iodata()) :: binary()
-  def hash_with_storage_nonce(data) when is_binary(data) or is_list(data) do
-    hash([storage_nonce(), data])
-  end
-
-  @doc """
   Return the size of key using the curve id
 
   ## Examples
@@ -995,22 +987,25 @@ defmodule ArchEthic.Crypto do
   def valid_hash?(<<2::8, _::binary-size(32)>>), do: true
   def valid_hash?(<<3::8, _::binary-size(64)>>), do: true
   def valid_hash?(<<4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<0::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<0::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<1::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<1::8, 4::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 0::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 1::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 2::8, _::binary-size(32)>>), do: true
-  def valid_hash?(<<2::8, 3::8, _::binary-size(64)>>), do: true
-  def valid_hash?(<<2::8, 4::8, _::binary-size(64)>>), do: true
   def valid_hash?(_), do: false
+
+  @doc """
+  Determine if an address is valid
+  """
+  @spec valid_address?(binary()) :: boolean()
+  def valid_address?(<<curve_type::8, rest::binary>>) do
+    curve_types =
+      :archethic
+      |> Application.get_env(__MODULE__)
+      |> Keyword.fetch!(:supported_curves)
+      |> Enum.map(&ID.from_curve/1)
+
+    if curve_type in curve_types do
+      valid_hash?(rest)
+    else
+      false
+    end
+  end
 
   @doc """
   Load the transaction for the Keystore indexing
@@ -1153,6 +1148,9 @@ defmodule ArchEthic.Crypto do
 
       :software ->
         true
+
+      :on_chain_wallet ->
+        true
     end
   end
 
@@ -1181,6 +1179,9 @@ defmodule ArchEthic.Crypto do
       false
 
       iex> Crypto.authorized_key_origin?(<<0::8, 1::8, :crypto.strong_rand_bytes(32)::binary>>, [:tpm])
+      false
+
+      iex> Crypto.authorized_key_origin?(<<0::8, 2::8, :crypto.strong_rand_bytes(32)::binary>>, [:tpm])
       true
 
       iex> Crypto.authorized_key_origin?(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>, [])

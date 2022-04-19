@@ -11,7 +11,6 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -44,9 +43,6 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
         %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 1_303_000_000, type: :UCO}] =
-        UCOLedger.get_unspent_outputs("@NodeKey")
-
       [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000}] =
         UCOLedger.get_unspent_outputs("@Tom4")
 
@@ -76,9 +72,6 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
         %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
       ] = UCOLedger.get_unspent_outputs("@Charlie3")
 
-      [%UnspentOutput{from: "@Charlie3", amount: 1_303_000_000, type: :UCO}] =
-        UCOLedger.get_unspent_outputs("@NodeKey")
-
       [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000, type: :UCO}] =
         UCOLedger.get_unspent_outputs("@Tom4")
 
@@ -103,7 +96,6 @@ defmodule ArchEthic.Account.MemTablesLoaderTest do
             %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
             %TransactionMovement{to: "@Bob3", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
           ],
-          node_movements: [%NodeMovement{to: "NodeKey", amount: 1_303_000_000, roles: []}],
           unspent_outputs: [
             %UnspentOutput{
               from: "@Alice2",

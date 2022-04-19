@@ -150,7 +150,7 @@ defmodule ArchEthic.Utils.Testnet do
             "node1" => %{
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node1",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.2",
                 "ARCHETHIC_DB_HOST" => "scylladb1:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
@@ -187,7 +187,7 @@ defmodule ArchEthic.Utils.Testnet do
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node2",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.3",
                 "ARCHETHIC_DB_HOST" => "scylladb2:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",
@@ -229,7 +229,7 @@ defmodule ArchEthic.Utils.Testnet do
               depends_on: ["node1"],
               environment: %{
                 "ARCHETHIC_CRYPTO_SEED" => "node3",
-                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00001D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
+                "ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS" => "1.2.3.2:30002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp",
                 "ARCHETHIC_STATIC_IP" => "1.2.3.4",
                 "ARCHETHIC_DB_HOST" => "scylladb3:9042",
                 "ARCHETHIC_NETWORKING_IMPL" => "STATIC",

@@ -16,7 +16,6 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.GetStorageNonce
   alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionSummary
   alias ArchEthic.P2P.Message.GetUnspentOutputs
@@ -25,6 +24,7 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.P2P.Message.ListNodes
   alias ArchEthic.P2P.Message.NewTransaction
   alias ArchEthic.P2P.Message.NodeList
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -38,10 +38,8 @@ defmodule ArchEthic.BootstrapTest do
   alias ArchEthic.SharedSecrets.NodeRenewalScheduler
 
   alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
   alias ArchEthic.TransactionChain.TransactionSummary
 
   import Mox
@@ -71,6 +69,9 @@ defmodule ArchEthic.BootstrapTest do
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
@@ -120,6 +121,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -197,20 +199,7 @@ defmodule ArchEthic.BootstrapTest do
             timestamp: DateTime.utc_now(),
             proof_of_work: "",
             proof_of_integrity: "",
-            ledger_operations: %LedgerOperations{
-              node_movements: [
-                %NodeMovement{
-                  to: P2P.list_nodes() |> Enum.random() |> Map.get(:last_public_key),
-                  amount: 100_000_000,
-                  roles: [
-                    :welcome_node,
-                    :coordinator_node,
-                    :cross_validation_node,
-                    :previous_storage_node
-                  ]
-                }
-              ]
-            }
+            ledger_operations: %LedgerOperations{}
           }
 
           validated_tx = %{tx | validation_stamp: stamp}
@@ -232,13 +221,15 @@ defmodule ArchEthic.BootstrapTest do
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
 
-        _, %GetTransaction{address: address}, _ ->
-          {:ok,
-           %Transaction{
-             address: address,
-             validation_stamp: %ValidationStamp{},
-             cross_validation_stamps: [%{}]
-           }}
+        # _, %GetTransaction{address: address}, _ ->
+        #   {:ok,
+        #    %Transaction{
+        #      address: address,
+        #      validation_stamp: %ValidationStamp{},
+        #      cross_validation_stamps: [%{}]
+        #    }}
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetTransactionSummary{address: address}, _ ->
           {:ok, %TransactionSummary{address: address}}
@@ -267,6 +258,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -282,6 +274,7 @@ defmodule ArchEthic.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
+          http_port: 4000,
           first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
@@ -295,6 +288,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -315,10 +309,14 @@ defmodule ArchEthic.BootstrapTest do
       MockDB
       |> stub(:get_first_public_key, fn _ -> first_public_key end)
 
+      MockGeoIP
+      |> stub(:get_coordinates, fn {200, 50, 20, 10} -> {0.0, 0.0} end)
+
       assert :ok =
                Bootstrap.run(
                  {200, 50, 20, 10},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -342,6 +340,7 @@ defmodule ArchEthic.BootstrapTest do
         %Node{
           ip: {127, 0, 0, 1},
           port: 3000,
+          http_port: 4000,
           first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
           network_patch: "AAA",
@@ -355,6 +354,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),
@@ -370,6 +370,7 @@ defmodule ArchEthic.BootstrapTest do
                Bootstrap.run(
                  {127, 0, 0, 1},
                  3000,
+                 4000,
                  :tcp,
                  seeds,
                  DateTime.utc_now(),

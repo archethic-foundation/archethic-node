@@ -16,6 +16,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -139,7 +140,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       tx_summary = %TransactionSummary{
         address: addr1,
         timestamp: DateTime.utc_now(),
-        type: :transfer
+        type: :transfer,
+        fee: 100_000_000
       }
 
       storage_nodes =
@@ -195,7 +197,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
             transaction_summary: %TransactionSummary{
               address: addr1,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           }
         ]
@@ -209,14 +212,16 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
             transaction_summary: %TransactionSummary{
               address: addr1,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           },
           %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
               address: addr2,
               timestamp: DateTime.utc_now(),
-              type: :transfer
+              type: :transfer,
+              fee: 100_000_000
             }
           }
         ]
@@ -353,22 +358,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     end
 
     test "should synchronize transactions" do
-      node = %Node{
-        ip: {127, 0, 0, 1},
-        port: 3000,
-        first_public_key: Crypto.last_node_public_key(),
-        last_public_key: Crypto.last_node_public_key(),
-        available?: true,
-        geo_patch: "AAA",
-        network_patch: "AAA",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        enrollment_date: DateTime.utc_now(),
-        authorized?: true,
-        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
-      }
-
-      P2P.add_and_connect_node(node)
-
       inputs = [
         %TransactionInput{
           from: "@Alice2",
@@ -378,8 +367,10 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
         }
       ]
 
+      create_p2p_context()
+
       transfer_tx =
-        TransactionFactory.create_valid_transaction(create_mining_context(), inputs,
+        TransactionFactory.create_valid_transaction(inputs,
           seed: "transfer_seed"
         )
 
@@ -397,7 +388,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       me = self()
 
       MockDB
-      |> stub(:write_transaction_chain, fn _ ->
+      |> stub(:write_transaction, fn ^transfer_tx ->
         send(me, :transaction_stored)
         :ok
       end)
@@ -406,6 +397,9 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       |> stub(:send_message, fn
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, transfer_tx}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
@@ -441,7 +435,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     end
   end
 
-  defp create_mining_context do
+  defp create_p2p_context do
     welcome_node = %Node{
       first_public_key: "key1",
       last_public_key: "key1",
@@ -468,14 +462,14 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       %Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: "key3",
         last_public_key: "key3",
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
         reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-        authorization_date: DateTime.utc_now(),
-        authorized?: true
+        authorization_date: DateTime.utc_now()
       }
     ]
 
@@ -483,11 +477,5 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
 
     P2P.add_and_connect_node(welcome_node)
     P2P.add_and_connect_node(coordinator_node)
-
-    %{
-      welcome_node: welcome_node,
-      coordinator_node: coordinator_node,
-      storage_nodes: storage_nodes
-    }
   end
 end

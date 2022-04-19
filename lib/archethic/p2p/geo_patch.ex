@@ -24,74 +24,49 @@ defmodule ArchEthic.P2P.GeoPatch do
   end
 
   defp compute_random_patch do
-    list_char = Enum.concat([?0..?9, ?A..?F])
-    Enum.take_random(list_char, 3) |> List.to_string()
+    list_char1 = Enum.concat([?0..?9, ?A..?F])
+    list_char2 = Enum.concat([?0..?3, ?C..?F])
+
+    Enum.take_random(list_char1, 2)
+    |> List.insert_at(1, Enum.take_random(list_char2, 1))
+    |> List.to_string()
   end
 
   defp compute_patch(lat, lon) do
-    lat_sign = sign(lat)
-    lon_sign = sign(lon)
+    # convert 90 and 180 to -90 and -180 to not get an out of bound index
+    lat = if(lat == 90, do: -90) || lat
+    lon = if(lon == 180, do: -180) || lon
 
-    fdc = [lat / 90, lon / 180]
+    lon_pos = (lon + 180) / 22.5
+    # Adding 4 to have second digit hex value from C to 3
+    lat_pos = (lat + 90) / 22.5 + 4
 
-    sd =
-      [(lat - lat_sign * 45) / 2, (lon - lon_sign * 90) / 2]
-      |> resolve_with_sign([lat, lon])
+    first_digit = main_index_patch(trunc(lon_pos))
+    second_digit = main_index_patch(trunc(lat_pos))
 
-    sdc = [List.first(sd) / 22.5, List.last(sd) / 45]
+    lat_precision = ((lat_pos - trunc(lat_pos)) / 0.25) |> trunc()
+    lon_precision = ((lon_pos - trunc(lon_pos)) / 0.25) |> trunc()
 
-    td =
-      [
-        (List.first(sd) - lat_sign * 11.25) / 2,
-        (List.last(sd) - lon_sign * 22.5) / 2
-      ]
-      |> resolve_with_sign(sd)
+    third_digit = precision_index_patch(lat_precision, lon_precision)
 
-    tdc = [List.first(td) / 5.625, List.last(td) / 11.25]
-
-    patch =
-      [index_patch(fdc), index_patch(sdc), index_patch(tdc)]
-      |> Enum.join("")
-
-    patch
+    [first_digit, second_digit, third_digit]
+    |> Enum.join("")
   end
 
-  defp index_patch([f_i, s_i]) when f_i > 0.5 and f_i <= 1 and s_i < -0.5 and s_i >= -1, do: '0'
-  defp index_patch([f_i, s_i]) when f_i > 0.5 and f_i <= 1 and s_i < 0 and s_i >= -0.5, do: '1'
-  defp index_patch([f_i, s_i]) when f_i > 0.5 and f_i <= 1 and s_i < 0.5 and s_i >= 0, do: '2'
-  defp index_patch([f_i, s_i]) when f_i > 0.5 and f_i <= 1 and s_i < 1 and s_i >= 0.5, do: '3'
-
-  defp index_patch([f_i, s_i]) when f_i > 0 and f_i <= 0.5 and s_i < -0.5 and s_i >= -1, do: '4'
-  defp index_patch([f_i, s_i]) when f_i > 0 and f_i <= 0.5 and s_i < 0 and s_i >= -0.5, do: '5'
-  defp index_patch([f_i, s_i]) when f_i > 0 and f_i <= 0.5 and s_i < 0.5 and s_i >= 0, do: '6'
-  defp index_patch([f_i, s_i]) when f_i > 0 and f_i <= 0.5 and s_i < 1 and s_i >= 0.5, do: '7'
-
-  defp index_patch([f_i, s_i]) when f_i > -0.5 and f_i <= 0 and s_i < -0.5 and s_i >= -1, do: '8'
-  defp index_patch([f_i, s_i]) when f_i > -0.5 and f_i <= 0 and s_i < 0 and s_i >= -0.5, do: '9'
-  defp index_patch([f_i, s_i]) when f_i > -0.5 and f_i <= 0 and s_i < 0.5 and s_i >= 0, do: 'A'
-  defp index_patch([f_i, s_i]) when f_i > -0.5 and f_i <= 0 and s_i < 1 and s_i >= 0.5, do: 'B'
-
-  defp index_patch([f_i, s_i]) when f_i > -1 and f_i <= -0.5 and s_i < -0.5 and s_i >= -1, do: 'C'
-  defp index_patch([f_i, s_i]) when f_i > -1 and f_i <= -0.5 and s_i < 0 and s_i >= -0.5, do: 'D'
-  defp index_patch([f_i, s_i]) when f_i > -1 and f_i <= -0.5 and s_i < 0.5 and s_i >= 0, do: 'E'
-  defp index_patch([f_i, s_i]) when f_i > -1 and f_i <= -0.5 and s_i < 1 and s_i >= 0.5, do: 'F'
-
-  defp sign(number) when number < 0, do: -1
-  defp sign(number) when number >= 0, do: 1
-
-  defp resolve_with_sign([first, second], [first2, second2]) do
-    [
-      do_resolve_with_sign(first, first2),
-      do_resolve_with_sign(second, second2)
-    ]
+  defp main_index_patch(index) do
+    {'8', '9', 'A', 'B', 'C', 'D', 'E', 'F', '0', '1', '2', '3', '4', '5', '6', '7'}
+    |> elem(index)
   end
 
-  defp do_resolve_with_sign(x1, x2) do
-    if sign(x1) == sign(x2) do
-      x1
-    else
-      x2 / 2
-    end
+  defp precision_index_patch(index1, index2) do
+    {
+      {'0', '1', '2', '3'},
+      {'4', '5', '6', '7'},
+      {'8', '9', 'A', 'B'},
+      {'C', 'D', 'E', 'F'}
+    }
+    |> elem(index1)
+    |> elem(index2)
   end
 
   @doc """

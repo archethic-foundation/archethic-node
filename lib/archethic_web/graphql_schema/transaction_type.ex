@@ -6,6 +6,8 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   import_types(ArchEthicWeb.GraphQLSchema.ContentType)
   import_types(ArchEthicWeb.GraphQLSchema.AddressType)
   import_types(ArchEthicWeb.GraphQLSchema.AmountType)
+  import_types(ArchEthicWeb.GraphQLSchema.HashType)
+  import_types(ArchEthicWeb.GraphQLSchema.PublicKeyType)
 
   alias ArchEthicWeb.GraphQLSchema.Resolver
 
@@ -14,10 +16,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   @desc "[Transaction] represents a unitary transaction in the ArchEthic network."
   object :transaction do
     field(:version, :integer)
-    field(:address, :hex)
+    field(:address, :address)
     field(:type, :string)
     field(:data, :data)
-    field(:previous_public_key, :hex)
+    field(:previous_public_key, :public_key)
     field(:previous_signature, :hex)
     field(:origin_signature, :hex)
     field(:validation_stamp, :validation_stamp)
@@ -56,7 +58,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
     field(:code, :string)
     field(:content, :content)
     field(:ownerships, list_of(:ownership))
-    field(:recipients, list_of(:hex))
+    field(:recipients, list_of(:address))
   end
 
   @desc "[Ledger] represents the ledger operations to perform"
@@ -67,15 +69,15 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
 
   @desc "[UCOTransfer] represents the an asset transfer"
   object :uco_transfer do
-    field(:to, :hex)
+    field(:to, :address)
     field(:amount, :amount)
   end
 
   @desc "[NFTTransfer] represents the an asset transfer"
   object :nft_transfer do
-    field(:to, :hex)
+    field(:to, :address)
     field(:amount, :amount)
-    field(:nft, :hex)
+    field(:nft, :address)
   end
 
   @desc "[UCOLedger] represents the transfers to perform on the UCO ledger"
@@ -109,7 +111,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   By decrypting this secret key, the authorized public key will be able to decrypt its related secret
   """
   object :authorized_key do
-    field(:public_key, :hex)
+    field(:public_key, :public_key)
     field(:encrypted_secret_key, :hex)
   end
 
@@ -123,8 +125,8 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :validation_stamp do
     field(:timestamp, :timestamp)
-    field(:proof_of_work, :hex)
-    field(:proof_of_integrity, :hex)
+    field(:proof_of_work, :public_key)
+    field(:proof_of_integrity, :hash)
     field(:ledger_operations, :ledger_operations)
     field(:signature, :hex)
   end
@@ -139,7 +141,6 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :ledger_operations do
     field(:transaction_movements, list_of(:transaction_movement))
-    field(:node_movements, list_of(:node_movement))
     field(:unspent_outputs, list_of(:unspent_output))
     field(:fee, :amount)
   end
@@ -153,10 +154,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - NFT address: address of the NFT if the type is NFT
   """
   object :unspent_output do
-    field(:from, :hex)
+    field(:from, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :hex)
+    field(:nft_address, :address)
   end
 
   @desc """
@@ -170,10 +171,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - Timestamp: Date time when the inputs was generated
   """
   object :transaction_input do
-    field(:from, :hex)
+    field(:from, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :hex)
+    field(:nft_address, :address)
     field(:spent, :boolean)
     field(:timestamp, :timestamp)
   end
@@ -187,21 +188,10 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - NFT address: address of the NFT if the type is NFT
   """
   object :transaction_movement do
-    field(:to, :hex)
+    field(:to, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :hex)
-  end
-
-  @desc """
-  [NodeMovement] represents node transaction movement
-  It includes:
-  - To: node public key
-  - Amount: reward (UCO)
-  """
-  object :node_movement do
-    field(:to, :hex)
-    field(:amount, :amount)
+    field(:nft_address, :address)
   end
 
   @desc """
@@ -212,7 +202,7 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   """
   object :cross_validation_stamp do
     field(:signature, :hex)
-    field(:node_public_key, :hex)
+    field(:node_public_key, :public_key)
   end
 
   @desc """
@@ -233,12 +223,12 @@ defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
   - Amount: amount of NFT
   """
   object :nft_balance do
-    field(:address, :hex)
+    field(:address, :address)
     field(:amount, :amount)
   end
 
   @desc """
-  The [TransactionType] scalar type represents a transaction type 
+  The [TransactionType] scalar type represents a transaction type
   """
   scalar :transaction_type do
     serialize(&Atom.to_string/1)

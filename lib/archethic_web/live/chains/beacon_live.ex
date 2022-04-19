@@ -13,7 +13,6 @@ defmodule ArchEthicWeb.BeaconChainLive do
   alias ArchEthic.Election
 
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetBeaconSummaries
   alias ArchEthic.P2P.Message.BeaconSummaryList
@@ -36,8 +35,8 @@ defmodule ArchEthicWeb.BeaconChainLive do
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
       # register for client to able to get the current added transaction to the beacon pool
-      PubSub.register_to_added_new_transaction_summary()
       PubSub.register_to_current_epoch_of_slot_time()
+      PubSub.register_to_new_replication_attestations()
     end
 
     beacon_dates =
@@ -228,24 +227,45 @@ defmodule ArchEthicWeb.BeaconChainLive do
   defp get_beacon_summary_transaction_chain(beacon_address, nodes, patch) do
     nodes
     |> P2P.nearest_nodes(patch)
-    |> do_get_download_summary_transaction_chain(beacon_address, nil)
+    |> do_get_download_summary_transaction_chain(beacon_address)
   end
 
-  defp do_get_download_summary_transaction_chain([node | rest], address, prev_result) do
-    case P2P.send_message(node, %GetTransactionChain{address: address}) do
-      {:ok, %TransactionList{transactions: transactions}} ->
-        {:ok, transactions}
+  defp do_get_download_summary_transaction_chain(nodes, address, opts \\ [], acc \\ [])
 
-      {:ok, %NotFound{}} ->
-        do_get_download_summary_transaction_chain(rest, address, %NotFound{})
+  defp do_get_download_summary_transaction_chain(
+         nodes = [node | rest],
+         address,
+         opts,
+         acc
+       ) do
+    message = %GetTransactionChain{
+      address: address,
+      paging_state: Keyword.get(opts, :paging_state)
+    }
+
+    case P2P.send_message(node, message) do
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
+        {:ok, Enum.uniq_by(acc ++ transactions, & &1.address)}
+
+      {:ok, %TransactionList{transactions: transactions, more?: true, paging_state: paging_state}} ->
+        do_get_download_summary_transaction_chain(
+          nodes,
+          address,
+          [paging_state: paging_state],
+          Enum.uniq_by(acc ++ transactions, & &1.address)
+        )
 
       {:error, _} ->
-        do_get_download_summary_transaction_chain(rest, address, prev_result)
+        do_get_download_summary_transaction_chain(
+          rest,
+          address,
+          opts,
+          acc
+        )
     end
   end
 
-  defp do_get_download_summary_transaction_chain([], _, %NotFound{}), do: {:ok, []}
-  defp do_get_download_summary_transaction_chain([], _, _), do: {:error, :network_issue}
+  defp do_get_download_summary_transaction_chain([], _, _, _), do: {:error, :network_issue}
 
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
@@ -295,12 +315,11 @@ defmodule ArchEthicWeb.BeaconChainLive do
       node_list = P2P.authorized_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
-      case get_beacon_summary_transaction_chain(b_address, nodes, patch) do
-        {:ok, transactions} ->
-          transactions
-          |> Stream.map(&deserialize_beacon_transaction/1)
-          |> Enum.to_list()
-      end
+      {:ok, transactions} = get_beacon_summary_transaction_chain(b_address, nodes, patch)
+
+      transactions
+      |> Stream.map(&deserialize_beacon_transaction/1)
+      |> Enum.to_list()
     end)
     |> Enum.map(fn {:ok, txs} -> txs end)
     |> :lists.flatten()

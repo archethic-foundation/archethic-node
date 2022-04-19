@@ -89,7 +89,7 @@ defmodule ArchEthic.Mining.Fee do
   defp get_number_replicas(%Transaction{address: address}) do
     # TODO: take the nodes at the time of the transaction's timestamp
     address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
+    |> Election.chain_storage_nodes(P2P.authorized_nodes())
     |> length()
   end
 

@@ -1,67 +1,99 @@
 defmodule ArchEthic.Metrics.Poller do
   @moduledoc """
-  Provides Telemetry of the network and Maneges
+  Worker which poll network metrics periodically and notify registered clients (ie. LiveView)
   """
+
   require Logger
+
   use GenServer
 
-  @default_state %{
-    pid_refs: %{},
-    data: ArchEthic.Metrics.Helpers.get_client_metric_default_value()
-  }
+  alias ArchEthic.Metrics.Collector
 
-  def start_link(_state) do
-    GenServer.start_link(__MODULE__, @default_state, name: __MODULE__)
+  def start_link(opts \\ []) do
+    options = Keyword.get(opts, :options, name: __MODULE__)
+    interval = Keyword.get(opts, :interval, 5_000)
+
+    GenServer.start_link(__MODULE__, [interval], options)
   end
 
-  def init(initial_state) do
-    periodic_metric_aggregation()
-    {:ok, initial_state}
+  defp default_state do
+    default_metrics = %{
+      "archethic_mining_full_transaction_validation_duration" => 0,
+      "archethic_mining_proof_of_work_duration" => 0,
+      "archethic_p2p_send_message_duration" => 0,
+      "tps" => 0
+    }
+
+    %{pid_refs: %{}, data: default_metrics}
   end
 
-  def periodic_metric_aggregation() do
-    Process.send_after(self(), {:periodic_calculation_of_points}, 10_000)
+  def init([interval]) do
+    timer = schedule_polling(interval)
+
+    state =
+      default_state()
+      |> Map.put(:interval, interval)
+      |> Map.put(:timer, timer)
+
+    {:ok, state}
   end
 
-  def send_updates(%{data: data, pid_refs: pid_refs}) do
+  def monitor(name \\ __MODULE__) do
+    GenServer.call(name, :monitor)
+  end
+
+  def handle_call(:monitor, {pid, _tag}, state) do
+    {:reply, :ok, register_process(pid, state)}
+  end
+
+  def handle_info({:DOWN, _ref, :process, from_pid, _reason}, state) do
+    {:noreply, deregister_process(from_pid, state)}
+  end
+
+  def handle_info(:poll_metrics, current_state = %{interval: interval}) do
+    new_state = process_new_state(current_state)
+    timer = schedule_polling(interval)
+    {:noreply, Map.put(new_state, :timer, timer)}
+  end
+
+  defp schedule_polling(interval) do
+    Process.send_after(self(), :poll_metrics, interval)
+  end
+
+  defp dipatch_updates(%{data: data, pid_refs: pid_refs}) do
     pid_refs
     |> Task.async_stream(fn {pid_k, _pid_v} -> send(pid_k, {:update_data, data}) end)
     |> Stream.run()
   end
 
-  def monitor() do
-    GenServer.call(__MODULE__, :monitor)
+  defp register_process(pid, state) do
+    mref = Process.monitor(pid)
+    new_state = Map.update!(state, :pid_refs, &Map.put(&1, pid, %{monitor_ref: mref}))
+    dipatch_updates(new_state)
+    new_state
   end
 
-  def handle_call(:monitor, {pid, __tag}, state) do
-    new_state = %{state | pid_refs: Map.put(state.pid_refs, pid, nil)}
-    send_updates(new_state)
-    _mref = Process.monitor(pid)
-    {:reply, :ok, new_state}
+  defp deregister_process(from_pid, state = %{pid_refs: pid_refs}) do
+    case Map.pop(pid_refs, from_pid) do
+      {nil, _} ->
+        state
+
+      {%{monitor_ref: mref}, pid_refs} ->
+        Process.demonitor(mref)
+        Map.put(state, :pid_refs, pid_refs)
+    end
   end
 
-  def handle_info({:DOWN, _ref, :process, from_pid, _reason}, state) do
-    {_removed_pid, new_pid_refs} = Map.pop(state.pid_refs, from_pid)
-    new_state = %{state | pid_refs: new_pid_refs}
-    {:noreply, new_state}
-  end
+  defp process_new_state(current_state = %{pid_refs: pid_refs}) do
+    case Enum.empty?(pid_refs) do
+      false ->
+        Collector.get_node_endpoints()
+        |> Collector.retrieve_network_metrics()
+        |> then(&Map.put(current_state, :data, &1))
+        |> tap(&dipatch_updates/1)
 
-  def handle_info({:periodic_calculation_of_points}, current_state) do
-    new_state =
-      case Enum.empty?(current_state.pid_refs) do
-        false ->
-          send_updates(current_state)
-          %{data: get_new_data(), pid_refs: current_state.pid_refs}
-
-        true ->
-          current_state
-      end
-
-    periodic_metric_aggregation()
-    {:noreply, new_state}
-  end
-
-  defp get_new_data() do
-    ArchEthic.Metrics.Helpers.network_collector()
+      true ->
+        current_state
+    end
   end
 end

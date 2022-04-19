@@ -13,8 +13,10 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   alias ArchEthic.P2P.Message.EncryptedStorageNonce
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
   alias ArchEthic.P2P.Message.GetStorageNonce
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.ListNodes
   alias ArchEthic.P2P.Message.NodeList
@@ -44,6 +46,9 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     |> stub(:send_message, fn
       _, %GetLastTransactionAddress{address: address}, _ ->
         {:ok, %LastTransactionAddress{address: address}}
+
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -93,12 +98,14 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
       })
 
-      assert false == Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
+      assert false ==
+               Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node ip change" do
@@ -113,12 +120,13 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
+        http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
         transport: :tcp
       })
 
-      assert Sync.require_update?({193, 101, 10, 202}, 3000, :tcp, DateTime.utc_now())
+      assert Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the node port change" do
@@ -133,18 +141,20 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
+        http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
         transport: :tcp
       })
 
-      assert Sync.require_update?({127, 0, 0, 1}, 3010, :tcp, DateTime.utc_now())
+      assert Sync.require_update?({127, 0, 0, 1}, 3010, 4000, :tcp, DateTime.utc_now())
     end
 
     test "should return true when the last date of sync diff is greater than 3 seconds" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
@@ -153,6 +163,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
+        http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
         transport: :tcp
@@ -161,6 +172,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       assert Sync.require_update?(
                {127, 0, 0, 1},
                3000,
+               4000,
                :tcp,
                DateTime.utc_now()
                |> DateTime.add(-10)
@@ -171,6 +183,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         transport: :tcp
@@ -179,12 +192,14 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3050,
+        http_port: 4000,
         first_public_key: "other_node_key",
         last_public_key: "other_node_key",
         transport: :tcp
       })
 
-      assert true == Sync.require_update?({193, 101, 10, 202}, 3000, :sctp, DateTime.utc_now())
+      assert true ==
+               Sync.require_update?({193, 101, 10, 202}, 3000, 4000, :sctp, DateTime.utc_now())
     end
   end
 
@@ -196,6 +211,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
+        http_port: 4000,
         first_public_key: Crypto.first_node_public_key(),
         last_public_key: Crypto.last_node_public_key(),
         authorized?: true,
@@ -209,6 +225,8 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
+      start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
 
@@ -243,8 +261,9 @@ defmodule ArchEthic.Bootstrap.SyncTest do
       node_tx =
         Transaction.new(:node, %TransactionData{
           content:
-            <<127, 0, 0, 1, 3000::16, 1, 0::8, 0::8, :crypto.strong_rand_bytes(32)::binary,
-              64::16, :crypto.strong_rand_bytes(64)::binary>>
+            <<127, 0, 0, 1, 3000::16, 4000::16, 1, 0::8, 0::8,
+              :crypto.strong_rand_bytes(32)::binary, 64::16,
+              :crypto.strong_rand_bytes(64)::binary>>
         })
 
       :ok = Sync.initialize_network(node_tx)
@@ -263,6 +282,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 4390,
+      http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1"
     }
@@ -278,6 +298,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
              %Node{
                ip: {127, 0, 0, 1},
                port: 3000,
+               http_port: 4000,
                first_public_key: "key2",
                last_public_key: "key2"
              }
@@ -292,6 +313,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
              %Node{
                ip: {127, 0, 0, 1},
                port: 3000,
+               http_port: 4000,
                first_public_key: "key2",
                last_public_key: "key2"
              }
@@ -302,6 +324,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     node = %Node{
       ip: {80, 10, 101, 202},
       port: 4390,
+      http_port: 4000,
       first_public_key: "key1",
       last_public_key: "key1"
     }
@@ -332,6 +355,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3000,
+      http_port: 4000,
       first_public_key: :crypto.strong_rand_bytes(32),
       last_public_key: :crypto.strong_rand_bytes(32),
       available?: true,

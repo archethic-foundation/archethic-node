@@ -293,12 +293,6 @@
                                                 </a>
                                             </li>
                                             <li>
-                                               <a @click="operation_section = 'node_movements' "
-                                                :class="operation_section == 'node_movements' ? 'is-active' : '' ">
-                                                    Node movements
-                                                </a>
-                                            </li>
-                                            <li>
                                                 <a @click="operation_section = 'unspent_outputs' "
                                                 :class="operation_section == 'unspent_outputs' ? 'is-active' : '' ">
                                                     Unspent outputs
@@ -353,31 +347,6 @@
                                         <% end %>
                                     </div>
 
-                                    <div x-show="operation_section == 'node_movements' ">
-                                        <p class="heading mb-4">Node movements</p>
-                                        <%= for movement <- @transaction.validation_stamp.ledger_operations.node_movements do %>
-                                        <div class="box">
-                                            <div class="columns">
-                                                <div class="column is-2 heading">Node public key</div>
-                                                <div class="column">
-                                                  <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(movement.to)) do%>
-                                                        <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
-                                                    <% end %>
-                                                </div>
-                                            </div>
-                                            <div class="columns">
-                                                <div class="column is-2 heading">Reward</div>
-                                                <div class="column">
-                                                    <%= to_float(movement.amount) %>
-                                                    <span class="tag is-primary is-light ml-2">UCO</span>
-                                                    <%= if movement.amount > 0 do %>
-                                                        (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
-                                                    <% end %>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <% end %>
-                                    </div>
 
                                    <div x-show="operation_section == 'unspent_outputs' ">
                                         <p class="heading mb-4">Unspent outputs</p>

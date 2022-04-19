@@ -11,7 +11,7 @@ defmodule ArchEthicWeb.API.Types.AddressList do
     results =
       Enum.map(addresses, fn address ->
         with {:ok, bin_address} <- Base.decode16(address, case: :mixed),
-             true <- Crypto.valid_hash?(bin_address) do
+             true <- Crypto.valid_address?(bin_address) do
           bin_address
         else
           :error ->

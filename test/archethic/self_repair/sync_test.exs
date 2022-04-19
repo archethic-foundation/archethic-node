@@ -15,6 +15,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
   alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetTransactionInputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.GetUnspentOutputs
   alias ArchEthic.P2P.Message.TransactionInputList
   alias ArchEthic.P2P.Message.TransactionList
@@ -114,9 +115,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           geo_patch: "BBB",
           network_patch: "BBB",
           reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
-          enrollment_date: DateTime.utc_now(),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+          enrollment_date: DateTime.utc_now()
         },
         %Node{
           ip: {127, 0, 0, 1},
@@ -127,9 +126,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
           geo_patch: "BBB",
           network_patch: "BBB",
           reward_address: :crypto.strong_rand_bytes(32),
-          enrollment_date: DateTime.utc_now(),
-          authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-(86_400 * 10))
+          enrollment_date: DateTime.utc_now()
         }
       ]
 
@@ -146,8 +143,7 @@ defmodule ArchEthic.SelfRepair.SyncTest do
        }}
     end
 
-    test "should retrieve the missing beacon summaries from the given date",
-         context do
+    test "should retrieve the missing beacon summaries from the given date" do
       Crypto.generate_deterministic_keypair("daily_nonce_seed")
       |> elem(0)
       |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
@@ -162,16 +158,12 @@ defmodule ArchEthic.SelfRepair.SyncTest do
         }
       ]
 
-      tx = TransactionFactory.create_valid_transaction(context, inputs)
+      tx = TransactionFactory.create_valid_transaction(inputs)
 
       me = self()
 
       MockDB
-      |> stub(:write_transaction_chain, fn _ ->
-        send(me, :storage)
-        :ok
-      end)
-      |> stub(:write_transaction, fn _, _ ->
+      |> stub(:write_transaction, fn ^tx ->
         send(me, :storage)
         :ok
       end)
@@ -179,11 +171,12 @@ defmodule ArchEthic.SelfRepair.SyncTest do
       tx_summary = %TransactionSummary{
         address: tx.address,
         type: :transfer,
-        timestamp: DateTime.utc_now()
+        timestamp: DateTime.utc_now(),
+        fee: 100_000_000
       }
 
       elected_storage_nodes =
-        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.available_nodes())
+        Election.chain_storage_nodes_with_type(tx.address, :transfer, P2P.authorized_nodes())
 
       welcome_node_keypair = Crypto.derive_keypair("welcome_node", 0)
       storage_node_keypair1 = Crypto.derive_keypair("node_keypair", 1)
@@ -239,6 +232,9 @@ defmodule ArchEthic.SelfRepair.SyncTest do
 
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, tx}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
 
         _, %GetTransactionInputs{}, _ ->
           {:ok, %TransactionInputList{inputs: inputs}}

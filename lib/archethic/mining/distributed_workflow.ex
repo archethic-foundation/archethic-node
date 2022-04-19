@@ -127,14 +127,14 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.available_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     context =
@@ -241,14 +241,12 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :build_transaction_context,
         state,
         data = %{
-          start_time: mining_start_time,
           timeout: timeout,
           context:
             context = %ValidationContext{
               transaction: tx,
               chain_storage_nodes: chain_storage_nodes,
-              beacon_storage_nodes: beacon_storage_nodes,
-              cross_validation_nodes: cross_validation_nodes
+              beacon_storage_nodes: beacon_storage_nodes
             }
         }
       ) do
@@ -301,15 +299,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     next_events =
       case state do
         :coordinator ->
-          context_retrieval_time =
-            (now - mining_start_time)
-            |> :erlang.convert_time_unit(:native, :millisecond)
-            |> abs()
-
-          transmission_delay = 500
-          nb_cross_validation_nodes = length(cross_validation_nodes)
-
-          waiting_time = (context_retrieval_time + transmission_delay) * nb_cross_validation_nodes
+          # TODO: Provide a better waiting time management
+          # for example rolling percentile latency could be way to achieve this
+          # (https://cs.stackexchange.com/a/129178)
+          waiting_time = 3_000
 
           Logger.debug(
             "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",

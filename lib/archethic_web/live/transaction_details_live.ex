@@ -27,7 +27,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
 
   def handle_params(opts = %{"address" => address}, _uri, socket) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
-         true <- Crypto.valid_hash?(addr) do
+         true <- Crypto.valid_address?(addr) do
       case get_transaction(addr, opts) do
         {:ok, tx} ->
           {:noreply, handle_transaction(socket, tx)}

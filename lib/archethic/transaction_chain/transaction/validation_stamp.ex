@@ -26,7 +26,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
   - Proof of work: Origin public key matching the origin signature
   - Proof of integrity: Integrity proof from the entire transaction chain
   - Proof of election: Digest which define the election's order of validation nodes
-  - Ledger Operations: Set of ledger operations taken by the network such as fee, node movements, transaction movements and unspent outputs
+  - Ledger Operations: Set of ledger operations taken by the network such as fee, transaction movements and unspent outputs
   - Recipients: List of the last smart contract chain resolved addresses
   - Contract validation: Determine if the transaction coming from a contract is valid according to the constraints
   - Signature: generated from the coordinator private key to avoid non-repudiation of the stamp
@@ -96,7 +96,6 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
       ...>   ledger_operations: %LedgerOperations{
       ...>      fee: 10_000_000,
       ...>      transaction_movements: [],
-      ...>      node_movements: [],
       ...>      unspent_outputs: []
       ...>   },
       ...>   signature: <<67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
@@ -122,8 +121,6 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
       # Fee
       0, 0, 0, 0, 0, 152, 150, 128,
       # Nb of transaction movements
-      0,
-      # Nb of node movements
       0,
       # Nb of unspent outputs
       0,
@@ -202,7 +199,7 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
       ...> 240, 175, 53, 236, 65, 151, 191, 128, 11, 58, 103, 82, 6, 218, 31, 220, 114,
       ...> 65, 3, 151, 209, 9, 84, 209, 105, 191, 180, 156, 157, 95, 25, 202, 2, 169,
       ...> 112, 109, 54, 99, 40, 47, 96, 93, 33, 82, 40, 100, 13,
-      ...> 0, 0, 0, 0, 0, 152, 150, 128, 0, 0, 0, 0, 0, 64,
+      ...> 0, 0, 0, 0, 0, 152, 150, 128, 0, 0, 0, 0, 64,
       ...> 67, 12, 4, 246, 155, 34, 32, 108, 195, 54, 139, 8, 77, 152, 5, 55, 233, 217,
       ...> 126, 181, 204, 195, 215, 239, 124, 186, 99, 187, 251, 243, 201, 6, 122, 65,
       ...> 238, 221, 14, 89, 120, 225, 39, 33, 95, 95, 225, 113, 143, 200, 47, 96, 239,
@@ -222,7 +219,6 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
           ledger_operations: %ValidationStamp.LedgerOperations{
             fee: 10_000_000,
             transaction_movements: [],
-            node_movements: [],
             unspent_outputs: []
           },
           recipients: [],

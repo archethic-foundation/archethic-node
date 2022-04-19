@@ -15,7 +15,6 @@ defmodule ArchEthic.PubSub do
   alias ArchEthic.PubSubRegistry
 
   alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionSummary
 
   @doc """
   Notify the registered processes than a new transaction has been validated
@@ -71,13 +70,6 @@ defmodule ArchEthic.PubSub do
   """
   def notify_next_summary_time(date = %DateTime{}) do
     dispatch(:next_summary_time, {:next_summary_time, date})
-  end
-
-  @doc """
-  Notify added new transaction summary in subset to the subscribers
-  """
-  def notify_added_new_transaction_summary(tx_summary = %TransactionSummary{}) do
-    dispatch(:added_new_transaction_summary, {:added_new_transaction_summary, tx_summary})
   end
 
   @doc """
@@ -160,13 +152,6 @@ defmodule ArchEthic.PubSub do
   @spec register_to_next_summary_time :: {:ok, pid()}
   def register_to_next_summary_time do
     Registry.register(PubSubRegistry, :next_summary_time, [])
-  end
-
-  @doc """
-  Register a process to added new transaction summary to beacon chain slot
-  """
-  def register_to_added_new_transaction_summary do
-    Registry.register(PubSubRegistry, :added_new_transaction_summary, [])
   end
 
   @doc """

@@ -4,7 +4,7 @@ defmodule ArchEthic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "0.13.0",
+      version: "0.13.1",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -67,6 +67,7 @@ defmodule ArchEthic.MixProject do
 
       # DB
       {:xandra, "~> 0.11"},
+      {:bloom_filter, "~>1.1.0"},
 
       # Net
       {:inet_ext, "~> 1.0"},

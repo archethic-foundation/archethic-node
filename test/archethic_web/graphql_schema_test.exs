@@ -58,7 +58,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     end
 
     test "should return nothing when the transaction is not found", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{}, _ ->
@@ -74,7 +74,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     end
 
     test "should the transaction with the requested fields", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>> |> Base.encode16()
 
       MockClient
       |> stub(:send_message, fn _, %GetTransaction{}, _ ->
@@ -93,8 +93,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
   describe "query: last_transaction" do
     test "should retrieve the last transaction of a chain", %{conn: conn} do
-      first_addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-      last_address = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      first_addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      last_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
@@ -119,7 +119,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     end
 
     test "should return an error when no last transaction on this chain", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
@@ -139,8 +139,8 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should retrieve the first page of transaction stored locally", %{conn: conn} do
       MockDB
       |> stub(:list_transactions, fn _ ->
-        addr1 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
-        addr2 = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+        addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
         [
           %Transaction{
@@ -169,7 +169,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
       MockDB
       |> stub(:list_transactions, fn _ ->
         Enum.map(1..20, fn _ ->
-          addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+          addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
@@ -193,7 +193,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should retrieve the first page of a transaction chain", %{conn: conn} do
       transactions =
         Enum.map(1..20, fn _ ->
-          addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+          addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
@@ -225,7 +225,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     test "should retrieve the second page of transaction chain", %{conn: conn} do
       transactions =
         Enum.map(1..20, fn _ ->
-          addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+          addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
           %Transaction{
             address: addr,
@@ -257,7 +257,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
   describe "query: balance" do
     test "should retrieve the uco balance of an address", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetBalance{}, _ ->
@@ -273,7 +273,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
     end
 
     test "should retrieve the nft balance of an address", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetBalance{}, _ ->
@@ -304,7 +304,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
   describe "query: transaction_inputs" do
     test "should return a list of ledger inputs", %{conn: conn} do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetTransactionInputs{}, _ ->
@@ -312,7 +312,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
          %TransactionInputList{
            inputs: [
              %TransactionInput{
-               from: :crypto.strong_rand_bytes(32),
+               from: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
                amount: 20_200_000,
                type: :UCO,
                timestamp: DateTime.from_unix!(1_614_951_694)
@@ -358,7 +358,7 @@ defmodule ArchEthicWeb.GraphQLSchemaTest do
 
   describe "subscription: transaction_confirmed" do
     test "should be notified when the welcome node get acknowledgment of the transaction stored" do
-      addr = <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       socket = get_socket()
 

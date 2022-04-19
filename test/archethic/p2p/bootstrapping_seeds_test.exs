@@ -23,15 +23,21 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     :ok
   end
 
-  describe "start_link/1" do
-    test "should load from DB the bootstrapping seeds" do
-      {pub1, _} = Crypto.generate_deterministic_keypair("seed")
-      {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
+  setup_all do
+    {pub1, _} = Crypto.generate_deterministic_keypair("seed")
+    {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
 
-      seed_str = """
-      127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
-      127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
-      """
+    seed_str = """
+    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
+    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
+    """
+
+    [seed_str: seed_str]
+  end
+
+  describe "start_link/1" do
+    test "should load from DB the bootstrapping seeds", context do
+      seed_str = context.seed_str
 
       MockDB
       |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> seed_str end)
@@ -63,14 +69,8 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     end
   end
 
-  test "list/0 should return the list of P2P seeds" do
-    {pub1, _} = Crypto.generate_deterministic_keypair("seed")
-    {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
-
-    seed_str = """
-    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
-    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
-    """
+  test "list/0 should return the list of P2P seeds", context do
+    seed_str = context.seed_str
 
     MockDB
     |> expect(:get_bootstrap_info, fn "bootstrapping_seeds" -> seed_str end)
@@ -81,14 +81,8 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
              BootstrappingSeeds.list()
   end
 
-  test "update/1 should refresh the seeds and flush them to disk" do
-    {pub1, _} = Crypto.generate_deterministic_keypair("seed")
-    {pub2, _} = Crypto.generate_deterministic_keypair("seed2")
-
-    seed_str = """
-    127.0.0.1:3005:#{Base.encode16(pub1)}:tcp
-    127.0.0.1:3003:#{Base.encode16(pub2)}:tcp
-    """
+  test "update/1 should refresh the seeds and flush them to disk", context do
+    seed_str = context.seed_str
 
     me = self()
 
@@ -135,6 +129,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3003,
+      http_port: 4000,
       first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
@@ -146,6 +141,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3004,
+      http_port: 4000,
       first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
@@ -156,6 +152,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3005,
+      http_port: 4000,
       first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,
@@ -166,6 +163,7 @@ defmodule ArchEthic.P2P.BootstrappingSeedsTest do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
       port: 3006,
+      http_port: 4000,
       first_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       last_public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
       transport: :tcp,

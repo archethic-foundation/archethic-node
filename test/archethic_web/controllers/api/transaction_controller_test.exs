@@ -29,7 +29,7 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
 
       conn =
         post(conn, "/api/transaction_fee", %{
-          "address" => "009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
+          "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
           "data" => %{
             "ledger" => %{
               "nft" => %{"transfers" => []},
@@ -37,7 +37,7 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
                 "transfers" => [
                   %{
                     "amount" => trunc(100_000_000),
-                    "to" => "0098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
+                    "to" => "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
                   }
                 ]
               }
@@ -54,7 +54,7 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
         })
 
       assert %{
-               "fee" => 0.50001315,
+               "fee" => 0.50001325,
                "rates" => %{
                  "eur" => 0.2,
                  "usd" => 0.2

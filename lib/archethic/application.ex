@@ -52,9 +52,12 @@ defmodule ArchEthic.Application do
 
   def start(_type, _args) do
     p2p_endpoint_conf = Application.get_env(:archethic, ArchEthic.P2P.Listener)
+    web_endpoint_conf = Application.get_env(:archethic, ArchEthicWeb.Endpoint)
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
     port = Networking.try_open_port(port, true)
+    http = Keyword.fetch!(web_endpoint_conf, :http)
+    http_port = Keyword.fetch!(http, :port)
 
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 
@@ -81,6 +84,7 @@ defmodule ArchEthic.Application do
       {Bootstrap,
        Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
          port: port,
+         http_port: http_port,
          transport: transport
        )},
       MetricSupervisor

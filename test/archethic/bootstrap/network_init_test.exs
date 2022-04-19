@@ -15,8 +15,10 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -94,18 +96,12 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     tx = NetworkInit.self_validation(tx, unspent_outputs)
 
     tx_fee = tx.validation_stamp.ledger_operations.fee
-    network_pool_burn = LedgerOperations.get_network_pool_reward(tx_fee)
     unspent_output = 1_000_000_000_000 - (tx_fee + 500_000_000_000)
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
-                   %TransactionMovement{
-                     to: <<0::8, 0::8, 0::256>>,
-                     amount: ^network_pool_burn,
-                     type: :UCO
-                   },
                    %TransactionMovement{to: "@Alice2", amount: 500_000_000_000, type: :UCO}
                  ],
                  unspent_outputs: [
@@ -127,6 +123,9 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
@@ -140,11 +139,6 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     tx =
       TransactionFactory.create_valid_transaction(
-        %{
-          welcome_node: P2P.get_node_info(),
-          coordinator_node: P2P.get_node_info(),
-          storage_nodes: [P2P.get_node_info()]
-        },
         inputs,
         type: :transfer
       )
@@ -152,7 +146,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> stub(:write_transaction_chain, fn _chain ->
+    |> stub(:write_transaction, fn ^tx ->
       send(me, :write_transaction)
       :ok
     end)
@@ -178,10 +172,15 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   end
 
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
+    start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -190,7 +189,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> expect(:write_transaction_chain, fn [tx] ->
+    |> expect(:write_transaction, fn tx ->
       send(me, {:transaction, tx})
       :ok
     end)
@@ -225,8 +224,11 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   test "init_genesis_wallets/1 should initialize genesis wallets" do
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
