@@ -2,14 +2,15 @@ import * as echarts from 'echarts'
 import worldmapJSON from '../static/worldmap.json'
 
 let map
+let minNbOfNodes
+let maxNbOfNodes
 
 export function createWorldmap(worldmapDatas) {
-
   // calculate min and max number of nodes
   const temp = worldmapDatas.map(data => data.nb_of_nodes)
 
-  const minNbOfNodes = Math.min(...temp)
-  const maxNbOfNodes = Math.max(...temp)
+  minNbOfNodes = Math.min(...temp)
+  maxNbOfNodes = Math.max(...temp)
 
   map = echarts.init(document.getElementById('worldmap'));
 
@@ -20,6 +21,11 @@ export function createWorldmap(worldmapDatas) {
     tooltip:{},
     geo: {
       map: 'worldmap',
+      // Using Equirectangular projection
+      projection: {
+        project: (point) => [point[0], point[1] * -1],
+        unproject: (point) => [point[0], point[1] * -1]
+      },
       id: 0,
       roam: true,
       zoom: 1.5,
@@ -70,7 +76,6 @@ export function createWorldmap(worldmapDatas) {
   map.setOption(options);
 
   window.addEventListener('resize', map.resize)
-
 }
 
 // Format datas for echarts series
@@ -81,7 +86,9 @@ function formatData(datas) {
     data.coords.lat[0],
     data.coords.lat[1],
     data.nb_of_nodes,
-    data.geo_patch
+    data.geo_patch,
+    minNbOfNodes,
+    maxNbOfNodes
   ])
 }
 
@@ -94,42 +101,90 @@ function tooltipFormatter(params, ticket, callback) {
   return res
 }
 
-// Render a rectangle at coord and size of a geo patch
+// Render a circle and a emphasis rectangle at coord of a geo patch
 function renderItem(params, api) {
-  const firstPoint = (api.coord([api.value(0), api.value(2)]))
-  const secondPoint = (api.coord([api.value(1), api.value(3)]))
-  const width = secondPoint[0] - firstPoint[0]
-  const height = secondPoint[1] - firstPoint[1]
-
-  // Offset is used to have better visual render
-  const offset = 2
-
   // Color set by visualMap
   const color = api.visual('color')
+  
+  // return value only if color is set by visualMap
+  if (color != 'rgba(0,0,0,0)') {
+    const firstPoint = api.coord([api.value(0), api.value(2)])
+    const secondPoint = api.coord([api.value(1), api.value(3)])
+  
+    // Circle
+    const centerPoint = [
+      (firstPoint[0] + secondPoint[0]) / 2,
+      (firstPoint[1] + secondPoint[1]) / 2
+    ]
+    
+    const maxRadius = Math.abs((secondPoint[0] - firstPoint[0]) / 2)
+  
+    // Calculate radius to have a range from 20% to 100% of maxRadius
+    const min = api.value(6)
+    const max = api.value(7)
+    const nbNodes = api.value(4)
 
-  return {
-    type: 'rect',
-    shape: {
-      x: firstPoint[0] + offset,
-      y: firstPoint[1] + offset,
-      width: width - offset,
-      height: height + offset
-    },
-    style: {
-      fill: color,
-      opacity: 0.65,
-      stroke: color === 'rgba(0,0,0,0)' ? color : 'rgb(0,0,0,0.5)',
-      lineWidth: color === 'rgba(0,0,0,0)' ? 0 : 1
-    }
-  };
+    // Avoid dividing by 0
+    const percent = max !== min ? 
+      (0.8 * (nbNodes - min) / (max - min)) + 0.2 : 1
+    
+    const radius = maxRadius * percent
+  
+    // Rectangle
+    const rectWidth = secondPoint[0] - firstPoint[0]
+    const rectHeight = secondPoint[1] - firstPoint[1]
+  
+    return {
+      type: 'group',
+      children: [
+        {
+          type: 'circle',
+          shape: {
+            cx: centerPoint[0],
+            cy: centerPoint[1],
+            r: radius
+          },
+          style: {
+            fill: color,
+            opacity: 0.65,
+            stroke: 'rgb(0,0,0,0.5)',
+            lineWidth: 1
+          }
+        },
+        // rectangle to show geo patch square on emphasis
+        {
+          type: 'rect',
+          shape: {
+            x: firstPoint[0],
+            y: firstPoint[1],
+            width: rectWidth,
+            height: rectHeight
+          },
+          style: {
+            fill: 'rgba(0,0,0,0)',
+            opacity: 0
+          },
+          emphasis: {
+            style: {
+              opacity: 1,
+              stroke: 'rgb(0,0,0,0.5)',
+              lineWidth: 1
+            }
+          }
+        }
+      ]
+    };
+  } else {
+    return null
+  }
 }
 
 export function updateWorldmap(worldmapDatas) {
   // calculate new min and max number of nodes
   const temp = worldmapDatas.map(data => data.nb_of_nodes)
 
-  const minNbOfNodes = Math.min(...temp)
-  const maxNbOfNodes = Math.max(...temp)
+  minNbOfNodes = Math.min(...temp)
+  maxNbOfNodes = Math.max(...temp)
 
   if (map) {
     map.setOption({
