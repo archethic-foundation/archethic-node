@@ -21,8 +21,8 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
       port: 3002,
       first_public_key: Crypto.last_node_public_key(),
       last_public_key: Crypto.last_node_public_key(),
-      network_patch: "511",
-      geo_patch: "511",
+      network_patch: "F1B",
+      geo_patch: "F1B",
       available?: true,
       authorized?: true,
       authorization_date: DateTime.utc_now()
@@ -44,10 +44,10 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
         worldmap_datas: [
           %{
             coords: %{
-              lat: [33.75, 45.0],
-              lon: [-22.5, 0.0]
+              lat: [33.75, 39.375],
+              lon: [-5.625, 0.0]
             },
-            geo_patch: "511",
+            geo_patch: "F1B",
             nb_of_nodes: 1
           }
         ]
@@ -67,10 +67,10 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
         worldmap_datas: [
           %{
             coords: %{
-              lat: [33.75, 45.0],
-              lon: [-22.5, 0.0]
+              lat: [33.75, 39.375],
+              lon: [-5.625, 0.0]
             },
-            geo_patch: "511",
+            geo_patch: "F1B",
             nb_of_nodes: 1
           }
         ]
