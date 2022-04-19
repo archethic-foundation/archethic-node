@@ -98,6 +98,7 @@ config :archethic, ArchEthic.P2P.Listener, enabled: false
 config :archethic, ArchEthic.P2P.MemTableLoader, enabled: false
 config :archethic, ArchEthic.P2P.MemTable, enabled: false
 config :archethic, ArchEthic.P2P.Client, MockClient
+config :archethic, ArchEthic.P2P.GeoPatch.GeoIP, MockGeoIP
 
 config :archethic, ArchEthic.P2P.BootstrappingSeeds, enabled: false
 
