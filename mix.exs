@@ -59,7 +59,6 @@ defmodule ArchEthic.MixProject do
       {:mint_web_socket, "~> 1.0"},
       {:websockex, "~> 0.4.3"},
 
-
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
       {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
