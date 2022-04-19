@@ -63,9 +63,14 @@ defmodule ArchEthic.P2P.GeoPatchTest do
   end
 
   test "to_coordinates/1 should retrieve coordinates from geo_patch" do
-    assert {{33.75, 45}, {-22.5, 0}} == GeoPatch.to_coordinates("511")
-    assert {{33.75, 45}, {-90, -67.5}} == GeoPatch.to_coordinates("500")
-    assert {{33.75, 45}, {-135, -112.5}} == GeoPatch.to_coordinates("410")
-    assert {{45, 56.25}, {0, 22.5}} == GeoPatch.to_coordinates("266")
+    assert {{33.75, 39.375}, {-5.625, 0}} == GeoPatch.to_coordinates("F1B")
+    assert {{39.375, 45}, {-84.375, -78.75}} == GeoPatch.to_coordinates("C1D")
+    assert {{33.75, 39.375}, {-123.75, -118.125}} == GeoPatch.to_coordinates("A1A")
+    assert {{45, 50.625}, {5.625, 11.25}} == GeoPatch.to_coordinates("021")
+    assert {{-90, -84.375}, {-180, -174.375}} == GeoPatch.to_coordinates("8C0")
+    assert {{39.375, 45}, {-5.625, 0}} == GeoPatch.to_coordinates("F1F")
+    assert {{45, 50.625}, {0, 5.625}} == GeoPatch.to_coordinates("020")
+    assert {{33.75, 39.375}, {-118.125, -112.5}} == GeoPatch.to_coordinates("A1B")
+    assert {{28.125, 33.75}, {-112.5, -106.875}} == GeoPatch.to_coordinates("B14")
   end
 end

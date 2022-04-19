@@ -76,119 +76,29 @@ defmodule ArchEthic.P2P.GeoPatch do
   def to_coordinates(geo_patch) do
     [first_patch, second_patch, third_patch] = String.codepoints(geo_patch)
 
-    # First range
-    [lon_range, lat_range] = get_range(first_patch)
+    lon_init = get_main_index(first_patch) * 22.5
+    lat_init = (get_main_index(second_patch) - 4) * 22.5
 
-    lon_fdc_range = [Enum.at(lon_range, 0) * 90, Enum.at(lon_range, 1) * 90]
-    lat_fdc_range = [Enum.at(lat_range, 0) * 180, Enum.at(lat_range, 1) * 180]
-
-    lon_sign =
-      Enum.at(lon_fdc_range, 0)
-      |> sign()
-
-    lat_sign =
-      Enum.at(lat_fdc_range, 0)
-      |> sign()
-
-    # Second range
-    [lon_range, lat_range] = get_range(second_patch)
-
-    lon_sdc_range = [Enum.at(lon_range, 0) * 22.5, Enum.at(lon_range, 1) * 22.5]
-    lat_sdc_range = [Enum.at(lat_range, 0) * 45, Enum.at(lat_range, 1) * 45]
-
-    lon_sdc_test = [
-      Enum.at(lon_sdc_range, 0) * 2 + lon_sign * 45,
-      Enum.at(lon_sdc_range, 1) * 2 + lon_sign * 45
-    ]
-
-    lat_sdc_test = [
-      Enum.at(lat_sdc_range, 0) * 2 + lat_sign * 90,
-      Enum.at(lat_sdc_range, 1) * 2 + lat_sign * 90
-    ]
-
-    # Determine add value for third range
-    lon_add =
-      if Enum.at(lon_sdc_test, 0) |> is_between?(lon_fdc_range) and
-           Enum.at(lon_sdc_test, 1) |> is_between?(lon_fdc_range) do
-        45
-      else
-        0
-      end
-
-    lat_add =
-      if Enum.at(lat_sdc_test, 0) |> is_between?(lat_fdc_range) and
-           Enum.at(lat_sdc_test, 1) |> is_between?(lat_fdc_range) do
-        90
-      else
-        0
-      end
-
-    # Third range
-    [lon_range, lat_range] = get_range(third_patch)
-
-    lon_tdc_range = [Enum.at(lon_range, 0) * 5.625 * 2, Enum.at(lon_range, 1) * 5.625 * 2]
-    lat_tdc_range = [Enum.at(lat_range, 0) * 11.25 * 2, Enum.at(lat_range, 1) * 11.25 * 2]
-
-    lon_tdc_test = [
-      Enum.at(lon_tdc_range, 0) + lon_sign * 11.25,
-      Enum.at(lon_tdc_range, 1) + lon_sign * 11.25
-    ]
-
-    lat_tdc_test = [
-      Enum.at(lat_tdc_range, 0) + lat_sign * 22.5,
-      Enum.at(lat_tdc_range, 1) + lat_sign * 22.5
-    ]
-
-    lon_tdc_range =
-      if Enum.at(lon_tdc_test, 0) |> is_between?(lon_sdc_range) and
-           Enum.at(lon_tdc_test, 1) |> is_between?(lon_sdc_range) do
-        lon_tdc_test
-      else
-        lon_tdc_range
-      end
-
-    lat_tdc_range =
-      if Enum.at(lat_tdc_test, 0) |> is_between?(lat_sdc_range) and
-           Enum.at(lat_tdc_test, 1) |> is_between?(lat_sdc_range) do
-        lat_tdc_test
-      else
-        lat_tdc_range
+    {lon_precision, lat_precision} =
+      with {index, _} <- Integer.parse(third_patch, 16) do
+        {rem(index, 4), trunc(index / 4)}
       end
 
     final_lon_range = {
-      Enum.at(lon_tdc_range, 0) * 2 + lon_sign * lon_add,
-      Enum.at(lon_tdc_range, 1) * 2 + lon_sign * lon_add
+      lon_init + lon_precision * 5.625 - 180,
+      lon_init + (lon_precision + 1) * 5.625 - 180
     }
 
     final_lat_range = {
-      Enum.at(lat_tdc_range, 0) * 2 + lat_sign * lat_add,
-      Enum.at(lat_tdc_range, 1) * 2 + lat_sign * lat_add
+      lat_init + lat_precision * 5.625 - 90,
+      lat_init + (lat_precision + 1) * 5.625 - 90
     }
 
-    {final_lon_range, final_lat_range}
+    {final_lat_range, final_lon_range}
   end
 
-  defp get_range(patch) when patch == "0", do: [[0.5, 1], [-1, -0.5]]
-  defp get_range(patch) when patch == "1", do: [[0.5, 1], [-0.5, 0]]
-  defp get_range(patch) when patch == "2", do: [[0.5, 1], [0, 0.5]]
-  defp get_range(patch) when patch == "3", do: [[0.5, 1], [0.5, 1]]
-
-  defp get_range(patch) when patch == "4", do: [[0, 0.5], [-1, -0.5]]
-  defp get_range(patch) when patch == "5", do: [[0, 0.5], [-0.5, 0]]
-  defp get_range(patch) when patch == "6", do: [[0, 0.5], [0, 0.5]]
-  defp get_range(patch) when patch == "7", do: [[0, 0.5], [0.5, 1]]
-
-  defp get_range(patch) when patch == "8", do: [[-0.5, 0], [-1, -0.5]]
-  defp get_range(patch) when patch == "9", do: [[-0.5, 0], [-0.5, 0]]
-  defp get_range(patch) when patch == "A", do: [[-0.5, 0], [0, 0.5]]
-  defp get_range(patch) when patch == "B", do: [[-0.5, 0], [0.5, 1]]
-
-  defp get_range(patch) when patch == "C", do: [[-1, -0.5], [-1, -0.5]]
-  defp get_range(patch) when patch == "D", do: [[-1, -0.5], [-0.5, 0]]
-  defp get_range(patch) when patch == "E", do: [[-1, -0.5], [0, 0.5]]
-  defp get_range(patch) when patch == "F", do: [[-1, -0.5], [0.5, 1]]
-
-  defp is_between?(value, range) do
-    value >= Enum.at(range, 0) and value <= Enum.at(range, 1)
+  defp get_main_index(value) do
+    ["8", "9", "A", "B", "C", "D", "E", "F", "0", "1", "2", "3", "4", "5", "6", "7"]
+    |> Enum.find_index(fn el -> el == value end)
   end
 end
