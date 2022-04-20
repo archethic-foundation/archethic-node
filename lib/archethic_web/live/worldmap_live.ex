@@ -7,6 +7,8 @@ defmodule ArchEthicWeb.WorldMapLive do
   alias ArchEthicWeb.NodeView
   alias ArchEthic.P2P
   alias ArchEthic.PubSub
+  alias ArchEthic.P2P.Node
+  alias ArchEthic.P2P.GeoPatch.GeoIP
 
   @type worldmap_data :: %{
           geo_patch: binary(),
@@ -19,7 +21,18 @@ defmodule ArchEthicWeb.WorldMapLive do
 
   @spec get_nodes_data() :: list(worldmap_data())
   defp get_nodes_data() do
+    # Local nodes have a random geo_patch. To have a consistent map
+    # we force a specific geo_patch for them
     P2P.available_nodes()
+    |> Enum.map(fn node ->
+      case GeoIP.get_coordinates(node.ip) do
+        {0.0, 0.0} ->
+          %Node{geo_patch: "021"}
+
+        _ ->
+          node
+      end
+    end)
     |> Enum.frequencies_by(fn node -> node.geo_patch end)
     |> Enum.map(fn {geo_patch, nb_of_nodes} ->
       with {lat, lon} <- P2P.get_coord_from_geo_patch(geo_patch) do
