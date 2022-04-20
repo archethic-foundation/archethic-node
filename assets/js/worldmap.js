@@ -2,15 +2,44 @@ import * as echarts from 'echarts'
 import worldmapJSON from '../static/worldmap.json'
 
 let map
-let minNbOfNodes
-let maxNbOfNodes
+let minNbOfAuthorizedNodes
+let maxNbOfAuthorizedNodes
+let minNbOfPendingNodes
+let maxNbOfPendingNodes
 
 export function createWorldmap(worldmapDatas) {
-  // calculate min and max number of nodes
-  const temp = worldmapDatas.map(data => data.nb_of_nodes)
 
-  minNbOfNodes = Math.min(...temp)
-  maxNbOfNodes = Math.max(...temp)
+  worldmapDatas= [
+    {
+      coords: {
+        lat: [45.0, 50.625],
+        lon: [5.625, 11.25]
+      },
+      geo_patch: "021",
+      nb_of_nodes: 1,
+      authorized: true
+    },
+    {
+      coords: {
+        lat: [33.75, 39.375],
+        lon: [-5.625, 0.0]
+      },
+      geo_patch: "F1B",
+      nb_of_nodes: 1,
+      authorized: false
+    },
+    {
+      coords: {
+        lat: [33.75, 39.375],
+        lon: [-5.625, 0.0]
+      },
+      geo_patch: "F1B",
+      nb_of_nodes: 2,
+      authorized: true
+    }
+  ]
+
+  calculateNbOfNodes(worldmapDatas)
 
   map = echarts.init(document.getElementById('worldmap'));
 
@@ -19,6 +48,12 @@ export function createWorldmap(worldmapDatas) {
   // Specify the configuration items and data for the chart
   const options = {
     tooltip:{},
+    legend:{
+      selectedMode: 'single',
+      textStyle: {
+        fontSize: 16
+      }
+    },
     geo: {
       map: 'worldmap',
       // Using Equirectangular projection
@@ -46,30 +81,50 @@ export function createWorldmap(worldmapDatas) {
     },
     series: [
       {
-        name: 'nodes',
+        name: 'authorized nodes',
+        id: 0,
         type: 'custom',
         coordinateSystem: 'geo',
         geoIndex: 0,
         renderItem: renderItem,
-        data: formatData(worldmapDatas),
+        data: formatData(worldmapDatas, true),
+        tooltip: {
+          show: true,
+          formatter: tooltipFormatter,
+        }
+      },
+      {
+        name: 'pending nodes',
+        id: 1,
+        type: 'custom',
+        coordinateSystem: 'geo',
+        geoIndex: 0,
+        renderItem: renderItem,
+        data: formatData(worldmapDatas, false),
         tooltip: {
           show: true,
           formatter: tooltipFormatter,
         }
       }
     ],
-    visualMap: {
-      type: 'continuous',
-      min: minNbOfNodes,
-      max: maxNbOfNodes,
-      dimension: 4, /* Value to map (number of nodes) is in 5th position */
-      textStyle: {
-        color: 'white'
+    visualMap: [
+      {
+        show: false,
+        type: 'continuous',
+        min: minNbOfAuthorizedNodes,
+        max: maxNbOfAuthorizedNodes,
+        dimension: 4, /* Value to map (number of nodes) is in 5th position */
+        seriesIndex: 0 /* Authorized nodes */
       },
-      calculable: true,
-      top: 0,
-      bottom: 'auto'
-    }
+      {
+        show: false,
+        type: 'continuous',
+        min: minNbOfPendingNodes,
+        max: maxNbOfPendingNodes,
+        dimension: 4, /* Value to map (number of nodes) is in 5th position */
+        seriesIndex: 1 /* Pending nodes */
+      }
+    ]
   };
 
   // Display the chart using the configuration items and data just specified.
@@ -78,18 +133,37 @@ export function createWorldmap(worldmapDatas) {
   window.addEventListener('resize', map.resize)
 }
 
+// Calculate min and max number of nodes
+function calculateNbOfNodes(datas) {
+  const authorizedNodes = datas.filter(data => data.authorized)
+    .map(data => data.nb_of_nodes)
+
+  minNbOfAuthorizedNodes = Math.min(...authorizedNodes)
+  maxNbOfAuthorizedNodes = Math.max(...authorizedNodes)
+
+  const pendingNodes = datas.filter(data => !data.authorized)
+  .map(data => data.nb_of_nodes)
+
+  minNbOfPendingNodes = Math.min(...pendingNodes)
+  maxNbOfPendingNodes = Math.max(...pendingNodes)
+}
+
 // Format datas for echarts series
-function formatData(datas) {
-  return datas.map(data => [
-    data.coords.lon[0],
-    data.coords.lon[1],
-    data.coords.lat[0],
-    data.coords.lat[1],
-    data.nb_of_nodes,
-    data.geo_patch,
-    minNbOfNodes,
-    maxNbOfNodes
-  ])
+function formatData(datas, authorized) {
+  return datas.filter(data => data.authorized === authorized)
+    .map(data => {
+      return data.authorized === authorized ?
+        [
+          data.coords.lon[0],
+          data.coords.lon[1],
+          data.coords.lat[0],
+          data.coords.lat[1],
+          data.nb_of_nodes,
+          data.geo_patch,
+          authorized ? minNbOfAuthorizedNodes : minNbOfPendingNodes,
+          authorized ? maxNbOfAuthorizedNodes : maxNbOfPendingNodes
+        ] : null
+    })
 }
 
 function tooltipFormatter(params, ticket, callback) {
@@ -105,7 +179,6 @@ function tooltipFormatter(params, ticket, callback) {
 function renderItem(params, api) {
   // Color set by visualMap
   const color = api.visual('color')
-  
   // return value only if color is set by visualMap
   if (color != 'rgba(0,0,0,0)') {
     const firstPoint = api.coord([api.value(0), api.value(2)])
@@ -180,24 +253,20 @@ function renderItem(params, api) {
 }
 
 export function updateWorldmap(worldmapDatas) {
-  // calculate new min and max number of nodes
-  const temp = worldmapDatas.map(data => data.nb_of_nodes)
+  // calculateNbOfNodes(worldmapDatas)
 
-  minNbOfNodes = Math.min(...temp)
-  maxNbOfNodes = Math.max(...temp)
-
-  if (map) {
-    map.setOption({
-      series: [
-        {
-          name: 'nodes',
-          data: formatData(worldmapDatas)
-        }
-      ],
-      visualMap: {
-        min: minNbOfNodes,
-        max: maxNbOfNodes
-      }
-    })
-  }
+  // if (map) {
+  //   map.setOption({
+  //     series: [
+  //       {
+  //         name: 'authorized',
+  //         data: formatData(worldmapDatas)
+  //       }
+  //     ],
+  //     visualMap: {
+  //       min: minNbOfNodes,
+  //       max: maxNbOfNodes
+  //     }
+  //   })
+  // }
 }

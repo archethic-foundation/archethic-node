@@ -40,6 +40,30 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
       authorization_date: DateTime.utc_now()
     })
 
+    P2P.add_and_connect_node(%Node{
+      ip: {88, 22, 30, 229},
+      port: 3002,
+      first_public_key: "key3",
+      last_public_key: "key3",
+      network_patch: "F1B",
+      geo_patch: "F1B",
+      available?: true,
+      authorized?: false,
+      authorization_date: DateTime.utc_now()
+    })
+
+    P2P.add_and_connect_node(%Node{
+      ip: {88, 22, 30, 229},
+      port: 3002,
+      first_public_key: "key4",
+      last_public_key: "key4",
+      network_patch: "F1B",
+      geo_patch: "F1B",
+      available?: true,
+      authorized?: true,
+      authorization_date: DateTime.utc_now()
+    })
+
     stub(MockGeoIP, :get_coordinates, fn ip ->
       case ip do
         # Spain (Alicante)
@@ -72,7 +96,8 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
               lon: [5.625, 11.25]
             },
             geo_patch: "021",
-            nb_of_nodes: 1
+            nb_of_nodes: 1,
+            authorized: true
           },
           %{
             coords: %{
@@ -80,7 +105,17 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
               lon: [-5.625, 0.0]
             },
             geo_patch: "F1B",
-            nb_of_nodes: 1
+            nb_of_nodes: 1,
+            authorized: false
+          },
+          %{
+            coords: %{
+              lat: [33.75, 39.375],
+              lon: [-5.625, 0.0]
+            },
+            geo_patch: "F1B",
+            nb_of_nodes: 2,
+            authorized: true
           }
         ]
       }
@@ -103,7 +138,8 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
               lon: [5.625, 11.25]
             },
             geo_patch: "021",
-            nb_of_nodes: 1
+            nb_of_nodes: 1,
+            authorized: true
           },
           %{
             coords: %{
@@ -111,7 +147,17 @@ defmodule ArchEthicWeb.WorldMapLiveTest do
               lon: [-5.625, 0.0]
             },
             geo_patch: "F1B",
-            nb_of_nodes: 1
+            nb_of_nodes: 1,
+            authorized: false
+          },
+          %{
+            coords: %{
+              lat: [33.75, 39.375],
+              lon: [-5.625, 0.0]
+            },
+            geo_patch: "F1B",
+            nb_of_nodes: 2,
+            authorized: true
           }
         ]
       }

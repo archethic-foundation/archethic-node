@@ -27,14 +27,14 @@ defmodule ArchEthicWeb.WorldMapLive do
     |> Enum.map(fn node ->
       case GeoIP.get_coordinates(node.ip) do
         {0.0, 0.0} ->
-          %Node{geo_patch: "021"}
+          %Node{geo_patch: "021", authorized?: node.authorized?}
 
         _ ->
           node
       end
     end)
-    |> Enum.frequencies_by(fn node -> node.geo_patch end)
-    |> Enum.map(fn {geo_patch, nb_of_nodes} ->
+    |> Enum.frequencies_by(fn node -> {node.geo_patch, node.authorized?} end)
+    |> Enum.map(fn {{geo_patch, authorized}, nb_of_nodes} ->
       with {lat, lon} <- P2P.get_coord_from_geo_patch(geo_patch) do
         %{
           geo_patch: geo_patch,
@@ -42,7 +42,8 @@ defmodule ArchEthicWeb.WorldMapLive do
             lat: Tuple.to_list(lat),
             lon: Tuple.to_list(lon)
           },
-          nb_of_nodes: nb_of_nodes
+          nb_of_nodes: nb_of_nodes,
+          authorized: authorized
         }
       end
     end)
