@@ -163,17 +163,22 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   def get_genesis_address(address) do
     address = Base.decode16!(address)
 
-    with [node | _rest] <- P2P.available_nodes(),
-         public_key_request <- %GetFirstPublicKey{address: address},
-         {:ok, %FirstPublicKey{public_key: key}} <- P2P.send_message(node, public_key_request) do
+    with nodes <- P2P.available_nodes(),
+         {:ok, key} <- download_first_public_key(nodes, address) do
       Crypto.derive_address(key)
     else
       [] ->
         {:error, :network_issue}
-
-      # TODO NotFound is not a valid behaviour of P2P GetFirstPublicKey need to address this issue after P2P GetFirstPublicKey
-      {:ok, %NotFound{}} ->
-        address
     end
   end
+
+  defp download_first_public_key([node | rest], address) do
+    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+      {:ok, %FirstPublicKey{public_key: key}} -> {:ok, key}
+      {:ok, %NotFound{}} -> download_first_public_key(rest, address)
+      {:error, _} -> download_first_public_key(rest, address)
+    end
+  end
+
+  defp download_first_public_key([], _address), do: []
 end
