@@ -33,7 +33,7 @@ defmodule ArchEthic.Contracts.Interpreter.LibraryTest do
 
     test "with empty node list" do
       MockClient
-      |> expect(:send_message, fn _, _, _ -> [] end)
+      |> expect(:send_message, fn _, _, _ -> {:error, :network_issue} end)
 
       address = :crypto.strong_rand_bytes(34) |> Base.encode16()
       assert {:error, :network_issue} == Library.get_genesis_address(address)
@@ -44,12 +44,11 @@ defmodule ArchEthic.Contracts.Interpreter.LibraryTest do
       |> expect(:send_message, fn _, _, _ -> {:ok, %NotFound{}} end)
 
       address = :crypto.strong_rand_bytes(34) |> Base.encode16()
-      assert {:error, :enoaddress} == Library.get_genesis_address(address)
+      assert {:error, :network_issue} == Library.get_genesis_address(address)
     end
 
     test "with FirstPublicKey returned", %{key: key} do
-      {pub, _priv} = Crypto.derive_keypair(key, 0)
-      genesis_address = Crypto.derive_address(pub)
+      genesis_address = Crypto.derive_address(key)
 
       MockClient
       |> expect(:send_message, fn _, _, _ -> {:ok, %FirstPublicKey{public_key: key}} end)
