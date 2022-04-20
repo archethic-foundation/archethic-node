@@ -776,7 +776,7 @@ defmodule ArchEthic.P2P.MessageTest do
 
     test "GetFirstPublicKey message" do
       msg = %GetFirstPublicKey{
-        address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        public_key: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
 
       assert msg ==
