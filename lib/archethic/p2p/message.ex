@@ -1226,10 +1226,11 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def process(%GetFirstPublicKey{address: address}) do
-    case TransactionChain.get_first_public_key(address) do
-      key ->
-        %FirstPublicKey{public_key: key}
+  # Returns the first public_key for a given public_key and if the public_key is used for the first time, return the same public_key.
+  def process(%GetFirstPublicKey{address: public_key}) do
+    case TransactionChain.get_first_public_key(public_key) do
+      pub_key ->
+        %FirstPublicKey{public_key: pub_key}
     end
   end
 
