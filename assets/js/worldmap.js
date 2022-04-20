@@ -9,36 +9,6 @@ let maxNbOfPendingNodes
 
 export function createWorldmap(worldmapDatas) {
 
-  worldmapDatas= [
-    {
-      coords: {
-        lat: [45.0, 50.625],
-        lon: [5.625, 11.25]
-      },
-      geo_patch: "021",
-      nb_of_nodes: 1,
-      authorized: true
-    },
-    {
-      coords: {
-        lat: [33.75, 39.375],
-        lon: [-5.625, 0.0]
-      },
-      geo_patch: "F1B",
-      nb_of_nodes: 1,
-      authorized: false
-    },
-    {
-      coords: {
-        lat: [33.75, 39.375],
-        lon: [-5.625, 0.0]
-      },
-      geo_patch: "F1B",
-      nb_of_nodes: 2,
-      authorized: true
-    }
-  ]
-
   calculateNbOfNodes(worldmapDatas)
 
   map = echarts.init(document.getElementById('worldmap'));
@@ -253,20 +223,30 @@ function renderItem(params, api) {
 }
 
 export function updateWorldmap(worldmapDatas) {
-  // calculateNbOfNodes(worldmapDatas)
+  calculateNbOfNodes(worldmapDatas)
 
-  // if (map) {
-  //   map.setOption({
-  //     series: [
-  //       {
-  //         name: 'authorized',
-  //         data: formatData(worldmapDatas)
-  //       }
-  //     ],
-  //     visualMap: {
-  //       min: minNbOfNodes,
-  //       max: maxNbOfNodes
-  //     }
-  //   })
-  // }
+  if (map) {
+    map.setOption({
+      series: [
+        {
+          name: 'authorized nodes',
+          data: formatData(worldmapDatas, true)
+        },
+        {
+          name: 'pending nodes',
+          data: formatData(worldmapDatas, false)
+        }
+      ],
+      visualMap: [
+        {
+          min: minNbOfAuthorizedNodes,
+          max: maxNbOfAuthorizedNodes
+        },
+        {
+          min: minNbOfPendingNodes,
+          max: maxNbOfPendingNodes
+        }
+      ]
+    })
+  }
 }
