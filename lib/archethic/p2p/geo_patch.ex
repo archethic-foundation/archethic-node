@@ -68,4 +68,37 @@ defmodule ArchEthic.P2P.GeoPatch do
     |> elem(index1)
     |> elem(index2)
   end
+
+  @doc """
+  Get range of longitude / latitude coordinates from geo patch
+  """
+  @spec to_coordinates(binary()) :: {{float(), float()}, {float(), float()}}
+  def to_coordinates(geo_patch) do
+    [first_patch, second_patch, third_patch] = String.codepoints(geo_patch)
+
+    lon_init = get_main_index(first_patch) * 22.5
+    lat_init = (get_main_index(second_patch) - 4) * 22.5
+
+    {lon_precision, lat_precision} =
+      with {index, _} <- Integer.parse(third_patch, 16) do
+        {rem(index, 4), trunc(index / 4)}
+      end
+
+    final_lon_range = {
+      lon_init + lon_precision * 5.625 - 180,
+      lon_init + (lon_precision + 1) * 5.625 - 180
+    }
+
+    final_lat_range = {
+      lat_init + lat_precision * 5.625 - 90,
+      lat_init + (lat_precision + 1) * 5.625 - 90
+    }
+
+    {final_lat_range, final_lon_range}
+  end
+
+  defp get_main_index(value) do
+    ["8", "9", "A", "B", "C", "D", "E", "F", "0", "1", "2", "3", "4", "5", "6", "7"]
+    |> Enum.find_index(fn el -> el == value end)
+  end
 end
