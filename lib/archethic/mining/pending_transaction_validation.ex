@@ -285,13 +285,13 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     |> get_first_public_key(previous_address)
   end
 
-  defp get_first_public_key([node | rest], address) do
-    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+  defp get_first_public_key([node | rest], public_key) do
+    case P2P.send_message(node, %GetFirstPublicKey{public_key: public_key}) do
       {:ok, %FirstPublicKey{public_key: public_key}} ->
         {:ok, public_key}
 
       {:error, _} ->
-        get_first_public_key(rest, address)
+        get_first_public_key(rest, public_key)
     end
   end
 
