@@ -5,6 +5,7 @@
 import { } from "../css/app.scss"
 import { } from './ui'
 import * as metric_config_obj from  './metric_config.js';
+import { createWorldmap, updateWorldmap } from './worldmap'
 
 // webpack automatically bundles all modules in your
 // entry points. Those entry points can be configured
@@ -106,7 +107,18 @@ Hooks.explorer_charts = {
   }
 }
 
+Hooks.worldmap = {
+  mounted() {
 
+    this.handleEvent('worldmap_init_datas', ({worldmap_datas}) => {
+      if (worldmap_datas.length > 0) createWorldmap(worldmap_datas)
+    })
+
+    this.handleEvent('worldmap_update_datas', ({worldmap_datas}) => {
+      if (worldmap_datas.length > 0) updateWorldmap(worldmap_datas)
+    })
+  }
+}
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content");
 

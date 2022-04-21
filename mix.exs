@@ -36,7 +36,7 @@ defmodule ArchEthic.MixProject do
       # Web
       {:phoenix, ">= 1.5.4"},
       {:phoenix_html, "~> 2.14"},
-      {:phoenix_live_view, "~> 0.14.0"},
+      {:phoenix_live_view, "~> 0.15.0"},
       {:phoenix_pubsub, "~> 2.0"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.3"},
@@ -59,6 +59,7 @@ defmodule ArchEthic.MixProject do
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
       {:stream_data, "~> 0.5.0", only: [:test], runtime: false},
+      {:floki, ">= 0.30.0", only: :test},
 
       # P2P
       {:ranch, "~> 2.1", override: true},
@@ -77,7 +78,7 @@ defmodule ArchEthic.MixProject do
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_metrics_prometheus_core, "~> 1.0.0"},
       {:telemetry_poller, "~> 0.5.1"},
-      {:phoenix_live_dashboard, "~> 0.2.7"},
+      {:phoenix_live_dashboard, "~> 0.3"},
 
       # Utils
       {:crontab, "~> 1.1"},
