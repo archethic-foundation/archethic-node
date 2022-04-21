@@ -66,7 +66,6 @@ defmodule ArchEthic.MixProject do
       {:connection, "~> 1.1"},
 
       # DB
-      {:xandra, "~> 0.11"},
       {:bloom_filter, "~>1.1.0"},
 
       # Net
