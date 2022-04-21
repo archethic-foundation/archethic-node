@@ -3,10 +3,10 @@ defmodule ArchEthic.P2P.Message.GetFirstPublicKey do
   Represents a message to request the first public key from a transaction chain
   """
 
-  @enforce_keys [:address]
-  defstruct [:address]
+  @enforce_keys [:public_key]
+  defstruct [:public_key]
 
   @type t() :: %__MODULE__{
-          address: binary()
+          public_key: binary()
         }
 end
