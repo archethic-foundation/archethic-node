@@ -31,6 +31,9 @@ defmodule ArchEthicWeb.GraphqlClient do
       }
     """
 
+    IO.inspect(subscription_query, label: "<---------- [subscription_query] ---------->", limit: :infinity, printable_limit: :infinity)
+    
+
     do_subscribe(
       mod,
       :transactionConfirmed,

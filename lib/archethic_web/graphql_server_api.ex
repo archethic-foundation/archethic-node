@@ -16,4 +16,9 @@ defmodule GraphqlServerAPI do
 
     send(from, {:reply, response})
   end
+
+  def receive(subscription, response) do
+    IO.inspect(subscription, label: "<---------- [subs from second] ---------->", limit: :infinity, printable_limit: :infinity)
+    IO.inspect(response, label: "<---------- [response] ---------->", limit: :infinity, printable_limit: :infinity)
+  end
 end
