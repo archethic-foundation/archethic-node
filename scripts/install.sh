@@ -8,6 +8,9 @@ SCRIPT_DIR=$(dirname $(readlink -f $0))
 mkdir -p $INSTALL_DIR
 echo "Install required system dependencies"
 
+# Prevent the node to sleep
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
 sudo apt-get update
 
 sudo apt-get install -y \
