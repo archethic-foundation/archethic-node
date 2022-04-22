@@ -136,3 +136,11 @@ config :archethic, ArchEthicWeb.Endpoint,
       cd: Path.expand("../assets", __DIR__)
     ]
   ]
+
+config :archethic, GraphqlServerAPI,
+  client: ArchEthicWeb.GraphqlClient,
+  query_caller: CommonGraphQLClient.Caller.Http,
+  http_api_url: "http://127.0.0.1:4000/api",
+  # add this line
+  subscription_caller: CommonGraphQLClient.Caller.WebSocket,
+  websocket_api_url: "ws://127.0.0.1:4000/socket/websocket"

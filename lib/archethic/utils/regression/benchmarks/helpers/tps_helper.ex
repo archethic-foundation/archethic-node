@@ -180,7 +180,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     query =
       "subscription { transactionConfirmed(address: \"#{Base.encode16(txn_address)}\") { address, nbConfirmations } }"
 
-    {conn, ws, ref} = WSClient.create_websocket(host, port, "/socket/websocket?vsn=2.0.0")
+    {conn, ws, ref} = WSClient.create_websocket(host, port, "/socket/websocket")
 
     reply = WSClient.send_message(query, conn, ws, ref)
     WSClient.close_websocket(conn, ws, ref)

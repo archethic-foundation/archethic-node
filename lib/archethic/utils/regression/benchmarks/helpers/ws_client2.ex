@@ -1,5 +1,6 @@
-defmodule ArcEthic.Utils.Regression.Helpers.WsClient2 do
+defmodule ArchEthic.Utils.Regression.Helpers.WSClient2 do
   use WebSockex
+  require Logger
 
   def start_link(state = %{}) do
     url = "localhost:4000/socket/websocket"
