@@ -3,9 +3,9 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
 
   alias ArchEthic.Crypto
   alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.FirstPublicKey
-  alias ArchEthic.P2P.Message.GetFirstPublicKey
-  alias ArchEthic.P2P.Message.NotFound
+  alias ArchEthic.P2P.Message.GetFirstAddress
+  alias ArchEthic.P2P.Message.FirstAddress
+  alias ArchEthic.Election
 
   @doc """
   Match a regex expression
@@ -159,26 +159,20 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
 
   """
   @spec get_genesis_address(binary()) ::
-          binary() | {:error, :network_issue}
+          binary()
   def get_genesis_address(address) do
     address = Base.decode16!(address)
+    nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    {:ok, address} = download_first_address(nodes, address)
+    address
+  end
 
-    with nodes <- P2P.available_nodes(),
-         {:ok, key} <- download_first_public_key(nodes, address) do
-      Crypto.derive_address(key)
-    else
-      [] ->
-        {:error, :network_issue}
+  defp download_first_address([node | rest], address) do
+    case P2P.send_message(node, %GetFirstAddress{address: address}) do
+      {:ok, %FirstAddress{address: address}} -> {:ok, address}
+      {:error, _} -> download_first_address(rest, address)
     end
   end
 
-  defp download_first_public_key([node | rest], address) do
-    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
-      {:ok, %FirstPublicKey{public_key: key}} -> {:ok, key}
-      {:ok, %NotFound{}} -> download_first_public_key(rest, address)
-      {:error, _} -> download_first_public_key(rest, address)
-    end
-  end
-
-  defp download_first_public_key([], _address), do: []
+  defp download_first_address([], _address), do: {:error, :network_issue}
 end
