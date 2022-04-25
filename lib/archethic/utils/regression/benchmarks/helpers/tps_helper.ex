@@ -4,8 +4,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   """
 
   # module alias
-  alias ArchEthic.Crypto
-
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
@@ -15,9 +13,9 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
 
-  #  alias ArchEthicWeb.TransactionSubscriber
-
   alias ArchEthic.Utils.WebClient
+  alias ArchEthic.Crypto
+  require Logger
 
   #  module constants
   @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
@@ -50,8 +48,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       txn =
         @pool_seed
         |> build_txn(recipient_address, :transfer, host, port, 10_000_000_000)
-
-      IO.inspect(Base.encode16(txn.address), label: "======tx addressin allocate funds====")
 
       deploy_txn(txn, host, port)
     else
@@ -107,30 +103,42 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
     chain_length = get_chain_size(emitter_seed, host, port)
 
-    {prev_pbKey, prev_privKey} = derive_keypair(emitter_seed, chain_length)
+    {prev_pb_key, prev_priv_key} = derive_keypair(emitter_seed, chain_length)
 
-    {next_pbKey, _next_privKey} = derive_keypair(emitter_seed, chain_length + 1)
-    IO.inspect("def build_txn(emitter_seed,", label: "build_txn")
+    {next_pb_key, _next_priv_key} = derive_keypair(emitter_seed, chain_length + 1)
+    IO.inspect(binding(), label: "build_txn")
 
-    %Transaction{
-      address: get_address(next_pbKey),
-      type: txn_type,
-      data: txn_data,
-      previous_public_key: prev_pbKey
-    }
-    |> Transaction.previous_sign_transaction(prev_privKey)
-    |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+    txn =
+      %Transaction{
+        address: get_address(next_pb_key),
+        type: txn_type,
+        data: txn_data,
+        previous_public_key: prev_pb_key
+      }
+      |> Transaction.previous_sign_transaction(prev_priv_key)
+      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+
+    IO.inspect(binding(), label: "build_txn")
+    txn
+  end
+
+  def await_replication(txn_address, host, port) do
+    {:ok, pid} = Task.Supervisor.start_link()
+
+    Task.Supervisor.async(pid, fn ->
+      register_for_replication_attestation(txn_address, host, port)
+    end)
   end
 
   def deploy_txn(txn, host, port) do
-    replication_subscription = register_for_replication_attestation(txn.address, host, port)
+    replication_subscription = await_replication(txn.address, host, port)
 
     case dispatch_txn_to_public_endpoint(txn, host, port) do
       {:ok, _txn_address} ->
         {:ok}
 
-        Task.await(replication_subscription)
-        |> IO.inspect(label: "replication output")
+        data = Task.await(replication_subscription)
+        data |> IO.inspect(label: "replication output")
 
       {:error, nil} ->
         raise "Sending txn failed"
@@ -176,24 +184,47 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     IO.inspect("inside replication")
     IO.inspect(binding())
 
-    subscription = ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
-      {:transactionConfirmed, %{address: Base.encode16 txn_address}, self()}, GraphqlServerAPI)
-    IO.inspect(subscription, label: "<---------- [subscription] ---------->", limit: :infinity, printable_limit: :infinity)
+    subscription =
+      ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
+        {:transactionConfirmed, %{address: Base.encode16(txn_address)}, self()},
+        GraphqlServerAPI
+      )
 
+    IO.inspect(subscription,
+      label: "<---------- [subscription] ---------->",
+      limit: :infinity,
+      printable_limit: :infinity
+    )
 
-    receive do
-      {:reply, message} ->
-        IO.inspect(message, label: "<---------- [message reply] ---------->", limit: :infinity, printable_limit: :infinity)
-        message
-      message ->
-        IO.inspect(message, label: "<---------- [message] ---------->", limit: :infinity, printable_limit: :infinity)
+    reply =
+      receive do
+        {:reply, message} ->
+          IO.inspect(message,
+            label: "<---------- [message reply] ---------->",
+            limit: :infinity,
+            printable_limit: :infinity
+          )
 
-    after
-      10_000 ->
-        timeout = "No message received"
-        IO.inspect(timeout, label: "<---------- [timeout] ---------->", limit: :infinity, printable_limit: :infinity)
+          message
 
-    end
+        message ->
+          IO.inspect(message,
+            label: "<---------- [message] ---------->",
+            limit: :infinity,
+            printable_limit: :infinity
+          )
+      after
+        10_000 ->
+          timeout = "No message received"
+
+          IO.inspect(timeout,
+            label: "<---------- [timeout] ---------->",
+            limit: :infinity,
+            printable_limit: :infinity
+          )
+      end
+
+    reply
   end
 
   defp txn_to_json(%Transaction{

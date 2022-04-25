@@ -20,7 +20,6 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
 
-    {:ok, _pid} = ArchEthic.Utils.GraphQL.GraphqlClient.supervisor()
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
     scenario = %{
@@ -39,8 +38,9 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def benchmark(host, port) do
-    via_helpers(host, port)
-    # via_playbook(host, port)
+    _pid = ArchEthic.Utils.GraphQL.GraphqlClient.supervisor()
+    # via_helpers(host, port)
+    via_playbook(host, port)
   end
 
   # gives error via playbook methods,

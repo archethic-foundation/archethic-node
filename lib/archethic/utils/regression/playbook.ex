@@ -59,12 +59,21 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         port,
         curve \\ Crypto.default_curve()
       ) do
+    alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
+
     chain_length = get_chain_size(transaction_seed, curve, host, port)
 
     {previous_public_key, previous_private_key} =
       Crypto.derive_keypair(transaction_seed, chain_length, curve)
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
+
+    IO.inspect(Base.encode16(Crypto.derive_address(next_public_key)), label: "txn======>address")
+
+    Process.sleep(15_000)
+
+    replication_subscription =
+      TPSHelper.await_replication(Crypto.derive_address(next_public_key), host, port)
 
     tx =
       %Transaction{
@@ -83,12 +92,16 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
+    IO.inspect("txn sent data")
+
     case WebClient.with_connection(
            host,
            port,
            &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
          ) do
       {:ok, %{"status" => "pending"}} ->
+        data = Task.await(replication_subscription)
+        data |> IO.inspect(label: "replication output")
         {:ok, tx.address}
 
       _ ->
