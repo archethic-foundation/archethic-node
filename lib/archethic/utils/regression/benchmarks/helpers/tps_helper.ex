@@ -76,12 +76,8 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       |> elem(0)
       |> Crypto.derive_address()
 
-    IO.inspect(binding())
-
     query =
       ~s|query {last_transaction(address: "#{Base.encode16(genesis_address)}"){ chainLength }}|
-
-    IO.inspect("def get_chain_size(", label: "get chain size")
 
     case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
       {:ok, %{"errors" => [%{"message" => "transaction_not_exists"}]}} ->
@@ -106,7 +102,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     {prev_pb_key, prev_priv_key} = derive_keypair(emitter_seed, chain_length)
 
     {next_pb_key, _next_priv_key} = derive_keypair(emitter_seed, chain_length + 1)
-    IO.inspect(binding(), label: "build_txn")
 
     txn =
       %Transaction{
@@ -118,7 +113,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       |> Transaction.previous_sign_transaction(prev_priv_key)
       |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
 
-    IO.inspect(binding(), label: "build_txn")
+    Logger.debug("build_txn", binding())
     txn
   end
 
@@ -138,7 +133,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
         {:ok}
 
         data = Task.await(replication_subscription)
-        data |> IO.inspect(label: "replication output")
+        Logger.debug("case dispatch", binding())
 
       {:error, nil} ->
         raise "Sending txn failed"
@@ -181,8 +176,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def register_for_replication_attestation(txn_address, host, port) do
-    IO.inspect("inside replication")
-    IO.inspect(binding())
+    Logger.debug("register_for_replication_attestation", binding())
 
     subscription =
       ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
