@@ -176,7 +176,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     IO.inspect("inside replication")
     IO.inspect(binding())
 
-    subscription = ArchEthicWeb.GraphqlClient.subscribe_to(
+    subscription = ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
       {:transactionConfirmed, %{address: Base.encode16 txn_address}, self()}, GraphqlServerAPI)
     IO.inspect(subscription, label: "<---------- [subscription] ---------->", limit: :infinity, printable_limit: :infinity)
 
