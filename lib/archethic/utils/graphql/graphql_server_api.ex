@@ -1,4 +1,4 @@
-defmodule GraphqlServerAPI do
+defmodule ArchEthic.Utils.GraphQL.GraphqlServerAPI do
   use CommonGraphQLClient.Context,
     otp_app: :archethic
 

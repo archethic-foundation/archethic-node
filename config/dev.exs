@@ -138,7 +138,7 @@ config :archethic, ArchEthicWeb.Endpoint,
   ]
 
 config :archethic, GraphqlServerAPI,
-  client: ArchEthicWeb.GraphqlClient,
+  client: ArchEthic.Utils.GraphQL.GraphqlClient,
   query_caller: CommonGraphQLClient.Caller.Http,
   http_api_url: "http://127.0.0.1:4000/api",
   # add this line

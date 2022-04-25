@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.GraphqlClient do
+defmodule ArchEthic.Utils.GraphQL.GraphqlClient do
   use CommonGraphQLClient.Client,
     otp_app: :archethic,
     mod: GraphqlServerAPI
@@ -32,7 +32,7 @@ defmodule ArchEthicWeb.GraphqlClient do
     """
 
     IO.inspect(subscription_query, label: "<---------- [subscription_query] ---------->", limit: :infinity, printable_limit: :infinity)
-    
+
 
     do_subscribe(
       mod,
@@ -43,7 +43,7 @@ defmodule ArchEthicWeb.GraphqlClient do
   end
 end
 
-defmodule GraphqlSchema.Transaction do
+defmodule ArchEthic.Utils.GraphQL.GraphqlSchema.Transaction do
   use CommonGraphQLClient.Schema
 
   api_schema do
@@ -60,7 +60,7 @@ defmodule GraphqlSchema.Transaction do
   end
 end
 
-defmodule GraphqlSchema.TransactionConfirmed do
+defmodule ArchEthic.Utils.GraphQL.GraphqlSchema.TransactionConfirmed do
   use CommonGraphQLClient.Schema
 
   api_schema do
