@@ -20,6 +20,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
 
+    {ok, pid} = ArchEthicWeb.GraphqlClient.supervisor()
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")
 
     scenario = %{

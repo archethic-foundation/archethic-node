@@ -18,7 +18,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   #  alias ArchEthicWeb.TransactionSubscriber
 
   alias ArchEthic.Utils.WebClient
-  # alias ArcEthic.Utils.Regression.Helpers.WSClient
 
   #  module constants
   @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
@@ -180,20 +179,20 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     subscription = ArchEthicWeb.GraphqlClient.subscribe_to(
       {:transactionConfirmed, %{address: Base.encode16 txn_address}, self()}, GraphqlServerAPI)
     IO.inspect(subscription, label: "<---------- [subscription] ---------->", limit: :infinity, printable_limit: :infinity)
-    
+
 
     receive do
       {:reply, message} ->
         IO.inspect(message, label: "<---------- [message reply] ---------->", limit: :infinity, printable_limit: :infinity)
         message
-      message -> 
+      message ->
         IO.inspect(message, label: "<---------- [message] ---------->", limit: :infinity, printable_limit: :infinity)
 
     after
       10_000 ->
         timeout = "No message received"
         IO.inspect(timeout, label: "<---------- [timeout] ---------->", limit: :infinity, printable_limit: :infinity)
-        
+
     end
   end
 
