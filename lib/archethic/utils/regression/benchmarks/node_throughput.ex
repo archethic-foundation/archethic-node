@@ -38,7 +38,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def benchmark(host, port) do
-    _pid = ArchEthic.Utils.GraphQL.GraphqlClient.supervisor()
+    ArchEthic.Utils.GraphQL.GraphqlClient.supervisor()
     # via_helpers(host, port)
     via_playbook(host, port)
   end

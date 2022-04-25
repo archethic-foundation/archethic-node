@@ -187,7 +187,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     subscription =
       ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
         {:transactionConfirmed, %{address: Base.encode16(txn_address)}, self()},
-        GraphqlServerAPI
+        ArchEthic.Utils.GraphQL.GraphqlServerAPI.GraphqlServerAPI
       )
 
     IO.inspect(subscription,

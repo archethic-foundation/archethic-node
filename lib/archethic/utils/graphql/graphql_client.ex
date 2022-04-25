@@ -1,7 +1,7 @@
 defmodule ArchEthic.Utils.GraphQL.GraphqlClient do
   use CommonGraphQLClient.Client,
     otp_app: :archethic,
-    mod: GraphqlServerAPI
+    mod: ArchEthic.Utils.GraphQL.GraphqlServerAPI
 
   @gql """
   query {
