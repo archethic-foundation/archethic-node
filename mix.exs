@@ -9,6 +9,7 @@ defmodule ArchEthic.MixProject do
       config_path: "config/config.exs",
       deps_path: "deps",
       lockfile: "mix.lock",
+      aliases: aliases(),
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -91,7 +92,37 @@ defmodule ArchEthic.MixProject do
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
-      {:knigge, "~> 1.4"}
+      {:knigge, "~> 1.4"},
+      {:common_graphql_client, github: "annkissam/common_graphql_client", branch: "master"},
+      # If using HTTP queries
+      {:httpoison, "~> 1.1"},
+      # If using WebSocket subscriptions (or WebSocket queries)
+      {:absinthe_websocket, "~> 0.2.0"}
+    ]
+  end
+
+  defp aliases do
+    [
+      # Intial developer Setup
+      "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
+      # When Changes are not registered by compiler | any()
+      "dev.clean": ["cmd make clean", "clean", "format", "compile"],
+      # run single node
+      "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
+      # Must be run before git push --no-verify | any(dialyzer issue)
+      "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
+      # docker test-net with 3 nodes
+      "dev.docker": [
+        "cmd docker-compose down",
+        "cmd docker build -t archethic-node .",
+        "cmd docker-compose up"
+      ],
+      # benchmark
+      "dev.bench": ["cmd docker-compose up bench"],
+      # Cleans docker
+      "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"],
+      # bench local
+      "dev.lbench": ["cmd mix arch_ethic.regression --bench localhost"]
     ]
   end
 end

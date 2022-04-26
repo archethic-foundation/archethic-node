@@ -2,7 +2,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
   @moduledoc """
   Playbook is executed on a testnet to verify correctness of the testnet.
   """
-
+  require Logger
   alias ArchEthic.Crypto
 
   alias ArchEthic.TransactionChain.Transaction
@@ -83,6 +83,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
+      replication_subscription = ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper.await_replication(tx.address, host, port)
+
     case WebClient.with_connection(
            host,
            port,
@@ -90,6 +92,9 @@ defmodule ArchEthic.Utils.Regression.Playbook do
          ) do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
+
+        data = Task.await(replication_subscription)
+        Logger.debug("case dispatch", binding())
 
       _ ->
         :error
@@ -179,6 +184,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
       {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
         chain_length
+
     end
   end
 
