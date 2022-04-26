@@ -6,7 +6,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   """
 
   alias ArchEthic.Bootstrap
-  alias ArchEthic.Bootstrap.NetworkInit
 
   alias ArchEthic.BeaconChain.ReplicationAttestation
 
@@ -42,7 +41,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
-                                [NetworkInit, :genesis_origin_public_keys]
+                                [__MODULE__, :genesis_origin_public_keys]
                               )
 
   defp get_genesis_pools do
