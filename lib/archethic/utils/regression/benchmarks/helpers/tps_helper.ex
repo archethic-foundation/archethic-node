@@ -118,9 +118,13 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   end
 
   def await_replication(txn_address, host, port) do
+<<<<<<< HEAD
     {:ok, pid} = Task.Supervisor.start_link()
 
     Task.Supervisor.async(pid, fn ->
+=======
+    Task.async(fn ->
+>>>>>>> temp
       register_for_replication_attestation(txn_address, host, port)
     end)
   end
@@ -179,9 +183,15 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     Logger.debug("register_for_replication_attestation", binding())
 
     subscription =
+<<<<<<< HEAD
       ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
         {:transactionConfirmed, %{address: Base.encode16(txn_address)}, self()},
         ArchEthic.Utils.GraphQL.GraphqlServerAPI.GraphqlServerAPI
+=======
+    ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
+        {:transactionConfirmed, %{address: Base.encode16(txn_address)}, self()},
+        ArchEthic.Utils.GraphQL.GraphqlServerAPI
+>>>>>>> temp
       )
 
     IO.inspect(subscription,

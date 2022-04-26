@@ -121,16 +121,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:data, %{}), :code], code)
   end
 
-  def decode(_version, "data.ownerships", <<0>>, acc), do: acc
-
   def decode(_version, "data.ownerships", <<nb::8, rest::binary>>, acc) do
-    {_, ownerships} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {ownership, rest} = Ownership.deserialize(data)
-        {rest, [ownership | acc]}
-      end)
-
-    put_in(acc, [Access.key(:data, %{}), :ownerships], Enum.reverse(ownerships))
+    ownerships = deserialize_ownerships(rest, nb, [])
+    put_in(acc, [Access.key(:data, %{}), :ownerships], ownerships)
   end
 
   def decode(_version, "data.ledger.uco", data, acc) do
@@ -146,13 +139,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
   def decode(_version, "data.recipients", <<0>>, acc), do: acc
 
   def decode(_version, "data.recipients", <<nb::8, rest::binary>>, acc) do
-    {_, recipients} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {address, rest} = Utils.deserialize_address(data)
-        {rest, [address | acc]}
-      end)
-
-    put_in(acc, [Access.key(:data, %{}), :recipients], Enum.reverse(recipients))
+    recipients = Utils.deserialize_addresses(rest, nb, [])
+    put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
 
   def decode(_version, "validation_stamp.timestamp", <<timestamp::64>>, acc) do
@@ -183,20 +171,13 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
     )
   end
 
-  def decode(_version, "validation_stamp.ledger_operations.transaction_movements", <<0>>, acc),
-    do: acc
-
   def decode(
         1,
         "validation_stamp.ledger_operations.transaction_movements",
         <<nb::8, rest::binary>>,
         acc
       ) do
-    {_, movements} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {movement, rest} = TransactionMovement.deserialize(data)
-        {rest, [movement | acc]}
-      end)
+    tx_movements = deserialize_transaction_movements(rest, nb, [])
 
     put_in(
       acc,
@@ -205,11 +186,9 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
         Access.key(:ledger_operations, %{}),
         :transaction_movements
       ],
-      Enum.reverse(movements)
+      tx_movements
     )
   end
-
-  def decode(_version, "validation_stamp.ledger_operations.unspent_outputs", <<0>>, acc), do: acc
 
   def decode(
         _version,
@@ -217,29 +196,18 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
         <<nb::8, rest::binary>>,
         acc
       ) do
-    {_, utxos} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {utxo, rest} = UnspentOutput.deserialize(data)
-        {rest, [utxo | acc]}
-      end)
+    utxos = deserialize_unspent_outputs(rest, nb, [])
 
     put_in(
       acc,
       [Access.key(:validation_stamp, %{}), Access.key(:ledger_operations, %{}), :unspent_outputs],
-      Enum.reverse(utxos)
+      utxos
     )
   end
 
-  def decode(_version, "validation_stamp.recipients", <<0>>, acc), do: acc
-
   def decode(_version, "validation_stamp.recipients", <<nb::8, rest::binary>>, acc) do
-    {_, recipients} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {address, rest} = Utils.deserialize_address(data)
-        {rest, [address | acc]}
-      end)
-
-    put_in(acc, [Access.key(:validation_stamp, %{}), :recipients], Enum.reverse(recipients))
+    {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
+    put_in(acc, [Access.key(:validation_stamp, %{}), :recipients], recipients)
   end
 
   def decode(_version, "validation_stamp.signature", data, acc) do
@@ -247,14 +215,53 @@ defmodule ArchEthic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(_version, "cross_validation_stamps", <<nb::8, rest::bitstring>>, acc) do
-    {_, stamps} =
-      Enum.reduce(1..nb, {rest, []}, fn _, {data, acc} ->
-        {stamp, rest} = CrossValidationStamp.deserialize(data)
-        {rest, [stamp | acc]}
-      end)
-
-    Map.put(acc, :cross_validation_stamps, Enum.reverse(stamps))
+    stamps = deserialize_cross_validation_stamps(rest, nb, [])
+    Map.put(acc, :cross_validation_stamps, stamps)
   end
 
   def decode(_version, column, data, acc), do: Map.put(acc, column, data)
+
+  defp deserialize_ownerships(_, 0, _), do: []
+
+  defp deserialize_ownerships(_, nb, acc) when length(acc) == nb do
+    Enum.reverse(acc)
+  end
+
+  defp deserialize_ownerships(rest, nb, acc) do
+    {ownership, rest} = Ownership.deserialize(rest)
+    deserialize_ownerships(rest, nb, [ownership | acc])
+  end
+
+  defp deserialize_unspent_outputs(_, 0, _), do: []
+
+  defp deserialize_unspent_outputs(_, nb, acc) when length(acc) == nb do
+    Enum.reverse(acc)
+  end
+
+  defp deserialize_unspent_outputs(rest, nb, acc) do
+    {utxo, rest} = UnspentOutput.deserialize(rest)
+    deserialize_unspent_outputs(rest, nb, [utxo | acc])
+  end
+
+  defp deserialize_transaction_movements(_, 0, _), do: []
+
+  defp deserialize_transaction_movements(_, nb, acc) when length(acc) == nb do
+    Enum.reverse(acc)
+  end
+
+  defp deserialize_transaction_movements(rest, nb, acc) do
+    {tx_movement, rest} = TransactionMovement.deserialize(rest)
+    deserialize_transaction_movements(rest, nb, [tx_movement | acc])
+  end
+
+  defp deserialize_cross_validation_stamps(_, 0, _), do: []
+
+  defp deserialize_cross_validation_stamps(_rest, nb, acc) when length(acc) == nb do
+    Enum.reverse(acc)
+  end
+
+  defp deserialize_cross_validation_stamps(rest, nb, acc) do
+    {stamp, rest} = CrossValidationStamp.deserialize(rest)
+    deserialize_cross_validation_stamps(rest, nb, [stamp | acc])
+  end
 end

@@ -1,6 +1,13 @@
 defmodule ArchEthic.Utils.GraphQL.GraphqlServerAPI do
+<<<<<<< HEAD
   use CommonGraphQLClient.Context,
     otp_app: :archethic
+=======
+  @moduledoc false
+
+  use CommonGraphQLClient.Context,
+  otp_app: :archethic
+>>>>>>> temp
 
   def subscribe do
     # NOTE: This will call __MODULE__.receive(:employee_created, employee) when data is received

@@ -307,8 +307,8 @@ defmodule ArchEthic.P2P.Message do
     <<19::8, length(node_public_keys)::16, :erlang.list_to_binary(node_public_keys)::binary>>
   end
 
-  def encode(%GetFirstPublicKey{address: address}) do
-    <<20::8, address::binary>>
+  def encode(%GetFirstPublicKey{public_key: public_key}) do
+    <<20::8, public_key::binary>>
   end
 
   def encode(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
@@ -706,10 +706,10 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def decode(<<20::8, rest::bitstring>>) do
-    {address, rest} = Utils.deserialize_address(rest)
+    {public_key, rest} = Utils.deserialize_public_key(rest)
 
     {%GetFirstPublicKey{
-       address: address
+       public_key: public_key
      }, rest}
   end
 
@@ -1226,14 +1226,11 @@ defmodule ArchEthic.P2P.Message do
     }
   end
 
-  def process(%GetFirstPublicKey{address: address}) do
-    case TransactionChain.get_first_transaction(address, [:previous_public_key]) do
-      {:ok, %Transaction{previous_public_key: key}} ->
-        %FirstPublicKey{public_key: key}
-
-      {:error, :transaction_not_exists} ->
-        %NotFound{}
-    end
+  # Returns the first public_key for a given public_key and if the public_key is used for the first time, return the same public_key.
+  def process(%GetFirstPublicKey{public_key: public_key}) do
+    %FirstPublicKey{
+      public_key: TransactionChain.get_first_public_key(public_key)
+    }
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do

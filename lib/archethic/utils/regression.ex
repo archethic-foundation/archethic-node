@@ -5,17 +5,26 @@ defmodule ArchEthic.Utils.Regression do
   require Logger
 
   alias ArchEthic.Utils
+<<<<<<< HEAD
 
   alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
   alias ArchEthic.Utils.Regression.Benchmark.NodeThroughput
+=======
+  # alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
+>>>>>>> temp
 
   alias ArchEthic.Utils.Regression.Playbook.SmartContract
   alias ArchEthic.Utils.Regression.Playbook.UCO
 
   alias ArchEthic.Utils.WebClient
+  alias ArchEthic.Utils.Regression.Benchmark.NodeThroughput
 
   @playbooks [UCO, SmartContract]
+<<<<<<< HEAD
   @benchmarks [NodeThroughput, P2PMessage]
+=======
+  @benchmarks [NodeThroughput]
+>>>>>>> temp
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")
@@ -29,6 +38,7 @@ defmodule ArchEthic.Utils.Regression do
   def run_benchmarks(nodes, opts \\ []) do
     Logger.debug("Running benchmarks on #{inspect(nodes)} with #{inspect(opts)}")
     tag = Time.utc_now() |> Time.truncate(:second) |> Time.to_string()
+    IO.inspect(ArchEthic.Utils.GraphQL.GraphqlClient.supervisor())
 
     run_benchmark = fn benchmark ->
       Logger.info("Running benchmark #{benchmark}")
