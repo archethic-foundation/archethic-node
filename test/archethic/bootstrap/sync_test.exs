@@ -26,6 +26,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
   alias ArchEthic.P2P.Message.UnspentOutputList
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.SharedSecrets
   alias ArchEthic.SharedSecrets.NodeRenewalScheduler
 
   alias ArchEthic.TransactionChain
@@ -270,6 +271,8 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
       assert %Node{authorized?: true} = P2P.get_node_info()
       assert 1 == Crypto.number_of_node_shared_secrets_keys()
+
+      assert 2 == SharedSecrets.list_origin_public_keys() |> Enum.count()
 
       Application.get_env(:archethic, ArchEthic.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.each(fn %{address: address, amount: amount} ->
