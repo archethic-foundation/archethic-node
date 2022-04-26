@@ -92,11 +92,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
-<<<<<<< HEAD
-    IO.inspect("txn sent data")
-=======
       replication_subscription = ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper.await_replication(tx.address, host, port)
->>>>>>> temp
 
     case WebClient.with_connection(
            host,

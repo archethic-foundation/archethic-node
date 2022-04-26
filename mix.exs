@@ -110,11 +110,7 @@ defmodule ArchEthic.MixProject do
       # When Changes are not registered by compiler | any()
       "dev.clean": ["cmd make clean", "clean", "format", "compile"],
       # run single node
-<<<<<<< HEAD
-      "dev.run": ["cmd mix dev.clean", "cmd iex -S mix"],
-=======
       "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
->>>>>>> temp
       # Must be run before git push --no-verify | any(dialyzer issue)
       "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
       # docker test-net with 3 nodes

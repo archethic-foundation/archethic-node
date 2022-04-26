@@ -1,9 +1,6 @@
 defmodule ArchEthic.Utils.GraphQL.GraphqlClient do
-<<<<<<< HEAD
-=======
   @moduledoc false
 
->>>>>>> temp
   use CommonGraphQLClient.Client,
     otp_app: :archethic,
     mod: ArchEthic.Utils.GraphQL.GraphqlServerAPI
@@ -32,14 +29,10 @@ defmodule ArchEthic.Utils.GraphQL.GraphqlClient do
 
     subscription_query = """
       subscription {
-<<<<<<< HEAD
-       transactionConfirmed(address: #{address})
-=======
        transactionConfirmed(address: \"#{address}\")
        {
          nbConfirmations
          }
->>>>>>> temp
       }
     """
 
@@ -59,10 +52,7 @@ defmodule ArchEthic.Utils.GraphQL.GraphqlClient do
 end
 
 defmodule ArchEthic.Utils.GraphQL.GraphqlSchema.Transaction do
-<<<<<<< HEAD
-=======
   @moduledoc false
->>>>>>> temp
   use CommonGraphQLClient.Schema
 
   api_schema do
