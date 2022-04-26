@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   @moduledoc """
   Using Publically exposed Api To Benchmark
@@ -117,4 +118,9 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
     {txn.address, recipient_address, txn}
   end
+=======
+defmodule ArchEthic.Utils.Regression.NodeThroughput do
+  @moduledoc false
+
+>>>>>>> 228_first_commit
 end
