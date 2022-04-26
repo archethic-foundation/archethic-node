@@ -196,5 +196,9 @@ defmodule ArchEthicWeb.ExplorerView do
     """
   end
 
+  def format_transaction_content(:origin_shared_secrets, content) do
+    Base.encode16(content)
+  end
+
   def format_transaction_content(_, content), do: content
 end
