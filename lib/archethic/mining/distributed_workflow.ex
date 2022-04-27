@@ -698,8 +698,20 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :stop
   end
 
-  # Reject unexpected events
-  def handle_event(_, _, _, _), do: :keep_state_and_data
+  def handle_event(
+        event_type,
+        event,
+        state,
+        _ = %{validation_context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error(
+      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    :keep_state_and_data
+  end
 
   defp notify_transaction_context(
          %ValidationContext{
