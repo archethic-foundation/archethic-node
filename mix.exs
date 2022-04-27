@@ -108,6 +108,8 @@ defmodule ArchEthic.MixProject do
       "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
       # Must be run before git push --no-verify | any(dialyzer issue)
       "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
+      # paralele checks
+      "dev.pchecks": ["  clean &   format &    compile &   credo &   test &   dialyzer"],
       # docker test-net with 3 nodes
       "dev.docker": [
         "cmd docker-compose down",
