@@ -116,14 +116,6 @@ config :archethic, ArchEthic.P2P.Listener,
 
 config :archethic, ArchEthicWeb.FaucetController, enabled: true
 
-config :archethic, ArchEthic.Utils.GraphQL.GraphqlServerAPI,
-  client: ArchEthic.Utils.GraphQL.GraphqlClient,
-  query_caller: CommonGraphQLClient.Caller.Http,
-  http_api_url: "http://127.0.0.1:4000/api",
-  # add this line
-  subscription_caller: CommonGraphQLClient.Caller.WebSocket,
-  websocket_api_url: "ws://127.0.0.1:4000/socket/websocket"
-
 # For development, we disable any cache and enable
 # debugging and code reloading.
 #
@@ -144,11 +136,3 @@ config :archethic, ArchEthicWeb.Endpoint,
       cd: Path.expand("../assets", __DIR__)
     ]
   ]
-
-config :archethic, ArchEthic.Utils.GraphQL.GraphqlServerAPI,
-  client: ArchEthic.Utils.GraphQL.GraphqlClient,
-  query_caller: CommonGraphQLClient.Caller.Http,
-  http_api_url: "http://127.0.0.1:4000/api",
-  # add this line
-  subscription_caller: CommonGraphQLClient.Caller.WebSocket,
-  websocket_api_url: "ws://127.0.0.1:4000/socket/websocket"

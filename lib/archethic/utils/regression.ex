@@ -28,7 +28,6 @@ defmodule ArchEthic.Utils.Regression do
   def run_benchmarks(nodes, opts \\ []) do
     Logger.debug("Running benchmarks on #{inspect(nodes)} with #{inspect(opts)}")
     tag = Time.utc_now() |> Time.truncate(:second) |> Time.to_string()
-    IO.inspect(ArchEthic.Utils.GraphQL.GraphqlClient.supervisor())
 
     run_benchmark = fn benchmark ->
       Logger.info("Running benchmark #{benchmark}")

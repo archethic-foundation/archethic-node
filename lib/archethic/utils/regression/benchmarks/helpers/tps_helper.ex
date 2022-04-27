@@ -176,47 +176,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
   def register_for_replication_attestation(txn_address, host, port) do
     Logger.debug("register_for_replication_attestation", binding())
 
-    subscription =
-    ArchEthic.Utils.GraphQL.GraphqlClient.subscribe_to(
-        {:transactionConfirmed, %{address: Base.encode16(txn_address)}, self()},
-        ArchEthic.Utils.GraphQL.GraphqlServerAPI
-      )
-
-    IO.inspect(subscription,
-      label: "<---------- [subscription] ---------->",
-      limit: :infinity,
-      printable_limit: :infinity
-    )
-
-    reply =
-      receive do
-        {:reply, message} ->
-          IO.inspect(message,
-            label: "<---------- [message reply] ---------->",
-            limit: :infinity,
-            printable_limit: :infinity
-          )
-
-          message
-
-        message ->
-          IO.inspect(message,
-            label: "<---------- [message] ---------->",
-            limit: :infinity,
-            printable_limit: :infinity
-          )
-      after
-        10_000 ->
-          timeout = "No message received"
-
-          IO.inspect(timeout,
-            label: "<---------- [timeout] ---------->",
-            limit: :infinity,
-            printable_limit: :infinity
-          )
-      end
-
-    reply
   end
 
   defp txn_to_json(%Transaction{

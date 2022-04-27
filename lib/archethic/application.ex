@@ -89,7 +89,7 @@ defmodule ArchEthic.Application do
            transport: transport
          )},
         MetricSupervisor
-      ] ++ [ArchEthic.Utils.GraphQL.GraphqlClient.supervisor()]
+      ]
 
     opts = [strategy: :rest_for_one, name: ArchEthic.Supervisor]
     Supervisor.start_link(Utils.configurable_children(children), opts)

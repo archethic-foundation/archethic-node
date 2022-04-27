@@ -94,12 +94,7 @@ defmodule ArchEthic.MixProject do
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
-      {:knigge, "~> 1.4"},
-      {:common_graphql_client, github: "annkissam/common_graphql_client", branch: "master"},
-      # If using HTTP queries
-      {:httpoison, "~> 1.1"},
-      # If using WebSocket subscriptions (or WebSocket queries)
-      {:absinthe_websocket, "~> 0.2.0"}
+      {:knigge, "~> 1.4"}
     ]
   end
 
