@@ -1,5 +1,5 @@
 defmodule ArchEthic.DB.EmbeddedTest do
-  use ArchEthicCase
+  use ArchEthicCase, async: false
 
   alias ArchEthic.DB.EmbeddedImpl
   alias ArchEthic.DB.EmbeddedImpl.BootstrapInfo
