@@ -42,8 +42,8 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   def benchmark(host, port) do
     # doesnot accept wss
     WSClient.Subscriber.start_ws_client(host: host, port: port)
-    # via_helpers(host, port)
-    via_playbook(host, port)
+    via_helpers(host, port)
+    # via_playbook(host, port)
   end
 
   # gives error via playbook methods,
