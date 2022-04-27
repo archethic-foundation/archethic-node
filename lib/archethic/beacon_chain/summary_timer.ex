@@ -69,15 +69,16 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
   @doc """
   Return the next summary times from a date until now
   """
-  @spec next_summaries(DateTime.t()) :: Enumerable.t() | list(DateTime.t())
-  def next_summaries(date_from = %DateTime{}) do
+  @spec next_summaries(from :: DateTime.t(), to :: DateTime.t()) ::
+          Enumerable.t() | list(DateTime.t())
+  def next_summaries(date_from = %DateTime{}, date_to = %DateTime{} \\ DateTime.utc_now()) do
     get_interval()
     |> CronParser.parse!(true)
     |> CronScheduler.get_next_run_dates(date_from |> DateTime.to_naive())
     |> Stream.take_while(fn datetime ->
       datetime
       |> DateTime.from_naive!("Etc/UTC")
-      |> DateTime.compare(DateTime.utc_now()) == :lt
+      |> DateTime.compare(date_to) == :lt
     end)
     |> Stream.map(&DateTime.from_naive!(&1, "Etc/UTC"))
   end

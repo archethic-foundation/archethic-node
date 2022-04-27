@@ -40,11 +40,10 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
 
   property "next_summaries/1 should retrieve the next summary times from a date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+    ref = DateTime.utc_now() |> DateTime.truncate(:second)
 
     check all(previous_seconds <- StreamData.positive_integer()) do
-      next_summaries =
-        SummaryTimer.next_summaries(DateTime.utc_now() |> DateTime.add(-previous_seconds))
-
+      next_summaries = SummaryTimer.next_summaries(DateTime.add(ref, -previous_seconds), ref)
       assert Enum.count(next_summaries) == previous_seconds
     end
   end
