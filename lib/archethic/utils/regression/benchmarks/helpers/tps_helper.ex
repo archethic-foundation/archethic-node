@@ -175,7 +175,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   def register_for_replication_attestation(txn_address, host, port) do
     Logger.debug("register_for_replication_attestation", binding())
-
   end
 
   defp txn_to_json(%Transaction{

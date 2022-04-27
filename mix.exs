@@ -47,6 +47,7 @@ defmodule ArchEthic.MixProject do
       {:cors_plug, "~> 1.5"},
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.5"},
+      {:poison, "~> 5.0", only: :dev},
 
       # Dev
       {:benchee, "~> 1.0"},
@@ -56,7 +57,6 @@ defmodule ArchEthic.MixProject do
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
-      {:mint_web_socket, "~> 1.0"},
       {:websockex, "~> 0.4.3"},
 
       # Test

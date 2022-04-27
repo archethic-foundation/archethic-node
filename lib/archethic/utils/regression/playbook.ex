@@ -59,8 +59,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         port,
         curve \\ Crypto.default_curve()
       ) do
-    alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
-
     chain_length = get_chain_size(transaction_seed, curve, host, port)
 
     {previous_public_key, previous_private_key} =
@@ -78,14 +76,15 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       |> Transaction.previous_sign_transaction(previous_private_key)
       |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
 
+    IO.inspect(tx.address |> Base.encode16(), label: "txnaddess")
+    Process.sleep(10_000)
+
     true =
       Crypto.verify?(
         tx.previous_signature,
         Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
         tx.previous_public_key
       )
-
-      replication_subscription =  TPSHelper.await_replication(tx.address, host, port)
 
     case WebClient.with_connection(
            host,
@@ -95,8 +94,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
 
-        data = Task.await(replication_subscription)
-        Logger.debug("case dispatch", binding())
+        Logger.debug("playbook case dispatch", binding())
 
       _ ->
         :error
@@ -186,7 +184,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
       {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
         chain_length
-
     end
   end
 

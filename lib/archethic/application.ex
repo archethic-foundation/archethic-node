@@ -61,35 +61,34 @@ defmodule ArchEthic.Application do
 
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 
-    children =
-      [
-        {Task.Supervisor, name: ArchEthic.TaskSupervisor},
-        ArchEthic.Telemetry,
-        {Registry, keys: :duplicate, name: ArchEthic.PubSubRegistry},
-        DBSupervisor,
-        TransactionChainSupervisor,
-        CryptoSupervisor,
-        ElectionSupervisor,
-        {P2PSupervisor, port: port},
-        MiningSupervisor,
-        BeaconChainSupervisor,
-        SharedSecretsSupervisor,
-        AccountSupervisor,
-        GovernanceSupervisor,
-        SelfRepairSupervisor,
-        OracleChainSupervisor,
-        ContractsSupervisor,
-        RewardSupervisor,
-        WebSupervisor,
-        NetworkingSupervisor,
-        {Bootstrap,
-         Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
-           port: port,
-           http_port: http_port,
-           transport: transport
-         )},
-        MetricSupervisor
-      ]
+    children = [
+      {Task.Supervisor, name: ArchEthic.TaskSupervisor},
+      ArchEthic.Telemetry,
+      {Registry, keys: :duplicate, name: ArchEthic.PubSubRegistry},
+      DBSupervisor,
+      TransactionChainSupervisor,
+      CryptoSupervisor,
+      ElectionSupervisor,
+      {P2PSupervisor, port: port},
+      MiningSupervisor,
+      BeaconChainSupervisor,
+      SharedSecretsSupervisor,
+      AccountSupervisor,
+      GovernanceSupervisor,
+      SelfRepairSupervisor,
+      OracleChainSupervisor,
+      ContractsSupervisor,
+      RewardSupervisor,
+      WebSupervisor,
+      NetworkingSupervisor,
+      {Bootstrap,
+       Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
+         port: port,
+         http_port: http_port,
+         transport: transport
+       )},
+      MetricSupervisor
+    ]
 
     opts = [strategy: :rest_for_one, name: ArchEthic.Supervisor]
     Supervisor.start_link(Utils.configurable_children(children), opts)
