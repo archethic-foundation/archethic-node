@@ -161,7 +161,12 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   @spec get_genesis_address(binary()) ::
           binary()
   def get_genesis_address(address) do
-    address = Base.decode16!(address)
+    address =
+      case Base.decode16(address, case: :mixed) do
+        {:ok, address} -> address
+        _ -> address
+      end
+
     nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
     {:ok, address} = download_first_address(nodes, address)
     address

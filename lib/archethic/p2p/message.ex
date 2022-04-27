@@ -1203,7 +1203,7 @@ defmodule ArchEthic.P2P.Message do
       {:ok, %Transaction{address: address}} ->
         %FirstAddress{address: address}
 
-      {:error, :transaction_not_exits} ->
+      {:error, :transaction_not_exists} ->
         %NotFound{}
     end
   end
