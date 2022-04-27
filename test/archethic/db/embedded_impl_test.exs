@@ -20,11 +20,11 @@ defmodule ArchEthic.DB.EmbeddedTest do
 
     :persistent_term.put(:archethic_db_path, db_path)
 
-    {:ok, _} = ChainIndex.start_link(path: db_path)
-    {:ok, _} = ChainWriter.start_link(path: db_path)
-    {:ok, _} = BootstrapInfo.start_link(path: db_path)
-    {:ok, _} = StatsInfo.start_link(path: db_path)
-    {:ok, _} = P2PView.start_link(path: db_path)
+    ChainIndex.start_link(path: db_path)
+    ChainWriter.start_link(path: db_path)
+    BootstrapInfo.start_link(path: db_path)
+    StatsInfo.start_link(path: db_path)
+    P2PView.start_link(path: db_path)
 
     on_exit(fn ->
       File.rm_rf!(Application.app_dir(:archethic, "data_test"))
