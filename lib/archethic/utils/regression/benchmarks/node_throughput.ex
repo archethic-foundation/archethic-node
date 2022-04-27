@@ -14,6 +14,8 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
+  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient
+
   # behaviour
   @behaviour Benchmark
 
@@ -38,6 +40,8 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def benchmark(host, port) do
+    # doesnot accept wss
+    WSClient.Subscriber.start_ws_client(host: host, port: port)
     # via_helpers(host, port)
     via_playbook(host, port)
   end

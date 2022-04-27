@@ -15,6 +15,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias ArchEthic.Utils.WebClient
+  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
 
   @callback play!([String.t()], Keyword.t()) :: :ok
 
@@ -76,14 +77,16 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       |> Transaction.previous_sign_transaction(previous_private_key)
       |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
 
-    Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
-
     true =
       Crypto.verify?(
         tx.previous_signature,
         Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
         tx.previous_public_key
       )
+
+    Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
+
+    replication_attestation = TPSHelper.await_replication(tx.address |> Base.encode16())
 
     case WebClient.with_connection(
            host,
@@ -92,8 +95,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
          ) do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
-
-        Logger.debug("playbook case dispatch", binding())
+        Task.await(replication_attestation)
 
       _ ->
         :error

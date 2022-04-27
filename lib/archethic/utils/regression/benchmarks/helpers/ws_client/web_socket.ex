@@ -19,9 +19,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WebSocket do
     host = Keyword.get(opts, :host, "localhost")
     port = Keyword.get(opts, :port, "4000")
 
-    ws_url = """
-      ws://#{host}:#{port}/socket/websocket
-    """
+    ws_url = "ws://#{host}:#{port}/socket/websocket"
 
     state = %{
       subscriptions: %{},

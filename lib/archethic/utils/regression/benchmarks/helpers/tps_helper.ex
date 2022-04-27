@@ -15,6 +15,8 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
 
   alias ArchEthic.Utils.WebClient
   alias ArchEthic.Crypto
+  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient
+
   require Logger
 
   #  module constants
@@ -117,14 +119,42 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
     txn
   end
 
-  def await_replication(txn_address, host, port) do
+  def prepare_query(txn_address),
+    do: """
+    subscription {
+      transactionConfirmed(address:
+        "#{txn_address}") {
+        nbConfirmations
+      }
+    }
+    """
+
+  def await_replication(txn_address) do
     Task.async(fn ->
-      register_for_replication_attestation(txn_address, host, port)
+      WSClient.Subscriber.absinthe_sub(
+        prepare_query(txn_address),
+        _var = %{},
+        _pid = self(),
+        _sub_id = txn_address
+      )
+
+      data =
+        receive do
+          msg ->
+            Logger.debug("txn->#{inspect(txn_address)}")
+            Logger.debug("response->#{inspect(msg)}")
+            msg
+        end
+
+      case data do
+        %{"transactionConfirmed" => %{"nbConfirmations" => 1}} -> {:ok, :success}
+        data -> {:error, error_info: data}
+      end
     end)
   end
 
   def deploy_txn(txn, host, port) do
-    replication_subscription = await_replication(txn.address, host, port)
+    replication_subscription = await_replication(txn.address)
 
     case dispatch_txn_to_public_endpoint(txn, host, port) do
       {:ok, _txn_address} ->
@@ -137,20 +167,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
         raise "Sending txn failed"
     end
   end
-
-  # def verify_txn_as_txn_chain(txn_address, recipient_address, host, port) do
-  #  IO.inspect(binding())
-  #   query =
-  #     "query { last_transaction(address: \"#{Base.encode16(recipient_address)}\") { address } }"
-
-  #   case WebClient.with_connection(host, port, &WebClient.query(&1, query)) do
-  #     {:ok, %{"data" => %{"last_transaction" => %{"address" => address}}}} ->
-  #       {:ok, address == txn_address}
-
-  #     _ ->
-  #       {:error, false}
-  #   end
-  # end
 
   def dispatch_txn_to_public_endpoint(txn, host, port) do
     true =
@@ -171,10 +187,6 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper do
       _ ->
         {:error, nil}
     end
-  end
-
-  def register_for_replication_attestation(txn_address, host, port) do
-    Logger.debug("register_for_replication_attestation", binding())
   end
 
   defp txn_to_json(%Transaction{
