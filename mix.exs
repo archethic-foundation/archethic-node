@@ -47,7 +47,6 @@ defmodule ArchEthic.MixProject do
       {:cors_plug, "~> 1.5"},
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.5"},
-      {:poison, "~> 5.0", only: :dev},
 
       # Dev
       {:benchee, "~> 1.0"},

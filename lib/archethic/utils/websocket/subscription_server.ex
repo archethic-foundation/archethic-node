@@ -30,7 +30,7 @@ defmodule ArchEthic.Utils.WebSocket.SubscriptionServer do
 
   def handle_cast(
         {:subscribe, local_subscription_id, callback_or_dest, query, variables},
-        %{socket: socket, subscriptions: subscriptions} = state
+        state = %{socket: socket, subscriptions: subscriptions}
       ) do
     WebSocketHandler.subscribe(socket, self(), local_subscription_id, query, variables)
 
@@ -44,7 +44,7 @@ defmodule ArchEthic.Utils.WebSocket.SubscriptionServer do
   # Incoming Notifications (from WSClient.WebSocketHandler)
   def handle_cast(
         {:subscription, local_subscription_id, response},
-        %{subscriptions: subscriptions} = state
+        state = %{subscriptions: subscriptions}
       ) do
     subscriptions
     |> Map.get(local_subscription_id, [])

@@ -45,7 +45,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     WebSockex.cast(socket, {:subscribe, {pid, local_subscription_id, query, variables}})
   end
 
-  def handle_connect(_conn, %{socket: socket} = state) do
+  def handle_connect(_conn, state = %{socket: socket}) do
     # Logger.info "#{__MODULE__} - Connected: #{inspect conn}"
 
     WebSockex.cast(socket, {:join})
@@ -57,7 +57,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     {:ok, state}
   end
 
-  def handle_disconnect(map, %{heartbeat_timer: heartbeat_timer} = state) do
+  def handle_disconnect(map, state = %{heartbeat_timer: heartbeat_timer}) do
     Logger.error("#{__MODULE__} - Disconnected: #{inspect(map)}")
 
     if heartbeat_timer do
@@ -71,7 +71,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     {:reconnect, state}
   end
 
-  def handle_info(:heartbeat, %{socket: socket} = state) do
+  def handle_info(:heartbeat, state = %{socket: socket}) do
     WebSockex.cast(socket, {:heartbeat})
 
     # Send another heartbeat
@@ -87,7 +87,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     {:ok, state}
   end
 
-  def handle_cast({:join}, %{queries: queries, msg_ref: msg_ref} = state) do
+  def handle_cast({:join}, state = %{queries: queries, msg_ref: msg_ref}) do
     msg =
       %{
         topic: "__absinthe__:control",
@@ -95,7 +95,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
         payload: %{},
         ref: msg_ref
       }
-      |> Poison.encode!()
+      |> Jason.encode!()
 
     queries = Map.put(queries, msg_ref, {:join})
 
@@ -107,7 +107,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     {:reply, {:text, msg}, state}
   end
 
-  def handle_cast({:heartbeat}, %{queries: queries, msg_ref: msg_ref} = state) do
+  def handle_cast({:heartbeat}, state = %{queries: queries, msg_ref: msg_ref}) do
     msg =
       %{
         topic: "phoenix",
@@ -115,7 +115,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
         payload: %{},
         ref: msg_ref
       }
-      |> Poison.encode!()
+      |> Jason.encode!()
 
     queries = Map.put(queries, msg_ref, {:heartbeat})
 
@@ -129,7 +129,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
 
   def handle_cast(
         {:query, {pid, ref, query, variables}},
-        %{queries: queries, msg_ref: msg_ref} = state
+        state = %{queries: queries, msg_ref: msg_ref}
       ) do
     doc = %{
       "query" => query,
@@ -143,7 +143,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
         payload: doc,
         ref: msg_ref
       }
-      |> Poison.encode!()
+      |> Jason.encode!()
 
     queries = Map.put(queries, msg_ref, {:query, pid, ref})
 
@@ -157,7 +157,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
 
   def handle_cast(
         {:subscribe, {pid, local_subscription_id, query, variables}},
-        %{queries: queries, msg_ref: msg_ref} = state
+        state = %{queries: queries, msg_ref: msg_ref}
       ) do
     doc = %{
       "query" => query,
@@ -171,7 +171,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
         payload: doc,
         ref: msg_ref
       }
-      |> Poison.encode!()
+      |> Jason.encode!()
 
     queries = Map.put(queries, msg_ref, {:subscribe, pid, local_subscription_id})
 
@@ -192,7 +192,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
   def handle_frame({:text, msg}, state) do
     msg =
       msg
-      |> Poison.decode!()
+      |> Jason.decode!()
 
     handle_msg(msg, state)
   end
@@ -209,45 +209,16 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     state =
       case command do
         {:query, pid, ref} ->
-          case status do
-            :ok ->
-              data = payload["response"]["data"]
-              GenServer.cast(pid, {:query_response, ref, {status, data}})
-
-            :error ->
-              errors = payload["response"]["errors"]
-              GenServer.cast(pid, {:query_response, ref, {status, errors}})
-          end
-
-          state
+          phx_event({:query, pid, ref}, status, payload, state)
 
         {:subscribe, pid, local_subscription_id} ->
-          unless status == :ok do
-            raise "Subscription Error - #{inspect(payload)}"
-          end
-
-          subscription_id = payload["response"]["subscriptionId"]
-
-          subscriptions =
-            Map.put(state.subscriptions, subscription_id, {pid, local_subscription_id})
-
-          Map.put(state, :subscriptions, subscriptions)
+          phx_event({:subscribe, pid, local_subscription_id}, status, payload, state)
 
         {:join} ->
-          unless status == :ok do
-            raise "Join Error - #{inspect(payload)}"
-          end
-
-          GenServer.cast(state.subscription_server, {:joined})
-
-          state
+          phx_event({:join}, status, payload, state)
 
         {:heartbeat} ->
-          unless status == :ok do
-            raise "Heartbeat Error - #{inspect(payload)}"
-          end
-
-          state
+          phx_event({:heartbeat}, status, payload, state)
       end
 
     {:ok, state}
@@ -255,7 +226,7 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
 
   def handle_msg(
         %{"event" => "subscription:data", "payload" => payload, "topic" => subscription_id},
-        %{subscriptions: subscriptions} = state
+        state = %{subscriptions: subscriptions}
       ) do
     {pid, local_subscription_id} = Map.get(subscriptions, subscription_id)
 
@@ -270,5 +241,49 @@ defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
     Logger.info("#{__MODULE__} - Msg: #{inspect(msg)}")
 
     {:ok, state}
+  end
+
+  def phx_event({:query, pid, ref}, status, payload, state) do
+    case status do
+      :ok ->
+        data = payload["response"]["data"]
+        GenServer.cast(pid, {:query_response, ref, {status, data}})
+
+      :error ->
+        errors = payload["response"]["errors"]
+        GenServer.cast(pid, {:query_response, ref, {status, errors}})
+    end
+
+    state
+  end
+
+  def phx_event({:subscribe, pid, local_subscription_id}, status, payload, state) do
+    unless status == :ok do
+      raise "Subscription Error - #{inspect(payload)}"
+    end
+
+    subscription_id = payload["response"]["subscriptionId"]
+
+    subscriptions = Map.put(state.subscriptions, subscription_id, {pid, local_subscription_id})
+
+    Map.put(state, :subscriptions, subscriptions)
+  end
+
+  def phx_event({:join}, status, payload, state) do
+    unless status == :ok do
+      raise "Join Error - #{inspect(payload)}"
+    end
+
+    GenServer.cast(state.subscription_server, {:joined})
+
+    state
+  end
+
+  def phx_event({:heartbeat}, status, payload, state) do
+    unless status == :ok do
+      raise "Heartbeat Error - #{inspect(payload)}"
+    end
+
+    state
   end
 end

@@ -45,7 +45,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   end
 
   def benchmark(host, port) do
-    # doesnot accept wss
+    # does not accept wss
     WSClient.start_ws_client(host: host, port: port)
     via_playbook(host, port)
   end
@@ -113,8 +113,7 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
       data =
         receive do
           msg ->
-            Logger.debug("txn->#{inspect(txn_address)}")
-            Logger.debug("response->#{inspect(msg)}")
+            Logger.debug("#{inspect(txn_address)}|#{inspect(msg)}")
             msg
         end
 
