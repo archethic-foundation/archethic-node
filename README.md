@@ -5,7 +5,7 @@ Welcome to the Archethic Node source repository ! This software enables you to b
 Archethic features:
 - Fast transaction processing (> 1M tps)
 - Lower energy consumption than other blockchain (3.6 Billion times less energy consumption than Bitcoin)
-- Designed for the highest level of security (ARCH consensus supports 90% of maliciousness)
+- Designed for the highest level of security (ARCH consensus can handle upto 90% of maliciousness)
 - Adaptive cryptographic algorithms (quantum resistant)
 - Decentralized Identity and Self Sovereign Identity
 - Smart contract platform powered by a built-in interpreter
