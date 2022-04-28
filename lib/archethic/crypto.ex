@@ -1169,6 +1169,24 @@ defmodule ArchEthic.Crypto do
   def default_curve, do: Application.get_env(:archethic, __MODULE__)[:default_curve]
 
   @doc """
+  Get the origin seed for a given origin family
+  """
+  @spec get_origin_family_seed(supported_origin()) :: binary()
+  def get_origin_family_seed(origin_id) do
+    storage_nonce() <>
+      case origin_id do
+        :software ->
+          "software"
+
+        :on_chain_wallet ->
+          "software"
+
+        _ ->
+          "hardware"
+      end
+  end
+
+  @doc """
   Determine if the origin of the key is allowed
 
   This prevent software keys to be used in prod, as we want secure element to prevent malicious nodes
