@@ -91,4 +91,12 @@ defmodule ArchEthic.SharedSecrets do
     |> Keyword.get(NodeRenewalScheduler)
     |> NodeRenewalScheduler.config_change()
   end
+
+  @doc """
+  Get the origin seed for a given origin family
+  """
+  @spec get_origin_family_seed(origin_family()) :: binary()
+  def get_origin_family_seed(origin_family) do
+    <<Crypto.storage_nonce()::binary, Atom.to_string(origin_family)::binary>>
+  end
 end

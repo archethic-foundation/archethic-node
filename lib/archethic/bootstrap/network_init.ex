@@ -89,7 +89,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
 
     origin_seed = :crypto.strong_rand_bytes(32)
     secret_key = :crypto.strong_rand_bytes(32)
-    signing_seed = Crypto.get_origin_family_seed(:software)
+    signing_seed = SharedSecrets.get_origin_family_seed(:software)
 
     # Default keypair generation creates software public key
     {origin_public_key, origin_private_key} = Crypto.generate_deterministic_keypair(origin_seed)
@@ -103,8 +103,7 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
           condition inherit: [
             # We need to ensure the type stays consistent
             # So we can apply specific rules during the transaction validation
-            type: origin_shared_secrets,
-            origin_family: software
+            type: origin_shared_secrets
           ]
         """,
         content: <<origin_public_key::binary>>,
