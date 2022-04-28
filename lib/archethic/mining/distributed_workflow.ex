@@ -671,6 +671,20 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   end
 
   def handle_event(
+        :info,
+        {:replication_error, reason},
+        :replication,
+        _ = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error("Replication error - #{inspect(reason)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    :stop
+  end
+
+  def handle_event(
         {:timeout, :stop_timeout},
         :any,
         _state,
@@ -684,8 +698,20 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :stop
   end
 
-  # Reject unexpected events
-  def handle_event(_, _, _, _), do: :keep_state_and_data
+  def handle_event(
+        event_type,
+        event,
+        state,
+        _ = %{validation_context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error(
+      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    :keep_state_and_data
+  end
 
   defp notify_transaction_context(
          %ValidationContext{
@@ -799,8 +825,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)
     |> Stream.each(fn
-      {%Error{}, _node} ->
-        send(me, :replication_error)
+      {%Error{reason: reason}, _node} ->
+        send(me, {:replication_error, reason})
 
       {%AcknowledgeStorage{
          signature: signature
