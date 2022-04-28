@@ -1,10 +1,10 @@
-defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WebSocket do
+defmodule ArchEthic.Utils.WebSocket.WebSocketHandler do
   @moduledoc """
    Genserver with WebSockex to handle websocket (for absinthe subscription)
   """
   use WebSockex
   require Logger
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionServer
+  alias ArchEthic.Utils.WebSocket.SubscriptionServer
 
   @heartbeat_sleep 15_000
   @disconnect_sleep 15_000

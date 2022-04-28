@@ -1,10 +1,10 @@
-defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WSSupervisor do
+defmodule ArchEthic.Utils.WebSocket.WSSupervisor do
   @moduledoc """
     Supervisor for WS SubscriptionServer and WebSocket
   """
   use Supervisor
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionServer
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WebSocket
+  alias ArchEthic.Utils.WebSocket.SubscriptionServer
+  alias ArchEthic.Utils.WebSocket.WebSocketHandler
 
   def start_link(args \\ %{}) do
     Supervisor.start_link(__MODULE__, args, name: :GQL_Client)
@@ -13,7 +13,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WSSupervisor do
   def init(args) do
     children = [
       {SubscriptionServer, args},
-      {WebSocket, args}
+      {WebSocketHandler, args}
     ]
 
     Supervisor.init(children, strategy: :one_for_all)

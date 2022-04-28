@@ -5,19 +5,24 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
   require Logger
 
   # alias modules
-
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
   alias ArchEthic.Utils.Regression.Benchmark
+  alias ArchEthic.Utils.WSClient
+  alias ArchEthic.Crypto
 
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient
-
   # behaviour
   @behaviour Benchmark
+
+  def faucet_enabled?(),
+    do: {
+      :ok,
+      # System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"}
+      true
+    }
 
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
@@ -41,28 +46,24 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
 
   def benchmark(host, port) do
     # doesnot accept wss
-    WSClient.Subscriber.start_ws_client(host: host, port: port)
-    via_helpers(host, port)
-    # via_playbook(host, port)
+    WSClient.start_ws_client(host: host, port: port)
+    via_playbook(host, port)
   end
 
-  # gives error via playbook methods,
-  # erro : thrown is invalid txns
   def via_playbook(host, port) do
     alias ArchEthic.Utils.Regression.Playbook
-    # IO.inspect(binding(), label: "txn_process")
 
-    {sender_seed, receiver_seed} = {TPSHelper.random_seed(), TPSHelper.random_seed()}
+    {sender_seed, receiver_seed} = {random_seed(), random_seed()}
 
     sender_seed
-    |> TPSHelper.derive_keypair()
-    |> TPSHelper.acquire_genesis_address()
+    |> derive_keypair()
+    |> acquire_genesis_address()
     |> Playbook.send_funds_to(host, port)
 
     recipient_address =
       receiver_seed
-      |> TPSHelper.derive_keypair()
-      |> TPSHelper.acquire_genesis_address()
+      |> derive_keypair()
+      |> acquire_genesis_address()
 
     txn_data = %TransactionData{
       ledger: %Ledger{
@@ -80,45 +81,47 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
     Playbook.send_transaction(sender_seed, :transfer, txn_data, host, port)
   end
 
-  def via_helpers(host, port) do
-    # IO.inspect(binding(), label: "results")
-    txn_list =
-      Enum.map([1], fn _x ->
-        txn_process(host, port)
-      end)
+  def get_curve(), do: Crypto.default_curve()
 
-    _results =
-      Enum.map(txn_list, fn {_, _, txn} ->
-        case TPSHelper.deploy_txn(txn, host, port) do
-          {:ok} -> :ok
-          {:error} -> :error
+  def random_seed(), do: Integer.to_string(System.unique_integer([:monotonic]))
+
+  def derive_keypair(seed, index \\ 0), do: Crypto.derive_keypair(seed, index, get_curve())
+
+  def acquire_genesis_address({pbKey, _privKey}), do: Crypto.derive_address(pbKey)
+
+  def get_address(pbKey), do: Crypto.derive_address(pbKey)
+
+  def prepare_query(txn_address),
+    do: """
+    subscription {
+      transactionConfirmed(address:
+        "#{txn_address}") {
+        nbConfirmations
+      }
+    }
+    """
+
+  def await_replication(txn_address) do
+    Task.async(fn ->
+      WSClient.absinthe_sub(
+        prepare_query(txn_address),
+        _var = %{},
+        _pid = self(),
+        _sub_id = txn_address
+      )
+
+      data =
+        receive do
+          msg ->
+            Logger.debug("txn->#{inspect(txn_address)}")
+            Logger.debug("response->#{inspect(msg)}")
+            msg
         end
-      end)
 
-    # IO.inspect(
-    #   Enum.map(txn_list, fn {txn_address, recipient_address, _} ->
-    #     TPSHelper.verify_txn_as_txn_chain(txn_address, recipient_address, host, port)
-    #   end)
-    # )
-  end
-
-  def txn_process(host, port) do
-    {sender_seed, receiver_seed} = {TPSHelper.random_seed(), TPSHelper.random_seed()}
-
-    sender_seed
-    |> TPSHelper.derive_keypair()
-    |> TPSHelper.acquire_genesis_address()
-    |> TPSHelper.allocate_funds(host, port)
-
-    recipient_address =
-      receiver_seed
-      |> TPSHelper.derive_keypair()
-      |> TPSHelper.acquire_genesis_address()
-
-    txn =
-      sender_seed
-      |> TPSHelper.build_txn(recipient_address, :transfer, host, port)
-
-    {txn.address, recipient_address, txn}
+      case data do
+        %{"transactionConfirmed" => %{"nbConfirmations" => 1}} -> {:ok, :success}
+        data -> {:error, error_info: data}
+      end
+    end)
   end
 end

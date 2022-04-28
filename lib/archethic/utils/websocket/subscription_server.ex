@@ -1,16 +1,16 @@
-defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionServer do
+defmodule ArchEthic.Utils.WebSocket.SubscriptionServer do
   @moduledoc "
     Genserver that handles subscription logic.
   "
   use GenServer
   require Logger
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WebSocket
+  alias ArchEthic.Utils.WebSocket.WebSocketHandler
 
   def start_link(opts) do
     name = Keyword.get(opts, :ss_name, __MODULE__)
 
     state = %{
-      socket: WebSocket,
+      socket: WebSocketHandler,
       subscriptions: %{}
     }
 
@@ -32,7 +32,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionSer
         {:subscribe, local_subscription_id, callback_or_dest, query, variables},
         %{socket: socket, subscriptions: subscriptions} = state
       ) do
-    WebSocket.subscribe(socket, self(), local_subscription_id, query, variables)
+    WebSocketHandler.subscribe(socket, self(), local_subscription_id, query, variables)
 
     callbacks = Map.get(subscriptions, local_subscription_id, [])
     subscriptions = Map.put(subscriptions, local_subscription_id, [callback_or_dest | callbacks])
@@ -41,7 +41,7 @@ defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionSer
     {:noreply, state}
   end
 
-  # Incoming Notifications (from WSClient.WebSocket)
+  # Incoming Notifications (from WSClient.WebSocketHandler)
   def handle_cast(
         {:subscription, local_subscription_id, response},
         %{subscriptions: subscriptions} = state

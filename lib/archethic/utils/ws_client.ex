@@ -1,9 +1,9 @@
-defmodule ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.Subscriber do
+defmodule ArchEthic.Utils.WSClient do
   @moduledoc """
     GQL ABsinthe Subscription Abstraction provider.
   """
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.WSSupervisor
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.WSClient.SubscriptionServer
+  alias ArchEthic.Utils.WebSocket.WSSupervisor
+  alias ArchEthic.Utils.WebSocket.SubscriptionServer
 
   def start_ws_client(opts) do
     WSSupervisor.start_link(opts)

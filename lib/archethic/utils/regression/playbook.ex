@@ -15,7 +15,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias ArchEthic.Utils.WebClient
-  alias ArchEthic.Utils.Regression.Benchmarks.Helpers.TPSHelper
+  alias ArchEthic.Utils.Regression.Benchmark.NodeThroughput
 
   @callback play!([String.t()], Keyword.t()) :: :ok
 
@@ -86,7 +86,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
 
-    replication_attestation = TPSHelper.await_replication(tx.address |> Base.encode16())
+    replication_attestation = NodeThroughput.await_replication(tx.address |> Base.encode16())
 
     case WebClient.with_connection(
            host,
@@ -185,6 +185,9 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
       {:ok, %{"data" => %{"last_transaction" => %{"chainLength" => chain_length}}}} ->
         chain_length
+
+      {:error, error_info} ->
+        raise "chain size failed #{error_info}"
     end
   end
 
