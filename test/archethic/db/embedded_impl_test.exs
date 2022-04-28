@@ -2,12 +2,9 @@ defmodule ArchEthic.DB.EmbeddedTest do
   use ArchEthicCase, async: false
 
   alias ArchEthic.DB.EmbeddedImpl
-  alias ArchEthic.DB.EmbeddedImpl.BootstrapInfo
   alias ArchEthic.DB.EmbeddedImpl.Encoding
   alias ArchEthic.DB.EmbeddedImpl.ChainIndex
   alias ArchEthic.DB.EmbeddedImpl.ChainWriter
-  alias ArchEthic.DB.EmbeddedImpl.P2PView
-  alias ArchEthic.DB.EmbeddedImpl.StatsInfo
 
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
@@ -15,16 +12,9 @@ defmodule ArchEthic.DB.EmbeddedTest do
   alias ArchEthic.TransactionFactory
 
   setup do
-    db_path = Application.app_dir(:archethic, "data_test")
-    File.mkdir_p!(db_path)
+    EmbeddedImpl.Supervisor.start_link()
 
-    :persistent_term.put(:archethic_db_path, db_path)
-
-    ChainIndex.start_link(path: db_path)
-    ChainWriter.start_link(path: db_path)
-    BootstrapInfo.start_link(path: db_path)
-    StatsInfo.start_link(path: db_path)
-    P2PView.start_link(path: db_path)
+    db_path = EmbeddedImpl.db_path()
 
     on_exit(fn ->
       File.rm_rf!(Application.app_dir(:archethic, "data_test"))
