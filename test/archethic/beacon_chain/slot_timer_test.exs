@@ -49,13 +49,12 @@ defmodule ArchEthic.BeaconChain.SlotTimerTest do
 
   test "receive create_slot message after timer elapsed" do
     {:ok, pid} = SlotTimer.start_link([interval: "*/1 * * * * * *"], [])
+    current = DateTime.utc_now()
 
     send(
       pid,
       {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
     )
-
-    current = DateTime.utc_now()
 
     receive do
       {:create_slot, time} ->

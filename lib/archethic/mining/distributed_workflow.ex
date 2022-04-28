@@ -35,6 +35,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.Replication
+
   alias ArchEthic.TaskSupervisor
 
   alias ArchEthic.TransactionChain.Transaction
@@ -622,7 +624,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         })
 
         {:keep_state, %{data | context: new_context},
-         {:next_event, :internal, :notify_attestation}}
+         [
+           {:next_event, :internal, :notify_attestation},
+           {:next_event, :internal, :notify_previous_chain}
+         ]}
       else
         {:keep_state, %{data | context: new_context}}
       end
@@ -666,6 +671,26 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     |> P2P.broadcast_message(%ReplicateTransaction{
       transaction: ValidationContext.get_validated_transaction(context)
     })
+
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :internal,
+        :notify_previous_chain,
+        :replication,
+        _data = %{
+          context: %ValidationContext{
+            transaction: tx,
+            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+          }
+        }
+      ) do
+    Replication.acknowledge_previous_storage_nodes(
+      tx.address,
+      Transaction.previous_address(tx),
+      tx_timestamp
+    )
 
     :stop
   end
