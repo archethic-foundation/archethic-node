@@ -65,9 +65,6 @@ defmodule ArchEthic.MixProject do
       {:ranch, "~> 2.1", override: true},
       {:connection, "~> 1.1"},
 
-      # DB
-      {:bloom_filter, "~>1.1.0"},
-
       # Net
       {:inet_ext, "~> 1.0"},
       {:inet_cidr, "~> 1.1", hex: :erl_cidr, override: true},

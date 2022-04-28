@@ -1131,7 +1131,7 @@ defmodule ArchEthic.P2P.Message do
         transaction: tx,
         ack_storage?: ack_storage?
       }) do
-    case Replication.validate_and_store_transaction_chain(tx, ack_storage?: ack_storage?) do
+    case Replication.validate_and_store_transaction_chain(tx) do
       :ok ->
         if ack_storage? do
           tx_summary = TransactionSummary.from_transaction(tx)

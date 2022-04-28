@@ -21,8 +21,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
     :ets.new(:archethic_db_last_index, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(:archethic_db_type_stats, [:set, :named_table, :public, read_concurrency: true])
 
-    :ets.new(:archethic_db_bloom_filters, [:set, :named_table, :public, read_concurrency: true])
-
     fill_tables(db_path)
 
     {:ok, %{db_path: db_path}}
@@ -30,8 +28,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
 
   defp fill_tables(db_path) do
     Enum.each(0..255, fn subset ->
-      bloom_filter = BloomFilter.new(256, 0.001)
-      :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
       subset_summary_filename = index_summary_path(db_path, subset)
       scan_summary_table(subset_summary_filename)
     end)
@@ -59,12 +55,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
          {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
       current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
       genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>
-
-      # Fill the bloom filters
-      <<subset::8, address_digest::binary>> = current_digest
-      [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
-      bloom_filter = BloomFilter.add(bloom_filter, address_digest)
-      :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
 
       # Register last addresses of genesis address
       true = :ets.insert(:archethic_db_last_index, {genesis_address, current_address})
@@ -123,7 +113,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec add_tx(binary(), binary(), non_neg_integer(), db_path :: String.t()) :: :ok
   def add_tx(
-        tx_address = <<_::8, _::8, subset::8, digest::binary>>,
+        tx_address = <<_::8, _::8, subset::8, _digest::binary>>,
         genesis_address,
         size,
         db_path
@@ -153,10 +143,6 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
       ],
       {genesis_address, 0, 0}
     )
-
-    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
-    bloom_filter = BloomFilter.add(bloom_filter, digest)
-    :ets.insert(:archethic_db_bloom_filters, {subset, bloom_filter})
 
     :ok
   end
@@ -193,10 +179,15 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
   @doc """
   Determine if a transaction exists
   """
-  @spec transaction_exists?(binary()) :: boolean()
-  def transaction_exists?(address = <<_::8, _::8, subset::8, digest::binary>>) do
-    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
-    :ets.member(:archethic_db_tx_index, address) or BloomFilter.has?(bloom_filter, digest)
+  @spec transaction_exists?(binary(), String.t()) :: boolean()
+  def transaction_exists?(address = <<_::8, _::8, _subset::8, _digest::binary>>, db_path) do
+    case get_tx_entry(address, db_path) do
+      {:ok, _} ->
+        true
+
+      {:error, :not_exists} ->
+        false
+    end
   end
 
   @doc """
@@ -217,22 +208,18 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
 
   defp search_tx_entry(search_address = <<_::8, _::8, digest::binary>>, db_path) do
     <<subset::8, _::binary>> = digest
-    [{_, bloom_filter}] = :ets.lookup(:archethic_db_bloom_filters, subset)
 
-    with true <- BloomFilter.has?(bloom_filter, digest),
-         {:ok, fd} <- File.open(index_summary_path(db_path, subset), [:binary, :read]) do
-      case do_search_tx_entry(fd, search_address) do
-        nil ->
-          :file.close(fd)
-          {:error, :not_exists}
+    case File.open(index_summary_path(db_path, subset), [:binary, :read]) do
+      {:ok, fd} ->
+        case do_search_tx_entry(fd, search_address) do
+          nil ->
+            :file.close(fd)
+            {:error, :not_exists}
 
-        {genesis_address, size, offset} ->
-          :file.close(fd)
-          {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
-      end
-    else
-      false ->
-        {:error, :not_exists}
+          {genesis_address, size, offset} ->
+            :file.close(fd)
+            {:ok, %{genesis_address: genesis_address, size: size, offset: offset}}
+        end
 
       {:error, _} ->
         {:error, :not_exists}
@@ -251,7 +238,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
          {:ok, <<size::32, offset::32>>} <- :file.read(fd, 8) do
       current_address = <<current_curve_id::8, current_hash_type::8, current_digest::binary>>
 
-      # If it's the address we are looking for, we return the genesis address 
+      # If it's the address we are looking for, we return the genesis address
       # and the chain file seeking information
       if current_address == search_address do
         genesis_address = <<genesis_curve_id::8, genesis_hash_type::8, genesis_digest::binary>>

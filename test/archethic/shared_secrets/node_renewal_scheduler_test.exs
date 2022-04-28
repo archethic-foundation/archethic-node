@@ -20,7 +20,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalSchedulerTest do
 
   setup do
     SelfRepairScheduler.start_link(interval: "0 0 0 * *")
-    start_supervised!({BeaconSlotTimer, interval: "* * * * * *"})
+    start_supervised!({BeaconSlotTimer, interval: "0 * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &Registry.register(SubsetRegistry, &1, []))
     :ok
   end

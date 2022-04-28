@@ -52,7 +52,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
     genesis_address = Transaction.previous_address(first_tx)
 
     Enum.each(sorted_chain, fn tx ->
-      unless ChainIndex.transaction_exists?(tx.address) do
+      unless ChainIndex.transaction_exists?(tx.address, db_path()) do
         ChainWriter.append_transaction(genesis_address, tx)
       end
     end)
@@ -63,7 +63,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   """
   @spec write_transaction(Transaction.t()) :: :ok
   def write_transaction(tx = %Transaction{}) do
-    if ChainIndex.transaction_exists?(tx.address) do
+    if ChainIndex.transaction_exists?(tx.address, db_path()) do
       {:error, :transaction_already_exists}
     else
       previous_address = Transaction.previous_address(tx)
@@ -83,7 +83,7 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   """
   @spec transaction_exists?(address :: binary()) :: boolean()
   def transaction_exists?(address) when is_binary(address) do
-    ChainIndex.transaction_exists?(address)
+    ChainIndex.transaction_exists?(address, db_path())
   end
 
   @doc """
