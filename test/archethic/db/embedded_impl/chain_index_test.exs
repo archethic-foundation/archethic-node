@@ -58,8 +58,8 @@ defmodule ArchEthic.DB.EmbeddedImpl.ChainIndexTest do
 
       # Remove the transaction from the cache and try the bloom filter
       :ets.delete(:archethic_db_tx_index, tx_address)
-      assert true == ChainIndex.transaction_exists?(tx_address)
-      assert false == ChainIndex.transaction_exists?(:crypto.strong_rand_bytes(32))
+      assert true == ChainIndex.transaction_exists?(tx_address, db_path)
+      assert false == ChainIndex.transaction_exists?(:crypto.strong_rand_bytes(32), db_path)
     end
   end
 end
