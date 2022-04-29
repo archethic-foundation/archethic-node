@@ -5,6 +5,8 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetFirstAddress
   alias ArchEthic.P2P.Message.FirstAddress
+  alias ArchEthic.P2P.Message.GetFirstPublicKey
+  alias ArchEthic.P2P.Message.FirstPublicKey
   alias ArchEthic.Election
 
   @doc """
@@ -165,6 +167,26 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
     {:ok, address} = download_first_address(nodes, address)
     address
   end
+
+  @doc """
+  Get the genesis public key
+  """
+  @spec get_genesis_public_key(binary()) :: binary()
+  def get_genesis_public_key(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    {:ok, key} = download_first_public_key(nodes, address)
+    key
+  end
+
+  defp download_first_public_key([node | rest], address) do
+    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+      {:ok, %FirstPublicKey{public_key: key}} -> {:ok, key}
+      {:ok, _} -> download_first_public_key(rest, address)
+      {:error, _} -> download_first_public_key(rest, address)
+    end
+  end
+
+  defp download_first_public_key([], _address), do: {:error, :network_issue}
 
   defp download_first_address([node | rest], address) do
     case P2P.send_message(node, %GetFirstAddress{address: address}) do

@@ -12,6 +12,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Node
   alias ArchEthic.P2P.Message.FirstAddress
+  alias ArchEthic.P2P.Message.FirstPublicKey
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
 
@@ -576,7 +577,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
       {:ok, %Contract{conditions: %{transaction: conditions}}} =
         ~s"""
         condition transaction: [
-          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
         ]
         """
         |> Interpreter.parse()
@@ -585,6 +586,35 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                Interpreter.valid_conditions?(
                  conditions,
                  %{"transaction" => %{"address" => :crypto.strong_rand_bytes(32)}}
+               )
+    end
+
+    test "shall get the first public of the chain in the conditions" do
+      public_key = "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+      b_public_key = Base.decode16!(public_key)
+
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, %FirstPublicKey{public_key: b_public_key}}
+      end)
+
+      {:ok, %Contract{conditions: %{transaction: conditions}}} =
+        ~s"""
+        condition transaction: [
+          key: get_genesis_public_key() == "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+        ]
+        """
+        |> Interpreter.parse()
+
+      assert true =
+               Interpreter.valid_conditions?(
+                 conditions,
+                 %{
+                   "transaction" => %{
+                     "key" =>
+                       "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+                   }
+                 }
                )
     end
 
