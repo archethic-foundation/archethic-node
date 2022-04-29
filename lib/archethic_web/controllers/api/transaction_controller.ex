@@ -124,8 +124,10 @@ defmodule ArchEthicWeb.API.TransactionController do
     end
   end
 
-  def origin_key(conn, %{"origin_public_key" => origin_public_key}) do
-    with {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+  def origin_key(conn, params) do
+    with %{"origin_public_key" => origin_public_key} <- params,
+         {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+         true <- Crypto.valid_public_key?(origin_public_key),
          <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key,
          {first_origin_family_public_key, _} <-
            SharedSecrets.get_origin_family_from_origin_id(origin_id)
@@ -139,7 +141,7 @@ defmodule ArchEthicWeb.API.TransactionController do
              Ownership.authorized_public_key?(ownership, origin_public_key)
            end) do
       res = %{
-        encrypted_origin_private_key: Base.encode16(ownership.secret),
+        encrypted_origin_private_keys: Base.encode16(ownership.secret),
         encrypted_secret_key:
           Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
       }
@@ -148,48 +150,21 @@ defmodule ArchEthicWeb.API.TransactionController do
       |> put_status(:ok)
       |> json(res)
     else
-      _reason ->
+      er when er in [:error, false] ->
+        send_resp(conn, 400, "Invalid public key")
+
+      {:error, _} ->
         conn
-        |> put_status(:not_found)
+        |> put_status(404)
         |> json([])
+
+      nil ->
+        conn
+        |> put_status(404)
+        |> json([])
+
+      _ ->
+        send_resp(conn, 400, "Invalid parameters")
     end
   end
-
-  # def origin_key(conn, %{"origin_public_key" => origin_public_key}) do
-  #   with {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
-  #        found_transactions <-
-  #          TransactionChain.list_transactions_by_type(:origin_shared_secrets, data: [:ownerships])
-  #          |> Stream.filter(fn %Transaction{data: %TransactionData{ownerships: ownerships}} ->
-  #            Enum.any?(ownerships, fn ownership ->
-  #              Ownership.authorized_public_key?(ownership, origin_public_key)
-  #            end)
-  #          end),
-  #        nb_tx when nb_tx > 0 <- Enum.count(found_transactions) do
-  #     IO.inspect("wesh")
-  #     res =
-  #       Enum.map(found_transactions, fn %Transaction{
-  #                                         data: %TransactionData{ownerships: ownerships}
-  #                                       } ->
-  #         with ownership <-
-  #                Enum.find(ownerships, fn ownership ->
-  #                  Ownership.authorized_public_key?(ownership, origin_public_key)
-  #                end) do
-  #           %{
-  #             encrypted_origin_private_key: Base.encode16(ownership.secret),
-  #             encrypted_secret_key:
-  #               Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
-  #           }
-  #         end
-  #       end)
-
-  #     conn
-  #     |> put_status(:ok)
-  #     |> json(res)
-  #   else
-  #     _reason ->
-  #       conn
-  #       |> put_status(:not_found)
-  #       |> json([])
-  #   end
-  # end
 end

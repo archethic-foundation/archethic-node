@@ -13,9 +13,6 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
 
   import Mox
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.TransactionChain
-
   setup do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -105,9 +102,12 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
 
   describe "origin_key/2" do
     test "should send not_found response for invalid params", %{conn: conn} do
-      conn = get(conn, "/api/origin_key/invalid")
+      conn =
+        post(conn, "/api/origin_key", %{
+          origin_public_key: "0001540315"
+        })
 
-      assert "[]" = response(conn, 404)
+      assert "Invalid public key" = response(conn, 400)
     end
 
     test "should send not_found response when public key isn't found in owner transactions", %{
@@ -133,7 +133,11 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
         Base.decode16!("0001DDDDDD")
       end)
 
-      conn = get(conn, "/api/origin_key/0001FFFFFF")
+      conn =
+        post(conn, "/api/origin_key", %{
+          origin_public_key:
+            "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39"
+        })
 
       assert "[]" = response(conn, 404)
     end
@@ -148,7 +152,12 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
              ownerships: [
                %Ownership{
                  secret: Base.decode16!("0001AAAAAA"),
-                 authorized_keys: %{Base.decode16!("0001BBBBBB") => Base.decode16!("0001CCCCCC")}
+                 authorized_keys: %{
+                   Base.decode16!(
+                     "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39",
+                     case: :mixed
+                   ) => Base.decode16!("0001CCCCCC")
+                 }
                }
              ]
            }
@@ -160,10 +169,14 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
         Base.decode16!("0001DDDDDD")
       end)
 
-      conn = get(conn, "/api/origin_key/0001BBBBBB")
+      conn =
+        post(conn, "/api/origin_key", %{
+          origin_public_key:
+            "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39"
+        })
 
       assert %{
-               "encrypted_origin_private_key" => "0001AAAAAA",
+               "encrypted_origin_private_keys" => "0001AAAAAA",
                "encrypted_secret_key" => "0001CCCCCC"
              } = json_response(conn, 200)
     end
