@@ -151,20 +151,32 @@ defmodule ArchEthicWeb.API.TransactionController do
       |> json(res)
     else
       er when er in [:error, false] ->
-        send_resp(conn, 400, "Invalid public key")
+        conn
+        |> put_status(400)
+        |> json(%{
+          error: "Invalid public key"
+        })
 
       {:error, _} ->
         conn
         |> put_status(404)
-        |> json([])
+        |> json(%{
+          error: "Public key not found"
+        })
 
       nil ->
         conn
         |> put_status(404)
-        |> json([])
+        |> json(%{
+          error: "Public key not found"
+        })
 
       _ ->
-        send_resp(conn, 400, "Invalid parameters")
+        conn
+        |> put_status(404)
+        |> json(%{
+          error: "Invalid parameters"
+        })
     end
   end
 end

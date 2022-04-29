@@ -107,7 +107,9 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
           origin_public_key: "0001540315"
         })
 
-      assert "Invalid public key" = response(conn, 400)
+      assert %{
+               "error" => "Invalid public key"
+             } = json_response(conn, 400)
     end
 
     test "should send not_found response when public key isn't found in owner transactions", %{
@@ -139,7 +141,9 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
             "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39"
         })
 
-      assert "[]" = response(conn, 404)
+      assert %{
+               "error" => "Public key not found"
+             } = json_response(conn, 404)
     end
 
     test "should send json secret values response when public key is found in owner transactions",
