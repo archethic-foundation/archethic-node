@@ -587,11 +587,12 @@ defmodule ArchEthic.Contracts.Interpreter do
        when scope != :root,
        do: {node, acc}
 
-  # Whitelist the get_genesis_address/1 function in condition
+  # Whitelist the get_genesis_address/1 function
   defp prewalk(
          node = {{:atom, "get_genesis_address"}, _, [_address]},
-         acc = {:ok, %{scope: :condition}}
-       ) do
+         acc = {:ok, %{scope: scope}}
+       )
+       when scope != :root do
     {node, acc}
   end
 
@@ -639,10 +640,10 @@ defmodule ArchEthic.Contracts.Interpreter do
   defp prewalk(node = {{:atom, "size"}, _, []}, acc = {:ok, %{scope: :condition}}),
     do: {node, acc}
 
-  # Whitelist the get_genesis_address/1 function in actions
+  # Whitelist the get_genesis_address/0 function in condition
   defp prewalk(
-         node = {{:atom, "get_genesis_address"}, _, [_address]},
-         acc = {:ok, %{scope: :actions}}
+         node = {{:atom, "get_genesis_address"}, _, []},
+         acc = {:ok, %{scope: :condition}}
        ) do
     {node, acc}
   end

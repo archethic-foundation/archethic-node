@@ -564,6 +564,30 @@ defmodule ArchEthic.Contracts.InterpreterTest do
       {:ok, [key: key]}
     end
 
+    test "shall get the first address of the chain in the conditions" do
+      address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+      b_address = Base.decode16!(address)
+
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, %FirstAddress{address: b_address}}
+      end)
+
+      {:ok, %Contract{conditions: %{transaction: conditions}}} =
+        ~s"""
+        condition transaction: [
+          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+        ]
+        """
+        |> Interpreter.parse()
+
+      assert true =
+               Interpreter.valid_conditions?(
+                 conditions,
+                 %{"transaction" => %{"address" => :crypto.strong_rand_bytes(32)}}
+               )
+    end
+
     @tag :genesis
     test "shall parse get_genesis_address/1 in actions" do
       address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
