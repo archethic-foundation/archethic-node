@@ -1,5 +1,5 @@
 defmodule ArchEthic.Contracts.InterpreterTest do
-  use ExUnit.Case
+  use ArchEthicCase
 
   alias ArchEthic.Contracts.Contract
   alias ArchEthic.Contracts.Contract.Conditions
@@ -9,14 +9,16 @@ defmodule ArchEthic.Contracts.InterpreterTest do
   alias ArchEthic.Contracts.Interpreter
 
   alias ArchEthic.Crypto
-
+  alias ArchEthic.P2P
+  alias ArchEthic.P2P.Node
+  alias ArchEthic.P2P.Message.FirstAddress
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
 
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
-
+  import Mox
   doctest Interpreter
 
   describe "parse/1" do
@@ -273,7 +275,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
                  add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
                  set_content \"Receipt\"
-                 add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"] 
+                 add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"]
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
                end
                """
@@ -522,7 +524,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
       condition inherit: [
       type: transfer,
       uco_transfers: size() == 1
-      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs 
+      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
       ]
 
 
@@ -541,5 +543,76 @@ defmodule ArchEthic.Contracts.InterpreterTest do
       end
       """
       |> Interpreter.parse()
+  end
+
+  describe "get_genesis_address/1" do
+    setup do
+      key = <<0::16, :crypto.strong_rand_bytes(32)::binary>>
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: key,
+        last_public_key: key,
+        available?: true,
+        geo_patch: "AAA",
+        network_patch: "AAA",
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      {:ok, [key: key]}
+    end
+
+    test "shall get the first address of the chain in the conditions" do
+      address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+      b_address = Base.decode16!(address)
+
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, %FirstAddress{address: b_address}}
+      end)
+
+      {:ok, %Contract{conditions: %{transaction: conditions}}} =
+        ~s"""
+        condition transaction: [
+          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+        ]
+        """
+        |> Interpreter.parse()
+
+      assert true =
+               Interpreter.valid_conditions?(
+                 conditions,
+                 %{"transaction" => %{"address" => :crypto.strong_rand_bytes(32)}}
+               )
+    end
+
+    @tag :genesis
+    test "shall parse get_genesis_address/1 in actions" do
+      address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+      b_address = Base.decode16!(address)
+
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, %FirstAddress{address: b_address}}
+      end)
+
+      {:ok, contract} =
+        ~s"""
+        actions triggered_by: transaction do
+          address = get_genesis_address "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+          if address == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" do
+            set_content "yes"
+          else
+            set_content "no"
+          end
+        end
+        """
+        |> Interpreter.parse()
+
+      assert %Transaction{data: %TransactionData{content: "yes"}} =
+               Interpreter.execute_actions(contract, :transaction)
+    end
   end
 end
