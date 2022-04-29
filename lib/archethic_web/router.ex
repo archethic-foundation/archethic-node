@@ -71,6 +71,8 @@ defmodule ArchEthicWeb.Router do
       :last_transaction_content
     )
 
+    get("/origin_key/:origin_public_key", ArchEthicWeb.API.TransactionController, :origin_key)
+
     post("/transaction", ArchEthicWeb.API.TransactionController, :new)
     post("/transaction_fee", ArchEthicWeb.API.TransactionController, :transaction_fee)
 

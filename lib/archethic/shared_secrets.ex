@@ -99,4 +99,21 @@ defmodule ArchEthic.SharedSecrets do
   def get_origin_family_seed(origin_family) do
     <<Crypto.storage_nonce()::binary, Atom.to_string(origin_family)::binary>>
   end
+
+  @doc """
+  Get the origin family for a given origin id
+  """
+  @spec get_origin_family_from_origin_id(non_neg_integer()) :: origin_family()
+  def get_origin_family_from_origin_id(origin_id) do
+    case Crypto.key_origin(origin_id) do
+      :software ->
+        :software
+
+      :on_chain_wallet ->
+        :software
+
+      _ ->
+        :biometric
+    end
+  end
 end

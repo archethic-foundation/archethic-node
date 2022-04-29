@@ -5,11 +5,15 @@ defmodule ArchEthicWeb.API.TransactionController do
 
   alias ArchEthic
 
+  alias ArchEthic.TransactionChain
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias ArchEthic.Crypto
 
   alias ArchEthic.Mining
   alias ArchEthic.OracleChain
+  alias ArchEthic.SharedSecrets
 
   alias ArchEthicWeb.API.TransactionPayload
   alias ArchEthicWeb.ErrorView
@@ -119,4 +123,73 @@ defmodule ArchEthicWeb.API.TransactionController do
         |> render("400.json", changeset: changeset)
     end
   end
+
+  def origin_key(conn, %{"origin_public_key" => origin_public_key}) do
+    with {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+         <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key,
+         {first_origin_family_public_key, _} <-
+           SharedSecrets.get_origin_family_from_origin_id(origin_id)
+           |> SharedSecrets.get_origin_family_seed()
+           |> Crypto.derive_keypair(0),
+         {:ok, tx} <-
+           Crypto.derive_address(first_origin_family_public_key)
+           |> TransactionChain.get_last_transaction(data: [:ownerships]),
+         ownership when ownership != nil <-
+           Enum.find(tx.data.ownerships, fn ownership ->
+             Ownership.authorized_public_key?(ownership, origin_public_key)
+           end) do
+      res = %{
+        encrypted_origin_private_key: Base.encode16(ownership.secret),
+        encrypted_secret_key:
+          Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
+      }
+
+      conn
+      |> put_status(:ok)
+      |> json(res)
+    else
+      _reason ->
+        conn
+        |> put_status(:not_found)
+        |> json([])
+    end
+  end
+
+  # def origin_key(conn, %{"origin_public_key" => origin_public_key}) do
+  #   with {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+  #        found_transactions <-
+  #          TransactionChain.list_transactions_by_type(:origin_shared_secrets, data: [:ownerships])
+  #          |> Stream.filter(fn %Transaction{data: %TransactionData{ownerships: ownerships}} ->
+  #            Enum.any?(ownerships, fn ownership ->
+  #              Ownership.authorized_public_key?(ownership, origin_public_key)
+  #            end)
+  #          end),
+  #        nb_tx when nb_tx > 0 <- Enum.count(found_transactions) do
+  #     IO.inspect("wesh")
+  #     res =
+  #       Enum.map(found_transactions, fn %Transaction{
+  #                                         data: %TransactionData{ownerships: ownerships}
+  #                                       } ->
+  #         with ownership <-
+  #                Enum.find(ownerships, fn ownership ->
+  #                  Ownership.authorized_public_key?(ownership, origin_public_key)
+  #                end) do
+  #           %{
+  #             encrypted_origin_private_key: Base.encode16(ownership.secret),
+  #             encrypted_secret_key:
+  #               Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
+  #           }
+  #         end
+  #       end)
+
+  #     conn
+  #     |> put_status(:ok)
+  #     |> json(res)
+  #   else
+  #     _reason ->
+  #       conn
+  #       |> put_status(:not_found)
+  #       |> json([])
+  #   end
+  # end
 end

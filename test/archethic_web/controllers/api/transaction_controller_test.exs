@@ -7,6 +7,15 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
   alias ArchEthic.P2P.Node
   alias ArchEthic.Crypto
 
+  alias ArchEthic.TransactionChain.Transaction
+  alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
+
+  import Mox
+
+  alias ArchEthic.SharedSecrets
+  alias ArchEthic.TransactionChain
+
   setup do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -91,6 +100,72 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
                },
                "status" => "invalid"
              } = json_response(conn, 400)
+    end
+  end
+
+  describe "origin_key/2" do
+    test "should send not_found response for invalid params", %{conn: conn} do
+      conn = get(conn, "/api/origin_key/invalid")
+
+      assert "[]" = response(conn, 404)
+    end
+
+    test "should send not_found response when public key isn't found in owner transactions", %{
+      conn: conn
+    } do
+      MockDB
+      |> stub(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             ownerships: [
+               %Ownership{
+                 secret: Base.decode16!("0001AAAAAA"),
+                 authorized_keys: %{Base.decode16!("0001BBBBBB") => Base.decode16!("0001CCCCCC")}
+               }
+             ]
+           }
+         }}
+      end)
+
+      MockDB
+      |> stub(:get_last_chain_address, fn _ ->
+        Base.decode16!("0001DDDDDD")
+      end)
+
+      conn = get(conn, "/api/origin_key/0001FFFFFF")
+
+      assert "[]" = response(conn, 404)
+    end
+
+    test "should send json secret values response when public key is found in owner transactions",
+         %{conn: conn} do
+      MockDB
+      |> stub(:get_transaction, fn _, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{
+             ownerships: [
+               %Ownership{
+                 secret: Base.decode16!("0001AAAAAA"),
+                 authorized_keys: %{Base.decode16!("0001BBBBBB") => Base.decode16!("0001CCCCCC")}
+               }
+             ]
+           }
+         }}
+      end)
+
+      MockDB
+      |> stub(:get_last_chain_address, fn _ ->
+        Base.decode16!("0001DDDDDD")
+      end)
+
+      conn = get(conn, "/api/origin_key/0001BBBBBB")
+
+      assert %{
+               "encrypted_origin_private_key" => "0001AAAAAA",
+               "encrypted_secret_key" => "0001CCCCCC"
+             } = json_response(conn, 200)
     end
   end
 end
