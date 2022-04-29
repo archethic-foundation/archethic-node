@@ -30,6 +30,31 @@ defmodule ArchEthic.Utils.Regression.Playbook do
     end
   end
 
+  def batch_send_funds_to(list_of_recipient_address, host, port, amount \\ 10) do
+    transfers =
+      Enum.map(list_of_recipient_address, fn address ->
+        %UCOTransfer{
+          to: address,
+          amount: amount * 100_000_000
+        }
+      end)
+
+    send_transaction(
+      @faucet_seed,
+      :transfer,
+      %TransactionData{
+        ledger: %Ledger{
+          uco: %UCOLedger{
+            transfers: transfers
+          }
+        }
+      },
+      host,
+      port,
+      :ed25519
+    )
+  end
+
   def send_funds_to(recipient_address, host, port, amount \\ 10) do
     send_transaction(
       @faucet_seed,
@@ -84,8 +109,57 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
-    Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
+    # Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
+    # replication_attestation = NodeThroughput.await_replication(tx.address |> Base.encode16())
 
+    case WebClient.with_connection(
+           host,
+           port,
+           &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
+         ) do
+      {:ok, %{"status" => "pending"}} ->
+        {:ok, tx.address}
+
+      # Task.await(replication_attestation, 50_000)
+
+      _ ->
+        :error
+    end
+  end
+
+  def send_transaction_with_await_replication(
+        transaction_seed,
+        tx_type,
+        transaction_data = %TransactionData{},
+        host,
+        port,
+        curve \\ Crypto.default_curve()
+      ) do
+    chain_length = get_chain_size(transaction_seed, curve, host, port)
+
+    {previous_public_key, previous_private_key} =
+      Crypto.derive_keypair(transaction_seed, chain_length, curve)
+
+    {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
+
+    tx =
+      %Transaction{
+        address: Crypto.derive_address(next_public_key),
+        type: tx_type,
+        data: transaction_data,
+        previous_public_key: previous_public_key
+      }
+      |> Transaction.previous_sign_transaction(previous_private_key)
+      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+
+    true =
+      Crypto.verify?(
+        tx.previous_signature,
+        Transaction.extract_for_previous_signature(tx) |> Transaction.serialize(),
+        tx.previous_public_key
+      )
+
+    Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
     replication_attestation = NodeThroughput.await_replication(tx.address |> Base.encode16())
 
     case WebClient.with_connection(
@@ -95,7 +169,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
          ) do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
-        Task.await(replication_attestation)
+        Task.await(replication_attestation, 50_000)
 
       _ ->
         :error
