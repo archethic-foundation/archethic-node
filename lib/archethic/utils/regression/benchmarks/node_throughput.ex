@@ -217,7 +217,10 @@ defmodule ArchEthic.Utils.Regression.Benchmark.NodeThroughput do
           |> Enum.map(&Task.await/1)
         end
       },
-      parallel: 100
+      parallel: 100,
+      before_scenario: fn -> 
+         allocate_funds( SeedProcess.get_state(pid), host, port)
+      end) 
     )
   end
 end
