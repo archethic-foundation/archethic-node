@@ -105,12 +105,23 @@ defmodule ArchEthic.SelfRepair.Sync do
     |> BeaconChain.next_summary_dates()
     |> Flow.from_enumerable()
     |> Flow.flat_map(&subsets_by_times/1)
-    |> Flow.partition(key: {:elem, 0})
-    |> Flow.reduce(
-      fn -> %BeaconSummaryAggregate{} end,
-      &aggregate_summaries_by_date(&1, &2, authorized_nodes)
-    )
-    |> Flow.emit(:state)
+    |> Flow.partition(key: {:elem, 0}, window: flow_window())
+    |> Flow.reduce(fn -> [] end, fn {time, subset}, acc ->
+      summary = get_beacon_summary(time, subset, authorized_nodes)
+
+      if BeaconSummary.empty?(summary) do
+        acc
+      else
+        [summary | acc]
+      end
+    end)
+    |> Flow.on_trigger(fn acc, _, {:fixed, time, :done} ->
+      agg = %BeaconSummaryAggregate{
+        summary_time: DateTime.from_unix!(time, :millisecond)
+      }
+
+      {[Enum.reduce(acc, agg, &BeaconSummaryAggregate.add_summary(&2, &1))], acc}
+    end)
     |> Stream.reject(&BeaconSummaryAggregate.empty?/1)
     |> Enum.sort_by(& &1.summary_time)
     |> Enum.each(&BeaconSummaryHandler.process_summary_aggregate(&1, patch))
@@ -123,33 +134,22 @@ defmodule ArchEthic.SelfRepair.Sync do
     Enum.map(subsets, fn subset -> {DateTime.truncate(time, :second), subset} end)
   end
 
-  # defp flow_window do
-  #   Flow.Window.fixed(, :second, fn {date, _} ->
-  #     DateTime.to_unix(date, :millisecond)
-  #   end)
-  # end
+  defp flow_window do
+    Flow.Window.fixed(summary_interval(:second), :second, fn {date, _} ->
+      DateTime.to_unix(date, :millisecond)
+    end)
+  end
 
-  # defp dates_interval_seconds(last_sync_date) do
-  #   DateTime.diff(last_sync_date, BeaconChain.next_summary_date(last_sync_date))
-  # end
+  defp summary_interval(unit) do
+    next_summary = BeaconChain.next_summary_date(DateTime.utc_now())
+    next_summary2 = BeaconChain.next_summary_date(next_summary)
+    DateTime.diff(next_summary2, next_summary, unit)
+  end
 
   defp get_beacon_summary(time, subset, node_list) do
     filter_nodes = Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
 
     nodes = Election.beacon_storage_nodes(subset, time, filter_nodes)
     BeaconSummaryHandler.get_full_beacon_summary(time, subset, nodes)
-  end
-
-  defp aggregate_summaries_by_date({time, subset}, acc, authorized_nodes) do
-    summary = get_beacon_summary(time, subset, authorized_nodes)
-
-    if BeaconSummary.empty?(summary) do
-      acc
-    else
-      acc
-      |> BeaconSummaryAggregate.initialize(summary)
-      |> BeaconSummaryAggregate.add_transaction_summaries(summary)
-      |> BeaconSummaryAggregate.add_p2p_availabilities(summary)
-    end
   end
 end

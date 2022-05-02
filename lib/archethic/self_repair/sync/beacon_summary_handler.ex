@@ -45,6 +45,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler do
     )
     |> Enum.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
     |> Enum.map(fn {:ok, {:ok, summary}} -> summary end)
+    |> Enum.reject(&BeaconSummary.empty?/1)
     |> Enum.reduce(
       %{
         transaction_attestations: [],
