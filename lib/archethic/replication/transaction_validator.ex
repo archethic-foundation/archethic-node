@@ -390,12 +390,9 @@ defmodule ArchEthic.Replication.TransactionValidator do
          previous_unspent_outputs
        ) do
     %LedgerOperations{
-      fee: get_transaction_fee(tx),
-      transaction_movements:
-        tx
-        |> Transaction.get_movements()
-        |> LedgerOperations.resolve_transaction_movements(timestamp)
+      fee: get_transaction_fee(tx)
     }
+    |> LedgerOperations.resolve_transaction_movements(Transaction.get_movements(tx), timestamp)
     |> LedgerOperations.from_transaction(tx)
     |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
   end

@@ -706,25 +706,31 @@ defmodule ArchEthic.Mining.ValidationContext do
       ) do
     initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
 
+    validation_time = DateTime.utc_now()
+
+    usd_price =
+      validation_time
+      |> OracleChain.get_uco_price()
+      |> Keyword.fetch!(:usd)
+
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
         ledger_operations:
           %LedgerOperations{
-            transaction_movements:
-              tx
-              |> Transaction.get_movements()
-              |> LedgerOperations.resolve_transaction_movements(DateTime.utc_now()),
             fee:
               Fee.calculate(
                 tx,
-                OracleChain.get_uco_price(DateTime.utc_now()) |> Keyword.fetch!(:usd)
+                usd_price
               )
           }
+          |> LedgerOperations.resolve_transaction_movements(
+            Transaction.get_movements(tx),
+            validation_time
+          )
           |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
         recipients: resolve_transaction_recipients(tx),
