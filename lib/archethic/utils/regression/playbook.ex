@@ -5,6 +5,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
   require Logger
   alias ArchEthic.Crypto
 
+  alias ArchEthic.Utils.WebSocket.Client, as: WSClient
+
   alias ArchEthic.TransactionChain.Transaction
   alias ArchEthic.TransactionChain.TransactionData
   alias ArchEthic.TransactionChain.TransactionData.Ledger
@@ -15,7 +17,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   alias ArchEthic.Utils.WebClient
-  alias ArchEthic.Utils.Regression.Benchmark.NodeThroughput
 
   @callback play!([String.t()], Keyword.t()) :: :ok
 
@@ -39,7 +40,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         }
       end)
 
-    send_transaction(
+    send_transaction_with_await_replication(
       @faucet_seed,
       :transfer,
       %TransactionData{
@@ -109,9 +110,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
-    # Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
-    # replication_attestation = NodeThroughput.await_replication(tx.address |> Base.encode16())
-
     case WebClient.with_connection(
            host,
            port,
@@ -119,8 +117,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
          ) do
       {:ok, %{"status" => "pending"}} ->
         {:ok, tx.address}
-
-      # Task.await(replication_attestation, 50_000)
 
       _ ->
         :error
@@ -159,8 +155,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
-    Logger.debug("#{tx.address |> Base.encode16()}, label: txn address ")
-    replication_attestation = NodeThroughput.await_replication(tx.address |> Base.encode16())
+    replication_attestation = Task.async(fn -> await_replication(tx.address) end)
 
     case WebClient.with_connection(
            host,
@@ -168,11 +163,50 @@ defmodule ArchEthic.Utils.Regression.Playbook do
            &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
          ) do
       {:ok, %{"status" => "pending"}} ->
-        {:ok, tx.address}
-        Task.await(replication_attestation, 50_000)
+        case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
+          {:ok, :ok} ->
+            :ok
 
-      _ ->
-        :error
+          {:ok, {:error, reason}} ->
+            Logger.error(
+              "Transaction #{Base.encode16(tx.address)}confirmation fails - #{inspect(reason)}"
+            )
+
+            {:error, reason}
+
+          nil ->
+            Logger.error("Transaction #{Base.encode16(tx.address)} validation timeouts")
+            {:error, :timeout}
+        end
+
+      {:error, reason} ->
+        Logger.error(
+          "Transaction #{Base.encode16(tx.address)} submission fails - #{inspect(reason)}"
+        )
+    end
+  end
+
+  defp await_replication(txn_address) do
+    query = """
+     subscription {
+       transactionConfirmed(address: "#{Base.encode16(txn_address)}") {
+         nbConfirmations
+       }
+     }
+    """
+
+    WSClient.absinthe_sub(
+      query,
+      _var = %{},
+      _sub_id = Base.encode16(txn_address)
+    )
+
+    receive do
+      %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 

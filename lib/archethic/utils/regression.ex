@@ -5,16 +5,16 @@ defmodule ArchEthic.Utils.Regression do
   require Logger
 
   alias ArchEthic.Utils
-  # alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
+  alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
 
   alias ArchEthic.Utils.Regression.Playbook.SmartContract
   alias ArchEthic.Utils.Regression.Playbook.UCO
 
   alias ArchEthic.Utils.WebClient
-  alias ArchEthic.Utils.Regression.Benchmark.NodeThroughput
+  alias ArchEthic.Utils.Regression.Benchmark.EndToEndValidation
 
   @playbooks [UCO, SmartContract]
-  @benchmarks [NodeThroughput]
+  @benchmarks [P2PMessage, EndToEndValidation]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")
