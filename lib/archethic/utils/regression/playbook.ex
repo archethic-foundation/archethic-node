@@ -131,32 +131,6 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       _ ->
         @genesis_origin_private_key
     end
-
-    # with <<_curve_id::8, origin_id::8, _rest::binary>> <-
-    #        @genesis_origin_public_key,
-    #      {first_origin_family_public_key, _} <-
-    #        SharedSecrets.get_origin_family_from_origin_id(origin_id)
-    #        |> SharedSecrets.get_origin_family_seed()
-    #        |> Crypto.derive_keypair(0),
-    #      {:ok, tx} <-
-    #        Crypto.derive_address(first_origin_family_public_key)
-    #        |> TransactionChain.get_last_transaction(data: [:ownerships]),
-    #      ownership <-
-    #        Enum.find(tx.data.ownerships, fn ownership ->
-    #          Ownership.authorized_public_key?(
-    #            ownership,
-    #            @genesis_origin_public_key
-    #          )
-    #        end),
-    #      {:ok, aes_key} <-
-    #        Ownership.get_encrypted_key(ownership, @genesis_origin_public_key)
-    #        |> Crypto.ec_decrypt(@genesis_origin_private_key),
-    #      {:ok, private_key} <- Crypto.aes_decrypt(ownership.secret, aes_key) do
-    #   private_key
-    # else
-    #   _ ->
-    #     @genesis_origin_private_key
-    # end
   end
 
   defp tx_to_json(%Transaction{
