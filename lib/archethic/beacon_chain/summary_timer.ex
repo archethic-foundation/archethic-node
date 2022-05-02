@@ -20,14 +20,22 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
   end
 
   @doc """
-  Give the next beacon chain slot using the `SlotTimer` interval
+  Give the next beacon chain slot using the `SummaryTimer` interval
   """
-
   def next_summary(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_next_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    cron_expression = CronParser.parse!(get_interval(), true)
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      cron_expression
+      |> CronScheduler.get_next_run_dates(naive_date_from)
+      |> Enum.at(1)
+      |> DateTime.from_naive!("Etc/UTC")
+    else
+      cron_expression
+      |> CronScheduler.get_next_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 
   @doc """
