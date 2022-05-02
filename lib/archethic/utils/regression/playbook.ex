@@ -16,10 +16,18 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
   alias ArchEthic.Utils.WebClient
 
+  alias ArchEthic.Bootstrap.NetworkInit
+
   @callback play!([String.t()], Keyword.t()) :: :ok
 
-  @genesis_origin_private_key "01009280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
+  @genesis_origin_private_key "01019280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
                               |> Base.decode16!()
+
+  @genesis_origin_public_key Application.compile_env!(
+                               :archethic,
+                               [NetworkInit, :genesis_origin_public_keys]
+                             )
+                             |> Enum.at(0)
 
   @faucet_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
 
@@ -66,6 +74,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
+    genesis_origin_private_key = get_origin_private_key(host, port)
+
     tx =
       %Transaction{
         address: Crypto.derive_address(next_public_key),
@@ -74,7 +84,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         previous_public_key: previous_public_key
       }
       |> Transaction.previous_sign_transaction(previous_private_key)
-      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+      |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =
       Crypto.verify?(
@@ -94,6 +104,59 @@ defmodule ArchEthic.Utils.Regression.Playbook do
       _ ->
         :error
     end
+  end
+
+  defp get_origin_private_key(host, port) do
+    body = %{
+      "origin_public_key" => Base.encode16(@genesis_origin_public_key)
+    }
+
+    case WebClient.with_connection(
+           host,
+           port,
+           &WebClient.json(&1, "/api/origin_key", body)
+         ) do
+      {:ok,
+       %{
+         "encrypted_origin_private_keys" => encrypted_origin_private_keys,
+         "encrypted_secret_key" => encrypted_secret_key
+       }} ->
+        aes_key =
+          Base.decode16!(encrypted_secret_key, case: :mixed)
+          |> Crypto.ec_decrypt!(@genesis_origin_private_key)
+
+        Base.decode16!(encrypted_origin_private_keys, case: :mixed)
+        |> Crypto.aes_decrypt!(aes_key)
+
+      _ ->
+        @genesis_origin_private_key
+    end
+
+    # with <<_curve_id::8, origin_id::8, _rest::binary>> <-
+    #        @genesis_origin_public_key,
+    #      {first_origin_family_public_key, _} <-
+    #        SharedSecrets.get_origin_family_from_origin_id(origin_id)
+    #        |> SharedSecrets.get_origin_family_seed()
+    #        |> Crypto.derive_keypair(0),
+    #      {:ok, tx} <-
+    #        Crypto.derive_address(first_origin_family_public_key)
+    #        |> TransactionChain.get_last_transaction(data: [:ownerships]),
+    #      ownership <-
+    #        Enum.find(tx.data.ownerships, fn ownership ->
+    #          Ownership.authorized_public_key?(
+    #            ownership,
+    #            @genesis_origin_public_key
+    #          )
+    #        end),
+    #      {:ok, aes_key} <-
+    #        Ownership.get_encrypted_key(ownership, @genesis_origin_public_key)
+    #        |> Crypto.ec_decrypt(@genesis_origin_private_key),
+    #      {:ok, private_key} <- Crypto.aes_decrypt(ownership.secret, aes_key) do
+    #   private_key
+    # else
+    #   _ ->
+    #     @genesis_origin_private_key
+    # end
   end
 
   defp tx_to_json(%Transaction{
