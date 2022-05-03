@@ -518,35 +518,44 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         tx_movements,
         timestamp = %DateTime{}
       ) do
-    expected_movements = [
-      %TransactionMovement{
-        to: @burning_address,
-        amount: fee,
-        type: :UCO
-      }
-      | resolve_transaction_movements(tx_movements, timestamp)
-    ]
+    %__MODULE__{transaction_movements: expected_movements} =
+      resolve_transaction_movements(%__MODULE__{fee: fee}, tx_movements, timestamp)
 
     Enum.all?(resolved_transaction_movements, &(&1 in expected_movements))
   end
 
   @doc """
-  Resolve the last transaction addresses from the transaction movements
+  Resolve the transaction movements including the transaction's fee burning and retrieval of the last transaction addresses
   """
-  @spec resolve_transaction_movements(list(TransactionMovement.t()), DateTime.t()) ::
-          list(TransactionMovement.t())
+  @spec resolve_transaction_movements(t(), list(TransactionMovement.t()), DateTime.t()) :: t()
   def resolve_transaction_movements(
+        ops = %__MODULE__{fee: fee},
         tx_movements,
         timestamp = %DateTime{}
       ) do
-    tx_movements
-    |> Task.async_stream(
-      fn mvt = %TransactionMovement{to: to} ->
-        %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
-      end,
-      on_timeout: :kill_task
-    )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.into([], fn {:ok, res} -> res end)
+    burn_movement = %TransactionMovement{
+      to: @burning_address,
+      amount: fee,
+      type: :UCO
+    }
+
+    resolved_movements =
+      tx_movements
+      |> Task.async_stream(
+        fn mvt = %TransactionMovement{to: to} ->
+          %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
+        end,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Enum.reduce([burn_movement], fn {:ok, res}, acc ->
+        [res | acc]
+      end)
+      |> Enum.reverse()
+
+    %{
+      ops
+      | transaction_movements: resolved_movements
+    }
   end
 end

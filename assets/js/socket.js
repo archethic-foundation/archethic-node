@@ -6,9 +6,9 @@
 //
 // Pass the token on params as below. Or remove it
 // from the params if you are not using authentication.
-import {Socket} from "phoenix"
+import { Socket } from "phoenix"
 
-let socket = new Socket("/socket", {params: {token: window.userToken}})
+let socket = new Socket("/socket", { params: { token: window.userToken } })
 
 // When you connect, you'll often need to authenticate the client.
 // For example, imagine you have an authentication plug, `MyAuth`,
