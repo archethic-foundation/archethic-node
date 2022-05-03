@@ -9,6 +9,7 @@ defmodule ArchEthic.MixProject do
       config_path: "config/config.exs",
       deps_path: "deps",
       lockfile: "mix.lock",
+      aliases: aliases(),
       elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -46,9 +47,11 @@ defmodule ArchEthic.MixProject do
       {:cors_plug, "~> 1.5"},
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.5"},
+      {:websockex, "~> 0.4.3"},
 
       # Dev
       {:benchee, "~> 1.0"},
+      {:benchee_html, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
       {:git_hooks, "~> 0.4.0", runtime: false},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
@@ -64,10 +67,6 @@ defmodule ArchEthic.MixProject do
       # P2P
       {:ranch, "~> 2.1", override: true},
       {:connection, "~> 1.1"},
-
-      # DB
-      {:xandra, "~> 0.11"},
-      {:bloom_filter, "~>1.1.0"},
 
       # Net
       {:inet_ext, "~> 1.0"},
@@ -93,6 +92,33 @@ defmodule ArchEthic.MixProject do
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
       {:knigge, "~> 1.4"}
+    ]
+  end
+
+  defp aliases do
+    [
+      # Intial developer Setup
+      "dev.setup": ["deps.get", "cmd npm install --prefix assets"],
+      # When Changes are not registered by compiler | any()
+      "dev.clean": ["cmd make clean", "clean", "format", "compile"],
+      # run single node
+      "dev.run": ["deps.get", "cmd mix dev.clean", "cmd iex -S mix"],
+      # Must be run before git push --no-verify | any(dialyzer issue)
+      "dev.checks": ["clean", "format", "compile", "credo", "cmd mix test", "dialyzer"],
+      # paralele checks
+      "dev.pchecks": ["  clean &   format &    compile &   credo &   test &   dialyzer"],
+      # docker test-net with 3 nodes
+      "dev.docker": [
+        "cmd docker-compose down",
+        "cmd docker build -t archethic-node .",
+        "cmd docker-compose up"
+      ],
+      # benchmark
+      "dev.bench": ["cmd docker-compose up bench"],
+      # Cleans docker
+      "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"],
+      # bench local
+      "dev.lbench": ["cmd mix arch_ethic.regression --bench localhost"]
     ]
   end
 end

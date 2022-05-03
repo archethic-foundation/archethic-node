@@ -7,7 +7,6 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
 
   defstruct [:summary_time, transaction_summaries: [], p2p_availabilities: %{}]
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
   alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
   alias ArchEthic.TransactionChain.TransactionSummary
 
@@ -23,42 +22,32 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
         }
 
   @doc """
-  Initialize the aggregate by defining the summary time for example
-
-  If the aggregate is already initialized, the call will be skipped
+  Aggregate a new BeaconChain's summary
   """
-  @spec initialize(t(), BeaconSummary.t()) :: t()
-  def initialize(
-        aggregate = %__MODULE__{summary_time: nil},
-        %BeaconSummary{summary_time: summary_time}
+  @spec add_summary(t(), BeaconSummary.t()) :: t()
+  def add_summary(
+        agg = %__MODULE__{},
+        %BeaconSummary{
+          subset: subset,
+          transaction_attestations: attestations,
+          node_availabilities: node_availabilities,
+          node_average_availabilities: node_average_availabilities
+        }
       ) do
-    %{aggregate | summary_time: summary_time}
-  end
+    transaction_summaries =
+      attestations
+      |> Enum.map(& &1.transaction_summary)
+      |> Enum.concat(agg.transaction_summaries)
+      |> Enum.uniq_by(& &1.address)
+      |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
 
-  def initialize(
-        aggregate = %__MODULE__{},
-        _summary
-      ) do
-    aggregate
-  end
+    p2p_availabilities =
+      Map.put(agg.p2p_availabilities, subset, %{
+        node_availabilities: node_availabilities,
+        node_average_availabilities: node_average_availabilities
+      })
 
-  @doc """
-  Add a transaction summaries to the aggregate by providing uniqueness and sorting
-  """
-  @spec add_transaction_summaries(t(), BeaconSummary.t()) :: t()
-  def add_transaction_summaries(
-        aggregate = %__MODULE__{},
-        %BeaconSummary{transaction_attestations: transaction_attestations}
-      ) do
-    transaction_attestations
-    |> Enum.reduce(aggregate, fn %ReplicationAttestation{transaction_summary: transaction_summary},
-                                 acc ->
-      Map.update!(acc, :transaction_summaries, fn transaction_summaries ->
-        [transaction_summary | transaction_summaries]
-        |> Enum.uniq_by(& &1.address)
-        |> Enum.sort_by(& &1.timestamp, {:asc, DateTime})
-      end)
-    end)
+    %{agg | transaction_summaries: transaction_summaries, p2p_availabilities: p2p_availabilities}
   end
 
   @doc """

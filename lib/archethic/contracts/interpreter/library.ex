@@ -2,6 +2,10 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   @moduledoc false
 
   alias ArchEthic.Crypto
+  alias ArchEthic.P2P
+  alias ArchEthic.P2P.Message.GetFirstAddress
+  alias ArchEthic.P2P.Message.FirstAddress
+  alias ArchEthic.Election
 
   @doc """
   Match a regex expression
@@ -79,12 +83,12 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   end
 
   @doc ~S"""
-  Match a json path expression 
+  Match a json path expression
 
   ## Examples
 
        iex> Library.json_path_match?("{\"1622541930\":{\"uco\":{\"eur\":0.176922,\"usd\":0.21642}}}", "$.*.uco.usd")
-       true     
+       true
   """
   @spec json_path_match?(binary(), binary()) :: boolean()
   def json_path_match?(text, path) when is_binary(text) and is_binary(path) do
@@ -149,4 +153,25 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   def size(binary) when is_binary(binary), do: byte_size(binary)
   def size(list) when is_list(list), do: length(list)
   def size(map) when is_map(map), do: map_size(map)
+
+  @doc """
+  Get the genesis address of the chain
+
+  """
+  @spec get_genesis_address(binary()) ::
+          binary()
+  def get_genesis_address(address) do
+    nodes = Election.chain_storage_nodes(address, P2P.available_nodes())
+    {:ok, address} = download_first_address(nodes, address)
+    address
+  end
+
+  defp download_first_address([node | rest], address) do
+    case P2P.send_message(node, %GetFirstAddress{address: address}) do
+      {:ok, %FirstAddress{address: address}} -> {:ok, address}
+      {:error, _} -> download_first_address(rest, address)
+    end
+  end
+
+  defp download_first_address([], _address), do: {:error, :network_issue}
 end
