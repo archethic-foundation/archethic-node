@@ -40,7 +40,6 @@ defmodule ArchEthic.Utils.Regression.Benchmark.EndToEndValidation do
         end
       },
       []
-      # parallel: 0
     }
   end
 
