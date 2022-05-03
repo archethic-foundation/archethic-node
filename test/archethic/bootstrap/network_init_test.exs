@@ -36,11 +36,17 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias ArchEthic.TransactionChain.TransactionSummary
   alias ArchEthic.TransactionFactory
+
+  @genesis_origin_public_keys Application.compile_env!(
+                                :archethic,
+                                [NetworkInit, :genesis_origin_public_keys]
+                              )
 
   import Mox
 
@@ -266,5 +272,65 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     assert %{uco: 146_000_000_000_000_000} =
              Account.get_balance(SharedSecrets.get_network_pool_address())
+  end
+
+  test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionChain{}, _ ->
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
+    end)
+
+    me = self()
+
+    MockDB
+    |> expect(:write_transaction, fn tx ->
+      send(me, {:transaction, tx})
+      :ok
+    end)
+
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      available?: true,
+      enrollment_date: DateTime.utc_now(),
+      network_patch: "AAA",
+      authorization_date: DateTime.utc_now(),
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
+
+    assert :ok = NetworkInit.init_software_origin_shared_secrets_chain()
+
+    assert 1 == SharedSecrets.list_origin_public_keys() |> Enum.count()
+
+    assert_receive {:transaction,
+                    %Transaction{
+                      type: :origin_shared_secrets,
+                      data: %TransactionData{
+                        ownerships: [
+                          %Ownership{
+                            authorized_keys: authorized_keys
+                          }
+                        ]
+                      }
+                    }}
+
+    assert Map.keys(authorized_keys) == @genesis_origin_public_keys
   end
 end

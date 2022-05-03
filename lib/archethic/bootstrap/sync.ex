@@ -119,6 +119,7 @@ defmodule ArchEthic.Bootstrap.Sync do
     P2P.set_node_globally_available(Crypto.first_node_public_key())
     P2P.authorize_node(Crypto.last_node_public_key(), DateTime.utc_now())
 
+    NetworkInit.init_software_origin_shared_secrets_chain()
     NetworkInit.init_node_shared_secrets_chain()
     NetworkInit.init_genesis_wallets()
   end
