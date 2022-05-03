@@ -83,7 +83,7 @@
                         <p class="heading">UCO Balance</p>
                         <p class="title"><%= to_float(@uco_balance) %> UCO
                         <%= if @uco_balance > 0 do %>
-                          <%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
+                          (<%= format_usd_amount(@uco_balance, @uco_price[:usd]) %>)
                         <% end %>
                     </div>
               </div>
