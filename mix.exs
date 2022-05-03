@@ -47,6 +47,7 @@ defmodule ArchEthic.MixProject do
       {:cors_plug, "~> 1.5"},
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.5"},
+      {:websockex, "~> 0.4.3"},
 
       # Dev
       {:benchee, "~> 1.0"},
@@ -56,7 +57,7 @@ defmodule ArchEthic.MixProject do
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
-      {:websockex, "~> 0.4.3"},
+      # {:broadway_dashboard, "~> 0.2.0", only: :dev},
 
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
@@ -66,9 +67,6 @@ defmodule ArchEthic.MixProject do
       # P2P
       {:ranch, "~> 2.1", override: true},
       {:connection, "~> 1.1"},
-
-      # DB
-      {:bloom_filter, "~>1.1.0"},
 
       # Net
       {:inet_ext, "~> 1.0"},
