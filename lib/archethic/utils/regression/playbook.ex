@@ -18,10 +18,18 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
   alias ArchEthic.Utils.WebClient
 
+  alias ArchEthic.Bootstrap.NetworkInit
+
   @callback play!([String.t()], Keyword.t()) :: :ok
 
-  @genesis_origin_private_key "01009280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
+  @genesis_origin_private_key "01019280BDB84B8F8AEDBA205FE3552689964A5626EE2C60AA10E3BF22A91A036009"
                               |> Base.decode16!()
+
+  @genesis_origin_public_key Application.compile_env!(
+                               :archethic,
+                               [NetworkInit, :genesis_origin_public_keys]
+                             )
+                             |> Enum.at(0)
 
   @faucet_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
 
@@ -93,6 +101,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
+    genesis_origin_private_key = get_origin_private_key(host, port)
+
     tx =
       %Transaction{
         address: Crypto.derive_address(next_public_key),
@@ -101,7 +111,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         previous_public_key: previous_public_key
       }
       |> Transaction.previous_sign_transaction(previous_private_key)
-      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+      |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =
       Crypto.verify?(
@@ -120,6 +130,33 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
       _ ->
         :error
+    end
+  end
+
+  defp get_origin_private_key(host, port) do
+    body = %{
+      "origin_public_key" => Base.encode16(@genesis_origin_public_key)
+    }
+
+    case WebClient.with_connection(
+           host,
+           port,
+           &WebClient.json(&1, "/api/origin_key", body)
+         ) do
+      {:ok,
+       %{
+         "encrypted_origin_private_keys" => encrypted_origin_private_keys,
+         "encrypted_secret_key" => encrypted_secret_key
+       }} ->
+        aes_key =
+          Base.decode16!(encrypted_secret_key, case: :mixed)
+          |> Crypto.ec_decrypt!(@genesis_origin_private_key)
+
+        Base.decode16!(encrypted_origin_private_keys, case: :mixed)
+        |> Crypto.aes_decrypt!(aes_key)
+
+      _ ->
+        @genesis_origin_private_key
     end
   end
 
@@ -188,11 +225,11 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
   defp await_replication(txn_address) do
     query = """
-     subscription {
-       transactionConfirmed(address: "#{Base.encode16(txn_address)}") {
-         nbConfirmations
-       }
-     }
+    subscription {
+    transactionConfirmed(address: "#{Base.encode16(txn_address)}") {
+      nbConfirmations
+    }
+    }
     """
 
     WSClient.absinthe_sub(
