@@ -16,6 +16,8 @@ defmodule ArchEthicWeb.ExplorerView do
 
   alias ArchEthic.Utils
 
+  alias ArchEthic.Crypto
+
   alias Phoenix.Naming
 
   def roles_to_string(roles) do
@@ -196,5 +198,52 @@ defmodule ArchEthicWeb.ExplorerView do
     """
   end
 
+  def format_transaction_content(:origin_shared_secrets, content) do
+    get_origin_public_keys(content, %{software: [], hardware: []})
+    |> Enum.map_join("\n", fn {family, keys} ->
+      format_origin_shared_secrets_content(family, keys)
+    end)
+  end
+
   def format_transaction_content(_, content), do: content
+
+  defp format_origin_shared_secrets_content(family, keys) do
+    case Enum.count(keys) do
+      1 ->
+        "#{family} origin public key : #{Enum.at(keys, 0) |> Base.encode16()}"
+
+      x when x > 1 ->
+        """
+        #{family} origin public keys :
+        #{Enum.map_join(keys, "\n", fn key -> "- " <> Base.encode16(key) end)}
+        """
+
+      _ ->
+        ""
+    end
+  end
+
+  defp get_origin_public_keys(<<>>, acc), do: acc
+
+  defp get_origin_public_keys(<<curve_id::8, origin_id::8, rest::binary>>, acc) do
+    key_size = Crypto.key_size(curve_id)
+    <<key::binary-size(key_size), rest::binary>> = rest
+
+    family =
+      case Crypto.key_origin(origin_id) do
+        :software ->
+          :software
+
+        :tpm ->
+          :hardware
+
+        :on_chain_wallet ->
+          :software
+      end
+
+    get_origin_public_keys(
+      rest,
+      Map.update!(acc, family, &[<<curve_id::8, origin_id::8, key::binary>> | &1])
+    )
+  end
 end

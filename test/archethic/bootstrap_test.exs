@@ -35,6 +35,7 @@ defmodule ArchEthic.BootstrapTest do
 
   alias ArchEthic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
+  alias ArchEthic.SharedSecrets
   alias ArchEthic.SharedSecrets.NodeRenewalScheduler
 
   alias ArchEthic.TransactionChain
@@ -133,6 +134,8 @@ defmodule ArchEthic.BootstrapTest do
                P2P.list_nodes()
 
       assert 1 == Crypto.number_of_node_shared_secrets_keys()
+
+      assert 2 == SharedSecrets.list_origin_public_keys() |> Enum.count()
     end
   end
 
