@@ -733,7 +733,7 @@ defmodule ArchEthic.Mining.ValidationContext do
           )
           |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
-        recipients: resolve_transaction_recipients(tx),
+        recipients: resolve_transaction_recipients(tx, validation_time),
         errors: [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1)
       }
       |> ValidationStamp.sign()
@@ -765,11 +765,14 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp chain_error(_, _), do: nil
 
-  defp resolve_transaction_recipients(%Transaction{
-         data: %TransactionData{recipients: recipients}
-       }) do
+  defp resolve_transaction_recipients(
+         %Transaction{
+           data: %TransactionData{recipients: recipients}
+         },
+         validation_time = %DateTime{}
+       ) do
     recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, DateTime.utc_now()),
+    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, validation_time),
       on_timeout: :kill_task
     )
     |> Enum.filter(&match?({:ok, _}, &1))
@@ -979,10 +982,13 @@ defmodule ArchEthic.Mining.ValidationContext do
       errors
   end
 
-  defp valid_stamp_recipients?(%ValidationStamp{recipients: recipients}, %__MODULE__{
-         transaction: tx
-       }),
-       do: resolve_transaction_recipients(tx) == recipients
+  defp valid_stamp_recipients?(
+         %ValidationStamp{recipients: recipients, timestamp: validation_time},
+         %__MODULE__{
+           transaction: tx
+         }
+       ),
+       do: resolve_transaction_recipients(tx, validation_time) == recipients
 
   defp valid_stamp_transaction_movements?(
          %ValidationStamp{
