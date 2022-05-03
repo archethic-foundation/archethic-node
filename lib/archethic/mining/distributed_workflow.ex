@@ -35,6 +35,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.Replication
+
   alias ArchEthic.TaskSupervisor
 
   alias ArchEthic.TransactionChain.Transaction
@@ -622,7 +624,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         })
 
         {:keep_state, %{data | context: new_context},
-         {:next_event, :internal, :notify_attestation}}
+         [
+           {:next_event, :internal, :notify_attestation},
+           {:next_event, :internal, :notify_previous_chain}
+         ]}
       else
         {:keep_state, %{data | context: new_context}}
       end
@@ -667,6 +672,40 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction: ValidationContext.get_validated_transaction(context)
     })
 
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :internal,
+        :notify_previous_chain,
+        :replication,
+        _data = %{
+          context: %ValidationContext{
+            transaction: tx,
+            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+          }
+        }
+      ) do
+    Replication.acknowledge_previous_storage_nodes(
+      tx.address,
+      Transaction.previous_address(tx),
+      tx_timestamp
+    )
+
+    :stop
+  end
+
+  def handle_event(
+        :info,
+        {:replication_error, reason},
+        :replication,
+        _ = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error("Replication error - #{inspect(reason)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     :stop
   end
 
@@ -684,8 +723,20 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :stop
   end
 
-  # Reject unexpected events
-  def handle_event(_, _, _, _), do: :keep_state_and_data
+  def handle_event(
+        event_type,
+        event,
+        state,
+        _ = %{validation_context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error(
+      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    :keep_state_and_data
+  end
 
   defp notify_transaction_context(
          %ValidationContext{
@@ -799,8 +850,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)
     |> Stream.each(fn
-      {%Error{}, _node} ->
-        send(me, :replication_error)
+      {%Error{reason: reason}, _node} ->
+        send(me, {:replication_error, reason})
 
       {%AcknowledgeStorage{
          signature: signature

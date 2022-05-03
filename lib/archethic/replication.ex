@@ -50,12 +50,11 @@ defmodule ArchEthic.Replication do
   and update the internal ledger and views
 
   Options:
-  - ack_storage?: Determines if the storage node must notify the welcome node and beacon chain about the replication
   - self_repair?: Determines if the replication is from a self repair cycle. This switch will be determine to fetch unspent outputs or transaction inputs for a chain role validation
   """
   @spec validate_and_store_transaction_chain(
           validated_tx :: Transaction.t(),
-          options :: [ack_storage?: boolean(), self_repair?: boolean()]
+          options :: [self_repair?: boolean()]
         ) ::
           :ok | {:error, :invalid_transaction} | {:error, :transaction_already_exists}
   def validate_and_store_transaction_chain(
@@ -122,16 +121,6 @@ defmodule ArchEthic.Replication do
             },
             %{role: :chain}
           )
-
-          # Notify previous pools about a new transaction in the chain
-          # TODO: let the validation nodes leverages this part, once they got enough confirmations
-          Task.start(fn ->
-            acknowledge_previous_storage_nodes(
-              address,
-              Transaction.previous_address(tx),
-              timestamp
-            )
-          end)
 
           :ok
 

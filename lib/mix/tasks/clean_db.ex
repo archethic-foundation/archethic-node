@@ -4,14 +4,12 @@ defmodule Mix.Tasks.ArchEthic.CleanDb do
   use Mix.Task
 
   def run(_arg) do
-    files_to_remove =
-      ["_build", "dev", "lib", "archethic", "data_*"]
-      |> Path.join()
-      |> Path.wildcard()
-
-    IO.puts("#{files_to_remove} will be removed")
-
-    Enum.each(files_to_remove, &File.rm_rf!/1)
+    "_build/dev/lib/archethic/data*"
+    |> Path.wildcard()
+    |> Enum.each(fn path ->
+      IO.puts("#{path} will be removed")
+      File.rm_rf!(path)
+    end)
 
     IO.puts("Database dropped")
   end

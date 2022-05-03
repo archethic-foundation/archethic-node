@@ -26,7 +26,7 @@ defmodule ArchEthic.Mining.Fee do
   """
   @spec calculate(transaction :: Transaction.t(), uco_usd_price :: float()) :: non_neg_integer()
   def calculate(%Transaction{type: :keychain}, _), do: 0
-  def calculate(%Transaction{type: :access_keychain}, _), do: 0
+  def calculate(%Transaction{type: :keychain_access}, _), do: 0
 
   def calculate(
         tx = %Transaction{

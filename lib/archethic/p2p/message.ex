@@ -27,6 +27,8 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.EncryptedStorageNonce
   alias __MODULE__.Error
   alias __MODULE__.FirstPublicKey
+  alias __MODULE__.FirstAddress
+  alias __MODULE__.GetFirstAddress
   alias __MODULE__.GetBalance
   alias __MODULE__.GetBeaconSummaries
   alias __MODULE__.GetBeaconSummary
@@ -114,6 +116,7 @@ defmodule ArchEthic.P2P.Message do
           | BeaconUpdate.t()
           | TransactionSummary.t()
           | ReplicationAttestation.t()
+          | GetFirstAddress.t()
 
   @type response ::
           Ok.t()
@@ -135,6 +138,7 @@ defmodule ArchEthic.P2P.Message do
           | Error.t()
           | Summary.t()
           | BeaconSummaryList.t()
+          | FirstAddress.t()
 
   @doc """
   Extract the Message Struct name
@@ -347,6 +351,14 @@ defmodule ArchEthic.P2P.Message do
 
   def encode(attestation = %ReplicationAttestation{}) do
     <<30::8, ReplicationAttestation.serialize(attestation)::binary>>
+  end
+
+  def encode(%GetFirstAddress{address: address}) do
+    <<31::8, address::binary>>
+  end
+
+  def encode(%FirstAddress{address: address}) do
+    <<235::8, address::binary>>
   end
 
   def encode(%BeaconUpdate{transaction_attestations: transaction_attestations}) do
@@ -788,6 +800,16 @@ defmodule ArchEthic.P2P.Message do
     ReplicationAttestation.deserialize(rest)
   end
 
+  def decode(<<31::8, rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%GetFirstAddress{address: address}, rest}
+  end
+
+  def decode(<<235::8, rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+    {%FirstAddress{address: address}, rest}
+  end
+
   def decode(<<236::8, nb_transaction_attestations::16, rest::bitstring>>) do
     {transaction_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
@@ -1131,7 +1153,7 @@ defmodule ArchEthic.P2P.Message do
         transaction: tx,
         ack_storage?: ack_storage?
       }) do
-    case Replication.validate_and_store_transaction_chain(tx, ack_storage?: ack_storage?) do
+    case Replication.validate_and_store_transaction_chain(tx) do
       :ok ->
         if ack_storage? do
           tx_summary = TransactionSummary.from_transaction(tx)
@@ -1231,6 +1253,16 @@ defmodule ArchEthic.P2P.Message do
     %FirstPublicKey{
       public_key: TransactionChain.get_first_public_key(public_key)
     }
+  end
+
+  def process(%GetFirstAddress{address: address}) do
+    case TransactionChain.get_first_transaction(address, [:address]) do
+      {:ok, %Transaction{address: address}} ->
+        %FirstAddress{address: address}
+
+      {:error, :transaction_not_exists} ->
+        %NotFound{}
+    end
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do

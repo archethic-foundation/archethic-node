@@ -1,5 +1,5 @@
 defmodule ArchEthic.Contracts.Interpreter.LibraryTest do
-  use ExUnit.Case
+  use ArchEthicCase
 
   alias ArchEthic.Contracts.Interpreter.Library
 
