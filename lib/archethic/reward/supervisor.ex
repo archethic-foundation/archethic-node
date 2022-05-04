@@ -1,14 +1,14 @@
-defmodule ArchEthic.Reward.Supervisor do
+defmodule Archethic.Reward.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Reward.NetworkPoolScheduler
+  alias Archethic.Reward.NetworkPoolScheduler
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.RewardSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.RewardSupervisor)
   end
 
   def init(_) do

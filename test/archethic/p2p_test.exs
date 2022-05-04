@@ -1,12 +1,12 @@
-defmodule ArchEthic.P2PTest do
-  use ArchEthicCase
+defmodule Archethic.P2PTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  doctest ArchEthic.P2P
+  doctest Archethic.P2P
 
   import Mox
 

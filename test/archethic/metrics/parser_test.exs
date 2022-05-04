@@ -1,7 +1,7 @@
-defmodule ArchEthic.Metrics.ParserTest do
+defmodule Archethic.Metrics.ParserTest do
   use ExUnit.Case
 
-  alias ArchEthic.Metrics.Parser
+  alias Archethic.Metrics.Parser
 
   doctest Parser
 end

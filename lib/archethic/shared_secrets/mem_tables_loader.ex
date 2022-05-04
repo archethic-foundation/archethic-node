@@ -1,19 +1,19 @@
-defmodule ArchEthic.SharedSecrets.MemTablesLoader do
+defmodule Archethic.SharedSecrets.MemTablesLoader do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
-  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
-  alias ArchEthic.SharedSecrets.NodeRenewal
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.SharedSecrets.NodeRenewal
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   require Logger
 

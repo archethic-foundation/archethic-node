@@ -1,10 +1,10 @@
-defmodule ArchEthic.DB do
+defmodule Archethic.DB do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.EmbeddedImpl
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
   use Knigge, otp_app: :archethic, default: EmbeddedImpl
 

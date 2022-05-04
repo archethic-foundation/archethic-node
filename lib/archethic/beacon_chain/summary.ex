@@ -1,18 +1,18 @@
-defmodule ArchEthic.BeaconChain.Summary do
+defmodule Archethic.BeaconChain.Summary do
   @moduledoc """
   Represent a beacon chain summary generated after each summary phase
   containing transactions, node updates
   """
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Subset.P2PSampling
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Subset.P2PSampling
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   defstruct [
     :subset,

@@ -1,4 +1,4 @@
-defmodule ArchEthic.Mining.DistributedWorkflow do
+defmodule Archethic.Mining.DistributedWorkflow do
   @moduledoc """
   ARCH mining workflow is performed in distributed manner through a Finite State Machine
   to ensure consistency of the actions and be able to postpone concurrent events and manage timeout
@@ -13,42 +13,42 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   If the atomic commitment is not reached, it starts the malicious detection to ban the dishonest nodes
   """
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.Crypto
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.MaliciousDetection
-  alias ArchEthic.Mining.PendingTransactionValidation
-  alias ArchEthic.Mining.TransactionContext
-  alias ArchEthic.Mining.ValidationContext
-  alias ArchEthic.Mining.WorkflowRegistry
+  alias Archethic.Mining.MaliciousDetection
+  alias Archethic.Mining.PendingTransactionValidation
+  alias Archethic.Mining.TransactionContext
+  alias Archethic.Mining.ValidationContext
+  alias Archethic.Mining.WorkflowRegistry
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
-  alias ArchEthic.P2P.Message.AddMiningContext
-  alias ArchEthic.P2P.Message.CrossValidate
-  alias ArchEthic.P2P.Message.CrossValidationDone
-  alias ArchEthic.P2P.Message.Error
-  alias ArchEthic.P2P.Message.ReplicateTransactionChain
-  alias ArchEthic.P2P.Message.ReplicateTransaction
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.AcknowledgeStorage
+  alias Archethic.P2P.Message.AddMiningContext
+  alias Archethic.P2P.Message.CrossValidate
+  alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ReplicateTransaction
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.TaskSupervisor
+  alias Archethic.TaskSupervisor
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
 
-  @mining_timeout Application.compile_env!(:archethic, [ArchEthic.Mining, :timeout])
+  @mining_timeout Application.compile_env!(:archethic, [Archethic.Mining, :timeout])
 
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, [])

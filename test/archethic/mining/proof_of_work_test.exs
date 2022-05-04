@@ -1,17 +1,17 @@
-defmodule ArchEthic.Mining.ProofOfWorkTest do
-  use ArchEthicCase
+defmodule Archethic.Mining.ProofOfWorkTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Mining.ProofOfWork
+  alias Archethic.Mining.ProofOfWork
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   doctest ProofOfWork
 

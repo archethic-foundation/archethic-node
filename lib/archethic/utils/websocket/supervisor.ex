@@ -1,9 +1,9 @@
-defmodule ArchEthic.Utils.WebSocket.Supervisor do
+defmodule Archethic.Utils.WebSocket.Supervisor do
   @moduledoc """
     Supervisor for WS SubscriptionServer and WebSocket
   """
   use Supervisor
-  alias ArchEthic.Utils.WebSocket.SocketHandler
+  alias Archethic.Utils.WebSocket.SocketHandler
 
   def start_link(args \\ %{}) do
     Supervisor.start_link(__MODULE__, args, name: :GQL_Client)

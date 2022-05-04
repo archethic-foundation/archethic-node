@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.JobConductor do
+defmodule Archethic.Utils.JobConductor do
   @moduledoc ~S"""
   Conducts heavy computations in a restrictive way by limiting the number of
   concurrently running computations, by default to 1.
@@ -61,7 +61,7 @@ defmodule ArchEthic.Utils.JobConductor do
   end
 
   @doc ~S"""
-  Starts a `ArchEthic.JobConductor` process linked to the current process.
+  Starts a `Archethic.JobConductor` process linked to the current process.
 
   ## Options
 

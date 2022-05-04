@@ -1,18 +1,18 @@
-defmodule ArchEthic.Governance do
+defmodule Archethic.Governance do
   @moduledoc """
   Handle the governance on-chain by supporting testnet and mainNet updates using quorum of votes
   for any protocol updates through code approvals and metrics approvals
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.Code
   alias __MODULE__.Code.Proposal
   alias __MODULE__.Pools
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   @proposal_tx_select_fields [
     :address,

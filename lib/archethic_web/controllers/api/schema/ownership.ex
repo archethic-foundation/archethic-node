@@ -1,11 +1,11 @@
-defmodule ArchEthicWeb.API.Schema.Ownership do
+defmodule ArchethicWeb.API.Schema.Ownership do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Schema.AuthorizedKey
-  alias ArchEthicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Schema.AuthorizedKey
+  alias ArchethicWeb.API.Types.Hex
 
   embedded_schema do
     field(:secret, Hex)

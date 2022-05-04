@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.Error do
+defmodule Archethic.P2P.Message.Error do
   @moduledoc """
   Represents an error message
   """

@@ -1,27 +1,27 @@
-defmodule ArchEthic.BeaconChainTest do
-  use ArchEthicCase
+defmodule Archethic.BeaconChainTest do
+  use ArchethicCase
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.Subset
-  alias ArchEthic.BeaconChain.Subset.SummaryCache
-  alias ArchEthic.BeaconChain.SubsetRegistry
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain.Subset.SummaryCache
+  alias Archethic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  doctest ArchEthic.BeaconChain
+  doctest Archethic.BeaconChain
 
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})

@@ -7,10 +7,10 @@ config :logger,
 
 config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "data")
 
-config :archethic, ArchEthic.Bootstrap,
+config :archethic, Archethic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)
 
-config :archethic, ArchEthic.Bootstrap.NetworkInit,
+config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_pools:
     [
       %{
@@ -73,23 +73,23 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
     ]
     |> Enum.filter(& &1)
 
-config :archethic, ArchEthic.Bootstrap.Sync,
+config :archethic, Archethic.Bootstrap.Sync,
   # 15 days
   out_of_sync_date_threshold:
     System.get_env("ARCHETHIC_BOOTSTRAP_OUT_OF_SYNC_THRESHOLD", "54000") |> String.to_integer()
 
 # TODO: provide the true addresses for the genesis UCO distribution
-# config :archethic, ArchEthic.Bootstrap.NetworkInit, genesis_pools: []
+# config :archethic, Archethic.Bootstrap.NetworkInit, genesis_pools: []
 
-config :archethic, ArchEthic.BeaconChain.SlotTimer,
+config :archethic, Archethic.BeaconChain.SlotTimer,
   # Every 10 minutes
   interval: System.get_env("ARCHETHIC_BEACON_CHAIN_SLOT_TIMER_INTERVAL", "0 */10 * * * * *")
 
-config :archethic, ArchEthic.BeaconChain.SummaryTimer,
+config :archethic, Archethic.BeaconChain.SummaryTimer,
   # Every day at midnight
   interval: System.get_env("ARCHETHIC_BEACON_CHAIN_SUMMARY_TIMER_INTERVAL", "0 0 0 * * * *")
 
-config :archethic, ArchEthic.Crypto,
+config :archethic, Archethic.Crypto,
   root_ca_public_keys: [
     tpm:
       System.get_env(
@@ -101,27 +101,27 @@ config :archethic, ArchEthic.Crypto,
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
 config :archethic,
-       ArchEthic.Crypto.NodeKeystore,
+       Archethic.Crypto.NodeKeystore,
        (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM") |> String.upcase()) do
           "TPM" ->
-            ArchEthic.Crypto.NodeKeystore.TPMImpl
+            Archethic.Crypto.NodeKeystore.TPMImpl
 
           "SOFTWARE" ->
-            ArchEthic.Crypto.NodeKeystore.SoftwareImpl
+            Archethic.Crypto.NodeKeystore.SoftwareImpl
         end)
 
-config :archethic, ArchEthic.Crypto.NodeKeystore.SoftwareImpl,
+config :archethic, Archethic.Crypto.NodeKeystore.SoftwareImpl,
   seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
 
 # TODO: to remove when the implementation will be detected
 config :archethic,
-       ArchEthic.Crypto.SharedSecretsKeystore,
-       ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
+       Archethic.Crypto.SharedSecretsKeystore,
+       Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :archethic, ArchEthic.DB.CassandraImpl,
+config :archethic, Archethic.DB.CassandraImpl,
   host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")
 
-config :archethic, ArchEthic.Governance.Pools,
+config :archethic, Archethic.Governance.Pools,
   # TODO: provide the true addresses of the members
   initial_members: [
     technical_council: [],
@@ -130,7 +130,7 @@ config :archethic, ArchEthic.Governance.Pools,
     uniris: []
   ]
 
-config :archethic, ArchEthic.Mining.PendingTransactionValidation,
+config :archethic, Archethic.Mining.PendingTransactionValidation,
   allowed_node_key_origins:
     System.get_env("ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS", "tpm")
     |> String.upcase()
@@ -144,19 +144,19 @@ config :archethic, ArchEthic.Mining.PendingTransactionValidation,
     end)
 
 config :archethic,
-       ArchEthic.Networking.IPLookup,
+       Archethic.Networking.IPLookup,
        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
           "NAT" ->
-            ArchEthic.Networking.IPLookup.NAT
+            Archethic.Networking.IPLookup.NAT
 
           "STATIC" ->
-            ArchEthic.Networking.IPLookup.Static
+            Archethic.Networking.IPLookup.Static
 
           "IPFY" ->
-            ArchEthic.Networking.IPLookup.IPIFY
+            Archethic.Networking.IPLookup.IPIFY
         end)
 
-config :archethic, ArchEthic.Networking.PortForwarding,
+config :archethic, Archethic.Networking.PortForwarding,
   enabled:
     (case(System.get_env("ARCHETHIC_NETWORKING_PORT_FORWARDING", "true")) do
        "true" ->
@@ -166,27 +166,27 @@ config :archethic, ArchEthic.Networking.PortForwarding,
          false
      end)
 
-config :archethic, ArchEthic.Networking.IPLookup.Static,
+config :archethic, Archethic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP")
 
-config :archethic, ArchEthic.Networking.Scheduler,
+config :archethic, Archethic.Networking.Scheduler,
   interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 0 * * * * *")
 
-config :archethic, ArchEthic.OracleChain.Scheduler,
+config :archethic, Archethic.OracleChain.Scheduler,
   # Poll new changes every minute
   polling_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_POLLING_INTERVAL", "0 * * * * *"),
   # Aggregate chain every day at midnight
   summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 0 0 * * * *")
 
-config :archethic, ArchEthic.Reward.NetworkPoolScheduler,
+config :archethic, Archethic.Reward.NetworkPoolScheduler,
   # Every month
   interval: System.get_env("ARCHETHIC_REWARD_SCHEDULER_INTERVAL", "0 0 0 1 * * *")
 
 config :archethic,
-       ArchEthic.Crypto.SharedSecretsKeystore,
-       ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
+       Archethic.Crypto.SharedSecretsKeystore,
+       Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
+config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
   # Every day at 23:50:00
   interval:
     System.get_env("ARCHETHIC_SHARED_SECRETS_RENEWAL_SCHEDULER_INTERVAL", "0 50 0 * * * *"),
@@ -194,20 +194,20 @@ config :archethic, ArchEthic.SharedSecrets.NodeRenewalScheduler,
   application_interval:
     System.get_env("ARCHETHIC_SHARED_SECRETS_APPLICATION_INTERVAL", "0 0 0 * * * *")
 
-config :archethic, ArchEthic.SelfRepair.Scheduler,
+config :archethic, Archethic.SelfRepair.Scheduler,
   # Every day at 00:05:00
   # To give time for the beacon chain to produce summary
   interval: System.get_env("ARCHETHIC_SELF_REPAIR_SCHEDULER_INTRERVAL", "0 5 0 * * * *")
 
-config :archethic, ArchEthic.P2P.Listener,
+config :archethic, Archethic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "30002") |> String.to_integer()
 
-config :archethic, ArchEthic.P2P.BootstrappingSeeds,
+config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
-config :archethic, ArchEthic.Mining.PendingTransactionValidation,
+config :archethic, Archethic.Mining.PendingTransactionValidation,
   validate_node_ip:
     (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
        "true" ->
@@ -217,7 +217,7 @@ config :archethic, ArchEthic.Mining.PendingTransactionValidation,
          false
      end)
 
-config :archethic, ArchEthicWeb.FaucetController,
+config :archethic, ArchethicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
 # For production, don't forget to configure the url host
@@ -229,7 +229,7 @@ config :archethic, ArchEthicWeb.FaucetController,
 # manifest is generated by the `mix phx.digest` task,
 # which you should run after static files are built and
 # before starting your production server.
-config :archethic, ArchEthicWeb.Endpoint,
+config :archethic, ArchethicWeb.Endpoint,
   http: [:inet6, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   url: [host: nil, port: System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()],
   cache_static_manifest: "priv/static/cache_manifest.json",

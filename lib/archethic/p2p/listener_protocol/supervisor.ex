@@ -1,8 +1,8 @@
-defmodule ArchEthic.P2P.ListenerProtocol.Supervisor do
+defmodule Archethic.P2P.ListenerProtocol.Supervisor do
   @moduledoc false
 
-  alias ArchEthic.P2P.ListenerProtocol.BroadwayPipelineRegistry
-  alias ArchEthic.P2P.ListenerProtocol.MessageProducerRegistry
+  alias Archethic.P2P.ListenerProtocol.BroadwayPipelineRegistry
+  alias Archethic.P2P.ListenerProtocol.MessageProducerRegistry
 
   use Supervisor
 

@@ -1,7 +1,7 @@
-defmodule ArchEthic.Contracts.Interpreter.LibraryTest do
-  use ArchEthicCase
+defmodule Archethic.Contracts.Interpreter.LibraryTest do
+  use ArchethicCase
 
-  alias ArchEthic.Contracts.Interpreter.Library
+  alias Archethic.Contracts.Interpreter.Library
 
   doctest Library
 end

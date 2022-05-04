@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.ECDSATest do
+defmodule Archethic.Crypto.ECDSATest do
   use ExUnit.Case
 
-  alias ArchEthic.Crypto.ECDSA
+  alias Archethic.Crypto.ECDSA
 
   test "generate_keypair/2 should produce a deterministic keypair" do
     assert ECDSA.generate_keypair(:secp256r1, "myseed") ==

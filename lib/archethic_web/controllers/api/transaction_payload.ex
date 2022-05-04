@@ -1,17 +1,17 @@
-defmodule ArchEthicWeb.API.TransactionPayload do
+defmodule ArchethicWeb.API.TransactionPayload do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  alias ArchEthicWeb.API.Types.Address
-  alias ArchEthicWeb.API.Types.Hex
-  alias ArchEthicWeb.API.Types.PublicKey
-  alias ArchEthicWeb.API.Types.TransactionType
+  alias ArchethicWeb.API.Types.Address
+  alias ArchethicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Types.PublicKey
+  alias ArchethicWeb.API.Types.TransactionType
 
-  alias ArchEthicWeb.API.Schema.TransactionData
+  alias ArchethicWeb.API.Schema.TransactionData
 
   embedded_schema do
     field(:version, :integer)

@@ -1,9 +1,9 @@
-defmodule ArchEthic.BeaconChain.Subset.SummaryCache do
+defmodule Archethic.BeaconChain.Subset.SummaryCache do
   @moduledoc """
   Handle the caching of the beacon slots defined for the summary
   """
 
-  alias ArchEthic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot
 
   use GenServer
 

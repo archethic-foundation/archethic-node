@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.IDTest do
+defmodule Archethic.Crypto.IDTest do
   use ExUnit.Case
 
-  alias ArchEthic.Crypto.ID
+  alias Archethic.Crypto.ID
 
   doctest ID
 end

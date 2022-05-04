@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.ID do
+defmodule Archethic.Crypto.ID do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @doc """
   Get an identification from a elliptic curve name

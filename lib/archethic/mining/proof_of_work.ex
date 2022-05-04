@@ -1,4 +1,4 @@
-defmodule ArchEthic.Mining.ProofOfWork do
+defmodule Archethic.Mining.ProofOfWork do
   @moduledoc """
   Handle the Proof Of Work algorithm.
 
@@ -9,19 +9,19 @@ defmodule ArchEthic.Mining.ProofOfWork do
   Transaction origin public keys can change depends on the type of transaction or the level of security required.
   """
 
-  alias ArchEthic.Contracts
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Conditions
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Conditions
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   @doc """
   Scan a list of public keys to determine which one matches the transaction's origin signature.

@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.JobCache do
+defmodule Archethic.Utils.JobCache do
   @moduledoc """
   Provides cache for a heavy computation that should be performed sequentially.
 

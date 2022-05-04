@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.API.Types.Hex do
+defmodule ArchethicWeb.API.Types.Hex do
   @moduledoc false
 
   use Ecto.Type

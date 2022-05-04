@@ -1,9 +1,9 @@
-defmodule ArchEthic.TransactionChain.TransactionData.LedgerTest do
+defmodule Archethic.TransactionChain.TransactionData.LedgerTest do
   use ExUnit.Case
 
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   doctest Ledger
 end

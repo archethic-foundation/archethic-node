@@ -1,9 +1,9 @@
-defmodule ArchEthic.OracleChain.Summary do
+defmodule Archethic.OracleChain.Summary do
   @moduledoc false
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   defstruct [:transactions, :aggregated]
 

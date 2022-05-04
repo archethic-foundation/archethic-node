@@ -1,14 +1,14 @@
-defmodule ArchEthicWeb.API.Schema.TransactionData do
+defmodule ArchethicWeb.API.Schema.TransactionData do
   @moduledoc false
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Schema.Ledger
-  alias ArchEthicWeb.API.Schema.Ownership
-  alias ArchEthicWeb.API.Types.AddressList
-  alias ArchEthicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Schema.Ledger
+  alias ArchethicWeb.API.Schema.Ownership
+  alias ArchethicWeb.API.Types.AddressList
+  alias ArchethicWeb.API.Types.Hex
 
   embedded_schema do
     field(:code, :string)

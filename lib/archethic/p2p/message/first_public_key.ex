@@ -1,9 +1,9 @@
-defmodule ArchEthic.P2P.Message.FirstPublicKey do
+defmodule Archethic.P2P.Message.FirstPublicKey do
   @moduledoc """
   Represents a message with the first public key from a transaction chain
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @enforce_keys [:public_key]
   defstruct [:public_key]

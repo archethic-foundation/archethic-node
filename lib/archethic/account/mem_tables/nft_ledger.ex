@@ -1,11 +1,11 @@
-defmodule ArchEthic.Account.MemTables.NFTLedger do
+defmodule Archethic.Account.MemTables.NFTLedger do
   @moduledoc false
 
   @ledger_table :archethic_nft_ledger
   @unspent_output_index_table :archethic_nft_unspent_output_index
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionInput
 
   use GenServer
 

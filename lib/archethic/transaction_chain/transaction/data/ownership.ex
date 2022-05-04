@@ -1,11 +1,11 @@
-defmodule ArchEthic.TransactionChain.TransactionData.Ownership do
+defmodule Archethic.TransactionChain.TransactionData.Ownership do
   @moduledoc """
   Represents an ownership of a secret and the authorized public keys able to
   read the encrypted secret
   """
   defstruct authorized_keys: %{}, secret: ""
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           secret: binary(),

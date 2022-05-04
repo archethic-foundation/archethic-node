@@ -1,11 +1,11 @@
-defmodule ArchEthicWeb.API.Schema.AuthorizedKey do
+defmodule ArchethicWeb.API.Schema.AuthorizedKey do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Types.Hex
-  alias ArchEthicWeb.API.Types.PublicKey
+  alias ArchethicWeb.API.Types.Hex
+  alias ArchethicWeb.API.Types.PublicKey
 
   embedded_schema do
     field(:publicKey, PublicKey)

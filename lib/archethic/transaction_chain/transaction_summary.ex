@@ -1,14 +1,14 @@
-defmodule ArchEthic.TransactionChain.TransactionSummary do
+defmodule Archethic.TransactionChain.TransactionSummary do
   @moduledoc """
   Represents transaction header or extract to summarize it
   """
   defstruct [:timestamp, :address, :type, :fee, movements_addresses: []]
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),

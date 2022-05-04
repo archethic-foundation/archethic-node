@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.GeoPatch.GeoIP do
+defmodule Archethic.P2P.GeoPatch.GeoIP do
   @moduledoc false
 
   alias __MODULE__.IP2LocationImpl

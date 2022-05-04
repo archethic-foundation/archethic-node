@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.TransactionData do
+defmodule Archethic.TransactionChain.TransactionData do
   @moduledoc """
   Represents any transaction data block
   """
@@ -6,7 +6,7 @@ defmodule ArchEthic.TransactionChain.TransactionData do
   alias __MODULE__.Ledger
   alias __MODULE__.Ownership
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   defstruct recipients: [], ledger: %Ledger{}, code: "", ownerships: [], content: ""
 

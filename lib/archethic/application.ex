@@ -1,58 +1,58 @@
-defmodule ArchEthic.Application do
+defmodule Archethic.Application do
   @moduledoc false
 
   use Application
 
-  alias ArchEthic.Account.Supervisor, as: AccountSupervisor
+  alias Archethic.Account.Supervisor, as: AccountSupervisor
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Supervisor, as: BeaconChainSupervisor
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Supervisor, as: BeaconChainSupervisor
 
-  alias ArchEthic.Bootstrap
+  alias Archethic.Bootstrap
 
-  alias ArchEthic.Contracts.Supervisor, as: ContractsSupervisor
+  alias Archethic.Contracts.Supervisor, as: ContractsSupervisor
 
-  alias ArchEthic.Crypto.Supervisor, as: CryptoSupervisor
+  alias Archethic.Crypto.Supervisor, as: CryptoSupervisor
 
-  alias ArchEthic.DB.Supervisor, as: DBSupervisor
+  alias Archethic.DB.Supervisor, as: DBSupervisor
 
-  alias ArchEthic.Election.Supervisor, as: ElectionSupervisor
+  alias Archethic.Election.Supervisor, as: ElectionSupervisor
 
-  alias ArchEthic.Governance.Supervisor, as: GovernanceSupervisor
+  alias Archethic.Governance.Supervisor, as: GovernanceSupervisor
 
-  alias ArchEthic.Mining.Supervisor, as: MiningSupervisor
+  alias Archethic.Mining.Supervisor, as: MiningSupervisor
 
-  alias ArchEthic.Networking
-  alias ArchEthic.Networking.Supervisor, as: NetworkingSupervisor
+  alias Archethic.Networking
+  alias Archethic.Networking.Supervisor, as: NetworkingSupervisor
 
-  alias ArchEthic.P2P.Supervisor, as: P2PSupervisor
+  alias Archethic.P2P.Supervisor, as: P2PSupervisor
 
-  alias ArchEthic.OracleChain
-  alias ArchEthic.OracleChain.Supervisor, as: OracleChainSupervisor
+  alias Archethic.OracleChain
+  alias Archethic.OracleChain.Supervisor, as: OracleChainSupervisor
 
-  alias ArchEthic.Reward
-  alias ArchEthic.Reward.Supervisor, as: RewardSupervisor
+  alias Archethic.Reward
+  alias Archethic.Reward.Supervisor, as: RewardSupervisor
 
-  alias ArchEthic.SelfRepair
-  alias ArchEthic.SelfRepair.Supervisor, as: SelfRepairSupervisor
+  alias Archethic.SelfRepair
+  alias Archethic.SelfRepair.Supervisor, as: SelfRepairSupervisor
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.Supervisor, as: SharedSecretsSupervisor
 
-  alias ArchEthic.TransactionChain.Supervisor, as: TransactionChainSupervisor
+  alias Archethic.TransactionChain.Supervisor, as: TransactionChainSupervisor
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  alias ArchEthicWeb.Endpoint, as: WebEndpoint
-  alias ArchEthicWeb.Supervisor, as: WebSupervisor
+  alias ArchethicWeb.Endpoint, as: WebEndpoint
+  alias ArchethicWeb.Supervisor, as: WebSupervisor
 
-  alias ArchEthic.Metrics.MetricSupervisor, as: MetricSupervisor
+  alias Archethic.Metrics.MetricSupervisor, as: MetricSupervisor
 
   require Logger
 
   def start(_type, _args) do
-    p2p_endpoint_conf = Application.get_env(:archethic, ArchEthic.P2P.Listener)
-    web_endpoint_conf = Application.get_env(:archethic, ArchEthicWeb.Endpoint)
+    p2p_endpoint_conf = Application.get_env(:archethic, Archethic.P2P.Listener)
+    web_endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
 
     port = Keyword.fetch!(p2p_endpoint_conf, :port)
     port = Networking.try_open_port(port, true)
@@ -62,9 +62,9 @@ defmodule ArchEthic.Application do
     transport = Keyword.get(p2p_endpoint_conf, :transport, :tcp)
 
     children = [
-      {Task.Supervisor, name: ArchEthic.TaskSupervisor},
-      ArchEthic.Telemetry,
-      {Registry, keys: :duplicate, name: ArchEthic.PubSubRegistry},
+      {Task.Supervisor, name: Archethic.TaskSupervisor},
+      Archethic.Telemetry,
+      {Registry, keys: :duplicate, name: Archethic.PubSubRegistry},
       DBSupervisor,
       TransactionChainSupervisor,
       CryptoSupervisor,
@@ -82,7 +82,7 @@ defmodule ArchEthic.Application do
       WebSupervisor,
       NetworkingSupervisor,
       {Bootstrap,
-       Keyword.merge(Application.get_env(:archethic, ArchEthic.Bootstrap),
+       Keyword.merge(Application.get_env(:archethic, Archethic.Bootstrap),
          port: port,
          http_port: http_port,
          transport: transport
@@ -90,7 +90,7 @@ defmodule ArchEthic.Application do
       MetricSupervisor
     ]
 
-    opts = [strategy: :rest_for_one, name: ArchEthic.Supervisor]
+    opts = [strategy: :rest_for_one, name: Archethic.Supervisor]
     Supervisor.start_link(Utils.configurable_children(children), opts)
   end
 

@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.API.Types.TransactionType do
+defmodule ArchethicWeb.API.Types.TransactionType do
   @moduledoc false
 
   use Ecto.Type

@@ -1,33 +1,33 @@
-defmodule ArchEthic.Contracts.WorkerTest do
-  use ArchEthicCase
+defmodule Archethic.Contracts.WorkerTest do
+  use ArchethicCase
 
-  alias ArchEthic.Account
+  alias Archethic.Account
 
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Constants
 
-  alias ArchEthic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter
 
-  alias ArchEthic.Contracts.Worker
+  alias Archethic.Contracts.Worker
 
-  alias ArchEthic.ContractRegistry
+  alias Archethic.ContractRegistry
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.StartMining
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
   import Mox
 

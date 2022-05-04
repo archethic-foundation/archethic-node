@@ -1,19 +1,19 @@
-defmodule ArchEthic.Replication.TransactionValidatorTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.Replication.TransactionValidatorTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication.TransactionValidator
+  alias Archethic.Replication.TransactionValidator
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias ArchEthic.TransactionFactory
+  alias Archethic.TransactionFactory
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   @moduletag :capture_log
 

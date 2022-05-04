@@ -1,13 +1,13 @@
-defmodule ArchEthic.DB.EmbeddedImpl.ChainWriter do
+defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.DB.EmbeddedImpl.Encoding
-  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.Encoding
+  alias Archethic.DB.EmbeddedImpl.ChainIndex
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)

@@ -1,16 +1,16 @@
-defmodule ArchEthic.ReleaseTask do
+defmodule Archethic.ReleaseTask do
   @moduledoc """
   Task using in the release to send initial funds to the addresses of the onchain
   version of the website
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   # TODO: to remove once the Client UI developed
   def transfer_to_website_addresses(amount \\ 1.0) do
@@ -34,7 +34,7 @@ defmodule ArchEthic.ReleaseTask do
       seed,
       get_last_index(seed)
     )
-    |> ArchEthic.send_new_transaction()
+    |> Archethic.send_new_transaction()
   end
 
   defp get_last_index(seed) do
@@ -44,9 +44,9 @@ defmodule ArchEthic.ReleaseTask do
       |> elem(0)
       |> Crypto.derive_address()
 
-    case ArchEthic.get_last_transaction(address) do
+    case Archethic.get_last_transaction(address) do
       {:ok, %Transaction{address: address}} ->
-        ArchEthic.get_transaction_chain_length(address)
+        Archethic.get_transaction_chain_length(address)
 
       _ ->
         0

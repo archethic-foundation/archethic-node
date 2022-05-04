@@ -1,22 +1,22 @@
-defmodule ArchEthic.Replication.TransactionContextTest do
-  use ArchEthicCase
+defmodule Archethic.Replication.TransactionContextTest do
+  use ArchethicCase
 
-  alias ArchEthic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTables.UCOLedger
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication.TransactionContext
+  alias Archethic.Replication.TransactionContext
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   import Mox
 

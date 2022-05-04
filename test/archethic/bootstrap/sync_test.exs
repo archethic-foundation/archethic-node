@@ -1,40 +1,40 @@
-defmodule ArchEthic.Bootstrap.SyncTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.Bootstrap.SyncTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Account
+  alias Archethic.Account
 
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
 
-  alias ArchEthic.Bootstrap.Sync
+  alias Archethic.Bootstrap.Sync
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.EncryptedStorageNonce
-  alias ArchEthic.P2P.Message.GetLastTransactionAddress
-  alias ArchEthic.P2P.Message.GetStorageNonce
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.LastTransactionAddress
-  alias ArchEthic.P2P.Message.ListNodes
-  alias ArchEthic.P2P.Message.NodeList
-  alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.EncryptedStorageNonce
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetStorageNonce
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.ListNodes
+  alias Archethic.P2P.Message.NodeList
+  alias Archethic.P2P.Message.NotifyEndOfNodeSync
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.TransactionData
 
   doctest Sync
 
@@ -226,7 +226,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
     end
 
     test "should initiate storage nonce, first node transaction, node shared secrets and genesis wallets" do
-      start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+      start_supervised!({Archethic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
 
       MockDB
       |> stub(:chain_size, fn _ -> 1 end)
@@ -274,7 +274,7 @@ defmodule ArchEthic.Bootstrap.SyncTest do
 
       assert 2 == SharedSecrets.list_origin_public_keys() |> Enum.count()
 
-      Application.get_env(:archethic, ArchEthic.Bootstrap.NetworkInit)[:genesis_pools]
+      Application.get_env(:archethic, Archethic.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.each(fn %{address: address, amount: amount} ->
         assert %{uco: amount, nft: %{}} == Account.get_balance(address)
       end)

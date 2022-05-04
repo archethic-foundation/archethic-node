@@ -1,7 +1,7 @@
-defmodule ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko do
+defmodule Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko do
   @moduledoc false
 
-  alias ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl
+  alias Archethic.OracleChain.Services.UCOPrice.Providers.Impl
 
   @behaviour Impl
 

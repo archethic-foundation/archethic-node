@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.NodeKeystore do
+defmodule Archethic.Crypto.NodeKeystore do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   use Knigge, otp_app: :archethic, delegate_at_runtime?: true
 

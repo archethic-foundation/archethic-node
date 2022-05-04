@@ -1,18 +1,18 @@
-defmodule ArchEthic.SharedSecrets.Supervisor do
+defmodule Archethic.SharedSecrets.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
-  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
-  alias ArchEthic.SharedSecrets.MemTablesLoader
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.SharedSecrets.MemTablesLoader
 
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.SharedSecretSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.SharedSecretSupervisor)
   end
 
   def init(_args) do

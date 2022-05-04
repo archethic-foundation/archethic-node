@@ -1,14 +1,14 @@
 defmodule CryptoTest do
-  use ArchEthicCase, async: false
+  use ArchethicCase, async: false
   use ExUnitProperties
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.ID
+  alias Archethic.Crypto
+  alias Archethic.Crypto.ID
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   import Mox
 

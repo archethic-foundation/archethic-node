@@ -1,6 +1,6 @@
-defmodule ArchEthic.Utils.Testnet do
+defmodule Archethic.Utils.Testnet do
   @moduledoc """
-  ArchEthic Testnet Generator
+  Archethic Testnet Generator
   """
 
   defmodule Subnet do
@@ -107,7 +107,7 @@ defmodule ArchEthic.Utils.Testnet do
     end
   end
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   defp p2p_port, do: 30_002
   defp web_port, do: 40_000

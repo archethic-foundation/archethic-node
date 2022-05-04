@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger do
+defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
   @moduledoc """
   Represents a NFT ledger movement
   """

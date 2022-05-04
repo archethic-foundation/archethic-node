@@ -1,12 +1,12 @@
-defmodule ArchEthic.DB.EmbeddedImpl.ChainReader do
+defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   @moduledoc false
 
-  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
-  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
-  alias ArchEthic.DB.EmbeddedImpl.Encoding
+  alias Archethic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.DB.EmbeddedImpl.Encoding
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.Utils
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.Utils
 
   @page_size 10
 

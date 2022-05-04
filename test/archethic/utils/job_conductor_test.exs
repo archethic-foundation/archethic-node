@@ -1,7 +1,7 @@
-defmodule ArchEthic.Utils.JobConductorTest do
+defmodule Archethic.Utils.JobConductorTest do
   use ExUnit.Case
 
-  alias ArchEthic.Utils.JobConductor
+  alias Archethic.Utils.JobConductor
 
   doctest JobConductor
 end

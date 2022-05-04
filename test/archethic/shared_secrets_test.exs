@@ -1,7 +1,7 @@
-defmodule ArchEthic.SharedSecretsTest do
+defmodule Archethic.SharedSecretsTest do
   use ExUnit.Case
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
   doctest SharedSecrets
 end

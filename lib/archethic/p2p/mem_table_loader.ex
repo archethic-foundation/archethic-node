@@ -1,25 +1,25 @@
-defmodule ArchEthic.P2P.MemTableLoader do
+defmodule Archethic.P2P.MemTableLoader do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Client
-  alias ArchEthic.P2P.GeoPatch
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Client
+  alias Archethic.P2P.GeoPatch
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   require Logger
 

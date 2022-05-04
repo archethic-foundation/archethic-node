@@ -1,13 +1,13 @@
-defmodule ArchEthic.TransactionChain.Transaction.CrossValidationStampTest do
-  use ArchEthicCase
+defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
+  use ArchethicCase
   use ExUnitProperties
 
   import Mox
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   doctest CrossValidationStamp
 

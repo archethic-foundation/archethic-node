@@ -1,7 +1,7 @@
-defmodule ArchEthic.OracleChain.MemTableTest do
+defmodule Archethic.OracleChain.MemTableTest do
   use ExUnit.Case
 
-  alias ArchEthic.OracleChain.MemTable
+  alias Archethic.OracleChain.MemTable
 
   doctest MemTable
 end

@@ -1,14 +1,14 @@
-defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
+defmodule Archethic.Utils.Regression.Playbook.SmartContract do
   @moduledoc """
   Play and verify smart contracts.
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.Utils.Regression.Playbook
+  alias Archethic.Utils.Regression.Playbook
 
   require Logger
 
@@ -18,7 +18,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
     Crypto.Ed25519.LibSodiumPort.start_link()
 
     Logger.info("Play smart contract transactions on #{inspect(nodes)} with #{inspect(opts)}")
-    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
     host = :lists.nth(:rand.uniform(length(nodes)), nodes)
 
     run_smart_contracts(host, port)

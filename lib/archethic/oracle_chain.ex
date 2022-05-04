@@ -1,4 +1,4 @@
-defmodule ArchEthic.OracleChain do
+defmodule Archethic.OracleChain do
   @moduledoc """
   Manage network based oracle to verify, add new oracle transaction in the system and request last udpate.any()
 
@@ -11,8 +11,8 @@ defmodule ArchEthic.OracleChain do
   alias __MODULE__.Services
   alias __MODULE__.Summary
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler

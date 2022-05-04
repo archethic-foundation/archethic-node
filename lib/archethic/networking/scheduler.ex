@@ -1,25 +1,25 @@
-defmodule ArchEthic.Networking.Scheduler do
+defmodule Archethic.Networking.Scheduler do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Listener, as: P2PListener
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Listener, as: P2PListener
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Networking.IPLookup
-  alias ArchEthic.Networking.PortForwarding
+  alias Archethic.Networking.IPLookup
+  alias Archethic.Networking.PortForwarding
 
-  alias ArchEthic.TaskSupervisor
+  alias Archethic.TaskSupervisor
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  alias ArchEthicWeb.Endpoint, as: WebEndpoint
+  alias ArchethicWeb.Endpoint, as: WebEndpoint
 
   require Logger
 
@@ -74,7 +74,7 @@ defmodule ArchEthic.Networking.Scheduler do
             key_certificate
           )
       })
-      |> ArchEthic.send_new_transaction()
+      |> Archethic.send_new_transaction()
     else
       Logger.debug("Same IP - no need to send a new node transaction")
     end

@@ -1,11 +1,11 @@
-defmodule ArchEthicWeb.API.Schema.Ledger do
+defmodule ArchethicWeb.API.Schema.Ledger do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Schema.NFTLedger
-  alias ArchEthicWeb.API.Schema.UCOLedger
+  alias ArchethicWeb.API.Schema.NFTLedger
+  alias ArchethicWeb.API.Schema.UCOLedger
 
   embedded_schema do
     embeds_one(:uco, UCOLedger)

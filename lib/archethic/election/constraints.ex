@@ -1,4 +1,4 @@
-defmodule ArchEthic.Election.Constraints do
+defmodule Archethic.Election.Constraints do
   @moduledoc """
   Election algorithms are based on constrains with heuristics aims to the best case.
 
@@ -8,8 +8,8 @@ defmodule ArchEthic.Election.Constraints do
 
   use GenServer
 
-  alias ArchEthic.Election.StorageConstraints
-  alias ArchEthic.Election.ValidationConstraints
+  alias Archethic.Election.StorageConstraints
+  alias Archethic.Election.ValidationConstraints
 
   @table_name :archethic_election_constraints
 

@@ -1,17 +1,17 @@
-defmodule ArchEthic.TransactionChainTest do
-  use ArchEthicCase
+defmodule Archethic.TransactionChainTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetLastTransactionAddress
-  alias ArchEthic.P2P.Message.LastTransactionAddress
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   doctest TransactionChain
 

@@ -1,4 +1,4 @@
-defmodule ArchEthic.Crypto.Ed25519.LibSodiumPort do
+defmodule Archethic.Crypto.Ed25519.LibSodiumPort do
   @moduledoc false
   use GenServer
 
@@ -6,7 +6,7 @@ defmodule ArchEthic.Crypto.Ed25519.LibSodiumPort do
 
   @table_name :libsodium_port
 
-  alias ArchEthic.Utils.PortHandler
+  alias Archethic.Utils.PortHandler
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

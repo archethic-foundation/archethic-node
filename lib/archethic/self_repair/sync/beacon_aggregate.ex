@@ -1,4 +1,4 @@
-defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
+defmodule Archethic.SelfRepair.Sync.BeaconSummaryAggregate do
   @moduledoc """
   Represents an aggregate of multiple beacon summary from multiple subsets for a given date
 
@@ -7,8 +7,8 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate do
 
   defstruct [:summary_time, transaction_summaries: [], p2p_availabilities: %{}]
 
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.Summary, as: BeaconSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
   @type t :: %__MODULE__{
           summary_time: DateTime.t(),

@@ -1,20 +1,20 @@
-defmodule ArchEthic.Mining.PendingTransactionValidationTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.Mining.PendingTransactionValidationTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Governance.Pools.MemTable, as: PoolsMemTable
+  alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
 
-  alias ArchEthic.Mining.PendingTransactionValidation
+  alias Archethic.Mining.PendingTransactionValidation
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.FirstPublicKey
-  alias ArchEthic.P2P.Message.GetFirstPublicKey
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.FirstPublicKey
+  alias Archethic.P2P.Message.GetFirstPublicKey
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   import Mox
 
@@ -25,7 +25,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
     })
 
     on_exit(fn ->
-      Application.put_env(:archethic, ArchEthic.Mining.PendingTransactionValidation,
+      Application.put_env(:archethic, Archethic.Mining.PendingTransactionValidation,
         allowed_node_key_origins: []
       )
     end)
@@ -55,7 +55,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
     end
 
     test "should return an error when a node transaction public key used on non allowed origin" do
-      Application.put_env(:archethic, ArchEthic.Mining.PendingTransactionValidation,
+      Application.put_env(:archethic, Archethic.Mining.PendingTransactionValidation,
         allowed_node_key_origins: [:tpm]
       )
 
@@ -197,7 +197,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
              index d9d9a06..5e34b89 100644
              --- a/mix.exs
              +++ b/mix.exs
-             @@ -4,7 +4,7 @@ defmodule ArchEthic.MixProject do
+             @@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
                def project do
                  [
                    app: :archethic,
@@ -206,7 +206,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidationTest do
                    build_path: \"_build\",
                    config_path: \"config/config.exs\",
                    deps_path: \"deps\",
-             @@ -53,7 +53,7 @@ defmodule ArchEthic.MixProject do
+             @@ -53,7 +53,7 @@ defmodule Archethic.MixProject do
                    {:git_hooks, \"~> 0.4.0\", only: [:test, :dev], runtime: false},
                    {:mox, \"~> 0.5.2\", only: [:test]},
                    {:stream_data, \"~> 0.4.3\", only: [:test]},

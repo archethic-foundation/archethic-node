@@ -1,10 +1,10 @@
-defmodule ArchEthic.BeaconChain.SlotTest do
+defmodule Archethic.BeaconChain.SlotTest do
   use ExUnit.Case
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.TransactionChain.TransactionSummary
 
   doctest Slot
 end

@@ -1,10 +1,10 @@
-defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer do
+defmodule Archethic.TransactionChain.TransactionData.NFTLedger.Transfer do
   @moduledoc """
   Represents a NFT ledger transfer
   """
   defstruct [:to, :amount, :nft, conditions: []]
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @typedoc """
   Transfer is composed from:

@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.GeoPatch do
+defmodule Archethic.P2P.GeoPatch do
   @moduledoc """
   Provide functions for Geographical Patching from IP address
 

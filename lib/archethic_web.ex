@@ -1,13 +1,13 @@
-defmodule ArchEthicWeb do
+defmodule ArchethicWeb do
   @moduledoc false
 
   def controller do
     quote do
-      use Phoenix.Controller, namespace: ArchEthicWeb
+      use Phoenix.Controller, namespace: ArchethicWeb
 
       import Plug.Conn
       import Phoenix.LiveView.Controller
-      alias ArchEthicWeb.Router.Helpers, as: Routes
+      alias ArchethicWeb.Router.Helpers, as: Routes
     end
   end
 
@@ -15,7 +15,7 @@ defmodule ArchEthicWeb do
     quote do
       use Phoenix.View,
         root: "lib/archethic_web/templates",
-        namespace: ArchEthicWeb
+        namespace: ArchethicWeb
 
       # Import convenience functions from controllers
       import Phoenix.Controller, only: [get_flash: 1, get_flash: 2, view_module: 1]
@@ -28,7 +28,7 @@ defmodule ArchEthicWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {ArchEthicWeb.LayoutView, "live.html"}
+        layout: {ArchethicWeb.LayoutView, "live.html"}
 
       unquote(view_helpers())
     end
@@ -53,10 +53,10 @@ defmodule ArchEthicWeb do
       # Import basic rendering functionality (render, render_layout, etc)
       import Phoenix.View
 
-      import ArchEthicWeb.ErrorHelpers
-      import ArchEthicWeb.LayoutHelpers
+      import ArchethicWeb.ErrorHelpers
+      import ArchethicWeb.LayoutHelpers
 
-      alias ArchEthicWeb.Router.Helpers, as: Routes
+      alias ArchethicWeb.Router.Helpers, as: Routes
     end
   end
 

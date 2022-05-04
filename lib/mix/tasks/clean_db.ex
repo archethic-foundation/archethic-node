@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.ArchEthic.CleanDb do
+defmodule Mix.Tasks.Archethic.CleanDb do
   @moduledoc "Drop all the data from the database"
 
   use Mix.Task

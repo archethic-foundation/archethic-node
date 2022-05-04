@@ -1,20 +1,20 @@
-defmodule ArchEthicWeb.GraphQLSchema.Resolver do
+defmodule ArchethicWeb.GraphQLSchema.Resolver do
   @moduledoc false
 
-  alias ArchEthic
+  alias Archethic
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionInput
 
   @limit_page 10
 
   def get_balance(address) do
-    case ArchEthic.get_balance(address) do
+    case Archethic.get_balance(address) do
       {:ok, %{uco: uco, nft: nft_balances}} ->
         balance = %{
           uco: uco,
@@ -32,7 +32,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def get_inputs(address) do
-    case ArchEthic.get_transaction_inputs(address) do
+    case Archethic.get_transaction_inputs(address) do
       {:ok, inputs} ->
         {:ok, Enum.map(inputs, &TransactionInput.to_map/1)}
 
@@ -48,7 +48,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def paginate_chain(address, page) do
-    case ArchEthic.get_transaction_chain(address) do
+    case Archethic.get_transaction_chain(address) do
       {:ok, chain} ->
         {:ok, paginate_transactions(chain, page)}
 
@@ -69,7 +69,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def get_last_transaction(address) do
-    case ArchEthic.get_last_transaction(address) do
+    case Archethic.get_last_transaction(address) do
       {:ok, tx} ->
         {:ok, Transaction.to_map(tx)}
 
@@ -79,7 +79,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def get_transaction(address) do
-    case ArchEthic.search_transaction(address) do
+    case Archethic.search_transaction(address) do
       {:ok, tx} ->
         {:ok, Transaction.to_map(tx)}
 
@@ -89,7 +89,7 @@ defmodule ArchEthicWeb.GraphQLSchema.Resolver do
   end
 
   def get_chain_length(address) do
-    ArchEthic.get_transaction_chain_length(address)
+    Archethic.get_transaction_chain_length(address)
   end
 
   def nodes do

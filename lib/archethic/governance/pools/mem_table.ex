@@ -1,8 +1,8 @@
-defmodule ArchEthic.Governance.Pools.MemTable do
+defmodule Archethic.Governance.Pools.MemTable do
   @moduledoc false
 
   use Agent
-  alias ArchEthic.Governance.Pools
+  alias Archethic.Governance.Pools
 
   @doc """
   Initialize an memory table for the governance pool member distribution

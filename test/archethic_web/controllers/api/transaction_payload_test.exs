@@ -1,9 +1,9 @@
-defmodule ArchEthicWeb.API.TransactionPayloadTest do
+defmodule ArchethicWeb.API.TransactionPayloadTest do
   use ExUnit.Case
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthicWeb.API.TransactionPayload
+  alias ArchethicWeb.API.TransactionPayload
 
   alias Ecto.Changeset
 

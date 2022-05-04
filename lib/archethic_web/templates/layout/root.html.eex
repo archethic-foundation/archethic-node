@@ -13,8 +13,8 @@
     <div class="container is-fluid">
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-          <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchEthicWeb.ExplorerIndexLive) %>">
-            ArchEthic
+          <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchethicWeb.ExplorerIndexLive) %>">
+            Archethic
           </a>
           <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
@@ -29,7 +29,7 @@
 
 
 
-              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.DashboardLive)%>">Dashboard </a>
+              <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.DashboardLive)%>">Dashboard </a>
 
 
 
@@ -41,27 +41,27 @@
             <!--
               TODO: implement the listing of transactions through BeaconChain
 
-                  <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.TransactionListLive) %>">
+                  <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.TransactionListLive) %>">
                      Transactions
                   </a>
               -->
             <div class="navbar-item has-dropdown is-hoverable" >
               <a class="navbar-link" href="<%= Routes.explorer_path(@conn, :chain) %>">Chains</a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.OracleChainLive) %>">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.OracleChainLive) %>">
                   Oracle
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.BeaconChainLive) %>">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.BeaconChainLive) %>">
                   Beacon
                 </a>
               </div>
             </div>
             <div class="navbar-item has-dropdown is-hoverable" >
-              <a class="navbar-link" href="<%= Routes.live_path(@conn, ArchEthicWeb.NodeListLive) %>">
+              <a class="navbar-link" href="<%= Routes.live_path(@conn, ArchethicWeb.NodeListLive) %>">
                 Nodes
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item"  href="<%= Routes.live_path(@conn, ArchEthicWeb.WorldMapLive) %>">
+                <a class="navbar-item"  href="<%= Routes.live_path(@conn, ArchethicWeb.WorldMapLive) %>">
                   Map
                 </a>
               </div>
@@ -71,10 +71,10 @@
                 Governance
               </a>
               <div class="navbar-dropdown is-boxed">
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeViewerLive) %>">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.CodeViewerLive) %>">
                   Code Viewer
                 </a>
-                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchEthicWeb.CodeProposalsLive) %>">
+                <a class="navbar-item" href="<%= Routes.live_path(@conn, ArchethicWeb.CodeProposalsLive) %>">
                   Code Proposals
                 </a>
               </div>

@@ -1,11 +1,11 @@
-defmodule ArchEthic.Contracts.Interpreter.Library do
+defmodule Archethic.Contracts.Interpreter.Library do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetFirstAddress
-  alias ArchEthic.P2P.Message.FirstAddress
-  alias ArchEthic.Election
+  alias Archethic.Crypto
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.Election
 
   @doc """
   Match a regex expression

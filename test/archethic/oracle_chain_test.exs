@@ -1,11 +1,11 @@
-defmodule ArchEthic.OracleChainTest do
-  use ArchEthicCase
+defmodule Archethic.OracleChainTest do
+  use ArchethicCase
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   import Mox
 

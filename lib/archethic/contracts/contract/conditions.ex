@@ -1,4 +1,4 @@
-defmodule ArchEthic.Contracts.Contract.Conditions do
+defmodule Archethic.Contracts.Contract.Conditions do
   @moduledoc """
   Represents the smart contract conditions
   """
@@ -15,8 +15,8 @@ defmodule ArchEthic.Contracts.Contract.Conditions do
     origin_family: :all
   ]
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.SharedSecrets
+  alias Archethic.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           type: Transaction.transaction_type() | nil,

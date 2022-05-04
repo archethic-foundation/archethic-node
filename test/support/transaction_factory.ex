@@ -1,21 +1,21 @@
-defmodule ArchEthic.TransactionFactory do
+defmodule Archethic.TransactionFactory do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.Fee
+  alias Archethic.Mining.Fee
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData
 
   def create_valid_transaction(
         inputs \\ [],

@@ -1,27 +1,27 @@
-defmodule ArchEthic.Replication.TransactionValidator do
+defmodule Archethic.Replication.TransactionValidator do
   @moduledoc false
 
-  alias ArchEthic.Bootstrap
+  alias Archethic.Bootstrap
 
-  alias ArchEthic.Contracts
+  alias Archethic.Contracts
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.Mining
+  alias Archethic.Mining
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionInput
 
   require Logger
 

@@ -1,6 +1,6 @@
-defmodule ArchEthic.Governance.Code.CICD do
+defmodule Archethic.Governance.Code.CICD do
   @moduledoc ~S"""
-  Provides CICD pipeline for `ArchEthic.Governance.Code.Proposal`
+  Provides CICD pipeline for `Archethic.Governance.Code.Proposal`
 
   The evolution of archethic-node could be represented using following stages:
 
@@ -38,7 +38,7 @@ defmodule ArchEthic.Governance.Code.CICD do
   and after upgrade.
   """
 
-  alias ArchEthic.Governance.Code.Proposal
+  alias Archethic.Governance.Code.Proposal
 
   use Knigge, otp_app: :archethic, default: __MODULE__.Docker
 

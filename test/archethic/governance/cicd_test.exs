@@ -1,11 +1,11 @@
-defmodule ArchEthic.Governance.Code.CICD.Docker.Test do
+defmodule Archethic.Governance.Code.CICD.Docker.Test do
   use ExUnit.Case
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  alias ArchEthic.Governance.Code.CICD
-  alias ArchEthic.Governance.Code.Proposal
-  alias ArchEthic.Governance.Code.Proposal.Parser
+  alias Archethic.Governance.Code.CICD
+  alias Archethic.Governance.Code.Proposal
+  alias Archethic.Governance.Code.Proposal.Parser
 
   @tag :CI
   test "run_ci should succeed" do

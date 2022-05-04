@@ -1,20 +1,20 @@
-defmodule ArchEthic.Account.MemTablesLoaderTest do
-  use ArchEthicCase
+defmodule Archethic.Account.MemTablesLoaderTest do
+  use ArchethicCase
 
-  alias ArchEthic.Account.MemTables.NFTLedger
-  alias ArchEthic.Account.MemTables.UCOLedger
-  alias ArchEthic.Account.MemTablesLoader
+  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTablesLoader
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   import Mox
 

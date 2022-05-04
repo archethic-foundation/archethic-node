@@ -1,21 +1,21 @@
-defmodule ArchEthic.TransactionChain.TransactionTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.TransactionChain.TransactionTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  # alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  # alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  # alias Archethic.TransactionChain.Transaction.ValidationStamp
+  # alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
-  doctest ArchEthic.TransactionChain.Transaction
+  doctest Archethic.TransactionChain.Transaction
 
   describe "new/2" do
     test "with type ':node' create a new transaction using the node keys" do

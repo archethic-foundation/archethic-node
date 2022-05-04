@@ -1,15 +1,15 @@
-defmodule ArchEthic.DB.EmbeddedTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.DB.EmbeddedTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.DB.EmbeddedImpl
-  alias ArchEthic.DB.EmbeddedImpl.Encoding
-  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
-  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.DB.EmbeddedImpl
+  alias Archethic.DB.EmbeddedImpl.Encoding
+  alias Archethic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.ChainWriter
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionFactory
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionFactory
 
   setup do
     EmbeddedImpl.Supervisor.start_link()

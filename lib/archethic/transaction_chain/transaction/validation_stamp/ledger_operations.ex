@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations do
   @moduledoc """
   Represents the ledger operations defined during the transaction mining regarding the network movements:
   - transaction movements
@@ -13,16 +13,16 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             unspent_outputs: [],
             fee: 0
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
 
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements

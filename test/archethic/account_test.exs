@@ -1,11 +1,11 @@
-defmodule ArchEthic.AccountTest do
+defmodule Archethic.AccountTest do
   use ExUnit.Case
 
-  alias ArchEthic.Account
-  alias ArchEthic.Account.MemTables.NFTLedger
-  alias ArchEthic.Account.MemTables.UCOLedger
+  alias Archethic.Account
+  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.UCOLedger
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   describe "get_balance/1" do
     setup do

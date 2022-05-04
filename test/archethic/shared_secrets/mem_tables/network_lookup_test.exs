@@ -1,7 +1,7 @@
-defmodule ArchEthic.SharedSecrets.MemTables.NetworkLookupTest do
+defmodule Archethic.SharedSecrets.MemTables.NetworkLookupTest do
   use ExUnit.Case
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
   doctest NetworkLookup
 end

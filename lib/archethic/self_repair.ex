@@ -1,6 +1,6 @@
-defmodule ArchEthic.SelfRepair do
+defmodule Archethic.SelfRepair do
   @moduledoc """
-  Synchronization for all the ArchEthic nodes relies on the self-repair mechanism started during
+  Synchronization for all the Archethic nodes relies on the self-repair mechanism started during
   the bootstrapping phase and stores last synchronization date after each cycle.
   """
 

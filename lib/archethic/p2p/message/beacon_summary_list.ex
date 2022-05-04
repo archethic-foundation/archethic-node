@@ -1,9 +1,9 @@
-defmodule ArchEthic.P2P.Message.BeaconSummaryList do
+defmodule Archethic.P2P.Message.BeaconSummaryList do
   @moduledoc """
   Represents a message with a list of beacon summaries
   """
 
-  alias ArchEthic.BeaconChain.Summary
+  alias Archethic.BeaconChain.Summary
 
   defstruct summaries: []
 

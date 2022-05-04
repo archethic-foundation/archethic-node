@@ -1,26 +1,26 @@
-defmodule ArchEthic.BeaconChain.SubsetTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.BeaconChain.SubsetTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias ArchEthic.BeaconChain.Subset
+  alias Archethic.BeaconChain.Subset
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.BeaconUpdate
-  alias ArchEthic.P2P.Message.NewBeaconTransaction
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.Ping
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.BeaconUpdate
+  alias Archethic.P2P.Message.NewBeaconTransaction
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Ping
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 

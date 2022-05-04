@@ -1,21 +1,21 @@
-defmodule ArchEthicWeb.ExplorerIndexLive do
+defmodule ArchethicWeb.ExplorerIndexLive do
   @moduledoc false
 
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
   alias Phoenix.View
 
-  alias ArchEthic.DB
-  alias ArchEthic.PubSub
+  alias Archethic.DB
+  alias Archethic.PubSub
 
-  alias ArchEthicWeb.ExplorerView
+  alias ArchethicWeb.ExplorerView
 
   def mount(_params, _session, socket) do
     tps = DB.get_latest_tps()
     nb_transactions = DB.get_nb_transactions()
 
     if connected?(socket) do
-      ArchEthic.Metrics.Poller.monitor()
+      Archethic.Metrics.Poller.monitor()
       PubSub.register_to_new_tps()
     end
 

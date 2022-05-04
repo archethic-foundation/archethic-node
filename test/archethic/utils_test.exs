@@ -1,8 +1,8 @@
-defmodule ArchEthic.UtilsTest do
+defmodule Archethic.UtilsTest do
   use ExUnit.Case
 
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.Utils
+  alias Archethic.P2P.Node
+  alias Archethic.Utils
 
   doctest Utils
 end

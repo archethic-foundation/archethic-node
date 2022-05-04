@@ -1,4 +1,4 @@
-defmodule ArchEthic.Reward.NetworkPoolScheduler do
+defmodule Archethic.Reward.NetworkPoolScheduler do
   @moduledoc false
 
   use GenServer
@@ -6,21 +6,21 @@ defmodule ArchEthic.Reward.NetworkPoolScheduler do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Reward
+  alias Archethic.Reward
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 
@@ -157,7 +157,7 @@ defmodule ArchEthic.Reward.NetworkPoolScheduler do
         }
       }
     })
-    |> ArchEthic.send_new_transaction()
+    |> Archethic.send_new_transaction()
   end
 
   defp schedule(interval) do

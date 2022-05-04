@@ -1,11 +1,11 @@
-defmodule ArchEthic.Mining do
+defmodule Archethic.Mining do
   @moduledoc """
   Handle the ARCH consensus behavior and transaction mining
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
   alias __MODULE__.DistributedWorkflow
   alias __MODULE__.Fee
@@ -14,12 +14,12 @@ defmodule ArchEthic.Mining do
   alias __MODULE__.WorkerSupervisor
   alias __MODULE__.WorkflowRegistry
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   require Logger
 

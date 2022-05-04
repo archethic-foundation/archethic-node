@@ -1,19 +1,19 @@
-defmodule ArchEthicWeb.FaucetController do
+defmodule ArchethicWeb.FaucetController do
   @moduledoc false
 
-  use ArchEthicWeb, :controller
+  use ArchethicWeb, :controller
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.{
+  alias Archethic.TransactionChain.{
     Transaction,
     TransactionData,
     TransactionData.Ledger,
     TransactionData.UCOLedger
   }
 
-  alias ArchEthicWeb.TransactionSubscriber
-  alias ArchEthicWeb.FaucetRateLimiter
+  alias ArchethicWeb.TransactionSubscriber
+  alias ArchethicWeb.FaucetRateLimiter
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
   @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
@@ -27,7 +27,7 @@ defmodule ArchEthicWeb.FaucetController do
     else
       conn
       |> put_status(:not_found)
-      |> put_view(ArchEthicWeb.ErrorView)
+      |> put_view(ArchethicWeb.ErrorView)
       |> render("404.html")
       |> halt()
     end
@@ -69,7 +69,7 @@ defmodule ArchEthicWeb.FaucetController do
         conn
         |> put_flash(
           :error,
-          "Blocked address as you exceeded usage limit of UCO temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
+          "Blocked address as you exceeded usage limit of UCO temporarily. Try after #{Archethic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
         )
         |> render("index.html", address: address, link_address: "")
 
@@ -90,8 +90,8 @@ defmodule ArchEthicWeb.FaucetController do
     pool_gen_address = Crypto.derive_address(gen_pub)
 
     with {:ok, last_address} <-
-           ArchEthic.get_last_transaction_address(pool_gen_address),
-         {:ok, last_index} <- ArchEthic.get_transaction_chain_length(last_address) do
+           Archethic.get_last_transaction_address(pool_gen_address),
+         {:ok, last_index} <- Archethic.get_transaction_chain_length(last_address) do
       create_transaction(last_index, curve, recipient_address)
     else
       {:error, _} = e ->
@@ -120,7 +120,7 @@ defmodule ArchEthicWeb.FaucetController do
         curve
       )
 
-    case ArchEthic.send_new_transaction(tx) do
+    case Archethic.send_new_transaction(tx) do
       :ok ->
         {:ok, tx.address}
 
