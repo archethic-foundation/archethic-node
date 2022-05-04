@@ -175,6 +175,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
+    genesis_origin_private_key = get_origin_private_key(host, port)
+
     tx =
       %Transaction{
         address: Crypto.derive_address(next_public_key),
@@ -183,7 +185,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         previous_public_key: previous_public_key
       }
       |> Transaction.previous_sign_transaction(previous_private_key)
-      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+      |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =
       Crypto.verify?(
