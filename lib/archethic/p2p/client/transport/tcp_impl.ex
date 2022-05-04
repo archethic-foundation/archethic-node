@@ -1,7 +1,7 @@
-defmodule ArchEthic.P2P.Client.Transport.TCPImpl do
+defmodule Archethic.P2P.Client.Transport.TCPImpl do
   @moduledoc false
 
-  alias ArchEthic.P2P.Client.Transport
+  alias Archethic.P2P.Client.Transport
 
   @options [:binary, packet: 4, active: :once]
 

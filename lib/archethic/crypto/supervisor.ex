@@ -1,12 +1,12 @@
-defmodule ArchEthic.Crypto.Supervisor do
+defmodule Archethic.Crypto.Supervisor do
   @moduledoc false
   use Supervisor
 
-  alias ArchEthic.Crypto.Ed25519.LibSodiumPort
-  alias ArchEthic.Crypto.KeystoreSupervisor
+  alias Archethic.Crypto.Ed25519.LibSodiumPort
+  alias Archethic.Crypto.KeystoreSupervisor
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.CryptoSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.CryptoSupervisor)
   end
 
   def init(_args) do

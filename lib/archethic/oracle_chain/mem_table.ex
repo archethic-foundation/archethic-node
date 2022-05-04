@@ -1,4 +1,4 @@
-defmodule ArchEthic.OracleChain.MemTable do
+defmodule Archethic.OracleChain.MemTable do
   @moduledoc false
 
   use GenServer

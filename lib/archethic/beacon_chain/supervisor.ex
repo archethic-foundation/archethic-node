@@ -1,13 +1,13 @@
-defmodule ArchEthic.BeaconChain.Supervisor do
+defmodule Archethic.BeaconChain.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.SummaryTimer
-  alias ArchEthic.BeaconChain.SubsetSupervisor
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.SubsetSupervisor
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)

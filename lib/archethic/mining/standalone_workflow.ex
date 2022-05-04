@@ -1,4 +1,4 @@
-defmodule ArchEthic.Mining.StandaloneWorkflow do
+defmodule Archethic.Mining.StandaloneWorkflow do
   @moduledoc """
   Transaction validation is performed in a single node processing.
   This workflow should be executed only when the network is bootstrapping (only 1 validation node)
@@ -7,26 +7,26 @@ defmodule ArchEthic.Mining.StandaloneWorkflow do
   """
   use Task
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.PendingTransactionValidation
-  alias ArchEthic.Mining.TransactionContext
-  alias ArchEthic.Mining.ValidationContext
+  alias Archethic.Mining.PendingTransactionValidation
+  alias Archethic.Mining.TransactionContext
+  alias Archethic.Mining.ValidationContext
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
-  alias ArchEthic.P2P.Message.Error
-  alias ArchEthic.P2P.Message.ReplicateTransaction
-  alias ArchEthic.P2P.Message.ReplicateTransactionChain
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.AcknowledgeStorage
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.ReplicateTransaction
+  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 

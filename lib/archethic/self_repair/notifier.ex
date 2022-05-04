@@ -1,22 +1,22 @@
-defmodule ArchEthic.SelfRepair.Notifier do
+defmodule Archethic.SelfRepair.Notifier do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.ReplicateTransactionChain
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)

@@ -1,13 +1,13 @@
-defmodule ArchEthic.Networking.Supervisor do
+defmodule Archethic.Networking.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Networking.Scheduler
-  alias ArchEthic.Utils
+  alias Archethic.Networking.Scheduler
+  alias Archethic.Utils
 
   def start_link(arg \\ []) do
-    Supervisor.start_link(__MODULE__, arg, name: ArchEthic.NetworkingSupervisor)
+    Supervisor.start_link(__MODULE__, arg, name: Archethic.NetworkingSupervisor)
   end
 
   def init(_arg) do

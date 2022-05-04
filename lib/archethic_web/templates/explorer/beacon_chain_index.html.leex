@@ -42,7 +42,7 @@
       <%= for tx <- @transactions do %>
           <div class="columns">
             <div class="column is-5-desktop">
-              <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+              <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
                  <span class="text_wrap"><%= Base.encode16(tx.address) %></span>
                 <% end %>
             </div>

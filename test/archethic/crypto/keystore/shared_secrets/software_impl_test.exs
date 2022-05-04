@@ -1,13 +1,13 @@
-defmodule ArchEthic.Crypto.SharedSecrets.SoftwareImplTest do
-  use ArchEthicCase
+defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl, as: Keystore
+  alias Archethic.Crypto
+  alias Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl, as: Keystore
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   import Mox
 

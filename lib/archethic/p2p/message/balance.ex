@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.Balance do
+defmodule Archethic.P2P.Message.Balance do
   @moduledoc """
   Represents a message with the balance of a transaction
   """

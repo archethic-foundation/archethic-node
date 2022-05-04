@@ -1,4 +1,4 @@
-defmodule ArchEthic.MixProject do
+defmodule Archethic.MixProject do
   use Mix.Project
 
   def project do
@@ -24,7 +24,7 @@ defmodule ArchEthic.MixProject do
   def application do
     [
       extra_applications: [:logger, :inets, :os_mon, :runtime_tools, :xmerl],
-      mod: {ArchEthic.Application, []}
+      mod: {Archethic.Application, []}
     ]
   end
 

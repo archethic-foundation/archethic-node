@@ -1,10 +1,10 @@
-defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer do
+defmodule Archethic.TransactionChain.TransactionData.UCOLedger.Transfer do
   @moduledoc """
   Represents a UCO transfer
   """
   defstruct [:to, :amount, conditions: []]
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @typedoc """
   Transfer is composed from:

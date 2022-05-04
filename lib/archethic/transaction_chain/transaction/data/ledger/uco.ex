@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger do
+defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
   @moduledoc """
   Represents a UCO ledger movement
   """

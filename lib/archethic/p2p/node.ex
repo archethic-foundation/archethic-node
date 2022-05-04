@@ -1,6 +1,6 @@
-defmodule ArchEthic.P2P.Node do
+defmodule Archethic.P2P.Node do
   @moduledoc """
-  Describe an ArchEthic P2P node
+  Describe an Archethic P2P node
 
   Assumptions:
   - Each node by default is not authorized and become when a node shared secrets transaction involve it.
@@ -11,11 +11,11 @@ defmodule ArchEthic.P2P.Node do
 
   require Logger
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   defstruct [
     :first_public_key,
@@ -450,7 +450,7 @@ defmodule ArchEthic.P2P.Node do
         ""
       }
   """
-  @spec deserialize(bitstring()) :: {ArchEthic.P2P.Node.t(), bitstring}
+  @spec deserialize(bitstring()) :: {Archethic.P2P.Node.t(), bitstring}
   def deserialize(
         <<ip_bin::binary-size(4), port::16, http_port::16, transport::8,
           geo_patch::binary-size(3), network_patch::binary-size(3), average_availability::8,

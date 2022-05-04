@@ -1,4 +1,4 @@
-defmodule ArchEthic.DB.EmbeddedImpl.BootstrapInfo do
+defmodule Archethic.DB.EmbeddedImpl.BootstrapInfo do
   @moduledoc false
 
   use GenServer

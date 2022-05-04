@@ -1,19 +1,19 @@
-defmodule ArchEthicWeb.GraphQLSchema.TransactionType do
+defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
 
-  import_types(ArchEthicWeb.GraphQLSchema.ContentType)
-  import_types(ArchEthicWeb.GraphQLSchema.AddressType)
-  import_types(ArchEthicWeb.GraphQLSchema.AmountType)
-  import_types(ArchEthicWeb.GraphQLSchema.HashType)
-  import_types(ArchEthicWeb.GraphQLSchema.PublicKeyType)
+  import_types(ArchethicWeb.GraphQLSchema.ContentType)
+  import_types(ArchethicWeb.GraphQLSchema.AddressType)
+  import_types(ArchethicWeb.GraphQLSchema.AmountType)
+  import_types(ArchethicWeb.GraphQLSchema.HashType)
+  import_types(ArchethicWeb.GraphQLSchema.PublicKeyType)
 
-  alias ArchEthicWeb.GraphQLSchema.Resolver
+  alias ArchethicWeb.GraphQLSchema.Resolver
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
-  @desc "[Transaction] represents a unitary transaction in the ArchEthic network."
+  @desc "[Transaction] represents a unitary transaction in the Archethic network."
   object :transaction do
     field(:version, :integer)
     field(:address, :address)

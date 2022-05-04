@@ -1,7 +1,7 @@
-defmodule ArchEthic.TransactionChain.TransactionData.UCOLedger.TransferTest do
+defmodule Archethic.TransactionChain.TransactionData.UCOLedger.TransferTest do
   use ExUnit.Case
 
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   doctest Transfer
 end

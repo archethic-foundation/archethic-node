@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.LayoutHelpers do
+defmodule ArchethicWeb.LayoutHelpers do
   @moduledoc false
 
   def format_date(%DateTime{

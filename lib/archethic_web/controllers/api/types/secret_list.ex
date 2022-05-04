@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.API.Types.SecretList do
+defmodule ArchethicWeb.API.Types.SecretList do
   @moduledoc false
 
   use Ecto.Type

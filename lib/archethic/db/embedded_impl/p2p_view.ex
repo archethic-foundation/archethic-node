@@ -1,9 +1,9 @@
-defmodule ArchEthic.DB.EmbeddedImpl.P2PView do
+defmodule Archethic.DB.EmbeddedImpl.P2PView do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

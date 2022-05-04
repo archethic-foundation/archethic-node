@@ -1,18 +1,18 @@
-defmodule ArchEthic.Contracts.Contract do
+defmodule Archethic.Contracts.Contract do
   @moduledoc """
   Represents a smart contract
   """
 
-  alias ArchEthic.Contracts.Contract.Conditions
-  alias ArchEthic.Contracts.Contract.Constants
-  alias ArchEthic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract.Trigger
 
-  alias ArchEthic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   defstruct triggers: [],
             conditions: %{

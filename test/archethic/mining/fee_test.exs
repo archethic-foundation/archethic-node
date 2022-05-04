@@ -1,16 +1,16 @@
-defmodule ArchEthic.Mining.FeeTest do
-  use ArchEthicCase
+defmodule Archethic.Mining.FeeTest do
+  use ArchethicCase
 
-  alias ArchEthic.Mining.Fee
+  alias Archethic.Mining.Fee
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   describe "calculate/2 with 50 storage nodes" do
     setup do

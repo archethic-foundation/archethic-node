@@ -1,7 +1,7 @@
-defmodule ArchEthic.Election.ConstraintsTest do
+defmodule Archethic.Election.ConstraintsTest do
   use ExUnit.Case
 
-  alias ArchEthic.Election.Constraints
+  alias Archethic.Election.Constraints
 
   doctest Constraints
 end

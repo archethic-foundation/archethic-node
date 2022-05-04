@@ -1,12 +1,12 @@
-defmodule ArchEthic.OracleChain.MemTableLoader do
+defmodule Archethic.OracleChain.MemTableLoader do
   @moduledoc false
 
-  alias ArchEthic.OracleChain.MemTable
+  alias Archethic.OracleChain.MemTable
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   use GenServer
 

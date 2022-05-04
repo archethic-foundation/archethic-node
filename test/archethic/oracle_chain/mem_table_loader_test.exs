@@ -1,12 +1,12 @@
-defmodule ArchEthic.OracleChain.MemTableLoaderTest do
-  use ArchEthicCase
+defmodule Archethic.OracleChain.MemTableLoaderTest do
+  use ArchethicCase
 
-  alias ArchEthic.OracleChain.MemTable
-  alias ArchEthic.OracleChain.MemTableLoader
+  alias Archethic.OracleChain.MemTable
+  alias Archethic.OracleChain.MemTableLoader
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   describe "load_transaction/1" do
     test "should load an oracle transaction into the mem table" do

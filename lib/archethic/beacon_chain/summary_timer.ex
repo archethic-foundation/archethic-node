@@ -1,4 +1,4 @@
-defmodule ArchEthic.BeaconChain.SummaryTimer do
+defmodule Archethic.BeaconChain.SummaryTimer do
   @moduledoc """
   Handle the scheduling of the beacon summaries creation
   """
@@ -9,8 +9,8 @@ defmodule ArchEthic.BeaconChain.SummaryTimer do
   alias Crontab.DateChecker
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias ArchEthic.PubSub
-  alias ArchEthic.Utils
+  alias Archethic.PubSub
+  alias Archethic.Utils
 
   @doc """
   Create a new summary timer

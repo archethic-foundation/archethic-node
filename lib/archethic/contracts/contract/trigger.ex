@@ -1,4 +1,4 @@
-defmodule ArchEthic.Contracts.Contract.Trigger do
+defmodule Archethic.Contracts.Contract.Trigger do
   @moduledoc """
   Represents the smart contract triggers
   """

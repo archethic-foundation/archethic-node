@@ -1,13 +1,13 @@
-defmodule ArchEthic.Crypto.NodeKeystore.TPMImpl do
+defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.ID
-  alias ArchEthic.Crypto.NodeKeystore
+  alias Archethic.Crypto
+  alias Archethic.Crypto.ID
+  alias Archethic.Crypto.NodeKeystore
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.Utils.PortHandler
+  alias Archethic.Utils.PortHandler
 
   @behaviour NodeKeystore
 

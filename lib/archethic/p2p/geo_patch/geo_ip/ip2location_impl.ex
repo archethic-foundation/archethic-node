@@ -1,9 +1,9 @@
-defmodule ArchEthic.P2P.GeoPatch.GeoIP.IP2LocationImpl do
+defmodule Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl do
   @moduledoc false
 
   @table_name :ip2location
 
-  alias ArchEthic.P2P.GeoPatch.GeoIP
+  alias Archethic.P2P.GeoPatch.GeoIP
 
   @behaviour GeoIP
 

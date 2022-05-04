@@ -1,47 +1,47 @@
-defmodule ArchEthic.Bootstrap.NetworkInitTest do
-  use ArchEthicCase
+defmodule Archethic.Bootstrap.NetworkInitTest do
+  use ArchethicCase
 
-  alias ArchEthic.Account
-  alias ArchEthic.Crypto
+  alias Archethic.Account
+  alias Archethic.Crypto
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot, as: BeaconSlot
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
-  alias ArchEthic.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot, as: BeaconSlot
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.Subset, as: BeaconSubset
+  alias Archethic.BeaconChain.SubsetRegistry, as: BeaconSubsetRegistry
 
-  alias ArchEthic.Bootstrap.NetworkInit
+  alias Archethic.Bootstrap.NetworkInit
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetLastTransactionAddress
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.LastTransactionAddress
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias ArchEthic.TransactionChain.TransactionSummary
-  alias ArchEthic.TransactionFactory
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionFactory
 
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
@@ -178,7 +178,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   end
 
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
-    start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+    start_supervised!({Archethic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
 
     MockClient
     |> stub(:send_message, fn
@@ -209,7 +209,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     end)
     |> stub(:sign_with_daily_nonce_key, fn data, _ ->
       pv =
-        Application.get_env(:archethic, ArchEthic.Bootstrap.NetworkInit)
+        Application.get_env(:archethic, Archethic.Bootstrap.NetworkInit)
         |> Keyword.fetch!(:genesis_daily_nonce_seed)
         |> Crypto.generate_deterministic_keypair()
         |> elem(1)

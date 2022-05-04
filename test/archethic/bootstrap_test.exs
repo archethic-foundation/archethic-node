@@ -1,47 +1,47 @@
-defmodule ArchEthic.BootstrapTest do
-  use ArchEthicCase
+defmodule Archethic.BootstrapTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
-  alias ArchEthic.Bootstrap
+  alias Archethic.Bootstrap
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Message.BootstrappingNodes
-  alias ArchEthic.P2P.Message.EncryptedStorageNonce
-  alias ArchEthic.P2P.Message.GetBootstrappingNodes
-  alias ArchEthic.P2P.Message.GetLastTransactionAddress
-  alias ArchEthic.P2P.Message.GetStorageNonce
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetTransactionSummary
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.LastTransactionAddress
-  alias ArchEthic.P2P.Message.ListNodes
-  alias ArchEthic.P2P.Message.NewTransaction
-  alias ArchEthic.P2P.Message.NodeList
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.BootstrappingSeeds
+  alias Archethic.P2P.Message.BootstrappingNodes
+  alias Archethic.P2P.Message.EncryptedStorageNonce
+  alias Archethic.P2P.Message.GetBootstrappingNodes
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetStorageNonce
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.ListNodes
+  alias Archethic.P2P.Message.NewTransaction
+  alias Archethic.P2P.Message.NodeList
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.NotifyEndOfNodeSync
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.SelfRepair.Scheduler, as: SelfRepairScheduler
+  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 

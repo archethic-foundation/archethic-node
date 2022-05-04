@@ -1,10 +1,10 @@
-defmodule ArchEthicWeb.API.Schema.UCOLedger do
+defmodule ArchethicWeb.API.Schema.UCOLedger do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Types.Address
+  alias ArchethicWeb.API.Types.Address
 
   embedded_schema do
     embeds_many :transfers, Transfer do

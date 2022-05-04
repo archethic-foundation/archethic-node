@@ -1,23 +1,23 @@
-defmodule ArchEthic.BeaconChain.Slot do
+defmodule Archethic.BeaconChain.Slot do
   @moduledoc """
   Represent a beacon chain slot generated after each synchronization interval
   with the transaction stored and nodes updates
   """
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias __MODULE__.EndOfNodeSync
 
-  alias ArchEthic.BeaconChain.Subset.P2PSampling
+  alias Archethic.BeaconChain.Subset.P2PSampling
 
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type net_stats :: list(%{latency: non_neg_integer()})
 

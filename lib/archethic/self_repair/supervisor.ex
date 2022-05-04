@@ -1,12 +1,12 @@
-defmodule ArchEthic.SelfRepair.Supervisor do
+defmodule Archethic.SelfRepair.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.SelfRepair.Notifier
-  alias ArchEthic.SelfRepair.Scheduler
+  alias Archethic.SelfRepair.Notifier
+  alias Archethic.SelfRepair.Scheduler
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)

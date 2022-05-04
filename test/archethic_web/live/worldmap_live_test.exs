@@ -1,16 +1,16 @@
-defmodule ArchEthicWeb.WorldMapLiveTest do
+defmodule ArchethicWeb.WorldMapLiveTest do
   @moduledoc """
   This module defines the test case to be used by
   WorlMapLive tests.
   """
-  use ArchEthicCase
-  use ArchEthicWeb.ConnCase
+  use ArchethicCase
+  use ArchethicWeb.ConnCase
 
   import Phoenix.ConnTest
   import Phoenix.LiveViewTest
   import Mox
 
-  alias ArchEthic.{
+  alias Archethic.{
     P2P,
     P2P.Node
   }

@@ -1,14 +1,14 @@
-defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImpl do
+defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.Ed25519
-  alias ArchEthic.Crypto.ID
-  alias ArchEthic.Crypto.NodeKeystore
+  alias Archethic.Crypto
+  alias Archethic.Crypto.Ed25519
+  alias Archethic.Crypto.ID
+  alias Archethic.Crypto.NodeKeystore
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
   require Logger
 

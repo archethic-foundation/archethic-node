@@ -1,4 +1,4 @@
-defmodule ArchEthic.Election.ValidationConstraints do
+defmodule Archethic.Election.ValidationConstraints do
   @moduledoc """
   Represents the constraints for the validation nodes election
   """
@@ -12,10 +12,10 @@ defmodule ArchEthic.Election.ValidationConstraints do
     :validation_number
   ]
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   @typedoc """
   Each validation constraints represent a function which will be executed during the election algorithms:

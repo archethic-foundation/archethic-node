@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.GraphQLSchema.P2PType do
+defmodule ArchethicWeb.GraphQLSchema.P2PType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

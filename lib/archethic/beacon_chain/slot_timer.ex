@@ -1,4 +1,4 @@
-defmodule ArchEthic.BeaconChain.SlotTimer do
+defmodule Archethic.BeaconChain.SlotTimer do
   @moduledoc """
   Handle the scheduling of the beacon slots creation
   """
@@ -8,16 +8,16 @@ defmodule ArchEthic.BeaconChain.SlotTimer do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SubsetRegistry
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

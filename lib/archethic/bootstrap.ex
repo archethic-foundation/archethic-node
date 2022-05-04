@@ -1,20 +1,20 @@
-defmodule ArchEthic.Bootstrap do
+defmodule Archethic.Bootstrap do
   @moduledoc """
-  Manage ArchEthic Node Bootstrapping
+  Manage Archethic Node Bootstrapping
   """
 
   alias __MODULE__.NetworkInit
   alias __MODULE__.Sync
   alias __MODULE__.TransactionHandler
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Networking
+  alias Archethic.Networking
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SelfRepair
+  alias Archethic.SelfRepair
 
   require Logger
 

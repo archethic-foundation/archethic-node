@@ -1,20 +1,20 @@
-defmodule ArchEthic.Bootstrap.TransactionHandlerTest do
-  use ArchEthicCase
+defmodule Archethic.Bootstrap.TransactionHandlerTest do
+  use ArchethicCase
 
   @moduletag :capture_log
 
-  alias ArchEthic.Bootstrap.TransactionHandler
+  alias Archethic.Bootstrap.TransactionHandler
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransactionSummary
-  alias ArchEthic.P2P.Message.NewTransaction
-  alias ArchEthic.P2P.Message.Ok
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.NewTransaction
+  alias Archethic.P2P.Message.Ok
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 

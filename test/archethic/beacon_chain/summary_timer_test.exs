@@ -1,8 +1,8 @@
-defmodule ArchEthic.BeaconChain.SummaryTimerTest do
+defmodule Archethic.BeaconChain.SummaryTimerTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.SummaryTimer
 
   describe "next_summary/2" do
     test "should get the next summary time from a given date" do

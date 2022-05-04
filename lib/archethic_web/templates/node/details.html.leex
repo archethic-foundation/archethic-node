@@ -81,7 +81,7 @@
                 <div>
                     <p class="heading">Reward address</p>
                     <span>
-                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
+                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(@node.reward_address)) do %>
                             <%= Base.encode16(@node.reward_address) %>
                         <% end %>
                     </span>

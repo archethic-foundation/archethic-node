@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.ErrorHelpers do
+defmodule ArchethicWeb.ErrorHelpers do
   @moduledoc false
 
   @doc """

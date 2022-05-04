@@ -1,13 +1,13 @@
-defmodule ArchEthic.Governance.Code.Proposal.Validator do
+defmodule Archethic.Governance.Code.Proposal.Validator do
   @moduledoc """
-  The ArchEthic Code Proposal Validator task is to validate ArchEthic Code Proposal.
+  The Archethic Code Proposal Validator task is to validate Archethic Code Proposal.
   It is designed to run supervised by an os process with witch it communicates
   trough stdin/stdout.
   """
   require Logger
 
-  alias ArchEthic.Utils
-  alias ArchEthic.Utils.Regression
+  alias Archethic.Utils
+  alias Archethic.Utils.Regression
 
   @marker Application.compile_env(:archethic, :marker)
 

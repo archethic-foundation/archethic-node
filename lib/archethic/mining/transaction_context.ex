@@ -1,22 +1,22 @@
-defmodule ArchEthic.Mining.TransactionContext do
+defmodule Archethic.Mining.TransactionContext do
   @moduledoc """
   Gathering of the necessary information for the transaction validation:
   - previous transaction
   - unspent outputs
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias __MODULE__.DataFetcher
   alias __MODULE__.NodeDistribution
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   require Logger
 
@@ -122,7 +122,7 @@ defmodule ArchEthic.Mining.TransactionContext do
          beacon_storage_node_public_keys
        ) do
     %{chain_nodes_view: chain_nodes_view, beacon_nodes_view: beacon_nodes_view} =
-      ArchEthic.Utils.bitstring_to_integer_list(nodes_view)
+      Archethic.Utils.bitstring_to_integer_list(nodes_view)
       |> Enum.with_index()
       |> Enum.reduce(
         %{

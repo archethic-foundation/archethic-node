@@ -1,9 +1,9 @@
-defmodule ArchEthic.TransactionChain.TransactionData.OwnershipTest do
+defmodule Archethic.TransactionChain.TransactionData.OwnershipTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   doctest Ownership
 

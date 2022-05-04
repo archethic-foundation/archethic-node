@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.GraphQLSchema do
+defmodule ArchethicWeb.GraphQLSchema do
   @moduledoc false
 
   use Absinthe.Schema

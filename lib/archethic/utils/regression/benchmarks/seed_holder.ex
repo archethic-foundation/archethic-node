@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.Regression.Benchmark.SeedHolder do
+defmodule Archethic.Utils.Regression.Benchmark.SeedHolder do
   @moduledoc false
   use GenServer
 

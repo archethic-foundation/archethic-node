@@ -1,4 +1,4 @@
-defmodule ArchEthic.Election.HypergeometricDistribution do
+defmodule Archethic.Election.HypergeometricDistribution do
   @moduledoc """
   Hypergeometric distribution has the property to guarantee than even with 90% of malicious nodes
   the risk that an honest cannot detect a fraudulent transaction is only 10^-9 or once chance in one billion.

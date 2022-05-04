@@ -1,7 +1,7 @@
-defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookupTest do
+defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookupTest do
   use ExUnit.Case
 
-  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
 
   doctest OriginKeyLookup
 end

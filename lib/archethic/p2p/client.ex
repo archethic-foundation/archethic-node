@@ -1,13 +1,13 @@
-defmodule ArchEthic.P2P.Client do
+defmodule Archethic.P2P.Client do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.DefaultImpl
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Node
 
   use Knigge, otp_app: :archethic, default: DefaultImpl
 

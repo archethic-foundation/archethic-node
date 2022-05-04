@@ -1,17 +1,17 @@
-defmodule ArchEthic.Utils.Regression do
+defmodule Archethic.Utils.Regression do
   @moduledoc """
   Run some regression test to ensure the right behavior of the system
   """
   require Logger
 
-  alias ArchEthic.Utils
-  alias ArchEthic.Utils.Regression.Benchmark.P2PMessage
+  alias Archethic.Utils
+  alias Archethic.Utils.Regression.Benchmark.P2PMessage
 
-  alias ArchEthic.Utils.Regression.Playbook.SmartContract
-  alias ArchEthic.Utils.Regression.Playbook.UCO
+  alias Archethic.Utils.Regression.Playbook.SmartContract
+  alias Archethic.Utils.Regression.Playbook.UCO
 
-  alias ArchEthic.Utils.WebClient
-  alias ArchEthic.Utils.Regression.Benchmark.EndToEndValidation
+  alias Archethic.Utils.WebClient
+  alias Archethic.Utils.Regression.Benchmark.EndToEndValidation
 
   @playbooks [UCO, SmartContract]
   @benchmarks [P2PMessage, EndToEndValidation]
@@ -84,7 +84,7 @@ defmodule ArchEthic.Utils.Regression do
   defp node_up?(node, start \\ System.monotonic_time(:millisecond), timeout \\ 5 * 60_000)
 
   defp node_up?(node, start, timeout) do
-    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
 
     case WebClient.with_connection(node, port, &WebClient.request(&1, "GET", "/up")) do
       {:ok, ["up"]} ->

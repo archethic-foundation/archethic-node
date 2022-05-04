@@ -1,23 +1,23 @@
-defmodule ArchEthic.SharedSecrets.NodeRenewal do
+defmodule Archethic.SharedSecrets.NodeRenewal do
   @moduledoc """
   Represent the new node shared secrets renewal combining authorized nodes and secrets
   """
   defstruct [:authorized_nodes, :authorization_date, :secret]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           authorized_nodes: list(Crypto.key()),

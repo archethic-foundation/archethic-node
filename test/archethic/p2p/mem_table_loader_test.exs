@@ -1,14 +1,14 @@
-defmodule ArchEthic.P2P.MemTableLoaderTest do
-  use ArchEthicCase
+defmodule Archethic.P2P.MemTableLoaderTest do
+  use ArchethicCase
 
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.MemTableLoader
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.MemTableLoader
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   import Mox
 

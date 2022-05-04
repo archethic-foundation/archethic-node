@@ -1,16 +1,16 @@
-defmodule ArchEthic.BeaconChain.ReplicationAttestation do
+defmodule Archethic.BeaconChain.ReplicationAttestation do
   @moduledoc """
   Represents an attestation of a transaction replicated with a list of storage nodes confirmations
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
   defstruct [:transaction_summary, confirmations: [], version: 1]
 

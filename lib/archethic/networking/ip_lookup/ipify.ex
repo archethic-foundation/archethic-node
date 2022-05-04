@@ -1,9 +1,9 @@
-defmodule ArchEthic.Networking.IPLookup.IPIFY do
+defmodule Archethic.Networking.IPLookup.IPIFY do
   @moduledoc """
   Module provides external IP address of the node identified by IPIFY service.
   """
 
-  alias ArchEthic.Networking.IPLookup.Impl
+  alias Archethic.Networking.IPLookup.Impl
 
   @behaviour Impl
 

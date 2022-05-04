@@ -56,7 +56,7 @@ config :archethic, :marker, "-=%=-=%=-=%=-"
 # size represents in bytes binary
 config :archethic, :transaction_data_content_max_size, 3_145_728
 
-config :archethic, ArchEthic.Crypto,
+config :archethic, Archethic.Crypto,
   supported_curves: [
     :ed25519,
     :secp256r1,
@@ -74,9 +74,9 @@ config :archethic, ArchEthic.Crypto,
   storage_nonce_file: "crypto/storage_nonce",
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
-config :archethic, ArchEthic.DB, ArchEthic.DB.EmbeddedImpl
+config :archethic, Archethic.DB, Archethic.DB.EmbeddedImpl
 
-config :archethic, ArchEthic.Bootstrap.NetworkInit,
+config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_seed:
     <<226, 4, 212, 129, 254, 162, 178, 168, 206, 139, 176, 91, 179, 29, 83, 20, 50, 98, 0, 25,
       133, 242, 197, 73, 199, 53, 46, 127, 7, 223, 45, 246>>,
@@ -88,38 +88,38 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
     |> Base.decode16!(case: :mixed)
   ]
 
-config :archethic, ArchEthic.P2P.BootstrappingSeeds,
+config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
-config :archethic, ArchEthic.P2P.Listener,
+config :archethic, Archethic.P2P.Listener,
   nb_acceptors: 100,
   transport: :tcp,
   port: 3002
 
-config :archethic, ArchEthic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
+config :archethic, Archethic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
 
 # Configure the endpoint
-config :archethic, ArchEthicWeb.Endpoint,
+config :archethic, ArchethicWeb.Endpoint,
   secret_key_base: "5mFu4p5cPMY5Ii0HvjkLfhYZYtC0JAJofu70bzmi5x3xzFIJNlXFgIY5g8YdDPMf",
-  render_errors: [view: ArchEthicWeb.ErrorView, accepts: ~w(json)],
-  pubsub_server: ArchEthicWeb.PubSub,
+  render_errors: [view: ArchethicWeb.ErrorView, accepts: ~w(json)],
+  pubsub_server: ArchethicWeb.PubSub,
   live_view: [
     signing_salt: "3D6jYvx3",
-    layout: {ArchEthicWeb.LayoutView, "live.html"}
+    layout: {ArchethicWeb.LayoutView, "live.html"}
   ]
 
-config :archethic, ArchEthic.Mining, timeout: 60_000
+config :archethic, Archethic.Mining, timeout: 60_000
 
-config :archethic, ArchEthic.OracleChain,
+config :archethic, Archethic.OracleChain,
   services: [
-    uco: ArchEthic.OracleChain.Services.UCOPrice
+    uco: Archethic.OracleChain.Services.UCOPrice
   ]
 
-config :archethic, ArchEthic.OracleChain.Services.UCOPrice,
-  provider: ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko
+config :archethic, Archethic.OracleChain.Services.UCOPrice,
+  provider: Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko
 
-config :archethic, ArchEthicWeb.FaucetController,
+config :archethic, ArchethicWeb.FaucetController,
   seed:
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)

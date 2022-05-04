@@ -1,12 +1,12 @@
-defmodule ArchEthic.P2P.Client.ConnectionTest do
-  use ArchEthicCase
+defmodule Archethic.P2P.Client.ConnectionTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Client.Connection, as: ARCHEthicConnection
-  alias ArchEthic.P2P.Message.Balance
-  alias ArchEthic.P2P.Message.GetBalance
-  alias ArchEthic.P2P.MessageEnvelop
+  alias Archethic.P2P.Client.Connection, as: ARCHEthicConnection
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.MessageEnvelop
 
   test "start_link/1 should open a socket and a connection worker and initialize the backlog and lookup tables" do
     {:ok, pid} =
@@ -110,7 +110,7 @@ defmodule ArchEthic.P2P.Client.ConnectionTest do
   end
 
   defmodule MockTransport do
-    alias ArchEthic.P2P.Client.Transport
+    alias Archethic.P2P.Client.Transport
 
     @behaviour Transport
 

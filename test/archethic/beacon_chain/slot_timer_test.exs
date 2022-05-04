@@ -1,13 +1,13 @@
-defmodule ArchEthic.BeaconChain.SlotTimerTest do
-  use ArchEthicCase
+defmodule Archethic.BeaconChain.SlotTimerTest do
+  use ArchethicCase
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.SubsetRegistry
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
   setup do
     Enum.each(BeaconChain.list_subsets(), fn subset ->

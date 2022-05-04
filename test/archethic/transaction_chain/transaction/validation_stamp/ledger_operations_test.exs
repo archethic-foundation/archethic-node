@@ -1,14 +1,14 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperationsTest do
-  use ArchEthicCase
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperationsTest do
+  use ArchethicCase
   use ExUnitProperties
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData
 
   doctest LedgerOperations
 end

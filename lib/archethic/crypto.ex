@@ -1,6 +1,6 @@
-defmodule ArchEthic.Crypto do
+defmodule Archethic.Crypto do
   @moduledoc """
-  Provide cryptographic operations for ArchEthic network.
+  Provide cryptographic operations for Archethic network.
 
   An algorithm identification is produced by prepending keys and hashes.
   This identification helps to determine which algorithm/implementation to use in key generation and hashing.
@@ -36,17 +36,17 @@ defmodule ArchEthic.Crypto do
   alias __MODULE__.NodeKeystore
   alias __MODULE__.SharedSecretsKeystore
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 
@@ -614,7 +614,7 @@ defmodule ArchEthic.Crypto do
       ...> 195, 39, 117, 148, 223, 182, 23, 1, 197, 205, 93, 239, 19, 27, 248, 168, 107,
       ...> 40, 0, 68, 224, 177, 110, 180, 24>>
       iex> {_pub, pv} = Crypto.generate_deterministic_keypair("myseed")
-      iex> ArchEthic.Crypto.ec_decrypt!(cipher, pv)
+      iex> Archethic.Crypto.ec_decrypt!(cipher, pv)
       "myfakedata"
 
   Invalid message to decrypt or key return an error:
@@ -914,7 +914,7 @@ defmodule ArchEthic.Crypto do
   @spec derive_address(public_key :: key(), algo :: supported_hash()) :: prepended_hash()
   def derive_address(
         public_key,
-        algo \\ Application.get_env(:archethic, ArchEthic.Crypto)[:default_hash]
+        algo \\ Application.get_env(:archethic, Archethic.Crypto)[:default_hash]
       ) do
     <<curve_type::8, _rest::binary>> = public_key
 

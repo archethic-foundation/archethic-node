@@ -1,10 +1,10 @@
-defmodule ArchEthic.Networking.IPLookup.Static do
+defmodule Archethic.Networking.IPLookup.Static do
   @moduledoc """
   Module provides static IP address of the current node
   fetched from ENV variable or compile-time configuration.
   """
 
-  alias ArchEthic.Networking.IPLookup.Impl
+  alias Archethic.Networking.IPLookup.Impl
 
   @behaviour Impl
 

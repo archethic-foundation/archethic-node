@@ -1,13 +1,13 @@
-defmodule ArchEthic.P2P.ListenerProtocol.BroadwayPipeline do
+defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.ListenerProtocol.BroadwayPipelineRegistry
-  alias ArchEthic.P2P.ListenerProtocol.MessageProducer
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.Message
-  alias ArchEthic.P2P.MessageEnvelop
+  alias Archethic.P2P.ListenerProtocol.BroadwayPipelineRegistry
+  alias Archethic.P2P.ListenerProtocol.MessageProducer
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.MessageEnvelop
 
   alias Broadway.Message, as: BroadwayMessage
 

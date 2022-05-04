@@ -1,22 +1,22 @@
-defmodule ArchEthic.OracleChain.SchedulerTest do
-  use ArchEthicCase
+defmodule Archethic.OracleChain.SchedulerTest do
+  use ArchethicCase
   use ExUnitProperties
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.StartMining
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.OracleChain.Scheduler
-  alias ArchEthic.OracleChain.Services
+  alias Archethic.OracleChain.Scheduler
+  alias Archethic.OracleChain.Services
 
-  alias ArchEthic.SelfRepair.Scheduler, as: SelfRepairScheduler
+  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   import Mox
 

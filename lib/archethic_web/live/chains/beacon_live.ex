@@ -1,29 +1,29 @@
-defmodule ArchEthicWeb.BeaconChainLive do
+defmodule ArchethicWeb.BeaconChainLive do
   @moduledoc false
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Summary, as: BeaconSummary
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetBeaconSummaries
-  alias ArchEthic.P2P.Message.BeaconSummaryList
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.PubSub
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.BeaconSummaryList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Node
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthicWeb.ExplorerView
+  alias ArchethicWeb.ExplorerView
 
   alias Phoenix.View
 

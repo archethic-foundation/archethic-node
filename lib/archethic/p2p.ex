@@ -1,8 +1,8 @@
-defmodule ArchEthic.P2P do
+defmodule Archethic.P2P do
   @moduledoc """
   Handle P2P node discovery and messaging
   """
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.BootstrappingSeeds
   alias __MODULE__.Client
@@ -12,10 +12,10 @@ defmodule ArchEthic.P2P do
   alias __MODULE__.Message
   alias __MODULE__.Node
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 
@@ -468,7 +468,7 @@ defmodule ArchEthic.P2P do
   @spec duplicating_node?(
           :inet.ip_address(),
           :inet.port_number(),
-          ArchEthic.Crypto.key(),
+          Archethic.Crypto.key(),
           list(Node.t())
         ) ::
           boolean()

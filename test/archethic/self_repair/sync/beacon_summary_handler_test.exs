@@ -1,36 +1,36 @@
-defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandlerTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
-  alias ArchEthic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.Summary, as: BeaconSummary
+  alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetBeaconSummary
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetTransactionInputs
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.TransactionInputList
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetBeaconSummary
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler
-  alias ArchEthic.SelfRepair.Sync.BeaconSummaryAggregate
+  alias Archethic.SelfRepair.Sync.BeaconSummaryHandler
+  alias Archethic.SelfRepair.Sync.BeaconSummaryAggregate
 
-  alias ArchEthic.TransactionFactory
+  alias Archethic.TransactionFactory
 
-  alias ArchEthic.TransactionChain.TransactionInput
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 
@@ -49,7 +49,7 @@ defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    ArchEthic.SelfRepair.Scheduler.start_link(interval: "0 0 0 * * *")
+    Archethic.SelfRepair.Scheduler.start_link(interval: "0 0 0 * * *")
 
     :ok
   end

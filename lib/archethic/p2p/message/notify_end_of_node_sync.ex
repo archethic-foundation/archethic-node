@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.NotifyEndOfNodeSync do
+defmodule Archethic.P2P.Message.NotifyEndOfNodeSync do
   @moduledoc """
   Represents a message to request to add an information in the beacon chain regarding a node readyness
 
@@ -7,7 +7,7 @@ defmodule ArchEthic.P2P.Message.NotifyEndOfNodeSync do
   @enforce_keys [:node_public_key, :timestamp]
   defstruct [:node_public_key, :timestamp]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           node_public_key: Crypto.key(),

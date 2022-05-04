@@ -1,9 +1,9 @@
-defmodule ArchEthicWeb.API.Types.Address do
+defmodule ArchethicWeb.API.Types.Address do
   @moduledoc false
 
   use Ecto.Type
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   def type, do: :binary
 

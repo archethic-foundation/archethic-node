@@ -1,18 +1,18 @@
-defmodule ArchEthic.ContractsTest do
+defmodule Archethic.ContractsTest do
   use ExUnit.Case
 
-  alias ArchEthic.Contracts
+  alias Archethic.Contracts
 
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Conditions
-  alias ArchEthic.Contracts.Contract.Constants
-  alias ArchEthic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract.Trigger
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   @moduletag capture_log: true
 

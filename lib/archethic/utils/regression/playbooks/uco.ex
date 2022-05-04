@@ -1,24 +1,24 @@
-defmodule ArchEthic.Utils.Regression.Playbook.UCO do
+defmodule Archethic.Utils.Regression.Playbook.UCO do
   @moduledoc """
   Play and verify UCO ledger.
   """
 
   require Logger
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias ArchEthic.Utils.Regression.Playbook
+  alias Archethic.Utils.Regression.Playbook
 
   use Playbook
 
   def play!(nodes, opts) do
     Logger.info("Play UCO transactions on #{inspect(nodes)} with #{inspect(opts)}")
-    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
     host = :lists.nth(:rand.uniform(length(nodes)), nodes)
 
     run_transfers(host, port)

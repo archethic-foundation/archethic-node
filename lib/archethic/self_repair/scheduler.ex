@@ -1,18 +1,18 @@
-defmodule ArchEthic.SelfRepair.Scheduler do
+defmodule Archethic.SelfRepair.Scheduler do
   @moduledoc """
   Process responsible of the self repair mechanism by pulling for each interval the last out of sync beacon chain slots
   by downloading the missing transactions and node updates
   """
   use GenServer
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SelfRepair.Sync
+  alias Archethic.SelfRepair.Sync
 
-  alias ArchEthic.TaskSupervisor
+  alias Archethic.TaskSupervisor
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

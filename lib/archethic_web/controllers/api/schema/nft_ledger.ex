@@ -1,10 +1,10 @@
-defmodule ArchEthicWeb.API.Schema.NFTLedger do
+defmodule ArchethicWeb.API.Schema.NFTLedger do
   @moduledoc false
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias ArchEthicWeb.API.Types.Address
+  alias ArchethicWeb.API.Types.Address
 
   embedded_schema do
     embeds_many :transfers, Transfer do

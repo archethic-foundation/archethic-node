@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.BootstrappingNodes do
+defmodule Archethic.P2P.Message.BootstrappingNodes do
   @moduledoc """
   Represents a message with the list of closest bootstrapping nodes.
 
@@ -6,7 +6,7 @@ defmodule ArchEthic.P2P.Message.BootstrappingNodes do
   """
   defstruct new_seeds: [], closest_nodes: []
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
   @type t() :: %__MODULE__{
           new_seeds: list(Node.t()),

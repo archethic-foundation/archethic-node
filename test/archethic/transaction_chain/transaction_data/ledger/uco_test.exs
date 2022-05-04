@@ -1,9 +1,9 @@
-defmodule ArchEthic.TransactionChain.TransactionData.UCOLedgerTest do
+defmodule Archethic.TransactionChain.TransactionData.UCOLedgerTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   doctest UCOLedger
 

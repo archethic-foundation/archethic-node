@@ -1,13 +1,13 @@
-defmodule ArchEthic.BeaconChain.SubsetSupervisor do
+defmodule Archethic.BeaconChain.SubsetSupervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Subset
-  alias ArchEthic.BeaconChain.Subset.SummaryCache
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain.Subset.SummaryCache
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(arg \\ []) do
     Supervisor.start_link(__MODULE__, arg)

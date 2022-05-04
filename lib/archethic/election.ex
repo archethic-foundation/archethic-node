@@ -1,24 +1,24 @@
-defmodule ArchEthic.Election do
+defmodule Archethic.Election do
   @moduledoc """
   Provides a random and rotating node election based on heuristic algorithms
   and constraints to ensure a fair distributed processing and data storage among its network.
   """
 
-  alias ArchEthic.BeaconChain
+  alias Archethic.BeaconChain
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.Constraints
   alias __MODULE__.StorageConstraints
   alias __MODULE__.ValidationConstraints
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @doc """
   Create a seed to sort the validation nodes. This will produce a proof for the election

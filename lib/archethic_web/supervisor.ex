@@ -1,12 +1,12 @@
-defmodule ArchEthicWeb.Supervisor do
+defmodule ArchethicWeb.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Networking
+  alias Archethic.Networking
 
-  alias ArchEthicWeb.Endpoint
-  alias ArchEthicWeb.{FaucetRateLimiter, TransactionSubscriber}
+  alias ArchethicWeb.Endpoint
+  alias ArchethicWeb.{FaucetRateLimiter, TransactionSubscriber}
 
   require Logger
 
@@ -16,13 +16,13 @@ defmodule ArchEthicWeb.Supervisor do
 
   def init(_) do
     # Try to open the HTTPport
-    endpoint_conf = Application.get_env(:archethic, ArchEthicWeb.Endpoint)
+    endpoint_conf = Application.get_env(:archethic, ArchethicWeb.Endpoint)
 
     try_open_port(Keyword.get(endpoint_conf, :http))
 
     children =
       [
-        {Phoenix.PubSub, [name: ArchEthicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
+        {Phoenix.PubSub, [name: ArchethicWeb.PubSub, adapter: Phoenix.PubSub.PG2]},
         # Start the endpoint when the application starts
         Endpoint,
         {Absinthe.Subscription, Endpoint},
@@ -42,7 +42,7 @@ defmodule ArchEthicWeb.Supervisor do
   end
 
   defp add_facucet_rate_limit_child(children) do
-    faucet_config = Application.get_env(:archethic, ArchEthicWeb.FaucetController, [])
+    faucet_config = Application.get_env(:archethic, ArchethicWeb.FaucetController, [])
 
     if faucet_config[:enabled] do
       children ++ [FaucetRateLimiter]

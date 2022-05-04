@@ -1,17 +1,17 @@
-defmodule ArchEthicWeb.CodeProposalDetailsLive do
+defmodule ArchethicWeb.CodeProposalDetailsLive do
   @moduledoc false
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
   alias Phoenix.View
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Governance
-  alias ArchEthic.Governance.Code.Proposal
+  alias Archethic.Governance
+  alias Archethic.Governance.Code.Proposal
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthicWeb.CodeView
+  alias ArchethicWeb.CodeView
 
   def mount(%{"address" => address}, _params, socket) do
     if connected?(socket) do

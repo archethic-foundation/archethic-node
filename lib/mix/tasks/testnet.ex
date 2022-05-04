@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.ArchEthic.Testnet do
+defmodule Mix.Tasks.Archethic.Testnet do
   @shortdoc "Creates and runs several nodes in testnet"
   @subnet "172.16.17.0/24"
   @image "archethic-node"
@@ -31,7 +31,7 @@ defmodule Mix.Tasks.ArchEthic.Testnet do
 
   use Mix.Task
 
-  alias ArchEthic.Utils.Testnet
+  alias Archethic.Utils.Testnet
 
   @impl Mix.Task
   def run(args) do

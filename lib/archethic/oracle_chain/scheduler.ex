@@ -1,23 +1,23 @@
-defmodule ArchEthic.OracleChain.Scheduler do
+defmodule Archethic.OracleChain.Scheduler do
   @moduledoc """
   Manage the scheduling of the oracle transactions
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.OracleChain.Services
-  alias ArchEthic.OracleChain.Summary
+  alias Archethic.OracleChain.Services
+  alias Archethic.OracleChain.Summary
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
@@ -401,7 +401,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
         next_pub
       )
 
-    Task.start(fn -> ArchEthic.send_new_transaction(tx) end)
+    Task.start(fn -> Archethic.send_new_transaction(tx) end)
 
     Logger.debug("New data pushed to the oracle",
       transaction_address: Base.encode16(tx.address),
@@ -445,7 +445,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
       transaction_type: :oracle_summary
     )
 
-    Task.start(fn -> ArchEthic.send_new_transaction(tx) end)
+    Task.start(fn -> Archethic.send_new_transaction(tx) end)
   end
 
   defp get_chain(address, opts \\ [], acc \\ []) do

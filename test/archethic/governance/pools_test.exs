@@ -1,10 +1,10 @@
-defmodule ArchEthic.Governance.PoolsTest do
-  use ArchEthicCase
+defmodule Archethic.Governance.PoolsTest do
+  use ArchethicCase
 
-  alias ArchEthic.Governance.Pools
+  alias Archethic.Governance.Pools
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   describe "members_of/1" do
     test "should return the list of nodes public keys for the miners pool " do

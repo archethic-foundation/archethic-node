@@ -1,22 +1,22 @@
-defmodule ArchEthic.Governance.Code do
+defmodule Archethic.Governance.Code do
   @moduledoc """
   Provide functions to handle the code management and deployment
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
   alias __MODULE__.CICD
   alias __MODULE__.Proposal
 
-  alias ArchEthic.Governance.Pools
+  alias Archethic.Governance.Pools
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.TransactionChain
+  alias Archethic.TransactionChain
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @src_dir Application.compile_env(:archethic, :src_dir)
 

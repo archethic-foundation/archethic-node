@@ -1,7 +1,7 @@
-defmodule ArchEthicWeb.Router do
+defmodule ArchethicWeb.Router do
   @moduledoc false
 
-  use ArchEthicWeb, :router
+  use ArchethicWeb, :router
   import Phoenix.LiveDashboard.Router
 
   pipeline :browser do
@@ -10,7 +10,7 @@ defmodule ArchEthicWeb.Router do
     plug(:fetch_live_flash)
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
-    plug(:put_root_layout, {ArchEthicWeb.LayoutView, :root})
+    plug(:put_root_layout, {ArchethicWeb.LayoutView, :root})
   end
 
   pipeline :api do
@@ -19,7 +19,7 @@ defmodule ArchEthicWeb.Router do
 
   # Add the on chain implementation of the archethic.io at the root of the webserver
   # TODO: review to put it on every node or as proxy somewhere forwarding to a specific transaction chain explorer
-  scope "/", ArchEthicWeb do
+  scope "/", ArchethicWeb do
     pipe_through(:browser)
 
     get("/", RootController, :index)
@@ -29,7 +29,7 @@ defmodule ArchEthicWeb.Router do
 
     if Mix.env() == :dev do
       live_dashboard("/dashboard",
-        metrics: ArchEthic.Telemetry,
+        metrics: Archethic.Telemetry,
         additional_pages: [
           # broadway: BroadwayDashboard
         ]
@@ -40,7 +40,7 @@ defmodule ArchEthicWeb.Router do
     post("/faucet", FaucetController, :create_transfer)
   end
 
-  scope "/explorer", ArchEthicWeb do
+  scope "/explorer", ArchethicWeb do
     pipe_through(:browser)
 
     live("/", ExplorerIndexLive)
@@ -67,26 +67,26 @@ defmodule ArchEthicWeb.Router do
 
     get(
       "/last_transaction/:address/content",
-      ArchEthicWeb.API.TransactionController,
+      ArchethicWeb.API.TransactionController,
       :last_transaction_content
     )
 
-    post("/origin_key", ArchEthicWeb.API.OriginKeyController, :origin_key)
+    post("/origin_key", ArchethicWeb.API.OriginKeyController, :origin_key)
 
-    post("/transaction", ArchEthicWeb.API.TransactionController, :new)
-    post("/transaction_fee", ArchEthicWeb.API.TransactionController, :transaction_fee)
+    post("/transaction", ArchethicWeb.API.TransactionController, :new)
+    post("/transaction_fee", ArchethicWeb.API.TransactionController, :transaction_fee)
 
     forward(
       "/graphiql",
       Absinthe.Plug.GraphiQL,
-      schema: ArchEthicWeb.GraphQLSchema,
-      socket: ArchEthicWeb.UserSocket
+      schema: ArchethicWeb.GraphQLSchema,
+      socket: ArchethicWeb.UserSocket
     )
 
     forward(
       "/",
       Absinthe.Plug,
-      schema: ArchEthicWeb.GraphQLSchema
+      schema: ArchethicWeb.GraphQLSchema
     )
   end
 end

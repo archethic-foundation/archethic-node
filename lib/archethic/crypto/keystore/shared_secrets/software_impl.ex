@@ -1,18 +1,18 @@
-defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
+defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.SharedSecretsKeystore
+  alias Archethic.Crypto
+  alias Archethic.Crypto.SharedSecretsKeystore
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   use GenServer
 

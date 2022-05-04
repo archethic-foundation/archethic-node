@@ -1,27 +1,27 @@
-defmodule ArchEthic.Bootstrap.Sync do
+defmodule Archethic.Bootstrap.Sync do
   @moduledoc false
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.Bootstrap.NetworkInit
+  alias Archethic.BeaconChain
+  alias Archethic.Bootstrap.NetworkInit
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.BootstrappingNodes
-  alias ArchEthic.P2P.Message.EncryptedStorageNonce
-  alias ArchEthic.P2P.Message.GetBootstrappingNodes
-  alias ArchEthic.P2P.Message.GetStorageNonce
-  alias ArchEthic.P2P.Message.ListNodes
-  alias ArchEthic.P2P.Message.NodeList
-  alias ArchEthic.P2P.Message.NotifyEndOfNodeSync
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.BootstrappingNodes
+  alias Archethic.P2P.Message.EncryptedStorageNonce
+  alias Archethic.P2P.Message.GetBootstrappingNodes
+  alias Archethic.P2P.Message.GetStorageNonce
+  alias Archethic.P2P.Message.ListNodes
+  alias Archethic.P2P.Message.NodeList
+  alias Archethic.P2P.Message.NotifyEndOfNodeSync
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
   require Logger
 

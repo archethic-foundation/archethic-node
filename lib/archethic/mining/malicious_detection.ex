@@ -1,10 +1,10 @@
-defmodule ArchEthic.Mining.MaliciousDetection do
+defmodule Archethic.Mining.MaliciousDetection do
   @moduledoc """
   Provide a process to detect the malicious nodes when the
   atomic commitment has not been reached.
   """
 
-  alias ArchEthic.Mining.ValidationContext
+  alias Archethic.Mining.ValidationContext
 
   use Task
 

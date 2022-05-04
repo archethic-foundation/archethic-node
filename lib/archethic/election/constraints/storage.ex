@@ -1,4 +1,4 @@
-defmodule ArchEthic.Election.StorageConstraints do
+defmodule Archethic.Election.StorageConstraints do
   @moduledoc """
   Represents the constraints for the storage nodes election
   """
@@ -9,9 +9,9 @@ defmodule ArchEthic.Election.StorageConstraints do
     :number_replicas
   ]
 
-  alias ArchEthic.Election.HypergeometricDistribution
+  alias Archethic.Election.HypergeometricDistribution
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
   @default_min_geo_patch 4
   @default_min_geo_patch_avg_availability 0.8

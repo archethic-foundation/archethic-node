@@ -1,12 +1,12 @@
-defmodule ArchEthicWeb.GraphQLSchema.HashType do
+defmodule ArchethicWeb.GraphQLSchema.HashType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @desc """
   The [Hash] scalar type represents a cryptographic hash used in
-  the ArchEthic network with an identification byte to specify from which algorithm the hash was generated.
+  the Archethic network with an identification byte to specify from which algorithm the hash was generated.
   The Hash appears in a JSON response as Base16 formatted string. The parsed hash will
   be converted to a binary and any invalid hash with an invalid algorithm or invalid size will be rejected
   """

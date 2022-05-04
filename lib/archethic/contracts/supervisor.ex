@@ -1,23 +1,23 @@
-defmodule ArchEthic.Contracts.Supervisor do
+defmodule Archethic.Contracts.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Contracts.Loader
-  alias ArchEthic.Contracts.TransactionLookup
+  alias Archethic.Contracts.Loader
+  alias Archethic.Contracts.TransactionLookup
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.ContractsSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.ContractsSupervisor)
   end
 
   def init(_args) do
     optional_children = [{TransactionLookup, []}, {Loader, [], []}]
 
     static_children = [
-      {Registry, keys: :unique, name: ArchEthic.ContractRegistry},
-      {DynamicSupervisor, strategy: :one_for_one, name: ArchEthic.ContractSupervisor}
+      {Registry, keys: :unique, name: Archethic.ContractRegistry},
+      {DynamicSupervisor, strategy: :one_for_one, name: Archethic.ContractSupervisor}
     ]
 
     children = static_children ++ Utils.configurable_children(optional_children)
