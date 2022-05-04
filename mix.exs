@@ -118,7 +118,7 @@ defmodule Archethic.MixProject do
       # Cleans docker
       "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"],
       # bench local
-      "dev.lbench": ["cmd mix arch_ethic.regression --bench localhost"]
+      "dev.lbench": ["cmd mix archethic.regression --bench localhost"]
     ]
   end
 end
