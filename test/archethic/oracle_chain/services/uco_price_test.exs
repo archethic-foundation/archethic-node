@@ -1,7 +1,7 @@
-defmodule ArchEthic.OracleChain.Services.UCOPriceTest do
+defmodule Archethic.OracleChain.Services.UCOPriceTest do
   use ExUnit.Case
 
-  alias ArchEthic.OracleChain.Services.UCOPrice
+  alias Archethic.OracleChain.Services.UCOPrice
 
   import Mox
 

@@ -1,30 +1,30 @@
-defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
-  use ArchEthicCase
+defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
+  use ArchethicCase
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.Subset, as: BeaconSubset
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.Subset, as: BeaconSubset
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetTransactionInputs
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.TransactionInputList
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias ArchEthic.TransactionFactory
+  alias Archethic.TransactionFactory
 
-  alias ArchEthic.TransactionChain.TransactionInput
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionHandler
 

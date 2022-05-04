@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.GraphQLSchema.HexType do
+defmodule ArchethicWeb.GraphQLSchema.HexType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

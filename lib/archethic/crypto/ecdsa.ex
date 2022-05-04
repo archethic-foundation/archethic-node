@@ -1,4 +1,4 @@
-defmodule ArchEthic.Crypto.ECDSA do
+defmodule Archethic.Crypto.ECDSA do
   @moduledoc false
 
   @type curve :: :secp256r1 | :secp256k1

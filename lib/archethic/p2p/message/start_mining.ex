@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.StartMining do
+defmodule Archethic.P2P.Message.StartMining do
   @moduledoc """
   Represents message to start the transaction mining.
 
@@ -7,8 +7,8 @@ defmodule ArchEthic.P2P.Message.StartMining do
   @enforce_keys [:transaction, :welcome_node_public_key, :validation_node_public_keys]
   defstruct [:transaction, :welcome_node_public_key, :validation_node_public_keys]
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),

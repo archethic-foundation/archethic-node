@@ -1,9 +1,9 @@
-defmodule ArchEthicWeb.API.Types.AddressList do
+defmodule ArchethicWeb.API.Types.AddressList do
   @moduledoc false
 
   use Ecto.Type
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   def type, do: :array
 

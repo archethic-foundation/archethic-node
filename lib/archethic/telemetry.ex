@@ -1,4 +1,4 @@
-defmodule ArchEthic.Telemetry do
+defmodule Archethic.Telemetry do
   @moduledoc false
 
   use Supervisor
@@ -35,7 +35,7 @@ defmodule ArchEthic.Telemetry do
       last_value("vm.total_run_queue_lengths.total"),
       last_value("vm.total_run_queue_lengths.cpu"),
       last_value("vm.total_run_queue_lengths.io"),
-      # ArchEthic
+      # Archethic
       distribution("archethic.election.validation_nodes.duration",
         unit: {:native, :millisecond},
         tags: [:nb_nodes],

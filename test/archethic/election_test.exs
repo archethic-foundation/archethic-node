@@ -1,14 +1,14 @@
-defmodule ArchEthic.ElectionTest do
-  use ArchEthicCase
+defmodule Archethic.ElectionTest do
+  use ArchethicCase
 
-  alias ArchEthic.Election
-  alias ArchEthic.Election.StorageConstraints
-  alias ArchEthic.Election.ValidationConstraints
+  alias Archethic.Election
+  alias Archethic.Election.StorageConstraints
+  alias Archethic.Election.ValidationConstraints
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   doctest Election
 

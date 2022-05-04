@@ -1,16 +1,16 @@
-defmodule ArchEthic.TransactionChain.MemTablesLoader do
+defmodule Archethic.TransactionChain.MemTablesLoader do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Conditions
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.TransactionChain.MemTables.PendingLedger
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.MemTables.PendingLedger
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   require Logger
 

@@ -1,7 +1,7 @@
-defmodule ArchEthicWeb.UpController do
+defmodule ArchethicWeb.UpController do
   @moduledoc false
 
-  use ArchEthicWeb, :controller
+  use ArchethicWeb, :controller
 
   @doc """
   Respond with 200 when node is ready otherwise with 503.

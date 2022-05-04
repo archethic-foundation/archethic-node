@@ -1,10 +1,10 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type do
   @moduledoc """
   Represents a type of transaction movement.
   """
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Utils
+  alias Archethic.Crypto
+  alias Archethic.Utils
 
   @typedoc """
   Transaction movement can be:

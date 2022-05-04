@@ -1,30 +1,30 @@
-defmodule ArchEthicWeb.GraphQLSchemaTest do
-  use ArchEthicCase
-  use ArchEthicWeb.ConnCase
-  use ArchEthicWeb.GraphQLSubscriptionCase
+defmodule ArchethicWeb.GraphQLSchemaTest do
+  use ArchethicCase
+  use ArchethicWeb.ConnCase
+  use ArchethicWeb.GraphQLSubscriptionCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Balance
-  alias ArchEthic.P2P.Message.GetBalance
-  alias ArchEthic.P2P.Message.GetLastTransaction
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetTransactionInputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.TransactionInputList
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionInput
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 

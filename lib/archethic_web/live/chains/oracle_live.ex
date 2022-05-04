@@ -1,23 +1,23 @@
-defmodule ArchEthicWeb.OracleChainLive do
+defmodule ArchethicWeb.OracleChainLive do
   @moduledoc false
 
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthicWeb.ExplorerView
+  alias ArchethicWeb.ExplorerView
 
   alias Phoenix.View
 

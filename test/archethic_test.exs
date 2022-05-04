@@ -1,31 +1,31 @@
-defmodule ArchEthicTest do
-  use ArchEthicCase
+defmodule ArchethicTest do
+  use ArchethicCase
 
-  alias ArchEthic
+  alias Archethic
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Balance
-  alias ArchEthic.P2P.Message.GetBalance
-  alias ArchEthic.P2P.Message.GetLastTransaction
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetTransactionChainLength
-  alias ArchEthic.P2P.Message.GetTransactionInputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.StartMining
-  alias ArchEthic.P2P.Message.TransactionChainLength
-  alias ArchEthic.P2P.Message.TransactionInputList
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
 
   import Mox
 
@@ -57,7 +57,7 @@ defmodule ArchEthicTest do
         {:ok, %Transaction{address: "@Alice2"}}
       end)
 
-      assert {:ok, %Transaction{address: "@Alice2"}} = ArchEthic.search_transaction("@Alice2")
+      assert {:ok, %Transaction{address: "@Alice2"}} = Archethic.search_transaction("@Alice2")
     end
 
     test "should request storage nodes and return not exists as the transaction not exists" do
@@ -87,7 +87,7 @@ defmodule ArchEthicTest do
         {:ok, %NotFound{}}
       end)
 
-      assert {:error, :transaction_not_exists} = ArchEthic.search_transaction("@Alice2")
+      assert {:error, :transaction_not_exists} = Archethic.search_transaction("@Alice2")
     end
   end
 
@@ -114,7 +114,7 @@ defmodule ArchEthicTest do
         {:ok, %Ok{}}
       end)
 
-      assert :ok = ArchEthic.send_new_transaction(tx)
+      assert :ok = Archethic.send_new_transaction(tx)
     end
   end
 
@@ -149,7 +149,7 @@ defmodule ArchEthicTest do
       end)
 
       assert {:ok, %Transaction{previous_public_key: "Alice1"}} =
-               ArchEthic.get_last_transaction(Crypto.hash("Alice1"))
+               Archethic.get_last_transaction(Crypto.hash("Alice1"))
     end
 
     test "should request storages nodes to fetch the last transaction but not exists" do
@@ -182,7 +182,7 @@ defmodule ArchEthicTest do
       end)
 
       assert {:error, :transaction_not_exists} =
-               ArchEthic.get_last_transaction(Crypto.hash("Alice1"))
+               Archethic.get_last_transaction(Crypto.hash("Alice1"))
     end
   end
 
@@ -214,7 +214,7 @@ defmodule ArchEthicTest do
         {:ok, %Balance{uco: 1_000_000_000}}
       end)
 
-      assert {:ok, %{uco: 1_000_000_000}} = ArchEthic.get_balance("@Alice2")
+      assert {:ok, %{uco: 1_000_000_000}} = Archethic.get_balance("@Alice2")
     end
   end
 
@@ -259,7 +259,7 @@ defmodule ArchEthicTest do
 
       assert {:ok,
               [%TransactionInput{from: "@Bob3", amount: 1_000_000_000, spent?: false, type: :UCO}]} =
-               ArchEthic.get_transaction_inputs("@Alice2")
+               Archethic.get_transaction_inputs("@Alice2")
     end
   end
 
@@ -298,7 +298,7 @@ defmodule ArchEthicTest do
       end)
 
       assert {:ok, [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]} =
-               ArchEthic.get_transaction_chain("@Alice2")
+               Archethic.get_transaction_chain("@Alice2")
     end
   end
 
@@ -330,7 +330,7 @@ defmodule ArchEthicTest do
         {:ok, %TransactionChainLength{length: 3}}
       end)
 
-      assert {:ok, 3} == ArchEthic.get_transaction_chain_length("@Alice2")
+      assert {:ok, 3} == Archethic.get_transaction_chain_length("@Alice2")
     end
   end
 end

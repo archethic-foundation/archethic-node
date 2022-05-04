@@ -1,9 +1,9 @@
-defmodule ArchEthic.Metrics.Collector.MetricsEndpoint do
+defmodule Archethic.Metrics.Collector.MetricsEndpoint do
   @moduledoc """
   This module provides a REST endpoint for metrics.
   """
 
-  alias ArchEthic.Metrics.Collector
+  alias Archethic.Metrics.Collector
 
   @behaviour Collector
 

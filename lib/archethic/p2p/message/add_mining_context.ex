@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.AddMiningContext do
+defmodule Archethic.P2P.Message.AddMiningContext do
   @moduledoc """
   Represents a message to request the add of the context of the mining from cross validation nodes
   to the coordinator
@@ -18,7 +18,7 @@ defmodule ArchEthic.P2P.Message.AddMiningContext do
     :previous_storage_nodes_public_keys
   ]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),

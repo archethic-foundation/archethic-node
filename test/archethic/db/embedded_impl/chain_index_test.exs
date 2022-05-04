@@ -1,8 +1,8 @@
-defmodule ArchEthic.DB.EmbeddedImpl.ChainIndexTest do
-  use ArchEthicCase
+defmodule Archethic.DB.EmbeddedImpl.ChainIndexTest do
+  use ArchethicCase
 
-  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
-  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.ChainWriter
 
   setup do
     db_path = Application.app_dir(:archethic, "data_test")

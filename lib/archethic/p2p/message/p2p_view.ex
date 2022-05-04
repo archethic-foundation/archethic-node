@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.P2PView do
+defmodule Archethic.P2P.Message.P2PView do
   @moduledoc """
   Represents a P2P view from a list of nodes as bit sequence
   """

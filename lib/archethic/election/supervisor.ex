@@ -1,12 +1,12 @@
-defmodule ArchEthic.Election.Supervisor do
+defmodule Archethic.Election.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Election.Constraints
-  alias ArchEthic.Election.HypergeometricDistribution
+  alias Archethic.Election.Constraints
+  alias Archethic.Election.HypergeometricDistribution
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)

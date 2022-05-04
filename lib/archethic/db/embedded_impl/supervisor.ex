@@ -1,13 +1,13 @@
-defmodule ArchEthic.DB.EmbeddedImpl.Supervisor do
+defmodule Archethic.DB.EmbeddedImpl.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.DB.EmbeddedImpl.BootstrapInfo
-  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
-  alias ArchEthic.DB.EmbeddedImpl.ChainIndex
-  alias ArchEthic.DB.EmbeddedImpl.P2PView
-  alias ArchEthic.DB.EmbeddedImpl.StatsInfo
+  alias Archethic.DB.EmbeddedImpl.BootstrapInfo
+  alias Archethic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.DB.EmbeddedImpl.ChainIndex
+  alias Archethic.DB.EmbeddedImpl.P2PView
+  alias Archethic.DB.EmbeddedImpl.StatsInfo
 
   require Logger
 
@@ -16,7 +16,7 @@ defmodule ArchEthic.DB.EmbeddedImpl.Supervisor do
   end
 
   def init(_arg) do
-    path = ArchEthic.DB.EmbeddedImpl.db_path()
+    path = Archethic.DB.EmbeddedImpl.db_path()
     Logger.info("Load database at #{path}")
     File.mkdir_p!(path)
 

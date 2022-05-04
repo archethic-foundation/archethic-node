@@ -1,8 +1,8 @@
-# ArchEthic
+# Archethic
 
-Welcome to the ArchEthic Node source repository ! This software enables you to build the first transaction chain and next generation of blockchain focused on scalability and human oriented.
+Welcome to the Archethic Node source repository ! This software enables you to build the first transaction chain and next generation of blockchain focused on scalability and human oriented.
 
-ArchEthic features:
+Archethic features:
 - Fast transaction processing (> 1M tps)
 - Lower energy consumption than other blockchain
 - Designed with a high level of security (ARCH consensus supporting 90% of maliciousness)

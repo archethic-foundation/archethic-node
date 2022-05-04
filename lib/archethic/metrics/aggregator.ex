@@ -1,4 +1,4 @@
-defmodule ArchEthic.Metrics.Aggregator do
+defmodule Archethic.Metrics.Aggregator do
   @moduledoc """
   Provide aggregation methods for the metrics collected
   """

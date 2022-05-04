@@ -97,7 +97,7 @@
       <%= for tx <- @transaction_chain do %>
           <div class="columns">
               <div class="column is-half-desktop">
-                  <%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
+                  <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, Base.encode16(tx.address)) do%>
                       <span class="is-hidden-mobile"><%= Base.encode16(tx.address) %></span>
                       <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(tx.address, 0, 13)) %>...</span>
                   <% end %>

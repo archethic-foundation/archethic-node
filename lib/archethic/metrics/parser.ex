@@ -1,4 +1,4 @@
-defmodule ArchEthic.Metrics.Parser do
+defmodule Archethic.Metrics.Parser do
   @moduledoc """
   Parses metrics data and convert into structured data
   """

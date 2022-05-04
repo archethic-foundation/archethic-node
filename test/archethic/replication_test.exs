@@ -1,37 +1,37 @@
-defmodule ArchEthic.ReplicationTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.ReplicationTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.Fee
+  alias Archethic.Mining.Fee
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotifyLastTransactionAddress
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData
 
-  doctest ArchEthic.Replication
+  doctest Archethic.Replication
 
   import Mox
 

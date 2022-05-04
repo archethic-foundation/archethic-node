@@ -1,17 +1,17 @@
-defmodule ArchEthic.SharedSecrets.MemTablesLoaderTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.Bootstrap.NetworkInit
-  alias ArchEthic.Crypto
+  alias Archethic.Bootstrap.NetworkInit
+  alias Archethic.Crypto
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
-  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
-  alias ArchEthic.SharedSecrets.MemTablesLoader
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.SharedSecrets.MemTablesLoader
+  alias Archethic.SharedSecrets.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   import Mox
 

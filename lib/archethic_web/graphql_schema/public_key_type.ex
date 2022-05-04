@@ -1,8 +1,8 @@
-defmodule ArchEthicWeb.GraphQLSchema.PublicKeyType do
+defmodule ArchethicWeb.GraphQLSchema.PublicKeyType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @desc """
   The [PublicKey] scalar type represents a public key.

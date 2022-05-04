@@ -1,45 +1,45 @@
-defmodule ArchEthic.Replication do
+defmodule Archethic.Replication do
   @moduledoc """
-  ArchEthic replication algorithms are based on a replication tree during the transaction mining
+  Archethic replication algorithms are based on a replication tree during the transaction mining
   and include several kind of roles: chain storage nodes, beacon storage nodes, I/O storage node.
 
   From this, different validation and storage mechanisms are used.
 
-  Moreover because ArchEthic supports network transaction to constantly enhanced the system,
+  Moreover because Archethic supports network transaction to constantly enhanced the system,
   those transactions will be loaded into the subsystems (Node, Shared Secrets, Governance, etc..)
   """
 
-  alias ArchEthic.Account
+  alias Archethic.Account
 
-  alias ArchEthic.BeaconChain
+  alias Archethic.BeaconChain
 
-  alias ArchEthic.Contracts
+  alias Archethic.Contracts
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.NotifyLastTransactionAddress
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.NotifyLastTransactionAddress
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.Reward
+  alias Archethic.Reward
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionValidator
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

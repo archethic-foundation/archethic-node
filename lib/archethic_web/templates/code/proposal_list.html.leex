@@ -11,7 +11,7 @@
     <div class="columns">
         <div class="column">
             <p class="heading">Transaction address</p>
-            <%= link to: Routes.live_path(@socket, ArchEthicWeb.CodeProposalDetailsLive, Base.encode16(proposal.address)) do%>
+            <%= link to: Routes.live_path(@socket, ArchethicWeb.CodeProposalDetailsLive, Base.encode16(proposal.address)) do%>
                 <%= Base.encode16(:binary.part(proposal.address, 0, 13)) %>...
             <% end %>
         </div>

@@ -1,13 +1,13 @@
-defmodule ArchEthicWeb.TransactionListLive do
+defmodule ArchethicWeb.TransactionListLive do
   @moduledoc false
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
   alias Phoenix.View
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthicWeb.ExplorerView
+  alias Archethic.TransactionChain
+  alias ArchethicWeb.ExplorerView
 
   @transactions_by_page 10
 

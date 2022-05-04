@@ -1,4 +1,4 @@
-defmodule ArchEthic.Crypto.Ed25519 do
+defmodule Archethic.Crypto.Ed25519 do
   @moduledoc false
 
   alias __MODULE__.LibSodiumPort

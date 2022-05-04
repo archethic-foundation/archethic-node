@@ -1,24 +1,24 @@
-defmodule ArchEthic.Reward do
+defmodule Archethic.Reward do
   @moduledoc """
   Module which handles the rewards and transfer scheduling
   """
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.TransactionList
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
   alias __MODULE__.NetworkPoolScheduler
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   @unit_uco 100_000_000
 

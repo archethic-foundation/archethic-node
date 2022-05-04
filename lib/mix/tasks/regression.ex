@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.ArchEthic.Regression do
+defmodule Mix.Tasks.Archethic.Regression do
   @shortdoc "Run regression utilities to benchmark and validate nodes"
   @bench false
   @validate false
@@ -22,7 +22,7 @@ defmodule Mix.Tasks.ArchEthic.Regression do
 
   use Mix.Task
 
-  alias ArchEthic.Utils.Regression
+  alias Archethic.Utils.Regression
 
   @impl Mix.Task
   def run(args) do

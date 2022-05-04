@@ -1,8 +1,8 @@
-defmodule ArchEthic.P2P.MemTableTest do
+defmodule Archethic.P2P.MemTableTest do
   use ExUnit.Case
 
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.Node
 
   doctest MemTable
 end

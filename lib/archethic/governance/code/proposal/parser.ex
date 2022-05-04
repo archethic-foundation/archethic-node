@@ -1,4 +1,4 @@
-defmodule ArchEthic.Governance.Code.Proposal.Parser do
+defmodule Archethic.Governance.Code.Proposal.Parser do
   @moduledoc false
 
   @doc ~S"""
@@ -79,7 +79,7 @@ defmodule ArchEthic.Governance.Code.Proposal.Parser do
       ...> index d9d9a06..5e34b89 100644
       ...> --- a/mix.exs
       ...> +++ b/mix.exs
-      ...> @@ -4,7 +4,7 @@ defmodule ArchEthic.MixProject do
+      ...> @@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
       ...>   def project do
       ...>     [
       ...>       app: :archethic,
@@ -88,7 +88,7 @@ defmodule ArchEthic.Governance.Code.Proposal.Parser do
       ...>       build_path: \"_build\",
       ...>       config_path: \"config/config.exs\",
       ...>       deps_path: \"deps\",
-      ...> @@ -53,7 +53,7 @@ defmodule ArchEthic.MixProject do
+      ...> @@ -53,7 +53,7 @@ defmodule Archethic.MixProject do
       ...>       {:git_hooks, \"~> 0.4.0\", only: [:test, :dev], runtime: false},
       ...>       {:mox, \"~> 0.5.2\", only: [:test]},
       ...>       {:stream_data, \"~> 0.4.3\", only: [:test]},

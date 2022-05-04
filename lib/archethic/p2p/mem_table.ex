@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.MemTable do
+defmodule Archethic.P2P.MemTable do
   @moduledoc false
 
   @discovery_table :archethic_node_discovery
@@ -6,11 +6,11 @@ defmodule ArchEthic.P2P.MemTable do
   @availability_lookup_table :archethic_available_nodes
   @authorized_nodes_table :archethic_authorized_nodes
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
   use GenServer
 

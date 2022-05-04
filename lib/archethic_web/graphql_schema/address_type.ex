@@ -1,8 +1,8 @@
-defmodule ArchEthicWeb.GraphQLSchema.AddressType do
+defmodule ArchethicWeb.GraphQLSchema.AddressType do
   @moduledoc false
 
   use Absinthe.Schema.Notation
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @desc """
   The [Address] scalar type represents a transaction's address.

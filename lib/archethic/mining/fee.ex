@@ -1,18 +1,18 @@
-defmodule ArchEthic.Mining.Fee do
+defmodule Archethic.Mining.Fee do
   @moduledoc """
   Manage the transaction fee calculcation
   """
-  alias ArchEthic.Bootstrap
+  alias Archethic.Bootstrap
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   @min_tx_fee_in_usd 0.1
   @unit_uco 100_000_000

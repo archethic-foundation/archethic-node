@@ -1,15 +1,15 @@
-defmodule ArchEthic.TransactionChain.TransactionInput do
+defmodule Archethic.TransactionChain.TransactionInput do
   @moduledoc """
   Represents an transaction sent to an account either spent or unspent
   """
   defstruct [:from, :amount, :type, :timestamp, spent?: false, reward?: false]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type t() :: %__MODULE__{
           from: Crypto.versioned_hash(),

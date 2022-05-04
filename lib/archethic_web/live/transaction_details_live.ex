@@ -1,18 +1,18 @@
-defmodule ArchEthicWeb.TransactionDetailsLive do
+defmodule ArchethicWeb.TransactionDetailsLive do
   @moduledoc false
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
   alias Phoenix.View
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthicWeb.ExplorerView
+  alias ArchethicWeb.ExplorerView
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -69,11 +69,11 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
   end
 
   defp get_transaction(address, %{"address" => "true"}) do
-    ArchEthic.get_last_transaction(address)
+    Archethic.get_last_transaction(address)
   end
 
   defp get_transaction(address, _opts = %{}) do
-    ArchEthic.search_transaction(address)
+    Archethic.search_transaction(address)
   end
 
   defp handle_transaction(
@@ -82,8 +82,8 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
        ) do
     previous_address = Transaction.previous_address(tx)
 
-    with {:ok, balance} <- ArchEthic.get_balance(address),
-         {:ok, inputs} <- ArchEthic.get_transaction_inputs(address) do
+    with {:ok, balance} <- Archethic.get_balance(address),
+         {:ok, inputs} <- Archethic.get_transaction_inputs(address) do
       ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
       contract_inputs = Enum.filter(inputs, &(&1.type == :call))
       uco_price_at_time = tx.validation_stamp.timestamp |> OracleChain.get_uco_price()
@@ -107,7 +107,7 @@ defmodule ArchEthicWeb.TransactionDetailsLive do
   end
 
   defp handle_not_existing_transaction(socket, address) do
-    case ArchEthic.get_transaction_inputs(address) do
+    case Archethic.get_transaction_inputs(address) do
       {:ok, inputs} ->
         ledger_inputs = Enum.reject(inputs, &(&1.type == :call))
         contract_inputs = Enum.filter(inputs, &(&1.type == :call))

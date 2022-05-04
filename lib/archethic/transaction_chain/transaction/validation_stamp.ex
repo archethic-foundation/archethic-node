@@ -1,9 +1,9 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   @moduledoc """
   Represents a validation stamp created by a coordinator on a pending transaction
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.LedgerOperations
 

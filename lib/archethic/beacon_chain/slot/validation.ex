@@ -1,20 +1,20 @@
-defmodule ArchEthic.BeaconChain.Slot.Validation do
+defmodule Archethic.BeaconChain.Slot.Validation do
   @moduledoc false
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransactionSummary
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionSummary
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 

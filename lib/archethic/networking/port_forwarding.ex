@@ -1,10 +1,10 @@
-defmodule ArchEthic.Networking.PortForwarding do
+defmodule Archethic.Networking.PortForwarding do
   @moduledoc """
   Manage the port forwarding
   """
 
-  alias ArchEthic.Networking.IPLookup
-  alias ArchEthic.Networking.IPLookup.NAT
+  alias Archethic.Networking.IPLookup
+  alias Archethic.Networking.IPLookup.NAT
 
   require Logger
 

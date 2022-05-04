@@ -1,20 +1,20 @@
-defmodule ArchEthic.Mining.TransactionContextTest do
-  use ArchEthicCase
+defmodule Archethic.Mining.TransactionContextTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.Ping
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.Ping
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Mining.TransactionContext
+  alias Archethic.Mining.TransactionContext
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   doctest TransactionContext
 

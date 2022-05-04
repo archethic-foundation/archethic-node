@@ -1,4 +1,4 @@
-defmodule ArchEthic.Mining.TransactionContext.NodeDistribution do
+defmodule Archethic.Mining.TransactionContext.NodeDistribution do
   @moduledoc false
 
   @doc """

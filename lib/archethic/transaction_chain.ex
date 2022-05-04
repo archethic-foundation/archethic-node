@@ -1,18 +1,18 @@
-defmodule ArchEthic.TransactionChain do
+defmodule Archethic.TransactionChain do
   @moduledoc """
   Handle the logic managing transaction chain
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetLastTransactionAddress
-  alias ArchEthic.P2P.Message.LastTransactionAddress
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Node
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger

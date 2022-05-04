@@ -1,28 +1,28 @@
-defmodule ArchEthicCase do
+defmodule ArchethicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias ArchEthic.Account.MemTables.NFTLedger
-  alias ArchEthic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.UCOLedger
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.ECDSA
+  alias Archethic.Crypto
+  alias Archethic.Crypto.ECDSA
 
-  alias ArchEthic.Election.Constraints
+  alias Archethic.Election.Constraints
 
-  alias ArchEthic.Governance.Pools.MemTable, as: PoolsMemTable
+  alias Archethic.Governance.Pools.MemTable, as: PoolsMemTable
 
-  alias ArchEthic.OracleChain.MemTable, as: OracleMemTable
+  alias Archethic.OracleChain.MemTable, as: OracleMemTable
 
-  alias ArchEthic.P2P.MemTable, as: P2PMemTable
+  alias Archethic.P2P.MemTable, as: P2PMemTable
 
-  alias ArchEthic.SharedSecrets.MemTables.NetworkLookup
-  alias ArchEthic.SharedSecrets.MemTables.OriginKeyLookup
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+  alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
 
-  alias ArchEthic.TransactionChain.MemTables.KOLedger
-  alias ArchEthic.TransactionChain.MemTables.PendingLedger
+  alias Archethic.TransactionChain.MemTables.KOLedger
+  alias Archethic.TransactionChain.MemTables.PendingLedger
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   import Mox
 

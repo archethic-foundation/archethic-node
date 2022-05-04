@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.EncryptedStorageNonce do
+defmodule Archethic.P2P.Message.EncryptedStorageNonce do
   @moduledoc """
   Represents a message with the requested storage nonce encrypted with the given public key
 

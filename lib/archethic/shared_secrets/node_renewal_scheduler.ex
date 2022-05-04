@@ -1,4 +1,4 @@
-defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
+defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   @moduledoc """
   Schedule the renewal of node shared secrets
 
@@ -18,16 +18,16 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias ArchEthic
+  alias Archethic
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.PubSub
+  alias Archethic.P2P.Node
+  alias Archethic.PubSub
 
-  alias ArchEthic.SharedSecrets.NodeRenewal
+  alias Archethic.SharedSecrets.NodeRenewal
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 
@@ -122,7 +122,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalScheduler do
         :crypto.strong_rand_bytes(32)
       )
 
-    ArchEthic.send_new_transaction(tx)
+    Archethic.send_new_transaction(tx)
 
     Logger.info(
       "Node shared secrets renewal transaction sent (#{Crypto.number_of_node_shared_secrets_keys()})"

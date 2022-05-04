@@ -1,17 +1,17 @@
-defmodule ArchEthicWeb.CodeProposalChatLive do
+defmodule ArchethicWeb.CodeProposalChatLive do
   @moduledoc false
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
-  # alias ArchEthic.P2P
-  # alias ArchEthic.P2P.Message.NewChatProposal
-  # alias ArchEthic.PubSub
+  # alias Archethic.P2P
+  # alias Archethic.P2P.Message.NewChatProposal
+  # alias Archethic.PubSub
 
-  # alias ArchEthic.TaskSupervisor
+  # alias Archethic.TaskSupervisor
 
   alias Phoenix.View
 
-  alias ArchEthicWeb.CodeView
-  alias ArchEthicWeb.Endpoint
+  alias ArchethicWeb.CodeView
+  alias ArchethicWeb.Endpoint
 
   def mount(_params, %{"proposal_address" => proposal_address}, socket) do
     if connected?(socket) do

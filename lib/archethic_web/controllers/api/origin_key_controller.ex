@@ -1,11 +1,11 @@
-defmodule ArchEthicWeb.API.OriginKeyController do
-  use ArchEthicWeb, :controller
+defmodule ArchethicWeb.API.OriginKeyController do
+  use ArchethicWeb, :controller
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.SharedSecrets
+  alias Archethic.Crypto
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
   def origin_key(conn, params) do
     with %{"origin_public_key" => origin_public_key} <- params,

@@ -1,13 +1,13 @@
-defmodule ArchEthic.Governance.Pools.MemTableLoader do
+defmodule Archethic.Governance.Pools.MemTableLoader do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Governance.Pools
-  alias ArchEthic.Governance.Pools.MemTable
+  alias Archethic.Governance.Pools
+  alias Archethic.Governance.Pools.MemTable
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
 
   # TODO: manage the enrollment of member in pools except for nodes and technical council
 

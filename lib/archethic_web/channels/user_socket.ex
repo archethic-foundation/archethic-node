@@ -1,13 +1,13 @@
-defmodule ArchEthicWeb.UserSocket do
+defmodule ArchethicWeb.UserSocket do
   @moduledoc false
 
   use Phoenix.Socket
 
   use Absinthe.Phoenix.Socket,
-    schema: ArchEthicWeb.GraphQLSchema
+    schema: ArchethicWeb.GraphQLSchema
 
   ## Channels
-  # channel "room:*", ArchEthicWeb.RoomChannel
+  # channel "room:*", ArchethicWeb.RoomChannel
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user. After
@@ -31,7 +31,7 @@ defmodule ArchEthicWeb.UserSocket do
   # Would allow you to broadcast a "disconnect" event and terminate
   # all active sockets and channels for a given user:
   #
-  #     ArchEthicWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
+  #     ArchethicWeb.Endpoint.broadcast("user_socket:#{user.id}", "disconnect", %{})
   #
   # Returning `nil` makes this socket anonymous.
   def id(_socket), do: nil

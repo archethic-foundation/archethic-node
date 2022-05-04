@@ -1,4 +1,4 @@
-defmodule ArchEthic.PubSub do
+defmodule Archethic.PubSub do
   @moduledoc """
   Provide an internal publish/subscribe mechanism to be aware of the new transaction in the system.
 
@@ -8,13 +8,13 @@ defmodule ArchEthic.PubSub do
   Processes can subscribe to new transaction either based on address or full transaction
   """
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSubRegistry
+  alias Archethic.PubSubRegistry
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
   @doc """
   Notify the registered processes than a new transaction has been validated

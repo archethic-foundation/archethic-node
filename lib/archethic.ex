@@ -1,4 +1,4 @@
-defmodule ArchEthic do
+defmodule Archethic do
   @moduledoc """
   Provides high level functions serving the API and the Explorer
   """

@@ -1,15 +1,15 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput do
   @moduledoc """
   Represents an unspent output from a transaction.
   """
   defstruct [:amount, :from, :type, :timestamp, reward?: false]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
     as: TransactionMovementType
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           amount: non_neg_integer(),

@@ -1,7 +1,7 @@
-defmodule ArchEthic.Governance.Code.ProposalTest do
+defmodule Archethic.Governance.Code.ProposalTest do
   use ExUnit.Case
 
-  alias ArchEthic.Governance.Code.Proposal
+  alias Archethic.Governance.Code.Proposal
 
   doctest Proposal
 end

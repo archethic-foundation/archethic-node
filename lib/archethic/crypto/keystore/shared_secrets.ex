@@ -1,8 +1,8 @@
-defmodule ArchEthic.Crypto.SharedSecretsKeystore do
+defmodule Archethic.Crypto.SharedSecretsKeystore do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl
+  alias Archethic.Crypto
+  alias Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
   use Knigge, otp_app: :archethic, default: SoftwareImpl, delegate_at_runtime?: true
 

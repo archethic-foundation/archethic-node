@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.GetBootstrappingNodes do
+defmodule Archethic.P2P.Message.GetBootstrappingNodes do
   @moduledoc """
   Represents a message to list the new bootstrapping nodes for a network patch.
   The closest authorized nodes will be returned.

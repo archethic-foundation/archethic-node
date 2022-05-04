@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.MessageEnvelop do
+defmodule Archethic.P2P.MessageEnvelop do
   @moduledoc """
   Represents the message envelop foreach P2P messages
   """
@@ -9,9 +9,9 @@ defmodule ArchEthic.P2P.MessageEnvelop do
     :sender_public_key
   ]
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.P2P.Message
-  alias ArchEthic.Utils
+  alias Archethic.Crypto
+  alias Archethic.P2P.Message
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           message: Message.t(),

@@ -1,4 +1,4 @@
-defmodule ArchEthic.Metrics.Poller do
+defmodule Archethic.Metrics.Poller do
   @moduledoc """
   Worker which poll network metrics periodically and notify registered clients (ie. LiveView)
   """
@@ -7,7 +7,7 @@ defmodule ArchEthic.Metrics.Poller do
 
   use GenServer
 
-  alias ArchEthic.Metrics.Collector
+  alias Archethic.Metrics.Collector
 
   def start_link(opts \\ []) do
     options = Keyword.get(opts, :options, name: __MODULE__)

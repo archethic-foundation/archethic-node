@@ -1,24 +1,24 @@
-defmodule ArchEthic.Utils.Regression.Benchmark.EndToEndValidation do
+defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
   @moduledoc false
 
   require Logger
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Utils.Regression.Benchmark.SeedHolder
-  alias ArchEthic.Utils.Regression.Playbook
-  alias ArchEthic.Utils.Regression.Benchmark
-  alias ArchEthic.Utils.WebSocket.Client, as: WSClient
+  alias Archethic.Utils.Regression.Benchmark.SeedHolder
+  alias Archethic.Utils.Regression.Playbook
+  alias Archethic.Utils.Regression.Benchmark
+  alias Archethic.Utils.WebSocket.Client, as: WSClient
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   @behaviour Benchmark
 
   def plan([host | _nodes], _opts) do
-    port = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
 
     WSClient.start_link(host: host, port: port)
     Logger.info("Starting Benchmark: Transactions Per Seconds at host #{host} and port #{port}")

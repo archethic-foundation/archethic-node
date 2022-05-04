@@ -1,8 +1,8 @@
-defmodule ArchEthic.BeaconChain.ReplicationAttestationTest do
+defmodule Archethic.BeaconChain.ReplicationAttestationTest do
   use ExUnit.Case
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.TransactionChain.TransactionSummary
 
   doctest ReplicationAttestation
 end

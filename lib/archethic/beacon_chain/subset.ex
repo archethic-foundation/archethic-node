@@ -1,38 +1,38 @@
-defmodule ArchEthic.BeaconChain.Subset do
+defmodule Archethic.BeaconChain.Subset do
   @moduledoc """
   Represents a beacon slot running inside a process
   waiting to receive transactions to register in a beacon slot
   """
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.Summary
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryTimer
 
   alias __MODULE__.P2PSampling
   alias __MODULE__.SummaryCache
 
-  alias ArchEthic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain.SubsetRegistry
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.NewBeaconTransaction
-  alias ArchEthic.P2P.Message.BeaconUpdate
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.NewBeaconTransaction
+  alias Archethic.P2P.Message.BeaconUpdate
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   use GenServer
 
@@ -144,7 +144,7 @@ defmodule ArchEthic.BeaconChain.Subset do
          }},
         state = %{current_slot: current_slot, subset: subset, subscribed_nodes: subscribed_nodes}
       ) do
-    if ArchEthic.BeaconChain.subset_from_address(address) == subset do
+    if Archethic.BeaconChain.subset_from_address(address) == subset do
       new_slot =
         Slot.add_transaction_attestation(
           current_slot,

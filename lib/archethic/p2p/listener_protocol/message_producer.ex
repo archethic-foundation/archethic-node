@@ -1,8 +1,8 @@
-defmodule ArchEthic.P2P.ListenerProtocol.MessageProducer do
+defmodule Archethic.P2P.ListenerProtocol.MessageProducer do
   @moduledoc false
   use GenStage
 
-  alias ArchEthic.P2P.ListenerProtocol.MessageProducerRegistry
+  alias Archethic.P2P.ListenerProtocol.MessageProducerRegistry
 
   def start_link(arg) do
     GenStage.start_link(__MODULE__, arg)

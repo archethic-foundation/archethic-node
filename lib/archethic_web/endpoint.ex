@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.Endpoint do
+defmodule ArchethicWeb.Endpoint do
   @moduledoc false
 
   use Phoenix.Endpoint, otp_app: :archethic
@@ -13,7 +13,7 @@ defmodule ArchEthicWeb.Endpoint do
     signing_salt: "wwLmAJji"
   ]
 
-  socket("/socket", ArchEthicWeb.UserSocket,
+  socket("/socket", ArchethicWeb.UserSocket,
     websocket: true,
     longpoll: false
   )
@@ -50,5 +50,5 @@ defmodule ArchEthicWeb.Endpoint do
   plug(Plug.Head)
   plug(Plug.Session, @session_options)
   plug(CORSPlug, origin: "*")
-  plug(ArchEthicWeb.Router)
+  plug(ArchethicWeb.Router)
 end

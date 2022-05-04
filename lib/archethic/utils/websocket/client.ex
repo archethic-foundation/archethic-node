@@ -1,9 +1,9 @@
-defmodule ArchEthic.Utils.WebSocket.Client do
+defmodule Archethic.Utils.WebSocket.Client do
   @moduledoc """
     GQL ABsinthe Subscription Abstraction provider.
   """
-  alias ArchEthic.Utils.WebSocket.Supervisor
-  alias ArchEthic.Utils.WebSocket.SocketHandler
+  alias Archethic.Utils.WebSocket.Supervisor
+  alias Archethic.Utils.WebSocket.SocketHandler
 
   def start_link(opts) do
     Supervisor.start_link(opts)

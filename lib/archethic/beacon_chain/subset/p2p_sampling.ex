@@ -1,12 +1,12 @@
-defmodule ArchEthic.BeaconChain.Subset.P2PSampling do
+defmodule Archethic.BeaconChain.Subset.P2PSampling do
   @moduledoc false
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.Ping
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Ping
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TaskSupervisor
+  alias Archethic.TaskSupervisor
 
   @type p2p_view :: {available? :: boolean(), latency :: non_neg_integer()}
 

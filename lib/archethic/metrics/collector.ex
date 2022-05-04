@@ -1,11 +1,11 @@
-defmodule ArchEthic.Metrics.Collector do
+defmodule Archethic.Metrics.Collector do
   @moduledoc """
   Handle the flow of metrics collection
   """
 
-  alias ArchEthic.Metrics.Aggregator
-  alias ArchEthic.Metrics.Parser
-  alias ArchEthic.P2P
+  alias Archethic.Metrics.Aggregator
+  alias Archethic.Metrics.Parser
+  alias Archethic.P2P
 
   @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
               {:ok, String.t()} | {:error, any()}

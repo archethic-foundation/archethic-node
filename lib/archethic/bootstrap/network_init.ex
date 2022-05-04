@@ -1,39 +1,39 @@
-defmodule ArchEthic.Bootstrap.NetworkInit do
+defmodule Archethic.Bootstrap.NetworkInit do
   @moduledoc """
   Set up the network by initialize genesis information (i.e storage nonce, coinbase transactions)
 
   Those functions are only executed by the first node bootstrapping on the network
   """
 
-  alias ArchEthic.Bootstrap
+  alias Archethic.Bootstrap
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining
+  alias Archethic.Mining
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
 

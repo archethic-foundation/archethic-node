@@ -1,4 +1,4 @@
-defmodule ArchEthic.Contracts.TransactionLookup do
+defmodule Archethic.Contracts.TransactionLookup do
   @moduledoc false
 
   @table_name :archethic_contract_transaction_lookup

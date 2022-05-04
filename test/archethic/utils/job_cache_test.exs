@@ -1,7 +1,7 @@
-defmodule ArchEthic.Utils.JobCacheTest do
+defmodule Archethic.Utils.JobCacheTest do
   use ExUnit.Case
 
-  alias ArchEthic.Utils.JobCache
+  alias Archethic.Utils.JobCache
 
   doctest JobCache
 end

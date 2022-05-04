@@ -57,7 +57,7 @@
                 <%= for approval <- @approvals do %>
                     <div class="columns">
                         <div class="column">
-                            <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(approval)) do%>
+                            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(approval)) do%>
                                 <span class="text_wrap"><%= Base.encode16(approval) %></span>
                             <% end %>
                         </div>

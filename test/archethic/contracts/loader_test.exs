@@ -1,18 +1,18 @@
-defmodule ArchEthic.Contracts.LoaderTest do
+defmodule Archethic.Contracts.LoaderTest do
   use ExUnit.Case
 
-  alias ArchEthic.ContractRegistry
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Constants
-  alias ArchEthic.Contracts.Contract.Trigger
-  alias ArchEthic.Contracts.Loader
-  alias ArchEthic.Contracts.Worker
-  alias ArchEthic.ContractSupervisor
+  alias Archethic.ContractRegistry
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.Loader
+  alias Archethic.Contracts.Worker
+  alias Archethic.ContractSupervisor
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   import Mox
 

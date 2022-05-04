@@ -1,20 +1,20 @@
-defmodule ArchEthic.P2P.Message do
+defmodule Archethic.P2P.Message do
   @moduledoc """
   Provide functions to encode and decode P2P messages using a custom binary protocol
   """
-  alias ArchEthic.Account
+  alias Archethic.Account
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Summary
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Summary
 
-  alias ArchEthic.Contracts
+  alias Archethic.Contracts
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Mining
+  alias Archethic.Mining
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
   alias __MODULE__.AcknowledgeStorage
   alias __MODULE__.AddMiningContext
@@ -65,21 +65,21 @@ defmodule ArchEthic.P2P.Message do
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionInput
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 
@@ -1057,7 +1057,7 @@ defmodule ArchEthic.P2P.Message do
   end
 
   def process(%NewTransaction{transaction: tx}) do
-    case ArchEthic.send_new_transaction(tx) do
+    case Archethic.send_new_transaction(tx) do
       :ok ->
         %Ok{}
 

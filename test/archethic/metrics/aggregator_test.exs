@@ -1,7 +1,7 @@
-defmodule ArchEthic.Metrics.AggregatorTest do
+defmodule Archethic.Metrics.AggregatorTest do
   use ExUnit.Case
 
-  alias ArchEthic.Metrics.Aggregator
+  alias Archethic.Metrics.Aggregator
 
   doctest Aggregator
 end

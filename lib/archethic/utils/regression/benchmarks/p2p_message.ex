@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
+defmodule Archethic.Utils.Regression.Benchmark.P2PMessage do
   @moduledoc """
   Benchmark some P2P messages to ensure consistent latency
   and avoiding exhausting of the system (nb of process should remain constant)
@@ -6,26 +6,26 @@ defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
 
   require Logger
 
-  alias ArchEthic.Bootstrap.NetworkInit
+  alias Archethic.Bootstrap.NetworkInit
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Message.Balance
-  alias ArchEthic.P2P.Message.GetBalance
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetTransactionChain
-  alias ArchEthic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.Balance
+  alias Archethic.P2P.Message.GetBalance
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.TransactionList
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthic.Utils.Regression.Benchmark
-  alias ArchEthic.Utils.WebClient
+  alias Archethic.Utils.Regression.Benchmark
+  alias Archethic.Utils.WebClient
 
   @behaviour Benchmark
 
   def plan([host | _nodes], _opts) do
-    port = Application.get_env(:archethic, ArchEthic.P2P.Listener)[:port]
-    http = Application.get_env(:archethic, ArchEthicWeb.Endpoint)[:http][:port]
+    port = Application.get_env(:archethic, Archethic.P2P.Listener)[:port]
+    http = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
     {:ok, addr} = :inet.getaddr(to_charlist(host), :inet)
 
     {public_key, private_key} =
@@ -100,10 +100,10 @@ defmodule ArchEthic.Utils.Regression.Benchmark.P2PMessage do
 
   defmodule Connection do
     @moduledoc false
-    alias ArchEthic.Crypto
+    alias Archethic.Crypto
 
-    alias ArchEthic.P2P.Message
-    alias ArchEthic.P2P.MessageEnvelop
+    alias Archethic.P2P.Message
+    alias Archethic.P2P.MessageEnvelop
 
     def start_link(arg) do
       GenServer.start_link(__MODULE__, arg)

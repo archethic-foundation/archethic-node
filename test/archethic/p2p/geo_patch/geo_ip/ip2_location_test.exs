@@ -1,7 +1,7 @@
-defmodule ArchEthic.P2P.GeoPatch.GeoIP.IP2LocationTest do
+defmodule Archethic.P2P.GeoPatch.GeoIP.IP2LocationTest do
   use ExUnit.Case
 
-  alias ArchEthic.P2P.GeoPatch.GeoIP.IP2LocationImpl, as: GeoIP
+  alias Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl, as: GeoIP
 
   test "get_coordinates/1 should retrieve coordinates from ip" do
     {lat, lon} = GeoIP.get_coordinates({93, 22, 131, 35})

@@ -1,16 +1,16 @@
-defmodule ArchEthic.TransactionChain.Supervisor do
+defmodule Archethic.TransactionChain.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.TransactionChain.MemTables.KOLedger
-  alias ArchEthic.TransactionChain.MemTables.PendingLedger
-  alias ArchEthic.TransactionChain.MemTablesLoader
+  alias Archethic.TransactionChain.MemTables.KOLedger
+  alias Archethic.TransactionChain.MemTables.PendingLedger
+  alias Archethic.TransactionChain.MemTablesLoader
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.TransactionChainSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.TransactionChainSupervisor)
   end
 
   def init(_args) do

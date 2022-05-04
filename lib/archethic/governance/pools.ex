@@ -1,8 +1,8 @@
-defmodule ArchEthic.Governance.Pools do
+defmodule Archethic.Governance.Pools do
   @moduledoc """
   Governance pool management.
 
-  The ArchEthic governance is spread across several pool of voters with different power or area of expertise.
+  The Archethic governance is spread across several pool of voters with different power or area of expertise.
 
   The pools are:
   - Foundation
@@ -18,11 +18,11 @@ defmodule ArchEthic.Governance.Pools do
   Hence, each pool will have dedicated threshold of acceptance regarding the votes for a given proposal.
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.MemTable
 
-  alias ArchEthic.P2P
+  alias Archethic.P2P
 
   @type pool ::
           :foundation | :technical_council | :ethical_council | :uniris | :miners | :users

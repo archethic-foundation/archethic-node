@@ -1,19 +1,19 @@
-defmodule ArchEthicWeb.API.TransactionController do
+defmodule ArchethicWeb.API.TransactionController do
   @moduledoc false
 
-  use ArchEthicWeb, :controller
+  use ArchethicWeb, :controller
 
-  alias ArchEthic
+  alias Archethic
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthic.Mining
-  alias ArchEthic.OracleChain
+  alias Archethic.Mining
+  alias Archethic.OracleChain
 
-  alias ArchEthicWeb.API.TransactionPayload
-  alias ArchEthicWeb.ErrorView
-  alias ArchEthicWeb.TransactionSubscriber
+  alias ArchethicWeb.API.TransactionPayload
+  alias ArchethicWeb.ErrorView
+  alias ArchethicWeb.TransactionSubscriber
 
   require Logger
 
@@ -25,7 +25,7 @@ defmodule ArchEthicWeb.API.TransactionController do
           |> TransactionPayload.to_map()
           |> Transaction.from_map()
 
-        case ArchEthic.send_new_transaction(tx) do
+        case Archethic.send_new_transaction(tx) do
           :ok ->
             TransactionSubscriber.register(tx.address, System.monotonic_time())
 
@@ -44,7 +44,7 @@ defmodule ArchEthicWeb.API.TransactionController do
 
       changeset ->
         Logger.debug(
-          "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchEthicWeb.ErrorHelpers.translate_error/1))}"
+          "Invalid transaction #{inspect(Ecto.Changeset.traverse_errors(changeset, &ArchethicWeb.ErrorHelpers.translate_error/1))}"
         )
 
         conn
@@ -57,7 +57,7 @@ defmodule ArchEthicWeb.API.TransactionController do
   def last_transaction_content(conn, params = %{"address" => address}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
-           ArchEthic.get_last_transaction(address) do
+           Archethic.get_last_transaction(address) do
       mime_type = Map.get(params, "mime", "text/plain")
 
       etag = Base.encode16(last_address, case: :lower)

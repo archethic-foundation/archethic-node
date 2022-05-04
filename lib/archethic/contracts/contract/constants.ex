@@ -1,4 +1,4 @@
-defmodule ArchEthic.Contracts.Contract.Constants do
+defmodule Archethic.Contracts.Contract.Constants do
   @moduledoc """
   Represents the smart contract constants and bindings
   """
@@ -10,14 +10,14 @@ defmodule ArchEthic.Contracts.Contract.Constants do
           transaction: map() | nil
         }
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   @doc """
   Extract constants from a transaction into a map

@@ -1,10 +1,10 @@
-defmodule ArchEthic.Account.MemTables.NFTLedgerTest do
+defmodule Archethic.Account.MemTables.NFTLedgerTest do
   use ExUnit.Case
 
-  alias ArchEthic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.NFTLedger
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionInput
 
   doctest NFTLedger
 end

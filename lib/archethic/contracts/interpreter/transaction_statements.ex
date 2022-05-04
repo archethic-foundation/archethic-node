@@ -1,10 +1,10 @@
-defmodule ArchEthic.Contracts.Interpreter.TransactionStatements do
+defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   @moduledoc false
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
   @doc """
   Set the transaction type

@@ -1,15 +1,15 @@
-defmodule ArchEthicWeb.FaucetControllerTest do
-  use ArchEthicCase
-  use ArchEthicWeb.ConnCase
+defmodule ArchethicWeb.FaucetControllerTest do
+  use ArchethicCase
+  use ArchethicWeb.ConnCase
 
-  alias ArchEthic.{
+  alias Archethic.{
     Crypto,
     P2P,
     P2P.Node,
     PubSub
   }
 
-  alias ArchEthic.P2P.Message.{
+  alias Archethic.P2P.Message.{
     GetLastTransactionAddress,
     GetTransactionChainLength,
     LastTransactionAddress,
@@ -18,18 +18,18 @@ defmodule ArchEthicWeb.FaucetControllerTest do
     TransactionChainLength
   }
 
-  alias ArchEthic.TransactionChain.{
+  alias Archethic.TransactionChain.{
     Transaction,
     TransactionData,
     TransactionData.Ledger,
     TransactionData.UCOLedger
   }
 
-  alias ArchEthicWeb.FaucetRateLimiter
+  alias ArchethicWeb.FaucetRateLimiter
 
   import Mox
 
-  @pool_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
+  @pool_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
 
   setup do
     P2P.add_and_connect_node(%Node{

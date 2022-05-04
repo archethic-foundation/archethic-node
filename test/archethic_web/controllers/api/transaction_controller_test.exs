@@ -1,11 +1,11 @@
-defmodule ArchEthicWeb.API.TransactionControllerTest do
-  use ArchEthicCase
-  use ArchEthicWeb.ConnCase
+defmodule ArchethicWeb.API.TransactionControllerTest do
+  use ArchethicCase
+  use ArchethicWeb.ConnCase
 
-  alias ArchEthic.OracleChain.MemTable
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.Crypto
+  alias Archethic.OracleChain.MemTable
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.Crypto
 
   import Mox
 

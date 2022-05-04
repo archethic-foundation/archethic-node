@@ -1,14 +1,14 @@
-defmodule ArchEthicWeb.WorldMapLive do
+defmodule ArchethicWeb.WorldMapLive do
   @moduledoc false
 
-  use ArchEthicWeb, :live_view
+  use ArchethicWeb, :live_view
 
   alias Phoenix.View
-  alias ArchEthicWeb.NodeView
-  alias ArchEthic.P2P
-  alias ArchEthic.PubSub
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.GeoPatch.GeoIP
+  alias ArchethicWeb.NodeView
+  alias Archethic.P2P
+  alias Archethic.PubSub
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.GeoPatch.GeoIP
 
   @type worldmap_data :: %{
           geo_patch: binary(),
