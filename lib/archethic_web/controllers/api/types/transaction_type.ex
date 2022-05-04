@@ -6,7 +6,7 @@ defmodule ArchEthicWeb.API.Types.TransactionType do
   def type, do: :string
 
   @authorized_types [
-    "identity",
+    "keychain_access",
     "keychain",
     "transfer",
     "hosting",

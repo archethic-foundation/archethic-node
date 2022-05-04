@@ -16,7 +16,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   alias ArchEthic.Mining
 
   alias ArchEthic.PubSub
-  alias ArchEthic.P2P.Node
 
   alias ArchEthic.Replication
 
@@ -32,12 +31,18 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
 
   alias ArchEthic.TransactionChain.TransactionSummary
 
   require Logger
 
   @genesis_seed Application.compile_env(:archethic, [__MODULE__, :genesis_seed])
+
+  @genesis_origin_public_keys Application.compile_env!(
+                                :archethic,
+                                [__MODULE__, :genesis_origin_public_keys]
+                              )
 
   defp get_genesis_pools do
     Application.get_env(:archethic, __MODULE__) |> Keyword.get(:genesis_pools, [])
@@ -71,6 +76,44 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
       )
 
     tx
+    |> self_validation()
+    |> self_replication()
+  end
+
+  @doc """
+  Create the first origin shared secret transaction
+  """
+  @spec init_software_origin_shared_secrets_chain() :: :ok
+  def init_software_origin_shared_secrets_chain do
+    Logger.info("Create first software origin shared secret transaction")
+
+    origin_seed = :crypto.strong_rand_bytes(32)
+    secret_key = :crypto.strong_rand_bytes(32)
+    signing_seed = SharedSecrets.get_origin_family_seed(:software)
+
+    # Default keypair generation creates software public key
+    {origin_public_key, origin_private_key} = Crypto.generate_deterministic_keypair(origin_seed)
+
+    encrypted_origin_private_key = Crypto.aes_encrypt(origin_private_key, secret_key)
+
+    Transaction.new(
+      :origin_shared_secrets,
+      %TransactionData{
+        code: """
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: origin_shared_secrets
+          ]
+        """,
+        content: <<origin_public_key::binary>>,
+        ownerships: [
+          Ownership.new(encrypted_origin_private_key, secret_key, @genesis_origin_public_keys)
+        ]
+      },
+      signing_seed,
+      0
+    )
     |> self_validation()
     |> self_replication()
   end
@@ -133,11 +176,6 @@ defmodule ArchEthic.Bootstrap.NetworkInit do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.distribute_rewards(
-        %Node{last_public_key: Crypto.last_node_public_key()},
-        [%Node{last_public_key: Crypto.last_node_public_key()}],
-        []
-      )
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 
     validation_stamp =

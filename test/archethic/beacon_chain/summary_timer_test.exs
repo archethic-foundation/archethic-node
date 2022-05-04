@@ -4,11 +4,20 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
 
   alias ArchEthic.BeaconChain.SummaryTimer
 
-  test "next_summary/2 should get the next summary time from a given date" do
-    {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
-    now = ~U[2021-01-02 03:00:19Z]
-    next_summary_time = SummaryTimer.next_summary(now)
-    assert 1 == abs(now.minute - next_summary_time.minute)
+  describe "next_summary/2" do
+    test "should get the next summary time from a given date" do
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
+      now = ~U[2021-01-02 03:00:19.501Z]
+      next_summary_time = SummaryTimer.next_summary(now)
+      assert 1 == abs(now.minute - next_summary_time.minute)
+    end
+
+    test "should get the 2nd next summary time when the date is an summary interval date" do
+      {:ok, _pid} = SummaryTimer.start_link([interval: "0 * * * * * *"], [])
+      next_date = SummaryTimer.next_summary(DateTime.utc_now())
+      next_summary_time = SummaryTimer.next_summary(next_date)
+      assert DateTime.compare(next_summary_time, next_date) == :gt
+    end
   end
 
   property "previous_summaries/1 should retrieve the previous summary times from a date" do
@@ -40,11 +49,10 @@ defmodule ArchEthic.BeaconChain.SummaryTimerTest do
 
   property "next_summaries/1 should retrieve the next summary times from a date" do
     {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
+    ref = DateTime.utc_now() |> DateTime.truncate(:second)
 
     check all(previous_seconds <- StreamData.positive_integer()) do
-      next_summaries =
-        SummaryTimer.next_summaries(DateTime.utc_now() |> DateTime.add(-previous_seconds))
-
+      next_summaries = SummaryTimer.next_summaries(DateTime.add(ref, -previous_seconds), ref)
       assert Enum.count(next_summaries) == previous_seconds
     end
   end

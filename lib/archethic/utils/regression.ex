@@ -11,9 +11,10 @@ defmodule ArchEthic.Utils.Regression do
   alias ArchEthic.Utils.Regression.Playbook.UCO
 
   alias ArchEthic.Utils.WebClient
+  alias ArchEthic.Utils.Regression.Benchmark.EndToEndValidation
 
   @playbooks [UCO, SmartContract]
-  @benchmarks [P2PMessage]
+  @benchmarks [P2PMessage, EndToEndValidation]
 
   def run_playbooks(nodes, opts \\ []) do
     Logger.debug("Running playbooks on #{inspect(nodes)} with #{inspect(opts)}")

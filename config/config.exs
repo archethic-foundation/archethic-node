@@ -38,6 +38,12 @@ config :logger, :console,
   ],
   colors: [enabled: true]
 
+# Faucet rate limit in Number of transactions
+config :archethic, :faucet_rate_limit, 3
+
+# Faucet rate limit Expiry time in milliseconds
+config :archethic, :faucet_rate_limit_expiry, 3_600_000
+
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
@@ -68,8 +74,7 @@ config :archethic, ArchEthic.Crypto,
   storage_nonce_file: "crypto/storage_nonce",
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
-config :archethic, ArchEthic.DB, ArchEthic.DB.CassandraImpl
-config :archethic, ArchEthic.DB.CassandraImpl, pool_size: 100
+config :archethic, ArchEthic.DB, ArchEthic.DB.EmbeddedImpl
 
 config :archethic, ArchEthic.Bootstrap.NetworkInit,
   genesis_seed:
@@ -79,7 +84,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
     <<190, 107, 211, 23, 6, 230, 228, 144, 253, 154, 200, 213, 66, 172, 229, 96, 5, 171, 134, 249,
       80, 160, 149, 4, 106, 249, 155, 116, 186, 125, 77, 192>>,
   genesis_origin_public_keys: [
-    "010004AB41291F847A601055AEDD1AF24FF76FA970D6441E2DCA3818A8319B004C96B27B8FEB1DA31A044BA0A4800B4353359735719EBB3A05F98393A9CC599C3FAFD6"
+    "010104AB41291F847A601055AEDD1AF24FF76FA970D6441E2DCA3818A8319B004C96B27B8FEB1DA31A044BA0A4800B4353359735719EBB3A05F98393A9CC599C3FAFD6"
     |> Base.decode16!(case: :mixed)
   ]
 

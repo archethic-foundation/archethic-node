@@ -577,7 +577,8 @@ defmodule ArchEthic.Contracts.InterpreterTest do
       {:ok, %Contract{conditions: %{transaction: conditions}}} =
         ~s"""
         condition transaction: [
-          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
+          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+
         ]
         """
         |> Interpreter.parse()
@@ -618,6 +619,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                )
     end
 
+=======
     @tag :genesis
     test "shall parse get_genesis_address/1 in actions" do
       address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"

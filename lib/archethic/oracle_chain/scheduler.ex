@@ -350,11 +350,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
   end
 
   defp trigger_node?(summary_date = %DateTime{}, index) do
-    authorized_nodes =
-      Enum.filter(
-        P2P.authorized_nodes(),
-        &(DateTime.compare(&1.authorization_date, DateTime.truncate(summary_date, :second)) == :lt)
-      )
+    authorized_nodes = P2P.authorized_nodes(summary_date)
 
     storage_nodes =
       summary_date
@@ -417,7 +413,7 @@ defmodule ArchEthic.OracleChain.Scheduler do
     oracle_chain =
       summary_date
       |> Crypto.derive_oracle_address(index)
-      |> TransactionChain.get(data: [:content], validation_stamp: [:timestamp])
+      |> get_chain()
 
     {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
     {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
@@ -450,6 +446,16 @@ defmodule ArchEthic.OracleChain.Scheduler do
     )
 
     Task.start(fn -> ArchEthic.send_new_transaction(tx) end)
+  end
+
+  defp get_chain(address, opts \\ [], acc \\ []) do
+    case TransactionChain.get(address, [data: [:content], validation_stamp: [:timestamp]], opts) do
+      {transactions, false, _paging_state} ->
+        acc ++ transactions
+
+      {transactions, true, paging_state} ->
+        get_chain(address, [paging_state: paging_state], acc ++ transactions)
+    end
   end
 
   defp chain_size(summary_date = %DateTime{}) do

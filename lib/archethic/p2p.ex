@@ -34,6 +34,12 @@ defmodule ArchEthic.P2P do
   defdelegate get_geo_patch(ip), to: GeoPatch, as: :from_ip
 
   @doc """
+  Get range of longitude / latitude coordinates from geographical patch
+  """
+  @spec get_coord_from_geo_patch(binary()) :: {{float(), float()}, {float(), float()}}
+  defdelegate get_coord_from_geo_patch(geo_patch), to: GeoPatch, as: :to_coordinates
+
+  @doc """
   Register a node and establish a connection with
   """
   @spec add_and_connect_node(Node.t()) :: :ok
@@ -120,20 +126,26 @@ defmodule ArchEthic.P2P do
   @spec authorized_node?(Crypto.key()) :: boolean()
   def authorized_node?(node_public_key \\ Crypto.first_node_public_key())
       when is_binary(node_public_key) do
-    Utils.key_in_node_list?(authorized_nodes(DateTime.utc_now()), node_public_key)
+    Utils.key_in_node_list?(authorized_nodes(), node_public_key)
+  end
+
+  @doc """
+  List all the authorized nodes 
+  """
+  @spec authorized_nodes() :: list(Node.t())
+  def authorized_nodes do
+    Enum.filter(MemTable.authorized_nodes(), & &1.available?)
   end
 
   @doc """
   List the authorized nodes for the given datetime (default to now)
   """
   @spec authorized_nodes(DateTime.t()) :: list(Node.t())
-  def authorized_nodes(date = %DateTime{} \\ DateTime.utc_now()) do
-    Enum.filter(MemTable.authorized_nodes(), fn %Node{
-                                                  available?: available?,
-                                                  authorization_date: authorization_date
-                                                } ->
-      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) <= 0 and
-        available?
+  def authorized_nodes(date = %DateTime{}) do
+    Enum.filter(authorized_nodes(), fn %Node{
+                                         authorization_date: authorization_date
+                                       } ->
+      DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
     end)
   end
 

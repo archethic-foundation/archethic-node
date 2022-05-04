@@ -124,7 +124,8 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with {:ok, ip, port, _, _, key_certificate} <- Node.decode_transaction_content(content),
+    with {:ok, ip, port, _http_port, _, _, key_certificate} <-
+           Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,
             Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins())},
@@ -256,7 +257,7 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
          previous_public_key: previous_public_key
        }) do
     with previous_address <- Crypto.derive_address(previous_public_key),
-         oracle_chain <-
+         {oracle_chain, _more?, _paging_state} <-
            TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp]),
          true <- OracleChain.valid_summary?(content, oracle_chain) do
       :ok
@@ -284,13 +285,13 @@ defmodule ArchEthic.Mining.PendingTransactionValidation do
     |> get_first_public_key(previous_address)
   end
 
-  defp get_first_public_key([node | rest], address) do
-    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+  defp get_first_public_key([node | rest], public_key) do
+    case P2P.send_message(node, %GetFirstPublicKey{public_key: public_key}) do
       {:ok, %FirstPublicKey{public_key: public_key}} ->
         {:ok, public_key}
 
       {:error, _} ->
-        get_first_public_key(rest, address)
+        get_first_public_key(rest, public_key)
     end
   end
 

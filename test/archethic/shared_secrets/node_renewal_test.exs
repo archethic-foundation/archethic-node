@@ -60,7 +60,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       })
 
       P2P.add_and_connect_node(%Node{
@@ -72,7 +72,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       })
 
       assert false == NodeRenewal.initiator?()
@@ -88,7 +88,7 @@ defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
         geo_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
       })
 
       assert true == NodeRenewal.initiator?()

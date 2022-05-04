@@ -15,8 +15,10 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   alias ArchEthic.P2P
   alias ArchEthic.P2P.Message.GetLastTransactionAddress
+  alias ArchEthic.P2P.Message.GetTransaction
   alias ArchEthic.P2P.Message.GetTransactionChain
   alias ArchEthic.P2P.Message.GetUnspentOutputs
+  alias ArchEthic.P2P.Message.NotFound
   alias ArchEthic.P2P.Message.LastTransactionAddress
   alias ArchEthic.P2P.Message.TransactionList
   alias ArchEthic.P2P.Message.UnspentOutputList
@@ -34,11 +36,17 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias ArchEthic.TransactionChain.TransactionData
+  alias ArchEthic.TransactionChain.TransactionData.Ownership
   alias ArchEthic.TransactionChain.TransactionData.Ledger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger
   alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
   alias ArchEthic.TransactionChain.TransactionSummary
   alias ArchEthic.TransactionFactory
+
+  @genesis_origin_public_keys Application.compile_env!(
+                                :archethic,
+                                [NetworkInit, :genesis_origin_public_keys]
+                              )
 
   import Mox
 
@@ -94,18 +102,12 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     tx = NetworkInit.self_validation(tx, unspent_outputs)
 
     tx_fee = tx.validation_stamp.ledger_operations.fee
-    network_pool_burn = LedgerOperations.get_network_pool_reward(tx_fee)
     unspent_output = 1_000_000_000_000 - (tx_fee + 500_000_000_000)
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
                  transaction_movements: [
-                   %TransactionMovement{
-                     to: <<0::8, 0::8, 0::256>>,
-                     amount: ^network_pool_burn,
-                     type: :UCO
-                   },
                    %TransactionMovement{to: "@Alice2", amount: 500_000_000_000, type: :UCO}
                  ],
                  unspent_outputs: [
@@ -127,6 +129,9 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
@@ -140,11 +145,6 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     tx =
       TransactionFactory.create_valid_transaction(
-        %{
-          welcome_node: P2P.get_node_info(),
-          coordinator_node: P2P.get_node_info(),
-          storage_nodes: [P2P.get_node_info()]
-        },
         inputs,
         type: :transfer
       )
@@ -152,7 +152,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> stub(:write_transaction_chain, fn _chain ->
+    |> stub(:write_transaction, fn ^tx ->
       send(me, :write_transaction)
       :ok
     end)
@@ -178,10 +178,15 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   end
 
   test "init_node_shared_secrets_chain/1 should create node shared secrets transaction chain, load daily nonce and authorize node" do
+    start_supervised!({ArchEthic.SelfRepair.Scheduler, [interval: "0 0 0 * *"]})
+
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -190,7 +195,7 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
     me = self()
 
     MockDB
-    |> expect(:write_transaction_chain, fn [tx] ->
+    |> expect(:write_transaction, fn tx ->
       send(me, {:transaction, tx})
       :ok
     end)
@@ -225,8 +230,11 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
   test "init_genesis_wallets/1 should initialize genesis wallets" do
     MockClient
     |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
       _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: []}}
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
       _, %GetUnspentOutputs{}, _ ->
         {:ok, %UnspentOutputList{unspent_outputs: []}}
@@ -264,5 +272,65 @@ defmodule ArchEthic.Bootstrap.NetworkInitTest do
 
     assert %{uco: 146_000_000_000_000_000} =
              Account.get_balance(SharedSecrets.get_network_pool_address())
+  end
+
+  test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionChain{}, _ ->
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+
+      _, %GetUnspentOutputs{}, _ ->
+        {:ok, %UnspentOutputList{unspent_outputs: []}}
+
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
+    end)
+
+    me = self()
+
+    MockDB
+    |> expect(:write_transaction, fn tx ->
+      send(me, {:transaction, tx})
+      :ok
+    end)
+
+    P2P.add_and_connect_node(%Node{
+      first_public_key: Crypto.last_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      available?: true,
+      enrollment_date: DateTime.utc_now(),
+      network_patch: "AAA",
+      authorization_date: DateTime.utc_now(),
+      authorized?: true,
+      reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
+
+    Crypto.generate_deterministic_keypair("daily_nonce_seed")
+    |> elem(0)
+    |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
+
+    assert :ok = NetworkInit.init_software_origin_shared_secrets_chain()
+
+    assert 1 == SharedSecrets.list_origin_public_keys() |> Enum.count()
+
+    assert_receive {:transaction,
+                    %Transaction{
+                      type: :origin_shared_secrets,
+                      data: %TransactionData{
+                        ownerships: [
+                          %Ownership{
+                            authorized_keys: authorized_keys
+                          }
+                        ]
+                      }
+                    }}
+
+    assert Map.keys(authorized_keys) == @genesis_origin_public_keys
   end
 end

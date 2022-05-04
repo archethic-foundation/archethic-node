@@ -53,6 +53,7 @@ defmodule ArchEthicWeb.Router do
     live("/chain/beacon", BeaconChainLive)
 
     live("/nodes", NodeListLive)
+    live("/nodes/worldmap", WorldMapLive)
     live("/node/:public_key", NodeDetailsLive)
 
     live("/code/viewer", CodeViewerLive)
@@ -69,6 +70,8 @@ defmodule ArchEthicWeb.Router do
       ArchEthicWeb.API.TransactionController,
       :last_transaction_content
     )
+
+    post("/origin_key", ArchEthicWeb.API.OriginKeyController, :origin_key)
 
     post("/transaction", ArchEthicWeb.API.TransactionController, :new)
     post("/transaction_fee", ArchEthicWeb.API.TransactionController, :transaction_fee)

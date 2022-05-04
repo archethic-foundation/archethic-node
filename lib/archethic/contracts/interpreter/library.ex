@@ -188,6 +188,7 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
 
   defp download_first_public_key([], _address), do: {:error, :network_issue}
 
+
   defp download_first_address([node | rest], address) do
     case P2P.send_message(node, %GetFirstAddress{address: address}) do
       {:ok, %FirstAddress{address: address}} -> {:ok, address}

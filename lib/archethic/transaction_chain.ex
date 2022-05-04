@@ -20,6 +20,7 @@ defmodule ArchEthic.TransactionChain do
 
   alias __MODULE__.Transaction
   alias __MODULE__.Transaction.ValidationStamp
+  alias __MODULE__.TransactionSummary
 
   require Logger
 
@@ -41,6 +42,12 @@ defmodule ArchEthic.TransactionChain do
   """
   @spec count_transactions_by_type(type :: Transaction.transaction_type()) :: non_neg_integer()
   defdelegate count_transactions_by_type(type), to: DB
+
+  @doc """
+  Stream all the addresses for a transaction type
+  """
+  @spec list_addresses_by_type(Transaction.transaction_type()) :: Enumerable.t() | list(binary())
+  defdelegate list_addresses_by_type(type), to: DB
 
   @doc """
   Get the last transaction address from a transaction chain
@@ -93,8 +100,9 @@ defmodule ArchEthic.TransactionChain do
   Retrieve an entire chain from the last transaction
   The returned list is ordered chronologically.
   """
-  @spec get(binary(), list()) :: Enumerable.t() | list(Transaction.t())
-  defdelegate get(address, fields \\ []), to: DB, as: :get_transaction_chain
+  @spec get(binary(), list()) ::
+          Enumerable.t() | {list(Transaction.t()), boolean(), binary()}
+  defdelegate get(address, fields \\ [], opts \\ []), to: DB, as: :get_transaction_chain
 
   @doc """
   Persist only one transaction
@@ -107,16 +115,6 @@ defmodule ArchEthic.TransactionChain do
         }
       ) do
     DB.write_transaction(tx)
-    KOLedger.remove_transaction(address)
-
-    Logger.info("Transaction stored",
-      transaction_address: Base.encode16(address),
-      transaction_type: type
-    )
-  end
-
-  def write_transaction(tx = %Transaction{address: address, type: type}, chain_address) do
-    DB.write_transaction(tx, chain_address)
     KOLedger.remove_transaction(address)
 
     Logger.info("Transaction stored",
@@ -469,4 +467,25 @@ defmodule ArchEthic.TransactionChain do
   end
 
   defp get_last_transaction_address([], address, _), do: address
+
+  @doc """
+  Get a transaction summary from a transaction address
+  """
+  @spec get_transaction_summary(binary()) :: {:ok, TransactionSummary.t()} | {:error, :not_found}
+  def get_transaction_summary(address) do
+    case get_transaction(address, [
+           :address,
+           :type,
+           validation_stamp: [
+             :timestamp,
+             ledger_operations: [:fee, :transaction_movements]
+           ]
+         ]) do
+      {:ok, tx} ->
+        {:ok, TransactionSummary.from_transaction(tx)}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
 end

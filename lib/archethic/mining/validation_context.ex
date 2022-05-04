@@ -436,7 +436,9 @@ defmodule ArchEthic.Mining.ValidationContext do
     sub_chain_tree = Enum.at(chain_tree, validator_index)
 
     sub_beacon_tree = Enum.at(beacon_tree, validator_index)
-    sub_io_tree = Enum.at(io_tree, validator_index)
+
+    # IO tree can be empty, if there are not recipients
+    sub_io_tree = Enum.at(io_tree, validator_index, [])
 
     %{
       context
@@ -699,42 +701,39 @@ defmodule ArchEthic.Mining.ValidationContext do
           transaction: tx,
           previous_transaction: prev_tx,
           unspent_outputs: unspent_outputs,
-          coordinator_node: coordinator_node,
-          previous_storage_nodes: previous_storage_nodes,
           valid_pending_transaction?: valid_pending_transaction?
         }
       ) do
     initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
 
-    confirmed_cross_validation_nodes = get_confirmed_validation_nodes(context)
+    validation_time = DateTime.utc_now()
+
+    usd_price =
+      validation_time
+      |> OracleChain.get_uco_price()
+      |> Keyword.fetch!(:usd)
 
     validation_stamp =
       %ValidationStamp{
         timestamp: DateTime.utc_now(),
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
-        proof_of_election:
-          Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
+        proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
         ledger_operations:
           %LedgerOperations{
-            transaction_movements:
-              tx
-              |> Transaction.get_movements()
-              |> LedgerOperations.resolve_transaction_movements(DateTime.utc_now()),
             fee:
               Fee.calculate(
                 tx,
-                OracleChain.get_uco_price(DateTime.utc_now()) |> Keyword.fetch!(:usd)
+                usd_price
               )
           }
-          |> LedgerOperations.from_transaction(tx)
-          |> LedgerOperations.distribute_rewards(
-            coordinator_node,
-            confirmed_cross_validation_nodes,
-            previous_storage_nodes
+          |> LedgerOperations.resolve_transaction_movements(
+            Transaction.get_movements(tx),
+            validation_time
           )
+          |> LedgerOperations.from_transaction(tx)
           |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
-        recipients: resolve_transaction_recipients(tx),
+        recipients: resolve_transaction_recipients(tx, validation_time),
         errors: [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1)
       }
       |> ValidationStamp.sign()
@@ -766,11 +765,14 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp chain_error(_, _), do: nil
 
-  defp resolve_transaction_recipients(%Transaction{
-         data: %TransactionData{recipients: recipients}
-       }) do
+  defp resolve_transaction_recipients(
+         %Transaction{
+           data: %TransactionData{recipients: recipients}
+         },
+         validation_time = %DateTime{}
+       ) do
     recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, DateTime.utc_now()),
+    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, validation_time),
       on_timeout: :kill_task
     )
     |> Enum.filter(&match?({:ok, _}, &1))
@@ -779,17 +781,22 @@ defmodule ArchEthic.Mining.ValidationContext do
 
   defp add_io_storage_nodes(
          context = %__MODULE__{
+           transaction: %Transaction{type: type},
            validation_stamp: %ValidationStamp{
              ledger_operations: ledger_ops,
              recipients: recipients
            }
          }
        ) do
-    movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
-
     io_storage_nodes =
-      (movement_addresses ++ recipients)
-      |> Election.io_storage_nodes(P2P.available_nodes())
+      if Transaction.network_type?(type) do
+        P2P.available_nodes()
+      else
+        movement_addresses = LedgerOperations.movement_addresses(ledger_ops)
+
+        (movement_addresses ++ recipients)
+        |> Election.io_storage_nodes(P2P.available_nodes())
+      end
 
     %{context | io_storage_nodes: io_storage_nodes}
   end
@@ -907,7 +914,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       transaction_fee: fn -> valid_stamp_fee?(stamp, context) end,
       transaction_movements: fn -> valid_stamp_transaction_movements?(stamp, context) end,
       recipients: fn -> valid_stamp_recipients?(stamp, context) end,
-      node_movements: fn -> valid_stamp_node_movements?(stamp, context) end,
       unspent_outputs: fn -> valid_stamp_unspent_outputs?(stamp, context) end,
       errors: fn -> valid_stamp_errors?(stamp, context) end
     ]
@@ -976,10 +982,13 @@ defmodule ArchEthic.Mining.ValidationContext do
       errors
   end
 
-  defp valid_stamp_recipients?(%ValidationStamp{recipients: recipients}, %__MODULE__{
-         transaction: tx
-       }),
-       do: resolve_transaction_recipients(tx) == recipients
+  defp valid_stamp_recipients?(
+         %ValidationStamp{recipients: recipients, timestamp: validation_time},
+         %__MODULE__{
+           transaction: tx
+         }
+       ),
+       do: resolve_transaction_recipients(tx, validation_time) == recipients
 
   defp valid_stamp_transaction_movements?(
          %ValidationStamp{
@@ -1009,70 +1018,6 @@ defmodule ArchEthic.Mining.ValidationContext do
       |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
 
     expected_unspent_outputs == next_unspent_outputs
-  end
-
-  defp valid_stamp_node_movements?(
-         %ValidationStamp{ledger_operations: ops},
-         context = %__MODULE__{
-           transaction: tx,
-           coordinator_node: %Node{last_public_key: coordinator_node_public_key},
-           unspent_outputs: unspent_outputs
-         }
-       ) do
-    previous_storage_nodes =
-      P2P.distinct_nodes([unspent_storage_nodes(unspent_outputs), previous_storage_nodes(tx)])
-
-    cross_validation_nodes = get_confirmed_validation_nodes(context)
-
-    [
-      fn -> LedgerOperations.valid_node_movements_roles?(ops) end,
-      fn ->
-        LedgerOperations.valid_node_movements_cross_validation_nodes?(
-          ops,
-          Enum.map(cross_validation_nodes, & &1.last_public_key)
-        )
-      end,
-      fn ->
-        LedgerOperations.valid_node_movements_previous_storage_nodes?(
-          ops,
-          Enum.map(previous_storage_nodes, & &1.last_public_key)
-        )
-      end,
-      fn -> LedgerOperations.valid_reward_distribution?(ops) end,
-      fn ->
-        LedgerOperations.has_node_movement_with_role?(
-          ops,
-          coordinator_node_public_key,
-          :coordinator_node
-        )
-      end,
-      fn ->
-        Enum.all?(
-          cross_validation_nodes,
-          &LedgerOperations.has_node_movement_with_role?(
-            ops,
-            &1.last_public_key,
-            :cross_validation_node
-          )
-        )
-      end
-    ]
-    |> Task.async_stream(& &1.(), ordered: false)
-    |> Enum.all?(&match?({:ok, true}, &1))
-  end
-
-  defp unspent_storage_nodes([]), do: []
-
-  defp unspent_storage_nodes(unspent_outputs) do
-    unspent_outputs
-    |> Stream.map(&Election.chain_storage_nodes(&1.from, P2P.available_nodes()))
-    |> Enum.to_list()
-  end
-
-  defp previous_storage_nodes(tx) do
-    tx
-    |> Transaction.previous_address()
-    |> Election.chain_storage_nodes(P2P.available_nodes())
   end
 
   @doc """
@@ -1141,6 +1086,13 @@ defmodule ArchEthic.Mining.ValidationContext do
   Get the list of I/O replication nodes
   """
   @spec get_io_replication_nodes(t()) :: list(Node.t())
+  def get_io_replication_nodes(%__MODULE__{
+        sub_replication_tree: %{
+          IO: []
+        }
+      }),
+      do: []
+
   def get_io_replication_nodes(%__MODULE__{
         sub_replication_tree: %{
           IO: sub_tree

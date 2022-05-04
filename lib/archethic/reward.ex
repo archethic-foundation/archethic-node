@@ -73,7 +73,7 @@ defmodule ArchEthic.Reward do
 
   defp get_transaction_chain_after([node | rest], address, date) do
     case P2P.send_message(node, %GetTransactionChain{address: address, after: date}) do
-      {:ok, %TransactionList{transactions: transactions}} ->
+      {:ok, %TransactionList{transactions: transactions, more?: false}} ->
         transactions
 
       {:error, _} ->

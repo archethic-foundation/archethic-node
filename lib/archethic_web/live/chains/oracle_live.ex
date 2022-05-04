@@ -28,24 +28,22 @@ defmodule ArchEthicWeb.OracleChainLive do
     end
 
     next_summary_date = OracleChain.next_summary_date(DateTime.utc_now())
-
-    last_tx =
-      TransactionChain.list_transactions_by_type(:oracle,
-        data: [:content],
-        validation_stamp: [:timestamp]
-      )
-      |> Enum.at(0)
+    next_first_oracle_address = Crypto.derive_oracle_address(next_summary_date, 0)
 
     {last_oracle_data, update_time} =
-      case last_tx do
-        nil ->
-          {%{}, nil}
-
-        %Transaction{
-          data: %TransactionData{content: content},
-          validation_stamp: %ValidationStamp{timestamp: timestamp}
-        } ->
+      case TransactionChain.get_last_transaction(next_first_oracle_address,
+             data: [:content],
+             validation_stamp: [:timestamp]
+           ) do
+        {:ok,
+         %Transaction{
+           data: %TransactionData{content: content},
+           validation_stamp: %ValidationStamp{timestamp: timestamp}
+         }} ->
           {Jason.decode!(content), timestamp}
+
+        {:error, :transaction_not_exists} ->
+          {%{}, nil}
       end
 
     oracle_dates =
@@ -173,7 +171,7 @@ defmodule ArchEthicWeb.OracleChainLive do
     date
     |> Crypto.derive_oracle_address(0)
     |> TransactionChain.get_last_address()
-    |> TransactionChain.get([:address, :type, validation_stamp: [:timestamp]])
+    |> get_transaction_chain()
     |> Stream.map(fn %Transaction{
                        address: address,
                        type: type,
@@ -185,4 +183,14 @@ defmodule ArchEthicWeb.OracleChainLive do
   end
 
   defp list_transactions_by_date(nil), do: []
+
+  defp get_transaction_chain(address, opts \\ [], acc \\ []) do
+    case TransactionChain.get(address, [:address, :type, validation_stamp: [:timestamp]], opts) do
+      {transactions, false, _} ->
+        acc ++ transactions
+
+      {transactions, true, paging_state} ->
+        get_transaction_chain(address, [paging_state: paging_state], acc ++ transactions)
+    end
+  end
 end

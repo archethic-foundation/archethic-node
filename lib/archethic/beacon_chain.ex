@@ -61,14 +61,14 @@ defmodule ArchEthic.BeaconChain do
 
   ## Examples
 
-      iex> BeaconChain.subset_from_address(<<0, 44, 242, 77, 186, 95, 176, 163,
+      iex> BeaconChain.subset_from_address(<<0, 0, 44, 242, 77, 186, 95, 176, 163,
       ...> 14, 38, 232, 59, 42, 197, 185, 226, 158, 51, 98, 147, 139, 152, 36,
       ...> 27, 22, 30, 92, 31, 167, 66, 94, 115, 4, >>)
       <<44>>
   """
   @spec subset_from_address(binary()) :: binary()
-  def subset_from_address(address) do
-    :binary.part(address, 1, 1)
+  def subset_from_address(<<_::8, _::8, first_digit::binary-size(1), _::binary>>) do
+    first_digit
   end
 
   @doc """
@@ -118,11 +118,12 @@ defmodule ArchEthic.BeaconChain do
       ) do
     with {%Slot{subset: subset} = slot, _} <- Slot.deserialize(content),
          :ok <- validate_slot(tx, slot) do
+      Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
+        beacon_subset: Base.encode16(subset)
+      )
+
       SummaryCache.add_slot(subset, slot)
     else
-      true ->
-        :ok
-
       {:error, _} = e ->
         Logger.error("Invalid beacon slot #{inspect(e)}")
         :error

@@ -34,17 +34,8 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     load_storage_nonce()
 
-    node_shared_secrets_chain =
-      TransactionChain.list_transactions_by_type(
-        :node_shared_secrets,
-        [
-          :address,
-          data: [:ownerships],
-          validation_stamp: [:timestamp]
-        ]
-      )
-
-    nb_node_shared_secrets_keys = Enum.count(node_shared_secrets_chain)
+    nb_node_shared_secrets_keys =
+      TransactionChain.count_transactions_by_type(:node_shared_secrets)
 
     Logger.info("Node shared secrets keys positioned at #{nb_node_shared_secrets_keys}")
 
@@ -54,7 +45,11 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     :ets.insert(@keystore_table, {:shared_secrets_index, nb_node_shared_secrets_keys})
     :ets.insert(@keystore_table, {:network_pool_index, nb_network_pool_keys})
 
-    load_node_shared_secrets_chain(node_shared_secrets_chain)
+    :node_shared_secrets
+    |> TransactionChain.list_addresses_by_type()
+    |> Enum.at(-1)
+    |> load_node_shared_secrets_tx()
+
     {:ok, %{}}
   end
 
@@ -68,29 +63,33 @@ defmodule ArchEthic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     end
   end
 
-  defp load_node_shared_secrets_chain(chain) do
-    case Enum.at(chain, 0) do
-      nil ->
-        :ok
+  defp load_node_shared_secrets_tx(nil), do: :ok
 
-      %Transaction{
-        address: address,
-        data: %TransactionData{ownerships: [ownership = %Ownership{secret: secret}]},
-        validation_stamp: %ValidationStamp{timestamp: timestamp}
-      } ->
-        if Ownership.authorized_public_key?(ownership, Crypto.last_node_public_key()) do
-          encrypted_secret_key =
-            Ownership.get_encrypted_key(ownership, Crypto.last_node_public_key())
+  defp load_node_shared_secrets_tx(address) do
+    {:ok,
+     %Transaction{
+       data: %TransactionData{
+         ownerships: [ownership = %Ownership{secret: secret}]
+       },
+       validation_stamp: %ValidationStamp{timestamp: timestamp}
+     }} =
+      TransactionChain.get_transaction(address, [
+        :address,
+        data: [:ownerships],
+        validation_stamp: [:timestamp]
+      ])
 
-          daily_nonce_date = SharedSecrets.next_application_date(timestamp)
+    if Ownership.authorized_public_key?(ownership, Crypto.last_node_public_key()) do
+      encrypted_secret_key = Ownership.get_encrypted_key(ownership, Crypto.last_node_public_key())
 
-          :ok = do_unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date)
+      daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 
-          Logger.info("Node shared secrets loaded",
-            transaction_address: Base.encode16(address),
-            transaction_type: :node_shared_secrets
-          )
-        end
+      :ok = do_unwrap_secrets(secret, encrypted_secret_key, daily_nonce_date)
+
+      Logger.info("Node shared secrets loaded",
+        transaction_address: Base.encode16(address),
+        transaction_type: :node_shared_secrets
+      )
     end
   end
 

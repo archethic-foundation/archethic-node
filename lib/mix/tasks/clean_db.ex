@@ -3,19 +3,14 @@ defmodule Mix.Tasks.ArchEthic.CleanDb do
 
   use Mix.Task
 
-  def run(arg) do
-    host =
-      case(OptionParser.parse!(arg, strict: [host: :string])) do
-        {[], []} ->
-          "127.0.0.1:9042"
+  def run(_arg) do
+    "_build/dev/lib/archethic/data*"
+    |> Path.wildcard()
+    |> Enum.each(fn path ->
+      IO.puts("#{path} will be removed")
+      File.rm_rf!(path)
+    end)
 
-        {[host: host], []} ->
-          host
-      end
-
-    {:ok, _started} = Application.ensure_all_started(:xandra)
-    {:ok, conn} = Xandra.start_link(nodes: [host])
-    Xandra.execute!(conn, "DROP KEYSPACE IF EXISTS archethic;")
-    IO.puts("Database #{host} dropped")
+    IO.puts("Database dropped")
   end
 end

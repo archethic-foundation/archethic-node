@@ -43,7 +43,12 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
       "Genesis pool allocation owner is sending 10 UCO to #{Base.encode16(contract_owner_address)}"
     )
 
-    {:ok, _funding_tx_address} = Playbook.send_funds_to(contract_owner_address, host, port)
+    {:ok, funding_tx_address} = Playbook.send_funds_to(contract_owner_address, host, port)
+    Logger.info("Transaction address: #{Base.encode16(funding_tx_address)}")
+
+    Process.sleep(1_000)
+    contract_balance = Playbook.get_uco_balance(contract_owner_address, host, port)
+    Logger.info("Contract got #{contract_balance} uco")
 
     secret_key = :crypto.strong_rand_bytes(32)
 
@@ -82,7 +87,7 @@ defmodule ArchEthic.Utils.Regression.Playbook.SmartContract do
       )
 
     Logger.info(
-      "Deployed smart contract #{Base.encode16(contract_tx_address)} to 0.1 UCO to #{Base.encode16(recipient_address2)} each seconds"
+      "Deployed smart contract at #{Base.encode16(contract_tx_address)} which sends 0.1 UCO to #{Base.encode16(recipient_address2)} each seconds"
     )
 
     balance =

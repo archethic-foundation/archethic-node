@@ -129,11 +129,11 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
 
     case Map.get(movement, :type) do
-      "UCO" ->
+      :UCO ->
         %{res | type: :UCO}
 
-      "NFT" ->
-        %{res | type: {:NFT, Map.get(movement, :nft_address)}}
+      {:NFT, nft_address} ->
+        %{res | type: {:NFT, nft_address}}
     end
   end
 

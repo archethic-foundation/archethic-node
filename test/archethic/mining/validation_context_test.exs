@@ -16,7 +16,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
   alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.NodeMovement
 
   alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
@@ -89,19 +88,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         validation_context
         |> ValidationContext.add_validation_stamp(
           create_validation_stamp_with_invalid_unspent_outputs(validation_context)
-        )
-        |> ValidationContext.cross_validate()
-    end
-
-    test "should get inconsistency when the node movements are invalid" do
-      validation_context = create_context()
-
-      %ValidationContext{
-        cross_validation_stamps: [%CrossValidationStamp{inconsistencies: [:node_movements]}]
-      } =
-        validation_context
-        |> ValidationContext.add_validation_stamp(
-          create_validation_stamp_with_invalid_node_movements(validation_context)
         )
         |> ValidationContext.cross_validate()
     end
@@ -205,9 +191,6 @@ defmodule ArchEthic.Mining.ValidationContextTest do
 
   defp create_validation_stamp_with_invalid_signature(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
@@ -221,21 +204,13 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.from_transaction(tx)
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        ),
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
       signature: :crypto.strong_rand_bytes(32)
     }
   end
 
   defp create_validation_stamp_with_invalid_proof_of_work(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
@@ -250,20 +225,12 @@ defmodule ArchEthic.Mining.ValidationContextTest do
         }
         |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        )
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_transaction_fee(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
@@ -277,20 +244,12 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           transaction_movements: Transaction.get_movements(tx)
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        )
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_transaction_movements(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
     fee = Fee.calculate(tx, 0.07)
@@ -315,20 +274,12 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           ]
         }
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        )
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_unspent_outputs(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: _unspent_outputs
        }) do
     %ValidationStamp{
@@ -336,81 +287,23 @@ defmodule ArchEthic.Mining.ValidationContextTest do
       proof_of_work: Crypto.first_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
-          transaction_movements: Transaction.get_movements(tx),
-          unspent_outputs: [
-            %UnspentOutput{
-              amount: 100_000_000_000,
-              from: tx.address,
-              type: :UCO
-            }
-          ]
-        }
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        )
-    }
-    |> ValidationStamp.sign()
-  end
-
-  defp create_validation_stamp_with_invalid_node_movements(%ValidationContext{
-         transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
-         unspent_outputs: unspent_outputs
-       }) do
-    %ValidationStamp{
-      timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
-      proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
-      proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations:
-        %LedgerOperations{
-          fee: Fee.calculate(tx, 0.07),
-          transaction_movements: Transaction.get_movements(tx),
-          node_movements: [
-            %NodeMovement{
-              to: coordinator_node.last_public_key,
-              amount: 2_000_000_000,
-              roles: [:coordinator_node]
-            },
-            %NodeMovement{
-              to: Enum.at(cross_validation_nodes, 0).last_public_key,
-              amount: 1_500_000_000,
-              roles: [:cross_validation_node]
-            },
-            %NodeMovement{
-              to: Enum.at(cross_validation_nodes, 1).last_public_key,
-              amount: 1_500_000_000,
-              roles: [:cross_validation_node]
-            },
-            %NodeMovement{
-              to: Enum.at(previous_storage_nodes, 0).last_public_key,
-              amount: 1_000_000_000,
-              roles: [:previous_storage_node]
-            },
-            %NodeMovement{
-              to: Enum.at(previous_storage_nodes, 1).last_public_key,
-              amount: 1_000_000_000,
-              roles: [:previous_storage_node]
-            }
-          ]
-        }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
+      ledger_operations: %LedgerOperations{
+        fee: Fee.calculate(tx, 0.07),
+        transaction_movements: Transaction.get_movements(tx),
+        unspent_outputs: [
+          %UnspentOutput{
+            amount: 100_000_000_000,
+            from: tx.address,
+            type: :UCO
+          }
+        ]
+      }
     }
     |> ValidationStamp.sign()
   end
 
   defp create_validation_stamp_with_invalid_errors(%ValidationContext{
          transaction: tx,
-         coordinator_node: coordinator_node,
-         cross_validation_nodes: cross_validation_nodes,
-         previous_storage_nodes: previous_storage_nodes,
          unspent_outputs: unspent_outputs
        }) do
     %ValidationStamp{
@@ -423,12 +316,7 @@ defmodule ArchEthic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
-        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-        |> LedgerOperations.distribute_rewards(
-          coordinator_node,
-          cross_validation_nodes,
-          previous_storage_nodes
-        ),
+        |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
       errors: [:contract_validation]
     }
     |> ValidationStamp.sign()

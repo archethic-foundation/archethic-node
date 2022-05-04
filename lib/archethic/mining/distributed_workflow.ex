@@ -35,6 +35,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
   alias ArchEthic.P2P.Message.ReplicateTransaction
   alias ArchEthic.P2P.Node
 
+  alias ArchEthic.Replication
+
   alias ArchEthic.TaskSupervisor
 
   alias ArchEthic.TransactionChain.Transaction
@@ -127,14 +129,14 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.available_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes()
+        P2P.authorized_nodes(DateTime.utc_now())
       )
 
     context =
@@ -241,14 +243,12 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         :build_transaction_context,
         state,
         data = %{
-          start_time: mining_start_time,
           timeout: timeout,
           context:
             context = %ValidationContext{
               transaction: tx,
               chain_storage_nodes: chain_storage_nodes,
-              beacon_storage_nodes: beacon_storage_nodes,
-              cross_validation_nodes: cross_validation_nodes
+              beacon_storage_nodes: beacon_storage_nodes
             }
         }
       ) do
@@ -301,15 +301,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     next_events =
       case state do
         :coordinator ->
-          context_retrieval_time =
-            (now - mining_start_time)
-            |> :erlang.convert_time_unit(:native, :millisecond)
-            |> abs()
-
-          transmission_delay = 500
-          nb_cross_validation_nodes = length(cross_validation_nodes)
-
-          waiting_time = (context_retrieval_time + transmission_delay) * nb_cross_validation_nodes
+          # TODO: Provide a better waiting time management
+          # for example rolling percentile latency could be way to achieve this
+          # (https://cs.stackexchange.com/a/129178)
+          waiting_time = 3_000
 
           Logger.debug(
             "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",
@@ -629,7 +624,10 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
         })
 
         {:keep_state, %{data | context: new_context},
-         {:next_event, :internal, :notify_attestation}}
+         [
+           {:next_event, :internal, :notify_attestation},
+           {:next_event, :internal, :notify_previous_chain}
+         ]}
       else
         {:keep_state, %{data | context: new_context}}
       end
@@ -674,6 +672,40 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
       transaction: ValidationContext.get_validated_transaction(context)
     })
 
+    :keep_state_and_data
+  end
+
+  def handle_event(
+        :internal,
+        :notify_previous_chain,
+        :replication,
+        _data = %{
+          context: %ValidationContext{
+            transaction: tx,
+            validation_stamp: %ValidationStamp{timestamp: tx_timestamp}
+          }
+        }
+      ) do
+    Replication.acknowledge_previous_storage_nodes(
+      tx.address,
+      Transaction.previous_address(tx),
+      tx_timestamp
+    )
+
+    :stop
+  end
+
+  def handle_event(
+        :info,
+        {:replication_error, reason},
+        :replication,
+        _ = %{context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error("Replication error - #{inspect(reason)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
     :stop
   end
 
@@ -691,8 +723,20 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     :stop
   end
 
-  # Reject unexpected events
-  def handle_event(_, _, _, _), do: :keep_state_and_data
+  def handle_event(
+        event_type,
+        event,
+        state,
+        _ = %{validation_context: %ValidationContext{transaction: tx}}
+      ) do
+    Logger.error(
+      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)}",
+      transaction_address: Base.encode16(tx.address),
+      transaction_type: tx.type
+    )
+
+    :keep_state_and_data
+  end
 
   defp notify_transaction_context(
          %ValidationContext{
@@ -806,8 +850,8 @@ defmodule ArchEthic.Mining.DistributedWorkflow do
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)
     |> Stream.each(fn
-      {%Error{}, _node} ->
-        send(me, :replication_error)
+      {%Error{reason: reason}, _node} ->
+        send(me, {:replication_error, reason})
 
       {%AcknowledgeStorage{
          signature: signature

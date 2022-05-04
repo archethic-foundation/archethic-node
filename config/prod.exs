@@ -65,7 +65,7 @@ config :archethic, ArchEthic.Bootstrap.NetworkInit,
       if(System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet",
         do: %{
           address:
-            "0000EC64107CA604A6B954037CFA91ED18315A77A94FBAFD91275CEE07FA45EAF893"
+            "00001259AE51A6E63A1E04E308C5E769E0E9D15BFFE4E7880266C8FA10C3ADD7B7A2"
             |> Base.decode16!(case: :mixed),
           amount: 1_000_000_000_000_000
         }

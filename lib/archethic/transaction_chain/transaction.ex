@@ -523,7 +523,6 @@ defmodule ArchEthic.TransactionChain.Transaction do
       ...>     errors: [],
       ...>     ledger_operations: %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
       ...>       fee: 0,
-      ...>       node_movements: [],
       ...>       transaction_movements: [],
       ...>       unspent_outputs: []
       ...>     },
@@ -571,7 +570,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
         123, 142, 29, 113, 208, 111, 136, 227, 252, 213, 180, 80, 70, 158, 27, 148,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         64, 187, 93, 5, 6, 190, 102, 244, 88, 141, 142, 7, 138, 178, 77, 128, 21, 95,
         29, 222, 145, 211, 18, 48, 16, 185, 69, 209, 146, 56, 26, 106, 191, 101, 56,
         15, 99, 52, 179, 212, 169, 7, 30, 131, 39, 100, 115, 73, 176, 212, 121, 236,
@@ -677,7 +676,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
       ...> 123, 142, 29, 113, 208, 111, 136, 227, 252, 213, 180, 80, 70, 158, 27, 148,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ...> 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       ...> 64, 187, 93, 5, 6, 190, 102, 244, 88, 141, 142, 7, 138, 178, 77, 128, 21, 95,
       ...> 29, 222, 145, 211, 18, 48, 16, 185, 69, 209, 146, 56, 26, 106, 191, 101, 56,
       ...> 15, 99, 52, 179, 212, 169, 7, 30, 131, 39, 100, 115, 73, 176, 212, 121, 236,
@@ -722,7 +721,6 @@ defmodule ArchEthic.TransactionChain.Transaction do
             errors: [],
             ledger_operations: %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
               fee: 0,
-              node_movements: [],
               transaction_movements: [],
               unspent_outputs: []
             },
@@ -826,8 +824,11 @@ defmodule ArchEthic.TransactionChain.Transaction do
         nil ->
           nil
 
-        type ->
-          String.to_atom(type)
+        type when is_binary(type) ->
+          String.to_existing_atom(type)
+
+        type when is_atom(type) ->
+          type
       end
 
     %__MODULE__{

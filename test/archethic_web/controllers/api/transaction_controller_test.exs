@@ -7,6 +7,8 @@ defmodule ArchEthicWeb.API.TransactionControllerTest do
   alias ArchEthic.P2P.Node
   alias ArchEthic.Crypto
 
+  import Mox
+
   setup do
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

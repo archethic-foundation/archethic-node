@@ -13,8 +13,10 @@ defmodule ArchEthicWeb.FaucetController do
   }
 
   alias ArchEthicWeb.TransactionSubscriber
+  alias ArchEthicWeb.FaucetRateLimiter
 
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
+  @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
 
   plug(:enabled)
 
@@ -42,6 +44,8 @@ defmodule ArchEthicWeb.FaucetController do
   def create_transfer(conn, %{"address" => address}) do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
+         %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(address),
+         :ok <- FaucetRateLimiter.register(address, System.monotonic_time()),
          {:ok, tx_address} <- transfer(recipient_address) do
       TransactionSubscriber.register(tx_address, System.monotonic_time())
 
@@ -55,6 +59,18 @@ defmodule ArchEthicWeb.FaucetController do
       {:error, _} ->
         conn
         |> put_flash(:error, "Unable to send the transaction")
+        |> render("index.html", address: address, link_address: "")
+
+      %{blocked?: true, blocked_since: blocked_since} ->
+        now = System.monotonic_time()
+        blocked_elapsed_time = System.convert_time_unit(now - blocked_since, :native, :second)
+        blocked_elapsed_diff = div(@faucet_rate_limit_expiry, 1000) - blocked_elapsed_time
+
+        conn
+        |> put_flash(
+          :error,
+          "Blocked address as you exceeded usage limit of UCO temporarily. Try after #{ArchEthic.Utils.seconds_to_human_readable(blocked_elapsed_diff)}"
+        )
         |> render("index.html", address: address, link_address: "")
 
       _ ->

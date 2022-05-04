@@ -158,7 +158,8 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
                             transport: transport
                           },
                           acc ->
-      acc ++ ["#{:inet_parse.ntoa(ip)}:#{port}:#{Base.encode16(public_key)}:#{transport}"]
+      acc ++
+        ["#{:inet_parse.ntoa(ip)}:#{port}:#{Base.encode16(public_key)}:#{transport}"]
     end)
     |> Enum.join("\n")
   end
