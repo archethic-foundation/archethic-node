@@ -656,7 +656,6 @@ defmodule Archethic.Contracts.Interpreter do
     {node, acc}
   end
 
-
   # Whitelist the get_genesis_public_key/0 function in condition
   defp prewalk(
          node = {{:atom, "get_genesis_public_key"}, _, []},
@@ -664,7 +663,6 @@ defmodule Archethic.Contracts.Interpreter do
        ) do
     {node, acc}
   end
-
 
   # Whitelist the used of functions in the actions
   defp prewalk(node = {{:atom, fun_name}, _, _}, {:ok, acc = %{scope: :actions}})
