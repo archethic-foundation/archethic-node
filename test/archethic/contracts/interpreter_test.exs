@@ -603,7 +603,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       {:ok, %Contract{conditions: %{transaction: conditions}}} =
         ~s"""
         condition transaction: [
-          key: get_genesis_public_key() == "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+          previous_public_key: get_genesis_public_key() == "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
         ]
         """
         |> Interpreter.parse()
@@ -613,14 +613,13 @@ defmodule Archethic.Contracts.InterpreterTest do
                  conditions,
                  %{
                    "transaction" => %{
-                     "key" =>
-                       "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+                     "previous_public_key" =>
+                       <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
                    }
                  }
                )
     end
 
-    @tag :genesis
     test "shall parse get_genesis_address/1 in actions" do
       address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
       b_address = Base.decode16!(address)
