@@ -5,7 +5,7 @@ changelog:
         - breaking-change
     - title: Exciting New Features 🎉
       labels:
-        - enhancement
+        - feature
     - title: Bug Fixes
       labels:
         - bug
