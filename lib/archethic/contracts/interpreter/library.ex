@@ -180,11 +180,11 @@ defmodule Archethic.Contracts.Interpreter.Library do
     key
   end
 
-  defp download_first_public_key([node | rest], address) do
-    case P2P.send_message(node, %GetFirstPublicKey{address: address}) do
+  defp download_first_public_key([node | rest], public_key) do
+    case P2P.send_message(node, %GetFirstPublicKey{public_key: public_key}) do
       {:ok, %FirstPublicKey{public_key: key}} -> {:ok, key}
-      {:ok, _} -> download_first_public_key(rest, address)
-      {:error, _} -> download_first_public_key(rest, address)
+      {:ok, _} -> download_first_public_key(rest, public_key)
+      {:error, _} -> download_first_public_key(rest, public_key)
     end
   end
 
