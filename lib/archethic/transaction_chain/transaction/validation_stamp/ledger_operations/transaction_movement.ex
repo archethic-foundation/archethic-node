@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement do
   @moduledoc """
   Represents the ledger movements of the transaction extracted from
   the ledger or recipients part of the transaction and validated with the unspent outputs
@@ -6,8 +6,8 @@ defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defstruct [:to, :amount, :type]
 
   alias __MODULE__.Type
-  alias ArchEthic.Crypto
-  alias ArchEthic.Utils
+  alias Archethic.Crypto
+  alias Archethic.Utils
 
   @typedoc """
   TransactionMovement is composed from:

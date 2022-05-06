@@ -1,12 +1,12 @@
-defmodule ArchEthic.Crypto.KeystoreSupervisor do
+defmodule Archethic.Crypto.KeystoreSupervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Crypto.NodeKeystore
-  alias ArchEthic.Crypto.SharedSecretsKeystore
+  alias Archethic.Crypto.NodeKeystore
+  alias Archethic.Crypto.SharedSecretsKeystore
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)

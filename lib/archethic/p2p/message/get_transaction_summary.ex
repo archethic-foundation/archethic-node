@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.GetTransactionSummary do
+defmodule Archethic.P2P.Message.GetTransactionSummary do
   @moduledoc """
   Represents a message to get a transaction summary from a transaction address
   """

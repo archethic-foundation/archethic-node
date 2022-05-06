@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.Ed25519.LibSodiumPortTest do
+defmodule Archethic.Crypto.Ed25519.LibSodiumPortTest do
   use ExUnit.Case
 
-  alias ArchEthic.Crypto.Ed25519.LibSodiumPort
+  alias Archethic.Crypto.Ed25519.LibSodiumPort
 
   setup do
     LibSodiumPort.start_link()

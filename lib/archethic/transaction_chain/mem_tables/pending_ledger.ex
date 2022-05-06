@@ -1,4 +1,4 @@
-defmodule ArchEthic.TransactionChain.MemTables.PendingLedger do
+defmodule Archethic.TransactionChain.MemTables.PendingLedger do
   @moduledoc """
   Represents a memory table for all the transaction which are in pending state
   awaiting some signatures to be counter-validated

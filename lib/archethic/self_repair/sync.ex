@@ -1,15 +1,15 @@
-defmodule ArchEthic.SelfRepair.Sync do
+defmodule Archethic.SelfRepair.Sync do
   @moduledoc false
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.Summary, as: BeaconSummary
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.Summary, as: BeaconSummary
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias __MODULE__.BeaconSummaryHandler
   alias __MODULE__.BeaconSummaryAggregate

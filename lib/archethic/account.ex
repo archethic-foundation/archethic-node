@@ -1,15 +1,15 @@
-defmodule ArchEthic.Account do
+defmodule Archethic.Account do
   @moduledoc false
 
   alias __MODULE__.MemTables.NFTLedger
   alias __MODULE__.MemTables.UCOLedger
   alias __MODULE__.MemTablesLoader
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionInput
 
   @type balance :: %{
           uco: amount :: pos_integer(),

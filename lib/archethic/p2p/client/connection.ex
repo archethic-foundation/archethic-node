@@ -1,13 +1,13 @@
-defmodule ArchEthic.P2P.Client.Connection do
+defmodule Archethic.P2P.Client.Connection do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Client.ConnectionRegistry
+  alias Archethic.P2P.Client.ConnectionRegistry
 
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.Message
-  alias ArchEthic.P2P.MessageEnvelop
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.MessageEnvelop
 
   use Connection
 

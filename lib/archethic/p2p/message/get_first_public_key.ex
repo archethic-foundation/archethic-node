@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.GetFirstPublicKey do
+defmodule Archethic.P2P.Message.GetFirstPublicKey do
   @moduledoc """
   Represents a message to request the first public key from a transaction chain
   """

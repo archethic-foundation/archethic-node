@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.AcknowledgeStorage do
+defmodule Archethic.P2P.Message.AcknowledgeStorage do
   @moduledoc """
   Represents a message to notify the acknowledgment of the storage of a transaction
 

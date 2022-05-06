@@ -1,4 +1,4 @@
-defmodule ArchEthicWeb.GraphQLSchema.AmountType do
+defmodule ArchethicWeb.GraphQLSchema.AmountType do
   @moduledoc false
 
   use Absinthe.Schema.Notation

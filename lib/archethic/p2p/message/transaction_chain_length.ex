@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.TransactionChainLength do
+defmodule Archethic.P2P.Message.TransactionChainLength do
   @moduledoc """
   Represents a message with the number of transactions from a chain
   """

@@ -2,7 +2,7 @@
     <%= if info = get_flash(@conn, :info) do %>
       <div class="notification is-info is-link has-text-centered"> 
         <div class="delete"></div>
-      <%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, @link_address) do%>
+      <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, @link_address) do%>
         <%= info %>
       <% end %>
       </div>
@@ -19,7 +19,7 @@
 <div class="hero is-medium is-bold is-large explorer-main">
 <div class="hero-body">
   <div class="container is-max-widescreen">
-    <h1 class="title main_title">ArchEthic Faucet</h1>
+    <h1 class="title main_title">Archethic Faucet</h1>
     <h2 class="subtitle main_subtitle">
       <div class="columns">
         <div class="column">

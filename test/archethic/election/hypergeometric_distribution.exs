@@ -1,8 +1,8 @@
-defmodule ArchEthic.Election.HypergeometricDistributionTest do
+defmodule Archethic.Election.HypergeometricDistributionTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.Election.HypergeometricDistribution
+  alias Archethic.Election.HypergeometricDistribution
 
   doctest HypergeometricDistribution
 

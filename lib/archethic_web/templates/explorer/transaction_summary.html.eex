@@ -2,7 +2,7 @@
     <div class="column">
         <p class="heading">Address</p>
         <p aria-label="transaction-address">
-            <%= link to: Routes.live_path(@conn, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@transaction.address)) do%>
+            <%= link to: Routes.live_path(@conn, ArchethicWeb.TransactionDetailsLive, Base.encode16(@transaction.address)) do%>
                 <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(@transaction.address, 0, 30)) %>...</span>
                 <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(@transaction.address, 0, 13)) %>...</span>
             <% end %>

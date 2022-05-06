@@ -1,39 +1,39 @@
-defmodule ArchEthic.Mining.DistributedWorkflowTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.Mining.DistributedWorkflowTest do
+  use ArchethicCase, async: false
 
   @moduletag capture_log: false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SubsetRegistry
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.DistributedWorkflow, as: Workflow
-  alias ArchEthic.Mining.ValidationContext
+  alias Archethic.Mining.DistributedWorkflow, as: Workflow
+  alias Archethic.Mining.ValidationContext
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.AcknowledgeStorage
-  alias ArchEthic.P2P.Message.AddMiningContext
-  alias ArchEthic.P2P.Message.CrossValidate
-  alias ArchEthic.P2P.Message.CrossValidationDone
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Message.GetUnspentOutputs
-  alias ArchEthic.P2P.Message.NotFound
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.Ping
-  alias ArchEthic.P2P.Message.ReplicateTransactionChain
-  alias ArchEthic.P2P.Message.UnspentOutputList
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.AcknowledgeStorage
+  alias Archethic.P2P.Message.AddMiningContext
+  alias Archethic.P2P.Message.CrossValidate
+  alias Archethic.P2P.Message.CrossValidationDone
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Ping
+  alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
 

@@ -1,9 +1,9 @@
-defmodule ArchEthic.Metrics.PollerTest do
-  use ArchEthicCase
+defmodule Archethic.Metrics.PollerTest do
+  use ArchethicCase
 
-  alias ArchEthic.Metrics.Poller
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.Metrics.Poller
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   import Mox
 

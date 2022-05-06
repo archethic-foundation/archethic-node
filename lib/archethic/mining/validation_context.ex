@@ -1,4 +1,4 @@
-defmodule ArchEthic.Mining.ValidationContext do
+defmodule Archethic.Mining.ValidationContext do
   @moduledoc """
   Represent the transaction validation workflow state
   """
@@ -33,32 +33,32 @@ defmodule ArchEthic.Mining.ValidationContext do
     storage_nodes_confirmations: []
   ]
 
-  alias ArchEthic.Contracts
+  alias Archethic.Contracts
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining.Fee
-  alias ArchEthic.Mining.ProofOfWork
+  alias Archethic.Mining.Fee
+  alias Archethic.Mining.ProofOfWork
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   @type t :: %__MODULE__{
           transaction: Transaction.t(),

@@ -1,13 +1,13 @@
-defmodule ArchEthic.Governance.Supervisor do
+defmodule Archethic.Governance.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Governance.Code.CICD
-  alias ArchEthic.Governance.Pools.MemTable
-  alias ArchEthic.Governance.Pools.MemTableLoader
+  alias Archethic.Governance.Code.CICD
+  alias Archethic.Governance.Pools.MemTable
+  alias Archethic.Governance.Pools.MemTableLoader
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg)

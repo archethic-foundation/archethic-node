@@ -1,9 +1,9 @@
-defmodule ArchEthic.Networking.IPLookup.NAT do
+defmodule Archethic.Networking.IPLookup.NAT do
   @moduledoc """
   Support the NAT IP discovery using UPnP or PmP
   """
 
-  alias ArchEthic.Networking.IPLookup.Impl
+  alias Archethic.Networking.IPLookup.Impl
 
   @behaviour Impl
 

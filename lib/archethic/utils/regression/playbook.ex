@@ -1,24 +1,24 @@
-defmodule ArchEthic.Utils.Regression.Playbook do
+defmodule Archethic.Utils.Regression.Playbook do
   @moduledoc """
   Playbook is executed on a testnet to verify correctness of the testnet.
   """
   require Logger
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Utils.WebSocket.Client, as: WSClient
+  alias Archethic.Utils.WebSocket.Client, as: WSClient
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias ArchEthic.Utils.WebClient
+  alias Archethic.Utils.WebClient
 
-  alias ArchEthic.Bootstrap.NetworkInit
+  alias Archethic.Bootstrap.NetworkInit
 
   @callback play!([String.t()], Keyword.t()) :: :ok
 
@@ -31,11 +31,11 @@ defmodule ArchEthic.Utils.Regression.Playbook do
                              )
                              |> Enum.at(0)
 
-  @faucet_seed Application.compile_env(:archethic, [ArchEthicWeb.FaucetController, :seed])
+  @faucet_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
 
   defmacro __using__(_opts \\ []) do
     quote do
-      @behaviour ArchEthic.Utils.Regression.Playbook
+      @behaviour Archethic.Utils.Regression.Playbook
     end
   end
 
@@ -175,6 +175,8 @@ defmodule ArchEthic.Utils.Regression.Playbook do
 
     {next_public_key, _} = Crypto.derive_keypair(transaction_seed, chain_length + 1, curve)
 
+    genesis_origin_private_key = get_origin_private_key(host, port)
+
     tx =
       %Transaction{
         address: Crypto.derive_address(next_public_key),
@@ -183,7 +185,7 @@ defmodule ArchEthic.Utils.Regression.Playbook do
         previous_public_key: previous_public_key
       }
       |> Transaction.previous_sign_transaction(previous_private_key)
-      |> Transaction.origin_sign_transaction(@genesis_origin_private_key)
+      |> Transaction.origin_sign_transaction(genesis_origin_private_key)
 
     true =
       Crypto.verify?(

@@ -1,4 +1,4 @@
-File.rm_rf!(ArchEthic.Utils.mut_dir())
+File.rm_rf!(Archethic.Utils.mut_dir())
 
 ExUnit.start(
   exclude: [:infrastructure, :CI, :CD, :oracle_provider, :benchmark],
@@ -6,14 +6,14 @@ ExUnit.start(
   max_failures: 1
 )
 
-Mox.defmock(MockClient, for: ArchEthic.P2P.Client)
+Mox.defmock(MockClient, for: Archethic.P2P.Client)
 
 Mox.defmock(MockCrypto,
-  for: [ArchEthic.Crypto.NodeKeystore, ArchEthic.Crypto.SharedSecretsKeystore]
+  for: [Archethic.Crypto.NodeKeystore, Archethic.Crypto.SharedSecretsKeystore]
 )
 
-Mox.defmock(MockDB, for: ArchEthic.DB)
-Mox.defmock(MockGeoIP, for: ArchEthic.P2P.GeoPatch.GeoIP)
-Mox.defmock(MockUCOPriceProvider, for: ArchEthic.OracleChain.Services.UCOPrice.Providers.Impl)
+Mox.defmock(MockDB, for: Archethic.DB)
+Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
+Mox.defmock(MockUCOPriceProvider, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 
-Mox.defmock(MockMetricsCollector, for: ArchEthic.Metrics.Collector)
+Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)

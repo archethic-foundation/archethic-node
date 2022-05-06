@@ -1,13 +1,13 @@
-defmodule ArchEthic.TransactionChain.Transaction.CrossValidationStamp do
+defmodule Archethic.TransactionChain.Transaction.CrossValidationStamp do
   @moduledoc """
   Represent a cross validation stamp validated a validation stamp.
   """
 
   defstruct [:node_public_key, :signature, inconsistencies: []]
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.Utils
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.Utils
 
   @type inconsistency() ::
           :timestamp

@@ -1,9 +1,9 @@
-defmodule ArchEthicWeb.API.Types.PublicKey do
+defmodule ArchethicWeb.API.Types.PublicKey do
   @moduledoc false
 
   use Ecto.Type
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   def type, do: :binary
 

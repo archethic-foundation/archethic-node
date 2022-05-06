@@ -1,4 +1,4 @@
-defmodule ArchEthic.Utils.PortHandler do
+defmodule Archethic.Utils.PortHandler do
   @moduledoc false
 
   use GenServer

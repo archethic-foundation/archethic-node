@@ -1,8 +1,8 @@
-defmodule ArchEthic.P2P.Message.RegisterBeaconUpdates do
+defmodule Archethic.P2P.Message.RegisterBeaconUpdates do
   @moduledoc """
   Represents a message to get a beacon updates
   """
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
   @enforce_keys [:node_public_key, :subset]
   defstruct [:node_public_key, :subset]
 

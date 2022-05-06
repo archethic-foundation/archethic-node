@@ -1,19 +1,19 @@
-defmodule ArchEthic.P2P.Supervisor do
+defmodule Archethic.P2P.Supervisor do
   @moduledoc false
 
-  alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Client.ConnectionRegistry
-  alias ArchEthic.P2P.Client.ConnectionSupervisor
-  alias ArchEthic.P2P.Listener
-  alias ArchEthic.P2P.MemTable
-  alias ArchEthic.P2P.MemTableLoader
+  alias Archethic.P2P.BootstrappingSeeds
+  alias Archethic.P2P.Client.ConnectionRegistry
+  alias Archethic.P2P.Client.ConnectionSupervisor
+  alias Archethic.P2P.Listener
+  alias Archethic.P2P.MemTable
+  alias Archethic.P2P.MemTableLoader
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   use Supervisor
 
   def start_link(args \\ []) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.P2PSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.P2PSupervisor)
   end
 
   def init(args) do

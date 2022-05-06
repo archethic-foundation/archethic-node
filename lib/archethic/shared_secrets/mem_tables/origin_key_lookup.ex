@@ -1,13 +1,13 @@
-defmodule ArchEthic.SharedSecrets.MemTables.OriginKeyLookup do
+defmodule Archethic.SharedSecrets.MemTables.OriginKeyLookup do
   @moduledoc """
   Represents a registry providing access to the origin public keys
   """
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.SharedSecrets
+  alias Archethic.SharedSecrets
 
   require Logger
 

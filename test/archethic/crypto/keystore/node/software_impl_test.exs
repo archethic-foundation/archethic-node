@@ -1,9 +1,9 @@
-defmodule ArchEthic.Crypto.NodeKeystore.SoftwareImplTest do
-  use ArchEthicCase
+defmodule Archethic.Crypto.NodeKeystore.SoftwareImplTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.Crypto.Ed25519
-  alias ArchEthic.Crypto.NodeKeystore.SoftwareImpl, as: Keystore
+  alias Archethic.Crypto
+  alias Archethic.Crypto.Ed25519
+  alias Archethic.Crypto.NodeKeystore.SoftwareImpl, as: Keystore
 
   import Mox
 

@@ -1,9 +1,9 @@
-defmodule ArchEthic.P2P.Client.ConnectionSupervisor do
+defmodule Archethic.P2P.Client.ConnectionSupervisor do
   @moduledoc false
 
   use DynamicSupervisor
 
-  alias ArchEthic.P2P.Client.Connection
+  alias Archethic.P2P.Client.Connection
 
   def start_link(arg \\ []) do
     DynamicSupervisor.start_link(__MODULE__, arg, name: __MODULE__)

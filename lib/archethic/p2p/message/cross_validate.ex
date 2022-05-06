@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.CrossValidate do
+defmodule Archethic.P2P.Message.CrossValidate do
   @moduledoc """
   Represents a message to request the cross validation of a validation stamp
   """
@@ -10,8 +10,8 @@ defmodule ArchEthic.P2P.Message.CrossValidate do
   ]
   defstruct [:address, :validation_stamp, :replication_tree, :confirmed_validation_nodes]
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),

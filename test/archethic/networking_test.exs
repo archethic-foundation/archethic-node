@@ -1,10 +1,10 @@
-defmodule ArchEthic.NetworkingTest do
+defmodule Archethic.NetworkingTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
-  alias ArchEthic.Networking
+  alias Archethic.Networking
 
-  doctest ArchEthic.Networking
+  doctest Archethic.Networking
 
   describe "valid_ip?/1" do
     property "should return false for loopback address range" do

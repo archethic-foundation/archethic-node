@@ -1,9 +1,9 @@
-defmodule ArchEthic.Election.StorageConstraintsTest do
+defmodule Archethic.Election.StorageConstraintsTest do
   use ExUnit.Case
   use ExUnitProperties
 
-  alias ArchEthic.Election.StorageConstraints
-  alias ArchEthic.P2P.Node
+  alias Archethic.Election.StorageConstraints
+  alias Archethic.P2P.Node
 
   doctest StorageConstraints
 

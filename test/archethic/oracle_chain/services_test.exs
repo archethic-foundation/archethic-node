@@ -1,7 +1,7 @@
-defmodule ArchEthic.OracleChain.ServicesTest do
+defmodule Archethic.OracleChain.ServicesTest do
   use ExUnit.Case
 
-  alias ArchEthic.OracleChain.Services
+  alias Archethic.OracleChain.Services
 
   import Mox
 

@@ -1,37 +1,37 @@
-defmodule ArchEthic.Contracts.Worker do
+defmodule Archethic.Contracts.Worker do
   @moduledoc false
 
-  alias ArchEthic.Account
+  alias Archethic.Account
 
-  alias ArchEthic.ContractRegistry
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Conditions
-  alias ArchEthic.Contracts.Contract.Constants
-  alias ArchEthic.Contracts.Contract.Trigger
-  alias ArchEthic.Contracts.Interpreter
+  alias Archethic.ContractRegistry
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.Interpreter
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.Mining
+  alias Archethic.Mining
 
-  alias ArchEthic.OracleChain
+  alias Archethic.OracleChain
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.StartMining
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

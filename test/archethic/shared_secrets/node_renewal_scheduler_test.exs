@@ -1,20 +1,20 @@
-defmodule ArchEthic.SharedSecrets.NodeRenewalSchedulerTest do
-  use ArchEthicCase, async: false
+defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
+  use ArchethicCase, async: false
 
-  alias ArchEthic.BeaconChain
-  alias ArchEthic.BeaconChain.SlotTimer, as: BeaconSlotTimer
-  alias ArchEthic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
+  alias Archethic.BeaconChain.SubsetRegistry
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.Ok
-  alias ArchEthic.P2P.Message.StartMining
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.StartMining
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SelfRepair.Scheduler, as: SelfRepairScheduler
+  alias Archethic.SelfRepair.Scheduler, as: SelfRepairScheduler
 
-  alias ArchEthic.SharedSecrets.NodeRenewalScheduler, as: Scheduler
+  alias Archethic.SharedSecrets.NodeRenewalScheduler, as: Scheduler
 
   import Mox
 

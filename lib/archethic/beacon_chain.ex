@@ -1,33 +1,33 @@
-defmodule ArchEthic.BeaconChain do
+defmodule Archethic.BeaconChain do
   @moduledoc """
   Manage the beacon chain by providing functions to add to the subsets information and
   to retrieve the beacon storage nodes involved.
   """
 
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Slot.Validation, as: SlotValidation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.Slot.Validation, as: SlotValidation
 
-  alias ArchEthic.BeaconChain.SlotTimer
-  alias ArchEthic.BeaconChain.Subset
-  alias ArchEthic.BeaconChain.Subset.P2PSampling
-  alias ArchEthic.BeaconChain.Subset.SummaryCache
-  alias ArchEthic.BeaconChain.Summary
-  alias ArchEthic.BeaconChain.SummaryTimer
+  alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.Subset
+  alias Archethic.BeaconChain.Subset.P2PSampling
+  alias Archethic.BeaconChain.Subset.SummaryCache
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryTimer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Message.RegisterBeaconUpdates
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.RegisterBeaconUpdates
 
-  alias ArchEthic.TransactionChain
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

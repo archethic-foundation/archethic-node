@@ -1,11 +1,11 @@
-defmodule ArchEthic.P2P.BootstrappingSeedsTest do
-  use ArchEthicCase
+defmodule Archethic.P2P.BootstrappingSeedsTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.BootstrappingSeeds
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.BootstrappingSeeds
+  alias Archethic.P2P.Node
 
   doctest BootstrappingSeeds
 

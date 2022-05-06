@@ -1,17 +1,17 @@
-defmodule ArchEthic.Election.ValidationConstraintsTest do
-  use ArchEthicCase
+defmodule Archethic.Election.ValidationConstraintsTest do
+  use ArchethicCase
   use ExUnitProperties
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
-  alias ArchEthic.Election.ValidationConstraints
+  alias Archethic.Election.ValidationConstraints
 
   doctest ValidationConstraints
 

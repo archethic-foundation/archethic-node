@@ -1,7 +1,7 @@
-defmodule ArchEthic.TransactionChain.TransactionData.NFTLedger.TransferTest do
+defmodule Archethic.TransactionChain.TransactionData.NFTLedger.TransferTest do
   use ExUnit.Case
 
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger.Transfer
+  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer
 
   doctest Transfer
 end

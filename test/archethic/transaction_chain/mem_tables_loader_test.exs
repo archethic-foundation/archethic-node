@@ -1,13 +1,13 @@
-defmodule ArchEthic.TransactionChain.MemTablesLoaderTest do
+defmodule Archethic.TransactionChain.MemTablesLoaderTest do
   use ExUnit.Case
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.MemTables.PendingLedger
-  alias ArchEthic.TransactionChain.MemTablesLoader
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.MemTables.PendingLedger
+  alias Archethic.TransactionChain.MemTablesLoader
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   import Mox
 

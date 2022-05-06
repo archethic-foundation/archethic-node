@@ -1,22 +1,22 @@
-defmodule ArchEthic.TransactionChain.Transaction do
+defmodule Archethic.TransactionChain.Transaction do
   @moduledoc """
-  Represents the main unit of the ArchEthic network and its Transaction Chain.
+  Represents the main unit of the Archethic network and its Transaction Chain.
 
   Blocks are reduce to its unitary form to provide high scalability, avoiding double spending attack and chain integrity
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.CrossValidationStamp
   alias __MODULE__.ValidationStamp
   alias __MODULE__.ValidationStamp.LedgerOperations.TransactionMovement
 
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   defstruct [
     :address,
@@ -490,7 +490,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
       ...>     25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217, 180,
       ...>     32>>,
       ...>   cross_validation_stamps: [],
-      ...>   data: %ArchEthic.TransactionChain.TransactionData{
+      ...>   data: %Archethic.TransactionChain.TransactionData{
       ...>     code: "",
       ...>     content: <<0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238, 143, 251, 13, 151, 68,
       ...>       48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84, 147, 214, 174,
@@ -498,9 +498,9 @@ defmodule ArchEthic.TransactionChain.Transaction do
       ...>       61, 177, 215, 1, 0, 1, 0, 234, 193, 62, 27, 61, 132, 121, 178, 119, 20,
       ...>       124, 88, 206, 36, 125, 163, 108, 229, 219, 181, 143, 253, 246, 237, 238,
       ...>       21, 79, 9, 230, 172, 0, 95, 0, 0, 0, 0, 0>>,
-      ...>     ledger: %ArchEthic.TransactionChain.TransactionData.Ledger{
-      ...>       nft: %ArchEthic.TransactionChain.TransactionData.NFTLedger{transfers: []},
-      ...>       uco: %ArchEthic.TransactionChain.TransactionData.UCOLedger{transfers: []}
+      ...>     ledger: %Archethic.TransactionChain.TransactionData.Ledger{
+      ...>       nft: %Archethic.TransactionChain.TransactionData.NFTLedger{transfers: []},
+      ...>       uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}
       ...>     },
       ...>     ownerships: [],
       ...>     recipients: []
@@ -519,9 +519,9 @@ defmodule ArchEthic.TransactionChain.Transaction do
       ...>     79, 206, 161, 21, 251, 218, 6, 44, 55, 133, 13, 122, 125, 219, 122, 131, 73,
       ...>     6>>,
       ...>   type: :beacon,
-      ...>   validation_stamp: %ArchEthic.TransactionChain.Transaction.ValidationStamp{
+      ...>   validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
       ...>     errors: [],
-      ...>     ledger_operations: %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
+      ...>     ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
       ...>       fee: 0,
       ...>       transaction_movements: [],
       ...>       unspent_outputs: []
@@ -688,7 +688,7 @@ defmodule ArchEthic.TransactionChain.Transaction do
             25, 37, 237, 215, 122, 113, 54, 59, 9, 251, 27, 179, 5, 44, 116, 217, 180,
             32>>,
           cross_validation_stamps: [],
-          data: %ArchEthic.TransactionChain.TransactionData{
+          data: %Archethic.TransactionChain.TransactionData{
             code: "",
             content: <<0, 98, 12, 24, 6, 0, 0, 0, 1, 0, 0, 238, 143, 251, 13, 151, 68,
               48, 247, 25, 179, 245, 118, 171, 203, 76, 243, 214, 84, 147, 214, 174,
@@ -696,9 +696,9 @@ defmodule ArchEthic.TransactionChain.Transaction do
               61, 177, 215, 1, 0, 1, 0, 234, 193, 62, 27, 61, 132, 121, 178, 119, 20,
               124, 88, 206, 36, 125, 163, 108, 229, 219, 181, 143, 253, 246, 237, 238,
               21, 79, 9, 230, 172, 0, 95, 0, 0, 0, 0, 0>>,
-            ledger: %ArchEthic.TransactionChain.TransactionData.Ledger{
-              nft: %ArchEthic.TransactionChain.TransactionData.NFTLedger{transfers: []},
-              uco: %ArchEthic.TransactionChain.TransactionData.UCOLedger{transfers: []}
+            ledger: %Archethic.TransactionChain.TransactionData.Ledger{
+              nft: %Archethic.TransactionChain.TransactionData.NFTLedger{transfers: []},
+              uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}
             },
             ownerships: [],
             recipients: []
@@ -717,9 +717,9 @@ defmodule ArchEthic.TransactionChain.Transaction do
             79, 206, 161, 21, 251, 218, 6, 44, 55, 133, 13, 122, 125, 219, 122, 131, 73,
             6>>,
           type: :beacon,
-          validation_stamp: %ArchEthic.TransactionChain.Transaction.ValidationStamp{
+          validation_stamp: %Archethic.TransactionChain.Transaction.ValidationStamp{
             errors: [],
-            ledger_operations: %ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
+            ledger_operations: %Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations{
               fee: 0,
               transaction_movements: [],
               unspent_outputs: []

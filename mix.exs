@@ -1,4 +1,4 @@
-defmodule ArchEthic.MixProject do
+defmodule Archethic.MixProject do
   use Mix.Project
 
   def project do
@@ -24,7 +24,7 @@ defmodule ArchEthic.MixProject do
   def application do
     [
       extra_applications: [:logger, :inets, :os_mon, :runtime_tools, :xmerl],
-      mod: {ArchEthic.Application, []}
+      mod: {Archethic.Application, []}
     ]
   end
 
@@ -118,7 +118,7 @@ defmodule ArchEthic.MixProject do
       # Cleans docker
       "dev.debug_docker": ["cmd docker-compose down", "cmd docker system prune -a"],
       # bench local
-      "dev.lbench": ["cmd mix arch_ethic.regression --bench localhost"]
+      "dev.lbench": ["cmd mix archethic.regression --bench localhost"]
     ]
   end
 end

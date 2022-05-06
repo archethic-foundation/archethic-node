@@ -1,9 +1,9 @@
-defmodule ArchEthic.OracleChain.Services do
+defmodule Archethic.OracleChain.Services do
   @moduledoc false
 
   require Logger
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @doc """
   Fetch new data from the services by comparing with the previous content
@@ -80,6 +80,6 @@ defmodule ArchEthic.OracleChain.Services do
   def parse_data(_), do: :error
 
   defp services do
-    Application.get_env(:archethic, ArchEthic.OracleChain) |> Keyword.fetch!(:services)
+    Application.get_env(:archethic, Archethic.OracleChain) |> Keyword.fetch!(:services)
   end
 end

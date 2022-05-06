@@ -1,15 +1,15 @@
-defmodule ArchEthicWeb.TransactionSubscriber do
+defmodule ArchethicWeb.TransactionSubscriber do
   @moduledoc false
 
   use GenServer
 
   alias Absinthe.Subscription
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.PubSub
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.PubSub
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthicWeb.Endpoint
+  alias ArchethicWeb.Endpoint
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

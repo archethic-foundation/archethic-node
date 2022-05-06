@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.GetBeaconSummary do
+defmodule Archethic.P2P.Message.GetBeaconSummary do
   @moduledoc """
   Represents a message to get a beacon summary
   """
@@ -6,7 +6,7 @@ defmodule ArchEthic.P2P.Message.GetBeaconSummary do
   @enforce_keys [:address]
   defstruct [:address]
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash()

@@ -1,7 +1,7 @@
-defmodule ArchEthic.Crypto.NodeKeystore.TPMImplTest do
-  use ArchEthicCase
+defmodule Archethic.Crypto.NodeKeystore.TPMImplTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto.NodeKeystore.TPMImpl
+  alias Archethic.Crypto.NodeKeystore.TPMImpl
 
   @tag :infrastructure
   test "first_public_key/0" do

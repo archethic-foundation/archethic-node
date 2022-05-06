@@ -1,6 +1,6 @@
-defmodule ArchEthic.TransactionChain.TransactionInputTest do
+defmodule Archethic.TransactionChain.TransactionInputTest do
   use ExUnit.Case
 
-  alias ArchEthic.TransactionChain.TransactionInput
+  alias Archethic.TransactionChain.TransactionInput
   doctest TransactionInput
 end

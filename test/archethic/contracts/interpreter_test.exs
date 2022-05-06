@@ -1,25 +1,26 @@
-defmodule ArchEthic.Contracts.InterpreterTest do
-  use ArchEthicCase
+defmodule Archethic.Contracts.InterpreterTest do
+  use ArchethicCase
 
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.Contract.Conditions
-  alias ArchEthic.Contracts.Contract.Constants
-  alias ArchEthic.Contracts.Contract.Trigger
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.Contract.Conditions
+  alias Archethic.Contracts.Contract.Constants
+  alias Archethic.Contracts.Contract.Trigger
 
-  alias ArchEthic.Contracts.Interpreter
+  alias Archethic.Contracts.Interpreter
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
-  alias ArchEthic.P2P.Message.FirstAddress
-  alias ArchEthic.P2P.Message.FirstPublicKey
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.Crypto
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.FirstPublicKey
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ledger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
 
-  alias ArchEthic.TransactionChain.TransactionData.Ledger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
   import Mox
+
   doctest Interpreter
 
   describe "parse/1" do
@@ -51,7 +52,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                        {:__aliases__,
                                         [
                                           alias:
-                                            ArchEthic.Contracts.Interpreter.TransactionStatements
+                                            Archethic.Contracts.Interpreter.TransactionStatements
                                         ], [:TransactionStatements]},
                                        :set_type
                                      ]}, [line: 2], [{:&, [line: 2], [1]}, "transfer"]}
@@ -81,7 +82,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                          {:__aliases__,
                                           [
                                             alias:
-                                              ArchEthic.Contracts.Interpreter.TransactionStatements
+                                              Archethic.Contracts.Interpreter.TransactionStatements
                                           ], [:TransactionStatements]},
                                          :add_uco_transfer
                                        ]},
@@ -124,7 +125,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                          {:__aliases__,
                                           [
                                             alias:
-                                              ArchEthic.Contracts.Interpreter.TransactionStatements
+                                              Archethic.Contracts.Interpreter.TransactionStatements
                                           ], [:TransactionStatements]},
                                          :add_nft_transfer
                                        ]},
@@ -170,7 +171,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                         {:__aliases__,
                                          [
                                            alias:
-                                             ArchEthic.Contracts.Interpreter.TransactionStatements
+                                             Archethic.Contracts.Interpreter.TransactionStatements
                                          ], [:TransactionStatements]},
                                         :set_content
                                       ]}, [line: 5], [{:&, [line: 5], [1]}, "Receipt"]}
@@ -201,7 +202,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                          {:__aliases__,
                                           [
                                             alias:
-                                              ArchEthic.Contracts.Interpreter.TransactionStatements
+                                              Archethic.Contracts.Interpreter.TransactionStatements
                                           ], [:TransactionStatements]},
                                          :add_ownership
                                        ]},
@@ -247,7 +248,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                                          {:__aliases__,
                                           [
                                             alias:
-                                              ArchEthic.Contracts.Interpreter.TransactionStatements
+                                              Archethic.Contracts.Interpreter.TransactionStatements
                                           ], [:TransactionStatements]},
                                          :add_recipient
                                        ]},
@@ -423,7 +424,7 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                 [
                   {{:., [line: 2],
                     [
-                      {:__aliases__, [alias: ArchEthic.Contracts.Interpreter.Library],
+                      {:__aliases__, [alias: Archethic.Contracts.Interpreter.Library],
                        [:Library]},
                       :size
                     ]}, [line: 2],
@@ -619,7 +620,6 @@ defmodule ArchEthic.Contracts.InterpreterTest do
                )
     end
 
-=======
     @tag :genesis
     test "shall parse get_genesis_address/1 in actions" do
       address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"

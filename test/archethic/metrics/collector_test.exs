@@ -1,9 +1,9 @@
-defmodule ArchEthic.Metrics.CollectorTest do
+defmodule Archethic.Metrics.CollectorTest do
   use ExUnit.Case
 
   import Mox
 
-  alias ArchEthic.Metrics.Collector
+  alias Archethic.Metrics.Collector
 
   setup :set_mox_global
   setup :verify_on_exit!

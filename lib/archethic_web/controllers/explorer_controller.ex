@@ -1,20 +1,20 @@
-defmodule ArchEthicWeb.ExplorerController do
+defmodule ArchethicWeb.ExplorerController do
   @moduledoc false
 
-  use ArchEthicWeb, :controller
+  use ArchethicWeb, :controller
 
-  alias ArchEthic.OracleChain
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.OracleChain
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction
 
   def index(conn, _params) do
-    render(conn, "index.html", layout: {ArchEthicWeb.LayoutView, "index.html"})
+    render(conn, "index.html", layout: {ArchethicWeb.LayoutView, "index.html"})
   end
 
   def search(conn, _params = %{"address" => address}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
-         {:ok, tx} <- ArchEthic.search_transaction(address) do
+         {:ok, tx} <- Archethic.search_transaction(address) do
       previous_address = Transaction.previous_address(tx)
 
       render(conn, "transaction_details.html", transaction: tx, previous_address: previous_address)
@@ -27,9 +27,9 @@ defmodule ArchEthicWeb.ExplorerController do
   def chain(conn, _params = %{"address" => address, "last" => "on"}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(addr),
-         {:ok, %Transaction{address: last_address}} <- ArchEthic.get_last_transaction(addr),
-         {:ok, chain} <- ArchEthic.get_transaction_chain(last_address),
-         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
+         {:ok, %Transaction{address: last_address}} <- Archethic.get_last_transaction(addr),
+         {:ok, chain} <- Archethic.get_transaction_chain(last_address),
+         {:ok, %{uco: uco_balance}} <- Archethic.get_balance(addr),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
         transaction_chain: chain,
@@ -88,8 +88,8 @@ defmodule ArchEthicWeb.ExplorerController do
   def chain(conn, _params = %{"address" => address}) do
     with {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(addr),
-         {:ok, chain} <- ArchEthic.get_transaction_chain(addr),
-         {:ok, %{uco: uco_balance}} <- ArchEthic.get_balance(addr),
+         {:ok, chain} <- Archethic.get_transaction_chain(addr),
+         {:ok, %{uco: uco_balance}} <- Archethic.get_balance(addr),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
         transaction_chain: chain,

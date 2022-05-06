@@ -1,19 +1,19 @@
-defmodule ArchEthic.Contracts.Loader do
+defmodule Archethic.Contracts.Loader do
   @moduledoc false
 
-  alias ArchEthic.ContractRegistry
-  alias ArchEthic.ContractSupervisor
+  alias Archethic.ContractRegistry
+  alias Archethic.ContractSupervisor
 
-  alias ArchEthic.Contracts
-  alias ArchEthic.Contracts.Contract
-  alias ArchEthic.Contracts.TransactionLookup
-  alias ArchEthic.Contracts.Worker
+  alias Archethic.Contracts
+  alias Archethic.Contracts.Contract
+  alias Archethic.Contracts.TransactionLookup
+  alias Archethic.Contracts.Worker
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   require Logger
 

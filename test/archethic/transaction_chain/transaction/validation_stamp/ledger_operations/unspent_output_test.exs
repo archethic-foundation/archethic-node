@@ -1,5 +1,5 @@
-defmodule ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutputTest do
+defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutputTest do
   use ExUnit.Case
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   doctest UnspentOutput
 end

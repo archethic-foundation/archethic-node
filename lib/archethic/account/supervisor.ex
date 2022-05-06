@@ -1,16 +1,16 @@
-defmodule ArchEthic.Account.Supervisor do
+defmodule Archethic.Account.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.Account.MemTables.NFTLedger
-  alias ArchEthic.Account.MemTables.UCOLedger
-  alias ArchEthic.Account.MemTablesLoader
+  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.UCOLedger
+  alias Archethic.Account.MemTablesLoader
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: ArchEthic.AccountSupervisor)
+    Supervisor.start_link(__MODULE__, args, name: Archethic.AccountSupervisor)
   end
 
   def init(_args) do

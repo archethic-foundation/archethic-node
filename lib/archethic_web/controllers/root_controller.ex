@@ -1,9 +1,9 @@
-defmodule ArchEthicWeb.RootController do
+defmodule ArchethicWeb.RootController do
   @moduledoc false
 
-  use ArchEthicWeb, :controller
+  use ArchethicWeb, :controller
 
-  alias ArchEthicWeb.API.TransactionController
+  alias ArchethicWeb.API.TransactionController
 
   def index(conn, params) do
     case get_dnslink_address(conn) do

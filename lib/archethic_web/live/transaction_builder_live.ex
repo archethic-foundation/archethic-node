@@ -1,7 +1,7 @@
-defmodule ArchEthicWeb.TransactionBuilderLive do
+defmodule ArchethicWeb.TransactionBuilderLive do
   @moduledoc false
 
-  use ArchEthicWeb, :live_component
+  use ArchethicWeb, :live_component
 
   alias Phoenix.View
 
@@ -10,6 +10,6 @@ defmodule ArchEthicWeb.TransactionBuilderLive do
   end
 
   def render(assigns) do
-    View.render(ArchEthicWeb.ExplorerView, "transaction_builder.html", assigns)
+    View.render(ArchethicWeb.ExplorerView, "transaction_builder.html", assigns)
   end
 end

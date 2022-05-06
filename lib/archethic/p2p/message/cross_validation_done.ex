@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Message.CrossValidationDone do
+defmodule Archethic.P2P.Message.CrossValidationDone do
   @moduledoc """
   Represents a message to notify the end of the cross validation for a given transaction address
 
@@ -7,8 +7,8 @@ defmodule ArchEthic.P2P.Message.CrossValidationDone do
   @enforce_keys [:address, :cross_validation_stamp]
   defstruct [:address, :cross_validation_stamp]
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.TransactionChain.Transaction.CrossValidationStamp
+  alias Archethic.Crypto
+  alias Archethic.TransactionChain.Transaction.CrossValidationStamp
 
   @type t :: %__MODULE__{
           address: Crypto.versioned_hash(),

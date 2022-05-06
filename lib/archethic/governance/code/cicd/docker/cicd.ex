@@ -1,4 +1,4 @@
-defmodule ArchEthic.Governance.Code.CICD.Docker do
+defmodule Archethic.Governance.Code.CICD.Docker do
   @moduledoc """
   CICD service baked by docker.
 
@@ -21,13 +21,13 @@ defmodule ArchEthic.Governance.Code.CICD.Docker do
 
   require Logger
 
-  alias ArchEthic.Governance.Code.CICD
-  alias ArchEthic.Governance.Code.Proposal
+  alias Archethic.Governance.Code.CICD
+  alias Archethic.Governance.Code.Proposal
 
-  alias ArchEthic.Utils.JobCache
-  alias ArchEthic.Utils.JobConductor
-  alias ArchEthic.Utils.Testnet
-  alias ArchEthic.Utils.Testnet.Subnet
+  alias Archethic.Utils.JobCache
+  alias Archethic.Utils.JobConductor
+  alias Archethic.Utils.Testnet
+  alias Archethic.Utils.Testnet.Subnet
 
   import Supervisor, only: [child_spec: 2]
 

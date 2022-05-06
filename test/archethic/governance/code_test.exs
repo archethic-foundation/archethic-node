@@ -1,8 +1,8 @@
-defmodule ArchEthic.Governance.CodeTest do
+defmodule Archethic.Governance.CodeTest do
   use ExUnit.Case
 
-  alias ArchEthic.Governance.Code
-  alias ArchEthic.Governance.Code.Proposal
+  alias Archethic.Governance.Code
+  alias Archethic.Governance.Code.Proposal
 
   test "list_source_files/0 should list the files from the master branch" do
     files = Code.list_source_files()

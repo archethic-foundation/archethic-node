@@ -1,22 +1,22 @@
-defmodule ArchEthicWeb.ExplorerView do
+defmodule ArchethicWeb.ExplorerView do
   @moduledoc false
 
-  use ArchEthicWeb, :view
+  use ArchethicWeb, :view
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Slot.EndOfNodeSync
-  alias ArchEthic.BeaconChain.Summary
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Slot.EndOfNodeSync
+  alias Archethic.BeaconChain.Summary
 
-  alias ArchEthic.SharedSecrets.NodeRenewal
+  alias Archethic.SharedSecrets.NodeRenewal
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias Phoenix.Naming
 
@@ -100,7 +100,7 @@ defmodule ArchEthicWeb.ExplorerView do
       if Enum.empty?(p2p_availabilities) do
         content
       else
-        node_list = ArchEthic.BeaconChain.Subset.P2PSampling.list_nodes_to_sample(subset)
+        node_list = Archethic.BeaconChain.Subset.P2PSampling.list_nodes_to_sample(subset)
 
         p2p_content =
           p2p_availabilities
@@ -161,7 +161,7 @@ defmodule ArchEthicWeb.ExplorerView do
       if Enum.empty?(p2p_availabilities) do
         content
       else
-        node_list = ArchEthic.BeaconChain.Subset.P2PSampling.list_nodes_to_sample(subset)
+        node_list = Archethic.BeaconChain.Subset.P2PSampling.list_nodes_to_sample(subset)
 
         p2p_content =
           p2p_availabilities

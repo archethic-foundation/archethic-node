@@ -1,7 +1,7 @@
-defmodule ArchEthic.OracleChain.Services.UCOPrice.Providers.CoingeckoTest do
+defmodule Archethic.OracleChain.Services.UCOPrice.Providers.CoingeckoTest do
   use ExUnit.Case
 
-  alias ArchEthic.OracleChain.Services.UCOPrice.Providers.Coingecko
+  alias Archethic.OracleChain.Services.UCOPrice.Providers.Coingecko
 
   @tag oracle_provider: true
   test "fetch/1 should get the current UCO price from CoinGecko" do

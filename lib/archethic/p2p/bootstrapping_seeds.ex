@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.BootstrappingSeeds do
+defmodule Archethic.P2P.BootstrappingSeeds do
   @moduledoc """
   Handle bootstrapping seeds lifecycle
 
@@ -7,15 +7,15 @@ defmodule ArchEthic.P2P.BootstrappingSeeds do
   The bootstrapping seeds support flushing updates
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.DB
+  alias Archethic.DB
 
-  alias ArchEthic.PubSub
+  alias Archethic.PubSub
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.GeoPatch
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.GeoPatch
+  alias Archethic.P2P.Node
 
   use GenServer
 

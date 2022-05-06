@@ -1,12 +1,12 @@
-defmodule ArchEthic.TransactionChain.MemTables.KOLedger do
+defmodule Archethic.TransactionChain.MemTables.KOLedger do
   @moduledoc """
   Represents an memory table will all the invalid transactions and their reasons
   """
 
   @table_name :archethic_ko_ledger
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   use GenServer
 

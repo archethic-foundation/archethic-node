@@ -1,8 +1,8 @@
-defmodule ArchEthic.SharedSecrets.MemTables.NetworkLookup do
+defmodule Archethic.SharedSecrets.MemTables.NetworkLookup do
   @moduledoc false
 
-  alias ArchEthic.Bootstrap.NetworkInit
-  alias ArchEthic.Crypto
+  alias Archethic.Bootstrap.NetworkInit
+  alias Archethic.Crypto
 
   use GenServer
 

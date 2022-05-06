@@ -1,9 +1,9 @@
-defmodule ArchEthic.TransactionChain.TransactionData.Ledger do
+defmodule Archethic.TransactionChain.TransactionData.Ledger do
   @moduledoc """
   Represents transaction ledger movements
   """
-  alias ArchEthic.TransactionChain.TransactionData.NFTLedger
-  alias ArchEthic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   defstruct uco: %UCOLedger{}, nft: %NFTLedger{}
 

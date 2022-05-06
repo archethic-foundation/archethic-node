@@ -1,4 +1,4 @@
-defmodule ArchEthic.OracleChain.Services.Impl do
+defmodule Archethic.OracleChain.Services.Impl do
   @moduledoc false
 
   @callback fetch() :: {:ok, %{required(String.t()) => any()}} | {:error, any()}

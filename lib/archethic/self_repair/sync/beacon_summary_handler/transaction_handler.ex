@@ -1,20 +1,20 @@
-defmodule ArchEthic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
+defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.Election
+  alias Archethic.Election
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetTransaction
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.Replication
+  alias Archethic.Replication
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   require Logger
 

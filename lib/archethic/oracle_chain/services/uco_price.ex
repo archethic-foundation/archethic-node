@@ -1,11 +1,11 @@
-defmodule ArchEthic.OracleChain.Services.UCOPrice do
+defmodule Archethic.OracleChain.Services.UCOPrice do
   @moduledoc """
   Define Oracle behaviors to support UCO Price feed oracle
   """
 
   require Logger
 
-  alias ArchEthic.OracleChain.Services.Impl
+  alias Archethic.OracleChain.Services.Impl
 
   @behaviour Impl
 

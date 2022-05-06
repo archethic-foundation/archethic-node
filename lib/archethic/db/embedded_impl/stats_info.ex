@@ -1,9 +1,9 @@
-defmodule ArchEthic.DB.EmbeddedImpl.StatsInfo do
+defmodule Archethic.DB.EmbeddedImpl.StatsInfo do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)

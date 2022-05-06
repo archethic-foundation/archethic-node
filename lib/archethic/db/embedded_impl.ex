@@ -1,10 +1,10 @@
-defmodule ArchEthic.DB.EmbeddedImpl do
+defmodule Archethic.DB.EmbeddedImpl do
   @moduledoc """
-  Custom database implementation for ArchEthic storage layer using File for transaction chain storages and index backup 
+  Custom database implementation for Archethic storage layer using File for transaction chain storages and index backup 
   while using a key value in memory for fast lookup
   """
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.BootstrapInfo
   alias __MODULE__.ChainIndex
@@ -13,13 +13,13 @@ defmodule ArchEthic.DB.EmbeddedImpl do
   alias __MODULE__.P2PView
   alias __MODULE__.StatsInfo
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   defdelegate child_spec(opts), to: __MODULE__.Supervisor
 
-  @behaviour ArchEthic.DB
+  @behaviour Archethic.DB
 
   @doc """
   Return the path of the database folder

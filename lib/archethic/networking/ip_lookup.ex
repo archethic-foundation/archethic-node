@@ -1,4 +1,4 @@
-defmodule ArchEthic.Networking.IPLookup do
+defmodule Archethic.Networking.IPLookup do
   @moduledoc false
 
   alias __MODULE__.IPIFY

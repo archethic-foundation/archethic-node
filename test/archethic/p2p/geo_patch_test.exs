@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.GeoPatchTest do
+defmodule Archethic.P2P.GeoPatchTest do
   @moduledoc """
   This module defines the test case to be used by
   geopatch tests.
@@ -6,7 +6,7 @@ defmodule ArchEthic.P2P.GeoPatchTest do
 
   use ExUnit.Case
 
-  alias ArchEthic.P2P.GeoPatch
+  alias Archethic.P2P.GeoPatch
 
   import Mox
 

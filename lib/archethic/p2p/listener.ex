@@ -1,10 +1,10 @@
-defmodule ArchEthic.P2P.Listener do
+defmodule Archethic.P2P.Listener do
   @moduledoc false
 
   use GenServer
 
-  alias ArchEthic.P2P.ListenerProtocol
-  alias ArchEthic.P2P.ListenerProtocol.Supervisor, as: ListenerProtocolSupervisor
+  alias Archethic.P2P.ListenerProtocol
+  alias Archethic.P2P.ListenerProtocol.Supervisor, as: ListenerProtocolSupervisor
 
   require Logger
 

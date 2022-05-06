@@ -1,15 +1,15 @@
-defmodule ArchEthic.Governance.Code.Proposal do
+defmodule Archethic.Governance.Code.Proposal do
   @moduledoc """
   Represents a proposal for code changes
   """
 
   alias __MODULE__.Parser
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.Transaction.ValidationStamp
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.TransactionData
 
   defstruct [
     :address,

@@ -1,7 +1,7 @@
-defmodule ArchEthic.TransactionChain.TransactionSummaryTest do
+defmodule Archethic.TransactionChain.TransactionSummaryTest do
   use ExUnit.Case
 
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.TransactionSummary
 
   doctest TransactionSummary
 end

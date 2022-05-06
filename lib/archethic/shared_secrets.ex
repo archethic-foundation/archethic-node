@@ -1,7 +1,7 @@
-defmodule ArchEthic.SharedSecrets do
+defmodule Archethic.SharedSecrets do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
   alias __MODULE__.MemTables.NetworkLookup
   alias __MODULE__.MemTables.OriginKeyLookup
@@ -9,7 +9,7 @@ defmodule ArchEthic.SharedSecrets do
   alias __MODULE__.NodeRenewal
   alias __MODULE__.NodeRenewalScheduler
 
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction
 
   @type origin_family :: :software | :usb | :biometric
 

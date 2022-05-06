@@ -1,13 +1,15 @@
-defmodule ArchEthic.Contracts.Interpreter.Library do
+defmodule Archethic.Contracts.Interpreter.Library do
   @moduledoc false
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Message.GetFirstAddress
-  alias ArchEthic.P2P.Message.FirstAddress
-  alias ArchEthic.P2P.Message.GetFirstPublicKey
-  alias ArchEthic.P2P.Message.FirstPublicKey
-  alias ArchEthic.Election
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetFirstPublicKey
+  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.FirstPublicKey
 
   @doc """
   Match a regex expression
@@ -187,7 +189,6 @@ defmodule ArchEthic.Contracts.Interpreter.Library do
   end
 
   defp download_first_public_key([], _address), do: {:error, :network_issue}
-
 
   defp download_first_address([node | rest], address) do
     case P2P.send_message(node, %GetFirstAddress{address: address}) do

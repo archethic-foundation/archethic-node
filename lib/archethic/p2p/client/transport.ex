@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.Client.Transport do
+defmodule Archethic.P2P.Client.Transport do
   @moduledoc false
 
   @callback handle_connect(:inet.ip_address(), :inet.port_number()) :: {:ok, :inet.socket()}

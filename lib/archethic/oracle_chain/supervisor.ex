@@ -1,20 +1,20 @@
-defmodule ArchEthic.OracleChain.Supervisor do
+defmodule Archethic.OracleChain.Supervisor do
   @moduledoc false
 
   use Supervisor
 
-  alias ArchEthic.OracleChain.MemTable
-  alias ArchEthic.OracleChain.MemTableLoader
-  alias ArchEthic.OracleChain.Scheduler
+  alias Archethic.OracleChain.MemTable
+  alias Archethic.OracleChain.MemTableLoader
+  alias Archethic.OracleChain.Scheduler
 
-  alias ArchEthic.Utils
+  alias Archethic.Utils
 
   def start_link(args \\ []) do
     Supervisor.start_link(__MODULE__, args)
   end
 
   def init(_args) do
-    scheduler_conf = Application.get_env(:archethic, ArchEthic.OracleChain.Scheduler)
+    scheduler_conf = Application.get_env(:archethic, Archethic.OracleChain.Scheduler)
 
     children = [
       MemTable,

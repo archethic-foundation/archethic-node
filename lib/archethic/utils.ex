@@ -1,14 +1,14 @@
-defmodule ArchEthic.Utils do
+defmodule Archethic.Utils do
   @moduledoc false
 
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.ReplicationAttestation
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
   import Bitwise
 
@@ -618,13 +618,13 @@ defmodule ArchEthic.Utils do
 
   ## Examples
 
-      iex> ArchEthic.Utils.seconds_to_human_readable(3666)
+      iex> Archethic.Utils.seconds_to_human_readable(3666)
       "1 hour 01 minute 06 second"
 
-      iex> ArchEthic.Utils.seconds_to_human_readable(66)
+      iex> Archethic.Utils.seconds_to_human_readable(66)
       "1 minute 06 second"
 
-      iex> ArchEthic.Utils.seconds_to_human_readable(6)
+      iex> Archethic.Utils.seconds_to_human_readable(6)
       "0 minute 06 second"
   """
   def seconds_to_human_readable(0), do: "00:00:00"

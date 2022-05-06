@@ -1,4 +1,4 @@
-defmodule ArchEthic.P2P.ListenerProtocol do
+defmodule Archethic.P2P.ListenerProtocol do
   @moduledoc false
 
   alias __MODULE__.BroadwayPipeline

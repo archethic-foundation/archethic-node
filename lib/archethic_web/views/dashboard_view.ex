@@ -1,3 +1,3 @@
-defmodule ArchEthicWeb.DashboardView do
-  use ArchEthicWeb, :view
+defmodule ArchethicWeb.DashboardView do
+  use ArchethicWeb, :view
 end

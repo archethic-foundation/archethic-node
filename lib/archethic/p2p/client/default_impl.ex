@@ -1,15 +1,15 @@
-defmodule ArchEthic.P2P.Client.DefaultImpl do
+defmodule Archethic.P2P.Client.DefaultImpl do
   @moduledoc false
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Client
-  alias ArchEthic.P2P.Client.Connection
-  alias ArchEthic.P2P.Client.ConnectionSupervisor
-  alias ArchEthic.P2P.Client.Transport.TCPImpl
-  alias ArchEthic.P2P.Message
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Client
+  alias Archethic.P2P.Client.Connection
+  alias Archethic.P2P.Client.ConnectionSupervisor
+  alias Archethic.P2P.Client.Transport.TCPImpl
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Node
 
   require Logger
 

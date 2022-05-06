@@ -1,10 +1,10 @@
-defmodule ArchEthic.PubSubTest do
+defmodule Archethic.PubSubTest do
   use ExUnit.Case
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.PubSub
-  alias ArchEthic.PubSubRegistry
+  alias Archethic.PubSub
+  alias Archethic.PubSubRegistry
 
   test "register_to_new_transaction/0 should register the current process in the registry" do
     assert {:ok, _} = PubSub.register_to_new_transaction()

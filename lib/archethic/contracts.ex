@@ -1,6 +1,6 @@
-defmodule ArchEthic.Contracts do
+defmodule Archethic.Contracts do
   @moduledoc """
-  Handle smart contracts based on a new language running in an custom interpreter for ArchEthic network.
+  Handle smart contracts based on a new language running in an custom interpreter for Archethic network.
   Each smart contract is register and supervised as long running process to interact with later on.
   """
 
@@ -16,8 +16,8 @@ defmodule ArchEthic.Contracts do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.DateChecker, as: CronDateChecker
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   require Logger
 
@@ -45,7 +45,7 @@ defmodule ArchEthic.Contracts do
               content: {:==, [line: 2], [
                 true,
                 {
-                  {:., [line: 2], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
+                  {:., [line: 2], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.Library], [:Library]}, :regex_match?]},
                   [line: 2],
                   [{:get_in, [line: 2], [{:scope, [line: 2], nil}, ["next", "content"]]}, "^(Mr.X: ){1}([0-9]+), (Mr.Y: ){1}([0-9])+$"]
                 }
@@ -67,7 +67,7 @@ defmodule ArchEthic.Contracts do
                   [line: 7],
                   [
                     {:scope, [line: 7], nil},
-                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
+                    {:update_in, [line: 7], [{:scope, [line: 7], nil}, ["next_transaction"], {:&, [line: 7], [{{:., [line: 7], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_type]}, [line: 7], [{:&, [line: 7], [1]}, "hosting"]}]}]}
                   ]
                 },
                 {
@@ -75,7 +75,7 @@ defmodule ArchEthic.Contracts do
                   [line: 8],
                   [
                     {:scope, [line: 8], nil},
-                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: ArchEthic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
+                    {:update_in, [line: 8], [{:scope, [line: 8], nil}, ["next_transaction"], {:&, [line: 8], [{{:., [line: 8], [{:__aliases__, [alias: Archethic.Contracts.Interpreter.TransactionStatements], [:TransactionStatements]}, :set_content]}, [line: 8], [{:&, [line: 8], [1]}, "Mr.X: 10, Mr.Y: 8"]}]}]}
                   ]
                 }
               ]},

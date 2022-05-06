@@ -1,13 +1,13 @@
-defmodule ArchEthic.DB.EmbeddedImpl.ChainIndex do
+defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @moduledoc """
   Manage the indexing of the transaction chains for both file and memory storage
   """
 
   use GenServer
 
-  alias ArchEthic.Crypto
-  alias ArchEthic.DB.EmbeddedImpl.ChainWriter
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.Crypto
+  alias Archethic.DB.EmbeddedImpl.ChainWriter
+  alias Archethic.TransactionChain.Transaction
 
   def start_link(arg \\ []) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)

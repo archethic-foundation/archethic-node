@@ -1,12 +1,12 @@
-defmodule ArchEthic.BeaconChain.SummaryTest do
+defmodule Archethic.BeaconChain.SummaryTest do
   use ExUnit.Case
 
-  alias ArchEthic.BeaconChain.ReplicationAttestation
-  alias ArchEthic.BeaconChain.Slot
-  alias ArchEthic.BeaconChain.Summary
-  alias ArchEthic.TransactionChain.TransactionSummary
+  alias Archethic.BeaconChain.ReplicationAttestation
+  alias Archethic.BeaconChain.Slot
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P.Node
 
   doctest Summary
 end

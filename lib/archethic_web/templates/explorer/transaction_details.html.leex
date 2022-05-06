@@ -18,7 +18,7 @@
             <%= if assigns[:error] == nil do %>
                 <div class="columns">
                     <div class="column is-2-desktop">
-                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
+                        <%= link class: "button is-primary is-outlined is-fullwidth", to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(@previous_address)) do%>
                             Previous transaction
                         <% end %>
                     </div>
@@ -152,7 +152,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -179,7 +179,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(transfer.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -191,7 +191,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">NFT</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(transfer.nft)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.nft)) do%>
                                                     <span class="text_wrap"><%= Base.encode16(transfer.nft) %></span>
                                                 <% end %>
                                                 </div>
@@ -232,7 +232,7 @@
                                             <div class="box">
                                                 <div class="columns">
                                                     <div class="column">
-                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(address)) do%>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(address)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(address) %></span>
                                                         <% end %>
                                                     </div>
@@ -318,7 +318,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(movement.to)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(movement.to)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(movement.to) %></span>
                                                     <% end %>
                                                 </div>
@@ -336,7 +336,7 @@
                                                         <% {:NFT, nft_address} -> %>
                                                             <%= to_float(movement.amount) %>
                                                             <span class="tag is-success is-light ml-2">NFT</span>
-                                                            <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
+                                                            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                                 <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
                                                             <% end %>
                                                         </div>
@@ -355,7 +355,7 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">From</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(unspent_output.from)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(unspent_output.from) %></span>
                                                     <% end %>
                                                 </div>
@@ -373,7 +373,7 @@
                                                     <% {:NFT, nft_address} -> %>
                                                         <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-success is-light ml-2">NFT</span>
-                                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                             <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
                                                         <% end %>
                                                     <% end %>
@@ -404,7 +404,7 @@
                                     <% end %>
 
                                     <%= for recipient <- @transaction.validation_stamp.recipients do %>
-                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(recipient)) do%>
+                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(recipient)) do%>
                                             <p class="text_wrap"><%= Base.encode16(recipient) %></p>
                                         <% end %>
                                     <%  end %>
@@ -428,7 +428,7 @@
                                             <div class="columns">
                                                 <div class="column is-2 heading">Node public key</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.NodeDetailsLive, Base.encode16(cross_validation_stamp.node_public_key)) do%>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.NodeDetailsLive, Base.encode16(cross_validation_stamp.node_public_key)) do%>
                                                         <span class="text_wrap"><%= Base.encode16(cross_validation_stamp.node_public_key) %></span>
                                                     <% end %>
                                                 </div>
@@ -482,7 +482,7 @@
                                       </div>
                                       <div class="columns">
                                         <div class="column">
-                                        <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
+                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(input.from)) do%>
                                             <span class="is-hidden-mobile"><%= Base.encode16(input.from) %></span>
                                             <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(input.from, 0, 12)) %>...</span>
                                         <% end %>
@@ -513,7 +513,7 @@
                                                 <div class="columns">
                                                   <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                                   <div class="column is-4-desktop">
-                                                    <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                         <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
                                                         <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(nft_address, 0, 12)) %>...</span>
                                                     <% end %>
@@ -546,7 +546,7 @@
                               </div>
                               <div class="columns">
                                 <div class="column">
-                                  <%= link to: Routes.live_path(@socket, ArchEthicWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
+                                  <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(call.from)) do%>
                                     <span class="is-hidden-mobile"><%= Base.encode16(call.from) %></span>
                                     <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(call.from, 0, 12)) %>...</span>
                                   <% end %>

@@ -1,19 +1,19 @@
-defmodule ArchEthic.SharedSecrets.NodeRenewalTest do
-  use ArchEthicCase
+defmodule Archethic.SharedSecrets.NodeRenewalTest do
+  use ArchethicCase
 
-  alias ArchEthic.Crypto
+  alias Archethic.Crypto
 
-  alias ArchEthic.P2P
-  alias ArchEthic.P2P.Node
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
-  alias ArchEthic.SharedSecrets
-  alias ArchEthic.SharedSecrets.NodeRenewal
+  alias Archethic.SharedSecrets
+  alias Archethic.SharedSecrets.NodeRenewal
 
-  alias ArchEthic.TransactionChain.Transaction
-  alias ArchEthic.TransactionChain.TransactionData
-  alias ArchEthic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionData.Ownership
 
-  alias ArchEthic.SharedSecrets.NodeRenewal
+  alias Archethic.SharedSecrets.NodeRenewal
 
   import Mox
 

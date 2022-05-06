@@ -1,11 +1,11 @@
-defmodule ArchEthic.Governance.Pools.MemTableLoaderTest do
+defmodule Archethic.Governance.Pools.MemTableLoaderTest do
   use ExUnit.Case
 
-  alias ArchEthic.Governance.Pools.MemTable
-  alias ArchEthic.Governance.Pools.MemTableLoader
+  alias Archethic.Governance.Pools.MemTable
+  alias Archethic.Governance.Pools.MemTableLoader
 
-  alias ArchEthic.TransactionChain.MemTables.KOLedger
-  alias ArchEthic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.MemTables.KOLedger
+  alias Archethic.TransactionChain.Transaction
 
   setup do
     start_supervised!(KOLedger)
