@@ -12,13 +12,15 @@ defmodule Archethic.Contracts.InterpreterTest do
   alias Archethic.P2P
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
+
   import Mox
+
   doctest Interpreter
 
   describe "parse/1" do
@@ -577,6 +579,7 @@ defmodule Archethic.Contracts.InterpreterTest do
         ~s"""
         condition transaction: [
           address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+
         ]
         """
         |> Interpreter.parse()
@@ -588,7 +591,35 @@ defmodule Archethic.Contracts.InterpreterTest do
                )
     end
 
-    @tag :genesis
+    test "shall get the first public of the chain in the conditions" do
+      public_key = "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+      b_public_key = Base.decode16!(public_key)
+
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, %FirstPublicKey{public_key: b_public_key}}
+      end)
+
+      {:ok, %Contract{conditions: %{transaction: conditions}}} =
+        ~s"""
+        condition transaction: [
+          previous_public_key: get_genesis_public_key() == "0001DDE54A313E5DCD73E413748CBF6679F07717F8BDC66CBE8F981E1E475A98605C"
+        ]
+        """
+        |> Interpreter.parse()
+
+      assert true =
+               Interpreter.valid_conditions?(
+                 conditions,
+                 %{
+                   "transaction" => %{
+                     "previous_public_key" =>
+                       <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+                   }
+                 }
+               )
+    end
+
     test "shall parse get_genesis_address/1 in actions" do
       address = "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
       b_address = Base.decode16!(address)

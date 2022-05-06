@@ -596,6 +596,14 @@ defmodule Archethic.Contracts.Interpreter do
     {node, acc}
   end
 
+  defp prewalk(
+         node = {{:atom, "get_genesis_public_key"}, _, [_address]},
+         acc = {:ok, %{scope: scope}}
+       )
+       when scope != :root do
+    {node, acc}
+  end
+
   # Whitelist the regex_match?/1 function in the condition
   defp prewalk(
          node = {{:atom, "regex_match?"}, _, [_search]},
@@ -643,6 +651,14 @@ defmodule Archethic.Contracts.Interpreter do
   # Whitelist the get_genesis_address/0 function in condition
   defp prewalk(
          node = {{:atom, "get_genesis_address"}, _, []},
+         acc = {:ok, %{scope: :condition}}
+       ) do
+    {node, acc}
+  end
+
+  # Whitelist the get_genesis_public_key/0 function in condition
+  defp prewalk(
+         node = {{:atom, "get_genesis_public_key"}, _, []},
          acc = {:ok, %{scope: :condition}}
        ) do
     {node, acc}
