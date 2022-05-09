@@ -353,7 +353,7 @@ defmodule Archethic.Bootstrap.SyncTest do
   end
 
   test "publish_end_of_sync/0 should notify the network the node have finished its synchronization" do
-    BeaconSlotTimer.start_link(interval: "0 * * * * *")
+    BeaconSlotTimer.start_link([interval: "0 * * * * *"], [])
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

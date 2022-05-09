@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ master, develop, testnet ]
 
+env:
+  MIX_ENV: test
+
 jobs:
   build:
 
@@ -24,7 +27,8 @@ jobs:
         elixir-version: '1.12.3' # Define the elixir version [required]
         otp-version: '24.1' # Define the OTP version [required]
     - name: Restore dependencies cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
+      id: mix-cache
       with:
         path: deps
         key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
@@ -32,14 +36,33 @@ jobs:
     - name: Make Clean
       run: mix clean
     - name: Install dependencies
+      if: steps.mix-cache.outputs.cache-hit != 'true'
       run: mix deps.get
     - name: Set Formatting
       run: mix format --check-formatted
+    - name: Restore build cache
+      uses: actions/cache@v3
+      with:
+        path: _build
+        key: ${{ runner.os }}-build-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-build-
     - name: Compile the codebase
       run: mix compile --warnings-as-errors
     - name: Set credo
       run: mix credo 
     - name: Run tests
       run: mix test --trace
-    - name: Run Dialyzer
-      run: mix dialyzer
+    - name: Retrieve PLT Cache
+      uses: actions/cache@v3
+      id: plt-cache
+      with:
+        path: priv/plts
+        key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-plts-
+    - name: Create PLTs
+      if: steps.plt-cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p priv/plts
+        mix dialyzer --plt
+    - name: Run dialyzer
+      run: mix dialyzer --no-check

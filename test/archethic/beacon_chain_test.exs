@@ -59,7 +59,7 @@ defmodule Archethic.BeaconChainTest do
 
   describe "load_transaction/1 for beacon transaction" do
     test "should fetch the transaction chain from the beacon involved nodes" do
-      SummaryTimer.start_link(interval: "0 0 * * * *")
+      SummaryTimer.start_link([interval: "0 0 * * * *"], [])
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},

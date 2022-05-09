@@ -39,6 +39,9 @@ erl_crash.dump
 # Self signed cert are used for local and dev purposes
 /priv/cert
 
+# Dialyzer
+/priv/plts
+
 /assets/node_modules
 
 log_*
