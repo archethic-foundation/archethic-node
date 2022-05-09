@@ -262,9 +262,15 @@ defmodule Archethic.Bootstrap.SyncTest do
       node_tx =
         Transaction.new(:node, %TransactionData{
           content:
-            <<127, 0, 0, 1, 3000::16, 4000::16, 1, 0::8, 0::8,
-              :crypto.strong_rand_bytes(32)::binary, 64::16,
-              :crypto.strong_rand_bytes(64)::binary>>
+            Node.encode_transaction_content(
+              {127, 0, 0, 1},
+              3000,
+              4000,
+              :tcp,
+              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              :crypto.strong_rand_bytes(64)
+            )
         })
 
       :ok = Sync.initialize_network(node_tx)

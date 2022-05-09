@@ -62,6 +62,8 @@ defmodule Archethic.Networking.Scheduler do
 
     if ip != prev_ip do
       key_certificate = Crypto.get_key_certificate(Crypto.previous_node_public_key())
+      # TODO: provide the helper to retrieve the origin public key
+      origin_public_key = <<>>
 
       Transaction.new(:node, %TransactionData{
         content:
@@ -71,6 +73,7 @@ defmodule Archethic.Networking.Scheduler do
             web_port,
             transport,
             reward_address,
+            origin_public_key,
             key_certificate
           )
       })

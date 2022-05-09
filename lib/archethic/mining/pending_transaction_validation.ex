@@ -124,7 +124,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with {:ok, ip, port, _http_port, _, _, key_certificate} <-
+    with {:ok, ip, port, _http_port, _, _, _origin_public_key, key_certificate} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,

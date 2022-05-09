@@ -33,7 +33,8 @@ defmodule Archethic.P2P.Node do
     availability_history: <<1::1>>,
     authorized?: false,
     authorization_date: nil,
-    transport: :tcp
+    transport: :tcp,
+    origin_public_key: nil
   ]
 
   @doc """
@@ -48,6 +49,8 @@ defmodule Archethic.P2P.Node do
       ...>  1,
       ...>  0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>  89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
+      ...>  0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      ...>  210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169,
       ...>  0, 64,
       ...>  63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
@@ -61,6 +64,8 @@ defmodule Archethic.P2P.Node do
         :tcp,
         <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
           89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
+        <<0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+          210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169>>,
         <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
          175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
          132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
@@ -68,18 +73,23 @@ defmodule Archethic.P2P.Node do
       }
   """
   @spec decode_transaction_content(binary()) ::
-          {:ok, :inet.ip_address(), :inet.port_number(), :inet.port_number(),
-           P2P.supported_transport(), reward_address :: binary(), key_certificate :: binary()}
+          {:ok, ip_address :: :inet.ip_address(), p2p_port :: :inet.port_number(),
+           http_port :: :inet.port_number(), P2P.supported_transport(),
+           reward_address :: binary(), origin_public_key :: Crypto.key(),
+           key_certificate :: binary()}
           | :error
   def decode_transaction_content(
         <<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>
       ) do
+    IO.inspect(rest)
+
     with <<ip0, ip1, ip2, ip3>> <- ip,
          {reward_address, rest} <- Utils.deserialize_address(rest),
+         {origin_public_key, rest} <- Utils.deserialize_public_key(rest),
          <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
            _::binary>> <- rest do
       {:ok, {ip0, ip1, ip2, ip3}, port, http_port, deserialize_transport(transport),
-       reward_address, key_certificate}
+       reward_address, origin_public_key, key_certificate}
     else
       _ ->
         :error
@@ -100,6 +110,8 @@ defmodule Archethic.P2P.Node do
       ...> :tcp,
       ...> <<0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       ...>   89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182>>,
+      ...> <<0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      ...>  210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169>>,
       ...> <<63, 40, 158, 160, 56, 156, 206, 193, 107, 50, 250, 244, 6, 212, 171, 158, 240,
       ...>  175, 162, 2, 55, 86, 26, 215, 44, 61, 198, 143, 141, 22, 122, 16, 89, 155, 28,
       ...>  132, 231, 22, 143, 53, 126, 102, 148, 210, 88, 103, 216, 37, 175, 164, 87, 10,
@@ -117,6 +129,9 @@ defmodule Archethic.P2P.Node do
       # Reward address
       0, 0, 173, 179, 246, 126, 247, 223, 20, 86, 201, 55, 190, 29, 59, 212, 196, 36,
       89, 178, 185, 211, 23, 68, 30, 22, 75, 39, 197, 8, 186, 167, 123, 182,
+      # Origin public key
+      0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169,
       # Certificate size
       0, 64,
       # Certificate
@@ -131,8 +146,9 @@ defmodule Archethic.P2P.Node do
           :inet.port_number(),
           :inet.port_number(),
           P2P.supported_transport(),
-          binary(),
-          binary()
+          reward_address :: binary(),
+          origin_public_key :: Crypto.key(),
+          origin_key_certificate :: binary()
         ) :: binary()
   def encode_transaction_content(
         {ip1, ip2, ip3, ip4},
@@ -140,10 +156,12 @@ defmodule Archethic.P2P.Node do
         http_port,
         transport,
         reward_address,
+        origin_public_key,
         key_certificate
       ) do
     <<ip1, ip2, ip3, ip4, port::16, http_port::16, serialize_transport(transport)::8,
-      reward_address::binary, byte_size(key_certificate)::16, key_certificate::binary>>
+      reward_address::binary, origin_public_key::binary, byte_size(key_certificate)::16,
+      key_certificate::binary>>
   end
 
   @type t() :: %__MODULE__{
@@ -172,7 +190,7 @@ defmodule Archethic.P2P.Node do
   def cast(
         {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
          average_availability, availability_history, enrollment_date, transport, reward_address,
-         last_address}
+         last_address, origin_public_key}
       ) do
     %__MODULE__{
       ip: ip,
@@ -187,7 +205,8 @@ defmodule Archethic.P2P.Node do
       enrollment_date: enrollment_date,
       transport: transport,
       reward_address: reward_address,
-      last_address: last_address
+      last_address: last_address,
+      origin_public_key: origin_public_key
     }
   end
 
@@ -331,7 +350,9 @@ defmodule Archethic.P2P.Node do
       ...>   reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>    87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
       ...>   last_address: <<0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>    88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+      ...>    88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key: <<0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      ...>     210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169>>
       ...> })
       <<
       # IP address
@@ -367,7 +388,10 @@ defmodule Archethic.P2P.Node do
       87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
       # Last address
       0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
+      88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112,
+      # Origin public key
+      0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169
       >>
   """
   @spec serialize(__MODULE__.t()) :: bitstring()
@@ -386,7 +410,8 @@ defmodule Archethic.P2P.Node do
         authorized?: authorized?,
         authorization_date: authorization_date,
         reward_address: reward_address,
-        last_address: last_address
+        last_address: last_address,
+        origin_public_key: origin_public_key
       }) do
     ip_bin = <<o1, o2, o3, o4>>
     available_bin = if available?, do: 1, else: 0
@@ -401,7 +426,7 @@ defmodule Archethic.P2P.Node do
       geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
       DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
-      reward_address::binary, last_address::binary>>
+      reward_address::binary, last_address::binary, origin_public_key::binary>>
   end
 
   defp serialize_transport(MockTransport), do: 0
@@ -423,7 +448,9 @@ defmodule Archethic.P2P.Node do
       ...> 0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...> 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164,
       ...> 0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...> 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112
+      ...> 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112,
+      ...> 0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+      ...> 210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169
       ...> >>)
       {
         %Node{
@@ -445,7 +472,9 @@ defmodule Archethic.P2P.Node do
             reward_address: <<0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
               87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
             last_address: <<0, 0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-              88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+              88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+            origin_public_key: <<0, 0, 130, 83, 96, 217, 99, 234, 242, 235, 175, 236, 109, 166, 95, 250, 255, 90,
+              210, 227, 150, 117, 26, 64, 143, 55, 199, 95, 222, 35, 137, 221, 196, 169>>
         },
         ""
       }
@@ -468,6 +497,7 @@ defmodule Archethic.P2P.Node do
     {last_public_key, rest} = Utils.deserialize_public_key(rest)
     {reward_address, rest} = Utils.deserialize_address(rest)
     {last_address, rest} = Utils.deserialize_address(rest)
+    {origin_public_key, rest} = Utils.deserialize_public_key(rest)
 
     {
       %__MODULE__{
@@ -485,7 +515,8 @@ defmodule Archethic.P2P.Node do
         first_public_key: first_public_key,
         last_public_key: last_public_key,
         reward_address: reward_address,
-        last_address: last_address
+        last_address: last_address,
+        origin_public_key: origin_public_key
       },
       rest
     }

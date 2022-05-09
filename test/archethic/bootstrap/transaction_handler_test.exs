@@ -22,8 +22,9 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
     assert %Transaction{
              data: %TransactionData{
                content:
-                 <<127, 0, 0, 1, 3000::16, 4000::16, 1, _::binary-size(33), cert_size::16,
-                   _::binary-size(cert_size)>>
+                 <<127, 0, 0, 1, 3000::16, 4000::16, 1, _reward_address::binary-size(34),
+                   _origin_public_key::binary-size(34), cert_size::16,
+                   _cert::binary-size(cert_size)>>
              }
            } =
              TransactionHandler.create_node_transaction(
@@ -31,7 +32,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
                3000,
                4000,
                :tcp,
-               <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+               <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
              )
   end
 

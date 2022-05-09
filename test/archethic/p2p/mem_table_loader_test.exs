@@ -144,7 +144,8 @@ defmodule Archethic.P2P.MemTableLoaderTest do
         content:
           <<127, 0, 0, 1, 3003::16, 4000::16, 1, 0, 0, 163, 237, 233, 93, 14, 241, 241, 8, 144,
             218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35,
-            209, 142, 24, 164, 64::16, :crypto.strong_rand_bytes(64)::binary>>
+            209, 142, 24, 164, <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>, 64::16,
+            :crypto.strong_rand_bytes(64)::binary>>
       },
       previous_public_key: @node_1_public_key,
       validation_stamp: %ValidationStamp{

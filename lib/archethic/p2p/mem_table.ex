@@ -16,6 +16,23 @@ defmodule Archethic.P2P.MemTable do
 
   require Logger
 
+  @discovery_index_position [
+    first_public_key: 1,
+    last_public_key: 2,
+    ip: 3,
+    port: 4,
+    http_port: 5,
+    geo_patch: 6,
+    network_patch: 7,
+    average_availability: 8,
+    availability_history: 9,
+    enrollment_date: 10,
+    transport: 11,
+    reward_address: 12,
+    last_address: 13,
+    origin_public_key: 14
+  ]
+
   @doc """
   Initialize the memory tables for the P2P view
   """
@@ -61,7 +78,9 @@ defmodule Archethic.P2P.MemTable do
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
       ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       ...> }
       iex> :ok = MemTable.add_node(node)
       iex> {
@@ -77,7 +96,9 @@ defmodule Archethic.P2P.MemTable do
           <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
             87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-            88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+            88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+          <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
         }],
         # Globally available nodes
         [{ "key1" }],
@@ -108,7 +129,9 @@ defmodule Archethic.P2P.MemTable do
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
       ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       ...> }
       iex> :ok = MemTable.add_node(node)
       iex> :ok = MemTable.add_node(%Node{
@@ -123,7 +146,9 @@ defmodule Archethic.P2P.MemTable do
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
       ...>   last_address: <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
-      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+      ...>     88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+      ...>   origin_public_key: <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+      ...>    185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       ...>  })
       iex> :ets.lookup(:archethic_node_discovery, "key1")
       [{
@@ -139,7 +164,9 @@ defmodule Archethic.P2P.MemTable do
         ~U[2020-10-22 23:19:45.797109Z],
         :sctp,
         <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
-        <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>
+        <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
+        <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
+          185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
       }]
   """
   @spec add_node(Node.t()) :: :ok
@@ -195,13 +222,14 @@ defmodule Archethic.P2P.MemTable do
          availability_history: availability_history,
          transport: transport,
          reward_address: reward_address,
-         last_address: last_address
+         last_address: last_address,
+         origin_public_key: origin_public_key
        }) do
     :ets.insert(
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
        average_availability, availability_history, enrollment_date, transport, reward_address,
-       last_address}
+       last_address, origin_public_key}
     )
   end
 
@@ -218,37 +246,62 @@ defmodule Archethic.P2P.MemTable do
          enrollment_date: enrollment_date,
          transport: transport,
          reward_address: reward_address,
-         last_address: last_address
+         last_address: last_address,
+         origin_public_key: origin_public_key
        }) do
-    :ets.update_element(@discovery_table, first_public_key, [
-      {2, last_public_key},
-      {3, ip},
-      {4, port},
-      {5, http_port},
-      {11, transport},
-      {12, reward_address},
-      {13, last_address}
-    ])
+    changes = [
+      {Keyword.fetch!(@discovery_index_position, :last_public_key), last_public_key},
+      {Keyword.fetch!(@discovery_index_position, :ip), ip},
+      {Keyword.fetch!(@discovery_index_position, :port), port},
+      {Keyword.fetch!(@discovery_index_position, :http_port), http_port},
+      {Keyword.fetch!(@discovery_index_position, :transport), transport},
+      {Keyword.fetch!(@discovery_index_position, :reward_address), reward_address},
+      {Keyword.fetch!(@discovery_index_position, :last_address), last_address},
+      {Keyword.fetch!(@discovery_index_position, :origin_public_key), origin_public_key}
+    ]
 
-    if geo_patch != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{6, geo_patch}])
-    end
+    changes =
+      if geo_patch != nil do
+        [{Keyword.fetch!(@discovery_index_position, :geo_patch), geo_patch} | changes]
+      else
+        changes
+      end
 
-    if network_patch != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{7, network_patch}])
-    end
+    changes =
+      if network_patch != nil do
+        [{Keyword.fetch!(@discovery_index_position, :network_patch), network_patch} | changes]
+      else
+        changes
+      end
 
-    if average_availability != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{8, average_availability}])
-    end
+    changes =
+      if average_availability != nil do
+        [
+          {Keyword.fetch!(@discovery_index_position, :average_availability), average_availability}
+          | changes
+        ]
+      else
+        changes
+      end
 
-    if availability_history != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{9, availability_history}])
-    end
+    changes =
+      if availability_history != nil do
+        [
+          {Keyword.fetch!(@discovery_index_position, :availability_history), availability_history}
+          | changes
+        ]
+      else
+        changes
+      end
 
-    if enrollment_date != nil do
-      :ets.update_element(@discovery_table, first_public_key, [{10, enrollment_date}])
-    end
+    changes =
+      if enrollment_date != nil do
+        [{Keyword.fetch!(@discovery_index_position, :enrollment_date), enrollment_date} | changes]
+      else
+        changes
+      end
+
+    :ets.update_element(@discovery_table, first_public_key, changes)
   end
 
   defp index_node_public_keys(first_public_key, last_public_key) do
