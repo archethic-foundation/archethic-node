@@ -36,6 +36,11 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   @impl NodeKeystore
+  def sign_with_origin_key(data) do
+    GenServer.call(__MODULE__, {:sign_with_origin_key, data})
+  end
+
+  @impl NodeKeystore
   def last_public_key do
     GenServer.call(__MODULE__, :last_public_key)
   end
@@ -53,6 +58,11 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   @impl NodeKeystore
   def next_public_key do
     GenServer.call(__MODULE__, :next_public_key)
+  end
+
+  @impl NodeKeystore
+  def origin_public_key do
+    GenServer.call(__MODULE__, :origin_public_key)
   end
 
   @impl NodeKeystore
@@ -107,6 +117,7 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
        previous_keypair: previous_keypair,
        last_keypair: last_keypair,
        next_keypair: next_keypair,
+       origin_keypair: Crypto.generate_deterministic_keypair(:crypto.strong_rand_bytes(32)),
        index: nb_keys,
        seed: seed
      }}
@@ -133,6 +144,10 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
     {:reply, Crypto.sign(data, pv), state}
   end
 
+  def handle_call({:sign_with_origin_key, data}, _, state = %{origin_keypair: {_, pv}}) do
+    {:reply, Crypto.sign(data, pv), state}
+  end
+
   def handle_call(:first_public_key, _, state = %{first_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
@@ -146,6 +161,10 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
   end
 
   def handle_call(:next_public_key, _, state = %{next_keypair: {pub, _}}) do
+    {:reply, pub, state}
+  end
+
+  def handle_call(:origin_public_key, _, state = %{origin_keypair: {pub, _}}) do
     {:reply, pub, state}
   end
 

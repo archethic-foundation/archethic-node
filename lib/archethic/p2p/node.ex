@@ -81,8 +81,6 @@ defmodule Archethic.P2P.Node do
   def decode_transaction_content(
         <<ip::binary-size(4), port::16, http_port::16, transport::8, rest::binary>>
       ) do
-    IO.inspect(rest)
-
     with <<ip0, ip1, ip2, ip3>> <- ip,
          {reward_address, rest} <- Utils.deserialize_address(rest),
          {origin_public_key, rest} <- Utils.deserialize_public_key(rest),

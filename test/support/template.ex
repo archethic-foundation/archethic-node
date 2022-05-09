@@ -107,6 +107,10 @@ defmodule ArchethicCase do
       {_, pv} = Crypto.generate_deterministic_keypair("daily_nonce_seed")
       Crypto.sign(data, pv)
     end)
+    |> stub(:sign_with_origin_key, fn data ->
+      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      ECDSA.sign(:secp256r1, pv, data)
+    end)
     |> stub(:last_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
@@ -116,6 +120,10 @@ defmodule ArchethicCase do
       pub
     end)
     |> stub(:previous_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:origin_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)

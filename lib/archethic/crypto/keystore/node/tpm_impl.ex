@@ -46,6 +46,13 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
   end
 
   @impl NodeKeystore
+  @spec sign_with_origin_key(data :: iodata()) :: binary()
+  def sign_with_origin_key(data) do
+    [{_, port_handler}] = :ets.lookup(@table_name, :port)
+    sign(port_handler, 0, data)
+  end
+
+  @impl NodeKeystore
   @spec last_public_key() :: Crypto.key()
   def last_public_key do
     [{_, public_key}] = :ets.lookup(@table_name, :last_public_key)
@@ -71,6 +78,12 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
   def next_public_key do
     [{_, public_key}] = :ets.lookup(@table_name, :next_public_key)
     public_key
+  end
+
+  @impl NodeKeystore
+  @spec origin_public_key() :: Crypto.key()
+  def origin_public_key do
+    first_public_key()
   end
 
   @impl NodeKeystore
