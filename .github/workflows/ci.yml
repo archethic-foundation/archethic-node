@@ -51,7 +51,7 @@ jobs:
       id: plt-cache
       with:
         path: priv/plts
-        key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock')) }}
+        key: ${{ runner.os }}-plts-${{ hashFiles('**/mix.lock') }}
 
     - name: Create PLTs
       if: steps.plt-cache.outputs.cache-hit != 'true'
