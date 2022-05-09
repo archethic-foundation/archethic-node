@@ -21,14 +21,14 @@ defmodule Archethic.OracleChain.SchedulerTest do
   import Mox
 
   setup do
-    SelfRepairScheduler.start_link(interval: "0 0 * * *")
+    SelfRepairScheduler.start_link([interval: "0 0 * * *"], [])
     :ok
   end
 
   describe "start_link/1" do
     test "should start the process with idle state and initialize the polling date" do
       {:ok, pid} =
-        Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 0 * *")
+        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
       polling_date =
         "0 * * * *"
@@ -81,7 +81,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
     test "if not trigger node, it should skip the polling" do
       {:ok, pid} =
-        Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 0 * *")
+        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -100,7 +100,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
     test "if trigger node, it should fetch new data and create a new transaction" do
       {:ok, pid} =
-        Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 0 * *")
+        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -147,7 +147,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
     test "should not send a new transaction when the fetched data is the same" do
       {:ok, pid} =
-        Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 0 * *")
+        Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -186,7 +186,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
     test "if the date is the summary date, it should generate summary transaction, followed by an polling oracle transaction" do
       {:ok, pid} =
-        Scheduler.start_link(polling_interval: "0 0 0 * *", summary_interval: "0 0 0 * *")
+        Scheduler.start_link([polling_interval: "0 0 0 * *", summary_interval: "0 0 0 * *"], [])
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -277,7 +277,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
   property "dates and address stay in sync over pollings" do
     {:ok, pid} =
-      Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 0 * *")
+      Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 0 * *"], [])
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -349,7 +349,7 @@ defmodule Archethic.OracleChain.SchedulerTest do
 
   property "dates and address are in sync over the summaries" do
     {:ok, pid} =
-      Scheduler.start_link(polling_interval: "0 * * * *", summary_interval: "0 0 * * *")
+      Scheduler.start_link([polling_interval: "0 * * * *", summary_interval: "0 0 * * *"], [])
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

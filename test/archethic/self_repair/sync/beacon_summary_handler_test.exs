@@ -49,7 +49,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandlerTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    Archethic.SelfRepair.Scheduler.start_link(interval: "0 0 0 * * *")
+    Archethic.SelfRepair.Scheduler.start_link([interval: "0 0 0 * * *"], [])
 
     :ok
   end
