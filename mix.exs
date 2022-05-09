@@ -16,7 +16,7 @@ defmodule Archethic.MixProject do
       compilers: [:elixir_make, :phoenix] ++ Mix.compilers(),
       elixirc_paths: elixirc_paths(Mix.env()),
       elixirc_options: [warnings_as_errors: true],
-      dialyzer: [plt_add_apps: [:mix]]
+      dialyzer: dialyzer()
     ]
   end
 
@@ -30,6 +30,15 @@ defmodule Archethic.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  # Specify dialyzer path
+  defp dialyzer do
+    [
+      plt_add_apps: [:mix, :ex_unit],
+      plt_core_path: "priv/plts",
+      plt_file: {:no_warn, "priv/plts/dialyzer.plt"}
+    ]
+  end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
