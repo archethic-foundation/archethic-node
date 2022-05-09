@@ -88,9 +88,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           Transaction.t()
   def create_node_transaction(ip = {_, _, _, _}, port, http_port, transport, reward_address)
       when is_number(port) and port >= 0 and is_binary(reward_address) do
-    # TODO: provide helper to get the origin public key
-    origin_public_key_certificate = Crypto.get_key_certificate(Crypto.last_node_public_key())
-    origin_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    origin_public_key = Crypto.get_origin_node_public_key()
+    origin_public_key_certificate = Crypto.get_key_certificate(origin_public_key)
 
     Transaction.new(:node, %TransactionData{
       content:
