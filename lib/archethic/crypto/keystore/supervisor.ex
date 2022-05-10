@@ -3,7 +3,7 @@ defmodule Archethic.Crypto.KeystoreSupervisor do
 
   use Supervisor
 
-  alias Archethic.Crypto.NodeKeystore
+  alias Archethic.Crypto.NodeKeystore.Supervisor, as: NodeKeystoreSupervisor
   alias Archethic.Crypto.SharedSecretsKeystore
 
   alias Archethic.Utils
@@ -13,11 +13,8 @@ defmodule Archethic.Crypto.KeystoreSupervisor do
   end
 
   def init(_) do
-    node_keystore_impl = Application.get_env(:archethic, NodeKeystore)
-    node_keystore_conf = Application.get_env(:archethic, node_keystore_impl)
-
     children = [
-      {NodeKeystore, node_keystore_conf},
+      NodeKeystoreSupervisor,
       SharedSecretsKeystore
     ]
 

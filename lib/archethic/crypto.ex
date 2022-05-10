@@ -1082,8 +1082,8 @@ defmodule Archethic.Crypto do
   @doc """
   Return an origin public key from the node keystore
   """
-  @spec get_origin_node_public_key() :: key()
-  defdelegate get_origin_node_public_key, to: NodeKeystore, as: :origin_public_key
+  @spec origin_node_public_key() :: key()
+  defdelegate origin_node_public_key, to: NodeKeystore, as: :origin_public_key
 
   @spec get_key_certificate(key()) :: binary()
   def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do

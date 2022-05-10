@@ -4,6 +4,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
   alias Archethic.Bootstrap.NetworkInit
   alias Archethic.Crypto
 
+  alias Archethic.P2P.Node
+
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
   alias Archethic.SharedSecrets.MemTablesLoader
@@ -31,16 +33,28 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
                                   |> elem(0)
 
   describe "load_transaction/1" do
-    test "should load node transaction and first node public key as origin key" do
-      first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    test "should load node transaction and extract origin public key from the tx's content" do
+      origin_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
-      MockDB
-      |> expect(:get_first_public_key, fn _ -> first_public_key end)
+      tx = %Transaction{
+        type: :node,
+        data: %TransactionData{
+          content:
+            Node.encode_transaction_content(
+              {127, 0, 0, 1},
+              3000,
+              4000,
+              :tcp,
+              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              origin_public_key,
+              :crypto.strong_rand_bytes(64)
+            )
+        }
+      }
 
-      tx = %Transaction{previous_public_key: first_public_key, type: :node}
       assert :ok = MemTablesLoader.load_transaction(tx)
 
-      expected_keys = [first_public_key] ++ @origin_genesis_public_keys
+      expected_keys = [origin_public_key] ++ @origin_genesis_public_keys
       assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
     end
 
@@ -138,10 +152,20 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
       }
 
       node_tx = %Transaction{
-        previous_public_key:
-          <<0, 0, 174, 5, 254, 137, 242, 45, 117, 124, 241, 11, 154, 120, 62, 254, 137, 49, 24,
-            186, 216, 182, 81, 64, 93, 92, 48, 231, 23, 124, 127, 140, 103, 105>>,
-        type: :node
+        type: :node,
+        data: %TransactionData{
+          content:
+            Node.encode_transaction_content(
+              {127, 0, 0, 1},
+              3000,
+              4000,
+              :tcp,
+              <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+              <<0, 0, 174, 5, 254, 137, 242, 45, 117, 124, 241, 11, 154, 120, 62, 254, 137, 49,
+                24, 186, 216, 182, 81, 64, 93, 92, 48, 231, 23, 124, 127, 140, 103, 105>>,
+              :crypto.strong_rand_bytes(32)
+            )
+        }
       }
 
       node_shared_secrets_tx = %Transaction{
@@ -168,10 +192,6 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
 
         :node_shared_secrets, _ ->
           [node_shared_secrets_tx]
-      end)
-      |> expect(:get_first_public_key, fn _ ->
-        <<0, 0, 174, 5, 254, 137, 242, 45, 117, 124, 241, 11, 154, 120, 62, 254, 137, 49, 24, 186,
-          216, 182, 81, 64, 93, 92, 48, 231, 23, 124, 127, 140, 103, 105>>
       end)
 
       assert {:ok, _} = MemTablesLoader.start_link()

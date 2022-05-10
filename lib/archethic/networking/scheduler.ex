@@ -61,7 +61,7 @@ defmodule Archethic.Networking.Scheduler do
     %Node{ip: prev_ip, reward_address: reward_address, transport: transport} = P2P.get_node_info()
 
     if ip != prev_ip do
-      origin_public_key = Crypto.get_origin_node_public_key()
+      origin_public_key = Crypto.origin_node_public_key()
       key_certificate = Crypto.get_key_certificate(origin_public_key)
 
       Transaction.new(:node, %TransactionData{

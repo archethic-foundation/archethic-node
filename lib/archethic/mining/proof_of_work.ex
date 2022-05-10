@@ -15,7 +15,6 @@ defmodule Archethic.Mining.ProofOfWork do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P
   alias Archethic.P2P.Node
 
   alias Archethic.SharedSecrets
@@ -144,11 +143,7 @@ defmodule Archethic.Mining.ProofOfWork do
     [origin_public_key]
   end
 
-  defp do_list_origin_public_keys_candidates(%Transaction{type: type}) do
-    if Transaction.network_type?(type) do
-      Enum.map(P2P.list_nodes(), & &1.origin_public_key)
-    else
-      SharedSecrets.list_origin_public_keys()
-    end
+  defp do_list_origin_public_keys_candidates(%Transaction{}) do
+    SharedSecrets.list_origin_public_keys()
   end
 end

@@ -1,13 +1,13 @@
-defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
+defmodule Archethic.Crypto.NodeKeystore.Origin.TPMImpl do
   @moduledoc false
 
   alias Archethic.Crypto
   alias Archethic.Crypto.ID
-  alias Archethic.Crypto.NodeKeystore
+  alias Archethic.Crypto.NodeKeystore.Origin
 
   alias Archethic.Utils.PortHandler
 
-  @behaviour NodeKeystore
+  @behaviour Origin
 
   require Logger
 
@@ -17,13 +17,13 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
-  @impl NodeKeystore
+  @impl Origin
   @spec sign_with_origin_key(data :: iodata()) :: binary()
   def sign_with_origin_key(data) do
     GenServer.call(__MODULE__, {:sign_with_origin_key, data})
   end
 
-  @impl NodeKeystore
+  @impl Origin
   @spec origin_public_key() :: Crypto.key()
   def origin_public_key do
     GenServer.call(__MODULE__, :origin_public_key)
@@ -43,19 +43,20 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
 
   @impl GenServer
   def handle_call(:origin_public_key, from, state = %{port_handler: port_handler}) do
-    t = Task.async(fn -> request_public_key(port_handler, 0) end)
-    {:noreply, Map.update!(state, :async_tasks, &Map.put(&1, t, from))}
+    %Task{ref: ref} = Task.async(fn -> request_public_key(port_handler, 0) end)
+    {:noreply, Map.update!(state, :async_tasks, &Map.put(&1, ref, from))}
   end
 
   def handle_call({:sign_with_origin_key, data}, from, state = %{port_handler: port_handler}) do
-    t = Task.async(fn -> sign(port_handler, 0, data) end)
-    {:noreply, Map.update!(state, :async_tasks, &Map.put(&1, t, from))}
+    %Task{ref: ref} = Task.async(fn -> sign(port_handler, 0, data) end)
+    {:noreply, Map.update!(state, :async_tasks, &Map.put(&1, ref, from))}
   end
 
   @impl GenServer
   def handle_info({ref, result}, state = %{async_tasks: async_tasks}) do
     case Map.pop(async_tasks, ref) do
       {nil, async_tasks} ->
+        Logger.warning("Async task not found for the TPM impl")
         {:noreply, %{state | async_tasks: async_tasks}}
 
       {from, async_tasks} ->
@@ -84,10 +85,6 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
     ID.prepend_key(public_key, :secp256r1, :tpm)
   end
 
-  defp set_index(port_handler, index) do
-    :ok = PortHandler.request(port_handler, 5, <<index::16>>)
-  end
-
   defp sign(port_handler, index, data) do
     hash = :crypto.hash(:sha256, data)
     start = System.monotonic_time()
@@ -101,6 +98,7 @@ defmodule Archethic.Crypto.NodeKeystore.TPMImpl do
   end
 
   defp initialize_tpm(port_handler) do
-    set_index(port_handler, 0)
+    # Set TPM root key and key index at 0th
+    PortHandler.request(port_handler, 1, <<0::16>>)
   end
 end

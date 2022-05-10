@@ -5,6 +5,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
   alias Archethic.Crypto
 
+  alias Archethic.P2P.Node
+
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
   alias Archethic.SharedSecrets.MemTables.OriginKeyLookup
   alias Archethic.SharedSecrets.NodeRenewal
@@ -28,7 +30,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
       data: [:content]
     ])
     |> Stream.concat(
-      TransactionChain.list_transactions_by_type(:node, [:address, :type, :previous_public_key])
+      TransactionChain.list_transactions_by_type(:node, [:address, :type, data: [:content]])
     )
     |> Stream.concat(
       TransactionChain.list_transactions_by_type(:node_shared_secrets, [
@@ -51,32 +53,33 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   def load_transaction(%Transaction{
         address: address,
         type: :node,
-        previous_public_key: previous_public_key
+        data: %TransactionData{
+          content: content
+        }
       }) do
-    first_public_key = TransactionChain.get_first_public_key(previous_public_key)
+    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key, _cert} =
+      Node.decode_transaction_content(content)
 
-    unless OriginKeyLookup.has_public_key?(first_public_key) do
-      <<_::8, origin_id::8, _::binary>> = previous_public_key
+    <<_::8, origin_id::8, _::binary>> = origin_public_key
 
-      family =
-        case Crypto.key_origin(origin_id) do
-          :software ->
-            :software
+    family =
+      case Crypto.key_origin(origin_id) do
+        :software ->
+          :software
 
-          :tpm ->
-            :hardware
+        :tpm ->
+          :hardware
 
-          :on_chain_wallet ->
-            :software
-        end
+        :on_chain_wallet ->
+          :software
+      end
 
-      :ok = OriginKeyLookup.add_public_key(family, previous_public_key)
+    :ok = OriginKeyLookup.add_public_key(family, origin_public_key)
 
-      Logger.info("Load origin public key #{Base.encode16(previous_public_key)} - #{family}",
-        transaction_address: Base.encode16(address),
-        transaction_type: :node
-      )
-    end
+    Logger.info("Load origin public key #{Base.encode16(origin_public_key)} - #{family}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :node
+    )
 
     :ok
   end
