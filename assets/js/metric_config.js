@@ -1,8 +1,4 @@
 import * as echarts from 'echarts';
-const defaultTheme = require('./defaultTheme.json');
-const darkTheme = require('./darkTheme.json');
-
-console.log(defaultTheme, darkTheme);
 
 //adds 0 to the metrics value, to avoid charts going blank
 function structure_metric_points(latest_points) {
@@ -39,7 +35,7 @@ function structure_metric_points(latest_points) {
   return points_default_value;
 }
 
-function get_visuals_dom(theme) {
+function get_visuals_dom() {
   var metric_object, x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   return metric_object = {
@@ -48,17 +44,17 @@ function get_visuals_dom(theme) {
     x_axis_data: x_axis_data,
 
     archethic_mining_proof_of_work_duration: generateEchartObjects(
-      'PoW Duration(ms)', 'archethic_mining_proof_of_work_duration', x_axis_data, theme),
+      'PoW Duration(ms)', 'archethic_mining_proof_of_work_duration', x_axis_data),
 
     archethic_mining_full_transaction_validation_duration: generateEchartObjects(
       'Transaction Validation Duration(ms)',
-      'archethic_mining_full_transaction_validation_duration', x_axis_data, theme),
+      'archethic_mining_full_transaction_validation_duration', x_axis_data),
 
-    tps: generate_echart_guage("Transactions Per Second(tps)", 'tps', theme),
+    tps: generate_echart_guage("Transactions Per Second(tps)", 'tps'),
 
     archethic_p2p_send_message_duration: generate_echart_guage(
       "P2P Message duration(ms) (Supervised Multicast)",
-      'archethic_p2p_send_message_duration', theme),
+      'archethic_p2p_send_message_duration'),
   };
 }
 
@@ -66,81 +62,23 @@ function get_visuals_dom(theme) {
 function line_graph_default_theme(heading, x_axis_data, y_axis_data) {
 
   return {
-    grid: {
-      left: '10%',
-      right: '5%',
-      bottom: '5%',
-      top: "15%"
-    },
-    title: {
-      left: 'center',
-      text: ` ${heading}`,
-      textStyle: {
-        color: '#000000',
-        fontSize: 16,
-        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
-      }
-    },
-    // backgroundColor: "#FFFFFF",
-    xAxis: {
-      type: 'category',
-      // boundaryGap: false,
-      data: x_axis_data,
-      show: false,
-      splitLine: {
-        show: true,
-        lineStyle: { color: "lightgrey", width: 0.5 }
-      }
-    },
-    yAxis: {
-      boundaryGap: [0, '50%'],
-      type: 'value',
-      axisLabel: {
-        formatter: '{value}',
-        textStyle: {
-          color: '#000000',
-          fontSize: 16,
-          fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
-        }
-      },
-      splitLine: {
-        show: true,
-        lineStyle: { color: "lightgrey", width: 0.5 }
-      },
-    },
-    series: [{
-      type: 'line',
-      symbol: 'none',
-      triggerLineEvent: false,
-      itemStyle: {
-        color: 'rgb(0, 164, 219,1)'
-      },
-      silent: true,
-      data: y_axis_data,
-    }]
-  };
-}
-
-//echarts line_graph dark theme  
-function line_graph_dark_theme(heading, x_axis_data, y_axis_data) {
-
-  return {
-    grid: {
-      left: '10%',
-      right: '5%',
-      bottom: '5%',
-      top: "15%"
-    },
-    title: {
-      left: 'center',
-      text: ` ${heading}`,
-      textStyle: {
-        color: '#000000',
-        fontSize: 16,
-        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
-      }
-    },
+    //enforce default theme in theme echart(dom, "dark")
     backgroundColor: "#FFFFFF",
+    grid: {
+      left: '10%',
+      right: '5%',
+      bottom: '5%',
+      top: "15%"
+    },
+    title: {
+      left: 'center',
+      text: ` ${heading}`,
+      textStyle: {
+        color: '#000000',
+        fontSize: 16,
+        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
+      }
+    },
     xAxis: {
       type: 'category',
       // boundaryGap: false,
@@ -166,7 +104,6 @@ function line_graph_dark_theme(heading, x_axis_data, y_axis_data) {
         show: true,
         lineStyle: { color: "lightgrey", width: 0.5 }
       },
-
     },
     series: [{
       type: 'line',
@@ -181,9 +118,9 @@ function line_graph_dark_theme(heading, x_axis_data, y_axis_data) {
   };
 }
 
-function generateEchartObjects(heading, echartContainer, x_axis_data, theme) {
+function generateEchartObjects(heading, echartContainer, x_axis_data) {
   var y_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  var chart = echarts.init(document.getElementById(echartContainer), defaultTheme);
+  var chart = echarts.init(document.getElementById(echartContainer), "dark");
 
   var option = line_graph_default_theme(heading, x_axis_data, y_axis_data);
 
@@ -195,33 +132,98 @@ function generateEchartObjects(heading, echartContainer, x_axis_data, theme) {
   return { chart: chart, ydata: y_axis_data };
 }
 
+function guage_default_theme(heading) {
 
-
-function generate_echart_guage(heading, eguageContainer, theme) {
-  var guage = echarts.init(document.getElementById(eguageContainer), defaultTheme);
-
-  var guage_options = {
+  return {
+    //enforce default theme in theme echart(dom, "dark")
+    backgroundColor: "#FFFFFF",
     title: {
+      left: 'center',
       text: `${heading}`,
+      textStyle: {
+        color: '#000000',
+        fontSize: 16,
+        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
+      }
     },
     series: [{
+
       type: 'gauge',
+      center: ['50%', '74%'],
+      startAngle: 200,
+      endAngle: -20,
+      min: 0,
+      max: 0,
+      splitNumber: 5,
+      itemStyle: {
+        color: '#00a4db'
+      },
+      progress: {
+        show: true,
+        width: 30
+      },
+      pointer: {
+        show: false
+      },
+      axisLine: {
+        lineStyle: {
+          width: 30
+        }
+      },
+      axisTick: {
+        distance: -45,
+        splitNumber: 5,
+        lineStyle: {
+          width: 2,
+          color: '#000000'
+        }
+      },
+      splitLine: {
+        distance: -52,
+        length: 14,
+        lineStyle: {
+          width: 3,
+          color: '#000000'
+        }
+      },
       axisLabel: {
+        distance: -20,
+        color: '#000000 ',
+        fontSize: 16,
         formatter: function (value) {
           return exponent_formatter(value);
         }
       },
+      anchor: {
+        show: false
+      },
+      title: {
+        show: false
+      },
       detail: {
+        valueAnimation: true,
+        width: '60%',
+        lineHeight: 40,
+        borderRadius: 8,
+        offsetCenter: [0, '-15%'],
+        fontSize: 16,
+        fontWeight: 'bolder',
         formatter: function (value) {
           return exponent_formatter(value);
         },
+        color: 'inherit'
       },
       data: [{
         value: 0
       }]
     }]
-  };
+  }
+}
 
+function generate_echart_guage(heading, eguageContainer) {
+  var guage = echarts.init(document.getElementById(eguageContainer), "dark");
+
+  var guage_options = guage_default_theme(heading)
 
   guage_options && guage.setOption(guage_options);
   window.addEventListener('resize', function () {
@@ -283,9 +285,8 @@ function update_guage_data(guage_obj, points, point_name) {
   });
 }
 
-//themes: ArchethicDark =1  and defaultUniirs = 0
-function create_network_live_visuals(theme = 0) {
-  var metric_obj = get_visuals_dom(theme);
+function create_network_live_visuals() {
+  var metric_obj = get_visuals_dom();
   return metric_obj;
 }
 
@@ -309,7 +310,7 @@ function update_live_visuals(metric_obj, points) {
   return metric_obj;
 }
 
-function create_explorer_live_visuals(theme = 0) {
+function create_explorer_live_visuals() {
   var obj, x_axis_data;
   x_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
   obj = {
@@ -319,7 +320,7 @@ function create_explorer_live_visuals(theme = 0) {
     archethic_mining_full_transaction_validation_duration:
 
       generateEchartObjects('Transaction Validation duration (ms)',
-        'archethic_mining_full_transaction_validation_duration', x_axis_data, theme)
+        'archethic_mining_full_transaction_validation_duration', x_axis_data)
   };
   return obj;
 };

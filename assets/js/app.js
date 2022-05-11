@@ -77,7 +77,6 @@ Hooks.Logs = {
 //metric dashboard hook /metrics/dashboard
 Hooks.network_charts = {
   mounted() {
-    // empty or 0 Default Uniris blue theme 1 for dark Archethic THeme
     var network_metric_obj = metric_config_obj.create_network_live_visuals();
     this.handleEvent("network_points", ({
       points
@@ -95,7 +94,6 @@ Hooks.network_charts = {
 Hooks.explorer_charts = {
 
   mounted() {
-    // empty or 0 Default Uniris blue theme 1 for dark Archethic THeme
     var explorer_metric_obj = metric_config_obj.create_explorer_live_visuals(1);
 
     this.handleEvent("explorer_stats_points", ({
