@@ -1,4 +1,8 @@
 import * as echarts from 'echarts';
+const defaultTheme = require('./defaultTheme.json');
+const darkTheme = require('./darkTheme.json');
+
+console.log(defaultTheme, darkTheme);
 
 //adds 0 to the metrics value, to avoid charts going blank
 function structure_metric_points(latest_points) {
@@ -179,11 +183,9 @@ function line_graph_dark_theme(heading, x_axis_data, y_axis_data) {
 
 function generateEchartObjects(heading, echartContainer, x_axis_data, theme) {
   var y_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  var chart = echarts.init(document.getElementById(echartContainer));
+  var chart = echarts.init(document.getElementById(echartContainer), defaultTheme);
 
-  var option =
-    theme == 0 ? line_graph_default_theme(heading, x_axis_data, y_axis_data) :
-      line_graph_dark_theme(heading, x_axis_data, y_axis_data);
+  var option = line_graph_default_theme(heading, x_axis_data, y_axis_data);
 
   option && chart.setOption(option);
   window.addEventListener('resize', function () {
@@ -194,186 +196,32 @@ function generateEchartObjects(heading, echartContainer, x_axis_data, theme) {
 }
 
 
-function guage_default_theme(heading) {
-
-  return {
-
-    title: {
-      left: 'center',
-      text: `${heading}`,
-      textStyle: {
-        color: '#000000',
-        fontSize: 16,
-        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
-      }
-    },
-    series: [{
-
-      type: 'gauge',
-      center: ['50%', '74%'],
-      startAngle: 200,
-      endAngle: -20,
-      min: 0,
-      max: 0,
-      splitNumber: 5,
-      backgroundColor: "#fffff",
-      itemStyle: {
-        color: '#00a4db'
-      },
-      progress: {
-        show: true,
-        width: 30
-      },
-      pointer: {
-        show: false
-      },
-      axisLine: {
-        lineStyle: {
-          width: 30
-        }
-      },
-      axisTick: {
-        distance: -45,
-        splitNumber: 5,
-        lineStyle: {
-          width: 2,
-          color: '#000000'
-        }
-      },
-      splitLine: {
-        distance: -52,
-        length: 14,
-        lineStyle: {
-          width: 3,
-          color: '#000000'
-        }
-      },
-      axisLabel: {
-        distance: -20,
-        color: '#000000 ',
-        fontSize: 16,
-        formatter: function (value) {
-          return exponent_formatter(value);
-        }
-      },
-      anchor: {
-        show: false
-      },
-      title: {
-        show: false
-      },
-      detail: {
-        valueAnimation: true,
-        width: '60%',
-        lineHeight: 40,
-        borderRadius: 8,
-        offsetCenter: [0, '-15%'],
-        fontSize: 16,
-        fontWeight: 'bolder',
-        formatter: function (value) {
-          return exponent_formatter(value);
-        },
-        color: 'auto'
-      },
-      data: [{
-        value: 0
-      }]
-    }]
-  }
-}
-
-function guage_dark_theme(heading) {
-
-  return {
-    title: {
-      left: 'center',
-      text: `${heading}`,
-      textStyle: {
-        color: '#000000',
-        fontSize: 16,
-        fontFamily: "BlinkMacSystemFont,-apple-system,Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue,Helvetica, Arial, sans-serif"
-      }
-    },
-    series: [{
-      type: 'gauge',
-      center: ['50%', '74%'],
-      startAngle: 200,
-      endAngle: -20,
-      min: 0,
-      max: 0,
-      splitNumber: 5,
-      "backgroundColor": "#fffff",
-      itemStyle: {
-        color: '#00a4db'
-      },
-      progress: {
-        show: true,
-        width: 30
-      },
-      pointer: {
-        show: false
-      },
-      axisLine: {
-        lineStyle: {
-          width: 30
-        }
-      },
-      axisTick: {
-        distance: -45,
-        splitNumber: 5,
-        lineStyle: {
-          width: 2,
-          color: '#000000'
-        }
-      },
-      splitLine: {
-        distance: -52,
-        length: 14,
-        lineStyle: {
-          width: 3,
-          color: '#000000'
-        }
-      },
-      axisLabel: {
-        distance: -20,
-        color: '#000000 ',
-        fontSize: 16,
-        formatter: function (value) {
-          return exponent_formatter(value);
-        }
-      },
-      anchor: {
-        show: false
-      },
-      title: {
-        show: false
-      },
-      detail: {
-        valueAnimation: true,
-        width: '60%',
-        lineHeight: 40,
-        borderRadius: 8,
-        offsetCenter: [0, '-15%'],
-        fontSize: 16,
-        fontWeight: 'bolder',
-        formatter: function (value) {
-          return exponent_formatter(value);
-        },
-        color: 'auto'
-      },
-      data: [{
-        value: 0
-      }]
-    }]
-  }
-}
 
 function generate_echart_guage(heading, eguageContainer, theme) {
-  var guage = echarts.init(document.getElementById(eguageContainer));
+  var guage = echarts.init(document.getElementById(eguageContainer), defaultTheme);
 
-  var guage_options =
-    theme == 0 ? guage_default_theme(heading) :
-      guage_dark_theme(heading);
+  var guage_options = {
+    title: {
+      text: `${heading}`,
+    },
+    series: [{
+      type: 'gauge',
+      axisLabel: {
+        formatter: function (value) {
+          return exponent_formatter(value);
+        }
+      },
+      detail: {
+        formatter: function (value) {
+          return exponent_formatter(value);
+        },
+      },
+      data: [{
+        value: 0
+      }]
+    }]
+  };
+
 
   guage_options && guage.setOption(guage_options);
   window.addEventListener('resize', function () {
