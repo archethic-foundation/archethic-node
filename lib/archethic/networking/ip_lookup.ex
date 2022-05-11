@@ -3,6 +3,7 @@ defmodule Archethic.Networking.IPLookup do
 
   alias __MODULE__.IPIFY
   alias __MODULE__.NAT
+  alias __MODULE__.Static
   alias Archethic.Networking
 
   require Logger
@@ -17,9 +18,13 @@ defmodule Archethic.Networking.IPLookup do
     provider = get_provider()
 
     ip =
-      case apply(provider, :get_node_ip, []) do
-        {:ok, ip} ->
-          is_public_ip(ip, provider)
+      with {:ok, ip} <- apply(provider, :get_node_ip, []),
+           true <- provider == Static || Networking.valid_ip?(ip) do
+        Logger.info("Node IP discovered by #{provider}")
+        ip
+      else
+        false ->
+          fallback(provider, "NAT : Private IP")
 
         {:error, reason} ->
           fallback(provider, reason)
@@ -27,20 +32,6 @@ defmodule Archethic.Networking.IPLookup do
 
     Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
     ip
-  end
-
-  defp is_public_ip(ip, provider) do
-    case Networking.valid_ip?(ip) do
-      true ->
-        Logger.info("Node IP discovered by #{provider}")
-        ip
-
-      false ->
-        case provider == Strict do
-          true -> ip
-          false -> fallback(provider, "NAT: Private IP ")
-        end
-    end
   end
 
   defp get_provider do
