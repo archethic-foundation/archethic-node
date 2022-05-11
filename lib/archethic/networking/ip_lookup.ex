@@ -19,7 +19,7 @@ defmodule Archethic.Networking.IPLookup do
     ip =
       case apply(provider, :get_node_ip, []) do
         {:ok, ip} ->
-          public_ip?(ip, provider)
+          is_public_ip(ip, provider)
 
         {:error, reason} ->
           fallback(provider, reason)
@@ -29,7 +29,7 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp public_ip?(ip, provider = NAT) do
+  defp is_public_ip(ip, provider = NAT) do
     case Networking.valid_ip?(ip) do
       true ->
         Logger.info("Node IP discovered by #{provider}")
@@ -40,7 +40,7 @@ defmodule Archethic.Networking.IPLookup do
     end
   end
 
-  defp public_ip?(ip, provider) do
+  defp is_public_ip(ip, provider) do
     Logger.info("Node IP discovered by #{provider}")
     ip
   end
