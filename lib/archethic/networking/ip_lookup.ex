@@ -29,20 +29,18 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp is_public_ip(ip, provider = NAT) do
+  defp is_public_ip(ip, provider) do
     case Networking.valid_ip?(ip) do
       true ->
         Logger.info("Node IP discovered by #{provider}")
         ip
 
       false ->
-        fallback(provider, "NAT: Private IP ")
+        case provider == Strict do
+          true -> ip
+          false -> fallback(provider, "NAT: Private IP ")
+        end
     end
-  end
-
-  defp is_public_ip(ip, provider) do
-    Logger.info("Node IP discovered by #{provider}")
-    ip
   end
 
   defp get_provider do
