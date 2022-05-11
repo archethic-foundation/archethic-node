@@ -120,7 +120,7 @@ function line_graph_default_theme(heading, x_axis_data, y_axis_data) {
 
 function generateEchartObjects(heading, echartContainer, x_axis_data) {
   var y_axis_data = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  var chart = echarts.init(document.getElementById(echartContainer), "dark");
+  var chart = echarts.init(document.getElementById(echartContainer));
 
   var option = line_graph_default_theme(heading, x_axis_data, y_axis_data);
 
@@ -221,7 +221,7 @@ function guage_default_theme(heading) {
 }
 
 function generate_echart_guage(heading, eguageContainer) {
-  var guage = echarts.init(document.getElementById(eguageContainer), "dark");
+  var guage = echarts.init(document.getElementById(eguageContainer));
 
   var guage_options = guage_default_theme(heading)
 

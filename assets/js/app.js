@@ -94,7 +94,7 @@ Hooks.network_charts = {
 Hooks.explorer_charts = {
 
   mounted() {
-    var explorer_metric_obj = metric_config_obj.create_explorer_live_visuals(1);
+    var explorer_metric_obj = metric_config_obj.create_explorer_live_visuals();
 
     this.handleEvent("explorer_stats_points", ({
       points
