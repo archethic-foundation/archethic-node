@@ -256,11 +256,12 @@ defmodule Archethic.P2P.Message do
       }) do
     nb_validation_nodes = length(chain_replication_tree)
     tree_size = chain_replication_tree |> List.first() |> bit_size()
+    io_tree_size = io_replication_tree |> List.first() |> bit_size()
 
     <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
       tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
-      :erlang.list_to_bitstring(beacon_replication_tree)::bitstring,
-      length(io_replication_tree)::8, :erlang.list_to_bitstring(io_replication_tree)::bitstring,
+      :erlang.list_to_bitstring(beacon_replication_tree)::bitstring, io_tree_size::8,
+      :erlang.list_to_bitstring(io_replication_tree)::bitstring,
       bit_size(confirmed_validation_nodes)::8, confirmed_validation_nodes::bitstring>>
   end
 
@@ -625,7 +626,7 @@ defmodule Archethic.P2P.Message do
 
     {io_tree, rest} =
       if io_tree_size > 0 do
-        deserialize_bit_sequences(rest, nb_validations, tree_size, [])
+        deserialize_bit_sequences(rest, nb_validations, io_tree_size, [])
       else
         {[], rest}
       end
