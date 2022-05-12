@@ -124,16 +124,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with {:ok, ip, port, _http_port, _, _, _origin_public_key, key_certificate} <-
+    with {:ok, ip, port, _http_port, _, _, origin_public_key, key_certificate} <-
            Node.decode_transaction_content(content),
          {:auth_origin, true} <-
            {:auth_origin,
-            Crypto.authorized_key_origin?(previous_public_key, get_allowed_node_key_origins())},
-         root_ca_public_key <- Crypto.get_root_ca_public_key(previous_public_key),
+            Crypto.authorized_key_origin?(origin_public_key, get_allowed_node_key_origins())},
+         root_ca_public_key <- Crypto.get_root_ca_public_key(origin_public_key),
          {:auth_cert, true} <-
            {:auth_cert,
             Crypto.verify_key_certificate?(
-              previous_public_key,
+              origin_public_key,
               key_certificate,
               root_ca_public_key
             )},
