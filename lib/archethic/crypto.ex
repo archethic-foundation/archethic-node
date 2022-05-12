@@ -36,8 +36,6 @@ defmodule Archethic.Crypto do
   alias __MODULE__.NodeKeystore
   alias __MODULE__.SharedSecretsKeystore
 
-  alias Archethic.DB
-
   alias Archethic.SharedSecrets
 
   alias Archethic.TransactionChain
@@ -240,7 +238,6 @@ defmodule Archethic.Crypto do
   def decrypt_and_set_storage_nonce(encrypted_nonce) when is_binary(encrypted_nonce) do
     storage_nonce = ec_decrypt_with_last_node_key!(encrypted_nonce)
     SharedSecretsKeystore.set_storage_nonce(storage_nonce)
-    DB.set_bootstrap_info("storage_nonce", Base.encode16(storage_nonce))
     Logger.info("Storage nonce stored")
   end
 
