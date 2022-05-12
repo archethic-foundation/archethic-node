@@ -238,6 +238,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
   @impl SharedSecretsKeystore
   @spec set_storage_nonce(binary()) :: :ok
   def set_storage_nonce(storage_nonce) when is_binary(storage_nonce) do
+    DB.set_bootstrap_info("storage_nonce", storage_nonce)
     true = :ets.insert(@keystore_table, {:storage_nonce, storage_nonce})
     :ok
   end
