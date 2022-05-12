@@ -112,7 +112,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     )
   end
 
-  def network_transactions(type, page) do
+  def network_transactions(type, page) when page >= 1 do
     TransactionChain.list_transactions_by_type(type, [])
     |> paginate_transactions(page)
   end
