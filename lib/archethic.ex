@@ -102,7 +102,14 @@ defmodule Archethic do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
-    node_list = Mining.transaction_validation_node_list(current_date)
+    node_list =
+      current_date
+      # We are selecting only the available nodes before the current date
+      # If new authorized nodes are been selected, they only will be selected at the application date
+      |> Mining.transaction_validation_node_list()
+      # We are selecting only the globally available nodes as we are keeping authorized nodes even in case of unavailability
+      |> Enum.filter(& &1.available?)
+
     storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
 
     validation_nodes =
