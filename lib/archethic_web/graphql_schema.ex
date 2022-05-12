@@ -9,6 +9,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
+  alias __MODULE__.PageType
   alias __MODULE__.TransactionAttestation
 
   import_types(HexType)
@@ -17,6 +18,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(SharedSecretsType)
   import_types(P2PType)
   import_types(TransactionAttestation)
+  import_types(PageType)
 
   query do
     @desc """
@@ -105,7 +107,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     """
     field :network_transactions, list_of(:transaction) do
       arg(:type, :transaction_type)
-      arg(:page, :integer)
+      arg(:page, :page)
 
       resolve(fn args, _ ->
         type = Map.get(args, :type)
