@@ -251,7 +251,7 @@ defmodule Archethic.TransactionChain.Transaction do
       tx
       |> extract_for_origin_signature
       |> serialize()
-      |> Crypto.sign_with_first_node_key()
+      |> Crypto.sign_with_origin_node_key()
 
     %{tx | origin_signature: origin_sig}
   end

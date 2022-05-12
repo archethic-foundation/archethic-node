@@ -42,7 +42,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       last_public_key: Crypto.first_node_public_key(),
       network_patch: "AAA",
       geo_patch: "AAA",
-      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      origin_public_key: Crypto.origin_node_public_key()
     })
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")

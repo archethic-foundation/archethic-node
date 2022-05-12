@@ -16,5 +16,6 @@ defmodule ArchethicWeb.GraphQLSchema.P2PType do
     field(:average_availability, :float)
     field(:enrollment_date, :timestamp)
     field(:authorization_date, :timestamp)
+    field(:origin_public_key, :public_key)
   end
 end

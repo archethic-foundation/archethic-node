@@ -30,7 +30,7 @@ defmodule ArchethicCase do
   setup :set_mox_global
 
   setup do
-    Path.wildcard(Utils.mut_dir()) |> Enum.each(&File.rm_rf!/1)
+    File.rm_rf!(Utils.mut_dir())
 
     MockDB
     |> stub(:list_transactions, fn _ -> [] end)
@@ -71,6 +71,23 @@ defmodule ArchethicCase do
     {:ok, network_pool_counter} = Agent.start_link(fn -> 0 end)
 
     MockCrypto
+    |> stub(:last_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:first_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:previous_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      pub
+    end)
+    |> stub(:next_public_key, fn ->
+      {pub, _} = Crypto.derive_keypair("seed", 1, :secp256r1)
+      pub
+    end)
+    |> stub(:persist_next_keypair, fn -> :ok end)
     |> stub(:sign_with_first_key, fn data ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
@@ -82,6 +99,14 @@ defmodule ArchethicCase do
     |> stub(:sign_with_previous_key, fn data ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
       ECDSA.sign(:secp256r1, pv, data)
+    end)
+    |> stub(:diffie_hellman_with_last_key, fn pub ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
+    end)
+    |> stub(:diffie_hellman_with_first_key, fn pub ->
+      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
     end)
     |> stub(:sign_with_node_shared_secrets_key, fn data ->
       {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("shared_secret_seed", 0, :secp256r1)
@@ -107,15 +132,11 @@ defmodule ArchethicCase do
       {_, pv} = Crypto.generate_deterministic_keypair("daily_nonce_seed")
       Crypto.sign(data, pv)
     end)
-    |> stub(:last_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      pub
+    |> stub(:sign_with_origin_key, fn data ->
+      {_, pv} = Crypto.derive_keypair("seed", 0, :secp256r1)
+      Crypto.sign(data, pv)
     end)
-    |> stub(:first_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      pub
-    end)
-    |> stub(:previous_public_key, fn ->
+    |> stub(:origin_public_key, fn ->
       {pub, _} = Crypto.derive_keypair("seed", 0, :secp256r1)
       pub
     end)
@@ -134,19 +155,6 @@ defmodule ArchethicCase do
       {encrypted_transaction_seed, encrypted_network_pool_seed}
     end)
     |> stub(:unwrap_secrets, fn _, _, _ -> :ok end)
-    |> stub(:diffie_hellman_with_last_key, fn pub ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
-    end)
-    |> stub(:diffie_hellman_with_first_key, fn pub ->
-      {_, <<_::8, _::8, pv::binary>>} = Crypto.derive_keypair("seed", 0, :secp256r1)
-      :crypto.compute_key(:ecdh, pub, pv, :secp256r1)
-    end)
-    |> stub(:next_public_key, fn ->
-      {pub, _} = Crypto.derive_keypair("seed", 1, :secp256r1)
-      pub
-    end)
-    |> stub(:persist_next_keypair, fn -> :ok end)
     |> stub(:get_network_pool_key_index, fn -> Agent.get(network_pool_counter, & &1) end)
     |> stub(:get_node_shared_key_index, fn -> Agent.get(shared_secrets_counter, & &1) end)
     |> stub(:set_network_pool_key_index, fn index ->

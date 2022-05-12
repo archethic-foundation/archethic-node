@@ -107,7 +107,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
         available: &1.available?,
         enrollment_date: &1.enrollment_date,
         authorization_date: &1.authorization_date,
-        average_availability: &1.average_availability
+        average_availability: &1.average_availability,
+        origin_public_key: &1.origin_public_key
       }
     )
   end

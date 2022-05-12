@@ -446,6 +446,16 @@ defmodule Archethic.Crypto do
   end
 
   @doc """
+  Sign with the origin node key
+  """
+  @spec sign_with_origin_node_key(data :: iodata()) :: binary()
+  def sign_with_origin_node_key(data) when is_bitstring(data) or is_list(data) do
+    data
+    |> Utils.wrap_binary()
+    |> NodeKeystore.sign_with_origin_key()
+  end
+
+  @doc """
   Sign the data with the node shared secrets transaction seed
   """
   @spec sign_with_node_shared_secrets_key(data :: iodata()) :: binary()
@@ -1068,6 +1078,12 @@ defmodule Archethic.Crypto do
   """
   @spec key_origin(non_neg_integer()) :: supported_origin()
   defdelegate key_origin(origin), to: ID, as: :to_origin
+
+  @doc """
+  Return an origin public key from the node keystore
+  """
+  @spec origin_node_public_key() :: key()
+  defdelegate origin_node_public_key, to: NodeKeystore, as: :origin_public_key
 
   @spec get_key_certificate(key()) :: binary()
   def get_key_certificate(<<_::8, origin_id::8, key::binary>>) do

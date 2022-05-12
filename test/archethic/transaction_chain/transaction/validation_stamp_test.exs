@@ -2,8 +2,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
   use ArchethicCase
   use ExUnitProperties
 
-  import Mox
-
   alias Archethic.Crypto
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -17,14 +15,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
 
   property "symmetric sign/valid validation stamp" do
     check all(
-            keypair_seed <- StreamData.binary(length: 32),
             proof_of_work <- StreamData.binary(length: 33),
             proof_of_integrity <- StreamData.binary(length: 33),
             proof_of_election <- StreamData.binary(length: 32),
             ledger_operations <- gen_ledger_operations()
           ) do
-      {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
-      expect(MockCrypto, :sign_with_last_key, &Crypto.sign(&1, pv))
+      pub = Crypto.last_node_public_key()
 
       assert %ValidationStamp{
                timestamp: DateTime.utc_now(),

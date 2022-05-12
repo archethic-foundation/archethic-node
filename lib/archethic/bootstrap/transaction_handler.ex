@@ -79,16 +79,17 @@ defmodule Archethic.Bootstrap.TransactionHandler do
   Create a new node transaction
   """
   @spec create_node_transaction(
-          :inet.ip_address(),
-          :inet.port_number(),
-          :inet.port_number(),
-          P2P.supported_transport(),
-          Crypto.versioned_hash()
+          ip_address :: :inet.ip_address(),
+          p2p_port :: :inet.port_number(),
+          http_port :: :inet.port_number(),
+          transport :: P2P.supported_transport(),
+          reward_address :: Crypto.versioned_hash()
         ) ::
           Transaction.t()
   def create_node_transaction(ip = {_, _, _, _}, port, http_port, transport, reward_address)
       when is_number(port) and port >= 0 and is_binary(reward_address) do
-    key_certificate = Crypto.get_key_certificate(Crypto.last_node_public_key())
+    origin_public_key = Crypto.origin_node_public_key()
+    origin_public_key_certificate = Crypto.get_key_certificate(origin_public_key)
 
     Transaction.new(:node, %TransactionData{
       content:
@@ -98,7 +99,8 @@ defmodule Archethic.Bootstrap.TransactionHandler do
           http_port,
           transport,
           reward_address,
-          key_certificate
+          origin_public_key,
+          origin_public_key_certificate
         )
     })
   end

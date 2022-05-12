@@ -15,11 +15,10 @@ defmodule Archethic.Mining.ProofOfWork do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   alias Archethic.SharedSecrets
 
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -132,28 +131,19 @@ defmodule Archethic.Mining.ProofOfWork do
   def list_origin_public_keys_candidates(tx = %Transaction{}),
     do: do_list_origin_public_keys_candidates(tx)
 
-  defp do_list_origin_public_keys_candidates(
-         tx = %Transaction{
-           type: :node,
-           previous_public_key: previous_key
+  defp do_list_origin_public_keys_candidates(%Transaction{
+         type: :node,
+         data: %TransactionData{
+           content: content
          }
-       ) do
-    previous_address = Transaction.previous_address(tx)
+       }) do
+    {:ok, _ip, _p2p_port, _http_port, _transport, _reward_address, origin_public_key,
+     _origin_certificate} = Node.decode_transaction_content(content)
 
-    case TransactionChain.get_transaction(previous_address, [:address]) do
-      {:error, :transaction_not_exists} ->
-        [previous_key]
-
-      {:ok, _} ->
-        P2P.list_node_first_public_keys()
-    end
+    [origin_public_key]
   end
 
-  defp do_list_origin_public_keys_candidates(%Transaction{type: type}) do
-    if Transaction.network_type?(type) do
-      P2P.list_authorized_public_keys()
-    else
-      SharedSecrets.list_origin_public_keys()
-    end
+  defp do_list_origin_public_keys_candidates(%Transaction{}) do
+    SharedSecrets.list_origin_public_keys()
   end
 end

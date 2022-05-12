@@ -9,7 +9,11 @@ ExUnit.start(
 Mox.defmock(MockClient, for: Archethic.P2P.Client)
 
 Mox.defmock(MockCrypto,
-  for: [Archethic.Crypto.NodeKeystore, Archethic.Crypto.SharedSecretsKeystore]
+  for: [
+    Archethic.Crypto.NodeKeystore,
+    Archethic.Crypto.NodeKeystore.Origin,
+    Archethic.Crypto.SharedSecretsKeystore
+  ]
 )
 
 Mox.defmock(MockDB, for: Archethic.DB)

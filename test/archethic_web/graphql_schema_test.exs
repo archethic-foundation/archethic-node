@@ -38,7 +38,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       geo_patch: "AAA",
       available?: true,
       authorized?: true,
-      authorization_date: DateTime.utc_now()
+      authorization_date: DateTime.utc_now(),
+      origin_public_key: <<0::0, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
 
     :ok

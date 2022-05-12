@@ -195,7 +195,7 @@ defmodule Archethic.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -235,7 +235,7 @@ defmodule Archethic.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -256,7 +256,7 @@ defmodule Archethic.Mining.ValidationContextTest do
 
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:
@@ -284,7 +284,7 @@ defmodule Archethic.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations: %LedgerOperations{
@@ -308,7 +308,7 @@ defmodule Archethic.Mining.ValidationContextTest do
        }) do
     %ValidationStamp{
       timestamp: DateTime.utc_now(),
-      proof_of_work: Crypto.first_node_public_key(),
+      proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
       ledger_operations:

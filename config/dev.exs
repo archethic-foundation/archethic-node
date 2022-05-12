@@ -54,19 +54,19 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
       "127.0.0.1:3002:00011D967D71B2E135C84206DDD108B5925A2CD99C8EBC5AB5D8FD2EC9400CE3C98A:tcp"
     )
 
+config :archethic, Archethic.Crypto.NodeKeystore.SoftwareImpl,
+  seed: System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")
+
 config :archethic,
-       Archethic.Crypto.NodeKeystore,
+       Archethic.Crypto.NodeKeystore.Origin,
        (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE")
              |> String.upcase() do
           "SOFTWARE" ->
-            Archethic.Crypto.NodeKeystore.SoftwareImpl
+            Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl
 
           "TPM" ->
-            Archethic.Crypto.NodeKeystore.TPMImpl
+            Archethic.Crypto.NodeKeystore.Origin.TPMImpl
         end)
-
-config :archethic, Archethic.Crypto.NodeKeystore.SoftwareImpl,
-  seed: System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")
 
 config :archethic, Archethic.DB.CassandraImpl,
   host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")

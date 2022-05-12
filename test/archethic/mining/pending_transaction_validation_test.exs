@@ -43,9 +43,16 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           :node,
           %TransactionData{
             content:
-              <<80, 20, 10, 200, 3000::16, 4000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149,
-                253, 24, 115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190,
-                207, 31, 64, 157, 137, byte_size(certificate)::16, certificate::binary>>
+              Node.encode_transaction_content(
+                {80, 20, 10, 200},
+                3000,
+                4000,
+                :tcp,
+                <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118,
+                  139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
+                <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                certificate
+              )
           },
           "seed",
           0
@@ -68,9 +75,16 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           :node,
           %TransactionData{
             content:
-              <<80, 20, 100, 50, 3000::16, 4000::16, 1, 0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149,
-                253, 24, 115, 128, 241, 110, 118, 139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190,
-                207, 31, 64, 157, 137, byte_size(certificate)::16, certificate::binary>>
+              Node.encode_transaction_content(
+                {80, 20, 10, 200},
+                3000,
+                4000,
+                :tcp,
+                <<0, 0, 4, 221, 19, 74, 75, 69, 16, 50, 149, 253, 24, 115, 128, 241, 110, 118,
+                  139, 7, 48, 217, 58, 43, 145, 233, 77, 125, 190, 207, 31, 64, 157, 137>>,
+                <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+                certificate
+              )
           },
           private_key,
           public_key,

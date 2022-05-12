@@ -2,8 +2,6 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
   use ArchethicCase
   use ExUnitProperties
 
-  import Mox
-
   alias Archethic.Crypto
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -13,18 +11,13 @@ defmodule Archethic.TransactionChain.Transaction.CrossValidationStampTest do
 
   property "symmetric sign/verify cross validation stamp" do
     check all(
-            keypair_seed <- StreamData.binary(length: 32),
             inconsistencies <- gen_inconsistencies(),
             pow <- StreamData.binary(length: 32),
             poi <- StreamData.binary(length: 33),
             poe <- StreamData.binary(length: 64),
             signature <- StreamData.binary(length: 64)
           ) do
-      {pub, pv} = Crypto.generate_deterministic_keypair(keypair_seed, :secp256r1)
-
-      MockCrypto
-      |> expect(:sign_with_last_key, &Crypto.sign(&1, pv))
-      |> expect(:last_public_key, fn -> pub end)
+      pub = Crypto.last_node_public_key()
 
       validation_stamp = %ValidationStamp{
         timestamp: DateTime.utc_now(),

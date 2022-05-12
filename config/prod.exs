@@ -101,17 +101,18 @@ config :archethic, Archethic.Crypto,
   key_certificates_dir: System.get_env("ARCHETHIC_CRYPTO_CERT_DIR", "~/aebot/key_certificates")
 
 config :archethic,
-       Archethic.Crypto.NodeKeystore,
+       Archethic.Crypto.NodeKeystore.SoftwareImpl,
+       seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
+
+config :archethic,
+       Archethic.Crypto.NodeKeystore.Origin,
        (case(System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "TPM") |> String.upcase()) do
           "TPM" ->
-            Archethic.Crypto.NodeKeystore.TPMImpl
+            Archethic.Crypto.NodeKeystore.Origin.TPMImpl
 
           "SOFTWARE" ->
-            Archethic.Crypto.NodeKeystore.SoftwareImpl
+            Archethic.Crypto.NodeKeystore.Origin.SoftwareImpl
         end)
-
-config :archethic, Archethic.Crypto.NodeKeystore.SoftwareImpl,
-  seed: System.get_env("ARCHETHIC_CRYPTO_SEED")
 
 # TODO: to remove when the implementation will be detected
 config :archethic,

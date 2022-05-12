@@ -17,9 +17,6 @@ defmodule Archethic.P2P.BootstrappingSeedsTest do
   setup do
     Application.delete_env(:archethic, BootstrappingSeeds)
 
-    MockCrypto
-    |> stub(:last_public_key, fn -> :crypto.strong_rand_bytes(32) end)
-
     :ok
   end
 

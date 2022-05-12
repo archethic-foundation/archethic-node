@@ -21,9 +21,7 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
   test "create_node_transaction/4 should create transaction with ip and port encoded in the content" do
     assert %Transaction{
              data: %TransactionData{
-               content:
-                 <<127, 0, 0, 1, 3000::16, 4000::16, 1, _::binary-size(33), cert_size::16,
-                   _::binary-size(cert_size)>>
+               content: content
              }
            } =
              TransactionHandler.create_node_transaction(
@@ -31,8 +29,11 @@ defmodule Archethic.Bootstrap.TransactionHandlerTest do
                3000,
                4000,
                :tcp,
-               <<0::8, :crypto.strong_rand_bytes(32)::binary>>
+               <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
              )
+
+    assert {:ok, {127, 0, 0, 1}, 3000, 4000, :tcp, _reward_address, _origin_public_key, _cert} =
+             Node.decode_transaction_content(content)
   end
 
   test "send_transaction/2 should send the transaction to a welcome node" do

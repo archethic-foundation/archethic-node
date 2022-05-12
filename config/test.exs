@@ -52,10 +52,8 @@ config :archethic, Archethic.Crypto,
   software_root_ca_key: :crypto.generate_key(:ecdh, :secp256r1, "ca_root_key") |> elem(1)
 
 config :archethic, Archethic.Crypto.NodeKeystore, MockCrypto
-config :archethic, Archethic.Crypto.NodeKeystore.SoftwareImpl, seed: "fake seed"
+config :archethic, Archethic.Crypto.NodeKeystore.Origin, MockCrypto
 config :archethic, Archethic.Crypto.SharedSecretsKeystore, MockCrypto
-config :archethic, Archethic.Crypto.KeystoreCounter, enabled: false
-config :archethic, Archethic.Crypto.KeystoreLoader, enabled: false
 
 config :archethic, MockCrypto, enabled: false
 

@@ -78,9 +78,16 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
     tx =
       Transaction.new(:node, %TransactionData{
         content:
-          <<80, 10, 20, 102, 3000::16, 4000::16, 1, 0, 0, 16, 233, 156, 172, 143, 228, 236, 12,
-            227, 76, 1, 80, 12, 236, 69, 10, 209, 6, 234, 172, 97, 188, 240, 207, 70, 115, 64,
-            117, 44, 82, 132, 186, byte_size(certificate)::16, certificate::binary>>
+          Node.encode_transaction_content(
+            {80, 10, 20, 102},
+            3000,
+            4000,
+            MockTransport,
+            <<0, 0, 16, 233, 156, 172, 143, 228, 236, 12, 227, 76, 1, 80, 12, 236, 69, 10, 209, 6,
+              234, 172, 97, 188, 240, 207, 70, 115, 64, 117, 44, 82, 132, 186>>,
+            <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+            certificate
+          )
       })
 
     {:ok,
