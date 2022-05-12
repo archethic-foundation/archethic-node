@@ -49,8 +49,12 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   """
   @spec next_authorized_node_public_keys() :: list(Crypto.key())
   def next_authorized_node_public_keys do
+    previous_authorized_nodes = P2P.authorized_nodes()
+
+    new_candidates = P2P.available_nodes() -- previous_authorized_nodes
+
     DB.get_latest_tps()
-    |> Election.next_authorized_nodes(P2P.available_nodes())
+    |> Election.next_authorized_nodes(new_candidates, previous_authorized_nodes)
     |> Enum.map(& &1.last_public_key)
   end
 
