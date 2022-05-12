@@ -27,6 +27,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.TransactionChain.TransactionSummary
 
   import Mox
+  @transaction_chain_page_size 10
 
   setup do
     P2P.add_and_connect_node(%Node{
@@ -204,9 +205,11 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
       MockClient
       |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
+        slice_range = 1..@transaction_chain_page_size
+
         {:ok,
          %TransactionList{
-           transactions: transactions
+           transactions: Enum.slice(transactions, 1..@transaction_chain_page_size)
          }}
       end)
 
@@ -218,8 +221,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
             "query { transactionChain(address: \"#{Base.encode16(last_addr)}\") { address } }"
         })
 
-      assert %{"data" => %{"transactionChain" => transactions}} = json_response(conn, 200)
-      assert Enum.count(transactions) == 10
+      assert %{"data" => %{"transactionChain" => recv_transactions}} = json_response(conn, 200)
+      assert Enum.count(recv_transactions) == @transaction_chain_page_size
     end
 
     test "should retrieve the second page of transaction chain", %{conn: conn} do
@@ -234,23 +237,29 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
           }
         end)
 
+      slice_range = @transaction_chain_page_size..(2 * @transaction_chain_page_size)
+
       MockClient
       |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-        {:ok, %TransactionList{transactions: transactions}}
+        {:ok,
+         %TransactionList{
+           transactions: Enum.slice(transactions, slice_range)
+         }}
       end)
 
       last_addr = List.last(transactions).address
+      last_addr = Base.encode16(last_addr)
 
       conn =
         post(conn, "/api", %{
           "query" =>
-            "query { transactionChain(address: \"#{Base.encode16(last_addr)}\", page: 2) { address } }"
+            "query { transactionChain(address: \"#{last_addr}\", pagingAddress: \"#{last_addr}\") { address } }"
         })
 
       assert %{"data" => %{"transactionChain" => recv_transactions}} = json_response(conn, 200)
-      assert Enum.count(recv_transactions) == 10
+      assert Enum.count(recv_transactions) == @transaction_chain_page_size
 
-      assert Enum.slice(transactions, 10..20)
+      assert Enum.slice(transactions, slice_range)
              |> Enum.map(&%{"address" => Base.encode16(&1.address)}) == recv_transactions
     end
   end

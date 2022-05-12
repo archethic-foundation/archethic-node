@@ -47,10 +47,10 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     }
   end
 
-  def paginate_chain(address, page) do
-    case Archethic.get_transaction_chain(address) do
+  def transaction_chain_by_paging_address(address, paging_address) do
+    case Archethic.get_transaction_chain_by_paging_address(address, paging_address) do
       {:ok, chain} ->
-        {:ok, paginate_transactions(chain, page)}
+        {:ok, chain}
 
       {:error, _} = e ->
         e

@@ -58,11 +58,19 @@ defmodule ArchethicWeb.GraphQLSchema do
     """
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
-      arg(:page, :integer)
+      arg(:paging_address, :string)
 
       resolve(fn args = %{address: address}, _ ->
-        page = Map.get(args, :page, 1)
-        Resolver.paginate_chain(address, page)
+        paging_address = Map.get(args, :paging_address)
+
+        paging_address =
+          if paging_address do
+            Base.decode16!(paging_address)
+          else
+            paging_address
+          end
+
+        Resolver.transaction_chain_by_paging_address(address, paging_address)
       end)
     end
 
