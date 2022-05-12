@@ -19,7 +19,7 @@ defmodule Archethic.Networking.IPLookup do
 
     ip =
       with {:ok, ip} <- apply(provider, :get_node_ip, []),
-           true <- provider == Static || Networking.valid_ip?(ip) do
+           true <- Networking.valid_ip?(ip) do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
