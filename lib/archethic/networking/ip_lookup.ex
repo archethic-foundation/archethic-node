@@ -3,7 +3,6 @@ defmodule Archethic.Networking.IPLookup do
 
   alias __MODULE__.IPIFY
   alias __MODULE__.NAT
-  alias __MODULE__.Static
   alias Archethic.Networking
 
   require Logger
