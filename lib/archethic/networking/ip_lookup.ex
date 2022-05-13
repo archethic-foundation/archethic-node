@@ -3,7 +3,6 @@ defmodule Archethic.Networking.IPLookup do
 
   alias __MODULE__.IPIFY
   alias __MODULE__.NAT
-  alias Archethic.Networking
 
   require Logger
 
@@ -17,27 +16,21 @@ defmodule Archethic.Networking.IPLookup do
     provider = get_provider()
 
     ip =
-      case {apply(provider, :get_node_ip, []), should_validate_node_ip?()} do
-        {{:ok, ip}, true} ->
-          case Networking.valid_ip?(ip) do
-            true ->
-              Logger.info("Node IP discovered by #{provider}")
-              ip
-
-            false ->
-              fallback(provider, "NAT: Private IP ")
-          end
-
-        {{:ok, ip}, false} ->
+      case apply(provider, :get_node_ip, []) do
+        {:ok, ip} ->
           Logger.info("Node IP discovered by #{provider}")
           ip
 
-        {{:error, reason}, _} ->
+        {:error, reason} ->
           fallback(provider, reason)
       end
 
     Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
     ip
+  end
+
+  defp get_provider do
+    Application.get_env(:archethic, __MODULE__)
   end
 
   defp fallback(NAT, reason) do
@@ -55,17 +48,5 @@ defmodule Archethic.Networking.IPLookup do
 
   defp fallback(provider, reason) do
     raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
-  end
-
-  defp get_provider() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider)
-  end
-
-  def should_validate_node_ip?() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:validate_node_ip, false)
   end
 end
