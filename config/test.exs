@@ -93,6 +93,12 @@ config :archethic, Archethic.Networking.IPLookup.NAT, MockNAT
 config :archethic, Archethic.Networking.IPLookup.IPIFY, MockIPIFY
 config :archethic, Archethic.Networking.IPLookup, MockStatic
 
+config :archethic, Archethic.Networking.IPLookup,
+  provider: Archethic.Networking.IPLookup.Static,
+  nat_provider: Archethic.Networking.IPLookup.NAT,
+  static_provider: Archethic.Networking.IPLookup.Static,
+  ipify_provider: Archethic.Networking.IPLookup.IPIFY
+
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false
 config :archethic, Archethic.Networking, validate_node_ip: false

@@ -20,7 +20,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockStatic,
+        [provider: MockStatic] ++ get_conf(),
         persistent: false
       )
 
@@ -41,7 +41,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockStatic,
+        [provider: MockStatic] ++ get_conf(),
         persistent: false
       )
 
@@ -65,7 +65,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockNAT,
+        [provider: MockNAT] ++ get_conf(),
         persistent: false
       )
 
@@ -89,7 +89,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockIPIFY,
+        [provider: MockIPIFY] ++ get_conf(),
         persistent: false
       )
 
@@ -98,5 +98,13 @@ defmodule Archethic.Networking.IPLookupTest do
 
       assert {17, 5, 7, 8} == IPLookup.get_node_ip()
     end
+  end
+
+  def get_conf() do
+    [
+      nat_provider: MockNAT,
+      static_provider: MockStatic,
+      ipify_provider: MockIPIFY
+    ]
   end
 end

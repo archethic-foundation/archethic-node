@@ -1,8 +1,6 @@
 defmodule Archethic.Networking.IPLookup do
   @moduledoc false
 
-  alias __MODULE__.IPIFY
-  alias __MODULE__.NAT
   alias Archethic.Networking
 
   require Logger
@@ -15,6 +13,9 @@ defmodule Archethic.Networking.IPLookup do
   @spec get_node_ip() :: :inet.ip_address()
   def get_node_ip do
     provider = get_provider()
+    nat_provider = get_nat_provider()
+    static_provider = get_static_provider()
+    ipify_provider = get_ipify_provider()
 
     ip =
       with {:ok, ip} <- apply(provider, :get_node_ip, []),
@@ -22,6 +23,13 @@ defmodule Archethic.Networking.IPLookup do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
+        {:error, reason} when reason == :invalid_ip ->
+          case provider do
+            val when val == static_provider -> fallback_nat(reason)
+            val when val == nat_provider -> fallback_nat(reason)
+            val when val == ipify_provider -> fallback(provider, reason)
+          end
+
         {:error, reason} ->
           fallback(provider, reason)
       end
@@ -30,24 +38,41 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp get_provider(), do: Application.get_env(:archethic, __MODULE__, [])
+  defp get_provider() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:provider)
+  end
 
   defp get_nat_provider() do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:nat_provider)
+    |> Keyword.get(:nat_provider, NAT)
   end
 
-  defp fallback(get_nat_provider(), reason) do
+  defp get_static_provider() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:static_provider, Static)
+  end
+
+  defp get_ipify_provider() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:ipify_provider, IPIFFY)
+  end
+
+  defp fallback_nat(reason) do
     Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying IPFY as fallback")
+    ipify_provider = get_ipify_provider()
 
-    case IPIFY.get_node_ip() do
+    case ipify_provider.get_node_ip() do
       {:ok, ip} ->
         ip
 
       {:error, reason} ->
-        fallback(IPIFY, reason)
+        fallback(ipify_provider, reason)
     end
   end
 
