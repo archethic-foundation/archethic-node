@@ -11,7 +11,7 @@ SERVICE_CREATION=0
 usage() {
   echo "Usage:"
   echo ""
-  echo " Release ArchEthic node binary"
+  echo " Release Archethic node binary"
   echo ""
   echo "  " release.sh [-d  dir] " Specify the installation dir"
   echo "  " release.sh -u "       Upgrade the release"

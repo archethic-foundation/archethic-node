@@ -23,7 +23,7 @@ diff --git a/mix.exs b/mix.exs
 index 5fea88d..ddce700 100644
 --- a/mix.exs
 +++ b/mix.exs
-@@ -4,7 +4,7 @@ defmodule ArchEthic.MixProject do
+@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
    def project do
      [
        app: :archethic,
