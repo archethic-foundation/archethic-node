@@ -32,7 +32,13 @@ defmodule Archethic.Networking.IPLookup do
 
   defp get_provider(), do: Application.get_env(:archethic, __MODULE__, [])
 
-  defp fallback(NAT, reason) do
+  defp get_nat_provider() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:nat_provider)
+  end
+
+  defp fallback(get_nat_provider(), reason) do
     Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying IPFY as fallback")
 
