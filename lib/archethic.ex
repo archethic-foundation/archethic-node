@@ -301,6 +301,10 @@ defmodule Archethic do
     end
   end
 
+  defp transaction_chain_by_paging_address([], _address, _options) do
+    {:error, :network_issue}
+  end
+
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes
   """
