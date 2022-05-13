@@ -36,7 +36,8 @@ defmodule Archethic.SelfRepair.Notifier do
     if node_key == current_node_public_key do
       {:noreply, state}
     else
-      node_list = P2P.authorized_nodes() |> Enum.reject(&(&1.first_public_key == node_key))
+      node_list =
+        P2P.authorized_and_available_nodes() |> Enum.reject(&(&1.first_public_key == node_key))
 
       node_key
       |> get_transactions_to_sync(node_list)

@@ -125,18 +125,25 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
+    validation_time = DateTime.utc_now()
+
+    authorized_nodes =
+      validation_time
+      |> P2P.authorized_nodes()
+      |> Enum.filter(& &1.available?)
+
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.authorized_nodes(DateTime.utc_now())
+        authorized_nodes
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
-        BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes(DateTime.utc_now())
+        BeaconChain.next_slot(validation_time),
+        authorized_nodes
       )
 
     context =
@@ -145,7 +152,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
         welcome_node: welcome_node,
         validation_nodes: validation_nodes,
         chain_storage_nodes: chain_storage_nodes,
-        beacon_storage_nodes: beacon_storage_nodes
+        beacon_storage_nodes: beacon_storage_nodes,
+        validation_time: validation_time
       )
 
     next_events = [
@@ -824,7 +832,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
 
     Logger.info(
-      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &"#{Node.endpoint(&1)}")}",
+      "Send validated transaction to #{Enum.map_join(storage_nodes, ",", &Node.endpoint/1)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
@@ -855,7 +863,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
       {%AcknowledgeStorage{
          signature: signature
-       }, %Node{last_public_key: node_public_key}} ->
+       }, %Node{first_public_key: node_public_key}} ->
         send(me, {:add_ack_storage, node_public_key, signature})
     end)
     |> Stream.run()

@@ -91,11 +91,19 @@ defmodule Archethic.BeaconChain.Slot.Validation do
   defp check_transaction_summary([], _, _, _), do: {:error, :network_issue}
 
   defp transaction_storage_nodes(address, timestamp) do
+    authorized_nodes =
+      case P2P.authorized_nodes(timestamp) do
+        [] ->
+          # Should only happen during bootstrap
+          P2P.authorized_nodes()
+
+        nodes ->
+          Enum.filter(nodes, & &1.available?)
+      end
+
     address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
-    |> Enum.filter(fn %Node{enrollment_date: enrollment_date} ->
-      DateTime.compare(DateTime.truncate(enrollment_date, :second), timestamp) == :lt
-    end)
+    # We are targeting the authorized nodes from the transaction validation to increase consistency and some guarantee
+    |> Election.chain_storage_nodes(authorized_nodes)
     |> P2P.nearest_nodes()
     |> Enum.filter(&Node.locally_available?/1)
     |> P2P.unprioritize_node(Crypto.first_node_public_key())

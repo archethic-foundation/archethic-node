@@ -225,7 +225,7 @@ defmodule Archethic.BeaconChain.Subset do
 
   defp broadcast_beacon_transaction(subset, next_time, transaction, _node_public_key) do
     subset
-    |> Election.beacon_storage_nodes(next_time, P2P.authorized_nodes())
+    |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
     |> P2P.broadcast_message(%NewBeaconTransaction{transaction: transaction})
   end
 
@@ -256,11 +256,7 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp beacon_summary_node?(subset, summary_time, node_public_key) do
-    node_list =
-      Enum.filter(
-        P2P.authorized_nodes(),
-        &(DateTime.compare(&1.authorization_date, summary_time) == :lt)
-      )
+    node_list = P2P.authorized_nodes(summary_time)
 
     Election.beacon_storage_nodes(
       subset,

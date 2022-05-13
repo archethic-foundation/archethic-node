@@ -211,7 +211,7 @@ defmodule Archethic.BeaconChain do
   @spec subscribe_for_beacon_updates(binary(), Crypto.key()) :: :ok
   def subscribe_for_beacon_updates(subset, node_public_key) do
     # check node list and subscribe to subset if exist
-    if Utils.key_in_node_list?(P2P.authorized_nodes(), node_public_key) do
+    if Utils.key_in_node_list?(P2P.authorized_and_available_nodes(), node_public_key) do
       Subset.subscribe_for_beacon_updates(subset, node_public_key)
     end
   end
@@ -222,7 +222,7 @@ defmodule Archethic.BeaconChain do
   @spec register_to_beacon_pool_updates(DateTime.t()) :: list
   def register_to_beacon_pool_updates(date = %DateTime{} \\ next_slot(DateTime.utc_now())) do
     Enum.map(list_subsets(), fn subset ->
-      nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_nodes())
+      nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
 
       P2P.broadcast_message(nodes, %RegisterBeaconUpdates{
         node_public_key: Crypto.first_node_public_key(),

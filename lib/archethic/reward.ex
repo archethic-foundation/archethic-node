@@ -46,16 +46,19 @@ defmodule Archethic.Reward do
   def get_transfers_for_in_need_validation_nodes(last_date = %DateTime{}) do
     min_validation_nodes_reward = min_validation_nodes_reward()
 
-    Task.async_stream(P2P.authorized_nodes(), fn node = %Node{reward_address: reward_address} ->
-      mining_rewards =
-        reward_address
-        |> get_transactions_after(last_date)
-        |> Task.async_stream(&get_reward_unspent_outputs/1, timeout: 500, on_exit: :kill_task)
-        |> Stream.filter(&match?({:ok, _}, &1))
-        |> Enum.flat_map(& &1)
+    Task.async_stream(
+      P2P.authorized_and_available_nodes(),
+      fn node = %Node{reward_address: reward_address} ->
+        mining_rewards =
+          reward_address
+          |> get_transactions_after(last_date)
+          |> Task.async_stream(&get_reward_unspent_outputs/1, timeout: 500, on_exit: :kill_task)
+          |> Stream.filter(&match?({:ok, _}, &1))
+          |> Enum.flat_map(& &1)
 
-      {node, mining_rewards}
-    end)
+        {node, mining_rewards}
+      end
+    )
     |> Enum.filter(fn {_, balance} -> balance < min_validation_nodes_reward end)
     |> Enum.map(fn {%Node{reward_address: address}, amount} ->
       %Transfer{to: address, amount: min_validation_nodes_reward - amount}

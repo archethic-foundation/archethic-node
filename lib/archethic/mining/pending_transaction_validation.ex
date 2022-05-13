@@ -167,7 +167,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          }
        })
        when is_binary(secret) and byte_size(secret) > 0 and map_size(authorized_keys) > 0 do
-    nodes = P2P.available_nodes()
+    nodes = P2P.authorized_nodes() ++ NodeRenewal.candidates()
 
     with {:ok, _, _} <- NodeRenewal.decode_transaction_content(content),
          true <- Enum.all?(Map.keys(authorized_keys), &Utils.key_in_node_list?(nodes, &1)) do

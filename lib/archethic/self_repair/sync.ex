@@ -99,7 +99,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     start = System.monotonic_time()
 
-    authorized_nodes = P2P.authorized_nodes()
+    authorized_nodes = P2P.authorized_and_available_nodes()
 
     last_sync_date
     |> BeaconChain.next_summary_dates()

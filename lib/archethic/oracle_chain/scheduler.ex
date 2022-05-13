@@ -239,7 +239,8 @@ defmodule Archethic.OracleChain.Scheduler do
       next_summary_date = next_date(summary_interval, current_time)
 
       other_authorized_nodes =
-        P2P.authorized_nodes() |> Enum.reject(&(&1.first_public_key == first_public_key))
+        P2P.authorized_and_available_nodes()
+        |> Enum.reject(&(&1.first_public_key == first_public_key))
 
       new_data =
         case other_authorized_nodes do
@@ -350,7 +351,7 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   defp trigger_node?(summary_date = %DateTime{}, index) do
-    authorized_nodes = P2P.authorized_nodes(summary_date)
+    authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
 
     storage_nodes =
       summary_date

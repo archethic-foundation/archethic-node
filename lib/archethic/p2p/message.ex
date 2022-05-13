@@ -1012,7 +1012,7 @@ defmodule Archethic.P2P.Message do
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
   """
   def process(%GetBootstrappingNodes{patch: patch}) do
-    top_nodes = P2P.authorized_nodes()
+    top_nodes = P2P.authorized_and_available_nodes()
 
     closest_nodes =
       top_nodes
@@ -1311,13 +1311,22 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(attestation = %ReplicationAttestation{}) do
+  def process(
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
+        }
+      ) do
     case ReplicationAttestation.validate(attestation) do
       :ok ->
         PubSub.notify_replication_attestation(attestation)
         %Ok{}
 
       {:error, :invalid_confirmations_signatures} ->
+        Logger.error("Invalid attestation signatures",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: tx_type
+        )
+
         %Error{reason: :invalid_attestation}
     end
   end

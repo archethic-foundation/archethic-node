@@ -42,18 +42,20 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: tx.type
     )
 
+    validation_time = DateTime.utc_now()
+
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        P2P.authorized_nodes(DateTime.utc_now())
+        [P2P.get_node_info()]
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        P2P.authorized_nodes(DateTime.utc_now())
+        [P2P.get_node_info()]
       )
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
@@ -78,7 +80,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       welcome_node: P2P.get_node_info(),
       validation_nodes: [P2P.get_node_info()],
       chain_storage_nodes: chain_storage_nodes,
-      beacon_storage_nodes: beacon_storage_nodes
+      beacon_storage_nodes: beacon_storage_nodes,
+      validation_time: validation_time
     )
     |> ValidationContext.set_pending_transaction_validation(valid_pending_transaction?)
     |> ValidationContext.put_transaction_context(
@@ -106,7 +109,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     Logger.info(
-      "Send transaction to storage nodes: #{Enum.map_join(chain_storage_nodes, ",", &"#{Node.endpoint(&1)}")}",
+      "Send transaction to storage nodes: #{Enum.map_join(chain_storage_nodes, ",", &Node.endpoint/1)}",
       transaction_address: Base.encode16(validated_tx.address),
       transaction_type: validated_tx.type
     )
@@ -114,7 +117,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     Task.async_stream(
       chain_storage_nodes,
       fn node ->
-        {P2P.send_message!(node, %ReplicateTransactionChain{
+        {P2P.send_message(node, %ReplicateTransactionChain{
            transaction: validated_tx,
            ack_storage?: true
          }), node}
@@ -122,8 +125,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       on_timeout: :kill_task,
       ordered: false
     )
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Stream.map(fn {:ok, res} -> res end)
+    |> Stream.filter(&match?({:ok, {{:ok, _res}, _node}}, &1))
+    |> Stream.map(fn {:ok, {{:ok, res}, node}} -> {res, node} end)
     |> Enum.reduce(
       %{
         confirmations: [],
@@ -137,7 +140,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp reduce_confirmations(
          {%AcknowledgeStorage{
             signature: signature
-          }, %Node{last_public_key: node_public_key}},
+          }, %Node{first_public_key: node_public_key}},
          acc = %{transaction_summary: tx_summary, context: context}
        ) do
     if Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
@@ -156,6 +159,16 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   defp reduce_confirmations(_, :error), do: :error
 
   defp notify(:error), do: :skip
+
+  defp notify(%{
+         confirmations: [],
+         transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
+       }) do
+    Logger.error("Not confirmations for the transaction",
+      transaction_address: Base.encode16(tx_address),
+      transaction_type: tx_type
+    )
+  end
 
   defp notify(%{
          confirmations: confirmations,
@@ -181,7 +194,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     [welcome_node | beacon_storage_nodes]
     |> P2P.distinct_nodes()
     |> tap(fn nodes ->
-      Logger.debug("Send attestation to #{Enum.map_join(nodes, ",", &"#{Node.endpoint(&1)}")}",
+      Logger.debug("Send attestation to #{Enum.map_join(nodes, ",", &Node.endpoint/1)}",
         transaction_address: Base.encode16(tx_summary.address),
         transaction_type: tx_summary.type
       )
@@ -200,7 +213,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     (io_storage_nodes -- chain_storage_nodes)
     |> tap(fn nodes ->
       Logger.debug(
-        "Send transaction to IO nodes: #{Enum.map_join(nodes, ",", &"#{Node.endpoint(&1)}")}",
+        "Send transaction to IO nodes: #{Enum.map_join(nodes, ",", &Node.endpoint/1)}",
         transaction_address: Base.encode16(validated_tx.address),
         transaction_type: validated_tx.type
       )

@@ -130,7 +130,7 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
          next_address <-
            Crypto.node_shared_secrets_public_key(next_transaction_index) |> Crypto.hash(),
          [%Node{last_public_key: ^node_public_key} | _] <-
-           Election.storage_nodes(next_address, P2P.authorized_nodes()) do
+           Election.storage_nodes(next_address, P2P.authorized_and_available_nodes()) do
       true
     else
       _ ->

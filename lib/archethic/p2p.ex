@@ -134,7 +134,7 @@ defmodule Archethic.P2P do
   """
   @spec authorized_nodes() :: list(Node.t())
   def authorized_nodes do
-    Enum.filter(MemTable.authorized_nodes(), & &1.available?)
+    MemTable.authorized_nodes()
   end
 
   @doc """
@@ -147,6 +147,14 @@ defmodule Archethic.P2P do
                                        } ->
       DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
     end)
+  end
+
+  @doc """
+  List the authorized and available nodes
+  """
+  @spec authorized_and_available_nodes() :: list(Node.t())
+  def authorized_and_available_nodes() do
+    Enum.filter(authorized_nodes(), & &1.available?)
   end
 
   @doc """

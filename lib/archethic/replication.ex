@@ -390,7 +390,10 @@ defmodule Archethic.Replication do
 
           if previous_address != next_previous_address do
             previous_storage_nodes =
-              Election.chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
+              Election.chain_storage_nodes(
+                next_previous_address,
+                P2P.authorized_and_available_nodes()
+              )
 
             if Utils.key_in_node_list?(previous_storage_nodes, Crypto.first_node_public_key()) do
               acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)

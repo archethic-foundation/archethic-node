@@ -95,7 +95,7 @@ defmodule Archethic.P2P.BootstrappingSeeds do
   def handle_info({:node_update, %Node{authorized?: true}}, state) do
     top_nodes =
       Enum.reject(
-        P2P.authorized_nodes(),
+        P2P.authorized_and_available_nodes(),
         &(&1.first_public_key == Crypto.first_node_public_key())
       )
 
