@@ -143,18 +143,29 @@ config :archethic, Archethic.Mining.PendingTransactionValidation,
         :software
     end)
 
-config :archethic,
-       Archethic.Networking.IPLookup,
-       (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
-          "NAT" ->
-            Archethic.Networking.IPLookup.NAT
+config(
+  :archethic,
+  Archethic.Networking.IPLookup,
+  provider:
+    case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
+      "NAT" ->
+        Archethic.Networking.IPLookup.NAT
 
-          "STATIC" ->
-            Archethic.Networking.IPLookup.Static
+      "STATIC" ->
+        Archethic.Networking.IPLookup.Static
 
-          "IPFY" ->
-            Archethic.Networking.IPLookup.IPIFY
-        end)
+      "IPFY" ->
+        Archethic.Networking.IPLookup.IPIFY
+    end,
+  validate_node_ip:
+    case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
+      "true" ->
+        true
+
+      _ ->
+        false
+    end
+)
 
 config :archethic, Archethic.Networking.PortForwarding,
   enabled:
