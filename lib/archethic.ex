@@ -240,11 +240,8 @@ defmodule Archethic do
   """
   @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain(address) when is_binary(address) do
-    address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
-    |> P2P.nearest_nodes()
-    |> Enum.filter(&Node.locally_available?/1)
-    |> get_transaction_chain(address)
+    local_available_nodes = locally_available_nodes(address)
+    get_transaction_chain(local_available_nodes, address)
   end
 
   defp get_transaction_chain(nodes, address, opts \\ [], acc \\ [])
@@ -271,6 +268,42 @@ defmodule Archethic do
   end
 
   defp get_transaction_chain([], _, _, _), do: {:error, :network_issue}
+
+  defp locally_available_nodes(address) do
+    address
+    |> Election.chain_storage_nodes(P2P.available_nodes())
+    |> P2P.nearest_nodes()
+    |> Enum.filter(&Node.locally_available?/1)
+  end
+
+  @doc """
+  Retrieve a transaction chain based on an address from the closest nodes
+  by setting `paging_address as an offset address.
+  """
+  @spec get_transaction_chain_by_paging_address(binary(), binary()) ::
+          {:ok, list(Transaction.t())} | {:error, :network_issue}
+  def get_transaction_chain_by_paging_address(address, paging_address) when is_binary(address) do
+    options = [paging_state: paging_address]
+    local_available_nodes = locally_available_nodes(address)
+    transaction_chain_by_paging_address(local_available_nodes, address, options)
+  end
+
+  defp transaction_chain_by_paging_address([node | rest], address, options) do
+    case P2P.send_message(node, %GetTransactionChain{
+           address: address,
+           paging_state: Keyword.get(options, :paging_state)
+         }) do
+      {:ok, %TransactionList{transactions: transactions}} ->
+        {:ok, transactions}
+
+      {:error, _} ->
+        transaction_chain_by_paging_address(rest, address, options)
+    end
+  end
+
+  defp transaction_chain_by_paging_address([], _address, _options) do
+    {:error, :network_issue}
+  end
 
   @doc """
   Retrieve the number of transaction in a transaction chain from the closest nodes

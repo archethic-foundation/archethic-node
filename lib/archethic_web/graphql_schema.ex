@@ -9,6 +9,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.Resolver
   alias __MODULE__.SharedSecretsType
   alias __MODULE__.TransactionType
+  alias __MODULE__.PageType
   alias __MODULE__.TransactionAttestation
 
   import_types(HexType)
@@ -17,6 +18,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(SharedSecretsType)
   import_types(P2PType)
   import_types(TransactionAttestation)
+  import_types(PageType)
 
   query do
     @desc """
@@ -58,11 +60,11 @@ defmodule ArchethicWeb.GraphQLSchema do
     """
     field :transaction_chain, list_of(:transaction) do
       arg(:address, non_null(:address))
-      arg(:page, :integer)
+      arg(:paging_address, :address)
 
       resolve(fn args = %{address: address}, _ ->
-        page = Map.get(args, :page, 1)
-        Resolver.paginate_chain(address, page)
+        paging_address = Map.get(args, :paging_address)
+        Resolver.transaction_chain_by_paging_address(address, paging_address)
       end)
     end
 
@@ -104,8 +106,8 @@ defmodule ArchethicWeb.GraphQLSchema do
     Query the network to list the transaction on the type
     """
     field :network_transactions, list_of(:transaction) do
-      arg(:type, :transaction_type)
-      arg(:page, :integer)
+      arg(:type, non_null(:transaction_type))
+      arg(:page, :page)
 
       resolve(fn args, _ ->
         type = Map.get(args, :type)
