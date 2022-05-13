@@ -209,7 +209,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         {:ok,
          %TransactionList{
-           transactions: Enum.slice(transactions, 1..@transaction_chain_page_size)
+           transactions: Enum.slice(transactions, slice_range)
          }}
       end)
 
