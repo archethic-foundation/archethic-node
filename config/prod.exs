@@ -143,28 +143,29 @@ config :archethic, Archethic.Mining.PendingTransactionValidation,
         :software
     end)
 
+config :archethic, Archethic.Networking,
+  validate_node_ip:
+    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
+       "true" ->
+         true
+
+       _ ->
+         false
+     end)
+
 config(
   :archethic,
   Archethic.Networking.IPLookup,
-  provider:
-    case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
-      "NAT" ->
-        Archethic.Networking.IPLookup.NAT
+  case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
+    "NAT" ->
+      Archethic.Networking.IPLookup.NAT
 
-      "STATIC" ->
-        Archethic.Networking.IPLookup.Static
+    "STATIC" ->
+      Archethic.Networking.IPLookup.Static
 
-      "IPFY" ->
-        Archethic.Networking.IPLookup.IPIFY
-    end,
-  validate_node_ip:
-    case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
-      "true" ->
-        true
-
-      _ ->
-        false
-    end
+    "IPFY" ->
+      Archethic.Networking.IPLookup.IPIFY
+  end
 )
 
 config :archethic, Archethic.Networking.PortForwarding,
@@ -217,16 +218,6 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS_FILE", "p2p/seeds"),
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
-
-config :archethic, Archethic.Mining.PendingTransactionValidation,
-  validate_node_ip:
-    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
-       "true" ->
-         true
-
-       _ ->
-         false
-     end)
 
 config :archethic, ArchethicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"

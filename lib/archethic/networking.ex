@@ -7,6 +7,21 @@ defmodule Archethic.Networking do
   alias __MODULE__.PortForwarding
 
   @ip_validate_regex ~r/(^0\.)|(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)/
+
+  def validate_ip(ip, ip_validation? \\ should_validate_node_ip?())
+
+  def validate_ip(ip, true) do
+    case valid_ip?(ip) do
+      true ->
+        :ok
+
+      _ ->
+        {:error, :invalid_ip}
+    end
+  end
+
+  def validate_ip(_ip, false), do: :ok
+
   @doc """
   Provides current host IP address by leveraging the IP lookup provider.
 
@@ -62,5 +77,11 @@ defmodule Archethic.Networking do
           to_string(ip_str)
         )
     end
+  end
+
+  defp should_validate_node_ip?() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:validate_node_ip, false)
   end
 end

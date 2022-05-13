@@ -4,6 +4,7 @@ defmodule Archethic.Networking.IPLookup do
   alias __MODULE__.IPIFY
   alias __MODULE__.NAT
   alias Archethic.Networking
+
   require Logger
 
   @doc """
@@ -17,7 +18,7 @@ defmodule Archethic.Networking.IPLookup do
 
     ip =
       with {:ok, ip} <- apply(provider, :get_node_ip, []),
-           :ok <- validate_ip(ip, should_validate_node_ip?()) do
+           :ok <- Networking.validate_ip(ip) do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
@@ -29,27 +30,7 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  def should_validate_node_ip?() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:validate_node_ip, true)
-  end
-
-  defp validate_ip(ip, true) do
-    if Networking.valid_ip?(ip) do
-      :ok
-    else
-      {:error, :invalid_ip}
-    end
-  end
-
-  defp validate_ip(_ip, false), do: :ok
-
-  defp get_provider do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider)
-  end
+  defp get_provider(), do: Application.get_env(:archethic, __MODULE__, [])
 
   defp fallback(NAT, reason) do
     Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")

@@ -88,6 +88,16 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
     |> Base.decode16!(case: :mixed)
   ]
 
+config :archethic, Archethic.Networking,
+  validate_node_ip:
+    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false")) do
+       "true" ->
+         true
+
+       _ ->
+         false
+     end)
+
 config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
