@@ -285,7 +285,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
+      node_list = P2P.authorized_and_available_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
       Enum.reduce(nodes, acc, fn node, acc ->
@@ -327,7 +327,7 @@ defmodule ArchethicWeb.BeaconChainLive do
 
     Task.async_stream(BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
+      node_list = P2P.authorized_and_available_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
       {:ok, transactions} = get_beacon_summary_transaction_chain(b_address, nodes, patch)

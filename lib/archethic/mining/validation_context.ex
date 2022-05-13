@@ -10,6 +10,7 @@ defmodule Archethic.Mining.ValidationContext do
     :coordinator_node,
     :cross_validation_nodes,
     :validation_stamp,
+    :validation_time,
     unspent_outputs: [],
     cross_validation_stamps: [],
     cross_validation_nodes_confirmation: <<>>,
@@ -134,6 +135,8 @@ defmodule Archethic.Mining.ValidationContext do
     chain_storage_nodes = Keyword.get(attrs, :chain_storage_nodes)
     beacon_storage_nodes = Keyword.get(attrs, :beacon_storage_nodes)
 
+    validation_time = Keyword.get(attrs, :validation_time)
+
     %__MODULE__{
       transaction: tx,
       welcome_node: welcome_node,
@@ -141,7 +144,8 @@ defmodule Archethic.Mining.ValidationContext do
       cross_validation_nodes: cross_validation_nodes,
       cross_validation_nodes_confirmation: <<0::size(nb_cross_validations_nodes)>>,
       chain_storage_nodes: chain_storage_nodes,
-      beacon_storage_nodes: beacon_storage_nodes
+      beacon_storage_nodes: beacon_storage_nodes,
+      validation_time: validation_time
     }
   end
 
@@ -701,12 +705,11 @@ defmodule Archethic.Mining.ValidationContext do
           transaction: tx,
           previous_transaction: prev_tx,
           unspent_outputs: unspent_outputs,
-          valid_pending_transaction?: valid_pending_transaction?
+          valid_pending_transaction?: valid_pending_transaction?,
+          validation_time: validation_time
         }
       ) do
     initial_error = if valid_pending_transaction?, do: nil, else: :pending_transaction
-
-    validation_time = DateTime.utc_now()
 
     usd_price =
       validation_time
@@ -715,7 +718,7 @@ defmodule Archethic.Mining.ValidationContext do
 
     validation_stamp =
       %ValidationStamp{
-        timestamp: DateTime.utc_now(),
+        timestamp: validation_time,
         proof_of_work: do_proof_of_work(tx),
         proof_of_integrity: TransactionChain.proof_of_integrity([tx, prev_tx]),
         proof_of_election: Election.validation_nodes_election_seed_sorting(tx, validation_time),
@@ -924,8 +927,10 @@ defmodule Archethic.Mining.ValidationContext do
     |> Enum.map(&elem(&1, 0))
   end
 
-  defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, _) do
-    diff = DateTime.diff(timestamp, DateTime.utc_now())
+  defp valid_timestamp(%ValidationStamp{timestamp: timestamp}, %__MODULE__{
+         validation_time: validation_time
+       }) do
+    diff = DateTime.diff(timestamp, validation_time)
     diff <= 0 and diff > -10
   end
 

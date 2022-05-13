@@ -79,7 +79,7 @@ defmodule Archethic do
     if P2P.authorized_node?() do
       do_send_transaction(tx)
     else
-      P2P.authorized_nodes(DateTime.utc_now())
+      P2P.authorized_and_available_nodes()
       |> Enum.filter(&Node.locally_available?/1)
       |> P2P.nearest_nodes()
       |> forward_transaction(tx)

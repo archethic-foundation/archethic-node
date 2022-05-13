@@ -15,7 +15,7 @@ defmodule Archethic.Metrics.Collector do
   """
   @spec get_node_endpoints() :: list({:inet.ip_address(), :inet.port_number()})
   def get_node_endpoints() do
-    Enum.map(P2P.authorized_nodes(), &{&1.ip, &1.http_port})
+    Enum.map(P2P.authorized_and_available_nodes(), &{&1.ip, &1.http_port})
   end
 
   @doc """

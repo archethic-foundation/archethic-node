@@ -185,7 +185,8 @@ defmodule Archethic.Mining.ValidationContextTest do
       welcome_node: welcome_node,
       coordinator_node: coordinator_node,
       cross_validation_nodes: cross_validation_nodes,
-      valid_pending_transaction?: true
+      valid_pending_transaction?: true,
+      validation_time: DateTime.utc_now()
     }
   end
 
