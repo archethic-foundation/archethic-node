@@ -94,10 +94,10 @@ config :archethic, Archethic.Networking.IPLookup.IPIFY, MockIPIFY
 config :archethic, Archethic.Networking.IPLookup, MockStatic
 
 config :archethic, Archethic.Networking.IPLookup,
-  provider: Archethic.Networking.IPLookup.Static,
-  nat_provider: Archethic.Networking.IPLookup.NAT,
-  static_provider: Archethic.Networking.IPLookup.Static,
-  ipify_provider: Archethic.Networking.IPLookup.IPIFY
+  provider: MockStatic,
+  nat_provider: MockNAT,
+  static_provider: MockStatic,
+  ipify_provider: MockIPIFY
 
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false

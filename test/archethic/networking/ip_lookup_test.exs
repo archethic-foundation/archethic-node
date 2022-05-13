@@ -3,9 +3,6 @@ defmodule Archethic.Networking.IPLookupTest do
   use ExUnit.Case
   import Mox
 
-  alias Archethic.Networking.IPLookup.IPIFY
-  alias Archethic.Networking.IPLookup.NAT
-  alias Archethic.Networking.IPLookup.Static
   alias Archethic.Networking.IPLookup
 
   describe "get_node_ip()/0" do
