@@ -106,7 +106,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     Query the network to list the transaction on the type
     """
     field :network_transactions, list_of(:transaction) do
-      arg(:type, :transaction_type)
+      arg(:type, non_null(:transaction_type))
       arg(:page, :page)
 
       resolve(fn args, _ ->
