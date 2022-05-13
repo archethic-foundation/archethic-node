@@ -280,7 +280,7 @@ defmodule Archethic.Replication do
 
   defp fetch_inputs_unspent_outputs(
          tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}},
-         _self_repair = true
+         _self_repair? = true
        ) do
     previous_address = Transaction.previous_address(tx)
 
@@ -300,7 +300,7 @@ defmodule Archethic.Replication do
     end)
   end
 
-  defp fetch_inputs_unspent_outputs(tx = %Transaction{}, _self_repair = false) do
+  defp fetch_inputs_unspent_outputs(tx = %Transaction{}, _self_repair? = false) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(

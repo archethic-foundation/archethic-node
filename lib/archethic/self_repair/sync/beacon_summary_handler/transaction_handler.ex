@@ -106,7 +106,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
     cond do
       Election.chain_storage_node?(address, type, Crypto.first_node_public_key(), node_list) ->
-        Replication.validate_and_store_transaction_chain(tx, self_repair: true)
+        Replication.validate_and_store_transaction_chain(tx, self_repair?: true)
 
       Election.io_storage_node?(tx, Crypto.first_node_public_key(), node_list) ->
         Replication.validate_and_store_transaction(tx)
