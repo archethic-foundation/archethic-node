@@ -91,12 +91,9 @@ config :archethic, Archethic.Networking.IPLookup, MockIPLookup
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
 config :archethic, Archethic.Networking.IPLookup.NAT, MockNAT
 config :archethic, Archethic.Networking.IPLookup.IPIFY, MockIPIFY
-config :archethic, Archethic.Networking.IPLookup, MockStatic
 
 config :archethic, Archethic.Networking.IPLookup,
-  provider: MockStatic,
-  nat_provider: MockNAT,
-  static_provider: MockStatic,
+   provider: MockStatic,
   ipify_provider: MockIPIFY
 
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding

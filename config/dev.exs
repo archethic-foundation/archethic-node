@@ -89,8 +89,6 @@ config :archethic, Archethic.OracleChain.Scheduler,
 
 config :archethic, Archethic.Networking.IPLookup,
   provider: Archethic.Networking.IPLookup.Static,
-  nat_provider: Archethic.Networking.IPLookup.NAT,
-  static_provider: Archethic.Networking.IPLookup.Static,
   ipify_provider: Archethic.Networking.IPLookup.IPIFY
 
 config :archethic, Archethic.Networking.IPLookup.Static,
