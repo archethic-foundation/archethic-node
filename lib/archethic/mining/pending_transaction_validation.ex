@@ -310,14 +310,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          },
          previous_public_key: previous_public_key
        }) do
-    with previous_address <- Crypto.derive_address(previous_public_key),
-         {oracle_chain, _more?, _paging_state} <-
-           TransactionChain.get(previous_address, data: [:content], validation_stamp: [:timestamp]),
-         true <- OracleChain.valid_summary?(content, oracle_chain) do
+    previous_address = Crypto.derive_address(previous_public_key)
+
+    transactions =
+      TransactionChain.stream(previous_address, data: [:content], validation_stamp: [:timestamp])
+
+    if OracleChain.valid_summary?(content, transactions) do
       :ok
     else
-      _ ->
-        {:error, "Invalid oracle summary transaction"}
+      {:error, "Invalid oracle summary transaction"}
     end
   end
 
