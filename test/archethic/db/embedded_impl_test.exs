@@ -204,14 +204,14 @@ defmodule Archethic.DB.EmbeddedTest do
       EmbeddedImpl.write_transaction_chain(transactions)
 
       {page, true, paging_state} =
-        EmbeddedImpl.get_transaction_chain(List.first(transactions).address)
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
 
       assert length(page) == 10
       assert page == Enum.take(transactions, 10)
       assert paging_state == List.last(page).address
 
       {page2, false, nil} =
-        EmbeddedImpl.get_transaction_chain(List.first(transactions).address, [],
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
           paging_state: paging_state
         )
 
