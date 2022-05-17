@@ -206,6 +206,10 @@ defmodule ArchethicWeb.ExplorerView do
     end)
   end
 
+  def format_transaction_content(:keychain, content) do
+    Jason.Formatter.pretty_print_to_iodata(content)
+  end
+
   def format_transaction_content(_, content), do: content
 
   defp format_origin_shared_secrets_content(family, keys) do
