@@ -79,8 +79,10 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
         validation_stamp: [:timestamp]
       ])
 
-    if Ownership.authorized_public_key?(ownership, Crypto.last_node_public_key()) do
-      encrypted_secret_key = Ownership.get_encrypted_key(ownership, Crypto.last_node_public_key())
+    node_public_key = Crypto.first_node_public_key()
+
+    if Ownership.authorized_public_key?(ownership, node_public_key) do
+      encrypted_secret_key = Ownership.get_encrypted_key(ownership, node_public_key)
 
       daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 
@@ -210,7 +212,7 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
     <<enc_daily_nonce_seed::binary-size(60), enc_transaction_seed::binary-size(60),
       enc_network_pool_seed::binary-size(60)>> = encrypted_secrets
 
-    with {:ok, aes_key} <- Crypto.ec_decrypt_with_last_node_key(encrypted_aes_key),
+    with {:ok, aes_key} <- Crypto.ec_decrypt_with_first_node_key(encrypted_aes_key),
          {:ok, daily_nonce_seed} <- Crypto.aes_decrypt(enc_daily_nonce_seed, aes_key),
          {:ok, transaction_seed} <- Crypto.aes_decrypt(enc_transaction_seed, aes_key),
          {:ok, network_pool_seed} <- Crypto.aes_decrypt(enc_network_pool_seed, aes_key) do

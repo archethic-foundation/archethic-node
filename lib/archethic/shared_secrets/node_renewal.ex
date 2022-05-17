@@ -51,7 +51,7 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   def next_authorized_node_public_keys do
     DB.get_latest_tps()
     |> Election.next_authorized_nodes(candidates(), P2P.authorized_nodes())
-    |> Enum.map(& &1.last_public_key)
+    |> Enum.map(& &1.first_public_key)
   end
 
   @doc """
