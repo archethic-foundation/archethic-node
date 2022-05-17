@@ -156,20 +156,16 @@ config :archethic, Archethic.Networking,
 config(
   :archethic,
   Archethic.Networking.IPLookup,
-  provider:
-    case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
-      "NAT" ->
-        Archethic.Networking.IPLookup.NAT
+  case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
+    "NAT" ->
+      Archethic.Networking.IPLookup.NAT
 
-      "STATIC" ->
-        Archethic.Networking.IPLookup.Static
+    "STATIC" ->
+      Archethic.Networking.IPLookup.Static
 
-      "IPFY" ->
-        Archethic.Networking.IPLookup.IPIFY
-    end,
-  nat_provider: Archethic.Networking.IPLookup.NAT,
-  static_provider: Archethic.Networking.IPLookup.Static,
-  ipify_provider: Archethic.Networking.IPLookup.IPIFY
+    "IPFY" ->
+      Archethic.Networking.IPLookup.IPIFY
+  end,
 )
 
 config :archethic, Archethic.Networking.PortForwarding,

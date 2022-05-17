@@ -87,9 +87,7 @@ config :archethic, Archethic.OracleChain.Scheduler,
   # Aggregate chain at the 50th second
   summary_interval: "0 * * * * *"
 
-config :archethic, Archethic.Networking.IPLookup,
-  provider: Archethic.Networking.IPLookup.Static,
-  ipify_provider: Archethic.Networking.IPLookup.IPIFY
+config :archethic, Archethic.Networking.IPLookup, Archethic.Networking.IPLookup.Static
 
 config :archethic, Archethic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP", "127.0.0.1")
