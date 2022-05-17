@@ -100,7 +100,8 @@ defmodule Archethic.MixProject do
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
       {:broadway, "~> 1.0"},
-      {:knigge, "~> 1.4"}
+      {:knigge, "~> 1.4"},
+      {:ex_json_schema, "~> 0.9.1", override: true}
     ]
   end
 

@@ -226,6 +226,36 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
+         type: :keychain,
+         data: %TransactionData{content: "", ownerships: []}
+       }) do
+    {:error, "Invalid Keychain transaction"}
+  end
+
+  defp do_accept_transaction(%Transaction{
+         type: :keychain,
+         data: %TransactionData{content: content, ownerships: _ownerships}
+       }) do
+    schema =
+      :archethic
+      |> Application.app_dir("priv/json-schemas/did-core.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> ExJsonSchema.Schema.resolve()
+
+    with {:ok, json_did} <- Jason.decode(content),
+         :ok <- ExJsonSchema.Validator.validate(schema, json_did) do
+      :ok
+    else
+      :error ->
+        {:error, "Invalid Keychain transaction"}
+
+      {:error, reason} ->
+        Logger.debug("Invalid keychain DID #{inspect(reason)}")
+        {:error, "Invalid Keychain transaction"}
+    end
+  end
+  defp do_accept_transaction(%Transaction{
          type: :nft,
          data: %TransactionData{content: content}
        }) do
