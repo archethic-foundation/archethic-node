@@ -255,6 +255,26 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         {:error, "Invalid Keychain transaction"}
     end
   end
+
+  defp do_accept_transaction(%Transaction{
+         type: :keychain_access,
+         data: %TransactionData{ownerships: []}
+       }) do
+    {:error, "Invalid Keychain access transaction"}
+  end
+
+  defp do_accept_transaction(%Transaction{
+         type: :keychain_access,
+         data: %TransactionData{ownerships: ownerships},
+         previous_public_key: previous_public_key
+       }) do
+    if Enum.any?(ownerships, &Ownership.authorized_public_key?(&1, previous_public_key)) do
+      :ok
+    else
+      {:error, "Invalid Keychain access transaction - Previous public key must be authorized"}
+    end
+  end
+
   defp do_accept_transaction(%Transaction{
          type: :nft,
          data: %TransactionData{content: content}
