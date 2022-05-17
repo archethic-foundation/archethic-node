@@ -33,7 +33,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalTest do
         aes_key
       )
 
-    assert Ownership.authorized_public_key?(ownership, Crypto.last_node_public_key())
+    assert Ownership.authorized_public_key?(ownership, Crypto.first_node_public_key())
 
     assert {:ok, _, _} = NodeRenewal.decode_transaction_content(content)
   end
