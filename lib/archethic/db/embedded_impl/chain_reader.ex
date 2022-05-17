@@ -60,24 +60,22 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         fd = File.open!(filepath, [:binary, :read])
 
         # Set the file cursor position to the paging state
-        position =
-          case Keyword.get(opts, :paging_state) do
-            nil ->
-              :file.position(fd, 0)
-              0
+        case Keyword.get(opts, :paging_state) do
+          nil ->
+            :file.position(fd, 0)
+            0
 
-            paging_address ->
-              {:ok, %{offset: offset, size: size}} =
-                ChainIndex.get_tx_entry(paging_address, db_path)
+          paging_address ->
+            {:ok, %{offset: offset, size: size}} =
+              ChainIndex.get_tx_entry(paging_address, db_path)
 
-              :file.position(fd, offset + size)
-              offset + size
-          end
+            :file.position(fd, offset + size)
+        end
 
         column_names = fields_to_column_names(fields)
 
         # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-        {transactions, more?, paging_state} = scan_chain(fd, column_names, position)
+        {transactions, more?, paging_state} = scan_chain(fd, column_names, address)
         :file.close(fd)
         {transactions, more?, paging_state}
     end
@@ -115,7 +113,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
     end
   end
 
-  defp scan_chain(fd, fields, position, acc \\ []) do
+  defp scan_chain(fd, fields, limit_address, acc \\ []) do
     case :file.read(fd, 8) do
       {:ok, <<size::32, version::32>>} ->
         if length(acc) == @page_size do
@@ -132,7 +130,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
             |> Utils.atomize_keys()
             |> Transaction.from_map()
 
-          scan_chain(fd, fields, position + 8 + size, [tx | acc])
+          if tx.address == limit_address do
+            {Enum.reverse([tx | acc]), false, nil}
+          else
+            scan_chain(fd, fields, limit_address, [tx | acc])
+          end
         end
 
       :eof ->
@@ -150,7 +152,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
          "previous_public_key",
          "validation_stamp.timestamp"
       ]
-      
+
       iex> ChainReader.fields_to_column_names([:address, :previous_public_key, validation_stamp: [ledger_operations: [:fee,  :transaction_movements]]])
       [
          "address",
@@ -158,13 +160,13 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
          "validation_stamp.ledger_operations.transaction_movements",
          "validation_stamp.ledger_operations.fee",
       ]
-      
+
       iex> ChainReader.fields_to_column_names([
-      ...>  :address, 
-      ...>  :previous_public_key, 
-      ...>  data: [:content], 
+      ...>  :address,
+      ...>  :previous_public_key,
+      ...>  data: [:content],
       ...>  validation_stamp: [
-      ...>    :timestamp, 
+      ...>    :timestamp,
       ...>    ledger_operations: [ :fee,  :transaction_movements ]
       ...>  ]
       ...> ])
