@@ -321,9 +321,9 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         datetime = %DateTime{},
         db_path
       ) do
-    unix_time = DateTime.to_unix(datetime)
+    unix_time = DateTime.to_unix(datetime, :millisecond)
 
-    encoded_data = <<unix_time::32, new_address::binary>>
+    encoded_data = <<unix_time::64, new_address::binary>>
 
     {filename, genesis_address} =
       case get_tx_entry(previous_address, db_path) do
@@ -353,7 +353,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         case :ets.lookup(:archethic_db_last_index, genesis_address) do
           [] ->
             # If not present, the we search in the index file
-            unix_time = DateTime.utc_now() |> DateTime.to_unix()
+            unix_time = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
 
             search_last_address_until(genesis_address, unix_time, db_path) || address
 
@@ -379,7 +379,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   @spec get_last_chain_address(address :: binary(), until :: DateTime.t(), db_path :: String.t()) ::
           binary()
   def get_last_chain_address(address, datetime = %DateTime{}, db_path) do
-    unix_time = DateTime.to_unix(datetime)
+    unix_time = DateTime.to_unix(datetime, :millisecond)
 
     # We get the genesis address of this given transaction address
     case get_tx_entry(address, db_path) do
@@ -406,7 +406,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp do_search_last_address_until(fd, until, acc \\ nil) do
-    with {:ok, <<timestamp::32>>} <- :file.read(fd, 4),
+    with {:ok, <<timestamp::64>>} <- :file.read(fd, 8),
          {:ok, <<curve_id::8, hash_id::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(hash_id),
          {:ok, hash} <- :file.read(fd, hash_size) do
@@ -456,11 +456,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   """
   @spec set_public_key(binary(), Crypto.key(), DateTime.t(), String.t()) :: :ok
   def set_public_key(genesis_address, public_key, date = %DateTime{}, db_path) do
-    unix_time = DateTime.to_unix(date)
+    unix_time = DateTime.to_unix(date, :millisecond)
 
     File.write!(
       chain_keys_path(db_path, genesis_address),
-      <<unix_time::32, public_key::binary>>,
+      <<unix_time::64, public_key::binary>>,
       [:binary, :append]
     )
   end
@@ -482,7 +482,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       {:ok, fd} ->
         # We need to extract key metadata information to know how many bytes to decode
         # as keys can have different sizes based on the curve used
-        with {:ok, <<_timestamp::32, curve_id::8, origin_id::8>>} <- :file.read(fd, 6),
+        with {:ok, <<_timestamp::64, curve_id::8, origin_id::8>>} <- :file.read(fd, 10),
              key_size <- Crypto.key_size(curve_id),
              {:ok, key} <- :file.read(fd, key_size) do
           # We then take the first public key registered
@@ -542,7 +542,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   defp do_scan_chain(fd, acc \\ []) do
-    with {:ok, <<_timestamp::32>>} <- :file.read(fd, 4),
+    with {:ok, <<_timestamp::64>>} <- :file.read(fd, 8),
          {:ok, <<curve_id::8, hash_id::8>>} <- :file.read(fd, 2),
          hash_size <- Crypto.hash_size(hash_id),
          {:ok, hash} <- :file.read(fd, hash_size) do

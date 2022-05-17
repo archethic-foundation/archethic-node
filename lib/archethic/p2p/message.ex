@@ -188,7 +188,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: nil}) do
-    <<4::8, tx_address::binary, 0::32, 0::8>>
+    <<4::8, tx_address::binary, 0::64, 0::8>>
   end
 
   def encode(%GetTransactionChain{
@@ -196,11 +196,11 @@ defmodule Archethic.P2P.Message do
         after: date = %DateTime{},
         paging_state: nil
       }) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, 0::8>>
+    <<4::8, tx_address::binary, DateTime.to_unix(date, :millisecond)::64, 0::8>>
   end
 
   def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: paging_state}) do
-    <<4::8, tx_address::binary, 0::32, byte_size(paging_state)::8, paging_state::binary>>
+    <<4::8, tx_address::binary, 0::64, byte_size(paging_state)::8, paging_state::binary>>
   end
 
   def encode(%GetTransactionChain{
@@ -208,7 +208,7 @@ defmodule Archethic.P2P.Message do
         after: date = %DateTime{},
         paging_state: paging_state
       }) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, byte_size(paging_state)::8,
+    <<4::8, tx_address::binary, DateTime.to_unix(date, :millisecond)::64, byte_size(paging_state)::8,
       paging_state::binary>>
   end
 
@@ -317,7 +317,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
-    <<21::8, address::binary, DateTime.to_unix(timestamp)::32>>
+    <<21::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   def encode(%NotifyLastTransactionAddress{
@@ -325,7 +325,7 @@ defmodule Archethic.P2P.Message do
         previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp)::32>>
+    <<22::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   def encode(%GetTransactionSummary{address: address}) do
@@ -537,13 +537,13 @@ defmodule Archethic.P2P.Message do
   #
   def decode(<<4::8, rest::bitstring>>) do
     {address,
-     <<timestamp::32, paging_state_size::8, paging_state::binary-size(paging_state_size),
+     <<timestamp::64, paging_state_size::8, paging_state::binary-size(paging_state_size),
        rest::bitstring>>} = Utils.deserialize_address(rest)
 
     after_time =
       case timestamp do
         0 -> nil
-        _ -> DateTime.from_unix!(timestamp)
+        _ -> DateTime.from_unix!(timestamp, :millisecond)
       end
 
     paging_state =
@@ -727,22 +727,22 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%GetLastTransactionAddress{
        address: address,
-       timestamp: DateTime.from_unix!(timestamp)
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
 
   def decode(<<22::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {previous_address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        address: address,
        previous_address: previous_address,
-       timestamp: DateTime.from_unix!(timestamp)
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
 
