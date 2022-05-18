@@ -87,10 +87,10 @@ config :archethic, Archethic.OracleChain.Scheduler,
 
 config :archethic, Archethic.OracleChain.Services.UCOPrice, provider: MockUCOPriceProvider
 
+config :archethic, Archethic.Networking, validate_node_ip: false
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false
-config :archethic, Archethic.Networking, validate_node_ip: false
 
 config :archethic, Archethic.P2P.Listener, enabled: false
 config :archethic, Archethic.P2P.MemTableLoader, enabled: false
@@ -99,6 +99,8 @@ config :archethic, Archethic.P2P.Client, MockClient
 config :archethic, Archethic.P2P.GeoPatch.GeoIP, MockGeoIP
 
 config :archethic, Archethic.P2P.BootstrappingSeeds, enabled: false
+
+config :archethic, Archethic.Mining.PendingTransactionValidation, validate_node_ip: true
 
 config :archethic, Archethic.Metrics.Poller, enabled: false
 config :archethic, Archethic.Metrics.Collector, MockMetricsCollector

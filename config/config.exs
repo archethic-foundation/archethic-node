@@ -88,16 +88,6 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
     |> Base.decode16!(case: :mixed)
   ]
 
-config :archethic, Archethic.Networking,
-  validate_node_ip:
-    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false")) do
-       "true" ->
-         true
-
-       _ ->
-         false
-     end)
-
 config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
@@ -133,6 +123,16 @@ config :archethic, ArchethicWeb.FaucetController,
   seed:
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)
+
+config :archethic, Archethic.Networking,
+  validate_node_ip:
+    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false")) do
+       "true" ->
+         true
+
+       _ ->
+         false
+     end)
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

@@ -153,20 +153,18 @@ config :archethic, Archethic.Networking,
          false
      end)
 
-config(
-  :archethic,
-  Archethic.Networking.IPLookup,
-  case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
-    "NAT" ->
-      Archethic.Networking.IPLookup.NAT
+config :archethic,
+       Archethic.Networking.IPLookup,
+       (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
+          "NAT" ->
+            Archethic.Networking.IPLookup.NAT
 
-    "STATIC" ->
-      Archethic.Networking.IPLookup.Static
+          "STATIC" ->
+            Archethic.Networking.IPLookup.Static
 
-    "IPFY" ->
-      Archethic.Networking.IPLookup.IPIFY
-  end,
-)
+          "IPFY" ->
+            Archethic.Networking.IPLookup.IPIFY
+        end)
 
 config :archethic, Archethic.Networking.PortForwarding,
   enabled:

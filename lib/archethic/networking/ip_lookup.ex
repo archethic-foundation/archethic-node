@@ -2,8 +2,8 @@ defmodule Archethic.Networking.IPLookup do
   @moduledoc false
 
   alias Archethic.Networking
+  alias Archethic.Networking.IPLookup.PublicIPGateway
   require Logger
-  use Archethic.Networking.IPLookup.PublicIPGatewayImpl, as: PublicIP
 
   @doc """
   Get the node public ip with a fallback capability
@@ -24,7 +24,7 @@ defmodule Archethic.Networking.IPLookup do
           fallback_nat(reason)
 
         {:error, reason} ->
-          fallback(reason)
+          fallback(provider, reason)
       end
 
     Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
@@ -33,23 +33,24 @@ defmodule Archethic.Networking.IPLookup do
 
   defp fallback_nat(reason) do
     Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")
-    Logger.info("Trying IPFY as fallback")
+    Logger.info("Trying IPIFY as fallback")
 
-    case get_node_ip() do
+    case PublicIPGateway.get_public_ip() do
       {:ok, ip} ->
         ip
 
       {:error, reason} ->
-        fallback(reason)
+        fallback(PublicIPGateway, reason)
     end
   end
 
-  defp fallback(reason) do
-    raise "Error: IP lookup - #{inspect(reason)}"
+  defp fallback(provider, reason) do
+    raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
   end
 
-  defp get_provider() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
+  defp get_provider do
+    Application.get_env(:archethic, __MODULE__)
   end
 end
+
+
