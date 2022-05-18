@@ -143,6 +143,8 @@ config :archethic, Archethic.Mining.PendingTransactionValidation,
         :software
     end)
 
+# -----Start-of-Networking-prod-configs-----
+
 config :archethic, Archethic.Networking,
   validate_node_ip:
     (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
@@ -178,6 +180,8 @@ config :archethic, Archethic.Networking.PortForwarding,
 
 config :archethic, Archethic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP")
+
+# -----end-of-Networking-prod-configs-----
 
 config :archethic, Archethic.Networking.Scheduler,
   interval: System.get_env("ARCHETHIC_NETWORKING_UPDATE_SCHEDULER", "0 0 * * * * *")

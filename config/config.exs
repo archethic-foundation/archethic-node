@@ -135,10 +135,6 @@ config :archethic, Archethic.Networking,
          false
      end)
 
-config :archethic,
-       Archethic.Networking.IPLookup.PublicIPGateway,
-       provider: Archethic.Networking.IPLookup.IPIFY
-
 # -----End-of-Networking-configs ------
 
 # Import environment specific config. This must remain at the bottom

@@ -87,23 +87,20 @@ config :archethic, Archethic.OracleChain.Scheduler,
 
 config :archethic, Archethic.OracleChain.Services.UCOPrice, provider: MockUCOPriceProvider
 
-# -----Start-of-Networking-configs-----
+# -----Start-of-Networking-tests-configs-----
 
 config :archethic, Archethic.Networking, validate_node_ip: false
 
-config :archethic,
-       Archethic.Networking.IPLookup.PublicIPGateway,
-       provider: MockIPIFY
-
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
+
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
 config :archethic, Archethic.Networking.IPLookup.NAT, MockNAT
-config :archethic, Archethic.Networking.IPLookup.IPIFY, MockIPIFY
+config :archethic, Archethic.Networking.IPLookup.PublicGateway, MockPublicGateway
 
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false
 
-# -----End-of-Networking-configs ------
+# -----End-of-Networking-tests-configs ------
 
 config :archethic, Archethic.P2P.Listener, enabled: false
 config :archethic, Archethic.P2P.MemTableLoader, enabled: false

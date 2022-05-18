@@ -44,7 +44,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockStatic
       |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      MockIPIFY
+      MockPublicGateway
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
@@ -68,7 +68,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockNAT
       |> stub(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
-      MockIPIFY
+      MockPublicGateway
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
@@ -85,11 +85,11 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockIPIFY,
+        MockPublicGateway,
         persistent: false
       )
 
-      MockIPIFY
+      MockPublicGateway
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()

@@ -3,13 +3,13 @@ defmodule Archethic.Networking.IPLookup.IPIFY do
   Module provides external IP address of the node identified by IPIFY service.
   """
 
-  alias Archethic.Networking.IPLookup.Impl
+  alias Archethic.Networking.IPLookup.PublicGateway
 
-  @behaviour Impl
+  @behaviour PublicGateway
 
-  @impl Impl
+  @impl PublicGateway
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
-  def get_node_ip do
+  def get_node_ip() do
     with {:ok, {_, _, inet_addr}} <- :httpc.request('http://api.ipify.org'),
          {:ok, ip} <- :inet.parse_address(inet_addr) do
       {:ok, ip}
