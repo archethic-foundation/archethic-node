@@ -52,5 +52,3 @@ defmodule Archethic.Networking.IPLookup do
     Application.get_env(:archethic, __MODULE__)
   end
 end
-
-

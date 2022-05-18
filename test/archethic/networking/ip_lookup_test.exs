@@ -5,7 +5,7 @@ defmodule Archethic.Networking.IPLookupTest do
   import Archethic.Networking.IPLookup, only: [get_node_ip: 0]
 
   describe "get_node_ip()/0" do
-    test "Dev.exs:  Static IP Should not be Validated to be a Public IP" do
+    test "Dev-mode:  Static IP Should not be Validated to be a Public IP" do
       # set dev mode configuration values
       Application.put_env(
         :archethic,
@@ -16,7 +16,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        [provider: MockStatic] ++ get_conf(),
+        provider: MockStatic,
         persistent: false
       )
 
@@ -26,7 +26,7 @@ defmodule Archethic.Networking.IPLookupTest do
       assert {127, 0, 0, 1} == get_node_ip()
     end
 
-    test "Prod.exs: If Static IP, it must fallback to IPIFY to get public IP " do
+    test "Prod-mode: If Static IP, it must fallback to IPIFY to get public IP " do
       # set prod mode configuration values
       Application.put_env(
         :archethic,
@@ -37,7 +37,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        [provider: MockStatic] ++ get_conf(),
+        provider: MockStatic,
         persistent: false
       )
 
@@ -50,7 +50,7 @@ defmodule Archethic.Networking.IPLookupTest do
       assert {17, 5, 7, 8} == get_node_ip()
     end
 
-    test "Prod.exs: Private IP(NAT), it must fallback to IPIFY to get public IP" do
+    test "Prod-mode: Private IP(NAT), it must fallback to IPIFY to get public IP" do
       # set prod mode configuration values
       Application.put_env(
         :archethic,
@@ -61,7 +61,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        [provider: MockNAT] ++ get_conf(),
+        provider: MockNAT,
         persistent: false
       )
 
@@ -85,7 +85,7 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        [provider: MockIPIFY] ++ get_conf(),
+        provider: MockIPIFY,
         persistent: false
       )
 
@@ -94,11 +94,5 @@ defmodule Archethic.Networking.IPLookupTest do
 
       assert {17, 5, 7, 8} == get_node_ip()
     end
-  end
-
-  def get_conf() do
-    [
-      ipify_provider: MockIPIFY
-    ]
   end
 end

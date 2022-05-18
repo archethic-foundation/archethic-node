@@ -124,6 +124,7 @@ config :archethic, ArchethicWeb.FaucetController,
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)
 
+# -----Start-of-Networking-configs-----
 config :archethic, Archethic.Networking,
   validate_node_ip:
     (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false")) do
@@ -134,6 +135,12 @@ config :archethic, Archethic.Networking,
          false
      end)
 
+config :archethic,
+       Archethic.Networking.Archethic.Networking.IPLookup.PublicIPGateway,
+       provider: Archethic.Networking.IPLookup.IPIFY
+
+# -----End-of-Networking-configs ------
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env()}.exs"
+import_config("#{Mix.env()}.exs")
