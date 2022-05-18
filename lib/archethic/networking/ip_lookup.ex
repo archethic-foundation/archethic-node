@@ -1,9 +1,10 @@
 defmodule Archethic.Networking.IPLookup do
   @moduledoc false
 
+  require Logger
+
   alias Archethic.Networking
   alias Archethic.Networking.IPLookup.PublicIPGateway
-  require Logger
 
   @doc """
   Get the node public ip with a fallback capability

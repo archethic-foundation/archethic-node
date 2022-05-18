@@ -136,7 +136,7 @@ config :archethic, Archethic.Networking,
      end)
 
 config :archethic,
-       Archethic.Networking.Archethic.Networking.IPLookup.PublicIPGateway,
+       Archethic.Networking.IPLookup.PublicIPGateway,
        provider: Archethic.Networking.IPLookup.IPIFY
 
 # -----End-of-Networking-configs ------

@@ -91,6 +91,10 @@ config :archethic, Archethic.OracleChain.Services.UCOPrice, provider: MockUCOPri
 
 config :archethic, Archethic.Networking, validate_node_ip: false
 
+config :archethic,
+       Archethic.Networking.IPLookup.PublicIPGateway,
+       provider: MockIPIFY
+
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
 config :archethic, Archethic.Networking.IPLookup.NAT, MockNAT
