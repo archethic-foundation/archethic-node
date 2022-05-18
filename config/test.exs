@@ -94,7 +94,7 @@ config :archethic, Archethic.Networking, validate_node_ip: false
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
 
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
-config :archethic, Archethic.Networking.IPLookup.NAT, MockNAT
+config :archethic, Archethic.Networking.IPLookup.LocalDiscovery, MockLocalDiscovery
 config :archethic, Archethic.Networking.IPLookup.PublicGateway, MockPublicGateway
 
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding

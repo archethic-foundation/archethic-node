@@ -61,11 +61,11 @@ defmodule Archethic.Networking.IPLookupTest do
       Application.put_env(
         :archethic,
         Archethic.Networking.IPLookup,
-        MockNAT,
+        MockLocalDiscovery,
         persistent: false
       )
 
-      MockNAT
+      MockLocalDiscovery
       |> stub(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
       MockPublicGateway

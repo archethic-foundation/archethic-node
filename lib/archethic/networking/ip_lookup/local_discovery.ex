@@ -1,4 +1,6 @@
 defmodule Archethic.Networking.IPLookup.LocalDiscovery do
+  @moduledoc false
+
   use Knigge,
     otp_app: :archethic,
     default: Archethic.Networking.IPLookup.NAT
