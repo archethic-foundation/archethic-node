@@ -2,8 +2,8 @@ defmodule Archethic.Networking.IPLookup do
   @moduledoc false
 
   alias Archethic.Networking
-
   require Logger
+  use Archethic.Networking.IPLookup.PublicIPGatewayImpl, as: PublicIP
 
   @doc """
   Get the node public ip with a fallback capability
@@ -11,7 +11,7 @@ defmodule Archethic.Networking.IPLookup do
   For example, using the NAT provider, if the UPnP discovery failed, it switches to the IPIFY to get the external public ip
   """
   @spec get_node_ip() :: :inet.ip_address()
-  def get_node_ip do
+  def get_node_ip() do
     provider = get_provider()
 
     ip =
@@ -24,7 +24,7 @@ defmodule Archethic.Networking.IPLookup do
           fallback_nat(reason)
 
         {:error, reason} ->
-          fallback(provider, reason)
+          fallback(reason)
       end
 
     Logger.info("Node IP discovered: #{:inet.ntoa(ip)}")
@@ -34,30 +34,22 @@ defmodule Archethic.Networking.IPLookup do
   defp fallback_nat(reason) do
     Logger.warning("Cannot use NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying IPFY as fallback")
-    ipify_provider = get_ipify_provider()
 
-    case ipify_provider.get_node_ip() do
+    case get_node_ip() do
       {:ok, ip} ->
         ip
 
       {:error, reason} ->
-        fallback(ipify_provider, reason)
+        fallback(reason)
     end
   end
 
-  defp fallback(provider, reason) do
-    raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
+  defp fallback(reason) do
+    raise "Error: IP lookup - #{inspect(reason)}"
   end
 
   defp get_provider() do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider)
-  end
-
-  defp get_ipify_provider() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:ipify_provider, IPIFFY)
   end
 end

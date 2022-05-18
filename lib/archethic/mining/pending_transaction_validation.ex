@@ -138,7 +138,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               root_ca_public_key
             )},
          {:conn, :ok} <-
-           {:conn, valid_connection?(ip, port, previous_public_key)} do
+           {:conn, valid_connection(ip, port, previous_public_key)} do
       :ok
     else
       :error ->
@@ -301,7 +301,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp get_first_public_key([], _), do: {:error, :network_issue}
 
-  defp valid_connection?(ip, port, previous_public_key) do
+  defp valid_connection(ip, port, previous_public_key) do
     with :ok <- Networking.validate_ip(ip),
          false <- P2P.duplicating_node?(ip, port, previous_public_key) do
       :ok
