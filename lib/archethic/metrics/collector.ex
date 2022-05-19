@@ -7,6 +7,8 @@ defmodule Archethic.Metrics.Collector do
   alias Archethic.Metrics.Parser
   alias Archethic.P2P
 
+  alias Archethic.TaskSupervisor
+
   @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
               {:ok, String.t()} | {:error, any()}
 
@@ -23,7 +25,7 @@ defmodule Archethic.Metrics.Collector do
   """
   @spec retrieve_network_metrics(list({:inet.ip_address(), port()})) :: map()
   def retrieve_network_metrics(node_endpoints) do
-    Task.async_stream(node_endpoints, &service().fetch_metrics(&1))
+    Task.Supervisor.async_stream(TaskSupervisor, node_endpoints, &service().fetch_metrics(&1))
     |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
     |> Stream.map(fn {:ok, {:ok, result}} -> result end)
     |> Stream.map(&Parser.extract_from_string/1)

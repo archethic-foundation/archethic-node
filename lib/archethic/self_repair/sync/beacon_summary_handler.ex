@@ -221,8 +221,13 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
     Logger.info("Need to synchronize #{Enum.count(transaction_summaries)} transactions")
     Logger.debug("Transaction to sync #{inspect(transaction_summaries)}")
 
-    transaction_summaries
-    |> Task.async_stream(&TransactionHandler.download_transaction(&1, node_patch))
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
+      transaction_summaries,
+      &TransactionHandler.download_transaction(&1, node_patch),
+      on_timeout: :kill_task
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->
       TransactionHandler.process_transaction(tx)
     end)

@@ -25,6 +25,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Node
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -114,7 +116,8 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: validated_tx.type
     )
 
-    Task.async_stream(
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
       chain_storage_nodes,
       fn node ->
         {P2P.send_message(node, %ReplicateTransactionChain{

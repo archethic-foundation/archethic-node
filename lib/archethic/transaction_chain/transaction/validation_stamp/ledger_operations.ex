@@ -15,6 +15,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias Archethic.Crypto
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
@@ -540,8 +542,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
 
     resolved_movements =
-      tx_movements
-      |> Task.async_stream(
+      Task.Supervisor.async_stream_nolink(
+        TaskSupervisor,
+        tx_movements,
         fn mvt = %TransactionMovement{to: to} ->
           %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
         end,

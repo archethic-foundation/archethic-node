@@ -13,6 +13,8 @@ defmodule Archethic.SelfRepair.Notifier do
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Node
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
@@ -89,11 +91,12 @@ defmodule Archethic.SelfRepair.Notifier do
 
       with true <- Utils.key_in_node_list?(next_storage_nodes, current_node_public_key),
            {:ok, tx} <- TransactionChain.get_transaction(address) do
-        Task.async_stream(
+        Task.Supervisor.async_stream_nolink(
+          TaskSupervisor,
           next_storage_nodes,
           &P2P.send_message(&1, %ReplicateTransactionChain{transaction: tx}),
-          on_timeout: :kill_task,
-          ordered: false
+          ordered: false,
+          on_timeout: :kill_task
         )
         |> Stream.run()
       end

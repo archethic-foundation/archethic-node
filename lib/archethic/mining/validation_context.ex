@@ -50,6 +50,8 @@ defmodule Archethic.Mining.ValidationContext do
 
   alias Archethic.Replication
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
@@ -774,8 +776,10 @@ defmodule Archethic.Mining.ValidationContext do
          },
          validation_time = %DateTime{}
        ) do
-    recipients
-    |> Task.async_stream(&TransactionChain.resolve_last_address(&1, validation_time),
+    Task.Supervisor.async_stream(
+      TaskSupervisor,
+      recipients,
+      &TransactionChain.resolve_last_address(&1, validation_time),
       on_timeout: :kill_task
     )
     |> Enum.filter(&match?({:ok, _}, &1))

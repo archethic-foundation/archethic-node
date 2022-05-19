@@ -15,6 +15,8 @@ defmodule Archethic.Mining.TransactionContext do
   alias __MODULE__.DataFetcher
   alias __MODULE__.NodeDistribution
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -81,16 +83,19 @@ defmodule Archethic.Mining.TransactionContext do
          ]
        ) do
     prev_tx_task =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         DataFetcher.fetch_previous_transaction(previous_address, prev_tx_nodes_split)
       end)
 
     utxo_task =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         DataFetcher.fetch_unspent_outputs(previous_address, unspent_outputs_nodes_split)
       end)
 
-    nodes_view_task = Task.async(fn -> DataFetcher.fetch_p2p_view(node_public_keys) end)
+    nodes_view_task =
+      Task.Supervisor.async(TaskSupervisor, fn ->
+        DataFetcher.fetch_p2p_view(node_public_keys)
+      end)
 
     {prev_tx, prev_tx_node_involved} =
       case Task.await(prev_tx_task) do
