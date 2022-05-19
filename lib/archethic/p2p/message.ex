@@ -187,29 +187,12 @@ defmodule Archethic.P2P.Message do
     <<3::8, tx_address::binary>>
   end
 
-  def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: nil}) do
-    <<4::8, tx_address::binary, 0::32, 0::8>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: nil}) do
+    <<4::8, tx_address::binary, 0::8>>
   end
 
-  def encode(%GetTransactionChain{
-        address: tx_address,
-        after: date = %DateTime{},
-        paging_state: nil
-      }) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, 0::8>>
-  end
-
-  def encode(%GetTransactionChain{address: tx_address, after: nil, paging_state: paging_state}) do
-    <<4::8, tx_address::binary, 0::32, byte_size(paging_state)::8, paging_state::binary>>
-  end
-
-  def encode(%GetTransactionChain{
-        address: tx_address,
-        after: date = %DateTime{},
-        paging_state: paging_state
-      }) do
-    <<4::8, tx_address::binary, DateTime.to_unix(date)::32, byte_size(paging_state)::8,
-      paging_state::binary>>
+  def encode(%GetTransactionChain{address: tx_address, paging_state: paging_state}) do
+    <<4::8, tx_address::binary, byte_size(paging_state)::8, paging_state::binary>>
   end
 
   def encode(%GetUnspentOutputs{address: tx_address}) do
@@ -317,7 +300,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do
-    <<21::8, address::binary, DateTime.to_unix(timestamp)::32>>
+    <<21::8, address::binary, DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   def encode(%NotifyLastTransactionAddress{
@@ -325,7 +308,8 @@ defmodule Archethic.P2P.Message do
         previous_address: previous_address,
         timestamp: timestamp
       }) do
-    <<22::8, address::binary, previous_address::binary, DateTime.to_unix(timestamp)::32>>
+    <<22::8, address::binary, previous_address::binary,
+      DateTime.to_unix(timestamp, :millisecond)::64>>
   end
 
   def encode(%GetTransactionSummary{address: address}) do
@@ -537,14 +521,8 @@ defmodule Archethic.P2P.Message do
   #
   def decode(<<4::8, rest::bitstring>>) do
     {address,
-     <<timestamp::32, paging_state_size::8, paging_state::binary-size(paging_state_size),
-       rest::bitstring>>} = Utils.deserialize_address(rest)
-
-    after_time =
-      case timestamp do
-        0 -> nil
-        _ -> DateTime.from_unix!(timestamp)
-      end
+     <<paging_state_size::8, paging_state::binary-size(paging_state_size), rest::bitstring>>} =
+      Utils.deserialize_address(rest)
 
     paging_state =
       case paging_state do
@@ -556,7 +534,7 @@ defmodule Archethic.P2P.Message do
       end
 
     {
-      %GetTransactionChain{address: address, after: after_time, paging_state: paging_state},
+      %GetTransactionChain{address: address, paging_state: paging_state},
       rest
     }
   end
@@ -727,22 +705,22 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<21::8, rest::bitstring>>) do
-    {address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%GetLastTransactionAddress{
        address: address,
-       timestamp: DateTime.from_unix!(timestamp)
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
 
   def decode(<<22::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {previous_address, <<timestamp::32, rest::bitstring>>} = Utils.deserialize_address(rest)
+    {previous_address, <<timestamp::64, rest::bitstring>>} = Utils.deserialize_address(rest)
 
     {%NotifyLastTransactionAddress{
        address: address,
        previous_address: previous_address,
-       timestamp: DateTime.from_unix!(timestamp)
+       timestamp: DateTime.from_unix!(timestamp, :millisecond)
      }, rest}
   end
 
@@ -1083,12 +1061,11 @@ defmodule Archethic.P2P.Message do
   # paging_state recieved  contains binary offset for next page , to be used for query
   def process(%GetTransactionChain{
         address: tx_address,
-        after: after_time,
         paging_state: paging_state
       }) do
     {chain, more?, paging_state} =
       tx_address
-      |> TransactionChain.get([], after: after_time, paging_state: paging_state)
+      |> TransactionChain.get([], paging_state: paging_state)
 
     # empty list for fields/cols to be processed
     # new_page_state contains binary offset for the next page

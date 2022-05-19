@@ -72,7 +72,7 @@ defmodule Archethic.Reward do
   end
 
   defp get_transaction_chain_after([node | rest], address, date) do
-    case P2P.send_message(node, %GetTransactionChain{address: address, after: date}) do
+    case P2P.send_message(node, %GetTransactionChain{address: address}) do
       {:ok, %TransactionList{transactions: transactions, more?: false}} ->
         transactions
 
