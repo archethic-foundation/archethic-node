@@ -35,11 +35,11 @@ defmodule Archethic.Utils.Regression.Benchmark.EndToEndValidation do
     {
       %{
         "UCO Transfer single recipient" => fn ->
-          recipient_seed = Enum.random(seeds)
+          recipient_seed = SeedHolder.get_random_seed(pid)
           uco_transfer_single_recipient(pid, host, port, recipient_seed)
         end
       },
-      []
+      [parallel: 4]
     }
   end
 
