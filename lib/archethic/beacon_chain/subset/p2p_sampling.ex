@@ -28,8 +28,8 @@ defmodule Archethic.BeaconChain.Subset.P2PSampling do
   @spec get_p2p_views(list(Node.t())) :: list(p2p_view())
   def get_p2p_views(nodes) when is_list(nodes) do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &do_sample_p2p_view/1,
-      on_timeout: :kill_task,
-      timeout: 2_000
+      timeout: 2_000,
+      on_timeout: :kill_task
     )
     |> Enum.map(fn
       {:ok, res} ->

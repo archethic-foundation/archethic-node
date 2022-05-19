@@ -12,6 +12,8 @@ defmodule Archethic.P2P do
   alias __MODULE__.Message
   alias __MODULE__.Node
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
@@ -443,8 +445,10 @@ defmodule Archethic.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
   def broadcast_message(nodes, message) do
-    nodes
-    |> Task.async_stream(&send_message(&1, message), ordered: false, on_timeout: :kill_task)
+    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
+      ordered: false,
+      on_timeout: :kill_task
+    )
     |> Stream.run()
   end
 

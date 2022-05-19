@@ -35,6 +35,8 @@ defmodule Archethic.Replication do
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionValidator
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -252,7 +254,7 @@ defmodule Archethic.Replication do
     previous_address = Transaction.previous_address(tx)
 
     t1 =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         Logger.debug(
           "Fetch previous transaction #{Base.encode16(previous_address)}",
           transaction_address: Base.encode16(tx.address),
@@ -263,7 +265,7 @@ defmodule Archethic.Replication do
       end)
 
     t2 =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         fetch_inputs_unspent_outputs(tx, self_repair?)
       end)
 

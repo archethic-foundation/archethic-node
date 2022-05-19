@@ -13,6 +13,8 @@ defmodule Archethic.Mining.TransactionContext.DataFetcher do
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -29,7 +31,7 @@ defmodule Archethic.Mining.TransactionContext.DataFetcher do
   def fetch_previous_transaction(previous_address, [node | rest]) do
     message = %GetTransaction{address: previous_address}
 
-    case P2P.send_message(node, message) do
+    case P2P.send_message(node, message, 500) do
       {:ok, tx = %Transaction{}} ->
         {:ok, tx, node}
 
@@ -54,7 +56,7 @@ defmodule Archethic.Mining.TransactionContext.DataFetcher do
   def fetch_unspent_outputs(previous_address, [node | rest]) do
     message = %GetUnspentOutputs{address: previous_address}
 
-    case P2P.send_message(node, message) do
+    case P2P.send_message(node, message, 500) do
       {:ok, %UnspentOutputList{unspent_outputs: utxos}} ->
         {:ok, utxos, node}
 
@@ -70,10 +72,11 @@ defmodule Archethic.Mining.TransactionContext.DataFetcher do
   """
   @spec fetch_p2p_view(node_public_keys :: list(Crypto.key())) :: bitstring()
   def fetch_p2p_view(node_public_keys) do
-    Task.async_stream(
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
       node_public_keys,
       fn node_public_key ->
-        P2P.send_message(node_public_key, %Ping{})
+        P2P.send_message(node_public_key, %Ping{}, 500)
       end,
       on_timeout: :kill_task,
       timeout: 500

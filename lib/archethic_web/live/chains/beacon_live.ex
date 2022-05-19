@@ -20,7 +20,11 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.PubSub
+
   alias Archethic.SelfRepair.Sync.BeaconSummaryHandler
+
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -325,7 +329,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
-    Task.async_stream(BeaconChain.list_subsets(), fn subset ->
+    Task.Supervisor.async_stream(TaskSupervisor, BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
       node_list = P2P.authorized_and_available_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
