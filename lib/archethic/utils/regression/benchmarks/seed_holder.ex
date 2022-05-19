@@ -16,6 +16,10 @@ defmodule Archethic.Utils.Regression.Benchmark.SeedHolder do
     GenServer.call(pid, :get_seeds)
   end
 
+  def get_random_seed(pid) do
+    GenServer.call(pid, :get_random_seed)
+  end
+
   def pop_seed(pid) do
     GenServer.call(pid, :pop)
   end
@@ -35,6 +39,12 @@ defmodule Archethic.Utils.Regression.Benchmark.SeedHolder do
     {index, new_seeds} = Map.pop(state, seed)
 
     {:reply, {seed, index}, new_seeds}
+  end
+
+  def handle_call(:get_random_seed, _from, state) do
+    seed_list = Map.keys(state)
+    seed = Enum.random(seed_list)
+    {:reply, seed, state}
   end
 
   def put_seed(pid, seed, index) do
