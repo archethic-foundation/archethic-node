@@ -814,7 +814,9 @@ defmodule Archethic.Mining.ValidationContext do
       ...>   coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
       ...>   cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC",  last_public_key: "key2"}],
       ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}],
-      ...>   cross_validation_nodes_confirmation: <<1::1>>
+      ...>   cross_validation_nodes_confirmation: <<1::1>>,
+      ...>   chain_storage_nodes_view: <<1::1, 1::1>>,
+      ...>   beacon_storage_nodes_view: <<1::1, 1::1>>
       ...> }
       ...> |> ValidationContext.create_replication_tree()
       %ValidationContext{
@@ -831,20 +833,61 @@ defmodule Archethic.Mining.ValidationContext do
         coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
         cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
         chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}],
-        cross_validation_nodes_confirmation: <<1::1>>
+        cross_validation_nodes_confirmation: <<1::1>>,
+        chain_storage_nodes_view: <<1::1, 1::1>>,
+        beacon_storage_nodes_view: <<1::1, 1::1>>
+      }
+      
+      iex> %ValidationContext{
+      ...>   coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
+      ...>   cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC",  last_public_key: "key2"}],
+      ...>   chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}, %Node{first_public_key: "key5", network_patch: "A0C"}, %Node{first_public_key: "key6", network_patch: "BBB"}],
+      ...>   cross_validation_nodes_confirmation: <<1::1>>,
+      ...>   chain_storage_nodes_view: <<0::1, 1::1, 1::1, 0::1>>,
+      ...> }
+      ...> |> ValidationContext.create_replication_tree()
+      %ValidationContext{
+        sub_replication_tree: %{
+          chain: <<0::1, 0::1, 1::1, 0::1>>,
+          beacon: <<>>,
+          IO: <<>>
+        },
+        full_replication_tree: %{
+          IO: [],
+          beacon: [],
+          chain: [<<0::1, 0::1, 1::1, 0::1>>, <<0::1, 1::1, 0::1, 0::1>>]
+        },
+        coordinator_node: %Node{first_public_key: "key1", network_patch: "AAA", last_public_key: "key1"},
+        cross_validation_nodes: [%Node{first_public_key: "key2", network_patch: "FAC", last_public_key: "key2"}],
+         chain_storage_nodes: [%Node{first_public_key: "key3", network_patch: "BBB"}, %Node{first_public_key: "key4", network_patch: "EFC"}, %Node{first_public_key: "key5", network_patch: "A0C"}, %Node{first_public_key: "key6", network_patch: "BBB"}],
+        cross_validation_nodes_confirmation: <<1::1>>,
+        chain_storage_nodes_view: <<0::1, 1::1, 1::1, 0::1>>
       }
   """
   @spec create_replication_tree(t()) :: t()
   def create_replication_tree(
         context = %__MODULE__{
           chain_storage_nodes: chain_storage_nodes,
+          chain_storage_nodes_view: chain_storage_nodes_view,
           beacon_storage_nodes: beacon_storage_nodes,
+          beacon_storage_nodes_view: beacon_storage_nodes_view,
           io_storage_nodes: io_storage_nodes
         }
       ) do
     validation_nodes = get_validation_nodes(context)
-    chain_replication_tree = Replication.generate_tree(validation_nodes, chain_storage_nodes)
-    beacon_replication_tree = Replication.generate_tree(validation_nodes, beacon_storage_nodes)
+
+    chain_replication_tree =
+      Replication.generate_tree(
+        validation_nodes,
+        filter_node_list_by_view(chain_storage_nodes, chain_storage_nodes_view)
+      )
+
+    beacon_replication_tree =
+      Replication.generate_tree(
+        validation_nodes,
+        filter_node_list_by_view(beacon_storage_nodes, beacon_storage_nodes_view)
+      )
+
     io_replication_tree = Replication.generate_tree(validation_nodes, io_storage_nodes)
 
     tree = %{
@@ -873,6 +916,17 @@ defmodule Archethic.Mining.ValidationContext do
       | sub_replication_tree: sub_tree,
         full_replication_tree: tree
     }
+  end
+
+  defp filter_node_list_by_view(node_list, nodes_view) do
+    view_list = Utils.bitstring_to_integer_list(nodes_view)
+
+    node_list
+    |> Enum.with_index()
+    |> Enum.filter(fn {_node, index} ->
+      Enum.at(view_list, index) == 1
+    end)
+    |> Enum.map(fn {node, _index} -> node end)
   end
 
   defp do_proof_of_work(tx) do
