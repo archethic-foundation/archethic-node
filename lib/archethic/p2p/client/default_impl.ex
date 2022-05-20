@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   alias Archethic.P2P.Client.Connection
   alias Archethic.P2P.Client.ConnectionSupervisor
   alias Archethic.P2P.Client.Transport.TCPImpl
+  alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
   alias Archethic.P2P.Node
 
@@ -58,6 +59,8 @@ defmodule Archethic.P2P.Client.DefaultImpl do
           Logger.warning("Cannot send message #{inspect(message)} - #{inspect(reason)}",
             node: Base.encode16(node_public_key)
           )
+
+          MemTable.decrease_node_availability(node_public_key)
 
           {:error, reason}
       end
