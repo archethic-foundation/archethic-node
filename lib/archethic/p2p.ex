@@ -196,7 +196,7 @@ defmodule Archethic.P2P do
   For mode details see `send_message/3`
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
-  def send_message!(node, message, timeout \\ 5_000)
+  def send_message!(node, message, timeout \\ 3_000)
 
   def send_message!(public_key, message, timeout) when is_binary(public_key) do
     public_key
@@ -204,7 +204,11 @@ defmodule Archethic.P2P do
     |> send_message!(message, timeout)
   end
 
-  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
+  def send_message!(
+        node = %Node{ip: ip, port: port},
+        message,
+        timeout
+      ) do
     case Client.send_message(node, message, timeout) do
       {:ok, ref} ->
         ref
@@ -225,15 +229,15 @@ defmodule Archethic.P2P do
           | {:error, :not_found}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(node, message, timeout \\ 5_000)
+  def send_message(node, message, timeout \\ 3_000)
 
   def send_message(public_key, message, timeout) when is_binary(public_key) do
-    with {:ok, node} <- get_node_info(public_key),
-         {:ok, data} <- send_message(node, message, timeout) do
-      {:ok, data}
-    else
-      {:error, _} = e ->
-        e
+    case get_node_info(public_key) do
+      {:ok, node} ->
+        send_message(node, message, timeout)
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 

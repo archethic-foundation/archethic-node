@@ -10,7 +10,6 @@ defmodule Archethic.P2P.Client.ConnectionSupervisor do
   end
 
   def init(_) do
-    :ets.new(:connection_requests, [:set, :named_table, :public])
     DynamicSupervisor.init(strategy: :one_for_one)
   end
 
