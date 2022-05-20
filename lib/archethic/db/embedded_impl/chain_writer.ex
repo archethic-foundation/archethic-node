@@ -48,6 +48,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
         _from,
         state = %{db_path: db_path}
       ) do
+    start = System.monotonic_time()
+
     filename = chain_path(db_path, genesis_address)
 
     data = Encoding.encode(tx)
@@ -59,6 +61,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     )
 
     index_transaction(tx, genesis_address, byte_size(data), db_path)
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "write_transaction"
+    })
 
     {:reply, :ok, state}
   end

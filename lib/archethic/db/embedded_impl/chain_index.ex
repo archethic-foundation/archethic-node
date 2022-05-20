@@ -118,6 +118,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
         size,
         db_path
       ) do
+    start = System.monotonic_time()
+
     {last_offset, _nb_txs} = get_file_stats(genesis_address)
 
     # Write the transaction lookup in the subset index
@@ -143,6 +145,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
       ],
       {genesis_address, 0, 0}
     )
+
+    :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+      query: "indexing_add_txn"
+    })
 
     :ok
   end

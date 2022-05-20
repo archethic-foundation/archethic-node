@@ -13,6 +13,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
   @spec get_transaction(address :: binary(), fields :: list(), db_path :: String.t()) ::
           {:ok, Transaction.t()} | {:error, :transaction_not_exists}
   def get_transaction(address, fields, db_path) do
+    start = System.monotonic_time()
+
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         {:error, :transaction_not_exists}
@@ -38,6 +40,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
         :file.close(fd)
 
+        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+          query: "read_transaction"
+        })
+
         {:ok, tx}
     end
   end
@@ -51,6 +57,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
           {transactions_by_page :: list(Transaction.t()), more? :: boolean(),
            paging_state :: nil | binary()}
   def get_transaction_chain(address, fields, opts, db_path) do
+    start = System.monotonic_time()
+
     case ChainIndex.get_tx_entry(address, db_path) do
       {:error, :not_exists} ->
         {[], false, ""}
@@ -77,6 +85,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
         {transactions, more?, paging_state} = scan_chain(fd, column_names, address)
         :file.close(fd)
+
+        :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
+          query: "read_transaction_chain"
+        })
+
         {transactions, more?, paging_state}
     end
   end
