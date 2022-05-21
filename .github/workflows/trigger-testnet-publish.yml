@@ -1,0 +1,16 @@
+name: trigger-testnet-publish
+ on:
+   push:
+     branches: [ testnet ]
+   workflow_dispatch:
+
+ jobs:
+   deploy:
+     runs-on: ubuntu-20.04
+     steps:
+       - run: |
+           curl -X POST \
+           -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
+           -H "Accept: application/vnd.github.v3+json" \
+           https://api.github.com/repos/archethic-foundation/archethic-snap/actions/workflows/publish-testnet-track.yml/dispatches \
+           -d '{"ref": "testnet"}'
