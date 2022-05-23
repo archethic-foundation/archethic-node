@@ -41,7 +41,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         :file.close(fd)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query: "read_transaction"
+          query: "get_transaction"
         })
 
         {:ok, tx}
@@ -87,7 +87,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         :file.close(fd)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
-          query: "read_transaction_chain"
+          query: "get_transaction_chain"
         })
 
         {transactions, more?, paging_state}
