@@ -22,7 +22,7 @@ defmodule Archethic.Networking.IPLookup do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
-        {:error, reason} when provider == Archethic.Networking.IPLookup.NAT ->
+        {:error, reason} when provider == LocalDiscovery ->
           fallback(LocalDiscovery, reason)
 
         {:error, reason} ->

@@ -21,8 +21,8 @@ Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)
 # -----Start-of-Networking-Mocks-----
 
 Mox.defmock(MockStatic, for: Archethic.Networking.IPLookup.Impl)
-Mox.defmock(MockLocalDiscovery, for: Archethic.Networking.IPLookup.LocalDiscovery)
-Mox.defmock(MockPublicGateway, for: Archethic.Networking.IPLookup.PublicGateway)
+Mox.defmock(MockNAT, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockIPIFY, for: Archethic.Networking.IPLookup.Impl)
 
 Mox.defmock(MockIPLookup, for: Archethic.Networking.IPLookup.Impl)
 

@@ -3,6 +3,8 @@ defmodule Archethic.Networking.IPLookupTest do
   use ExUnit.Case, async: false
   import Mox
   import Archethic.Networking.IPLookup, only: [get_node_ip: 0]
+  alias Archethic.Networking.IPLookup.LocalDiscovery
+  alias Archethic.Networking.IPLookup.PublicGateway
 
   def put_conf(validate_node_ip: validate_node_ip, mock_module: mock_module) do
     Application.put_env(
@@ -36,7 +38,7 @@ defmodule Archethic.Networking.IPLookupTest do
       MockStatic
       |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      MockPublicGateway
+      MockIPIFY
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
@@ -44,12 +46,12 @@ defmodule Archethic.Networking.IPLookupTest do
 
     test "Prod-mode: Private IP(NAT), it must fallback to IPIFY to get public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockLocalDiscovery)
+      put_conf(validate_node_ip: true, mock_module: LocalDiscovery)
 
-      MockLocalDiscovery
+      MockNAT
       |> stub(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
-      MockPublicGateway
+      MockIPIFY
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
@@ -57,9 +59,9 @@ defmodule Archethic.Networking.IPLookupTest do
 
     test "IPIFIY IP: returns public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockPublicGateway)
+      put_conf(validate_node_ip: true, mock_module: PublicGateway)
 
-      MockPublicGateway
+      MockIPIFY
       |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
