@@ -10,7 +10,7 @@ config :git_hooks,
         "mix format --check-formatted",
         "mix compile --warnings-as-errors",
         "mix credo",
-        "mix knigge.verify"
+        "mix knigge.verify",
         "mix test --trace",
         "mix dialyzer"
       ]
