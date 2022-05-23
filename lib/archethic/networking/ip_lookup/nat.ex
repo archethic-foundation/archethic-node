@@ -4,9 +4,7 @@ defmodule Archethic.Networking.IPLookup.NAT do
   """
 
   alias Archethic.Networking.IPLookup.LocalDiscovery
-  alias Archethic.Networking.IPLookup.Impl
 
-  @behaviour Impl
   @behaviour LocalDiscovery
 
   @impl LocalDiscovery

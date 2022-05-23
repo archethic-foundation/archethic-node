@@ -4,9 +4,7 @@ defmodule Archethic.Networking.IPLookup.IPIFY do
   """
 
   alias Archethic.Networking.IPLookup.PublicGateway
-  alias Archethic.Networking.IPLookup.Impl
 
-  @behaviour Impl
   @behaviour PublicGateway
 
   @impl PublicGateway
