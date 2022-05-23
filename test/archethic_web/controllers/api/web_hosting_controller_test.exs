@@ -56,7 +56,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
         {:ok,
          %Transaction{
-           address: "0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba",
+           address:
+             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
+               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
            data: %TransactionData{content: "invalid"}
          }}
       end)
@@ -92,7 +94,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
         {:ok,
          %Transaction{
-           address: "0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba",
+           address:
+             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
+               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
            data: %TransactionData{content: content}
          }}
       end)
@@ -163,7 +167,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
         {:ok,
          %Transaction{
-           address: "0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba",
+           address:
+             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
+               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
            data: %TransactionData{content: content}
          }}
       end)
@@ -247,6 +253,51 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       assert ["text/xml; charset=utf-8"] = get_resp_header(conn2, "content-type")
       assert ["text/javascript; charset=utf-8"] = get_resp_header(conn3, "content-type")
       assert ["image/png; charset=utf-8"] = get_resp_header(conn4, "content-type")
+    end
+  end
+
+  describe "get_cache/3" do
+    test "should return 304 status if file is cached in browser", %{conn: conn} do
+      content = """
+      {
+        "folder":{
+          "hello_world.html":{
+            "encodage":"base64",
+            "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          }
+        }
+      }
+      """
+
+      MockClient
+      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
+        {:ok,
+         %Transaction{
+           address:
+             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
+               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+           data: %TransactionData{content: content}
+         }}
+      end)
+
+      conn1 =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
+        )
+
+      etag = get_resp_header(conn1, "etag") |> Enum.at(0)
+
+      assert "0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacbafolder/hello_world.html" =
+               etag
+
+      conn2 =
+        get(
+          conn |> put_req_header("if-none-match", etag),
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/folder/hello_world.html"
+        )
+
+      assert "" = response(conn2, 304)
     end
   end
 end
