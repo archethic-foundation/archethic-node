@@ -8,8 +8,7 @@ defmodule Archethic.Networking.IPLookupTest do
     Application.put_env(
       :archethic,
       Archethic.Networking,
-      validate_node_ip: validate_node_ip,
-      persistent: false
+      validate_node_ip: validate_node_ip
     )
 
     Application.put_env(
@@ -25,32 +24,33 @@ defmodule Archethic.Networking.IPLookupTest do
       put_conf(validate_node_ip: false, mock_module: MockStatic)
 
       MockStatic
-      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
       assert {127, 0, 0, 1} == get_node_ip()
     end
 
-    test "Prod-mode: If Static IP, raise error " do
+    test "Prod-mode: If Static IP, it must fallback to IPIFY to get public IP " do
       # set prod mode configuration values
       put_conf(validate_node_ip: true, mock_module: MockStatic)
 
       MockStatic
-      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      get_node_ip()
+      MockPublicGateway
+      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
-      assert_raise(RuntimeError, ~r/Cannot use \w\.\w IP lookup - :invalid_ip/)
+      assert {17, 5, 7, 8} == get_node_ip()
     end
 
     test "Prod-mode: Private IP(NAT), it must fallback to IPIFY to get public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockNAT)
+      put_conf(validate_node_ip: true, mock_module: MockLocalDiscovery)
 
-      MockNAT
-      |> expect(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
+      MockLocalDiscovery
+      |> stub(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
       MockPublicGateway
-      |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
+      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
     end
@@ -60,7 +60,7 @@ defmodule Archethic.Networking.IPLookupTest do
       put_conf(validate_node_ip: true, mock_module: MockPublicGateway)
 
       MockPublicGateway
-      |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
+      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
     end
