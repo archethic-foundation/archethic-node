@@ -5,7 +5,7 @@ defmodule Archethic.Networking.IPLookup do
 
   alias Archethic.Networking
   alias Archethic.Networking.IPLookup.PublicGateway
-  # alias Archethic.Networking.IPLookup.LocalDiscovery
+  alias Archethic.Networking.IPLookup.LocalDiscovery
 
   @doc """
   Get the node public ip with a fallback capability
@@ -22,6 +22,9 @@ defmodule Archethic.Networking.IPLookup do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
+        {:error, reason} when provider == Archethic.Networking.IPLookup.NAT ->
+          fallback(LocalDiscovery, reason)
+
         {:error, reason} ->
           fallback(provider, reason)
       end
@@ -30,7 +33,7 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp fallback(NAT, reason) do
+  defp fallback(LocalDiscovery, reason) do
     Logger.warning("Cannot use LocalDiscovery: NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying PublicGateway: IPIFY as fallback")
 
