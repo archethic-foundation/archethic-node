@@ -71,6 +71,8 @@ defmodule ArchethicWeb.Router do
       :last_transaction_content
     )
 
+    get("/web_hosting/:address/*url_path", ArchethicWeb.API.WebHostingController, :web_hosting)
+
     post("/origin_key", ArchethicWeb.API.OriginKeyController, :origin_key)
 
     post("/transaction", ArchethicWeb.API.TransactionController, :new)
