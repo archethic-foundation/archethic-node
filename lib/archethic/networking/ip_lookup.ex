@@ -22,9 +22,6 @@ defmodule Archethic.Networking.IPLookup do
         Logger.info("Node IP discovered by #{provider}")
         ip
       else
-        {:error, reason} when reason == :invalid_ip ->
-          fallback_nat(reason)
-
         {:error, reason} ->
           fallback(provider, reason)
       end
@@ -33,7 +30,7 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp fallback_nat(reason) do
+  defp fallback(NAT, reason) do
     Logger.warning("Cannot use LocalDiscovery: NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying PublicGateway: IPIFY as fallback")
 
@@ -42,7 +39,7 @@ defmodule Archethic.Networking.IPLookup do
         ip
 
       {:error, reason} ->
-        fallback("PublicGateway: IPIFY", reason)
+        raise "Cannot use #{IPIFY} IP lookup - #{inspect(reason)}"
     end
   end
 
