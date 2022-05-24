@@ -4,65 +4,101 @@ defmodule Archethic.Networking.IPLookupTest do
   import Mox
   import Archethic.Networking.IPLookup, only: [get_node_ip: 0]
 
-  def put_conf(validate_node_ip: validate_node_ip, mock_module: mock_module) do
-    Application.put_env(
-      :archethic,
-      Archethic.Networking,
-      validate_node_ip: validate_node_ip
-    )
+  alias Archethic.Networking.IPLookup.LocalDiscovery
+  alias Archethic.Networking.IPLookup.RemoteDiscovery
 
-    Application.put_env(
-      :archethic,
-      Archethic.Networking.IPLookup,
-      mock_module,
-      persistent: false
-    )
-  end
+  describe "In Dev mode: get_node_ip()/0" do
+    Mix.env(:test)
+    assert :test == Mix.env()
+    Mix.env(:dev)
+    assert :dev == Mix.env()
 
-  describe "get_node_ip()/0" do
-    test "Dev-mode:  Static IP Should not be Validated to be a Public IP" do
-      put_conf(validate_node_ip: false, mock_module: MockStatic)
-
+    test "Static IP Should not be Validated to be a Public IP| Must Return Static IP" do
       MockStatic
-      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
       assert {127, 0, 0, 1} == get_node_ip()
     end
 
-    test "Prod-mode: If Static IP, it must fallback to IPIFY to get public IP " do
-      # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockStatic)
-
+    test "Localdiscovery/NAT & RemoteDiscovery/IPIFY " do
       MockStatic
-      |> stub(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
 
-      MockPublicGateway
-      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
-
-      assert {17, 5, 7, 8} == get_node_ip()
+      assert {127, 0, 0, 1} == get_node_ip()
     end
 
-    test "Prod-mode: Private IP(NAT), it must fallback to IPIFY to get public IP" do
+    test "assert currnet config is :dev  & restore to :test" do
+      assert :dev == Mix.env()
+      Mix.env(:test)
+      assert :test == Mix.env()
+    end
+  end
+
+  describe "In Prod mode: get_node_ip()/0" do
+    test "assert current config is test  & changed to :prod" do
+      Mix.env(:test)
+      assert :test == Mix.env()
+      Mix.env(:prod)
+      assert :prod == Mix.env()
+    end
+
+    test "If Static IP, it must raise an error" do
+      Application.put_env(
+        :archethic,
+        Archethic.Networking.IPLookup,
+        MockStatic,
+        persistent: false
+      )
+
+      MockStatic
+      |> expect(:get_node_ip, fn -> {:ok, {127, 0, 0, 1}} end)
+
+      provider = MockStatic
+
+      reason = :invalid_ip
+
+      assert_raise RuntimeError,
+                   "Cannot use #{provider} IP lookup - #{inspect(reason)}",
+                   fn -> get_node_ip() end
+    end
+
+    test "Private IP(NAT), it must fallback to IPIFY to get public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockLocalDiscovery)
+      Application.put_env(
+        :archethic,
+        Archethic.Networking.IPLookup,
+        LocalDiscovery,
+        persistent: false
+      )
 
-      MockLocalDiscovery
-      |> stub(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
+      MockNAT
+      |> expect(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
-      MockPublicGateway
-      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
+      MockIPIFY
+      |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
     end
 
     test "IPIFIY IP: returns public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, mock_module: MockPublicGateway)
+      Application.put_env(
+        :archethic,
+        Archethic.Networking.IPLookup,
+        RemoteDiscovery,
+        persistent: false
+      )
 
-      MockPublicGateway
-      |> stub(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
+      MockIPIFY
+      |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
+    end
+
+    test "assert currnet config is :prod & restore to :test" do
+      assert :prod == Mix.env()
+      Mix.env(:test)
+      assert :test == Mix.env()
     end
   end
 end

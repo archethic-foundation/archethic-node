@@ -136,6 +136,12 @@ config :archethic, Archethic.Networking,
          false
      end)
 
+config :archethic, Archethic.Networking.IPLookup.LocalDiscovery,
+  provider: Archethic.Networking.IPLookup.LocalDiscovery.NAT
+
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
+  provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
+
 # -----End-of-Networking-configs ------
 
 # Import environment specific config. This must remain at the bottom

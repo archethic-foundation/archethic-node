@@ -92,10 +92,13 @@ config :archethic, Archethic.OracleChain.Services.UCOPrice, provider: MockUCOPri
 config :archethic, Archethic.Networking, validate_node_ip: false
 
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
-
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
-config :archethic, Archethic.Networking.IPLookup.LocalDiscovery, MockLocalDiscovery
-config :archethic, Archethic.Networking.IPLookup.PublicGateway, MockPublicGateway
+
+config :archethic, Archethic.Networking.IPLookup.LocalDiscovery.NAT, MockNAT
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscover.IPIFY, MockIPIFY
+
+config :archethic, Archethic.Networking.IPLookup.LocalDiscovery, provider: MockNAT
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery, provider: MockIPIFY
 
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false

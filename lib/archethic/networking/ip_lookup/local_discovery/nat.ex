@@ -1,13 +1,13 @@
-defmodule Archethic.Networking.IPLookup.NAT do
+defmodule Archethic.Networking.IPLookup.LocalDiscovery.NAT do
   @moduledoc """
   Support the NAT IP discovery using UPnP or PmP
   """
 
-  alias Archethic.Networking.IPLookup.LocalDiscovery
+  alias Archethic.Networking.IPLookup.Impl
 
-  @behaviour LocalDiscovery
+  @behaviour Impl
 
-  @impl LocalDiscovery
+  @impl Impl
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
   def get_node_ip() do
     [:natupnp_v1, :natupnp_v2, :natpmp]

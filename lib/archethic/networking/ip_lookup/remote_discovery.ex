@@ -1,6 +1,6 @@
-defmodule Archethic.Networking.IPLookup.LocalDiscovery do
+defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
   @moduledoc """
-  Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
+  Provide abstraction over public ip provider
   """
 
   def get_node_ip() do

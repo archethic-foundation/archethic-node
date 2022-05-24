@@ -159,13 +159,13 @@ config :archethic,
        Archethic.Networking.IPLookup,
        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
           "NAT" ->
-            Archethic.Networking.IPLookup.NAT
+            Archethic.Networking.IPLookup.LocalDiscovery
 
           "STATIC" ->
             Archethic.Networking.IPLookup.Static
 
           "IPFY" ->
-            Archethic.Networking.IPLookup.IPIFY
+            Archethic.Networking.IPLookup.RemoteDiscovery
         end)
 
 config :archethic, Archethic.Networking.PortForwarding,
