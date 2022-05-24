@@ -55,10 +55,10 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
     )
 
 config :archethic,
-       Archethic.Crypto.NodeKeystore do
-          "SOFTWARE" ->
+       Archethic.Crypto.NodeKeystore,
        (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE")
-             |> String.
+             |> String.upcase() do
+          "SOFTWARE" ->
             Archethic.Crypto.NodeKeystore.SoftwareImpl
 
           "TPM" ->
