@@ -130,7 +130,7 @@ defmodule Archethic.MixProject do
       "dev.lbench": ["cmd mix archethic.regression --bench localhost"],
       # production aliases
       "prod.run": ["cmd  MIX_ENV=prod ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL=SOFTWARE
-      ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS=SOFTWARE iex -S mix"]
+      ARCHETHIC_NODE_ALLOWED_KEY_ORIGINS=SOFTWARE ARCHETHIC_NODE_IP_VALIDATION='true' iex -S mix"]
     ]
   end
 end

@@ -126,15 +126,6 @@ config :archethic, ArchethicWeb.FaucetController,
     |> Base.decode16!(case: :mixed)
 
 # -----Start-of-Networking-configs-----
-config :archethic, Archethic.Networking,
-  validate_node_ip:
-    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false")) do
-       "true" ->
-         true
-
-       _ ->
-         false
-     end)
 
 config :archethic, Archethic.Networking.IPLookup.LocalDiscovery,
   provider: Archethic.Networking.IPLookup.LocalDiscovery.NAT
