@@ -9,7 +9,7 @@ This standard outlines conventions, patterns, and so on that must be observed th
 
 
 
-## Regression Avoidance conventions
+## Regression Avoidance conventionss
 
 - ### Application Variables (for modules)
     -  While defining module parameters  single key value pairs must be avoided
