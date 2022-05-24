@@ -22,7 +22,7 @@ defmodule Archethic.Networking.IPLookupTest do
     )
   end
 
-  describe("Mix.env() as :dev, Archethic.Networking.IPLookup.get_node_ip()/0 ") do
+  describe("Mode: :dev, Archethic.Networking.IPLookup.get_node_ip()/0 ") do
     # During mix.env as :dev we should not use NAT//IPIFY
     test "Dev-mode:  Static IP Should not be Validated to be a Public IP" do
       put_conf(validate_node_ip: false, ip_provider: MockStatic)
@@ -34,7 +34,7 @@ defmodule Archethic.Networking.IPLookupTest do
     end
   end
 
-  describe "Mix.env() as :prod, Archethic.Networking.IPLookup.get_node_ip()/0" do
+  describe "Mode: :prod, Archethic.Networking.IPLookup.get_node_ip()/0" do
     test "If Static IP, it must raise an error " do
       # set prod mode configuration values
       put_conf(validate_node_ip: true, ip_provider: MockStatic)
