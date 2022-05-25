@@ -348,7 +348,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
           ]
 
         :cross_validator ->
-          [{{:timeout, :stop_timeout}, timeout, :any}]
+          [
+            {{:timeout, :change_coordinator}, 5_000, :any},
+            {{:timeout, :stop_timeout}, timeout, :any}
+          ]
       end
 
     {:keep_state, %{data | context: new_context}, next_events}
@@ -500,14 +503,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :cast,
-        {:cross_validate, _stamp, _replication_tree, _confirmed_cross_validation_nodes},
-        :idle,
-        _
-      ),
-      do: {:keep_state_and_data, :postpone}
-
-  def handle_event(
-        :cast,
         {:cross_validate, validation_stamp = %ValidationStamp{}, replication_tree,
          confirmed_cross_validation_nodes},
         :cross_validator,
@@ -536,16 +531,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
     confirmed_cross_validation_nodes =
       ValidationContext.get_confirmed_validation_nodes(new_context)
 
-    if length(confirmed_cross_validation_nodes) == 1 and
-         ValidationContext.atomic_commitment?(new_context) do
-      {:next_state, :replication, %{data | context: new_context}}
+    actions = [{{:timeout, :change_coordinator}, :cancel}]
+    new_data = %{data | context: new_context}
+
+    with 1 <- length(confirmed_cross_validation_nodes),
+         true <- ValidationContext.atomic_commitment?(new_context) do
+      {:next_state, :replication, new_data, actions}
     else
-      {:next_state, :wait_cross_validation_stamps, %{data | context: new_context}}
+      _ ->
+        {:next_state, :wait_cross_validation_stamps, new_data, actions}
     end
   end
-
-  def handle_event(:cast, {:add_cross_validation_stamp, _}, :cross_validator, _),
-    do: {:keep_state_and_data, :postpone}
 
   def handle_event(
         :enter,
@@ -752,6 +748,52 @@ defmodule Archethic.Mining.DistributedWorkflow do
   end
 
   def handle_event(
+        {:timeout, :change_coordinator},
+        :any,
+        :cross_validator,
+        data = %{
+          context:
+            context = %ValidationContext{
+              transaction: tx,
+              cross_validation_nodes: validation_nodes
+            },
+          node_public_key: node_public_key
+        }
+      ) do
+    [next_coordinator | next_cross_validation_nodes] = validation_nodes
+
+    case next_cross_validation_nodes do
+      [] ->
+        Logger.error("No more cross validation nodes to used after coordinator timeout",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        :stop
+
+      _ ->
+        nb_cross_validation_nodes = length(next_cross_validation_nodes)
+
+        new_context =
+          context
+          |> Map.put(:coordinator_node, next_coordinator)
+          |> Map.put(:cross_validation_nodes, next_cross_validation_nodes)
+          |> Map.put(:cross_validation_nodes_confirmation, <<0::size(nb_cross_validation_nodes)>>)
+
+        if next_coordinator.last_public_key == node_public_key do
+          {:next_state, :coordinator, %{data | context: new_context}}
+        else
+          actions = [
+            {:next_event, :internal, :notify_context},
+            {{:timeout, :change_coordinator}, 3_000, :any}
+          ]
+
+          {:keep_state, %{data | context: new_context}, actions}
+        end
+    end
+  end
+
+  def handle_event(
         {:timeout, :stop_timeout},
         :any,
         _state,
@@ -769,15 +811,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
         event_type,
         event,
         state,
-        _ = %{validation_context: %ValidationContext{transaction: tx}}
+        _ = %{context: %ValidationContext{transaction: tx}}
       ) do
-    Logger.error(
-      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)}",
+    Logger.warning(
+      "Unexpected event #{inspect(event)}(#{inspect(event_type)}) in the state #{inspect(state)} - Will be postponed for the next state",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    :keep_state_and_data
+    {:keep_state_and_data, :postpone}
   end
 
   defp notify_transaction_context(
