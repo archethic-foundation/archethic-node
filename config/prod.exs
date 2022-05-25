@@ -158,13 +158,13 @@ config :archethic, Archethic.Networking,
 config :archethic,
        Archethic.Networking.IPLookup,
        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
-          local_d when local_d in ["NAT", "LocalDiscovery"] ->
-            Archethic.Networking.IPLookup.LocalDiscovery
+          nat when nat in ["NAT"] ->
+            Archethic.Networking.IPLookup.NATDiscovery
 
           static when static in ["STATIC"] ->
             Archethic.Networking.IPLookup.Static
 
-          remote_d when remote_d in ["IPFY", "IPIFY", "RemoteDiscovery"] ->
+          remote_d when remote_d in ["IPFY", "IPIFY"] ->
             Archethic.Networking.IPLookup.RemoteDiscovery
         end)
 

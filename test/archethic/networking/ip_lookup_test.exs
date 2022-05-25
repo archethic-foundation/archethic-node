@@ -4,7 +4,7 @@ defmodule Archethic.Networking.IPLookupTest do
   import Mox
   import Archethic.Networking.IPLookup, only: [get_node_ip: 0]
 
-  alias Archethic.Networking.IPLookup.LocalDiscovery
+  alias Archethic.Networking.IPLookup.NATDiscovery
   alias Archethic.Networking.IPLookup.RemoteDiscovery
 
   def put_conf(validate_node_ip: validate_node_ip, ip_provider: ip_provider) do
@@ -52,7 +52,7 @@ defmodule Archethic.Networking.IPLookupTest do
 
     test "If Private IP(NAT), it must fallback to IPIFY to get public IP" do
       # set prod mode configuration values
-      put_conf(validate_node_ip: true, ip_provider: LocalDiscovery)
+      put_conf(validate_node_ip: true, ip_provider: NATDiscovery)
 
       MockLocalHandler
       |> expect(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)

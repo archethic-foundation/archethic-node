@@ -1,9 +1,9 @@
-defmodule Archethic.Networking.IPLookup.LocalDiscovery do
+defmodule Archethic.Networking.IPLookup.NATDiscovery do
   @moduledoc false
   # Module purpose:
   # redirect the call
   # ensures mocktest feasibility
-  alias Archethic.Networking.IPLookup.LocalDiscovery.Handler
+  alias Archethic.Networking.IPLookup.NATDiscovery.Handler
 
   def get_node_ip() do
     local_handler = module_args()

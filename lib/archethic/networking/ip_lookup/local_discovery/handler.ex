@@ -1,4 +1,4 @@
-defmodule Archethic.Networking.IPLookup.LocalDiscovery.Handler do
+defmodule Archethic.Networking.IPLookup.NATDiscovery.Handler do
   @moduledoc """
   Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
   """
