@@ -9,7 +9,7 @@ defmodule Archethic.Networking.IPLookup.LocalDiscovery.UPnPv1 do
     with {:ok, router_ip} <- :natupnp_v1.discover(),
          {:ok, ip_chars} <- :natupnp_v1.get_external_address(router_ip),
          {:ok, ip} <- :inet.parse_address(ip_chars) do
-      {:ok, ip}
+      {ip}
     end
   end
 end

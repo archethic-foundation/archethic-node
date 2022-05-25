@@ -39,7 +39,7 @@ defmodule Archethic.Networking.IPLookup do
         ip
 
       {:error, reason} ->
-        raise "Cannot use #{RemoteDiscovery}: IP lookup - #{inspect(reason)}"
+        fallback(RemoteDiscovery, reason)
     end
   end
 

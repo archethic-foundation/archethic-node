@@ -19,7 +19,7 @@ defmodule Archethic.Networking.IPLookup.LocalDiscovery.Handler do
 
   defp do_get_node_ip(provider) do
     case provider.get_node_ip() do
-      {:ok, ip} ->
+      {ip} ->
         {:ok, ip}
 
       {:error, reason} ->
@@ -29,12 +29,6 @@ defmodule Archethic.Networking.IPLookup.LocalDiscovery.Handler do
 
         fallback({provider}, reason)
     end
-  end
-
-  defp module_args() do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider, UPnPv1)
   end
 
   defp fallback({UPnPv1}, _reason) do
@@ -51,5 +45,11 @@ defmodule Archethic.Networking.IPLookup.LocalDiscovery.Handler do
 
   defp fallback({_provider}, reason) do
     {:error, reason}
+  end
+
+  defp module_args() do
+    :archethic
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:provider, UPnPv1)
   end
 end
