@@ -15,9 +15,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   alias Archethic.Crypto
 
-  alias Archethic.TaskSupervisor
-
-  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
@@ -511,54 +508,23 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   end
 
   @doc """
-  Determines if the transaction movements are valid at a given time
+  Add the movement to burn the fee
   """
-  @spec valid_transaction_movements?(t(), list(TransactionMovement.t()), DateTime.t()) ::
-          boolean()
-  def valid_transaction_movements?(
-        %__MODULE__{fee: fee, transaction_movements: resolved_transaction_movements},
-        tx_movements,
-        timestamp = %DateTime{}
-      ) do
-    %__MODULE__{transaction_movements: expected_movements} =
-      resolve_transaction_movements(%__MODULE__{fee: fee}, tx_movements, timestamp)
-
-    Enum.all?(resolved_transaction_movements, &(&1 in expected_movements))
+  @spec add_burning_movement(t()) :: t()
+  def add_burning_movement(ops = %__MODULE__{}) do
+    burn_movement = get_burning_movement(ops)
+    Map.update(ops, :transaction_movements, [burn_movement], &([burn_movement] ++ &1))
   end
 
   @doc """
-  Resolve the transaction movements including the transaction's fee burning and retrieval of the last transaction addresses
+  Get the burning transaction movement
   """
-  @spec resolve_transaction_movements(t(), list(TransactionMovement.t()), DateTime.t()) :: t()
-  def resolve_transaction_movements(
-        ops = %__MODULE__{fee: fee},
-        tx_movements,
-        timestamp = %DateTime{}
-      ) do
-    burn_movement = %TransactionMovement{
+  @spec get_burning_movement(t()) :: TransactionMovement.t()
+  def get_burning_movement(%__MODULE__{fee: fee}) do
+    %TransactionMovement{
       to: @burning_address,
       amount: fee,
       type: :UCO
-    }
-
-    resolved_movements =
-      Task.Supervisor.async_stream_nolink(
-        TaskSupervisor,
-        tx_movements,
-        fn mvt = %TransactionMovement{to: to} ->
-          %{mvt | to: TransactionChain.resolve_last_address(to, timestamp)}
-        end,
-        on_timeout: :kill_task
-      )
-      |> Stream.filter(&match?({:ok, _}, &1))
-      |> Enum.reduce([burn_movement], fn {:ok, res}, acc ->
-        [res | acc]
-      end)
-      |> Enum.reverse()
-
-    %{
-      ops
-      | transaction_movements: resolved_movements
     }
   end
 end

@@ -37,6 +37,7 @@ defmodule Archethic.TransactionFactory do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.add_burning_movement()
 
     validation_stamp =
       %ValidationStamp{
@@ -73,6 +74,7 @@ defmodule Archethic.TransactionFactory do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.consume_inputs(tx.address, inputs)
+      |> LedgerOperations.add_burning_movement()
 
     validation_stamp =
       %ValidationStamp{
@@ -101,6 +103,7 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
+      |> LedgerOperations.add_burning_movement()
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
     validation_stamp = %ValidationStamp{
@@ -128,6 +131,7 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
+      |> LedgerOperations.add_burning_movement()
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
     validation_stamp =
@@ -157,6 +161,7 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{
         fee: Fee.calculate(tx, 0.07)
       }
+      |> LedgerOperations.add_burning_movement()
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
     validation_stamp = %ValidationStamp{
@@ -184,6 +189,7 @@ defmodule Archethic.TransactionFactory do
       %LedgerOperations{
         fee: 1_000_000_000
       }
+      |> LedgerOperations.add_burning_movement()
       |> LedgerOperations.consume_inputs(tx.address, inputs)
 
     validation_stamp =

@@ -163,7 +163,8 @@ defmodule Archethic.P2P.MessageTest do
             153, 176, 223, 178, 72, 88, 6, 41, 167, 163, 205, 98, 172, 249, 141>>
         ],
         chain_storage_nodes_view: <<1::1, 0::1, 0::1, 1::1, 0::1>>,
-        beacon_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>
+        beacon_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>,
+        io_storage_nodes_view: <<0::1, 1::1, 1::1, 1::1>>
       }
 
       assert msg ==

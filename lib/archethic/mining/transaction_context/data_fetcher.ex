@@ -70,21 +70,22 @@ defmodule Archethic.Mining.TransactionContext.DataFetcher do
   @doc """
   Request to a set a storage nodes the P2P view of some nodes and the first node which replied
   """
-  @spec fetch_p2p_view(node_public_keys :: list(Crypto.key())) :: bitstring()
+  @spec fetch_p2p_view(node_public_keys :: list(Crypto.key())) :: %{Crypto.key() => boolean()}
   def fetch_p2p_view(node_public_keys) do
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       node_public_keys,
       fn node_public_key ->
-        P2P.send_message(node_public_key, %Ping{}, 500)
+        {node_public_key, P2P.send_message(node_public_key, %Ping{}, 500)}
       end,
       on_timeout: :kill_task,
       timeout: 500
     )
+    |> Stream.filter(&match?({:ok, _}, &1))
     |> Enum.map(fn
-      {:ok, {:ok, %Ok{}}} -> <<1::1>>
-      _ -> <<0::1>>
+      {:ok, {node_public_key, {:ok, %Ok{}}}} -> {node_public_key, true}
+      {:ok, {node_public_key, _}} -> {node_public_key, false}
     end)
-    |> :erlang.list_to_bitstring()
+    |> Enum.into(%{})
   end
 end
