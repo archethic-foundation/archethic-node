@@ -138,18 +138,16 @@ defmodule ArchethicWeb.API.WebHostingController do
           {:ok, binary(), binary() | nil} | :encodage_error | :file_error
   defp get_file_content(_file, _cached? = true), do: {:ok, nil, nil}
 
-  defp get_file_content(%{"encodage" => encodage, "content" => content}, _cached = false) do
+  defp get_file_content(file = %{"content" => content}, _cached = false) do
     try do
       file_content = Base.url_decode64!(content, padding: false)
+      encodage = Map.get(file, "encodage")
       {:ok, file_content, encodage}
     rescue
       _ ->
         :encodage_error
     end
   end
-
-  defp get_file_content(%{"content" => content}, _cached = false),
-    do: {:ok, Base.url_decode64!(content, padding: false), nil}
 
   defp get_file_content(_, _), do: :file_error
 end
