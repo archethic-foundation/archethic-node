@@ -1,4 +1,4 @@
-defmodule Archethic.Networking.IPLookup.NATDiscovery.UPnPv2 do
+defmodule Archethic.Networking.IPLookup.LocalDiscovery.UPnPv2 do
   @moduledoc false
   alias Archethic.Networking.IPLookup.Impl
 

@@ -13,7 +13,7 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery.Handler do
   def get_node_ip do
     provider = module_args()
 
-    case provider.get_ip() do
+    case provider.get_node_ip() do
       {:ok, ip} ->
         {:ok, ip}
 

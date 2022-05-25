@@ -1,4 +1,4 @@
-defmodule Archethic.Networking.IPLookup.NATDiscovery.PMP do
+defmodule Archethic.Networking.IPLookup.LocalDiscovery.PMP do
   @moduledoc false
   alias Archethic.Networking.IPLookup.Impl
 
