@@ -77,10 +77,7 @@ defmodule Archethic.Mining do
       when is_list(validation_node_public_keys) do
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
 
-    node_list =
-      DateTime.utc_now()
-      |> transaction_validation_node_list()
-      |> Enum.filter(& &1.available?)
+    node_list = transaction_validation_node_list(DateTime.utc_now())
 
     storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
 
@@ -92,6 +89,9 @@ defmodule Archethic.Mining do
         storage_nodes,
         Election.get_validation_constraints()
       )
+      # We reject the unavailable nodes at the time of the tx validation
+      # but not for the election to avoid any issue in the future
+      |> Enum.filter(& &1.available?)
 
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
