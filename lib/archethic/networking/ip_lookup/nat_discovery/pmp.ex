@@ -5,6 +5,17 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.PMP do
   @behaviour Impl
 
   @impl Impl
+  @spec get_node_ip ::
+          {:error,
+           :bad_response
+           | :einval
+           | :network_failure
+           | :no_nat
+           | :not_authorized
+           | :out_of_resource
+           | :unsupported_opcode
+           | :unsupported_version}
+          | {:ok, {byte, byte, byte, byte} | {char, char, char, char, char, char, char, char}}
   def get_node_ip() do
     with {:ok, router_ip} <- :natpmp.discover(),
          {:ok, ip_chars} <- :natpmp.get_external_address(router_ip) do
