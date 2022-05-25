@@ -43,7 +43,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery do
     {:error, reason}
   end
 
-  defp fallback({_provider}, reason) do
+  defp fallback(_provider, reason) do
     {:error, reason}
   end
 
