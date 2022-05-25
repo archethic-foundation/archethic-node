@@ -670,9 +670,13 @@ defmodule Archethic.P2P.MemTable do
   """
   @spec set_node_available(Crypto.key()) :: :ok
   def set_node_available(first_public_key) when is_binary(first_public_key) do
-    true = :ets.insert(@availability_lookup_table, {first_public_key})
     Logger.info("Node globally available", node: Base.encode16(first_public_key))
-    notify_node_update(first_public_key)
+
+    if !:ets.member(@availability_lookup_table, first_public_key) do
+      true = :ets.insert(@availability_lookup_table, {first_public_key})
+      notify_node_update(first_public_key)
+    end
+
     :ok
   end
 
