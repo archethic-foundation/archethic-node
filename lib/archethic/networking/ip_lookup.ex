@@ -30,7 +30,7 @@ defmodule Archethic.Networking.IPLookup do
     ip
   end
 
-  defp fallback(NATDiscovery, reason) do
+  defp fallback(provider, reason) when provider == NATDiscovery do
     Logger.warning("Cannot use NATDiscovery: NAT IP lookup - #{inspect(reason)}")
     Logger.info("Trying PublicGateway: IPIFY as fallback")
 
