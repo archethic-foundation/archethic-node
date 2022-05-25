@@ -23,6 +23,7 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
         )
 
         fallback(provider, reason)
+        {:error, reason}
     end
   end
 
