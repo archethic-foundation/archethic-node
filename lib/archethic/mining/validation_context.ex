@@ -875,18 +875,14 @@ defmodule Archethic.Mining.ValidationContext do
         filter_node_list_by_view(chain_storage_nodes, chain_storage_nodes_view)
       )
 
-    IO.inspect(beacon_storage_nodes_view, label: "beacon node view")
-
     beacon_replication_tree =
       Replication.generate_tree(
         validation_nodes,
         filter_node_list_by_view(
-          beacon_storage_nodes |> IO.inspect(label: "beacon node list"),
+          beacon_storage_nodes,
           beacon_storage_nodes_view
         )
-        |> IO.inspect(label: "filter beacon node list")
       )
-      |> IO.inspect(label: "beacon replication tree")
 
     io_replication_tree =
       Replication.generate_tree(
@@ -927,9 +923,11 @@ defmodule Archethic.Mining.ValidationContext do
 
     node_list
     |> Enum.with_index()
-    |> Enum.filter(fn {_node, index} ->
-      # We take only the node which are locally available from the validation nodes
-      Enum.at(view_list, index) == 1
+    # We are preventing non available and authorized nodes to receive the transaction as they have
+    # not yet synchronized everything from the new joining
+    # We take only the node which are locally available from the validation nodes
+    |> Enum.filter(fn {node, index} ->
+      node.available? and Enum.at(view_list, index) == 1
     end)
     |> Enum.map(fn {node, _index} -> node end)
   end

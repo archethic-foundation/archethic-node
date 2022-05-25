@@ -133,7 +133,6 @@ defmodule Archethic.Mining.DistributedWorkflow do
     authorized_nodes =
       validation_time
       |> P2P.authorized_nodes()
-      |> Enum.filter(& &1.available?)
 
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(
