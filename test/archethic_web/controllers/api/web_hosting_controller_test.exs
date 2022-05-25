@@ -140,10 +140,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       content = """
       {
         "error.html":{
-          "encodage":"base64",
+          "encodage":"gzip",
           "content":"4rdHFh%2BHYoS8oLdVvbUzEVqB8Lvm7kSPnuwF0AAABYQ%3D"
         },
-        "base64.js":{
+        "gzip.js":{
           "encodage":"base64",
           "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
         },
@@ -158,7 +158,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "unsupported":"unsupported"
         },
         "image.png":{
-          "content":"image"
+          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
         }
       }
       """
@@ -201,7 +201,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/base64.js"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
       assert "<h1>Hello world !</h1>" = response(conn, 200) |> :zlib.gunzip()
@@ -220,8 +220,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
         )
 
-      assert "PGgxPkhlbGxvIHdvcmxkICE8L2gxPg" = response(conn1, 200) |> :zlib.gunzip()
-      assert "PGgxPkhlbGxvIHdvcmxkICE8L2gxPg" = response(conn2, 200) |> :zlib.gunzip()
+      assert "<h1>Hello world !</h1>" = response(conn1, 200) |> :zlib.gunzip()
+      assert "<h1>Hello world !</h1>" = response(conn2, 200) |> :zlib.gunzip()
     end
 
     test "should return good file content-type", %{conn: conn} do
@@ -240,7 +240,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn3 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/base64.js"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
       conn4 =

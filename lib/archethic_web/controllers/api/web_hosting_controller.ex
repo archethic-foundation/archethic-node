@@ -23,7 +23,7 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, json_content} <- Jason.decode(content),
          {:ok, file, mime_type} <- get_file(json_content, url_path),
          {cached?, etag} <- get_cache(conn, last_address, url_path),
-         {:ok, file_content} <- get_file_content(file, cached?) do
+         {:ok, file_content, encodage} <- get_file_content(file, cached?) do
       conn =
         conn
         |> put_resp_content_type(mime_type, "utf-8")
@@ -34,7 +34,13 @@ defmodule ArchethicWeb.API.WebHostingController do
       if cached? do
         send_resp(conn, 304, "")
       else
-        send_resp(conn, 200, :zlib.gzip(file_content))
+        case encodage do
+          "gzip" ->
+            send_resp(conn, 200, file_content)
+
+          _ ->
+            send_resp(conn, 200, :zlib.gzip(file_content))
+        end
       end
     else
       # Base.decode16 || Crypto.valid_address
@@ -127,28 +133,23 @@ defmodule ArchethicWeb.API.WebHostingController do
     {cached?, etag}
   end
 
+  # All file are encoded in base64 in JSON content
   @spec get_file_content(file :: map(), cached? :: boolean()) ::
-          {:ok, binary()} | :encodage_error | :file_error
-  defp get_file_content(_file, _cached? = true), do: {:ok, nil}
+          {:ok, binary(), binary() | nil} | :encodage_error | :file_error
+  defp get_file_content(_file, _cached? = true), do: {:ok, nil, nil}
 
   defp get_file_content(%{"encodage" => encodage, "content" => content}, _cached = false) do
     try do
-      file_content =
-        case encodage do
-          "base64" ->
-            Base.url_decode64!(content, padding: false)
-
-          _ ->
-            content
-        end
-
-      {:ok, file_content}
+      file_content = Base.url_decode64!(content, padding: false)
+      {:ok, file_content, encodage}
     rescue
       _ ->
         :encodage_error
     end
   end
 
-  defp get_file_content(%{"content" => content}, _cached = false), do: {:ok, content}
+  defp get_file_content(%{"content" => content}, _cached = false),
+    do: {:ok, Base.url_decode64!(content, padding: false), nil}
+
   defp get_file_content(_, _), do: :file_error
 end
