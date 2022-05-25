@@ -23,7 +23,6 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
         )
 
         fallback(provider, reason)
-        {:error, reason}
     end
   end
 
@@ -34,10 +33,10 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
   end
 
   defp fallback(IPIFY, reason) do
-    raise "Cannot use IPIFY IP lookup - #{inspect(reason)}"
+    {:error, reason}
   end
 
-  defp fallback(provider, reason) do
-    raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
+  defp fallback(_provider, reason) do
+    {:error, reason}
   end
 end

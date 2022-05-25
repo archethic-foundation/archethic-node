@@ -27,19 +27,19 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery do
           "Cannot use the provider #{provider} for IP Lookup - reason: #{inspect(reason)}"
         )
 
-        fallback({provider}, reason)
+        fallback(provider, reason)
     end
   end
 
-  defp fallback({UPnPv1}, _reason) do
+  defp fallback(UPnPv1, _reason) do
     do_get_node_ip(UPnPv2)
   end
 
-  defp fallback({UPnPv2}, _reason) do
+  defp fallback(UPnPv2, _reason) do
     do_get_node_ip(PMP)
   end
 
-  defp fallback({PMP}, reason) do
+  defp fallback(PMP, reason) do
     {:error, reason}
   end
 
