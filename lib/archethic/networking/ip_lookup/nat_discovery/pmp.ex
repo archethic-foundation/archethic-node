@@ -15,7 +15,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.PMP do
            | :out_of_resource
            | :unsupported_opcode
            | :unsupported_version}
-          | {:ok, {byte, byte, byte, byte} | {char, char, char, char, char, char, char, char}}
+          | {:ok, :inet.ip_address()}
   def get_node_ip() do
     with {:ok, router_ip} <- :natpmp.discover(),
          {:ok, ip_chars} <- :natpmp.get_external_address(router_ip) do
