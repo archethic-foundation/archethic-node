@@ -19,7 +19,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.Handler do
 
   defp do_get_node_ip(provider) do
     case provider.get_node_ip() do
-      {ip} ->
+      {:ok, ip} ->
         {:ok, ip}
 
       {:error, reason} ->
