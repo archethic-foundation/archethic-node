@@ -71,8 +71,7 @@ defmodule ArchethicWeb.API.WebHostingController do
       case Enum.count(url_path) do
         0 ->
           json_path = path("index.html")
-          url = "index.html"
-          {json_path, url}
+          {json_path, "index.html"}
 
         1 ->
           file_name = Enum.at(url_path, 0)
@@ -80,7 +79,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           {json_path, file_name}
 
         _ ->
-          json_path = Enum.reduce(url_path, fn value, acc -> path(acc) ~> path(value) end)
+          json_path = get_json_path(url_path)
           url = Path.join(url_path)
           {json_path, url}
       end
@@ -92,6 +91,16 @@ defmodule ArchethicWeb.API.WebHostingController do
       :error ->
         {:file_not_found, url}
     end
+  end
+
+  defp get_json_path(url_path) do
+    Enum.reduce(url_path, nil, fn value, acc ->
+      if acc == nil do
+        path(value)
+      else
+        acc ~> path(value)
+      end
+    end)
   end
 
   @spec get_cache(conn :: Plug.Conn.t(), last_address :: binary(), url_path :: list()) ::
