@@ -228,7 +228,8 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
+        {:node_update,
+         %Node{authorized?: true, available?: true, first_public_key: first_public_key}},
         _state,
         data = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
@@ -291,7 +292,7 @@ defmodule Archethic.OracleChain.Scheduler do
     end
   end
 
-  def handle_event(:info, {:node_update, %Node{authorized?: false}}, _state, _data),
+  def handle_event(:info, {:node_update, _}, _state, _data),
     do: :keep_state_and_data
 
   def handle_event(

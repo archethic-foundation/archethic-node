@@ -25,7 +25,7 @@ defmodule Archethic.SelfRepair.Sync do
    - Try to the first enrollment date of the listed nodes
    - Otherwise take the current date
   """
-  @spec last_sync_date() :: DateTime.t()
+  @spec last_sync_date() :: DateTime.t() | nil
   def last_sync_date do
     case DB.get_bootstrap_info(@bootstrap_info_last_sync_date_key) do
       nil ->

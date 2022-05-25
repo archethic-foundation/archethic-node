@@ -28,7 +28,7 @@ defmodule Archethic.SelfRepair do
   @doc """
   Return the last synchronization date from the previous cycle of self repair
   """
-  @spec last_sync_date() :: DateTime.t()
+  @spec last_sync_date() :: DateTime.t() | nil
   defdelegate last_sync_date, to: Sync
 
   @doc """
