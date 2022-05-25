@@ -94,6 +94,11 @@ config :archethic, Archethic.Networking, validate_node_ip: false
 config :archethic, Archethic.Networking.IPLookup, MockIPLookup
 config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
 
+# Regardless of default upnpV1 use MockNATDiscovery
+config :archethic, Archethic.Networking.IPLookup.NATDiscovery, provider: MockNATDiscovery
+# Regardless of default IPIFY use MockRemoteDiscovery
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery, provider: MockRemoteDiscovery
+
 config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
 config :archethic, Archethic.Networking.Scheduler, enabled: false
 

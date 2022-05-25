@@ -24,6 +24,7 @@ defmodule Archethic.Networking.IPLookupTest do
 
   describe("Mode: :dev, Archethic.Networking.IPLookup.get_node_ip()/0 ") do
     # During mix.env as :dev we should not use NAT//IPIFY
+
     test "Dev-mode:  Static IP Should not be Validated to be a Public IP" do
       put_conf(validate_node_ip: false, ip_provider: MockStatic)
 
@@ -54,10 +55,10 @@ defmodule Archethic.Networking.IPLookupTest do
       # set prod mode configuration values
       put_conf(validate_node_ip: true, ip_provider: NATDiscovery)
 
-      MockLocalHandler
+      MockNATDiscovery
       |> expect(:get_node_ip, fn -> {:ok, {0, 0, 0, 0}} end)
 
-      MockRemoteHandler
+      MockRemoteDiscovery
       |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()
@@ -67,7 +68,7 @@ defmodule Archethic.Networking.IPLookupTest do
       # set prod mode configuration values
       put_conf(validate_node_ip: true, ip_provider: RemoteDiscovery)
 
-      MockRemoteHandler
+      MockRemoteDiscovery
       |> expect(:get_node_ip, fn -> {:ok, {17, 5, 7, 8}} end)
 
       assert {17, 5, 7, 8} == get_node_ip()

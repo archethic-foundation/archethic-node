@@ -22,5 +22,7 @@ Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)
 
 Mox.defmock(MockStatic, for: Archethic.Networking.IPLookup.Impl)
 Mox.defmock(MockIPLookup, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockRemoteDiscovery, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockNATDiscovery, for: Archethic.Networking.IPLookup.Impl)
 
 # -----End-of-Networking-Mocks ------
