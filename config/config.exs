@@ -128,15 +128,9 @@ config :archethic, ArchethicWeb.FaucetController,
 # -----Start-of-Networking-configs-----
 
 config :archethic, Archethic.Networking.IPLookup.NATDiscovery,
-  handler: Archethic.Networking.IPLookup.NATDiscovery.Handler
-
-config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
-  handler: Archethic.Networking.IPLookup.RemoteDiscovery.Handler
-
-config :archethic, Archethic.Networking.IPLookup.NATDiscovery.Handler,
   provider: Archethic.Networking.IPLookup.NATDiscovery.UPnPv1
 
-config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery.Handler,
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
   provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
 
 # -----End-of-Networking-configs ------
