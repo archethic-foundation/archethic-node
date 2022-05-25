@@ -1,15 +1,18 @@
 defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
-  @moduledoc """
-  Provide abstraction over public ip provider
-  """
+  @moduledoc false
+  # Module purpose:
+  # Redirect the call
+  # Mocktest feasiblity
+  alias Archethic.Networking.IPLookup.RemoteDiscovery.Handler
 
   def get_node_ip() do
-    get_provider().get_node_ip()
+    remote_handler = module_args()
+    remote_handler.get_node_ip()
   end
 
-  def get_provider() do
+  defp module_args() do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider)
+    |> Keyword.get(:handler, Handler)
   end
 end

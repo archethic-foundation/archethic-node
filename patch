@@ -1,0 +1,329 @@
+commit 4d1c633a0e8afc57527d31723cf68be06adaf921
+Author: Samuel <samuel@uniris.io>
+Date:   Tue May 24 15:17:16 2022 +0200
+
+    Split implementation for local and remote discovery
+
+diff --git a/config/config.exs b/config/config.exs
+index c20b4665..da8cf595 100644
+--- a/config/config.exs
++++ b/config/config.exs
+@@ -136,12 +136,6 @@ config :archethic, Archethic.Networking,
+          false
+      end)
+ 
+-config :archethic, Archethic.Networking.IPLookup.LocalDiscovery,
+-  provider: Archethic.Networking.IPLookup.LocalDiscovery.NAT
+-
+-config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
+-  provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
+-
+ # -----End-of-Networking-configs ------
+ 
+ # Import environment specific config. This must remain at the bottom
+diff --git a/config/dev.exs b/config/dev.exs
+index a9e6d70b..0edfd207 100755
+--- a/config/dev.exs
++++ b/config/dev.exs
+@@ -55,10 +55,10 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
+     )
+ 
+ config :archethic,
+-       Archethic.Crypto.NodeKeystoupcase() do
+-          "SOFTWARE" ->re,
++       Archethic.Crypto.NodeKeystore,
+        (case System.get_env("ARCHETHIC_CRYPTO_NODE_KEYSTORE_IMPL", "SOFTWARE")
+-             |> String.
++             |> String.upcase() do
++          "SOFTWARE" ->
+             Archethic.Crypto.NodeKeystore.SoftwareImpl
+ 
+           "TPM" ->
+diff --git a/config/prod.exs b/config/prod.exs
+index 21227abb..bca02043 100755
+--- a/config/prod.exs
++++ b/config/prod.exs
+@@ -159,12 +159,12 @@ config :archethic,
+        Archethic.Networking.IPLookup,
+        (case(System.get_env("ARCHETHIC_NETWORKING_IMPL", "NAT") |> String.upcase()) do
+           "NAT" ->
+-            Archethic.Networking.IPLookup.LocalDiscovery
++            Archethic.Networking.IPLookup.NATDiscovery
+ 
+           "STATIC" ->
+             Archethic.Networking.IPLookup.Static
+ 
+-          "IPFY" ->
++          "REMOTE" ->
+             Archethic.Networking.IPLookup.RemoteDiscovery
+         end)
+ 
+diff --git a/config/test.exs b/config/test.exs
+index 7d29807a..00614776 100755
+--- a/config/test.exs
++++ b/config/test.exs
+@@ -94,11 +94,8 @@ config :archethic, Archethic.Networking, validate_node_ip: false
+ config :archethic, Archethic.Networking.IPLookup, MockIPLookup
+ config :archethic, Archethic.Networking.IPLookup.Static, MockStatic
+ 
+-config :archethic, Archethic.Networking.IPLookup.LocalDiscovery.NAT, MockNAT
+-config :archethic, Archethic.Networking.IPLookup.RemoteDiscover.IPIFY, MockIPIFY
+-
+-config :archethic, Archethic.Networking.IPLookup.LocalDiscovery, provider: MockNAT
+-config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery, provider: MockIPIFY
++config :archethic, Archethic.Networking.IPLookup.NATDiscovery, MockNATDiscovery
++config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery, MockRemoteDiscovery
+ 
+ config :archethic, Archethic.Networking.PortForwarding, MockPortForwarding
+ config :archethic, Archethic.Networking.Scheduler, enabled: false
+diff --git a/lib/archethic/networking/ip_lookup.ex b/lib/archethic/networking/ip_lookup.ex
+index 7ac5d1fb..830e14f4 100644
+--- a/lib/archethic/networking/ip_lookup.ex
++++ b/lib/archethic/networking/ip_lookup.ex
+@@ -5,7 +5,7 @@ defmodule Archethic.Networking.IPLookup do
+ 
+   alias Archethic.Networking
+   alias Archethic.Networking.IPLookup.RemoteDiscovery
+-  alias Archethic.Networking.IPLookup.LocalDiscovery
++  alias Archethic.Networking.IPLookup.NATDiscovery
+ 
+   @doc """
+   Get the node public ip with a fallback capability
+@@ -17,7 +17,7 @@ defmodule Archethic.Networking.IPLookup do
+     provider = get_provider()
+ 
+     ip =
+-      with {:ok, ip} <- apply(provider, :get_node_ip, []),
++      with {:ok, ip} <- provider.get_node_ip(),
+            :ok <- Networking.validate_ip(ip) do
+         Logger.info("Node IP discovered by #{provider}")
+         ip
+@@ -30,9 +30,9 @@ defmodule Archethic.Networking.IPLookup do
+     ip
+   end
+ 
+-  defp fallback(LocalDiscovery, reason) do
+-    Logger.warning("Cannot use LocalDiscovery: NAT IP lookup - #{inspect(reason)}")
+-    Logger.info("Trying PublicGateway: IPIFY as fallback")
++  defp fallback(NATDiscovery, reason) do
++    Logger.warning("Cannot use NAT discovery: #{inspect(reason)}")
++    Logger.info("Trying Remote discovery as fallback")
+ 
+     case RemoteDiscovery.get_node_ip() do
+       {:ok, ip} ->
+diff --git a/lib/archethic/networking/ip_lookup/local_discovery.ex b/lib/archethic/networking/ip_lookup/local_discovery.ex
+deleted file mode 100644
+index 14a8f664..00000000
+--- a/lib/archethic/networking/ip_lookup/local_discovery.ex
++++ /dev/null
+@@ -1,15 +0,0 @@
+-defmodule Archethic.Networking.IPLookup.LocalDiscovery do
+-  @moduledoc """
+-  Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
+-  """
+-
+-  def get_node_ip() do
+-    get_provider().get_node_ip()
+-  end
+-
+-  def get_provider() do
+-    :archethic
+-    |> Application.get_env(__MODULE__, [])
+-    |> Keyword.get(:provider)
+-  end
+-end
+diff --git a/lib/archethic/networking/ip_lookup/local_discovery/nat.ex b/lib/archethic/networking/ip_lookup/local_discovery/nat.ex
+deleted file mode 100644
+index 6b294204..00000000
+--- a/lib/archethic/networking/ip_lookup/local_discovery/nat.ex
++++ /dev/null
+@@ -1,29 +0,0 @@
+-defmodule Archethic.Networking.IPLookup.LocalDiscovery.NAT do
+-  @moduledoc """
+-  Support the NAT IP discovery using UPnP or PmP
+-  """
+-
+-  alias Archethic.Networking.IPLookup.Impl
+-
+-  @behaviour Impl
+-
+-  @impl Impl
+-  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
+-  def get_node_ip() do
+-    [:natupnp_v1, :natupnp_v2, :natpmp]
+-    |> discover
+-  end
+-
+-  @spec discover([atom()]) :: {:ok, :inet.ip_address()} | {:error, :ip_discovery_error}
+-  defp discover([]), do: {:error, :ip_discovery_error}
+-
+-  defp discover([protocol_module | protocol_modules]) do
+-    with {:ok, router_ip} <- protocol_module.discover(),
+-         {:ok, ip_chars} <- protocol_module.get_external_address(router_ip),
+-         {:ok, ip} <- :inet.parse_address(ip_chars) do
+-      {:ok, ip}
+-    else
+-      {:error, _} -> discover(protocol_modules)
+-    end
+-  end
+-end
+diff --git a/lib/archethic/networking/ip_lookup/nat_discovery.ex b/lib/archethic/networking/ip_lookup/nat_discovery.ex
+new file mode 100644
+index 00000000..6987f870
+--- /dev/null
++++ b/lib/archethic/networking/ip_lookup/nat_discovery.ex
+@@ -0,0 +1,53 @@
++defmodule Archethic.Networking.IPLookup.NATDiscovery do
++  @moduledoc """
++  Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
++  """
++
++  alias Archethic.Networking.IPLookup.Impl
++
++  alias __MODULE__.UPnPv1
++  alias __MODULE__.UPnPv2
++  alias __MODULE__.PMP
++
++  require Logger
++
++  @behaviour Impl
++  def get_node_ip do
++    provider = default_impl()
++    do_get_node_ip(provider)
++  end
++
++  defp do_get_node_ip(provider) do
++    case get_node_ip() do
++      {:ok, ip} ->
++        {:ok, ip}
++
++      {:error, reason} ->
++        Logger.error(
++          "Cannot use the provider #{provider} for IP Lookup - reason: #{inspect(reason)}"
++        )
++
++        fallback(provider, reason)
++    end
++  end
++
++  defp default_impl do
++    Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:provider, UPnPv1)
++  end
++
++  defp fallback(UPnPv1, _reason) do
++    do_get_node_ip(UPnPv2)
++  end
++
++  defp fallback(UPnPv2, _reason) do
++    do_get_node_ip(PMP)
++  end
++
++  defp fallback(PMP, reason) do
++    {:error, reason}
++  end
++
++  defp fallback(_provider, reason) do
++    {:error, reason}
++  end
++end
+diff --git a/lib/archethic/networking/ip_lookup/nat_discovery/pmp.ex b/lib/archethic/networking/ip_lookup/nat_discovery/pmp.ex
+new file mode 100644
+index 00000000..26d7c092
+--- /dev/null
++++ b/lib/archethic/networking/ip_lookup/nat_discovery/pmp.ex
+@@ -0,0 +1,11 @@
++defmodule Archethic.Networking.IPLookup.NATDiscovery.PMP do
++  @moduledoc false
++
++  def get_node_ip() do
++    with {:ok, router_ip} <- :natpmp.discover(),
++         {:ok, ip_chars} <- :natpmp.get_external_address(router_ip),
++         {:ok, ip} <- :inet.parse_address(ip_chars) do
++      {:ok, ip}
++    end
++  end
++end
+diff --git a/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v1.ex b/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v1.ex
+new file mode 100644
+index 00000000..10f9e3cd
+--- /dev/null
++++ b/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v1.ex
+@@ -0,0 +1,11 @@
++defmodule Archethic.Networking.IPLookup.NATDiscovery.UPnPv1 do
++  @moduledoc false
++
++  def get_node_ip() do
++    with {:ok, router_ip} <- :natupnp_v1.discover(),
++         {:ok, ip_chars} <- :natupnp_v1.get_external_address(router_ip),
++         {:ok, ip} <- :inet.parse_address(ip_chars) do
++      {:ok, ip}
++    end
++  end
++end
+diff --git a/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v2.ex b/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v2.ex
+new file mode 100644
+index 00000000..a27bf84a
+--- /dev/null
++++ b/lib/archethic/networking/ip_lookup/nat_discovery/upnp_v2.ex
+@@ -0,0 +1,11 @@
++defmodule Archethic.Networking.IPLookup.NATDiscovery.UPnPv2 do
++  @moduledoc false
++
++  def get_node_ip() do
++    with {:ok, router_ip} <- :natupnp_v2.discover(),
++         {:ok, ip_chars} <- :natupnp_v2.get_external_address(router_ip),
++         {:ok, ip} <- :inet.parse_address(ip_chars) do
++      {:ok, ip}
++    end
++  end
++end
+diff --git a/lib/archethic/networking/ip_lookup/remote_discovery.ex b/lib/archethic/networking/ip_lookup/remote_discovery.ex
+index c9cf3d9f..42b8d811 100644
+--- a/lib/archethic/networking/ip_lookup/remote_discovery.ex
++++ b/lib/archethic/networking/ip_lookup/remote_discovery.ex
+@@ -3,13 +3,40 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
+   Provide abstraction over public ip provider
+   """
+ 
+-  def get_node_ip() do
+-    get_provider().get_node_ip()
++  alias Archethic.Networking.IPLookup.Impl
++  alias __MODULE__.IPIFY
++
++  require Logger
++
++  @behaviour Impl
++  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
++  def get_node_ip do
++    provider = impl()
++
++    case provider.get_ip() do
++      {:ok, ip} ->
++        {:ok, ip}
++
++      {:error, reason} ->
++        Logger.warning(
++          "Cannot use the provider #{provider} for IP Lookup - reason: #{inspect(reason)}"
++        )
++
++        fallback(provider, reason)
++    end
+   end
+ 
+-  def get_provider() do
++  defp impl do
+     :archethic
+     |> Application.get_env(__MODULE__, [])
+-    |> Keyword.get(:provider)
++    |> Keyword.get(:provider, IPIFY)
++  end
++
++  defp fallback(IPIFY, reason) do
++    raise "Cannot use IPIFY IP lookup - #{inspect(reason)}"
++  end
++
++  defp fallback(provider, reason) do
++    raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
+   end
+ end
+

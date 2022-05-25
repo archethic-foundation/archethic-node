@@ -1,15 +1,18 @@
 defmodule Archethic.Networking.IPLookup.LocalDiscovery do
-  @moduledoc """
-  Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
-  """
+  @moduledoc false
+  # Module purpose:
+  # redirect the call
+  # ensures mocktest feasibility
+  alias Archethic.Networking.IPLookup.LocalDiscovery.Handler
 
   def get_node_ip() do
-    get_provider().get_node_ip()
+    local_handler = module_args()
+    local_handler.get_node_ip()
   end
 
-  def get_provider() do
+  defp module_args() do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider)
+    |> Keyword.get(:handler, Handler)
   end
 end
