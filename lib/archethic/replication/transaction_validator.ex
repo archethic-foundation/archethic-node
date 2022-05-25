@@ -284,14 +284,35 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_transaction_movements(
          tx = %Transaction{
-           validation_stamp: %ValidationStamp{timestamp: timestamp, ledger_operations: ops}
+           validation_stamp: %ValidationStamp{
+             timestamp: timestamp,
+             ledger_operations:
+               ops = %LedgerOperations{transaction_movements: transaction_movements}
+           }
          }
        ) do
-    if LedgerOperations.valid_transaction_movements?(
-         ops,
-         Transaction.get_movements(tx),
-         timestamp
-       ) do
+    resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, timestamp)
+
+    initial_movements =
+      tx
+      |> Transaction.get_movements()
+      |> Enum.map(&{&1.to, &1})
+      |> Enum.into(%{})
+
+    tx_burn_mvt = LedgerOperations.get_burning_movement(ops)
+
+    resolved_movements =
+      Enum.reduce(resolved_addresses, [tx_burn_mvt], fn {to, resolved}, acc ->
+        case Map.get(initial_movements, to) do
+          nil ->
+            acc
+
+          movement ->
+            [%{movement | to: resolved} | acc]
+        end
+      end)
+
+    if Enum.all?(resolved_movements, &(&1 in transaction_movements)) do
       :ok
     else
       Logger.error(
@@ -351,13 +372,22 @@ defmodule Archethic.Replication.TransactionValidator do
   defp validate_unspent_outputs(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
-             ledger_operations: %LedgerOperations{unspent_outputs: next_unspent_outputs}
+             ledger_operations: %LedgerOperations{
+               unspent_outputs: next_unspent_outputs,
+               fee: fee,
+               transaction_movements: transaction_movements
+             }
            }
          },
          previous_inputs_unspent_outputs
        ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
-      new_ledger_operations(tx, previous_inputs_unspent_outputs)
+      %LedgerOperations{
+        fee: fee,
+        transaction_movements: transaction_movements
+      }
+      |> LedgerOperations.from_transaction(tx)
+      |> LedgerOperations.consume_inputs(tx.address, previous_inputs_unspent_outputs)
 
     same? =
       Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
@@ -383,17 +413,5 @@ defmodule Archethic.Replication.TransactionValidator do
     else
       {:error, :insufficient_funds}
     end
-  end
-
-  defp new_ledger_operations(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: timestamp}},
-         previous_unspent_outputs
-       ) do
-    %LedgerOperations{
-      fee: get_transaction_fee(tx)
-    }
-    |> LedgerOperations.resolve_transaction_movements(Transaction.get_movements(tx), timestamp)
-    |> LedgerOperations.from_transaction(tx)
-    |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
   end
 end

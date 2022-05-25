@@ -104,7 +104,8 @@ defmodule Archethic.Mining do
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes_keys :: list(Crypto.key()),
           chain_storage_nodes_view :: bitstring(),
-          beacon_storage_nodes_view :: bitstring()
+          beacon_storage_nodes_view :: bitstring(),
+          io_storage_nodes_view :: bitstring()
         ) ::
           :ok
   def add_mining_context(
@@ -112,7 +113,8 @@ defmodule Archethic.Mining do
         validation_node_public_key,
         previous_storage_nodes_keys,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view
+        beacon_storage_nodes_view,
+        io_storage_nodes_view
       ) do
     tx_address
     |> get_mining_process!()
@@ -120,7 +122,8 @@ defmodule Archethic.Mining do
       validation_node_public_key,
       P2P.get_nodes_info(previous_storage_nodes_keys),
       chain_storage_nodes_view,
-      beacon_storage_nodes_view
+      beacon_storage_nodes_view,
+      io_storage_nodes_view
     )
   end
 

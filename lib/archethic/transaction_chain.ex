@@ -18,7 +18,10 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.MemTables.PendingLedger
   alias __MODULE__.MemTablesLoader
 
+  alias Archethic.TaskSupervisor
+
   alias __MODULE__.Transaction
+  alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
   alias __MODULE__.TransactionSummary
 
@@ -441,6 +444,33 @@ defmodule Archethic.TransactionChain do
   """
   @spec load_transaction(Transaction.t()) :: :ok
   defdelegate load_transaction(tx), to: MemTablesLoader
+
+  @doc """
+  Resolve all the last addresses from the transaction data
+  """
+  @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
+          list({origin_address :: binary(), resolved_address :: binary()})
+  def resolve_transaction_addresses(
+        tx = %Transaction{data: %TransactionData{recipients: recipients}},
+        time = %DateTime{}
+      ) do
+    addresses =
+      tx
+      |> Transaction.get_movements()
+      |> Enum.map(& &1.to)
+      |> Enum.concat(recipients)
+
+    Task.Supervisor.async_stream_nolink(
+      TaskSupervisor,
+      addresses,
+      fn to ->
+        {to, resolve_last_address(to, time)}
+      end,
+      on_timeout: :kill_task
+    )
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.map(fn {:ok, res} -> res end)
+  end
 
   @doc """
   Retrieve the last address of a chain

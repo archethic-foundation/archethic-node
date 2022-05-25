@@ -204,6 +204,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
+        |> LedgerOperations.add_burning_movement()
         |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
       signature: :crypto.strong_rand_bytes(32)
@@ -224,6 +225,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
+        |> LedgerOperations.add_burning_movement()
         |> LedgerOperations.from_transaction(tx)
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
     }
@@ -244,6 +246,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: 2_020_000_000,
           transaction_movements: Transaction.get_movements(tx)
         }
+        |> LedgerOperations.add_burning_movement()
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
     }
     |> ValidationStamp.sign()
@@ -288,17 +291,19 @@ defmodule Archethic.Mining.ValidationContextTest do
       proof_of_work: Crypto.origin_node_public_key(),
       proof_of_integrity: TransactionChain.proof_of_integrity([tx]),
       proof_of_election: Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now()),
-      ledger_operations: %LedgerOperations{
-        fee: Fee.calculate(tx, 0.07),
-        transaction_movements: Transaction.get_movements(tx),
-        unspent_outputs: [
-          %UnspentOutput{
-            amount: 100_000_000_000,
-            from: tx.address,
-            type: :UCO
-          }
-        ]
-      }
+      ledger_operations:
+        %LedgerOperations{
+          fee: Fee.calculate(tx, 0.07),
+          transaction_movements: Transaction.get_movements(tx),
+          unspent_outputs: [
+            %UnspentOutput{
+              amount: 100_000_000_000,
+              from: tx.address,
+              type: :UCO
+            }
+          ]
+        }
+        |> LedgerOperations.add_burning_movement()
     }
     |> ValidationStamp.sign()
   end
@@ -317,6 +322,7 @@ defmodule Archethic.Mining.ValidationContextTest do
           fee: Fee.calculate(tx, 0.07),
           transaction_movements: Transaction.get_movements(tx)
         }
+        |> LedgerOperations.add_burning_movement()
         |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
       errors: [:contract_validation]
     }
