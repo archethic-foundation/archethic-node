@@ -8,7 +8,33 @@ defmodule Archethic.Networking do
 
   @ip_validate_regex ~r/(^0\.)|(^127\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.)/
 
+  @doc ~S"""
+  Validates whether a given IP is a valid Public IP depending
+
+  upon whether it should be validated or not?
+
+  When mix_env = :dev , Use of Private IP : allowed , returns :ok
+  Static and Subnet(NAT), Private IP not to be validated to be public IP.
+
+  When mix_env = :prod, Use of Private IP : not allowed,
+  IP must be validated for a valid Public IP, otherwise return error
+
+  ## Example
+
+      iex> Archethic.Networking.validate_ip({0,0,0,0}, false)
+      :ok
+
+      iex> Archethic.Networking.validate_ip({127,0,0,1}, true)
+      {:error, :invalid_ip}
+
+
+      iex> Archethic.Networking.validate_ip({54,39,186,147},true)
+      :ok
+
+  """
+  @spec validate_ip(:inet.ip_address(), boolean()) :: :ok | {:error, :invalid_ip}
   def validate_ip(ip, ip_validation? \\ should_validate_node_ip?())
+  def validate_ip(_ip, false), do: :ok
 
   def validate_ip(ip, true) do
     if valid_ip?(ip) do
@@ -17,8 +43,6 @@ defmodule Archethic.Networking do
       {:error, :invalid_ip}
     end
   end
-
-  def validate_ip(_ip, false), do: :ok
 
   @doc """
   Provides current host IP address by leveraging the IP lookup provider.
