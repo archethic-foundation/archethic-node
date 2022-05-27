@@ -1,4 +1,4 @@
-defmodule Archethic.Networking.IPLookup.IPIFY do
+defmodule Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY do
   @moduledoc """
   Module provides external IP address of the node identified by IPIFY service.
   """
@@ -9,7 +9,7 @@ defmodule Archethic.Networking.IPLookup.IPIFY do
 
   @impl Impl
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, :not_recognizable_ip}
-  def get_node_ip do
+  def get_node_ip() do
     with {:ok, {_, _, inet_addr}} <- :httpc.request('http://api.ipify.org'),
          {:ok, ip} <- :inet.parse_address(inet_addr) do
       {:ok, ip}

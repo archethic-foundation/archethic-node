@@ -137,8 +137,8 @@ defmodule Archethic.Mining.PendingTransactionValidation do
               key_certificate,
               root_ca_public_key
             )},
-         {:conn, true} <-
-           {:conn, valid_connection?(ip, port, previous_public_key, should_validate_node_ip?())} do
+         {:conn, :ok} <-
+           {:conn, valid_connection(ip, port, previous_public_key)} do
       :ok
     else
       :error ->
@@ -150,8 +150,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       {:auth_origin, false} ->
         {:error, "Invalid node transaction with invalid key origin"}
 
-      {:conn, false} ->
-        {:error, "Invalid node connection (IP/Port) for the given public key"}
+      {:conn, {:error, :invalid_ip}} ->
+        {:error, "Invalid node's IP address"}
+
+      {:conn, {:error, :existing_node}} ->
+        {:error,
+         "Invalid node connection (IP/Port) for for the given public key - already existing"}
     end
   end
 
@@ -347,29 +351,16 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp get_first_public_key([], _), do: {:error, :network_issue}
 
-  defp valid_connection?(ip, port, previous_public_key, _check_ip? = true) do
-    with true <- Networking.valid_ip?(ip),
+  defp valid_connection(ip, port, previous_public_key) do
+    with :ok <- Networking.validate_ip(ip),
          false <- P2P.duplicating_node?(ip, port, previous_public_key) do
-      true
+      :ok
     else
-      _ ->
-        false
-    end
-  end
-
-  defp valid_connection?(ip, port, previous_public_key, _check_ip? = false) do
-    case P2P.duplicating_node?(ip, port, previous_public_key) do
-      false ->
-        true
-
       true ->
-        false
-    end
-  end
+        {:error, :existing_node}
 
-  defp should_validate_node_ip? do
-    :archethic
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:validate_node_ip, false)
+      {:error, :invalid_ip} ->
+        {:error, :invalid_ip}
+    end
   end
 end

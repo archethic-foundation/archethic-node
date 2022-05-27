@@ -87,12 +87,18 @@ config :archethic, Archethic.OracleChain.Scheduler,
   # Aggregate chain at the 50th second
   summary_interval: "0 * * * * *"
 
+# -----Start-of-Networking-dev-configs-----
+config :archethic, Archethic.Networking,
+  validate_node_ip: System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "false") == "true"
+
 config :archethic, Archethic.Networking.IPLookup, Archethic.Networking.IPLookup.Static
 
 config :archethic, Archethic.Networking.IPLookup.Static,
   hostname: System.get_env("ARCHETHIC_STATIC_IP", "127.0.0.1")
 
 config :archethic, Archethic.Networking.Scheduler, interval: "0 * * * * * *"
+
+# -----end-of-Networking-dev-configs-----
 
 config :archethic, Archethic.Reward.NetworkPoolScheduler,
   # At the 30th second

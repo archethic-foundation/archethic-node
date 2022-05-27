@@ -10,6 +10,7 @@ config :git_hooks,
         "mix format --check-formatted",
         "mix compile --warnings-as-errors",
         "mix credo",
+        "mix knigge.verify",
         "mix test --trace",
         "mix dialyzer"
       ]
@@ -124,6 +125,16 @@ config :archethic, ArchethicWeb.FaucetController,
     "3A7B579DBFB7CEBE26293850058F180A65D6A3D2F6964543F5EDE07BEB2EFDA4"
     |> Base.decode16!(case: :mixed)
 
+# -----Start-of-Networking-configs-----
+
+config :archethic, Archethic.Networking.IPLookup.NATDiscovery,
+  provider: Archethic.Networking.IPLookup.NATDiscovery.UPnPv1
+
+config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
+  provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
+
+# -----End-of-Networking-configs ------
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
-import_config "#{Mix.env()}.exs"
+import_config("#{Mix.env()}.exs")

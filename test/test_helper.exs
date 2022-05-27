@@ -21,3 +21,12 @@ Mox.defmock(MockGeoIP, for: Archethic.P2P.GeoPatch.GeoIP)
 Mox.defmock(MockUCOPriceProvider, for: Archethic.OracleChain.Services.UCOPrice.Providers.Impl)
 
 Mox.defmock(MockMetricsCollector, for: Archethic.Metrics.Collector)
+
+# -----Start-of-Networking-Mocks-----
+
+Mox.defmock(MockStatic, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockIPLookup, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockRemoteDiscovery, for: Archethic.Networking.IPLookup.Impl)
+Mox.defmock(MockNATDiscovery, for: Archethic.Networking.IPLookup.Impl)
+
+# -----End-of-Networking-Mocks ------
