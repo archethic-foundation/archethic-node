@@ -11,12 +11,10 @@ defmodule Archethic.Networking do
   def validate_ip(ip, ip_validation? \\ should_validate_node_ip?())
 
   def validate_ip(ip, true) do
-    case valid_ip?(ip) do
-      true ->
-        :ok
-
-      _ ->
-        {:error, :invalid_ip}
+    if valid_ip?(ip) do
+      :ok
+    else
+      {:error, :invalid_ip}
     end
   end
 
