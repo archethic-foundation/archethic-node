@@ -146,14 +146,7 @@ config :archethic, Archethic.Mining.PendingTransactionValidation,
 # -----Start-of-Networking-prod-configs-----
 
 config :archethic, Archethic.Networking,
-  validate_node_ip:
-    (case(System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true")) do
-       "true" ->
-         true
-
-       _ ->
-         false
-     end)
+  validate_node_ip: System.get_env("ARCHETHIC_NODE_IP_VALIDATION", "true") == "true"
 
 config :archethic,
        Archethic.Networking.IPLookup,
