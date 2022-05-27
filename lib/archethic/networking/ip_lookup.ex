@@ -14,7 +14,7 @@ defmodule Archethic.Networking.IPLookup do
   """
   @spec get_node_ip() :: :inet.ip_address()
   def get_node_ip() do
-    provider = module_args()
+    provider = provider()
 
     ip =
       with {:ok, ip} <- provider.get_node_ip(),
@@ -47,7 +47,7 @@ defmodule Archethic.Networking.IPLookup do
     raise "Cannot use #{provider} IP lookup - #{inspect(reason)}"
   end
 
-  defp module_args() do
+  defp provider() do
     Application.get_env(:archethic, __MODULE__)
   end
 end

@@ -13,7 +13,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery do
 
   @behaviour Impl
   def get_node_ip() do
-    provider = module_args()
+    provider = provider()
     do_get_node_ip(provider)
   end
 
@@ -47,7 +47,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery do
     {:error, reason}
   end
 
-  defp module_args() do
+  defp provider() do
     :archethic
     |> Application.get_env(__MODULE__, [])
     |> Keyword.get(:provider, UPnPv1)

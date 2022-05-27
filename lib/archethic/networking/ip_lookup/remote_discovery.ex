@@ -11,7 +11,7 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
   @behaviour Impl
   @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
   def get_node_ip do
-    provider = module_args()
+    provider = provider()
 
     case provider.get_node_ip() do
       {:ok, ip} ->
@@ -26,7 +26,7 @@ defmodule Archethic.Networking.IPLookup.RemoteDiscovery do
     end
   end
 
-  defp module_args() do
+  defp provider() do
     :archethic
     |> Application.get_env(__MODULE__, [])
     |> Keyword.get(:provider, IPIFY)
