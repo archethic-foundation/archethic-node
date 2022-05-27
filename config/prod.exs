@@ -157,7 +157,7 @@ config :archethic,
           "STATIC" ->
             Archethic.Networking.IPLookup.Static
 
-          "IPIFY" ->
+          "RemoteDiscovery" ->
             Archethic.Networking.IPLookup.RemoteDiscovery
         end)
 
