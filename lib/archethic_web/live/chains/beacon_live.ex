@@ -63,9 +63,9 @@ defmodule ArchethicWeb.BeaconChainLive do
       )
       |> assign(:fetching, true)
 
-      Cache.start()
+    Cache.start()
 
-      send(self(), {:initial_load, next_summary_time})
+    send(self(), {:initial_load, next_summary_time})
     {:ok, new_assign}
   end
 
@@ -118,10 +118,11 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   def handle_info({:initial_load, next_summary_time}, socket) do
     # Caching transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
-  transactions =
+    transactions =
       Cache.resolve(next_summary_time, 10 * 60, fn ->
         list_transaction_by_date_from_tx_chain(next_summary_time)
       end)
+
     new_socket =
       socket
       |> assign(:transactions, transactions)
@@ -137,6 +138,7 @@ defmodule ArchethicWeb.BeaconChainLive do
       Cache.resolve(date, 10 * 60, fn ->
         list_transaction_by_date(date)
       end)
+
     new_assign =
       socket
       |> assign(:fetching, false)
@@ -204,13 +206,15 @@ defmodule ArchethicWeb.BeaconChainLive do
     #   new_dates
     #   |> Enum.at(page - 1)
     #   |> list_transaction_by_date()
-      date = new_dates
-              |> Enum.at(page - 1)
+    date =
+      new_dates
+      |> Enum.at(page - 1)
 
     transactions =
       Cache.resolve(date, 10 * 60, fn ->
         list_transaction_by_date(date)
       end)
+
     new_assign =
       socket
       |> assign(:transactions, transactions)

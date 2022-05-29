@@ -1,6 +1,8 @@
 defmodule ArchethicWeb.Cache do
   @table :transactions
-  @default_ttl 5 * 60 # 5 minutes
+  # 5 minutes
+  @default_ttl 5 * 60
+  @moduledoc false
 
   @doc """
   Create a new ETS Cache if it doesn't already exists
@@ -12,14 +14,13 @@ defmodule ArchethicWeb.Cache do
     ArgumentError -> {:error, :already_started}
   end
 
-
   @doc """
   Retreive a value back from cache
   """
   def get(key, ttl \\ @default_ttl) do
     case :ets.lookup(@table, key) do
       [{^key, value, ts}] ->
-        if (timestamp() - ts) <= ttl do
+        if timestamp() - ts <= ttl do
           value
         end
 
@@ -27,7 +28,6 @@ defmodule ArchethicWeb.Cache do
         nil
     end
   end
-
 
   @doc """
   Put a value into the cache
@@ -37,7 +37,6 @@ defmodule ArchethicWeb.Cache do
     :ok
   end
 
-
   @doc """
   Delete an entry from the cache
   """
@@ -45,7 +44,6 @@ defmodule ArchethicWeb.Cache do
     true = :ets.delete(@table, key)
     :ok
   end
-
 
   @doc """
   Runs a piece of code if not already cached
@@ -63,8 +61,6 @@ defmodule ArchethicWeb.Cache do
     end
   end
 
-
   # Return current timestamp
   defp timestamp, do: DateTime.to_unix(DateTime.utc_now())
-
 end
