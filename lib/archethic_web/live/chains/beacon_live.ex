@@ -19,7 +19,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.PubSub
-
+  # alias Archethic.SelfRepair.Sync.BeaconSummaryHandler
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
@@ -28,6 +28,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Phoenix.View
 
   require Logger
+  alias ArchethicWeb.Cache
 
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
@@ -62,7 +63,9 @@ defmodule ArchethicWeb.BeaconChainLive do
       )
       |> assign(:fetching, true)
 
-    send(self(), {:initial_load, next_summary_time})
+      Cache.start()
+
+      send(self(), {:initial_load, next_summary_time})
     {:ok, new_assign}
   end
 
@@ -114,8 +117,11 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   def handle_info({:initial_load, next_summary_time}, socket) do
-    transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
-
+    # Caching transactions = list_transaction_by_date_from_tx_chain(next_summary_time)
+  transactions =
+      Cache.resolve(next_summary_time, 10 * 60, fn ->
+        list_transaction_by_date_from_tx_chain(next_summary_time)
+      end)
     new_socket =
       socket
       |> assign(:transactions, transactions)
@@ -126,8 +132,11 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   def handle_info({:load_at, date}, socket) do
-    transactions = list_transaction_by_date(date)
-
+    # Caching transactions = list_transaction_by_date(date)
+    transactions =
+      Cache.resolve(date, 10 * 60, fn ->
+        list_transaction_by_date(date)
+      end)
     new_assign =
       socket
       |> assign(:fetching, false)
@@ -191,11 +200,17 @@ defmodule ArchethicWeb.BeaconChainLive do
 
     new_dates = [new_next_summary | dates]
 
-    transactions =
-      new_dates
-      |> Enum.at(page - 1)
-      |> list_transaction_by_date()
+    # Caching transactions =
+    #   new_dates
+    #   |> Enum.at(page - 1)
+    #   |> list_transaction_by_date()
+      date = new_dates
+              |> Enum.at(page - 1)
 
+    transactions =
+      Cache.resolve(date, 10 * 60, fn ->
+        list_transaction_by_date(date)
+      end)
     new_assign =
       socket
       |> assign(:transactions, transactions)
