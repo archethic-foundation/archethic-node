@@ -36,6 +36,8 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def parse_args(args) do
+    put_env()
+
     OptionParser.parse(args,
       strict: [help: :boolean, punch: :boolean, ip: :boolean],
       aliases: [h: :help, p: :punch, i: :ip]
@@ -64,18 +66,14 @@ defmodule Mix.Tasks.Archethic.Nettools do
 
   # For switch --ip -i to get ip address
   def args_to_internal_representation({[ip: true], _, _}) do
-    default = Application.get_env(:archethic, Networking.IPLookup)
-    # The default IPLookup value must be restored
-    try do
-      Application.put_env(:archethic, Networking.IPLookup, Networking.IPLookup.NATDiscovery)
-      Networking.IPLookup.get_node_ip()
-    after
-      Application.put_env(:archethic, Networking.IPLookup, default)
-    end
+    Networking.IPLookup.get_node_ip()
   end
 
   # For unknown switch exceute to help
   def args_to_internal_representation(_) do
     Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
   end
+
+  def put_env(),
+    do: Application.put_env(:archethic, Networking.IPLookup, Networking.IPLookup.NATDiscovery)
 end
