@@ -18,7 +18,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
   ```sh
   mix archethic.nettools -p
   mix archethic.nettools --punch
-  mix archethic.nettools -p 30000 40000
+  mix archethic.nettools -p 30_000 40_000
   mix archethic.nettools -i
   mix archethic.nettools --ip
   mix archethic.nettools -n
@@ -57,8 +57,8 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def args_to_internal_representation({[punch: true], _port_list = [], _errors}) do
-    Networking.PortForwarding.try_open_port(40000, true)
-    Networking.PortForwarding.try_open_port(30002, true)
+    Networking.PortForwarding.try_open_port(40_000, true)
+    Networking.PortForwarding.try_open_port(30_002, true)
   end
 
   def args_to_internal_representation({[ip: true], _, _}) do
