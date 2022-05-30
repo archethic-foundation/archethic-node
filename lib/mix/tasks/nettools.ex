@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def args_to_internal_representation({[punch: true], _port_list = [port | more_ports], errors}) do
-    Networking.PortForwarding.try_open_port(abs(Integer.parse(port) |> elem(0)), true)
+    Networking.PortForwarding.try_open_port(port |> String.to_integer(), true)
     args_to_internal_representation({[punch: true], more_ports, errors})
   end
 
