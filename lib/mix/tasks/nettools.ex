@@ -40,13 +40,10 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def parse_args(args) do
-    IO.inspect(args)
-
     OptionParser.parse(args,
       strict: [help: :boolean, punch: :boolean, ip: :boolean, nat: :boolean],
       aliases: [h: :help, p: :punch, i: :ip, n: :nat]
     )
-    |> IO.inspect()
     |> args_to_internal_representation()
   end
 
