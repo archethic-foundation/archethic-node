@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
   # For switch --ip -i to get ip address
   def args_to_internal_representation({[ip: true], _, _}) do
     default = Application.get_env(:archethic, Networking.IPLookup)
-
+    # The default IPLookup value must be restored
     try do
       Application.put_env(:archethic, Networking.IPLookup, Networking.IPLookup.NATDiscovery)
       Networking.IPLookup.get_node_ip()
