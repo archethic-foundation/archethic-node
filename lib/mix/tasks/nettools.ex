@@ -21,9 +21,6 @@ defmodule Mix.Tasks.Archethic.Nettools do
   mix archethic.nettools -p 30_000 40_000
   mix archethic.nettools -i
   mix archethic.nettools --ip
-  mix archethic.nettools -n
-  mix archethic.nettools --nat
-  mix archethic.nettools -n pmp
 
   ```
 
@@ -41,8 +38,8 @@ defmodule Mix.Tasks.Archethic.Nettools do
 
   def parse_args(args) do
     OptionParser.parse(args,
-      strict: [help: :boolean, punch: :boolean, ip: :boolean, nat: :boolean],
-      aliases: [h: :help, p: :punch, i: :ip, n: :nat]
+      strict: [help: :boolean, punch: :boolean, ip: :boolean],
+      aliases: [h: :help, p: :punch, i: :ip]
     )
     |> args_to_internal_representation()
   end
@@ -64,26 +61,6 @@ defmodule Mix.Tasks.Archethic.Nettools do
   def args_to_internal_representation({[ip: true], _, _}) do
     {_, ip} = Networking.IPLookup.RemoteDiscovery.get_node_ip()
     Logger.info("Public ip: #{:inet.ntoa(ip)}")
-  end
-
-  def args_to_internal_representation({[nat: true], [], _}) do
-    Networking.IPLookup.NATDiscovery.get_node_ip()
-  end
-
-  def args_to_internal_representation({[nat: true], [protocol], _}) do
-    case protocol |> String.downcase() do
-      val when val in ["upnp_v1", "upnpv1", "v1"] ->
-        msg = Networking.IPLookup.NATDiscovery.UPnPv1.get_node_ip()
-        Logger.info("#{inspect(msg)}")
-
-      val when val in ["upnp_v2", "upnpv2", "v2"] ->
-        msg = Networking.IPLookup.NATDiscovery.UPnPv2.get_node_ip()
-        Logger.info("#{inspect(msg)}")
-
-      val when val in ["pmp"] ->
-        msg = Networking.IPLookup.NATDiscovery.PMP.get_node_ip()
-        Logger.info("#{inspect(msg)}")
-    end
   end
 
   def args_to_internal_representation(_) do
