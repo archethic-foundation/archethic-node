@@ -43,20 +43,26 @@ defmodule Mix.Tasks.Archethic.Nettools do
     |> args_to_internal_representation()
   end
 
+  # For switch --help or -h
   def args_to_internal_representation({[help: true], [], []}) do
     Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
   end
 
-  def args_to_internal_representation({[punch: true], _port_list = [port | more_ports], errors}) do
-    Networking.PortForwarding.try_open_port(port |> String.to_integer(), true)
-    args_to_internal_representation({[punch: true], more_ports, errors})
-  end
-
+  # For switch --punch or -p
   def args_to_internal_representation({[punch: true], _port_list = [], _errors}) do
     Networking.PortForwarding.try_open_port(@http_port, true)
     Networking.PortForwarding.try_open_port(@p2p_port, true)
   end
 
+  # For switch --punch or -p with custom ports
+  def args_to_internal_representation({[punch: true], port_list, _errors}) do
+    port_list
+    |> Enum.each(fn port ->
+      Networking.PortForwarding.try_open_port(port |> String.to_integer(), true)
+    end)
+  end
+
+  # For switch --ip -i to get ip address
   def args_to_internal_representation({[ip: true], _, _}) do
     default = Application.get_env(:archethic, Networking.IPLookup)
 
@@ -68,6 +74,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
     end
   end
 
+  # For unknown switch exceute to help
   def args_to_internal_representation(_) do
     Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
   end
