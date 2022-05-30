@@ -56,7 +56,14 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def args_to_internal_representation({[ip: true], _, _}) do
-    Logger.info("Public ip: #{Networking.IPLookup.get_node_ip()}")
+    default = Application.get_env(:archethic, Networking.IPLookup)
+
+    try do
+      Application.put_env(:archethic, Networking.IPLookup, Networking.IPLookup.NATDiscovery)
+      Networking.IPLookup.get_node_ip()
+    after
+      Application.put_env(:archethic, Networking.IPLookup, default)
+    end
   end
 
   def args_to_internal_representation(_) do
