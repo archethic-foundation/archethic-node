@@ -7,11 +7,9 @@ defmodule Mix.Tasks.Archethic.Nettools do
     * `-h`, `--help`  - show this help
     * `-p`, `--punch` - Attempt to open ports
     * `-i`, `--ip`    - Public IP
-    * `-n`, `--nat`   - NATDiscovery
 
   ## Command line arguments
-    * `punch` - args: []-> 30002,40002, list_of ports
-    * `nat`   - args: []-> upnp_v1,upnp_v2,pmp, single protocol
+    * `punch` - args: []-> 30002 40002, list_of ports
 
   ## Example
 
@@ -21,7 +19,6 @@ defmodule Mix.Tasks.Archethic.Nettools do
   mix archethic.nettools -p 30_000 40_000
   mix archethic.nettools -i
   mix archethic.nettools --ip
-
   ```
 
   """
