@@ -56,8 +56,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def args_to_internal_representation({[ip: true], _, _}) do
-    {_, ip} = Networking.IPLookup.RemoteDiscovery.get_node_ip()
-    Logger.info("Public ip: #{:inet.ntoa(ip)}")
+    Logger.info("Public ip: #{Networking.IPLookup.get_node_ip()}")
   end
 
   def args_to_internal_representation(_) do
