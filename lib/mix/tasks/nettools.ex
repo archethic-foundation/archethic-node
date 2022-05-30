@@ -48,7 +48,7 @@ defmodule Mix.Tasks.Archethic.Nettools do
     Mix.shell().cmd("mix help #{Mix.Task.task_name(__MODULE__)}")
   end
 
-  # For switch --punch or -p
+  # For switch --punch or -p Opens default http and p2p ports
   def args_to_internal_representation({[punch: true], _port_list = [], _errors}) do
     Networking.PortForwarding.try_open_port(@http_port, true)
     Networking.PortForwarding.try_open_port(@p2p_port, true)
