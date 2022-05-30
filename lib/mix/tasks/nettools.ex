@@ -24,6 +24,8 @@ defmodule Mix.Tasks.Archethic.Nettools do
   """
   use Mix.Task
   alias Archethic.Networking
+  @http_port System.get_env("ARCHETHIC_HTTP_PORT", "40000") |> String.to_integer()
+  @p2p_port System.get_env("ARCHETHIC_P2P_PORT", "30002") |> String.to_integer()
 
   require Logger
 
@@ -51,8 +53,8 @@ defmodule Mix.Tasks.Archethic.Nettools do
   end
 
   def args_to_internal_representation({[punch: true], _port_list = [], _errors}) do
-    Networking.PortForwarding.try_open_port(40_000, true)
-    Networking.PortForwarding.try_open_port(30_002, true)
+    Networking.PortForwarding.try_open_port(@http_port, true)
+    Networking.PortForwarding.try_open_port(@p2p_port, true)
   end
 
   def args_to_internal_representation({[ip: true], _, _}) do
