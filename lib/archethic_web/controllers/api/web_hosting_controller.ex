@@ -70,14 +70,16 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   # API without path returns default index.html file
+  # or the only file if there is only one
   @spec get_file(json_content :: map(), url_path :: list()) ::
           {:ok, map(), binary()} | {:file_not_found, binary()}
   defp get_file(json_content, url_path) do
     {json_path, url} =
       case Enum.count(url_path) do
         0 ->
-          json_path = path("index.html")
-          {json_path, "index.html"}
+          file_name = get_single_file_name(json_content)
+          json_path = path(file_name)
+          {json_path, file_name}
 
         1 ->
           file_name = Enum.at(url_path, 0)
@@ -107,6 +109,25 @@ defmodule ArchethicWeb.API.WebHostingController do
         acc ~> path(value)
       end
     end)
+  end
+
+  defp get_single_file_name(json_content) do
+    keys = Map.keys(json_content)
+
+    case Enum.count(keys) do
+      1 ->
+        # Control if it is a file or a folder
+        file_name = Enum.at(keys, 0)
+
+        if Map.get(json_content, file_name) |> Map.has_key?("content") do
+          file_name
+        else
+          "index.html"
+        end
+
+      _ ->
+        "index.html"
+    end
   end
 
   @spec get_cache(conn :: Plug.Conn.t(), last_address :: binary(), url_path :: list()) ::
