@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Archethic.Nettools do
   @moduledoc """
-  Provides Support for Networking tools At cli
+  Supports networking tools using a command-line interface.
 
   ## Command line options
 
