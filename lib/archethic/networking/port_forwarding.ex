@@ -4,7 +4,7 @@ defmodule Archethic.Networking.PortForwarding do
   """
 
   alias Archethic.Networking.IPLookup
-  alias Archethic.Networking.IPLookup.NAT
+  alias Archethic.Networking.IPLookup.NATDiscovery
 
   require Logger
 
@@ -32,7 +32,7 @@ defmodule Archethic.Networking.PortForwarding do
     end
   end
 
-  defp required?(NAT), do: true
+  defp required?(NATDiscovery), do: true
   defp required?(_), do: false
 
   defp conf_overrides? do
