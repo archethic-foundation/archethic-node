@@ -208,7 +208,7 @@ defmodule Archethic.Bootstrap.Sync do
     Election.beacon_storage_nodes(
       subset,
       BeaconChain.next_slot(ready_date),
-      P2P.authorized_nodes(),
+      P2P.authorized_and_available_nodes(),
       Election.get_storage_constraints()
     )
     |> P2P.broadcast_message(message)
