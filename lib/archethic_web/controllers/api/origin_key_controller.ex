@@ -3,35 +3,33 @@ defmodule ArchethicWeb.API.OriginKeyController do
 
   alias Archethic.Crypto
   alias Archethic.SharedSecrets
-
-  alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
 
   def origin_key(conn, params) do
-    with %{"origin_public_key" => origin_public_key} <- params,
+    with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
          {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
          true <- Crypto.valid_public_key?(origin_public_key),
-         <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key,
-         {first_origin_family_public_key, _} <-
-           SharedSecrets.get_origin_family_from_origin_id(origin_id)
-           |> SharedSecrets.get_origin_family_seed()
-           |> Crypto.derive_keypair(0),
-         {:ok, tx} <-
-           Crypto.derive_address(first_origin_family_public_key)
-           |> TransactionChain.get_last_transaction(data: [:ownerships]),
-         ownership when ownership != nil <-
-           Enum.find(tx.data.ownerships, fn ownership ->
-             Ownership.authorized_public_key?(ownership, origin_public_key)
-           end) do
-      res = %{
-        encrypted_origin_private_keys: Base.encode16(ownership.secret),
-        encrypted_secret_key:
-          Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
-      }
+         true <- Crypto.get_key_certificate(origin_public_key) == certificate,
+         <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
+      origin_family = Crypto.key_origin(origin_id)
+      signing_seed = SharedSecrets.get_origin_family_seed(origin_family)
+
+      tx =
+        Transaction.new(
+          :origin_shared_secrets,
+          %TransactionData{
+            content: <<origin_public_key::binary>>
+          },
+          signing_seed,
+          0
+        )
+
+      Archethic.send_new_transaction(tx)
 
       conn
       |> put_status(:ok)
-      |> json(res)
+      |> json(%{status: "ok"})
     else
       er when er in [:error, false] ->
         conn
