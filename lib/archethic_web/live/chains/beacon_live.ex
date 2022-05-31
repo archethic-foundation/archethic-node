@@ -31,7 +31,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   require Logger
   alias ArchethicWeb.TransactionCache
 
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
 
     if connected?(socket) do
@@ -64,7 +64,6 @@ defmodule ArchethicWeb.BeaconChainLive do
       )
       |> assign(:fetching, true)
 
-    send(self(), {:initial_load, next_summary_time})
     {:ok, new_assign}
   end
 
@@ -72,7 +71,9 @@ defmodule ArchethicWeb.BeaconChainLive do
     View.render(ExplorerView, "beacon_chain_index.html", assigns)
   end
 
-  def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
+  def handle_params(params, _uri, socket = %{assigns: %{dates: dates}}) do
+    page = Map.get(params, "page", "1")
+
     case Integer.parse(page) do
       {number, ""} when number > 0 and is_list(dates) ->
         if number > length(dates) do
