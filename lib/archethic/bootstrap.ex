@@ -112,7 +112,6 @@ defmodule Archethic.Bootstrap do
         reward_address
       )
     else
-      P2P.set_node_globally_available(Crypto.first_node_public_key())
       post_bootstrap(sync?: false)
     end
   end
