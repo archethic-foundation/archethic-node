@@ -292,6 +292,26 @@ defmodule Archethic.OracleChain.Scheduler do
     end
   end
 
+  def handle_event(
+        :info,
+        {:node_update,
+         %Node{authorized?: true, available?: false, first_public_key: first_public_key}},
+        _state,
+        data = %{polling_timer: polling_timer}
+      ) do
+    if first_public_key == Crypto.first_node_public_key() do
+      Process.cancel_timer(polling_timer)
+
+      new_data =
+        data
+        |> Map.delete(:polling_timer)
+
+      {:keep_state, new_data}
+    else
+      :keep_state_and_data
+    end
+  end
+
   def handle_event(:info, {:node_update, _}, _state, _data),
     do: :keep_state_and_data
 

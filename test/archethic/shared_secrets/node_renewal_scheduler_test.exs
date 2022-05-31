@@ -54,7 +54,12 @@ defmodule Archethic.SharedSecrets.NodeRenewalSchedulerTest do
 
       send(
         pid,
-        {:node_update, %Node{authorized?: true, first_public_key: Crypto.first_node_public_key()}}
+        {:node_update,
+         %Node{
+           authorized?: true,
+           available?: true,
+           first_public_key: Crypto.first_node_public_key()
+         }}
       )
 
       assert_receive :renewal_processed, 3_000
