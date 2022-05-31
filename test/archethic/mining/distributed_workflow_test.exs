@@ -262,6 +262,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
 
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
+      assert io_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert <<0::1, 1::1>> == confirmed_validation_nodes
     end
 
@@ -621,7 +622,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
           assert Enum.all?(chain_tree, &(bit_size(&1) == 3))
 
-          assert Enum.all?(io_tree, &(bit_size(&1) == 3))
+          assert Enum.all?(io_tree, &(bit_size(&1) == 4))
 
           assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
 
