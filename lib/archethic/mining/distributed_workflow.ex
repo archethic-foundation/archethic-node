@@ -152,7 +152,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     io_storage_nodes =
       if Transaction.network_type?(tx.type) do
-        P2P.available_nodes()
+        P2P.list_nodes()
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
