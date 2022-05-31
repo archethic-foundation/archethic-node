@@ -56,11 +56,18 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   end
 
   def handle_info(
-        {:node_update, %Node{first_public_key: first_public_key, authorized?: true}},
+        {:node_update, %Node{authorized?: true, available?: true}},
+        state = %{timer: _timer}
+      ) do
+    {:noreply, state, :hibernate}
+  end
+
+  def handle_info(
+        {:node_update,
+         %Node{first_public_key: first_public_key, authorized?: true, available?: true}},
         state = %{interval: interval}
       ) do
-    with ^first_public_key <- Crypto.first_node_public_key(),
-         nil <- Map.get(state, :timer) do
+    if first_public_key == Crypto.first_node_public_key() do
       Logger.info("Start node shared secrets scheduling")
       timer = schedule_renewal_message(interval)
 
@@ -69,6 +76,20 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
       )
 
       {:noreply, Map.put(state, :timer, timer)}
+    else
+      {:noreply, state, :hibernate}
+    end
+  end
+
+  def handle_info(
+        {:node_update,
+         %Node{first_public_key: first_public_key, authorized?: true, available?: false}},
+        state
+      ) do
+    with timer when timer != nil <- Map.get(state, :timer),
+         ^first_public_key <- Crypto.first_node_public_key() do
+      Process.cancel_timer(timer)
+      {:noreply, Map.delete(state, :timer), :hibernate}
     else
       _ ->
         {:noreply, state, :hibernate}
