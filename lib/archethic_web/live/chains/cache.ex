@@ -1,40 +1,71 @@
-defmodule ArchethicWeb.Cache do
+defmodule ArchethicWeb.TransactionCache do
   @table :transactions
   # 5 minutes
-  @default_ttl 5 * 60
+  @default_ttl 5 * 60 * 1000
   @moduledoc false
+  use GenServer
+  require Logger
 
-  @doc """
-  Create a new ETS Cache if it doesn't already exists
-  """
-  def start do
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  def init(_args) do
     :ets.new(@table, [:set, :public, :named_table])
-    :ok
-  rescue
-    ArgumentError -> {:error, :already_started}
+
+    {:ok, []}
   end
 
   @doc """
   Retreive a value back from cache
   """
-  def get(key, ttl \\ @default_ttl) do
-    case :ets.lookup(@table, key) do
-      [{^key, value, ts}] ->
-        if timestamp() - ts <= ttl do
-          value
-        end
+  def get(key) do
+    GenServer.call(__MODULE__, {:get, key})
+  end
 
-      _else ->
-        nil
-    end
+  def handle_call({:get, key}, _, state) do
+    result =
+      case :ets.lookup(@table, key) do
+        [{^key, value, ts}] ->
+          Logger.info("Fetching from cache")
+          d_ts = get_current_timestamp() - ts
+          :ets.update_element(@table, key, {3, d_ts})
+          value
+
+        _ ->
+          nil
+      end
+
+    {:reply, result, state}
   end
 
   @doc """
   Put a value into the cache
   """
   def put(key, value) do
-    true = :ets.insert(@table, {key, value, timestamp()})
-    :ok
+    GenServer.cast(__MODULE__, {:put, key, value})
+  end
+
+  def handle_cast({:put, key, value}, state) do
+    true = :ets.insert(@table, {key, value, get_current_timestamp()})
+    schedule_key_delete(key)
+    {:noreply, state}
+  end
+
+  def handle_info({:delete, key}, state) do
+    case :ets.lookup(@table, key) do
+      [{^key, _value, ts}] ->
+        if get_current_timestamp() - ts >= @default_ttl do
+          delete(key)
+        else
+          schedule_key_delete(key, get_current_timestamp() - ts)
+        end
+
+      _ ->
+        :ok
+    end
+
+    {:noreply, state}
   end
 
   @doc """
@@ -48,19 +79,26 @@ defmodule ArchethicWeb.Cache do
   @doc """
   Runs a piece of code if not already cached
   """
-  def resolve(key, ttl \\ @default_ttl, resolver) when is_function(resolver, 0) do
-    case get(key, ttl) do
+  def resolve(key, resolver) when is_function(resolver, 0) do
+    case get(key) do
       nil ->
-        with {:ok, result} <- resolver.() do
+        with result <- resolver.() do
+          Logger.info("Caching results")
           put(key, result)
           {:ok, result}
         end
 
       term ->
+        Logger.info("Found in cache")
         {:ok, term}
     end
   end
 
-  # Return current timestamp
-  defp timestamp, do: DateTime.to_unix(DateTime.utc_now())
+  # Return current get_current_timestamp
+  defp get_current_timestamp, do: System.os_time(:millisecond)
+
+  defp schedule_key_delete(key, ts \\ @default_ttl) do
+    # We schedule the delete in every 5 minutes
+    Process.send_after(self(), {:delete, key}, ts)
+  end
 end
