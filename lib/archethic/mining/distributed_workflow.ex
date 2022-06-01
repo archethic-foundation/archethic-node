@@ -49,7 +49,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
 
-  @mining_timeout Application.compile_env!(:archethic, [Archethic.Mining, :timeout])
+  @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
+  @coordinator_notification_timeout Application.compile_env!(:archethic, [
+                                      __MODULE__,
+                                      :coordinator_notification_timeout
+                                    ])
+  @context_notification_timeout Application.compile_env!(:archethic, [
+                                  __MODULE__,
+                                  :context_notification_timeout
+                                ])
 
   def start_link(args \\ []) do
     GenStateMachine.start_link(__MODULE__, args, [])
@@ -334,7 +342,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           # TODO: Provide a better waiting time management
           # for example rolling percentile latency could be way to achieve this
           # (https://cs.stackexchange.com/a/129178)
-          waiting_time = 3_000
+          waiting_time = @context_notification_timeout
 
           Logger.debug(
             "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",
@@ -349,7 +357,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
         :cross_validator ->
           [
-            {{:timeout, :change_coordinator}, 5_000, :any},
+            {{:timeout, :change_coordinator}, @coordinator_notification_timeout, :any},
             {{:timeout, :stop_timeout}, timeout, :any}
           ]
       end
@@ -406,7 +414,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type
     )
 
-    :keep_state_and_data
+    actions = [
+      {{:timeout, :wait_confirmations}, @context_notification_timeout, :any}
+    ]
+
+    {:keep_state_and_data, actions}
   end
 
   def handle_event(
@@ -784,8 +796,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
           {:next_state, :coordinator, %{data | context: new_context}}
         else
           actions = [
-            {:next_event, :internal, :notify_context},
-            {{:timeout, :change_coordinator}, 3_000, :any}
+            {{:timeout, :change_coordinator}, @coordinator_notification_timeout, :any},
+            {:next_event, :internal, :notify_context}
           ]
 
           {:keep_state, %{data | context: new_context}, actions}

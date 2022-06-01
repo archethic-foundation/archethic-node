@@ -25,7 +25,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :timeout])
+  @mining_timeout Application.compile_env!(:archethic, [DistributedWorkflow, :global_timeout])
 
   @doc """
   Start mining process for a given transaction.
