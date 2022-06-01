@@ -48,18 +48,20 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     validation_time = DateTime.utc_now()
     current_node = P2P.get_node_info()
 
+    authorized_nodes = P2P.authorized_nodes(validation_time)
+
     chain_storage_nodes =
       Election.chain_storage_nodes_with_type(
         tx.address,
         tx.type,
-        [current_node]
+        authorized_nodes
       )
 
     beacon_storage_nodes =
       Election.beacon_storage_nodes(
         BeaconChain.subset_from_address(tx.address),
         BeaconChain.next_slot(DateTime.utc_now()),
-        [current_node]
+        authorized_nodes
       )
 
     resolved_addresses = TransactionChain.resolve_transaction_addresses(tx, validation_time)
@@ -70,7 +72,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
-        |> Election.io_storage_nodes([current_node])
+        |> Election.io_storage_nodes(authorized_nodes)
       end
 
     {prev_tx, unspent_outputs, previous_storage_nodes, chain_storage_nodes_view,
