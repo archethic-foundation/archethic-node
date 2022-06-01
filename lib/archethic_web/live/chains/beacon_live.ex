@@ -31,7 +31,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   require Logger
   alias ArchethicWeb.TransactionCache
 
-  def mount(params, _session, socket) do
+  def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
 
     if connected?(socket) do
