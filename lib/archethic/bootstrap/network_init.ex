@@ -31,7 +31,6 @@ defmodule Archethic.Bootstrap.NetworkInit do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
-  alias Archethic.TransactionChain.TransactionData.Ownership
 
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -83,33 +82,25 @@ defmodule Archethic.Bootstrap.NetworkInit do
   @doc """
   Create the first origin shared secret transaction
   """
-  @spec init_software_origin_shared_secrets_chain() :: :ok
-  def init_software_origin_shared_secrets_chain do
+  @spec init_software_origin_chain() :: :ok
+  def init_software_origin_chain do
     Logger.info("Create first software origin shared secret transaction")
 
-    origin_seed = :crypto.strong_rand_bytes(32)
-    secret_key = :crypto.strong_rand_bytes(32)
     signing_seed = SharedSecrets.get_origin_family_seed(:software)
 
-    # Default keypair generation creates software public key
-    {origin_public_key, origin_private_key} = Crypto.generate_deterministic_keypair(origin_seed)
-
-    encrypted_origin_private_key = Crypto.aes_encrypt(origin_private_key, secret_key)
+    [genesis_origin_public_key | _rest] = @genesis_origin_public_keys
 
     Transaction.new(
-      :origin_shared_secrets,
+      :origin,
       %TransactionData{
         code: """
           condition inherit: [
             # We need to ensure the type stays consistent
             # So we can apply specific rules during the transaction validation
-            type: origin_shared_secrets
+            type: origin
           ]
         """,
-        content: <<origin_public_key::binary>>,
-        ownerships: [
-          Ownership.new(encrypted_origin_private_key, secret_key, @genesis_origin_public_keys)
-        ]
+        content: <<genesis_origin_public_key::binary>>
       },
       signing_seed,
       0

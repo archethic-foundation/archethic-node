@@ -24,7 +24,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   end
 
   def init(_args) do
-    TransactionChain.list_transactions_by_type(:origin_shared_secrets, [
+    TransactionChain.list_transactions_by_type(:origin, [
       :address,
       :type,
       data: [:content]
@@ -86,7 +86,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
   def load_transaction(%Transaction{
         address: address,
-        type: :origin_shared_secrets,
+        type: :origin,
         data: %TransactionData{content: content}
       }) do
     content
@@ -97,7 +97,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
         Logger.info("Load origin public key #{Base.encode16(key)} - #{family}",
           transaction_address: Base.encode16(address),
-          transaction_type: :origin_shared_secrets
+          transaction_type: :origin
         )
       end)
     end)

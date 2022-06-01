@@ -62,7 +62,6 @@ defmodule Archethic.TransactionChain.Transaction do
   @type transaction_type ::
           :node
           | :node_shared_secrets
-          | :origin_shared_secrets
           | :node_rewards
           | :beacon
           | :beacon_summary
@@ -75,11 +74,11 @@ defmodule Archethic.TransactionChain.Transaction do
           | :transfer
           | :nft
           | :hosting
+          | :origin
 
   @transaction_types [
     :node,
     :node_shared_secrets,
-    :origin_shared_secrets,
     :beacon,
     :beacon_summary,
     :oracle,
@@ -91,7 +90,8 @@ defmodule Archethic.TransactionChain.Transaction do
     :keychain_access,
     :transfer,
     :hosting,
-    :nft
+    :nft,
+    :origin
   ]
 
   @doc """
@@ -300,7 +300,7 @@ defmodule Archethic.TransactionChain.Transaction do
   # Network transaction's type
   def serialize_type(:node), do: 0
   def serialize_type(:node_shared_secrets), do: 1
-  def serialize_type(:origin_shared_secrets), do: 2
+  def serialize_type(:origin), do: 2
   def serialize_type(:beacon), do: 3
   def serialize_type(:beacon_summary), do: 4
   def serialize_type(:oracle), do: 5
@@ -323,7 +323,7 @@ defmodule Archethic.TransactionChain.Transaction do
   # Network transaction's type
   def parse_type(0), do: :node
   def parse_type(1), do: :node_shared_secrets
-  def parse_type(2), do: :origin_shared_secrets
+  def parse_type(2), do: :origin
   def parse_type(3), do: :beacon
   def parse_type(4), do: :beacon_summary
   def parse_type(5), do: :oracle
@@ -345,7 +345,7 @@ defmodule Archethic.TransactionChain.Transaction do
   @spec network_type?(transaction_type()) :: boolean()
   def network_type?(:node), do: true
   def network_type?(:node_shared_secrets), do: true
-  def network_type?(:origin_shared_secrets), do: true
+  def network_type?(:origin), do: true
   def network_type?(:code_proposal), do: true
   def network_type?(:code_approval), do: true
   def network_type?(:oracle), do: true

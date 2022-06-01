@@ -75,9 +75,9 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
       assert Enum.all?(OriginKeyLookup.list_public_keys(), &(&1 in expected_keys))
     end
 
-    test "should load origin shared secret transaction and load keys from content" do
+    test "should load origin transaction and load keys from content" do
       tx = %Transaction{
-        type: :origin_shared_secrets,
+        type: :origin,
         data: %TransactionData{
           content:
             <<0, 2, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213, 140,
@@ -140,8 +140,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
 
   describe "start_link/1" do
     test "should load transactions from database and fill the lookup table" do
-      origin_shared_secrets_tx = %Transaction{
-        type: :origin_shared_secrets,
+      origin_tx = %Transaction{
+        type: :origin,
         data: %TransactionData{
           content:
             <<0, 1, 39, 103, 38, 51, 71, 159, 74, 33, 122, 134, 153, 147, 202, 66, 229, 213, 140,
@@ -187,8 +187,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoaderTest do
         :node, _ ->
           [node_tx]
 
-        :origin_shared_secrets, _ ->
-          [origin_shared_secrets_tx]
+        :origin, _ ->
+          [origin_tx]
 
         :node_shared_secrets, _ ->
           [node_shared_secrets_tx]

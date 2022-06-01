@@ -3,7 +3,16 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
   use ArchethicWeb.ConnCase
 
   alias Archethic.P2P
+
+  alias Archethic.P2P.Message.{
+    LastTransactionAddress,
+    GetLastTransactionAddress,
+    GetTransactionChainLength,
+    TransactionChainLength
+  }
+
   alias Archethic.P2P.Node
+  alias Archethic.TransactionChain
   alias Archethic.Crypto
 
   import Mox
@@ -40,7 +49,15 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
     test "should send json secret values response when public key is found in owner transactions",
          %{conn: conn} do
       MockClient
-      |> stub(:send_message, fn _, _, _ -> :ok end)
+      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
+      end)
+      |> expect(:send_message, fn _, %GetTransactionChainLength{address: address}, _ ->
+        {:ok, %TransactionChainLength{length: TransactionChain.size(address)}}
+      end)
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, :ok}
+      end)
 
       conn =
         post(conn, "/api/origin_key", %{

@@ -321,22 +321,18 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    assert :ok = NetworkInit.init_software_origin_shared_secrets_chain()
+    assert :ok = NetworkInit.init_software_origin_chain()
 
     assert 1 == SharedSecrets.list_origin_public_keys() |> Enum.count()
 
     assert_receive {:transaction,
                     %Transaction{
-                      type: :origin_shared_secrets,
+                      type: :origin,
                       data: %TransactionData{
-                        ownerships: [
-                          %Ownership{
-                            authorized_keys: authorized_keys
-                          }
-                        ]
+                        content: content
                       }
                     }}
 
-    assert Map.keys(authorized_keys) == @genesis_origin_public_keys
+    assert content in @genesis_origin_public_keys
   end
 end

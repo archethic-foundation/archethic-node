@@ -199,10 +199,10 @@ defmodule ArchethicWeb.ExplorerView do
     """
   end
 
-  def format_transaction_content(:origin_shared_secrets, content) do
+  def format_transaction_content(:origin, content) do
     get_origin_public_keys(content, %{software: [], hardware: []})
     |> Enum.map_join("\n", fn {family, keys} ->
-      format_origin_shared_secrets_content(family, keys)
+      format_origin_content(family, keys)
     end)
   end
 
@@ -216,7 +216,7 @@ defmodule ArchethicWeb.ExplorerView do
 
   def format_transaction_content(_, content), do: content
 
-  defp format_origin_shared_secrets_content(family, keys) do
+  defp format_origin_content(family, keys) do
     case Enum.count(keys) do
       1 ->
         "#{family} origin public key : #{Enum.at(keys, 0) |> Base.encode16()}"
