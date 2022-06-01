@@ -76,6 +76,8 @@ defmodule Archethic.MixProject do
       # P2P
       {:ranch, "~> 2.1", override: true},
       {:connection, "~> 1.1"},
+      {:geolix, "~> 2.0"},
+      {:geolix_adapter_mmdb2, "~> 0.6.0"},
 
       # Net
       {:inet_ext, "~> 1.0"},

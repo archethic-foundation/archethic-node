@@ -133,6 +133,15 @@ config :archethic, Archethic.Networking.IPLookup.NATDiscovery,
 config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
   provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY
 
+config :geolix,
+  databases: [
+    %{
+      id: :city,
+      adapter: Geolix.Adapter.MMDB2,
+      source: "./priv/p2p/GEOLITE2.mmdb"
+    }
+  ]
+
 # -----End-of-Networking-configs ------
 
 # Import environment specific config. This must remain at the bottom
