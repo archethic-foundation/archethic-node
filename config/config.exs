@@ -110,7 +110,10 @@ config :archethic, ArchethicWeb.Endpoint,
     layout: {ArchethicWeb.LayoutView, "live.html"}
   ]
 
-config :archethic, Archethic.Mining, timeout: 60_000
+config :archethic, Archethic.Mining.DistributedWorkflow,
+  global_timeout: 60_000,
+  coordinator_notification_timeout: 5_000,
+  context_notification_timeout: 3_000
 
 config :archethic, Archethic.OracleChain,
   services: [
