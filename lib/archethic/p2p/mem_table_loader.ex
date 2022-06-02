@@ -165,7 +165,7 @@ defmodule Archethic.P2P.MemTableLoader do
     )
 
     new_authorized_keys = Ownership.list_authorized_public_keys(ownership)
-    previous_authorized_keys = P2P.authorized_nodes() |> Enum.map(& &1.last_public_key)
+    previous_authorized_keys = P2P.list_authorized_public_keys()
 
     unauthorized_keys = previous_authorized_keys -- new_authorized_keys
 
