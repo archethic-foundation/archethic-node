@@ -9,6 +9,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryAggregate do
 
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.Crypto
 
   @type t :: %__MODULE__{
           summary_time: DateTime.t(),
@@ -16,7 +17,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryAggregate do
           p2p_availabilities: %{
             (subset :: binary()) => %{
               node_availabilities: bitstring(),
-              node_average_availabilities: list(float())
+              node_average_availabilities: list(float()),
+              end_of_node_synchronizations: list(Crypto.key())
             }
           }
         }
@@ -31,7 +33,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryAggregate do
           subset: subset,
           transaction_attestations: attestations,
           node_availabilities: node_availabilities,
-          node_average_availabilities: node_average_availabilities
+          node_average_availabilities: node_average_availabilities,
+          end_of_node_synchronizations: end_of_node_synchronizations
         }
       ) do
     transaction_summaries =
@@ -44,41 +47,12 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryAggregate do
     p2p_availabilities =
       Map.put(agg.p2p_availabilities, subset, %{
         node_availabilities: node_availabilities,
-        node_average_availabilities: node_average_availabilities
+        node_average_availabilities: node_average_availabilities,
+        end_of_node_synchronizations: end_of_node_synchronizations
       })
 
     %{agg | transaction_summaries: transaction_summaries, p2p_availabilities: p2p_availabilities}
   end
-
-  @doc """
-  Add P2P availabilities to the aggregate
-
-  It extracts node's availability from the bitstring availabilities and map its average availability
-  """
-  @spec add_p2p_availabilities(
-          t(),
-          BeaconSummary.t()
-        ) :: t()
-  def add_p2p_availabilities(
-        aggregate = %__MODULE__{},
-        %BeaconSummary{
-          subset: subset,
-          node_availabilities: node_availabilities,
-          node_average_availabilities: node_average_availabilities
-        }
-      )
-      when bit_size(node_availabilities) > 0 and length(node_average_availabilities) > 0 do
-    Map.update!(
-      aggregate,
-      :p2p_availabilities,
-      &Map.put(&1, subset, %{
-        node_availabilities: node_availabilities,
-        node_average_availabilities: node_average_availabilities
-      })
-    )
-  end
-
-  def add_p2p_availabilities(aggregate = %__MODULE__{}, _), do: aggregate
 
   @doc """
   Determine when the aggregate is empty

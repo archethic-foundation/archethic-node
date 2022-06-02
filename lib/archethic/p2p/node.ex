@@ -29,6 +29,7 @@ defmodule Archethic.P2P.Node do
     :network_patch,
     :enrollment_date,
     available?: false,
+    synced?: false,
     average_availability: 1.0,
     availability_history: <<1::1>>,
     authorized?: false,
@@ -173,6 +174,7 @@ defmodule Archethic.P2P.Node do
           geo_patch: nil | binary(),
           network_patch: nil | binary(),
           available?: boolean(),
+          synced?: boolean(),
           average_availability: float(),
           availability_history: bitstring(),
           authorized?: boolean(),
@@ -234,6 +236,13 @@ defmodule Archethic.P2P.Node do
   def globally_available?(%__MODULE__{available?: _}), do: false
 
   @doc """
+  Determine if the node is synced
+  """
+  @spec synced?(__MODULE__.t()) :: boolean()
+  def synced?(%__MODULE__{synced?: true}), do: true
+  def synced?(%__MODULE__{synced?: _}), do: false
+
+  @doc """
   Mark the node as authorized by including the authorization date
 
   ## Examples
@@ -279,6 +288,22 @@ defmodule Archethic.P2P.Node do
   @spec unavailable(__MODULE__.t()) :: __MODULE__.t()
   def unavailable(node = %__MODULE__{}) do
     %{node | available?: false}
+  end
+
+  @doc """
+  Mark the node as sync
+  """
+  @spec synced(__MODULE__.t()) :: __MODULE__.t()
+  def synced(node = %__MODULE__{}) do
+    %{node | synced?: true}
+  end
+
+  @doc """
+  Mark the node as unsync
+  """
+  @spec unsynced(__MODULE__.t()) :: __MODULE__.t()
+  def unsynced(node = %__MODULE__{}) do
+    %{node | synced?: false}
   end
 
   @doc """
@@ -341,6 +366,7 @@ defmodule Archethic.P2P.Node do
       ...>   geo_patch: "FA9",
       ...>   network_patch: "AVC",
       ...>   available?: true,
+      ...>   synced?: true,
       ...>   average_availability: 0.8,
       ...>   enrollment_date: ~U[2020-06-26 08:36:11Z],
       ...>   authorization_date: ~U[2020-06-26 08:36:11Z],
@@ -370,6 +396,8 @@ defmodule Archethic.P2P.Node do
       # Enrollment date
       94, 245, 179, 123,
       # Available
+      1::1,
+      # Synced
       1::1,
       # Authorized
       1::1,
@@ -405,6 +433,7 @@ defmodule Archethic.P2P.Node do
         average_availability: average_availability,
         enrollment_date: enrollment_date,
         available?: available?,
+        synced?: synced?,
         authorized?: authorized?,
         authorization_date: authorization_date,
         reward_address: reward_address,
@@ -413,6 +442,7 @@ defmodule Archethic.P2P.Node do
       }) do
     ip_bin = <<o1, o2, o3, o4>>
     available_bin = if available?, do: 1, else: 0
+    synced_bin = if synced?, do: 1, else: 0
     authorized_bin = if authorized?, do: 1, else: 0
 
     authorization_date =
@@ -422,7 +452,7 @@ defmodule Archethic.P2P.Node do
 
     <<ip_bin::binary-size(4), port::16, http_port::16, serialize_transport(transport)::8,
       geo_patch::binary-size(3), network_patch::binary-size(3), avg_bin::8,
-      DateTime.to_unix(enrollment_date)::32, available_bin::1, authorized_bin::1,
+      DateTime.to_unix(enrollment_date)::32, available_bin::1, synced_bin::1, authorized_bin::1,
       authorization_date::32, first_public_key::binary, last_public_key::binary,
       reward_address::binary, last_address::binary, origin_public_key::binary>>
   end
@@ -437,7 +467,7 @@ defmodule Archethic.P2P.Node do
 
       iex> Node.deserialize(<<
       ...> 127, 0, 0, 1, 11, 184, 15, 160, 1, "FA9", "AVC", 80,
-      ...> 94, 245, 179, 123, 1::1,
+      ...> 94, 245, 179, 123, 1::1, 1::1,
       ...> 1::1, 94, 245, 179, 123,
       ...> 0, 0, 182, 67, 168, 252, 227, 203, 142, 164, 142, 248, 159, 209, 249, 247, 86, 64,
       ...> 92, 224, 91, 182, 122, 49, 209, 169, 96, 111, 219, 204, 57, 250, 59, 226,
@@ -463,6 +493,7 @@ defmodule Archethic.P2P.Node do
             geo_patch: "FA9",
             network_patch: "AVC",
             available?: true,
+            synced?: true,
             average_availability: 0.8,
             enrollment_date: ~U[2020-06-26 08:36:11Z],
             authorization_date: ~U[2020-06-26 08:36:11Z],
@@ -481,11 +512,12 @@ defmodule Archethic.P2P.Node do
   def deserialize(
         <<ip_bin::binary-size(4), port::16, http_port::16, transport::8,
           geo_patch::binary-size(3), network_patch::binary-size(3), average_availability::8,
-          enrollment_date::32, available::1, authorized::1, authorization_date::32,
+          enrollment_date::32, available::1, synced::1, authorized::1, authorization_date::32,
           rest::bitstring>>
       ) do
     <<o1, o2, o3, o4>> = ip_bin
     available? = if available == 1, do: true, else: false
+    synced? = if synced == 1, do: true, else: false
     authorized? = if authorized == 1, do: true, else: false
 
     authorization_date =
@@ -508,6 +540,7 @@ defmodule Archethic.P2P.Node do
         average_availability: average_availability / 100,
         enrollment_date: DateTime.from_unix!(enrollment_date),
         available?: available?,
+        synced?: synced?,
         authorized?: authorized?,
         authorization_date: authorization_date,
         first_public_key: first_public_key,

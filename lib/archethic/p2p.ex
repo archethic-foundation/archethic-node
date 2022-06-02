@@ -96,6 +96,18 @@ defmodule Archethic.P2P do
     as: :set_node_unavailable
 
   @doc """
+  Add a node first public key to the list of nodes globally synced.
+  """
+  @spec set_node_globally_synced(first_public_key :: Crypto.key()) :: :ok
+  defdelegate set_node_globally_synced(first_public_key), to: MemTable, as: :set_node_synced
+
+  @doc """
+  Add a node first public key to the list of nodes globally synced.
+  """
+  @spec set_node_globally_unsynced(first_public_key :: Crypto.key()) :: :ok
+  defdelegate set_node_globally_unsynced(first_public_key), to: MemTable, as: :set_node_unsynced
+
+  @doc """
   Set the node's average availability
   """
   @spec set_node_average_availability(first_public_key :: Crypto.key(), float()) :: :ok
@@ -132,7 +144,7 @@ defmodule Archethic.P2P do
   end
 
   @doc """
-  List all the authorized nodes 
+  List all the authorized nodes
   """
   @spec authorized_nodes() :: list(Node.t())
   def authorized_nodes do
