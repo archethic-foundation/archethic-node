@@ -218,13 +218,15 @@ defmodule Archethic.P2P.Message do
         validation_node_public_key: validation_node_public_key,
         chain_storage_nodes_view: chain_storage_nodes_view,
         beacon_storage_nodes_view: beacon_storage_nodes_view,
+        io_storage_nodes_view: io_storage_nodes_view,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys
       }) do
     <<8::8, address::binary, validation_node_public_key::binary,
       length(previous_storage_nodes_public_keys)::8,
       :erlang.list_to_binary(previous_storage_nodes_public_keys)::binary,
       bit_size(chain_storage_nodes_view)::8, chain_storage_nodes_view::bitstring,
-      bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring>>
+      bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring,
+      bit_size(io_storage_nodes_view)::8, io_storage_nodes_view::bitstring>>
   end
 
   def encode(%CrossValidate{
@@ -239,7 +241,17 @@ defmodule Archethic.P2P.Message do
       }) do
     nb_validation_nodes = length(chain_replication_tree)
     tree_size = chain_replication_tree |> List.first() |> bit_size()
-    io_tree_size = io_replication_tree |> List.first() |> bit_size()
+
+    io_tree_size =
+      case io_replication_tree do
+        [] ->
+          0
+
+        tree ->
+          tree
+          |> List.first()
+          |> bit_size()
+      end
 
     <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
       tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
@@ -579,6 +591,8 @@ defmodule Archethic.P2P.Message do
       chain_storage_nodes_view::bitstring-size(chain_storage_nodes_view_size),
       beacon_storage_nodes_view_size::8,
       beacon_storage_nodes_view::bitstring-size(beacon_storage_nodes_view_size),
+      io_storage_nodes_view_size::8,
+      io_storage_nodes_view::bitstring-size(io_storage_nodes_view_size),
       rest::bitstring
     >> = rest
 
@@ -587,6 +601,7 @@ defmodule Archethic.P2P.Message do
        validation_node_public_key: node_public_key,
        chain_storage_nodes_view: chain_storage_nodes_view,
        beacon_storage_nodes_view: beacon_storage_nodes_view,
+       io_storage_nodes_view: io_storage_nodes_view,
        previous_storage_nodes_public_keys: previous_storage_nodes_keys
      }, rest}
   end
@@ -1012,7 +1027,7 @@ defmodule Archethic.P2P.Message do
   Handle a P2P message by processing it and return list of responses to be streamed back to the client
   """
   def process(%GetBootstrappingNodes{patch: patch}) do
-    top_nodes = P2P.authorized_nodes()
+    top_nodes = P2P.authorized_and_available_nodes()
 
     closest_nodes =
       top_nodes
@@ -1113,7 +1128,8 @@ defmodule Archethic.P2P.Message do
         validation_node_public_key: validation_node,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys,
         chain_storage_nodes_view: chain_storage_nodes_view,
-        beacon_storage_nodes_view: beacon_storage_nodes_view
+        beacon_storage_nodes_view: beacon_storage_nodes_view,
+        io_storage_nodes_view: io_storage_nodes_view
       }) do
     :ok =
       Mining.add_mining_context(
@@ -1121,7 +1137,8 @@ defmodule Archethic.P2P.Message do
         validation_node,
         previous_storage_nodes_public_keys,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view
+        beacon_storage_nodes_view,
+        io_storage_nodes_view
       )
 
     %Ok{}
@@ -1311,13 +1328,22 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(attestation = %ReplicationAttestation{}) do
+  def process(
+        attestation = %ReplicationAttestation{
+          transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
+        }
+      ) do
     case ReplicationAttestation.validate(attestation) do
       :ok ->
         PubSub.notify_replication_attestation(attestation)
         %Ok{}
 
       {:error, :invalid_confirmations_signatures} ->
+        Logger.error("Invalid attestation signatures",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: tx_type
+        )
+
         %Error{reason: :invalid_attestation}
     end
   end

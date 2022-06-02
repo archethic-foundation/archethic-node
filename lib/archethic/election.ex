@@ -398,106 +398,165 @@ defmodule Archethic.Election do
   Find out the next authorized nodes using the TPS from the previous to determine based
   on the active geo patches if we need to more node related to the network load.
 
+  We are keeping the previous authorized nodes because
+  a previous authorized node becoming unauthorized signifies a ban
+  as the network don't want this node to be part of the validation nodes
+
+  Also for synchronization reason, we want an offline authorized nodes be able to retrieve
+  the secrets to be able to rejoin the network with its full capacity
+
+  But we are allowing new nodes to join if the network requirements (TPS, geographical distribution) allows it
+
   ## Examples
 
     # No need to add more validation nodes if the TPS is null
 
-      iex> nodes = [
-      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
+      iex> previous_authorized_nodes = [
+      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+      ...> ]
+      iex> candidate_nodes = [
       ...>   %Node{first_public_key: "key3", geo_patch: "A34"},
-      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
       ...>   %Node{first_public_key: "key5", geo_patch: "D34"}
       ...> ]
-      iex> Election.next_authorized_nodes(0.0, nodes)
+      iex> Election.next_authorized_nodes(0.0, candidate_nodes, previous_authorized_nodes)
       [
-        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
-        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true}
+        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true}
       ]
 
     # Need to add more validation nodes if the TPS is less than 1
 
-      iex> nodes = [
-      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
+      iex> previous_authorized_nodes = [
+      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+      ...> ]
+      iex> candidate_nodes = [
       ...>   %Node{first_public_key: "key3", geo_patch: "A34"},
-      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
       ...>   %Node{first_public_key: "key5", geo_patch: "D34"}
       ...> ]
-      iex> Election.next_authorized_nodes(0.0243, nodes)
+      iex> Election.next_authorized_nodes(0.0243, candidate_nodes, previous_authorized_nodes)
       [
-        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
+        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
         %Node{first_public_key: "key3", geo_patch: "A34"},
-        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
         %Node{first_public_key: "key5", geo_patch: "D34"}
       ]
 
     # No need to add more validation nodes if the TPS is enough regarding the active patches
 
-      iex> nodes = [
-      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
+      iex> previous_authorized_nodes = [
+      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+      ...> ]
+      iex> candidate_nodes = [
       ...>   %Node{first_public_key: "key3", geo_patch: "A34"},
-      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
       ...>   %Node{first_public_key: "key5", geo_patch: "D34"}
       ...> ]
-      iex> Election.next_authorized_nodes(100.0, nodes)
+      iex> Election.next_authorized_nodes(100.0, candidate_nodes, previous_authorized_nodes)
       [
-        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
-        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true}
+        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true}
       ]
+
+   # With some previous authorized nodes not available, we are putting more nodes as it's needed
+
+     iex> previous_authorized_nodes = [
+     ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: false},
+     ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+     ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+     ...> ]
+     iex> candidate_nodes = [
+     ...>   %Node{first_public_key: "key3", geo_patch: "A34"},
+     ...>   %Node{first_public_key: "key5", geo_patch: "D34"}
+     ...> ]
+     iex> Election.next_authorized_nodes(100.0, candidate_nodes, previous_authorized_nodes)
+     [
+       %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: false},
+       %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+       %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+       %Node{first_public_key: "key3", geo_patch: "A34"},
+       %Node{first_public_key: "key5", geo_patch: "D34"}
+     ]
+
 
     # With a higher TPS we need more node to cover the transaction mining
 
-      iex> nodes = [
-      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
+      iex> previous_authorized_nodes = [
+      ...>   %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
+      ...> ]
+      iex> candidate_nodes = [
       ...>   %Node{first_public_key: "key3", geo_patch: "A34"},
-      ...>   %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
       ...>   %Node{first_public_key: "key5", geo_patch: "D34"}
       ...> ]
-      iex> Election.next_authorized_nodes(1000.0, nodes)
+      iex> Election.next_authorized_nodes(1000.0, candidate_nodes, previous_authorized_nodes)
       [
-        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true},
-        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true},
-        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true},
+        %Node{first_public_key: "key1", geo_patch: "AAA", authorized?: true, available?: true},
+        %Node{first_public_key: "key2", geo_patch: "B34", authorized?: true, available?: true},
+        %Node{first_public_key: "key4", geo_patch: "F34", authorized?: true, available?: true},
         %Node{first_public_key: "key3", geo_patch: "A34"},
         %Node{first_public_key: "key5", geo_patch: "D34"}
       ]
   """
-  @spec next_authorized_nodes(float(), list(Node.t())) ::
-          list(Node.t())
-  def next_authorized_nodes(0.0, nodes), do: Enum.filter(nodes, & &1.authorized?)
+  def next_authorized_nodes(0.0, _candidates, previous_authorized_nodes) do
+    # If the TPS is null then we don't add new validation nodes
+    previous_authorized_nodes
+  end
 
-  def next_authorized_nodes(previous_tps, nodes)
-      when is_float(previous_tps) and previous_tps < 1.0,
-      do: nodes
+  def next_authorized_nodes(previous_tps, candidate_nodes, previous_authorized_nodes)
+      when is_float(previous_tps) and previous_tps < 1.0 do
+    # If the TPS is too low, we are accepting nodes
+    previous_authorized_nodes ++ candidate_nodes
+  end
 
-  def next_authorized_nodes(previous_tps, nodes)
-      when is_float(previous_tps) and previous_tps >= 1.0 and is_list(nodes) do
-    authorized_nodes = Enum.filter(nodes, & &1.authorized?)
-
-    case nb_of_authorized_nodes_to_add(previous_tps, nodes) do
+  def next_authorized_nodes(previous_tps, candidate_nodes, previous_authorized_nodes)
+      when is_float(previous_tps) and previous_tps >= 1.0 and is_list(candidate_nodes) and
+             is_list(previous_authorized_nodes) do
+    case nb_of_authorized_nodes_to_add(previous_tps, previous_authorized_nodes) do
       0 ->
-        authorized_nodes
+        # If the tps is not sufficient for the current distribution
+        # of the node geographically, then we are not accepting new validation nodes
+        previous_authorized_nodes
 
       nb_nodes_to_add ->
-        nodes
-        |> Enum.filter(&(!&1.authorized?))
+        candidate_nodes
         |> Enum.group_by(& &1.geo_patch)
-        |> Enum.reduce(authorized_nodes, fn {_, nodes}, acc ->
+        |> Enum.reduce(previous_authorized_nodes, fn {_, nodes}, acc ->
+          # We are taking the nb of nodes to add by geo patch available
           acc ++ Enum.take(nodes, nb_nodes_to_add)
         end)
     end
   end
 
-  defp nb_of_authorized_nodes_to_add(previous_tps, nodes) do
+  defp nb_of_authorized_nodes_to_add(previous_tps, previous_authorized_nodes) do
+    available_previous_authorized_nodes = Enum.filter(previous_authorized_nodes, & &1.available?)
+
+    case length(previous_authorized_nodes) - length(available_previous_authorized_nodes) do
+      0 ->
+        # If we don't miss nodes, then we apply a distribution algorithm based
+        # on the tps and geo patch
+        nb_of_authorized_nodes_for_distribution(previous_tps, available_previous_authorized_nodes)
+
+      missed_nodes ->
+        # If we are missing some nodes we adding nodes to overbook the distribution
+        # to ensure the security of the transactions
+        missed_nodes
+    end
+  end
+
+  defp nb_of_authorized_nodes_for_distribution(previous_tps, available_nodes) do
+    # We are counting the number of geo patch
+    # where they are available already authorized nodes
     nb_active_patches =
-      nodes
-      |> Enum.filter(& &1.authorized?)
+      available_nodes
       |> Enum.map(&String.slice(&1.geo_patch, 0, 2))
       |> Enum.uniq()
       |> length()

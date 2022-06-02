@@ -670,9 +670,13 @@ defmodule Archethic.P2P.MemTable do
   """
   @spec set_node_available(Crypto.key()) :: :ok
   def set_node_available(first_public_key) when is_binary(first_public_key) do
-    true = :ets.insert(@availability_lookup_table, {first_public_key})
     Logger.info("Node globally available", node: Base.encode16(first_public_key))
-    notify_node_update(first_public_key)
+
+    if !:ets.member(@availability_lookup_table, first_public_key) do
+      true = :ets.insert(@availability_lookup_table, {first_public_key})
+      notify_node_update(first_public_key)
+    end
+
     :ok
   end
 
@@ -698,6 +702,8 @@ defmodule Archethic.P2P.MemTable do
   def set_node_unavailable(first_public_key) when is_binary(first_public_key) do
     :ets.delete(@availability_lookup_table, first_public_key)
     Logger.info("Node globally unavailable", node: Base.encode16(first_public_key))
+    tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
+    true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, <<0::1>>})
     notify_node_update(first_public_key)
     :ok
   end
@@ -723,13 +729,15 @@ defmodule Archethic.P2P.MemTable do
   @spec increase_node_availability(first_public_key :: Crypto.key()) :: :ok
   def increase_node_availability(first_public_key) when is_binary(first_public_key) do
     if :ets.member(@discovery_table, first_public_key) do
-      case :ets.lookup_element(@discovery_table, first_public_key, 9) do
+      tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
+
+      case :ets.lookup_element(@discovery_table, first_public_key, tuple_pos) do
         <<1::1, _::bitstring>> ->
           :ok
 
         <<0::1, _::bitstring>> = history ->
           new_history = <<1::1, history::bitstring>>
-          true = :ets.update_element(@discovery_table, first_public_key, {9, new_history})
+          true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, new_history})
           Logger.info("P2P availability increase", node: Base.encode16(first_public_key))
           notify_node_update(first_public_key)
           :ok
@@ -760,13 +768,17 @@ defmodule Archethic.P2P.MemTable do
   @spec decrease_node_availability(first_public_key :: Crypto.key()) :: :ok
   def decrease_node_availability(first_public_key) when is_binary(first_public_key) do
     if :ets.member(@discovery_table, first_public_key) do
-      case :ets.lookup_element(@discovery_table, first_public_key, 9) do
+      tuple_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
+
+      case :ets.lookup_element(@discovery_table, first_public_key, tuple_pos) do
         <<0::1, _::bitstring>> ->
           :ok
 
         <<1::1, _::bitstring>> = history ->
           new_history = <<0::1, history::bitstring>>
-          true = :ets.update_element(@discovery_table, first_public_key, {9, new_history})
+
+          true = :ets.update_element(@discovery_table, first_public_key, {tuple_pos, new_history})
+
           Logger.info("P2P availability decrease", node: Base.encode16(first_public_key))
           notify_node_update(first_public_key)
           :ok
@@ -800,10 +812,13 @@ defmodule Archethic.P2P.MemTable do
         ) :: :ok
   def update_node_average_availability(first_public_key, avg_availability)
       when is_binary(first_public_key) and is_float(avg_availability) do
+    avg_availability_pos = Keyword.fetch!(@discovery_index_position, :average_availability)
+    availability_history_pos = Keyword.fetch!(@discovery_index_position, :availability_history)
+
     true =
       :ets.update_element(@discovery_table, first_public_key, [
-        {8, avg_availability},
-        {9, <<1::1>>}
+        {avg_availability_pos, avg_availability},
+        {availability_history_pos, <<1::1>>}
       ])
 
     Logger.info("New average availability: #{avg_availability}}",
@@ -836,7 +851,8 @@ defmodule Archethic.P2P.MemTable do
           :ok
   def update_node_network_patch(first_public_key, patch)
       when is_binary(first_public_key) and is_binary(patch) do
-    true = :ets.update_element(@discovery_table, first_public_key, [{7, patch}])
+    tuple_pos = Keyword.fetch!(@discovery_index_position, :network_patch)
+    true = :ets.update_element(@discovery_table, first_public_key, [{tuple_pos, patch}])
     Logger.info("New network patch: #{patch}}", node: Base.encode16(first_public_key))
     notify_node_update(first_public_key)
     :ok

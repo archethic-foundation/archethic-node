@@ -43,7 +43,8 @@ defmodule Archethic.Governance.Code do
   """
   @spec testnet_deployment?(binary()) :: boolean()
   def testnet_deployment?(proposal_address) when is_binary(proposal_address) do
-    storage_nodes = Election.chain_storage_nodes(proposal_address, P2P.authorized_nodes())
+    storage_nodes =
+      Election.chain_storage_nodes(proposal_address, P2P.authorized_and_available_nodes())
 
     if Utils.key_in_node_list?(storage_nodes, Crypto.first_node_public_key()) do
       approvals = TransactionChain.list_signatures_for_pending_transaction(proposal_address)

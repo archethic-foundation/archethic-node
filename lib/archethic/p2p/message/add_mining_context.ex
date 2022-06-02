@@ -8,6 +8,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
     :validation_node_public_key,
     :chain_storage_nodes_view,
     :beacon_storage_nodes_view,
+    :io_storage_nodes_view,
     :previous_storage_nodes_public_keys
   ]
   defstruct [
@@ -15,6 +16,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
     :validation_node_public_key,
     :chain_storage_nodes_view,
     :beacon_storage_nodes_view,
+    :io_storage_nodes_view,
     :previous_storage_nodes_public_keys
   ]
 
@@ -25,6 +27,7 @@ defmodule Archethic.P2P.Message.AddMiningContext do
           validation_node_public_key: Crypto.key(),
           chain_storage_nodes_view: bitstring(),
           beacon_storage_nodes_view: bitstring(),
+          io_storage_nodes_view: bitstring(),
           previous_storage_nodes_public_keys: list(Crypto.key())
         }
 end

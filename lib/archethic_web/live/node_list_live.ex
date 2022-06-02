@@ -14,7 +14,9 @@ defmodule ArchethicWeb.NodeListLive do
     nodes = P2P.list_nodes()
     authorized_nodes = P2P.authorized_nodes()
     pending_nodes = P2P.available_nodes() -- authorized_nodes
-    offline_nodes = Enum.reject(nodes, & &1.available?)
+
+    # New joiners is a node which is not consired as available and never was authorized either
+    new_nodes = Enum.filter(nodes, &(&1.available? == false and &1.authorization_date == nil))
 
     if connected?(socket) do
       PubSub.register_to_node_update()
@@ -22,10 +24,10 @@ defmodule ArchethicWeb.NodeListLive do
 
     new_socket =
       socket
+      |> assign(:new_nodes, new_nodes)
       |> assign(:pending_nodes, pending_nodes)
       |> assign(:authorized_nodes, authorized_nodes)
       |> assign(:nb_nodes, length(nodes))
-      |> assign(:offline_nodes, offline_nodes)
 
     {:ok, new_socket}
   end
@@ -38,13 +40,15 @@ defmodule ArchethicWeb.NodeListLive do
     nodes = P2P.list_nodes()
     authorized_nodes = P2P.authorized_nodes()
     pending_nodes = P2P.available_nodes() -- authorized_nodes
-    offline_nodes = Enum.reject(nodes, & &1.available?)
+
+    # New joiners is a node which is not consired as available and never was authorized either
+    new_nodes = Enum.filter(nodes, &(&1.available? == false and &1.authorization_date == nil))
 
     new_socket =
       socket
       |> assign(:pending_nodes, pending_nodes)
       |> assign(:authorized_nodes, authorized_nodes)
-      |> assign(:offline_nodes, offline_nodes)
+      |> assign(:new_nodes, new_nodes)
       |> assign(:nb_nodes, length(nodes))
 
     {:noreply, new_socket}

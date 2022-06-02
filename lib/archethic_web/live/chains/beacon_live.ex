@@ -16,9 +16,14 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.BeaconSummaryList
+  alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
   alias Archethic.PubSub
+
+  alias Archethic.SelfRepair.Sync.BeaconSummaryHandler
+
+  alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -28,6 +33,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Phoenix.View
 
   require Logger
+  alias ArchethicWeb.TransactionCache
 
   def mount(_params, _session, socket) do
     next_summary_time = BeaconChain.next_summary_date(DateTime.utc_now())
@@ -62,7 +68,6 @@ defmodule ArchethicWeb.BeaconChainLive do
       )
       |> assign(:fetching, true)
 
-    send(self(), {:initial_load, next_summary_time})
     {:ok, new_assign}
   end
 
@@ -70,7 +75,9 @@ defmodule ArchethicWeb.BeaconChainLive do
     View.render(ExplorerView, "beacon_chain_index.html", assigns)
   end
 
-  def handle_params(%{"page" => page}, _uri, socket = %{assigns: %{dates: dates}}) do
+  def handle_params(params, _uri, socket = %{assigns: %{dates: dates}}) do
+    page = Map.get(params, "page", "1")
+
     case Integer.parse(page) do
       {number, ""} when number > 0 and is_list(dates) ->
         if number > length(dates) do
@@ -126,7 +133,11 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   def handle_info({:load_at, date}, socket) do
-    transactions = list_transaction_by_date(date)
+    # Caching transactions = list_transaction_by_date(date)
+    {:ok, transactions} =
+      TransactionCache.resolve(date, fn ->
+        list_transaction_by_date(date)
+      end)
 
     new_assign =
       socket
@@ -191,10 +202,18 @@ defmodule ArchethicWeb.BeaconChainLive do
 
     new_dates = [new_next_summary | dates]
 
-    transactions =
+    # Caching transactions =
+    #   new_dates
+    #   |> Enum.at(page - 1)
+    #   |> list_transaction_by_date()
+    date =
       new_dates
       |> Enum.at(page - 1)
-      |> list_transaction_by_date()
+
+    {:ok, transactions} =
+      TransactionCache.resolve(date, fn ->
+        list_transaction_by_date_from_beacon_summary(date)
+      end)
 
     new_assign =
       socket
@@ -270,7 +289,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_by_date(date = %DateTime{}) do
     Enum.reduce(BeaconChain.list_subsets(), %{}, fn subset, acc ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
+      node_list = P2P.authorized_and_available_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
       Enum.reduce(nodes, acc, fn node, acc ->
@@ -310,9 +329,9 @@ defmodule ArchethicWeb.BeaconChainLive do
   defp list_transaction_by_date_from_tx_chain(date = %DateTime{}) do
     %Node{network_patch: patch} = P2P.get_node_info()
 
-    Task.async_stream(BeaconChain.list_subsets(), fn subset ->
+    Task.Supervisor.async_stream(TaskSupervisor, BeaconChain.list_subsets(), fn subset ->
       b_address = Crypto.derive_beacon_chain_address(subset, date, true)
-      node_list = P2P.authorized_nodes()
+      node_list = P2P.authorized_and_available_nodes()
       nodes = Election.beacon_storage_nodes(subset, date, node_list)
 
       {:ok, transactions} = get_beacon_summary_transaction_chain(b_address, nodes, patch)
@@ -323,6 +342,46 @@ defmodule ArchethicWeb.BeaconChainLive do
     end)
     |> Enum.map(fn {:ok, txs} -> txs end)
     |> :lists.flatten()
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+  end
+
+  def list_transaction_by_date_from_beacon_summary(nil), do: []
+
+  def list_transaction_by_date_from_beacon_summary(date = %DateTime{}) do
+    BeaconChain.list_subsets()
+    |> Flow.from_enumerable()
+    |> Flow.map(fn subset ->
+      b_address = Crypto.derive_beacon_chain_address(subset, date, true)
+      node_list = P2P.authorized_nodes()
+      nodes = Election.beacon_storage_nodes(subset, date, node_list)
+      %Node{network_patch: patch} = P2P.get_node_info()
+      {b_address, nodes, patch}
+    end)
+    |> Flow.partition()
+    |> Flow.reduce(fn -> [] end, fn {address, nodes, patch}, acc ->
+      transaction_attestations =
+        case BeaconSummaryHandler.download_summary(address, nodes, patch) do
+          {:ok, beacon_summary = %BeaconSummary{}} ->
+            %BeaconSummary{transaction_attestations: tx_ats} = beacon_summary
+            tx_ats
+
+          {:ok, %NotFound{}} ->
+            []
+
+          _ ->
+            []
+        end
+
+      if Enum.empty?(transaction_attestations) do
+        acc
+      else
+        [%ReplicationAttestation{transaction_summary: tx_summary}] = transaction_attestations
+        [tx_summary | acc]
+      end
+    end)
+    |> Enum.to_list()
+    |> Enum.uniq()
+    |> List.flatten()
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 

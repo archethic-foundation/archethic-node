@@ -259,11 +259,11 @@ defmodule Archethic.Contracts.Worker do
     [%Node{first_public_key: key} | _] =
       next_transaction
       |> Transaction.previous_address()
-      |> Election.chain_storage_nodes(P2P.authorized_nodes())
+      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
 
     # The first storage node of the contract initiate the sending of the new transaction
     if key == Crypto.first_node_public_key() do
-      validation_nodes = P2P.authorized_nodes()
+      validation_nodes = P2P.authorized_and_available_nodes()
 
       P2P.broadcast_message(validation_nodes, %StartMining{
         transaction: next_transaction,

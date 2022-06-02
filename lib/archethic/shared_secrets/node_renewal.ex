@@ -32,7 +32,7 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   def initiator? do
     %Node{first_public_key: initiator_key} =
       next_address()
-      |> Election.storage_nodes(P2P.authorized_nodes(DateTime.utc_now()))
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
       |> List.first()
 
     initiator_key == Crypto.first_node_public_key()
@@ -50,8 +50,17 @@ defmodule Archethic.SharedSecrets.NodeRenewal do
   @spec next_authorized_node_public_keys() :: list(Crypto.key())
   def next_authorized_node_public_keys do
     DB.get_latest_tps()
-    |> Election.next_authorized_nodes(P2P.available_nodes())
-    |> Enum.map(& &1.last_public_key)
+    |> Election.next_authorized_nodes(candidates(), P2P.authorized_nodes())
+    |> Enum.map(& &1.first_public_key)
+  end
+
+  @doc """
+  List all the new candidates for the node shared secret renewal
+  """
+  @spec candidates() :: list(Node.t())
+  def candidates do
+    previous_authorized_nodes = P2P.authorized_nodes()
+    P2P.available_nodes() -- previous_authorized_nodes
   end
 
   @doc """

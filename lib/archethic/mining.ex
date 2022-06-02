@@ -25,7 +25,7 @@ defmodule Archethic.Mining do
 
   use Retry
 
-  @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :timeout])
+  @mining_timeout Application.compile_env!(:archethic, [DistributedWorkflow, :global_timeout])
 
   @doc """
   Start mining process for a given transaction.
@@ -78,6 +78,7 @@ defmodule Archethic.Mining do
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, DateTime.utc_now())
 
     node_list = transaction_validation_node_list(DateTime.utc_now())
+
     storage_nodes = Election.chain_storage_nodes_with_type(tx_address, tx_type, node_list)
 
     validation_nodes =
@@ -88,6 +89,9 @@ defmodule Archethic.Mining do
         storage_nodes,
         Election.get_validation_constraints()
       )
+      # We reject the unavailable nodes at the time of the tx validation
+      # but not for the election to avoid any issue in the future
+      |> Enum.filter(& &1.available?)
 
     validation_node_public_keys == Enum.map(validation_nodes, & &1.last_public_key)
   end
@@ -100,7 +104,8 @@ defmodule Archethic.Mining do
           validation_node_public_key :: Crypto.key(),
           previous_storage_nodes_keys :: list(Crypto.key()),
           chain_storage_nodes_view :: bitstring(),
-          beacon_storage_nodes_view :: bitstring()
+          beacon_storage_nodes_view :: bitstring(),
+          io_storage_nodes_view :: bitstring()
         ) ::
           :ok
   def add_mining_context(
@@ -108,7 +113,8 @@ defmodule Archethic.Mining do
         validation_node_public_key,
         previous_storage_nodes_keys,
         chain_storage_nodes_view,
-        beacon_storage_nodes_view
+        beacon_storage_nodes_view,
+        io_storage_nodes_view
       ) do
     tx_address
     |> get_mining_process!()
@@ -116,7 +122,8 @@ defmodule Archethic.Mining do
       validation_node_public_key,
       P2P.get_nodes_info(previous_storage_nodes_keys),
       chain_storage_nodes_view,
-      beacon_storage_nodes_view
+      beacon_storage_nodes_view,
+      io_storage_nodes_view
     )
   end
 

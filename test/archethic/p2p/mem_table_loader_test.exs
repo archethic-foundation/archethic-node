@@ -71,14 +71,16 @@ defmodule Archethic.P2P.MemTableLoaderTest do
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: @node_1_public_key,
-        last_public_key: @node_1_public_key
+        last_public_key: @node_1_public_key,
+        enrollment_date: DateTime.utc_now()
       })
 
       MemTable.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
         first_public_key: @node_2_public_key,
-        last_public_key: @node_2_public_key
+        last_public_key: @node_2_public_key,
+        enrollment_date: DateTime.utc_now()
       })
 
       shared_secret_tx1 = %Transaction{

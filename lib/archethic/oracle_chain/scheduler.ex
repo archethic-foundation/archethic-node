@@ -228,7 +228,8 @@ defmodule Archethic.OracleChain.Scheduler do
 
   def handle_event(
         :info,
-        {:node_update, %Node{authorized?: true, first_public_key: first_public_key}},
+        {:node_update,
+         %Node{authorized?: true, available?: true, first_public_key: first_public_key}},
         _state,
         data = %{polling_interval: polling_interval, summary_interval: summary_interval}
       ) do
@@ -239,7 +240,8 @@ defmodule Archethic.OracleChain.Scheduler do
       next_summary_date = next_date(summary_interval, current_time)
 
       other_authorized_nodes =
-        P2P.authorized_nodes() |> Enum.reject(&(&1.first_public_key == first_public_key))
+        P2P.authorized_and_available_nodes()
+        |> Enum.reject(&(&1.first_public_key == first_public_key))
 
       new_data =
         case other_authorized_nodes do
@@ -290,7 +292,27 @@ defmodule Archethic.OracleChain.Scheduler do
     end
   end
 
-  def handle_event(:info, {:node_update, %Node{authorized?: false}}, _state, _data),
+  def handle_event(
+        :info,
+        {:node_update,
+         %Node{authorized?: true, available?: false, first_public_key: first_public_key}},
+        _state,
+        data = %{polling_timer: polling_timer}
+      ) do
+    if first_public_key == Crypto.first_node_public_key() do
+      Process.cancel_timer(polling_timer)
+
+      new_data =
+        data
+        |> Map.delete(:polling_timer)
+
+      {:keep_state, new_data}
+    else
+      :keep_state_and_data
+    end
+  end
+
+  def handle_event(:info, {:node_update, _}, _state, _data),
     do: :keep_state_and_data
 
   def handle_event(
@@ -350,7 +372,7 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   defp trigger_node?(summary_date = %DateTime{}, index) do
-    authorized_nodes = P2P.authorized_nodes(summary_date)
+    authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
 
     storage_nodes =
       summary_date

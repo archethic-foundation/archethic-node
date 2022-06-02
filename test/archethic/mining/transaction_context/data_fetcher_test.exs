@@ -118,7 +118,7 @@ defmodule Archethic.Mining.TransactionContext.DataFetcherTest do
 
       P2P.add_and_connect_node(node)
 
-      assert <<1::1, 0::1>> = DataFetcher.fetch_p2p_view(["key2", "key3"])
+      assert %{"key2" => true, "key3" => false} = DataFetcher.fetch_p2p_view(["key2", "key3"])
     end
   end
 end

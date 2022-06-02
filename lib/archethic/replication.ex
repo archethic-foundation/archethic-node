@@ -35,6 +35,8 @@ defmodule Archethic.Replication do
   alias __MODULE__.TransactionContext
   alias __MODULE__.TransactionValidator
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -252,7 +254,7 @@ defmodule Archethic.Replication do
     previous_address = Transaction.previous_address(tx)
 
     t1 =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         Logger.debug(
           "Fetch previous transaction #{Base.encode16(previous_address)}",
           transaction_address: Base.encode16(tx.address),
@@ -263,7 +265,7 @@ defmodule Archethic.Replication do
       end)
 
     t2 =
-      Task.async(fn ->
+      Task.Supervisor.async(TaskSupervisor, fn ->
         fetch_inputs_unspent_outputs(tx, self_repair?)
       end)
 
@@ -390,7 +392,10 @@ defmodule Archethic.Replication do
 
           if previous_address != next_previous_address do
             previous_storage_nodes =
-              Election.chain_storage_nodes(next_previous_address, P2P.authorized_nodes())
+              Election.chain_storage_nodes(
+                next_previous_address,
+                P2P.authorized_and_available_nodes()
+              )
 
             if Utils.key_in_node_list?(previous_storage_nodes, Crypto.first_node_public_key()) do
               acknowledge_previous_storage_nodes(address, next_previous_address, timestamp)

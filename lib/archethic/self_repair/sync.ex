@@ -25,7 +25,7 @@ defmodule Archethic.SelfRepair.Sync do
    - Try to the first enrollment date of the listed nodes
    - Otherwise take the current date
   """
-  @spec last_sync_date() :: DateTime.t()
+  @spec last_sync_date() :: DateTime.t() | nil
   def last_sync_date do
     case DB.get_bootstrap_info(@bootstrap_info_last_sync_date_key) do
       nil ->
@@ -99,7 +99,7 @@ defmodule Archethic.SelfRepair.Sync do
 
     start = System.monotonic_time()
 
-    authorized_nodes = P2P.authorized_nodes()
+    authorized_nodes = P2P.authorized_and_available_nodes()
 
     last_sync_date
     |> BeaconChain.next_summary_dates()

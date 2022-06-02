@@ -89,8 +89,12 @@ defmodule Archethic.Mining.TransactionContextTest do
       P2P.add_and_connect_node(node2)
       P2P.add_and_connect_node(node3)
 
-      assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>} =
-               TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"])
+      assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>,
+              <<1::1, 1::1>>} =
+               TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"], [
+                 "key2",
+                 "key1"
+               ])
 
       assert involved_nodes
              |> Enum.map(& &1.first_public_key)

@@ -12,6 +12,8 @@ defmodule Archethic.P2P do
   alias __MODULE__.Message
   alias __MODULE__.Node
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
 
@@ -134,7 +136,7 @@ defmodule Archethic.P2P do
   """
   @spec authorized_nodes() :: list(Node.t())
   def authorized_nodes do
-    Enum.filter(MemTable.authorized_nodes(), & &1.available?)
+    MemTable.authorized_nodes()
   end
 
   @doc """
@@ -147,6 +149,14 @@ defmodule Archethic.P2P do
                                        } ->
       DateTime.diff(authorization_date, DateTime.truncate(date, :second)) < 0
     end)
+  end
+
+  @doc """
+  List the authorized and available nodes
+  """
+  @spec authorized_and_available_nodes() :: list(Node.t())
+  def authorized_and_available_nodes() do
+    Enum.filter(authorized_nodes(), & &1.available?)
   end
 
   @doc """
@@ -186,7 +196,7 @@ defmodule Archethic.P2P do
   For mode details see `send_message/3`
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
-  def send_message!(node, message, timeout \\ 5_000)
+  def send_message!(node, message, timeout \\ 3_000)
 
   def send_message!(public_key, message, timeout) when is_binary(public_key) do
     public_key
@@ -194,7 +204,11 @@ defmodule Archethic.P2P do
     |> send_message!(message, timeout)
   end
 
-  def send_message!(node = %Node{ip: ip, port: port}, message, timeout) do
+  def send_message!(
+        node = %Node{ip: ip, port: port},
+        message,
+        timeout
+      ) do
     case Client.send_message(node, message, timeout) do
       {:ok, ref} ->
         ref
@@ -215,15 +229,15 @@ defmodule Archethic.P2P do
           | {:error, :not_found}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(node, message, timeout \\ 5_000)
+  def send_message(node, message, timeout \\ 3_000)
 
   def send_message(public_key, message, timeout) when is_binary(public_key) do
-    with {:ok, node} <- get_node_info(public_key),
-         {:ok, data} <- send_message(node, message, timeout) do
-      {:ok, data}
-    else
-      {:error, _} = e ->
-        e
+    case get_node_info(public_key) do
+      {:ok, node} ->
+        send_message(node, message, timeout)
+
+      {:error, :not_found} ->
+        {:error, :not_found}
     end
   end
 
@@ -435,8 +449,10 @@ defmodule Archethic.P2P do
   """
   @spec broadcast_message(list(Node.t()), Message.request()) :: :ok
   def broadcast_message(nodes, message) do
-    nodes
-    |> Task.async_stream(&send_message(&1, message), ordered: false, on_timeout: :kill_task)
+    Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
+      ordered: false,
+      on_timeout: :kill_task
+    )
     |> Stream.run()
   end
 

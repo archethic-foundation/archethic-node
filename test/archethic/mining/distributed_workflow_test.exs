@@ -246,7 +246,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
-        <<1::1, 1::1, 0::1, 1::1>>
+        <<1::1, 1::1, 0::1, 1::1>>,
+        <<>>
       )
 
       {:coordinator,
@@ -254,12 +255,14 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          context: %ValidationContext{
            chain_storage_nodes_view: chain_storage_nodes_view,
            beacon_storage_nodes_view: beacon_storage_nodes_view,
+           io_storage_nodes_view: io_storage_nodes_view,
            cross_validation_nodes_confirmation: confirmed_validation_nodes
          }
        }} = :sys.get_state(coordinator_pid)
 
       assert chain_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert beacon_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
+      assert io_storage_nodes_view == <<1::1, 1::1, 1::1, 1::1>>
       assert <<0::1, 1::1>> == confirmed_validation_nodes
     end
 
@@ -346,7 +349,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1>>,
-        <<1::1, 1::1>>
+        <<1::1, 1::1>>,
+        <<>>
       )
 
       {:wait_cross_validation_stamps,
@@ -462,7 +466,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1>>,
-        <<1::1, 1::1>>
+        <<1::1, 1::1>>,
+        <<>>
       )
 
       Process.sleep(4_000)
@@ -597,7 +602,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         Enum.at(validation_nodes, 1).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1, 1::1>>
+        <<1::1, 1::1, 1::1>>,
+        <<>>
       )
 
       Workflow.add_mining_context(
@@ -605,7 +611,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1>>,
-        <<1::1, 1::1, 1::1>>
+        <<1::1, 1::1, 1::1>>,
+        <<>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)
@@ -615,7 +622,7 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
          tree = %{chain: chain_tree, beacon: beacon_tree, IO: io_tree}} ->
           assert Enum.all?(chain_tree, &(bit_size(&1) == 3))
 
-          assert Enum.all?(io_tree, &(bit_size(&1) == 3))
+          assert Enum.all?(io_tree, &(bit_size(&1) == 4))
 
           assert Enum.all?(beacon_tree, &(bit_size(&1) == 3))
 
@@ -850,7 +857,8 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         List.last(validation_nodes).last_public_key,
         previous_storage_nodes,
         <<0::1, 1::1, 0::1, 1::1>>,
-        <<1::1, 1::1, 1::1, 1::1>>
+        <<1::1, 1::1, 1::1, 1::1>>,
+        <<>>
       )
 
       {:wait_cross_validation_stamps, _} = :sys.get_state(coordinator_pid)

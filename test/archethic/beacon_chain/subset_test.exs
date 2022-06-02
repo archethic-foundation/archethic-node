@@ -141,7 +141,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       P2P.add_and_connect_node(%Node{
@@ -153,7 +153,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: DateTime.utc_now()
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1)
       })
 
       tx_summary = %TransactionSummary{

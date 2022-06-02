@@ -120,7 +120,7 @@ config :archethic, Archethic.Reward.WithdrawScheduler, enabled: false
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   enabled: false,
-  interval: 0
+  interval: "0 0 * * * * *"
 
 config :archethic, Archethic.SelfRepair.Notifier, enabled: false
 

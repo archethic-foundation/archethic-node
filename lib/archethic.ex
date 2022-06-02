@@ -79,7 +79,7 @@ defmodule Archethic do
     if P2P.authorized_node?() do
       do_send_transaction(tx)
     else
-      P2P.authorized_nodes(DateTime.utc_now())
+      P2P.authorized_and_available_nodes()
       |> Enum.filter(&Node.locally_available?/1)
       |> P2P.nearest_nodes()
       |> forward_transaction(tx)
@@ -102,7 +102,10 @@ defmodule Archethic do
     current_date = DateTime.utc_now()
     sorting_seed = Election.validation_nodes_election_seed_sorting(tx, current_date)
 
+    # We are selecting only the authorized nodes the current date of the transaction
+    # If new nodes have been authorized, they only will be selected at the application date
     node_list = Mining.transaction_validation_node_list(current_date)
+
     storage_nodes = Election.chain_storage_nodes_with_type(tx.address, tx.type, node_list)
 
     validation_nodes =
@@ -113,6 +116,10 @@ defmodule Archethic do
         storage_nodes,
         Election.get_validation_constraints()
       )
+      # We reject the unavailable nodes for the mining notification
+      # but not for the election to avoid any issue in the future
+      # during the verification
+      |> Enum.filter(& &1.available?)
 
     message = %StartMining{
       transaction: tx,

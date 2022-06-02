@@ -1034,8 +1034,10 @@ defmodule Archethic.Crypto do
       transaction_type: :node_shared_secrets
     )
 
-    if Ownership.authorized_public_key?(ownership, last_node_public_key()) do
-      encrypted_secret_key = Ownership.get_encrypted_key(ownership, last_node_public_key())
+    node_public_key = first_node_public_key()
+
+    if Ownership.authorized_public_key?(ownership, node_public_key) do
+      encrypted_secret_key = Ownership.get_encrypted_key(ownership, node_public_key)
 
       daily_nonce_date = SharedSecrets.next_application_date(timestamp)
 
