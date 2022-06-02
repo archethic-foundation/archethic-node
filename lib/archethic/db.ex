@@ -16,7 +16,9 @@ defmodule Archethic.DB do
               opts :: [paging_state: nil | binary(), after: DateTime.t()]
             ) :: Enumerable.t()
   @callback write_transaction(Transaction.t()) :: :ok
+  @callback write_transaction_at(Transaction.t(), binary()) :: :ok
   @callback write_transaction_chain(Enumerable.t()) :: :ok
+  @callback write_transaction(Transaction.t()) :: :ok
   @callback list_transactions(fields :: list()) :: Enumerable.t()
   @callback add_last_transaction_address(binary(), binary(), DateTime.t()) :: :ok
   @callback list_last_transaction_addresses() :: Enumerable.t()
