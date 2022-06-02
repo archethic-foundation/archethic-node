@@ -309,14 +309,11 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
   end
 
   @doc """
-  Reference a new transaction address for the previous address at the transaction time
-
-  This will perform a lookup to find out the genesis address from the previous address
-  and set the new address as reference
+  Reference a new transaction address for the genesis address at the transaction time
   """
   @spec set_last_chain_address(binary(), binary(), DateTime.t(), String.t()) :: :ok
   def set_last_chain_address(
-        previous_address,
+        genesis_address,
         new_address,
         datetime = %DateTime{},
         db_path
@@ -325,16 +322,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainIndex do
 
     encoded_data = <<unix_time::64, new_address::binary>>
 
-    {filename, genesis_address} =
-      case get_tx_entry(previous_address, db_path) do
-        {:ok, %{genesis_address: genesis_address}} ->
-          filename = chain_addresses_path(db_path, genesis_address)
-          {filename, genesis_address}
-
-        {:error, :not_exists} ->
-          filename = chain_addresses_path(db_path, previous_address)
-          {filename, previous_address}
-      end
+    filename = chain_addresses_path(db_path, genesis_address)
 
     :ok = File.write!(filename, encoded_data, [:binary, :append])
     true = :ets.insert(:archethic_db_last_index, {genesis_address, new_address})
