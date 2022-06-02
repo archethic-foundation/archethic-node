@@ -30,7 +30,6 @@ defmodule Archethic.BeaconChain.Slot do
       availabilities: <<>>,
       network_stats: []
     },
-    involved_nodes: <<>>,
     version: 1
   ]
 
@@ -43,8 +42,7 @@ defmodule Archethic.BeaconChain.Slot do
           p2p_view: %{
             availabilities: bitstring(),
             network_stats: net_stats()
-          },
-          involved_nodes: bitstring()
+          }
         }
 
   @doc """
@@ -390,7 +388,6 @@ defmodule Archethic.BeaconChain.Slot do
         ...>         %{ latency: 0}
         ...>      ]
         ...>    },
-        ...>    involved_nodes: <<0::1, 1::1, 0::1, 0::1>>
         ...>  } |> Slot.serialize()
         <<
         # Version,
@@ -441,9 +438,7 @@ defmodule Archethic.BeaconChain.Slot do
         # P2P view network stats (2nd node)
         0,
         # Size involved nodes bitstring
-        4,
-        # Involved nodes bitstring
-        0::1, 1::1, 0::1, 0::1
+        4
         >>
   """
   @spec serialize(t()) :: bitstring()
@@ -456,8 +451,7 @@ defmodule Archethic.BeaconChain.Slot do
         p2p_view: %{
           availabilities: availabilities,
           network_stats: network_stats
-        },
-        involved_nodes: involved_nodes
+        }
       }) do
     transaction_attestations_bin =
       transaction_attestations
@@ -477,8 +471,7 @@ defmodule Archethic.BeaconChain.Slot do
     <<1::8, subset::binary, DateTime.to_unix(slot_time)::32, length(transaction_attestations)::32,
       transaction_attestations_bin::binary, length(end_of_node_synchronizations)::16,
       end_of_node_synchronizations_bin::binary, bit_size(availabilities)::16,
-      availabilities::bitstring, net_stats_bin::binary, bit_size(involved_nodes)::8,
-      involved_nodes::bitstring>>
+      availabilities::bitstring, net_stats_bin::binary>>
   end
 
   @doc """
@@ -496,8 +489,7 @@ defmodule Archethic.BeaconChain.Slot do
       ...>  119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195,
       ...>  0, 1, 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...>  100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241, 94, 244, 190, 185,
-      ...>  0, 2, 1::1, 0::1, 10,
-      ...>  0, 4, 0::1, 1::1, 0::1, 0::1>>
+      ...>  0, 2, 1::1, 0::1, 10>>
       ...> |> Slot.deserialize()
       {
         %Slot{
@@ -531,8 +523,7 @@ defmodule Archethic.BeaconChain.Slot do
               %{ latency: 10},
               %{ latency: 0}
             ]
-          },
-          involved_nodes: <<0::1, 1::1, 0::1, 0::1>>
+          }
         },
         ""
       }
@@ -553,9 +544,6 @@ defmodule Archethic.BeaconChain.Slot do
 
     {network_stats, rest} = deserialize_network_stats(rest, p2p_view_size, [])
 
-    <<involved_nodes_size::8, involved_nodes::bitstring-size(involved_nodes_size),
-      rest::bitstring>> = rest
-
     {
       %__MODULE__{
         version: 1,
@@ -566,8 +554,7 @@ defmodule Archethic.BeaconChain.Slot do
         p2p_view: %{
           availabilities: availabilities,
           network_stats: network_stats
-        },
-        involved_nodes: involved_nodes
+        }
       },
       rest
     }
