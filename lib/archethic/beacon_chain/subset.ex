@@ -4,6 +4,7 @@ defmodule Archethic.BeaconChain.Subset do
   waiting to receive transactions to register in a beacon slot
   """
 
+  alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
@@ -80,7 +81,8 @@ defmodule Archethic.BeaconChain.Subset do
        node_public_key: Crypto.first_node_public_key(),
        subset: subset,
        current_slot: %Slot{subset: subset, slot_time: SlotTimer.next_slot(DateTime.utc_now())},
-       subscribed_nodes: []
+       subscribed_nodes: [],
+       postponed: %{end_of_sync: [], transaction_attestations: []}
      }}
   end
 
@@ -139,26 +141,30 @@ defmodule Archethic.BeaconChain.Subset do
          attestation = %ReplicationAttestation{
            transaction_summary: %TransactionSummary{
              address: address,
-             type: type
+             type: type,
+             timestamp: timestamp
            }
          }},
-        state = %{current_slot: current_slot, subset: subset, subscribed_nodes: subscribed_nodes}
+        state = %{
+          current_slot: current_slot = %Slot{slot_time: slot_time},
+          subset: subset,
+          subscribed_nodes: subscribed_nodes
+        }
       ) do
-    if Archethic.BeaconChain.subset_from_address(address) == subset do
+    with ^subset <- BeaconChain.subset_from_address(address),
+         ^slot_time <- SlotTimer.next_slot(timestamp) do
       new_slot =
         Slot.add_transaction_attestation(
           current_slot,
           attestation
         )
 
-      Logger.info("Transaction #{type}@#{Base.encode16(address)} added to the beacon chain",
+      Logger.info(
+        "Transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
         beacon_subset: Base.encode16(subset)
       )
 
-      subscribed_nodes
-      |> P2P.get_nodes_info()
-      |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-      |> P2P.broadcast_message(attestation)
+      notify_subscribed_nodes(subscribed_nodes, attestation)
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds
       if update_p2p_view?(state) do
@@ -172,8 +178,26 @@ defmodule Archethic.BeaconChain.Subset do
         {:noreply, %{state | current_slot: new_slot}}
       end
     else
-      {:noreply, state}
+      next_slot_time = %DateTime{} ->
+        new_state = update_in(state, [:postponed, :transaction_attestations], &[attestation | &1])
+
+        Logger.info(
+          "Transaction #{type}@#{Base.encode16(address)} will be added to the next beacon chain (#{DateTime.to_string(next_slot_time)} slot)",
+          beacon_subset: Base.encode16(subset)
+        )
+
+        {:noreply, new_state}
+
+      _ ->
+        {:noreply, state}
     end
+  end
+
+  defp notify_subscribed_nodes(nodes, attestation) do
+    nodes
+    |> P2P.get_nodes_info()
+    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    |> P2P.broadcast_message(attestation)
   end
 
   defp handle_slot(
@@ -206,18 +230,30 @@ defmodule Archethic.BeaconChain.Subset do
 
   defp update_p2p_view?(_), do: true
 
-  defp next_state(state = %{subset: subset}, time) do
+  defp next_state(
+         state = %{
+           subset: subset,
+           postponed: %{
+             transaction_attestations: transaction_attestations,
+             end_of_sync: end_of_sync
+           }
+         },
+         time
+       ) do
     next_time = SlotTimer.next_slot(time)
 
-    new_state =
-      Map.put(
-        state,
-        :current_slot,
-        %Slot{subset: subset, slot_time: next_time}
-      )
-
-    Map.put(
-      new_state,
+    state
+    |> Map.put(
+      :current_slot,
+      %Slot{
+        subset: subset,
+        slot_time: next_time,
+        transaction_attestations: transaction_attestations,
+        end_of_node_synchronizations: end_of_sync
+      }
+    )
+    |> Map.put(:postponed, %{transaction_attestations: [], end_of_sync: []})
+    |> Map.put(
       :subscribed_nodes,
       []
     )
