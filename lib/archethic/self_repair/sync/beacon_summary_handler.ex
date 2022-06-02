@@ -65,7 +65,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
          %BeaconSummary{
            transaction_attestations: transaction_attestations,
            node_availabilities: node_availabilities,
-           node_average_availabilities: node_average_availabilities
+           node_average_availabilities: node_average_availabilities,
+           end_of_node_synchronizations: end_of_node_synchronizations
          },
          acc
        ) do
@@ -88,6 +89,10 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
         :node_average_availabilities,
         &Enum.concat(&1, [node_average_availabilities])
       )
+      |> Map.update!(
+        :end_of_node_synchronizations,
+        &Enum.concat(&1, end_of_node_synchronizations)
+      )
     else
       acc
     end
@@ -97,7 +102,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
          %{
            transaction_attestations: transaction_attestations,
            node_availabilities: node_availabilities,
-           node_average_availabilities: node_average_availabilities
+           node_average_availabilities: node_average_availabilities,
+           end_of_node_synchronizations: end_of_node_synchronizations
          },
          summary_time,
          subset
@@ -109,7 +115,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
         Enum.uniq_by(List.flatten(transaction_attestations), & &1.transaction_summary.address),
       node_availabilities: aggregate_node_availabilities(node_availabilities),
       node_average_availabilities:
-        aggregate_node_average_availabilities(node_average_availabilities)
+        aggregate_node_average_availabilities(node_average_availabilities),
+      end_of_node_synchronizations: end_of_node_synchronizations
     }
   end
 
@@ -205,9 +212,12 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
     |> Enum.reduce(%{}, fn {subset,
                             %{
                               node_availabilities: node_availabilities,
-                              node_average_availabilities: node_average_availabilities
+                              node_average_availabilities: node_average_availabilities,
+                              end_of_node_synchronizations: end_of_node_synchronizations
                             }},
                            acc ->
+      sync_node(end_of_node_synchronizations)
+
       reduce_p2p_availabilities(
         subset,
         summary_time,
@@ -240,6 +250,11 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
     |> Stream.run()
   end
 
+  defp sync_node(end_of_node_synchronizations) do
+    end_of_node_synchronizations
+    |> Enum.each(fn public_key -> P2P.set_node_globally_synced(public_key) end)
+  end
+
   defp reduce_p2p_availabilities(
          subset,
          time,
@@ -258,12 +273,10 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
       node = Enum.at(subset_node_list, index)
       avg_availability = Enum.at(node_average_availabilities, index)
 
-      case available_bit do
-        1 ->
-          Map.put(acc, node, %{available?: true, average_availability: avg_availability})
-
-        0 ->
-          Map.put(acc, node, %{available?: false, average_availability: avg_availability})
+      if available_bit == 1 and Node.synced?(node) do
+        Map.put(acc, node, %{available?: true, average_availability: avg_availability})
+      else
+        Map.put(acc, node, %{available?: false, average_availability: avg_availability})
       end
     end)
   end
@@ -278,6 +291,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
       P2P.set_node_globally_available(node_key)
     else
       P2P.set_node_globally_unavailable(node_key)
+      P2P.set_node_globally_unsynced(node_key)
     end
 
     P2P.set_node_average_availability(node_key, avg_availability)

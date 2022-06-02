@@ -568,7 +568,7 @@ defmodule Archethic.P2P.Message do
       Utils.deserialize_public_key(rest)
 
     {validation_node_public_keys, rest} =
-      deserialize_public_key_list(rest, nb_validation_nodes, [])
+      Utils.deserialize_public_key_list(rest, nb_validation_nodes, [])
 
     {%StartMining{
        transaction: tx,
@@ -584,7 +584,7 @@ defmodule Archethic.P2P.Message do
       Utils.deserialize_public_key(rest)
 
     {previous_storage_nodes_keys, rest} =
-      deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
+      Utils.deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
 
     <<
       chain_storage_nodes_view_size::8,
@@ -707,7 +707,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<19::8, nb_node_public_keys::16, rest::bitstring>>) do
-    {public_keys, rest} = deserialize_public_key_list(rest, nb_node_public_keys, [])
+    {public_keys, rest} = Utils.deserialize_public_key_list(rest, nb_node_public_keys, [])
     {%GetP2PView{node_public_keys: public_keys}, rest}
   end
 
@@ -956,17 +956,6 @@ defmodule Archethic.P2P.Message do
   defp deserialize_tx_list(rest, nb_transactions, acc) do
     {tx, rest} = Transaction.deserialize(rest)
     deserialize_tx_list(rest, nb_transactions, [tx | acc])
-  end
-
-  defp deserialize_public_key_list(rest, 0, _acc), do: {[], rest}
-
-  defp deserialize_public_key_list(rest, nb_keys, acc) when length(acc) == nb_keys do
-    {Enum.reverse(acc), rest}
-  end
-
-  defp deserialize_public_key_list(rest, nb_keys, acc) do
-    {public_key, rest} = Utils.deserialize_public_key(rest)
-    deserialize_public_key_list(rest, nb_keys, [public_key | acc])
   end
 
   defp deserialize_unspent_output_list(rest, 0, _acc), do: {[], rest}
