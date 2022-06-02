@@ -602,6 +602,17 @@ defmodule Archethic.Utils do
     {<<curve_id::8, origin_id::8, public_key::binary>>, rest}
   end
 
+  def deserialize_public_key_list(rest, 0, _acc), do: {[], rest}
+
+  def deserialize_public_key_list(rest, nb_keys, acc) when length(acc) == nb_keys do
+    {Enum.reverse(acc), rest}
+  end
+
+  def deserialize_public_key_list(rest, nb_keys, acc) do
+    {public_key, rest} = deserialize_public_key(rest)
+    deserialize_public_key_list(rest, nb_keys, [public_key | acc])
+  end
+
   def deserialize_transaction_attestations(rest, 0, _acc), do: {[], rest}
 
   def deserialize_transaction_attestations(rest, nb_attestations, acc)
