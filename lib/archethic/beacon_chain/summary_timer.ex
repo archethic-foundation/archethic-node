@@ -42,19 +42,20 @@ defmodule Archethic.BeaconChain.SummaryTimer do
   Returns the list of previous summaries times from the given date
   """
   @spec previous_summary(DateTime.t()) :: DateTime.t()
-  def previous_summary(date_from = %DateTime{microsecond: {0, 0}}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_dates(DateTime.to_naive(date_from))
-    |> Enum.at(1)
-    |> DateTime.from_naive!("Etc/UTC")
-  end
-
   def previous_summary(date_from = %DateTime{}) do
-    get_interval()
-    |> CronParser.parse!(true)
-    |> CronScheduler.get_previous_run_date!(DateTime.to_naive(date_from))
-    |> DateTime.from_naive!("Etc/UTC")
+    cron_expression = CronParser.parse!(get_interval(), true)
+    naive_date_from = DateTime.to_naive(date_from)
+
+    if Crontab.DateChecker.matches_date?(cron_expression, naive_date_from) do
+      cron_expression
+      |> CronScheduler.get_previous_run_dates(naive_date_from)
+      |> Enum.at(1)
+      |> DateTime.from_naive!("Etc/UTC")
+    else
+      cron_expression
+      |> CronScheduler.get_previous_run_date!(naive_date_from)
+      |> DateTime.from_naive!("Etc/UTC")
+    end
   end
 
   @doc """
