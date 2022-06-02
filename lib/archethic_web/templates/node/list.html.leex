@@ -21,7 +21,7 @@
                     <p class="heading">First public key</p>
                     <%= link to: Routes.live_path(@socket, ArchethicWeb.NodeDetailsLive, Base.encode16(node.last_public_key)) do%>
                       <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(node.first_public_key, 0, 30)) %>...</span>
-                      <span class="is-hidden-touch"><%= Base.encode16(:binary.part(node.first_public_key, 0, 13)) %>...</span>
+                      <span class="is-hidden-tablet"><%= Base.encode16(:binary.part(node.first_public_key, 0, 10)) %>...</span>
                     <% end %>
                 </div>
             </div>
