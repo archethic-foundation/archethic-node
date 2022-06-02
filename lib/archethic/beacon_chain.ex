@@ -91,13 +91,7 @@ defmodule Archethic.BeaconChain do
   """
   @spec summary_transaction_address(binary(), DateTime.t()) :: binary()
   def summary_transaction_address(subset, date = %DateTime{}) when is_binary(subset) do
-    {pub, _} =
-      Crypto.derive_keypair(
-        Crypto.storage_nonce(),
-        Crypto.hash([subset, <<DateTime.to_unix(date)::32>>])
-      )
-
-    Crypto.derive_address(pub)
+    Crypto.derive_beacon_chain_address(subset, date, true)
   end
 
   @doc """
