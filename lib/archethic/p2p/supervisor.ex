@@ -7,6 +7,7 @@ defmodule Archethic.P2P.Supervisor do
   alias Archethic.P2P.Listener
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.MemTableLoader
+  alias Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl
 
   alias Archethic.Utils
 
@@ -29,7 +30,8 @@ defmodule Archethic.P2P.Supervisor do
       MemTable,
       MemTableLoader,
       {Listener, Keyword.put(listener_conf, :port, port)},
-      {BootstrappingSeeds, bootstraping_seeds_conf}
+      {BootstrappingSeeds, bootstraping_seeds_conf},
+      IP2LocationImpl
     ]
 
     children = Utils.configurable_children(optional_children)
