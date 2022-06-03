@@ -9,33 +9,32 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl do
   require Logger
 
   @behaviour GeoIP
-  @metadata_table :metadata
 
-  def start_link(args \\ []) do
-    GenServer.start_link(__MODULE__, args)
+  def start_link(args \\ [], opts \\ [name: __MODULE__]) do
+    GenServer.start_link(__MODULE__, args, opts)
   end
 
   @impl GenServer
   def init(_) do
     Logger.info("Initialize InMemory IP2Location metadata...")
 
-    :ets.new(@metadata_table, [:named_table, :protected, read_concurrency: true])
-
     database = File.read!("./priv/p2p/GEOLITE2.mmdb")
+
     {:ok, meta, tree, data} = MMDB2Decoder.parse_database(database)
 
-    true = :ets.insert(@metadata_table, {:metadata, meta, tree, data})
-
-    {:ok, @metadata_table}
+    {:ok, {meta, tree, data}}
   end
 
   @impl GeoIP
   def get_coordinates(ip) when is_tuple(ip) do
-    [{_, meta, tree, data}] = :ets.lookup(@metadata_table, :metadata)
+    GenServer.call(__MODULE__, {:get_coordinates, ip})
+  end
 
+  @impl GenServer
+  def handle_call({:get_coordinates, ip}, _from, {meta, tree, data}) do
     {:ok, %{"location" => %{"latitude" => lat, "longitude" => lon}}} =
       MMDB2Decoder.lookup(ip, meta, tree, data)
 
-    {lat, lon}
+    {:reply, {lat, lon}, {meta, tree, data}}
   end
 end
