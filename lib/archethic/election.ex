@@ -4,8 +4,6 @@ defmodule Archethic.Election do
   and constraints to ensure a fair distributed processing and data storage among its network.
   """
 
-  alias Archethic.BeaconChain
-
   alias Archethic.Crypto
 
   alias __MODULE__.Constraints
@@ -620,7 +618,7 @@ defmodule Archethic.Election do
       )
       when is_binary(subset) and is_list(nodes) do
     subset
-    |> BeaconChain.summary_transaction_address(date)
+    |> Crypto.derive_beacon_chain_address(date, true)
     |> storage_nodes(nodes, storage_constraints)
   end
 
