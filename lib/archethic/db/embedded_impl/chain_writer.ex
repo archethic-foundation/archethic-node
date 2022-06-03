@@ -70,7 +70,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
   end
 
   defp index_transaction(
-         tx = %Transaction{
+         %Transaction{
            address: tx_address,
            type: tx_type,
            previous_public_key: previous_public_key,
@@ -81,11 +81,10 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
          db_path
        ) do
     start = System.monotonic_time()
-    previous_address = Transaction.previous_address(tx)
 
     ChainIndex.add_tx(tx_address, genesis_address, encoded_size, db_path)
     ChainIndex.add_tx_type(tx_type, tx_address, db_path)
-    ChainIndex.set_last_chain_address(previous_address, tx_address, timestamp, db_path)
+    ChainIndex.set_last_chain_address(genesis_address, tx_address, timestamp, db_path)
     ChainIndex.set_public_key(genesis_address, previous_public_key, timestamp, db_path)
 
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
