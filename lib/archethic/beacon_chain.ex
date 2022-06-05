@@ -110,8 +110,11 @@ defmodule Archethic.BeaconChain do
           data: %TransactionData{content: content}
         }
       ) do
-    with {%Slot{subset: subset} = slot, _} <- Slot.deserialize(content),
-         :ok <- validate_slot(tx, slot) do
+    with {%Slot{subset: subset, slot_time: slot_time} = slot, _} <- Slot.deserialize(content),
+         :ok <- validate_slot(tx, slot),
+         genesis_address <-
+           Crypto.derive_beacon_chain_address(subset, previous_summary_time(slot_time)),
+         :ok <- TransactionChain.write_transaction_at(tx, genesis_address) do
       Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
         beacon_subset: Base.encode16(subset)
       )
