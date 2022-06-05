@@ -129,7 +129,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Write the transaction in a specific genesis address
   """
-  @spec writer_transaction_at(Transaction.t(), binary()) :: :ok
+  @spec write_transaction_at(Transaction.t(), binary()) :: :ok
   def write_transaction_at(tx = %Transaction{address: address, type: type}, genesis_address) do
     DB.write_transaction_at(tx, genesis_address)
     KOLedger.remove_transaction(address)
