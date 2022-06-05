@@ -79,6 +79,15 @@ defmodule Archethic.DB.EmbeddedImpl do
   end
 
   @doc """
+  Write a transaction if a specific genesis address
+  """
+  @spec write_transaction_at(Transaction.t(), binary()) :: :ok
+  def write_transaction_at(tx = %Transaction{}, genesis_address)
+      when is_binary(genesis_address) do
+    ChainWriter.append_transaction(genesis_address, tx)
+  end
+
+  @doc """
   Determine if the transaction exists or not
   """
   @spec transaction_exists?(address :: binary()) :: boolean()
