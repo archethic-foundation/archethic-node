@@ -10,6 +10,8 @@ defmodule Archethic.SelfRepair do
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
+  alias Archethic.BeaconChain
+
   @doc """
   Start the self repair synchronization scheduler
   """
@@ -21,8 +23,20 @@ defmodule Archethic.SelfRepair do
   """
   @spec bootstrap_sync(last_sync_date :: DateTime.t(), network_patch :: binary()) :: :ok
   def bootstrap_sync(date = %DateTime{}, patch) when is_binary(patch) do
-    Sync.load_missed_transactions(date, patch)
-    put_last_sync_date(DateTime.utc_now())
+    start_date = DateTime.utc_now()
+    :ok = Sync.load_missed_transactions(date, patch)
+    put_last_sync_date(start_date)
+
+    # Run bootstrap_sync until the last beacon summary is loaded
+    case DateTime.utc_now()
+         |> BeaconChain.previous_summary_time()
+         |> DateTime.compare(start_date) do
+      :gt ->
+        bootstrap_sync(start_date, patch)
+
+      _ ->
+        :ok
+    end
   end
 
   @doc """
