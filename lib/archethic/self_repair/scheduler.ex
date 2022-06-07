@@ -87,7 +87,9 @@ defmodule Archethic.SelfRepair.Scheduler do
     )
 
     Task.Supervisor.async_nolink(TaskSupervisor, fn ->
-      Sync.load_missed_transactions(last_sync_date, get_node_patch())
+      start_date = DateTime.utc_now()
+      :ok = Sync.load_missed_transactions(last_sync_date, get_node_patch())
+      {:ok, start_date}
     end)
 
     timer = schedule_sync(interval)
@@ -100,8 +102,8 @@ defmodule Archethic.SelfRepair.Scheduler do
     {:noreply, new_state, :hibernate}
   end
 
-  def handle_info({ref, :ok}, state) do
-    update_last_sync_date()
+  def handle_info({ref, {:ok, date}}, state) do
+    update_last_sync_date(date)
     Process.demonitor(ref, [:flush])
     {:noreply, state}
   end
@@ -130,8 +132,8 @@ defmodule Archethic.SelfRepair.Scheduler do
     network_patch
   end
 
-  defp update_last_sync_date do
-    next_sync_date = Utils.truncate_datetime(DateTime.utc_now())
+  defp update_last_sync_date(date = %DateTime{}) do
+    next_sync_date = Utils.truncate_datetime(date)
     :ok = Sync.store_last_sync_date(next_sync_date)
   end
 
