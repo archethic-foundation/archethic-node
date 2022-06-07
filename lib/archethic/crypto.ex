@@ -906,9 +906,9 @@ defmodule Archethic.Crypto do
   defp do_hash(data, :blake2b), do: :crypto.hash(:blake2b, data)
 
   @doc """
-  Generate an address as per ARCHEthic specification
+  Generate an address as per Archethic specification
 
-  The fist-byte representing the curve type second-byte representing hash algorithm used and rest is the hash of publicKey as per ARCHEthic specifications .
+  The fist-byte representing the curve type second-byte representing hash algorithm used and rest is the hash of publicKey as per Archethic specifications .
 
   ## Examples
 
