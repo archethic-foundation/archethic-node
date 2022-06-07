@@ -165,8 +165,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            content: content
          }
        }) do
-    with {<<_curve_id::8, _origin_id::8, origin_public_key::binary>>, key_certificate} <-
+    with {<<_curve_id::8, _origin_id::8, origin_public_key::binary>>, rest} <-
            Utils.deserialize_public_key(content),
+         <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size),
+           _::binary>> <- rest,
          root_ca_public_key <-
            Crypto.get_root_ca_public_key(origin_public_key),
          true <-
