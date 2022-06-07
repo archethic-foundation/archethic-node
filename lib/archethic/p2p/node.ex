@@ -190,7 +190,7 @@ defmodule Archethic.P2P.Node do
   def cast(
         {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
          average_availability, availability_history, enrollment_date, transport, reward_address,
-         last_address, origin_public_key}
+         last_address, origin_public_key, synced?}
       ) do
     %__MODULE__{
       ip: ip,
@@ -203,6 +203,7 @@ defmodule Archethic.P2P.Node do
       average_availability: average_availability,
       availability_history: availability_history,
       enrollment_date: enrollment_date,
+      synced?: synced?,
       transport: transport,
       reward_address: reward_address,
       last_address: last_address,

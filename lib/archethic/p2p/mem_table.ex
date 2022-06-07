@@ -5,7 +5,6 @@ defmodule Archethic.P2P.MemTable do
   @nodes_key_lookup_table :archethic_node_keys
   @availability_lookup_table :archethic_available_nodes
   @authorized_nodes_table :archethic_authorized_nodes
-  @synced_nodes_table :synced_nodes_table
 
   alias Archethic.Crypto
 
@@ -31,7 +30,8 @@ defmodule Archethic.P2P.MemTable do
     transport: 11,
     reward_address: 12,
     last_address: 13,
-    origin_public_key: 14
+    origin_public_key: 14,
+    synced?: 15
   ]
 
   @doc """
@@ -47,7 +47,6 @@ defmodule Archethic.P2P.MemTable do
     :ets.new(@availability_lookup_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@authorized_nodes_table, [:set, :named_table, :public, read_concurrency: true])
     :ets.new(@nodes_key_lookup_table, [:set, :named_table, :public, read_concurrency: true])
-    :ets.new(@synced_nodes_table, [:set, :named_table, :public, read_concurrency: true])
 
     Logger.info("Initialize InMemory P2P view")
 
@@ -73,6 +72,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   availability_history: <<1::1, 1::1>>,
       ...>   average_availability: 0.9,
       ...>   available?: true,
+      ...>   synced?: true,
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
@@ -100,7 +100,7 @@ defmodule Archethic.P2P.MemTable do
           <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173,
             88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
           <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
+            185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>, true
         }],
         # Globally available nodes
         [{ "key1" }],
@@ -124,6 +124,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   availability_history: <<1::1, 1::1>>,
       ...>   average_availability: 0.9,
       ...>   available?: true,
+      ...>   synced?: true,
       ...>   authorized?: true,
       ...>   authorization_date: ~U[2020-10-22 23:19:45.797109Z],
       ...>   enrollment_date: ~U[2020-10-22 23:19:45.797109Z],
@@ -144,6 +145,7 @@ defmodule Archethic.P2P.MemTable do
       ...>   last_public_key: "key5",
       ...>   average_availability: 90,
       ...>   availability_history: <<1::1, 1::1>>,
+      ...>   synced?: false,
       ...>   transport: :sctp,
       ...>   reward_address: <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182,
       ...>     87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
@@ -168,7 +170,8 @@ defmodule Archethic.P2P.MemTable do
         <<0, 163, 237, 233, 93, 14, 241, 241, 8, 144, 218, 105, 16, 138, 243, 223, 17, 182, 87, 9, 7, 53, 146, 174, 125, 5, 244, 42, 35, 209, 142, 24, 164>>,
         <<0, 165, 32, 187, 102, 112, 133, 38, 17, 232, 54, 228, 173, 254, 94, 179, 32, 173, 88, 122, 234, 88, 139, 82, 26, 113, 42, 8, 183, 190, 163, 221, 112>>,
         <<0, 0, 172, 147, 188, 9, 66, 252, 112, 77, 143, 178, 233, 51, 125, 102, 244, 36, 232,
-          185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>
+          185, 38, 7, 238, 128, 41, 30, 192, 61, 223, 119, 62, 249, 39, 212>>,
+        false
       }]
   """
   @spec add_node(Node.t()) :: :ok
@@ -177,7 +180,6 @@ defmodule Archethic.P2P.MemTable do
           first_public_key: first_public_key,
           last_public_key: last_public_key,
           available?: available?,
-          synced?: synced?,
           authorized?: authorized?,
           authorization_date: authorization_date
         }
@@ -203,10 +205,6 @@ defmodule Archethic.P2P.MemTable do
       set_node_available(first_public_key)
     end
 
-    if synced? do
-      set_node_synced(first_public_key)
-    end
-
     notify_node_update(first_public_key)
 
     :ok
@@ -225,6 +223,7 @@ defmodule Archethic.P2P.MemTable do
          geo_patch: geo_patch,
          network_patch: network_patch,
          enrollment_date: enrollment_date,
+         synced?: synced?,
          average_availability: average_availability,
          availability_history: availability_history,
          transport: transport,
@@ -236,7 +235,7 @@ defmodule Archethic.P2P.MemTable do
       @discovery_table,
       {first_public_key, last_public_key, ip, port, http_port, geo_patch, network_patch,
        average_availability, availability_history, enrollment_date, transport, reward_address,
-       last_address, origin_public_key}
+       last_address, origin_public_key, synced?}
     )
   end
 
@@ -251,6 +250,7 @@ defmodule Archethic.P2P.MemTable do
          average_availability: average_availability,
          availability_history: availability_history,
          enrollment_date: enrollment_date,
+         synced?: synced?,
          transport: transport,
          reward_address: reward_address,
          last_address: last_address,
@@ -304,6 +304,13 @@ defmodule Archethic.P2P.MemTable do
     changes =
       if enrollment_date != nil do
         [{Keyword.fetch!(@discovery_index_position, :enrollment_date), enrollment_date} | changes]
+      else
+        changes
+      end
+
+    changes =
+      if synced? != nil do
+        [{Keyword.fetch!(@discovery_index_position, :synced?), synced?} | changes]
       else
         changes
       end
@@ -365,7 +372,6 @@ defmodule Archethic.P2P.MemTable do
           |> Node.cast()
           |> toggle_node_authorization
           |> toggle_node_availability
-          |> toggle_node_synchronization
 
         {:ok, node}
     end
@@ -397,7 +403,6 @@ defmodule Archethic.P2P.MemTable do
           |> Node.cast()
           |> toggle_node_authorization()
           |> toggle_node_availability()
-          |> toggle_node_synchronization()
 
         [node | acc]
       end,
@@ -445,7 +450,6 @@ defmodule Archethic.P2P.MemTable do
           |> Node.cast()
           |> Node.authorize(authorization_date)
           |> toggle_node_availability()
-          |> toggle_node_synchronization()
 
         [node | acc]
       end,
@@ -493,7 +497,6 @@ defmodule Archethic.P2P.MemTable do
           |> Node.cast()
           |> toggle_node_authorization()
           |> Node.available()
-          |> toggle_node_synchronization()
 
         [node | acc]
       end,
@@ -720,62 +723,6 @@ defmodule Archethic.P2P.MemTable do
   end
 
   @doc """
-  Mark the node as globally synced
-
-  ## Examples
-
-      iex> MemTable.start_link()
-      iex> node = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2"
-      ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_synced("key1")
-      iex> {:ok, %Node{synced?: true}} = MemTable.get_node("key1")
-  """
-  @spec set_node_synced(Crypto.key()) :: :ok
-  def set_node_synced(first_public_key) when is_binary(first_public_key) do
-    Logger.info("Node globally synced", node: Base.encode16(first_public_key))
-
-    if !:ets.member(@synced_nodes_table, first_public_key) do
-      true = :ets.insert(@synced_nodes_table, {first_public_key})
-      notify_node_update(first_public_key)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Mark the node globally unsynced
-
-  ## Examples
-
-      iex> MemTable.start_link()
-      iex> node = %Node{
-      ...>   ip: {127, 0, 0, 1},
-      ...>   port: 3000,
-      ...>   http_port: 4000,
-      ...>   first_public_key: "key1",
-      ...>   last_public_key: "key2"
-      ...> }
-      iex> MemTable.add_node(node)
-      iex> :ok = MemTable.set_node_unsynced("key1")
-      iex> :ok = MemTable.set_node_unsynced("key1")
-      iex> {:ok, %Node{synced?: false}} = MemTable.get_node("key1")
-  """
-  @spec set_node_unsynced(Crypto.key()) :: :ok
-  def set_node_unsynced(first_public_key) when is_binary(first_public_key) do
-    :ets.delete(@synced_nodes_table, first_public_key)
-    Logger.info("Node globally unsynced", node: Base.encode16(first_public_key))
-
-    notify_node_update(first_public_key)
-    :ok
-  end
-
-  @doc """
   Set the node as available if previously flagged as offline
 
   ## Examples
@@ -940,14 +887,6 @@ defmodule Archethic.P2P.MemTable do
       Node.available(node)
     else
       Node.unavailable(node)
-    end
-  end
-
-  def toggle_node_synchronization(node = %Node{first_public_key: first_public_key}) do
-    if :ets.member(@synced_nodes_table, first_public_key) do
-      Node.synced(node)
-    else
-      Node.unsynced(node)
     end
   end
 
