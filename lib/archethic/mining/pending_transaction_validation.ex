@@ -160,6 +160,28 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
+         type: :origin,
+         data: %TransactionData{
+           content: content
+         }
+       }) do
+    with {<<_curve_id::8, _origin_id::8, origin_public_key::binary>>, key_certificate} <-
+           Utils.deserialize_public_key(content),
+         root_ca_public_key <-
+           Crypto.get_root_ca_public_key(origin_public_key),
+         true <-
+           Crypto.verify_key_certificate?(origin_public_key, key_certificate, root_ca_public_key) do
+      :ok
+    else
+      false ->
+        {:error, "Invalid Origin transaction with invalid certificate"}
+
+      _ ->
+        {:error, "Invalid Origin transaction's content"}
+    end
+  end
+
+  defp do_accept_transaction(%Transaction{
          type: :node_shared_secrets,
          data: %TransactionData{
            content: content,

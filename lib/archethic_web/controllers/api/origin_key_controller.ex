@@ -10,7 +10,6 @@ defmodule ArchethicWeb.API.OriginKeyController do
     with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
          {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
          true <- Crypto.valid_public_key?(origin_public_key),
-         true <- Crypto.get_key_certificate(origin_public_key) == certificate,
          address <- Crypto.derive_address(origin_public_key),
          {:ok, last_address} <-
            Archethic.get_last_transaction_address(address),
@@ -23,7 +22,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
         Transaction.new(
           :origin,
           %TransactionData{
-            content: <<origin_public_key::binary>>
+            content: <<origin_public_key::binary, certificate::binary>>
           },
           signing_seed,
           last_index
