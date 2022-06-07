@@ -200,10 +200,9 @@ defmodule ArchethicWeb.ExplorerView do
   end
 
   def format_transaction_content(:origin, content) do
-    get_origin_public_keys(content, %{software: [], hardware: []})
-    |> Enum.map_join("\n", fn {family, keys} ->
-      format_origin_content(family, keys)
-    end)
+    content
+    |> get_origin_public_key_and_certificate()
+    |> format_origin_content()
   end
 
   def format_transaction_content(:keychain, content) do
@@ -216,27 +215,21 @@ defmodule ArchethicWeb.ExplorerView do
 
   def format_transaction_content(_, content), do: content
 
-  defp format_origin_content(family, keys) do
-    case Enum.count(keys) do
-      1 ->
-        "#{family} origin public key : #{Enum.at(keys, 0) |> Base.encode16()}"
-
-      x when x > 1 ->
-        """
-        #{family} origin public keys :
-        #{Enum.map_join(keys, "\n", fn key -> "- " <> Base.encode16(key) end)}
-        """
-
-      _ ->
-        ""
-    end
+  @spec format_origin_content(tuple()) :: String.t()
+  defp format_origin_content({family, key, key_certificate}) do
+    ~s"""
+    #{family} origin public key : #{Base.encode16(key)}
+    origin public key certificate: #{Base.encode16(key_certificate)}
+    """
   end
 
-  defp get_origin_public_keys(<<>>, acc), do: acc
-
-  defp get_origin_public_keys(<<curve_id::8, origin_id::8, rest::binary>>, acc) do
+  @spec get_origin_public_key_and_certificate(binary()) :: {atom(), binary(), binary()}
+  defp get_origin_public_key_and_certificate(<<curve_id::8, origin_id::8, rest::binary>>) do
     key_size = Crypto.key_size(curve_id)
     <<key::binary-size(key_size), rest::binary>> = rest
+
+    <<key_certificate_size::16, key_certificate::binary-size(key_certificate_size), _::binary>> =
+      rest
 
     family =
       case Crypto.key_origin(origin_id) do
@@ -250,9 +243,6 @@ defmodule ArchethicWeb.ExplorerView do
           :software
       end
 
-    get_origin_public_keys(
-      rest,
-      Map.update!(acc, family, &[<<curve_id::8, origin_id::8, key::binary>> | &1])
-    )
+    {family, key, key_certificate}
   end
 end
