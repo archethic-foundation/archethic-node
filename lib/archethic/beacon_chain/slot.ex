@@ -436,9 +436,7 @@ defmodule Archethic.BeaconChain.Slot do
         # P2P view network stats (1st node)
         10,
         # P2P view network stats (2nd node)
-        0,
-        # Size involved nodes bitstring
-        4
+        0
         >>
   """
   @spec serialize(t()) :: bitstring()
@@ -489,7 +487,7 @@ defmodule Archethic.BeaconChain.Slot do
       ...>  119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195,
       ...>  0, 1, 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
       ...>  100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241, 94, 244, 190, 185,
-      ...>  0, 2, 1::1, 0::1, 10>>
+      ...>  0, 2, 1::1, 0::1, 10, 0>>
       ...> |> Slot.deserialize()
       {
         %Slot{
