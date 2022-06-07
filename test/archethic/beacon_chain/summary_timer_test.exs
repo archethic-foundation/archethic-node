@@ -35,9 +35,6 @@ defmodule Archethic.BeaconChain.SummaryTimerTest do
     {:ok, _pid} = SummaryTimer.start_link([interval: "* * * * * * *"], [])
 
     assert ~U[2020-09-10 12:30:29Z] = SummaryTimer.previous_summary(~U[2020-09-10 12:30:30Z])
-
-    assert ~U[2021-02-03 13:07:37Z] =
-             SummaryTimer.previous_summary(~U[2021-02-03 13:07:37.761481Z])
   end
 
   test "match_interval? check if a date match the summary timer interval" do

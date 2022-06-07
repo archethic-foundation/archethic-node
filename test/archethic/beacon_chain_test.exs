@@ -23,6 +23,8 @@ defmodule Archethic.BeaconChainTest do
 
   doctest Archethic.BeaconChain
 
+  import Mox
+
   setup do
     start_supervised!({SlotTimer, interval: "0 0 * * * *"})
     Enum.map(BeaconChain.list_subsets(), &start_supervised({Subset, subset: &1}, id: &1))
@@ -35,13 +37,13 @@ defmodule Archethic.BeaconChainTest do
   end
 
   test "summary_transaction_address/2 should return a address using the storage nonce a subset and a date" do
-    assert <<0, 0, 126, 16, 248, 223, 156, 176, 229, 102, 1, 100, 203, 172, 176, 243, 188, 41, 20,
-             170, 58, 159, 173, 181, 185, 11, 231, 174, 223, 115, 196, 88, 243,
-             197>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
+    assert <<0, 0, 248, 132, 24, 218, 125, 28, 234, 1, 67, 220, 132, 122, 57, 168, 19, 36, 154,
+             81, 148, 222, 244, 124, 19, 175, 134, 199, 110, 21, 100, 49, 181,
+             210>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-13 00:00:00Z])
 
-    assert <<0, 0, 68, 143, 226, 144, 77, 189, 180, 194, 80, 63, 131, 127, 130, 140, 137, 97, 76,
-             39, 74, 19, 34, 182, 174, 179, 89, 117, 149, 203, 58, 89, 67,
-             68>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
+    assert <<0, 0, 15, 150, 229, 125, 70, 53, 7, 122, 235, 195, 14, 164, 62, 53, 217, 55, 181, 13,
+             112, 203, 123, 18, 150, 174, 104, 244, 199, 231, 184, 228, 118,
+             40>> = BeaconChain.summary_transaction_address(<<1>>, ~U[2021-01-14 00:00:00Z])
   end
 
   test "add_end_of_node_sync/2 should register a end of synchronization inside a subset" do
@@ -72,6 +74,11 @@ defmodule Archethic.BeaconChainTest do
         authorized?: true,
         authorization_date: DateTime.utc_now() |> DateTime.add(-10)
       })
+
+      MockDB
+      |> expect(:write_transaction_at, fn _, _ ->
+        :ok
+      end)
 
       tx = %Transaction{
         address: Crypto.derive_beacon_chain_address(<<0>>, DateTime.utc_now()),

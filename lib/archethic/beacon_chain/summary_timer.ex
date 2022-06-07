@@ -22,6 +22,7 @@ defmodule Archethic.BeaconChain.SummaryTimer do
   @doc """
   Give the next beacon chain slot using the `SummaryTimer` interval
   """
+  @spec next_summary(DateTime.t()) :: DateTime.t()
   def next_summary(date_from = %DateTime{}) do
     cron_expression = CronParser.parse!(get_interval(), true)
     naive_date_from = DateTime.to_naive(date_from)
