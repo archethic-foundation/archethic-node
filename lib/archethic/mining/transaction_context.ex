@@ -10,13 +10,15 @@ defmodule Archethic.Mining.TransactionContext do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
 
-  alias __MODULE__.DataFetcher
   alias __MODULE__.NodeDistribution
 
   alias Archethic.TaskSupervisor
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
@@ -59,15 +61,14 @@ defmodule Archethic.Mining.TransactionContext do
     utxo_task = request_utxo(previous_address, unspent_outputs_nodes_split)
     nodes_view_task = request_nodes_view(node_public_keys)
 
-    {prev_tx, prev_tx_node_involved} = await_previous_tx_request(prev_tx_task)
-
-    {:ok, utxos, utxo_node_involved} = Task.await(utxo_task)
+    prev_tx = Task.await(prev_tx_task)
+    utxos = Task.await(utxo_task)
     nodes_view = Task.await(nodes_view_task)
 
-    involved_nodes =
-      [prev_tx_node_involved, utxo_node_involved]
-      |> Enum.filter(& &1)
-      |> P2P.distinct_nodes()
+    # involved_nodes =
+    #   [prev_tx_node_involved, utxo_node_involved]
+    #   |> Enum.filter(& &1)
+    #   |> P2P.distinct_nodes()
 
     %{
       chain_nodes_view: chain_storage_nodes_view,
@@ -81,7 +82,8 @@ defmodule Archethic.Mining.TransactionContext do
         io_storage_node_public_keys
       )
 
-    {prev_tx, utxos, involved_nodes, chain_storage_nodes_view, beacon_storage_nodes_view,
+    # TODO: remove the invovled nodes as not used anymore
+    {prev_tx, utxos, [], chain_storage_nodes_view, beacon_storage_nodes_view,
      io_storage_nodes_view}
   end
 
@@ -98,34 +100,45 @@ defmodule Archethic.Mining.TransactionContext do
 
   defp request_previous_tx(previous_address, nodes) do
     Task.Supervisor.async(TaskSupervisor, fn ->
-      DataFetcher.fetch_previous_transaction(previous_address, nodes)
+      case TransactionChain.fetch_transaction_remotely(previous_address, nodes) do
+        {:ok, tx} ->
+          tx
+
+        {:error, :transaction_not_exists} ->
+          nil
+      end
     end)
   end
 
-  defp await_previous_tx_request(task) do
-    case Task.await(task) do
-      {:ok, tx, node_involved} ->
-        {tx, node_involved}
-
-      {:error, :not_found} ->
-        {nil, nil}
-
-      {:error, :invalid_transaction} ->
-        raise "Invalid previous transaction"
-    end
-  end
-
   defp request_utxo(previous_address, nodes) do
-    TaskSupervisor
-    |> Task.Supervisor.async(fn ->
-      DataFetcher.fetch_unspent_outputs(previous_address, nodes)
+    Task.Supervisor.async(TaskSupervisor, fn ->
+      {:ok, utxos} =
+        TransactionChain.fetch_unspent_outputs_remotely(
+          previous_address,
+          nodes
+        )
+
+      utxos
     end)
   end
 
   defp request_nodes_view(node_public_keys) do
-    TaskSupervisor
-    |> Task.Supervisor.async(fn ->
-      DataFetcher.fetch_p2p_view(node_public_keys)
+    Task.Supervisor.async(TaskSupervisor, fn ->
+      Task.Supervisor.async_stream_nolink(
+        TaskSupervisor,
+        node_public_keys,
+        fn node_public_key ->
+          {node_public_key, P2P.send_message(node_public_key, %Ping{}, 500)}
+        end,
+        on_timeout: :kill_task,
+        timeout: 500
+      )
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Enum.map(fn
+        {:ok, {node_public_key, {:ok, %Ok{}}}} -> {node_public_key, true}
+        {:ok, {node_public_key, _}} -> {node_public_key, false}
+      end)
+      |> Enum.into(%{})
     end)
   end
 

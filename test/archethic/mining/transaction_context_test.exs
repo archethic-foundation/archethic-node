@@ -44,7 +44,11 @@ defmodule Archethic.Mining.TransactionContextTest do
           {:ok,
            %UnspentOutputList{
              unspent_outputs: [
-               %UnspentOutput{from: "@Bob3", amount: 1_000_000_000, type: :UCO}
+               %UnspentOutput{
+                 from: "@Bob3",
+                 amount: 1_000_000_000,
+                 type: :UCO
+               }
              ]
            }}
       end)
@@ -89,16 +93,12 @@ defmodule Archethic.Mining.TransactionContextTest do
       P2P.add_and_connect_node(node2)
       P2P.add_and_connect_node(node3)
 
-      assert {%Transaction{}, [%UnspentOutput{}], involved_nodes, <<1::1, 1::1>>, <<1::1, 1::1>>,
+      assert {%Transaction{}, [%UnspentOutput{}], _, <<1::1, 1::1>>, <<1::1, 1::1>>,
               <<1::1, 1::1>>} =
                TransactionContext.get("@Alice1", ["key1", "key2"], ["key1", "key2"], [
                  "key2",
                  "key1"
                ])
-
-      assert involved_nodes
-             |> Enum.map(& &1.first_public_key)
-             |> Enum.all?(&(&1 in ["key1", "key2", "key3"]))
     end
   end
 end
