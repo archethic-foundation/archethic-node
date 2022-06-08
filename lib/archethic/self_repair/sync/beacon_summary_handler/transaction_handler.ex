@@ -6,11 +6,11 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Node
 
   alias Archethic.Replication
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionSummary
 
@@ -67,9 +67,17 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
-    case fetch_transaction(storage_nodes, address) do
+    case TransactionChain.fetch_transaction_remotely(address, storage_nodes) do
       {:ok, tx = %Transaction{}} ->
         tx
+
+      {:error, :transaction_not_exists} ->
+        Logger.error("Cannot fetch the transaction to sync",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+        raise "Transaction doesn't exist"
 
       {:error, :network_issue} ->
         Logger.error("Cannot fetch the transaction to sync",
@@ -79,20 +87,6 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
 
         raise "Network issue during during self repair"
     end
-  end
-
-  defp fetch_transaction([node | rest], address) do
-    case P2P.send_message(node, %GetTransaction{address: address}) do
-      {:ok, tx = %Transaction{}} ->
-        {:ok, tx}
-
-      _ ->
-        fetch_transaction(rest, address)
-    end
-  end
-
-  defp fetch_transaction([], _) do
-    {:error, :network_issue}
   end
 
   @spec process_transaction(Transaction.t()) :: :ok | {:error, :invalid_transaction}
