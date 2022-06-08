@@ -10,13 +10,17 @@ defmodule ArchethicWeb.API.OriginKeyController do
     with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
          {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
          true <- Crypto.valid_public_key?(origin_public_key),
-         address <- Crypto.derive_address(origin_public_key),
-         {:ok, last_address} <-
-           Archethic.get_last_transaction_address(address),
-         {:ok, last_index} <- Archethic.get_transaction_chain_length(last_address) do
-      <<_curve_id::8, origin_id::8, _rest::binary>> = origin_public_key
-      origin_family = Crypto.key_origin(origin_id)
-      signing_seed = SharedSecrets.get_origin_family_seed(origin_family)
+         <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
+      signing_seed =
+        origin_id
+        |> Crypto.key_origin()
+        |> SharedSecrets.get_origin_family_seed()
+
+      {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 0)
+
+      address = Crypto.derive_address(first_origin_family_public_key)
+      {:ok, last_address} = Archethic.get_last_transaction_address(address)
+      {:ok, last_index} = Archethic.get_transaction_chain_length(last_address)
 
       tx =
         Transaction.new(
