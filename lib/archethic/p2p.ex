@@ -529,4 +529,83 @@ defmodule Archethic.P2P do
         :lists.flatten([list | [node]])
     end
   end
+
+  @doc """
+  Send a message to a list of nodes and perform a read quorum
+  """
+  @spec quorum_read(
+          node_list :: list(Node.t()),
+          message :: Message.t(),
+          conflict_resolver :: (list(Message.t()) -> Message.t()),
+          consistency_level :: pos_integer()
+        ) ::
+          {:ok, Message.t()} | {:error, :network_issue}
+  def quorum_read(
+        nodes,
+        message,
+        conflict_resolver \\ fn results -> List.first(results) end,
+        consistency_level \\ 2
+      )
+
+  def quorum_read([], _, _, _), do: {:error, :network_issue}
+
+  def quorum_read(
+        [node | rest],
+        message,
+        conflict_resolver,
+        consistency_level
+      ) do
+    # We request the first node and 
+    case send_message(node, message) do
+      {:ok, result} ->
+        # Then we try to reach performing monotonic quorum read (using the conflict resolver)
+        do_quorum_read(
+          rest,
+          message,
+          conflict_resolver,
+          consistency_level,
+          result
+        )
+
+      {:error, _} ->
+        quorum_read(rest, message, conflict_resolver, consistency_level)
+    end
+  end
+
+  defp do_quorum_read([], _message, _conflict_resolver, _consistency_level, prior_result),
+    do: {:ok, prior_result}
+
+  defp do_quorum_read(nodes, message, conflict_resolver, consistency_level, prior_result) do
+    # We determine how many nodes to fetch for the quorum from the consistency level
+    {group, rest} = Enum.split(nodes, consistency_level)
+
+    results =
+      Task.Supervisor.async_stream_nolink(
+        TaskSupervisor,
+        group,
+        &send_message(&1, message),
+        ordered: false,
+        on_timeout: :kill_task
+      )
+      |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
+      |> Stream.map(fn {:ok, {:ok, res}} -> res end)
+      |> Enum.to_list()
+
+    # If no nodes answered we try another group
+    if Enum.empty?(results) do
+      do_quorum_read(rest, message, conflict_resolver, consistency_level, prior_result)
+    else
+      distinct_elems = Enum.dedup([prior_result | results])
+
+      # If the results are the same, then we reached consistency
+      if length(distinct_elems) == 1 do
+        {:ok, prior_result}
+      else
+        # If the results differ, we can apply a conflict resolver to merge the result into
+        # a consistent response
+        resolved_result = conflict_resolver.(distinct_elems)
+        {:ok, resolved_result}
+      end
+    end
+  end
 end
