@@ -10,8 +10,19 @@ defmodule Archethic.TransactionChain do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
   alias __MODULE__.MemTables.KOLedger
@@ -23,7 +34,9 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.TransactionSummary
+  alias __MODULE__.TransactionInput
 
   require Logger
 
@@ -478,7 +491,13 @@ defmodule Archethic.TransactionChain do
       TaskSupervisor,
       addresses,
       fn to ->
-        {to, resolve_last_address(to, time)}
+        case resolve_last_address(to, time) do
+          {:ok, resolved} ->
+            {to, resolved}
+
+          _ ->
+            {to, to}
+        end
       end,
       on_timeout: :kill_task
     )
@@ -489,28 +508,43 @@ defmodule Archethic.TransactionChain do
   @doc """
   Retrieve the last address of a chain
   """
-  @spec resolve_last_address(binary(), DateTime.t()) :: binary()
-  def resolve_last_address(address, timestamp = %DateTime{}) when is_binary(address) do
-    address
-    |> Election.chain_storage_nodes(P2P.available_nodes())
-    |> P2P.nearest_nodes()
-    |> Enum.filter(&Node.locally_available?/1)
-    |> get_last_transaction_address(address, timestamp)
-  end
+  @spec resolve_last_address(binary(), DateTime.t()) :: {:ok, binary()} | {:error, :network_issue}
+  def resolve_last_address(address, timestamp = %DateTime{} \\ DateTime.utc_now())
+      when is_binary(address) do
+    nodes =
+      address
+      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> P2P.nearest_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
 
-  defp get_last_transaction_address([node | rest], address, timestamp) do
-    message = %GetLastTransactionAddress{address: address, timestamp: timestamp}
+    case fetch_last_address_remotely(address, nodes, timestamp) do
+      {:ok, last_address} ->
+        {:ok, last_address}
 
-    case P2P.send_message(node, message) do
-      {:ok, %LastTransactionAddress{address: address}} ->
-        address
-
-      {:error, _} ->
-        get_last_transaction_address(rest, address, timestamp)
+      {:error, _} = e ->
+        e
     end
   end
 
-  defp get_last_transaction_address([], address, _), do: address
+  @doc """
+  Fetch the last address remotely
+  """
+  @spec fetch_last_address_remotely(binary(), list(Node.t()), DateTime.t()) ::
+          {:ok, binary()} | {:error, :network_issue}
+  def fetch_last_address_remotely(address, nodes, timestamp = %DateTime{} \\ DateTime.utc_now())
+      when is_binary(address) and is_list(nodes) do
+    # TODO: implement conflict resolver to get the latest address
+    case P2P.quorum_read(
+           nodes,
+           %GetLastTransactionAddress{address: address, timestamp: timestamp}
+         ) do
+      {:ok, %LastTransactionAddress{address: last_address}} ->
+        {:ok, last_address}
+
+      {:error, :network_issue} = e ->
+        e
+    end
+  end
 
   @doc """
   Get a transaction summary from a transaction address
@@ -552,5 +586,209 @@ defmodule Archethic.TransactionChain do
       end,
       fn _ -> :ok end
     )
+  end
+
+  @doc """
+  Fetch transaction remotely
+
+  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`. 
+  If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
+
+  If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
+  """
+  @spec fetch_transaction_remotely(address :: Crypto.versioned_hash(), list(Node.t())) ::
+          {:ok, Transaction.t()}
+          | {:error, :transaction_not_exists}
+          | {:error, :transaction_invalid}
+          | {:error, :network_issue}
+  def fetch_transaction_remotely(_, []), do: {:error, :transaction_not_exists}
+
+  def fetch_transaction_remotely(address, nodes) when is_binary(address) and is_list(nodes) do
+    conflict_resolver = fn results ->
+      # Prioritize transactions results over not found
+      with nil <- Enum.find(results, &match?(%Transaction{}, &1)),
+           nil <- Enum.find(results, &match?(%Error{}, &1)) do
+        %NotFound{}
+      else
+        res ->
+          res
+      end
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetTransaction{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %NotFound{}} ->
+        {:error, :transaction_not_exists}
+
+      {:ok, %Error{}} ->
+        {:error, :transaction_invalid}
+
+      {:ok, tx = %Transaction{}} ->
+        {:ok, tx}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
+  end
+
+  @doc """
+  Stream transaction chain remotely
+  """
+  @spec stream_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t()),
+          paging_state :: nil | binary()
+        ) ::
+          Enumerable.t() | list(Transaction.t())
+  def stream_remotely(address, nodes, paging_state \\ nil)
+  def stream_remotely(_, [], _), do: []
+
+  def stream_remotely(address, nodes, paging_state)
+      when is_binary(address) and is_list(nodes) do
+    Stream.resource(
+      fn -> {address, paging_state, 0} end,
+      fn
+        {:end, _size} ->
+          {:halt, address}
+
+        {address, paging_state, size} ->
+          do_stream_chain(nodes, address, paging_state, size)
+      end,
+      fn _ -> :ok end
+    )
+  end
+
+  defp do_stream_chain(nodes, address, paging_state, size) do
+    case fetch_transaction_chain(nodes, address, paging_state) do
+      {transactions, false, _} ->
+        {[transactions], {:end, size + length(transactions)}}
+
+      {transactions, true, paging_state} ->
+        {[transactions], {address, paging_state, size + length(transactions)}}
+    end
+  end
+
+  defp fetch_transaction_chain(
+         nodes,
+         address,
+         paging_state
+       ) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.sort(
+        &((&1.more? and !&2.more?) or length(&1.transactions) > length(&2.transactions))
+      )
+      |> List.first()
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetTransactionChain{address: address, paging_state: paging_state},
+           conflict_resolver
+         ) do
+      {:ok,
+       %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->
+        {transactions, more?, paging_state}
+
+      {:error, :network_issue} ->
+        raise "Cannot fetch transaction chain"
+    end
+  end
+
+  @doc """
+  Fetch the transaction inputs for a transaction address at a given time
+
+  If the inputs exist, then they are returned in the shape of `{:ok, inputs}`.
+  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
+  """
+  @spec fetch_inputs_remotely(address :: Crypto.versioned_hash(), list(Node.t()), DateTime.t()) ::
+          {:ok, list(TransactionInput.t())} | {:error, :network_issue}
+  def fetch_inputs_remotely(_, [], _), do: {:ok, []}
+
+  def fetch_inputs_remotely(address, nodes, timestamp = %DateTime{})
+      when is_binary(address) and is_list(nodes) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.sort_by(&length(&1.inputs), :desc)
+      |> List.first()
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetTransactionInputs{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %TransactionInputList{inputs: inputs}} ->
+        filtered_inputs = Enum.filter(inputs, &(DateTime.diff(&1.timestamp, timestamp) <= 0))
+        {:ok, filtered_inputs}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
+  end
+
+  @doc """
+  Fetch the transaction unspent outputs for a transaction address at a given time
+
+  If the utxo exist, then they are returned in the shape of `{:ok, inputs}`.
+  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
+  """
+  @spec fetch_unspent_outputs_remotely(
+          address :: Crypto.versioned_hash(),
+          list(Node.t())
+        ) ::
+          {:ok, list(UnspentOutput.t())} | {:error, :network_issue}
+  def fetch_unspent_outputs_remotely(_, []), do: {:ok, []}
+
+  def fetch_unspent_outputs_remotely(address, nodes)
+      when is_binary(address) and is_list(nodes) do
+    conflict_resolver = fn results ->
+      results
+      |> Enum.sort_by(&length(&1.unspent_outputs), :desc)
+      |> List.first()
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetUnspentOutputs{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
+        {:ok, unspent_outputs}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
+  end
+
+  @doc """
+  Fetch the transaction chain length for a transaction address
+
+  The result is returned in the shape of `{:ok, length}`.
+  If no nodes are able to answer the request, `{:error, :network_issue}` is returned.
+  """
+  @spec fetch_size_remotely(Crypto.versioned_hash(), list(Node.t())) ::
+          {:ok, non_neg_integer()} | {:error, :network_issue}
+  def fetch_size_remotely(_, []), do: {:ok, 0}
+
+  def fetch_size_remotely(address, nodes) do
+    conflict_resolver = fn results ->
+      Enum.max_by(results, & &1.length)
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetTransactionChainLength{address: address},
+           conflict_resolver
+         ) do
+      {:ok, %TransactionChainLength{length: length}} ->
+        {:ok, length}
+
+      {:error, :network_issue} ->
+        {:error, :network_issue}
+    end
   end
 end
