@@ -42,6 +42,9 @@ defmodule Archethic.Mining.Fee do
       true == Transaction.network_type?(type) ->
         0
 
+      type == :oracle ->
+        0.01 / uco_price_in_usd
+
       true ->
         transaction_value = get_transaction_value(tx) / @unit_uco
         nb_recipients = get_number_recipients(tx)
