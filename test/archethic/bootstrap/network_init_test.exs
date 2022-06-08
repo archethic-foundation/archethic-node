@@ -17,11 +17,11 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Node
 
   alias Archethic.SharedSecrets
@@ -39,6 +39,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
+  alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
@@ -129,7 +130,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
   test "self_replication/1 should insert the transaction and add to the beacon chain" do
     inputs = [
-      %UnspentOutput{amount: 499_999_000_000, from: "genesis", type: :UCO}
+      %TransactionInput{
+        amount: 499_999_000_000,
+        from: "genesis",
+        type: :UCO,
+        timestamp: DateTime.utc_now()
+      }
     ]
 
     MockClient
@@ -140,8 +146,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
 
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+      _, %GetTransactionInputs{}, _ ->
+        {:ok, %TransactionInputList{inputs: inputs}}
     end)
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -193,8 +199,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: []}}
+      _, %GetTransactionInputs{}, _ ->
+        {:ok, %TransactionInputList{inputs: []}}
     end)
 
     me = self()
@@ -241,8 +247,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: []}}
+      _, %GetTransactionInputs{}, _ ->
+        {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetLastTransactionAddress{address: address}, _ ->
         {:ok, %LastTransactionAddress{address: address}}
@@ -288,8 +294,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
 
-      _, %GetUnspentOutputs{}, _ ->
-        {:ok, %UnspentOutputList{unspent_outputs: []}}
+      _, %GetTransactionInputs{}, _ ->
+        {:ok, %TransactionInputList{inputs: []}}
 
       _, %GetLastTransactionAddress{address: address}, _ ->
         {:ok, %LastTransactionAddress{address: address}}

@@ -10,12 +10,12 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
+  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
   alias Archethic.Replication
@@ -30,6 +30,7 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionInput
 
   doctest Archethic.Replication
 
@@ -72,10 +73,19 @@ defmodule Archethic.ReplicationTest do
 
     MockClient
     |> stub(:send_message, fn
-      _, %GetUnspentOutputs{}, _ ->
+      _, %GetTransactionInputs{}, _ ->
         {:ok,
-         %UnspentOutputList{
-           unspent_outputs: unspent_outputs
+         %TransactionInputList{
+           inputs:
+             Enum.map(unspent_outputs, fn utxo ->
+               %TransactionInput{
+                 from: utxo.from,
+                 amount: utxo.amount,
+                 type: utxo.type,
+                 timestamp:
+                   DateTime.utc_now() |> DateTime.add(-30) |> DateTime.truncate(:millisecond)
+               }
+             end)
          }}
 
       _, %GetTransactionChain{}, _ ->

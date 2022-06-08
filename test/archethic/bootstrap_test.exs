@@ -18,8 +18,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionSummary
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetTransactionInputs
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.ListNodes
   alias Archethic.P2P.Message.NewTransaction
@@ -27,7 +26,7 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.NotifyEndOfNodeSync
   alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Node
 
@@ -65,8 +64,8 @@ defmodule Archethic.BootstrapTest do
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _, %GetUnspentOutputs{}, _ ->
-          {:ok, %UnspentOutputList{unspent_outputs: []}}
+        _, %GetTransactionInputs{}, _ ->
+          {:ok, %TransactionInputList{inputs: []}}
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
