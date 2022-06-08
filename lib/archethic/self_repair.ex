@@ -23,11 +23,15 @@ defmodule Archethic.SelfRepair do
   """
   @spec bootstrap_sync(last_sync_date :: DateTime.t(), network_patch :: binary()) :: :ok
   def bootstrap_sync(date = %DateTime{}, patch) when is_binary(patch) do
+    # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
+    # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
+    # at the end of loading (in case there is a crash during self repair).
     start_date = DateTime.utc_now()
     :ok = Sync.load_missed_transactions(date, patch)
     put_last_sync_date(start_date)
 
-    # Run bootstrap_sync until the last beacon summary is loaded
+    # At the end of self repair, if a new beacon summary as been created
+    # we run bootstrap_sync again until the last beacon summary is loaded
     case DateTime.utc_now()
          |> BeaconChain.previous_summary_time()
          |> DateTime.compare(start_date) do

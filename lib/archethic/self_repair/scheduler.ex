@@ -87,6 +87,9 @@ defmodule Archethic.SelfRepair.Scheduler do
     )
 
     Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+      # Loading transactions can take a lot of time to be achieve and can overpass an epoch.
+      # So to avoid missing a beacon summary epoch, we save the starting date and update the last sync date with it
+      # at the end of loading (in case there is a crash during self repair)
       start_date = DateTime.utc_now()
       :ok = Sync.load_missed_transactions(last_sync_date, get_node_patch())
       {:ok, start_date}
