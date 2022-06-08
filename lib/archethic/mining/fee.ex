@@ -42,11 +42,8 @@ defmodule Archethic.Mining.Fee do
       true == Transaction.network_type?(type) ->
         0
 
-      type == :oracle ->
-        0.01 / uco_price_in_usd
-
       true ->
-        transaction_value = get_transaction_value(tx) / @unit_uco
+        transaction_value = 0.01 / uco_price_in_usd
         nb_recipients = get_number_recipients(tx)
         nb_bytes = get_transaction_size(tx)
         nb_storage_nodes = get_number_replicas(tx)
@@ -61,12 +58,6 @@ defmodule Archethic.Mining.Fee do
           ) * @unit_uco
         )
     end
-  end
-
-  defp get_transaction_value(%Transaction{
-         data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: uco_transfers}}}
-       }) do
-    Enum.reduce(uco_transfers, 0, &(&1.amount + &2))
   end
 
   defp get_transaction_size(tx = %Transaction{}) do
