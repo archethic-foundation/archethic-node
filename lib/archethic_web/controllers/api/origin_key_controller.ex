@@ -52,7 +52,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
     end
   end
 
-  defp send_transaction(%Transaction{} = tx) do
+  defp send_transaction(tx = %Transaction{}) do
     case Archethic.send_new_transaction(tx) do
       :ok ->
         TransactionSubscriber.register(tx.address, System.monotonic_time())
