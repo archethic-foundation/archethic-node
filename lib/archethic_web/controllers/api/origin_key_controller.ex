@@ -67,10 +67,6 @@ defmodule ArchethicWeb.API.OriginKeyController do
     end
   end
 
-  defp send_transaction(_) do
-    {422, %{status: "error - may be invalid transaction"}}
-  end
-
   defp handle_error(error) do
     case error do
       er when er in [:error, false] ->
