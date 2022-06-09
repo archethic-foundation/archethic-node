@@ -538,7 +538,6 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
               end)
           }
         })
-
     end
 
     test "should return an error authorized keys in a ownership can't be more than 256" do
@@ -564,11 +563,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                     %{
                       "publicKey" =>
                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                      "encryptedSecretKey" =>
-                        Base.encode16(:crypto.strong_rand_bytes(64))
+                      "encryptedSecretKey" => Base.encode16(:crypto.strong_rand_bytes(64))
                     }
                   end),
-                  "secret" => Base.encode16(:crypto.strong_rand_bytes(64))
+                "secret" => Base.encode16(:crypto.strong_rand_bytes(64))
               }
             ]
           }
