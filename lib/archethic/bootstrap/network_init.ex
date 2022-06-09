@@ -97,7 +97,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
           condition inherit: [
             # We need to ensure the type stays consistent
             # So we can apply specific rules during the transaction validation
-            type: origin
+            type: origin,
+            content: true
           ]
         """,
         content: <<genesis_origin_public_key::binary, 0::16>>

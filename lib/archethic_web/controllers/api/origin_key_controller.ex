@@ -32,7 +32,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
       |> Crypto.key_origin()
       |> SharedSecrets.get_origin_family_seed()
 
-    {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 0)
+    {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 1)
 
     last_index =
       first_origin_family_public_key
