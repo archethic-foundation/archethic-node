@@ -85,14 +85,14 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
     :ok
   end
 
-  def load_transaction(%Transaction{ address: address,
+  def load_transaction(%Transaction{
+        address: address,
         type: :origin,
         data: %TransactionData{content: content}
       }) do
-        {origin_public_key,  _rest} = 
-          Utils.deserialize_public_key(content)
+    {origin_public_key, _rest} = Utils.deserialize_public_key(content)
 
-        <<_curve_id::8, origin_id::8, _rest::binary>>  = origin_public_key
+    <<_curve_id::8, origin_id::8, _rest::binary>> = origin_public_key
 
     family =
       case Crypto.key_origin(origin_id) do
@@ -143,9 +143,4 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   end
 
   def load_transaction(_), do: :ok
-
 end
-
-
-
-
