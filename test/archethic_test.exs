@@ -10,11 +10,12 @@ defmodule ArchethicTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
-  alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.StartMining
@@ -144,8 +145,12 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok, %Transaction{previous_public_key: "Alice1"}}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %Transaction{previous_public_key: "Alice1"}}
       end)
 
       assert {:ok, %Transaction{previous_public_key: "Alice1"}} =
@@ -177,8 +182,12 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok, %NotFound{}}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       assert {:error, :transaction_not_exists} =
