@@ -92,7 +92,7 @@ defmodule Archethic.Mining.Fee do
        ) do
     # TODO: determine the fee for smart contract execution
 
-    value_cost = 0.01 / uco_price_in_usd
+    minimum_fee = 0.01 / uco_price_in_usd
 
     storage_cost =
       fee_for_storage(
@@ -103,7 +103,7 @@ defmodule Archethic.Mining.Fee do
 
     replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
 
-    value_cost + storage_cost + replication_cost
+    minimum_fee + storage_cost + replication_cost
   end
 
   defp fee_for_storage(uco_price_in_usd, nb_bytes, nb_storage_nodes) do
