@@ -49,12 +49,6 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
     test "should send json secret values response when public key is found in owner transactions",
          %{conn: conn} do
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
-        {:ok, %LastTransactionAddress{address: address}}
-      end)
-      |> expect(:send_message, fn _, %GetTransactionChainLength{address: address}, _ ->
-        {:ok, %TransactionChainLength{length: TransactionChain.size(address)}}
-      end)
       |> expect(:send_message, fn _, _, _ ->
         {:ok, :ok}
       end)

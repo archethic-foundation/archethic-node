@@ -4,6 +4,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
   alias Archethic.Crypto
   alias Archethic.SharedSecrets
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.TransactionData
   alias ArchethicWeb.TransactionSubscriber
 
@@ -33,23 +34,21 @@ defmodule ArchethicWeb.API.OriginKeyController do
 
     {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 0)
 
-    address = Crypto.derive_address(first_origin_family_public_key)
+    last_index =
+      first_origin_family_public_key
+      |> Crypto.derive_address()
+      |> TransactionChain.size()
 
-    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
-         {:ok, last_index} <- Archethic.get_transaction_chain_length(last_address) do
-      tx_content = <<origin_public_key::binary, certificate::binary>>
+    tx_content = <<origin_public_key::binary, byte_size(certificate)::16, certificate::binary>>
 
-      Transaction.new(
-        :origin,
-        %TransactionData{
-          content: tx_content
-        },
-        signing_seed,
-        last_index
-      )
-    else
-      error -> error
-    end
+    Transaction.new(
+      :origin,
+      %TransactionData{
+        content: tx_content
+      },
+      signing_seed,
+      last_index
+    )
   end
 
   defp send_transaction(tx = %Transaction{}) do
