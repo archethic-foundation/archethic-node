@@ -23,31 +23,16 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
     changeset
     |> cast(params, [:code, :content, :recipients])
     |> cast_embed(:ledger)
-    # Ownerhips can be 256 address Public Keys
     |> cast_embed(:ownerships)
+    |> validate_length(:content,
+      max: @content_max_size,
+      message: "content size must be lessthan content_max_size"
+    )
     |> validate_length(:code,
       max: @code_max_size,
-      message: "code size can't be more than " <> Integer.to_string(@code_max_size) <> " bytes"
+      message: "code size can't be more than #{Integer.to_string(@code_max_size)} bytes"
     )
     |> validate_length(:ownerships, max: 256, message: "ownerships can not be more that 256")
-    |> validate_content_size()
     |> validate_length(:recipients, max: 256, message: "maximum number of recipients can be 256")
   end
-
-  defp validate_content_size(changeset = %Ecto.Changeset{}) do
-    validate_change(changeset, :content, fn field, content ->
-      content_size = byte_size(content)
-
-      if content_size >= @content_max_size do
-        [{field, "content size must be lessthan content_max_size"}]
-      else
-        []
-      end
-    end)
-  end
-
-  # Validate data size here
-  # Calculate max. content size here based on args
-  # Custom validators in ecto
-  # validate_length // works with lists, strings
 end

@@ -58,7 +58,8 @@ config :archethic, :marker, "-=%=-=%=-=%=-"
 config :archethic, :transaction_data_content_max_size, 3_145_728
 
 # size represents in bytes binary
-config :archethic, :transaction_data_code_max_size, 5_242_880
+# 24KB Max
+config :archethic, :transaction_data_code_max_size, 24576
 
 config :archethic, Archethic.Crypto,
   supported_curves: [

@@ -119,7 +119,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
       assert {"is invalid", _} = Keyword.get(errors, :code)
     end
 
-    test "should return an error if the code length is more than 5 MB" do
+    test "should return an error if the code length is more than 24KB" do
       %Ecto.Changeset{
         valid?: false,
         changes: %{data: %{errors: errors}}
@@ -133,7 +133,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
             Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
           "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
-          "data" => %{"code" => Base.encode16(:crypto.strong_rand_bytes(5 * 1024 * 1024 + 1))}
+          "data" => %{"code" => Base.encode16(:crypto.strong_rand_bytes(24 * 1024 + 1))}
         })
 
       {error_message, _} = Keyword.get(errors, :code)
@@ -525,19 +525,22 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
               1..257
               |> Enum.map(fn _ ->
                 %{
-                  "authorizedKeys" => [
-                    %{
-                      "publicKey" =>
-                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
-                      "encryptedSecretKey" =>
-                        Base.encode16(<<:crypto.strong_rand_bytes(64)::binary>>)
-                    }
-                  ],
+                  "authorizedKeys" =>
+                    Enum.map(1..2, fn _ ->
+                      %{
+                        "publicKey" =>
+                          Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                        "encryptedSecretKey" => Base.encode16(:crypto.strong_rand_bytes(45))
+                      }
+                    end),
                   "secret" => Base.encode16(<<:crypto.strong_rand_bytes(64)::binary>>)
                 }
               end)
           }
         })
+
+      {msg, _} = changeset.errors[:ownerships]
+      assert "ownerships can not be more that 256" == msg
     end
 
     test "should return an error authorized keys in a ownership can't be more than 256" do
