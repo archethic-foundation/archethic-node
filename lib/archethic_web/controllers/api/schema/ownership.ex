@@ -17,7 +17,10 @@ defmodule ArchethicWeb.API.Schema.Ownership do
     |> cast(params, [:secret])
     |> cast_embed(:authorizedKeys)
     |> validate_required([:secret, :authorizedKeys])
-    |> validate_length(:authorizedKeys, max: 256, message: "maximum number of authorized keys can be 256")
+    |> validate_length(:authorizedKeys,
+      max: 256,
+      message: "maximum number of authorized keys can be 256"
+    )
     |> format_authorized_keys()
   end
 

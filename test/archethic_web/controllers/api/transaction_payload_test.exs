@@ -573,7 +573,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
         }
       })
 
-    assert ["maximum number of recipients can be 256"] = changeset |> get_errors() |> get_in([:data, :recipients])
+    assert ["maximum number of recipients can be 256"] =
+             changeset |> get_errors() |> get_in([:data, :recipients])
   end
 
   test "to_map/1 should return a map of the changeset" do
