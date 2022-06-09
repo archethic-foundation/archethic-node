@@ -100,7 +100,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
             type: origin
           ]
         """,
-        content: <<genesis_origin_public_key::binary>>
+        content: <<genesis_origin_public_key::binary, 0::16>>
       },
       signing_seed,
       0

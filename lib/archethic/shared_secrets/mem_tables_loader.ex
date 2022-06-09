@@ -4,6 +4,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   use GenServer
 
   alias Archethic.Crypto
+  alias Archethic.Utils
 
   alias Archethic.P2P.Node
 
@@ -89,18 +90,29 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
         type: :origin,
         data: %TransactionData{content: content}
       }) do
-    content
-    |> get_origin_public_keys(%{software: [], hardware: []})
-    |> Enum.each(fn {family, keys} ->
-      Enum.each(keys, fn key ->
-        :ok = OriginKeyLookup.add_public_key(family, key)
+    {<<curve_id::8, origin_id::8, key::binary>>, _rest} = Utils.deserialize_public_key(content)
 
-        Logger.info("Load origin public key #{Base.encode16(key)} - #{family}",
-          transaction_address: Base.encode16(address),
-          transaction_type: :origin
-        )
-      end)
-    end)
+    key_size = Crypto.key_size(curve_id)
+    <<origin_public_key::binary-size(key_size), _rest::binary>> = key
+
+    family =
+      case Crypto.key_origin(origin_id) do
+        :software ->
+          :software
+
+        :tpm ->
+          :hardware
+
+        :on_chain_wallet ->
+          :software
+      end
+
+    OriginKeyLookup.add_public_key(family, origin_public_key)
+
+    Logger.info("Load origin public key #{Base.encode16(origin_public_key)} - #{family}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :origin
+    )
   end
 
   def load_transaction(%Transaction{
@@ -132,28 +144,4 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   end
 
   def load_transaction(_), do: :ok
-
-  defp get_origin_public_keys(<<>>, acc), do: acc
-
-  defp get_origin_public_keys(<<curve_id::8, origin_id::8, rest::binary>>, acc) do
-    key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(key_size), rest::binary>> = rest
-
-    family =
-      case Crypto.key_origin(origin_id) do
-        :software ->
-          :software
-
-        :tpm ->
-          :hardware
-
-        :on_chain_wallet ->
-          :software
-      end
-
-    get_origin_public_keys(
-      rest,
-      Map.update!(acc, family, &[<<curve_id::8, origin_id::8, key::binary>> | &1])
-    )
-  end
 end
