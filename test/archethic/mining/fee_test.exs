@@ -45,7 +45,7 @@ defmodule Archethic.Mining.FeeTest do
 
     test "should increase fee when the amount increases for single transfer " do
       # 0.050048 UCO for 1 UCO
-      assert 5_04_800 ==
+      assert 504_800 ==
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -116,7 +116,7 @@ defmodule Archethic.Mining.FeeTest do
                |> Fee.calculate(2.0)
 
       # 0.0100096 UCO for 1 UCO at $10.0
-      assert 1_00_960 =
+      assert 100_960 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -245,7 +245,7 @@ defmodule Archethic.Mining.FeeTest do
       add_nodes(100)
 
       # 150 nodes: 0.050144 UCO
-      assert 5_14_400 =
+      assert 514_400 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
