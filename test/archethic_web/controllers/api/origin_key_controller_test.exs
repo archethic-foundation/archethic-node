@@ -42,7 +42,7 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
         })
 
       assert %{
-               "error" => "Invalid public key"
+               "status" => "error - invalid public key"
              } = json_response(conn, 400)
     end
 
@@ -67,8 +67,8 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
         })
 
       assert %{
-               "status" => "ok"
-             } = json_response(conn, 200)
+               "status" => "pending"
+             } = json_response(conn, 201)
     end
   end
 end
