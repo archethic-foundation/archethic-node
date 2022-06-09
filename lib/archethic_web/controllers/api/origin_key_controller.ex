@@ -34,22 +34,25 @@ defmodule ArchethicWeb.API.OriginKeyController do
     {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 0)
 
     address = Crypto.derive_address(first_origin_family_public_key)
-    {:ok, last_address} = Archethic.get_last_transaction_address(address)
-    {:ok, last_index} = Archethic.get_transaction_chain_length(last_address)
 
-    tx_content = <<origin_public_key::binary, certificate::binary>>
+    with {:ok, last_address} <- Archethic.get_last_transaction_address(address),
+         {:ok, last_index} <- Archethic.get_transaction_chain_length(last_address) do
+      tx_content = <<origin_public_key::binary, certificate::binary>>
 
-    Transaction.new(
-      :origin,
-      %TransactionData{
-        content: tx_content
-      },
-      signing_seed,
-      last_index
-    )
+      Transaction.new(
+        :origin,
+        %TransactionData{
+          content: tx_content
+        },
+        signing_seed,
+        last_index
+      )
+    else
+      error -> error
+    end
   end
 
-  defp send_transaction(tx) do
+  defp send_transaction(%Transaction{} = tx) do
     case Archethic.send_new_transaction(tx) do
       :ok ->
         TransactionSubscriber.register(tx.address, System.monotonic_time())
@@ -63,6 +66,10 @@ defmodule ArchethicWeb.API.OriginKeyController do
       {:error, :network_issue} ->
         {422, %{status: "error - may be invalid transaction"}}
     end
+  end
+
+  defp send_transaction(_) do
+    {422, %{status: "error - may be invalid transaction"}}
   end
 
   defp handle_error(error) do
