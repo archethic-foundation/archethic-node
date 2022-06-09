@@ -197,7 +197,6 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                changeset |> get_errors() |> get_in([:data, :ledger, :uco, :transfers])
     end
 
-    # Add test for uco's here
     test "should return an error if the uco ledger transfers are more than 256" do
       changeset =
         %Ecto.Changeset{
@@ -504,6 +503,78 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
         })
 
       assert [%{authorizedKeys: [%{encryptedSecretKey: ["must be hexadecimal"]}]}] =
+               changeset |> get_errors |> get_in([:data, :ownerships])
+    end
+
+    test "should return an error ownerships are more than 256." do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ownerships" =>
+              1..257
+              |> Enum.map(fn _ ->
+                %{
+                  "authorizedKeys" => [
+                    %{
+                      "publicKey" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "encryptedSecretKey" =>
+                        Base.encode16(<<:crypto.strong_rand_bytes(64)::binary>>)
+                    }
+                  ],
+                  "secret" => Base.encode16(<<:crypto.strong_rand_bytes(64)::binary>>)
+                }
+              end)
+          }
+        })
+
+    end
+
+    test "should return an error authorized keys in a ownership can't be more than 256" do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ownerships" => [
+              %{
+                "authorizedKeys" =>
+                  1..257
+                  |> Enum.map(fn _ ->
+                    %{
+                      "publicKey" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "encryptedSecretKey" =>
+                        Base.encode16(:crypto.strong_rand_bytes(64))
+                    }
+                  end),
+                  "secret" => Base.encode16(:crypto.strong_rand_bytes(64))
+              }
+            ]
+          }
+        })
+
+      assert [%{authorizedKeys: ["maximum number of authorized keys can be 256"]}] =
                changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
