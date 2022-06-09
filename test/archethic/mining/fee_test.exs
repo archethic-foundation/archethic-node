@@ -19,8 +19,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should return a fee less than amount to send for a single transfer" do
-      # 0.050048 UCO for 1 UCO at $0.2
-      assert 50_048_000 =
+      # 0.05048 UCO for 1 UCO at $0.2
+      assert 5_048_000 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -44,8 +44,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should increase fee when the amount increases for single transfer " do
-      # 0.050048 UCO for 1 UCO
-      assert 5_004_800 ==
+      # 0.005048 UCO for 1 UCO
+      assert 504_800 ==
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -67,8 +67,8 @@ defmodule Archethic.Mining.FeeTest do
                }
                |> Fee.calculate(2.0)
 
-      # 0.060048 UCO for 60 UCO
-      assert 6_004_800 =
+      # 0.005048 UCO for 60 UCO
+      assert 504_800 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -92,8 +92,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should decrease the fee when the amount stays the same but the price of UCO increases" do
-      # 0.050048 UCO for 1 UCO at $ 2.0
-      assert 5_004_800 =
+      # 0.005048 UCO for 1 UCO at $ 2.0
+      assert 504_800 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -115,8 +115,8 @@ defmodule Archethic.Mining.FeeTest do
                }
                |> Fee.calculate(2.0)
 
-      # 0.0100096 UCO for 1 UCO at $10.0
-      assert 1_000_960 =
+      # 0.0010096 UCO for 1 UCO at $10.0
+      assert 100_960 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -140,8 +140,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "sending multiple transfers should cost more than sending a single big transfer" do
-      # 1.00048 UCO for 1_000 UCO
-      assert 100_048_000 =
+      # 0.05048 UCO for 1_000 UCO
+      assert 5_048_000 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -163,8 +163,8 @@ defmodule Archethic.Mining.FeeTest do
                }
                |> Fee.calculate(0.2)
 
-      # 501.1028775.UCO for 1000 transfer of 1 UCO
-      assert 50_110_287_750 =
+      # 500.1528775 UCO for 1000 transfer of 1 UCO
+      assert 50_015_287_750 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -189,8 +189,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should increase the fee when the transaction size increases" do
-      # 0.5 UCO to store 1KB
-      assert 50_287_750 =
+      # 0.05 UCO to store 1KB
+      assert 5_287_749 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -203,8 +203,8 @@ defmodule Archethic.Mining.FeeTest do
                }
                |> Fee.calculate(0.2)
 
-      # 25.5 UCO to store 10MB
-      assert 2_550_037_750 =
+      # 25.05 UCO to store 10MB
+      assert 2_505_037_750 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -219,8 +219,8 @@ defmodule Archethic.Mining.FeeTest do
     end
 
     test "should cost more with more replication nodes" do
-      # 50 nodes: 0.050048 UCO
-      assert 5_004_800 =
+      # 50 nodes: 0.005048 UCO
+      assert 504_800 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
@@ -244,8 +244,8 @@ defmodule Archethic.Mining.FeeTest do
 
       add_nodes(100)
 
-      # 150 nodes: 0.050144 UCO
-      assert 5_014_400 =
+      # 150 nodes: 0.005144 UCO
+      assert 514_400 =
                %Transaction{
                  address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>,
                  type: :transfer,
