@@ -14,7 +14,6 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.TransactionChain.TransactionData.NFTLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
-  @min_tx_fee_in_usd 0.1
   @unit_uco 100_000_000
 
   @doc """
@@ -43,7 +42,6 @@ defmodule Archethic.Mining.Fee do
         0
 
       true ->
-        transaction_value = get_transaction_value(tx) / @unit_uco
         nb_recipients = get_number_recipients(tx)
         nb_bytes = get_transaction_size(tx)
         nb_storage_nodes = get_number_replicas(tx)
@@ -51,19 +49,12 @@ defmodule Archethic.Mining.Fee do
         trunc(
           do_calculate(
             uco_price_in_usd,
-            transaction_value,
             nb_bytes,
             nb_storage_nodes,
             nb_recipients
           ) * @unit_uco
         )
     end
-  end
-
-  defp get_transaction_value(%Transaction{
-         data: %TransactionData{ledger: %Ledger{uco: %UCOLedger{transfers: uco_transfers}}}
-       }) do
-    Enum.reduce(uco_transfers, 0, &(&1.amount + &2))
   end
 
   defp get_transaction_size(tx = %Transaction{}) do
@@ -95,14 +86,13 @@ defmodule Archethic.Mining.Fee do
 
   defp do_calculate(
          uco_price_in_usd,
-         transaction_value,
          nb_bytes,
          nb_storage_nodes,
          nb_recipients
        ) do
     # TODO: determine the fee for smart contract execution
 
-    value_cost = fee_for_value(uco_price_in_usd, transaction_value)
+    minimum_fee = 0.01 / uco_price_in_usd
 
     storage_cost =
       fee_for_storage(
@@ -113,23 +103,7 @@ defmodule Archethic.Mining.Fee do
 
     replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
 
-    value_cost + storage_cost + replication_cost
-  end
-
-  # if transaction value less than minimum transaction value => txn fee is minimum txn fee
-  defp fee_for_value(uco_price_in_usd, transaction_value_in_uco)
-       when transaction_value_in_uco <= @min_tx_fee_in_usd / uco_price_in_usd * 1000 do
-    get_min_transaction_fee(uco_price_in_usd)
-  end
-
-  defp fee_for_value(uco_price_in_usd, transaction_value_in_uco) do
-    min_tx_fee = get_min_transaction_fee(uco_price_in_usd)
-    min_tx_value = min_tx_fee * 1_000
-    min_tx_fee * (transaction_value_in_uco / min_tx_value)
-  end
-
-  defp get_min_transaction_fee(uco_price_in_usd) do
-    @min_tx_fee_in_usd / uco_price_in_usd
+    minimum_fee + storage_cost + replication_cost
   end
 
   defp fee_for_storage(uco_price_in_usd, nb_bytes, nb_storage_nodes) do
