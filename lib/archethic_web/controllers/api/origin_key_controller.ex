@@ -12,6 +12,7 @@ defmodule ArchethicWeb.API.OriginKeyController do
     {status_code, response} =
       with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
            {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+           {:ok, certificate} <- Base.decode16(certificate, case: :mixed),
            true <- Crypto.valid_public_key?(origin_public_key),
            <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
         origin_id
