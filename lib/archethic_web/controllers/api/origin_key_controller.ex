@@ -3,63 +3,86 @@ defmodule ArchethicWeb.API.OriginKeyController do
 
   alias Archethic.Crypto
   alias Archethic.SharedSecrets
-
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain
-  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.TransactionChain.TransactionData
+  alias ArchethicWeb.TransactionSubscriber
 
   def origin_key(conn, params) do
-    with %{"origin_public_key" => origin_public_key} <- params,
-         {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
-         true <- Crypto.valid_public_key?(origin_public_key),
-         <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key,
-         {first_origin_family_public_key, _} <-
-           SharedSecrets.get_origin_family_from_origin_id(origin_id)
-           |> SharedSecrets.get_origin_family_seed()
-           |> Crypto.derive_keypair(0),
-         {:ok, tx} <-
-           Crypto.derive_address(first_origin_family_public_key)
-           |> TransactionChain.get_last_transaction(data: [:ownerships]),
-         ownership when ownership != nil <-
-           Enum.find(tx.data.ownerships, fn ownership ->
-             Ownership.authorized_public_key?(ownership, origin_public_key)
-           end) do
-      res = %{
-        encrypted_origin_private_keys: Base.encode16(ownership.secret),
-        encrypted_secret_key:
-          Ownership.get_encrypted_key(ownership, origin_public_key) |> Base.encode16()
-      }
+    {status_code, response} =
+      with %{"origin_public_key" => origin_public_key, "certificate" => certificate} <- params,
+           {:ok, origin_public_key} <- Base.decode16(origin_public_key, case: :mixed),
+           {:ok, certificate} <- Base.decode16(certificate, case: :mixed),
+           true <- Crypto.valid_public_key?(origin_public_key),
+           <<_curve_id::8, origin_id::8, _rest::binary>> <- origin_public_key do
+        origin_id
+        |> prepare_transaction(origin_public_key, certificate)
+        |> send_transaction()
+      else
+        error -> handle_error(error)
+      end
 
-      conn
-      |> put_status(:ok)
-      |> json(res)
-    else
+    conn
+    |> put_status(status_code)
+    |> json(response)
+  end
+
+  defp prepare_transaction(origin_id, origin_public_key, certificate) do
+    signing_seed =
+      origin_id
+      |> Crypto.key_origin()
+      |> SharedSecrets.get_origin_family_seed()
+
+    {first_origin_family_public_key, _} = Crypto.derive_keypair(signing_seed, 1)
+
+    last_index =
+      first_origin_family_public_key
+      |> Crypto.derive_address()
+      |> TransactionChain.size()
+
+    tx_content = <<origin_public_key::binary, byte_size(certificate)::16, certificate::binary>>
+
+    Transaction.new(
+      :origin,
+      %TransactionData{
+        code: """
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: origin,
+            content: true
+          ]
+        """,
+        content: tx_content
+      },
+      signing_seed,
+      last_index
+    )
+  end
+
+  defp send_transaction(tx = %Transaction{}) do
+    case Archethic.send_new_transaction(tx) do
+      :ok ->
+        TransactionSubscriber.register(tx.address, System.monotonic_time())
+
+        {201,
+         %{
+           transaction_address: Base.encode16(tx.address),
+           status: "pending"
+         }}
+
+      {:error, :network_issue} ->
+        {422, %{status: "error - may be invalid transaction"}}
+    end
+  end
+
+  defp handle_error(error) do
+    case error do
       er when er in [:error, false] ->
-        conn
-        |> put_status(400)
-        |> json(%{
-          error: "Invalid public key"
-        })
-
-      {:error, _} ->
-        conn
-        |> put_status(404)
-        |> json(%{
-          error: "Public key not found"
-        })
-
-      nil ->
-        conn
-        |> put_status(404)
-        |> json(%{
-          error: "Public key not found"
-        })
+        {400, %{status: "error - invalid public key"}}
 
       _ ->
-        conn
-        |> put_status(404)
-        |> json(%{
-          error: "Invalid parameters"
-        })
+        {400, %{status: "error - invalid parameters"}}
     end
   end
 end

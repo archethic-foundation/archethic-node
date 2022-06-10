@@ -173,6 +173,46 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok = PendingTransactionValidation.validate(tx)
     end
 
+    test "should return :ok when a origin transaction is made" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key1",
+        last_public_key: "node_key1",
+        available?: true
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "node_key2",
+        last_public_key: "node_key2",
+        available?: true
+      })
+
+      {public_key, _} = Crypto.derive_keypair("random", 0)
+      certificate = Crypto.get_key_certificate(public_key)
+      certificate_size = byte_size(certificate)
+
+      tx =
+        Transaction.new(
+          :origin,
+          %TransactionData{
+            code: """
+            condition inherit: [
+              type: origin,
+              content: true
+            ]
+            """,
+            content: <<public_key::binary, certificate_size::16, certificate::binary>>
+          }
+        )
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
     test "should return :ok when a code approval transaction contains a proposal target and the sender is member of the technical council and not previously signed" do
       tx =
         Transaction.new(

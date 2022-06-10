@@ -3,12 +3,17 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
   use ArchethicWeb.ConnCase
 
   alias Archethic.P2P
-  alias Archethic.P2P.Node
-  alias Archethic.Crypto
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ownership
+  alias Archethic.P2P.Message.{
+    LastTransactionAddress,
+    GetLastTransactionAddress,
+    GetTransactionChainLength,
+    TransactionChainLength
+  }
+
+  alias Archethic.P2P.Node
+  alias Archethic.TransactionChain
+  alias Archethic.Crypto
 
   import Mox
 
@@ -32,85 +37,32 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
     test "should send not_found response for invalid params", %{conn: conn} do
       conn =
         post(conn, "/api/origin_key", %{
-          origin_public_key: "0001540315"
+          origin_public_key: "0001540315",
+          certificate: ""
         })
 
       assert %{
-               "error" => "Invalid public key"
+               "status" => "error - invalid public key"
              } = json_response(conn, 400)
-    end
-
-    test "should send not_found response when public key isn't found in owner transactions", %{
-      conn: conn
-    } do
-      MockDB
-      |> stub(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             ownerships: [
-               %Ownership{
-                 secret: Base.decode16!("0001AAAAAA"),
-                 authorized_keys: %{Base.decode16!("0001BBBBBB") => Base.decode16!("0001CCCCCC")}
-               }
-             ]
-           }
-         }}
-      end)
-
-      MockDB
-      |> stub(:get_last_chain_address, fn _ ->
-        Base.decode16!("0001DDDDDD")
-      end)
-
-      conn =
-        post(conn, "/api/origin_key", %{
-          origin_public_key:
-            "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39"
-        })
-
-      assert %{
-               "error" => "Public key not found"
-             } = json_response(conn, 404)
     end
 
     test "should send json secret values response when public key is found in owner transactions",
          %{conn: conn} do
-      MockDB
-      |> stub(:get_transaction, fn _, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{
-             ownerships: [
-               %Ownership{
-                 secret: Base.decode16!("0001AAAAAA"),
-                 authorized_keys: %{
-                   Base.decode16!(
-                     "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39",
-                     case: :mixed
-                   ) => Base.decode16!("0001CCCCCC")
-                 }
-               }
-             ]
-           }
-         }}
-      end)
-
-      MockDB
-      |> stub(:get_last_chain_address, fn _ ->
-        Base.decode16!("0001DDDDDD")
+      MockClient
+      |> expect(:send_message, fn _, _, _ ->
+        {:ok, :ok}
       end)
 
       conn =
         post(conn, "/api/origin_key", %{
           origin_public_key:
-            "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39"
+            "00015403152aeb59b1b584d77c8f326031815674afeade8cba25f18f02737d599c39",
+          certificate: ""
         })
 
       assert %{
-               "encrypted_origin_private_keys" => "0001AAAAAA",
-               "encrypted_secret_key" => "0001CCCCCC"
-             } = json_response(conn, 200)
+               "status" => "pending"
+             } = json_response(conn, 201)
     end
   end
 end

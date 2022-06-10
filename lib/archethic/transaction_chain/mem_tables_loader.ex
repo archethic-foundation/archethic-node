@@ -29,7 +29,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     :beacon,
     :beacon_summary,
     :node_rewards,
-    :origin_shared_secrets
+    :origin
   ]
 
   def start_link(args \\ []) do

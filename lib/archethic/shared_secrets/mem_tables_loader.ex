@@ -4,6 +4,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   use GenServer
 
   alias Archethic.Crypto
+  alias Archethic.Utils
 
   alias Archethic.P2P.Node
 
@@ -24,7 +25,7 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   end
 
   def init(_args) do
-    TransactionChain.list_transactions_by_type(:origin_shared_secrets, [
+    TransactionChain.list_transactions_by_type(:origin, [
       :address,
       :type,
       data: [:content]
@@ -86,21 +87,31 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
 
   def load_transaction(%Transaction{
         address: address,
-        type: :origin_shared_secrets,
+        type: :origin,
         data: %TransactionData{content: content}
       }) do
-    content
-    |> get_origin_public_keys(%{software: [], hardware: []})
-    |> Enum.each(fn {family, keys} ->
-      Enum.each(keys, fn key ->
-        :ok = OriginKeyLookup.add_public_key(family, key)
+    {origin_public_key, _rest} = Utils.deserialize_public_key(content)
 
-        Logger.info("Load origin public key #{Base.encode16(key)} - #{family}",
-          transaction_address: Base.encode16(address),
-          transaction_type: :origin_shared_secrets
-        )
-      end)
-    end)
+    <<_curve_id::8, origin_id::8, _rest::binary>> = origin_public_key
+
+    family =
+      case Crypto.key_origin(origin_id) do
+        :software ->
+          :software
+
+        :tpm ->
+          :hardware
+
+        :on_chain_wallet ->
+          :software
+      end
+
+    OriginKeyLookup.add_public_key(family, origin_public_key)
+
+    Logger.info("Load origin public key #{Base.encode16(origin_public_key)} - #{family}",
+      transaction_address: Base.encode16(address),
+      transaction_type: :origin
+    )
   end
 
   def load_transaction(%Transaction{
@@ -132,28 +143,4 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
   end
 
   def load_transaction(_), do: :ok
-
-  defp get_origin_public_keys(<<>>, acc), do: acc
-
-  defp get_origin_public_keys(<<curve_id::8, origin_id::8, rest::binary>>, acc) do
-    key_size = Crypto.key_size(curve_id)
-    <<key::binary-size(key_size), rest::binary>> = rest
-
-    family =
-      case Crypto.key_origin(origin_id) do
-        :software ->
-          :software
-
-        :tpm ->
-          :hardware
-
-        :on_chain_wallet ->
-          :software
-      end
-
-    get_origin_public_keys(
-      rest,
-      Map.update!(acc, family, &[<<curve_id::8, origin_id::8, key::binary>> | &1])
-    )
-  end
 end
