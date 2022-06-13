@@ -1,4 +1,4 @@
-defmodule Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl do
+defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
   @moduledoc false
 
   alias Archethic.P2P.GeoPatch.GeoIP
@@ -16,7 +16,7 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.IP2LocationImpl do
 
   @impl GenServer
   def init(_) do
-    Logger.info("Initialize InMemory IP2Location metadata...")
+    Logger.info("Initialize InMemory MaxMindDB metadata...")
 
     database = File.read!("./priv/p2p/GEOLITE2.mmdb")
 
