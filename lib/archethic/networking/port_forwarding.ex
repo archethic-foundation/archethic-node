@@ -26,7 +26,7 @@ defmodule Archethic.Networking.PortForwarding do
         Logger.info("Port must be open manually")
         port
 
-      {:error, _} ->
+      :error ->
         Logger.error("Cannot publish the port #{port}")
         fallback(port, force?)
     end
@@ -39,19 +39,7 @@ defmodule Archethic.Networking.PortForwarding do
     Application.get_env(:archethic, __MODULE__, []) |> Keyword.get(:enabled, true)
   end
 
-  defp do_try_open_port(port), do: assign_port([:natupnp_v1, :natupnp_v2, :natpmp], port)
-
-  defp assign_port([], _), do: {:error, :port_unassigned}
-
-  defp assign_port([protocol_module | protocol_modules], port) do
-    with {:ok, router_ip} <- protocol_module.discover(),
-         {:ok, _, internal_port, _, _} <-
-           protocol_module.add_port_mapping(router_ip, :tcp, port, port, 0) do
-      {:ok, internal_port}
-    else
-      {:error, _} -> assign_port(protocol_modules, port)
-    end
-  end
+  defp do_try_open_port(port), do: NATDiscovery.open_port(port)
 
   defp fallback(port, _force? = true) do
     case do_try_open_port(0) do
