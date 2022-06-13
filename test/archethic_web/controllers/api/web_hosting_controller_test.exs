@@ -8,6 +8,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetTransaction
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -115,6 +116,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
 
     test "should return default index.html file", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
       conn =
         get(
           conn,
@@ -125,6 +128,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
 
     test "should return selected file", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
       conn =
         get(
           conn,
@@ -135,7 +140,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
   end
 
-  describe "get_file_content/2" do
+  describe "get_file_content/3" do
     setup do
       content = """
       {
@@ -159,6 +164,10 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         },
         "image.png":{
           "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+        },
+        "ungzip.png":{
+          "encodage":"gzip",
+          "content":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
         }
       }
       """
@@ -204,7 +213,29 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+
+    test "should return gzipped file content", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+        )
+
       assert "<h1>Hello world !</h1>" = response(conn, 200) |> :zlib.gunzip()
+    end
+
+    test "should return ungzipped file content", %{conn: conn} do
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
     end
 
     test "should return raw file content", %{conn: conn} do
@@ -220,8 +251,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
         )
 
-      assert "<h1>Hello world !</h1>" = response(conn1, 200) |> :zlib.gunzip()
-      assert "<h1>Hello world !</h1>" = response(conn2, 200) |> :zlib.gunzip()
+      assert "<h1>Hello world !</h1>" = response(conn1, 200)
+      assert "<h1>Hello world !</h1>" = response(conn2, 200)
     end
 
     test "should return good file content-type", %{conn: conn} do
@@ -253,6 +284,94 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       assert ["text/xml; charset=utf-8"] = get_resp_header(conn2, "content-type")
       assert ["text/javascript; charset=utf-8"] = get_resp_header(conn3, "content-type")
       assert ["image/png; charset=utf-8"] = get_resp_header(conn4, "content-type")
+    end
+  end
+
+  describe "get_file_content/3 with address_content" do
+    setup do
+      content = """
+      {
+        "address_content.png":{
+          "encodage":"gzip",
+          "content":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "concat_content.png":{
+          "encodage":"gzip",
+          "content":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de",
+            "0000e363f156fc5185217433d986f59d9fe245226287c2dd94b1ac57ffb6df7928aa"
+          ]
+        }
+      }
+      """
+
+      content2 = """
+        {
+          "concat_content.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_",
+          "address_content.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
+        }
+      """
+
+      address =
+        <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155, 9,
+          41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+
+      MockClient
+      |> expect(:send_message, fn _, %GetLastTransaction{}, _ ->
+        {:ok,
+         %Transaction{
+           address:
+             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
+               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+           data: %TransactionData{content: content}
+         }}
+      end)
+      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{content: content2}
+         }}
+      end)
+
+      :ok
+    end
+
+    test "should return content at specified addresses", %{conn: conn} do
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/address_content.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+
+    test "should return concatened content at specified addresses", %{conn: conn} do
+      content = """
+        {"concat_content.png":"KSVFQtNEHigAA4YcXnxYAAAA"}
+      """
+
+      address =
+        <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226, 69, 34,
+          98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
+
+      MockClient
+      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
+        {:ok,
+         %Transaction{
+           data: %TransactionData{content: content}
+         }}
+      end)
+
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/concat_content.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
     end
   end
 
