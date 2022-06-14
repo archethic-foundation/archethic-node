@@ -75,6 +75,7 @@ defmodule Archethic.MixProject do
 
       # P2P
       {:ranch, "~> 2.1", override: true},
+      {:mmdb2_decoder, "~> 3.0"},
 
       # Net
       {:inet_ext, "~> 1.0"},
