@@ -338,7 +338,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
                       }
                     }}
 
-    {origin_public_key, rest} = Archethic.Utils.deserialize_public_key(content)
+    {origin_public_key, _rest} = Archethic.Utils.deserialize_public_key(content)
     assert origin_public_key in @genesis_origin_public_keys
   end
 end
