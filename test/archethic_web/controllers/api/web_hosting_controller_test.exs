@@ -80,26 +80,48 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       {
         "index.html":{
           "encodage":"base64",
-          "content":"PGgxPkFyY2hldGhpYzwvaDE-"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "folder":{
           "hello_world.html":{
             "encodage":"base64",
-            "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
           }
         }
       }
       """
 
+      content2 = """
+      {
+        "index.html":"PGgxPkFyY2hldGhpYzwvaDE-",
+        "folder":{
+          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+        }
+      }
+      """
+
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn _, message, _ ->
+        case message do
+          %GetLastTransaction{} ->
+            {:ok,
+             %Transaction{
+               address:
+                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+               data: %TransactionData{content: content}
+             }}
+
+          %GetTransaction{} ->
+            {:ok,
+             %Transaction{
+               data: %TransactionData{content: content2}
+             }}
+        end
       end)
 
       :ok
@@ -146,41 +168,74 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       {
         "error.html":{
           "encodage":"gzip",
-          "content":"4rdHFh%2BHYoS8oLdVvbUzEVqB8Lvm7kSPnuwF0AAABYQ%3D"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "gzip.js":{
           "encodage":"base64",
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "unsupported.xml":{
           "encodage":"unsupported",
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "raw.html":{
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "no_content.html":{
           "unsupported":"unsupported"
         },
         "image.png":{
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "ungzip.png":{
           "encodage":"gzip",
-          "content":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         }
       }
       """
 
+      content2 = """
+      {
+        "error.html":"4rdHFh%2BHYoS8oLdVvbUzEVqB8Lvm7kSPnuwF0AAABYQ%3D",
+        "gzip.js":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "unsupported.xml":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "raw.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "no_content.html":"unsupported",
+        "image.png":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "ungzip.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
+      }
+      """
+
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn _, message, _ ->
+        case message do
+          %GetLastTransaction{} ->
+            {:ok,
+             %Transaction{
+               address:
+                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+               data: %TransactionData{content: content}
+             }}
+
+          %GetTransaction{} ->
+            {:ok,
+             %Transaction{
+               data: %TransactionData{content: content2}
+             }}
+        end
       end)
 
       :ok
@@ -293,13 +348,13 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       {
         "address_content.png":{
           "encodage":"gzip",
-          "content":[
+          "address":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
           ]
         },
         "concat_content.png":{
           "encodage":"gzip",
-          "content":[
+          "address":[
             "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de",
             "0000e363f156fc5185217433d986f59d9fe245226287c2dd94b1ac57ffb6df7928aa"
           ]
@@ -314,25 +369,42 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         }
       """
 
-      address =
-        <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155, 9,
-          41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+      content3 = """
+        {"concat_content.png":"KSVFQtNEHigAA4YcXnxYAAAA"}
+      """
 
       MockClient
-      |> expect(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
-      end)
-      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{content: content2}
-         }}
+      |> stub(:send_message, fn _, message, _ ->
+        case message do
+          %GetLastTransaction{} ->
+            {:ok,
+             %Transaction{
+               address:
+                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+               data: %TransactionData{content: content}
+             }}
+
+          %GetTransaction{
+            address:
+              <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+                9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+          } ->
+            {:ok,
+             %Transaction{
+               data: %TransactionData{content: content2}
+             }}
+
+          %GetTransaction{
+            address:
+              <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226,
+                69, 34, 98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
+          } ->
+            {:ok,
+             %Transaction{
+               data: %TransactionData{content: content3}
+             }}
+        end
       end)
 
       :ok
@@ -349,22 +421,6 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
 
     test "should return concatened content at specified addresses", %{conn: conn} do
-      content = """
-        {"concat_content.png":"KSVFQtNEHigAA4YcXnxYAAAA"}
-      """
-
-      address =
-        <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226, 69, 34,
-          98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
-
-      MockClient
-      |> expect(:send_message, fn _, %GetTransaction{address: ^address}, _ ->
-        {:ok,
-         %Transaction{
-           data: %TransactionData{content: content}
-         }}
-      end)
-
       conn =
         get(
           conn,
@@ -382,21 +438,40 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         "folder":{
           "hello_world.html":{
             "encodage":"base64",
-            "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
           }
         }
       }
       """
 
+      content2 = """
+      {
+        "folder":{
+          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+        }
+      }
+      """
+
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn _, message, _ ->
+        case message do
+          %GetLastTransaction{} ->
+            {:ok,
+             %Transaction{
+               address:
+                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+               data: %TransactionData{content: content}
+             }}
+
+          %GetTransaction{} ->
+            {:ok,
+             %Transaction{
+               data: %TransactionData{content: content2}
+             }}
+        end
       end)
 
       conn1 =
