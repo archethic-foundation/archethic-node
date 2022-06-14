@@ -15,7 +15,16 @@ defmodule ArchethicWeb.API.WebHostingController do
   require Logger
 
   @spec web_hosting(Plug.Conn.t(), map) :: Plug.Conn.t()
-  def web_hosting(conn, %{"address" => address, "url_path" => url_path}) do
+  def web_hosting(conn, params = %{"url_path" => url_path}) do
+    # Redirect to enforce "/" at the end of the root url
+    if Enum.empty?(url_path) and String.last(conn.request_path) != "/" do
+      redirect(conn, to: conn.request_path <> "/")
+    else
+      do_web_hosting(conn, params)
+    end
+  end
+
+  defp do_web_hosting(conn, %{"address" => address, "url_path" => url_path}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-

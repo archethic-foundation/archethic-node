@@ -38,13 +38,13 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         {:error, :transaction_not_exists}
       end)
 
-      conn1 = get(conn, "/api/web_hosting/AZERTY")
-      conn2 = get(conn, "/api/web_hosting/0123456789")
+      conn1 = get(conn, "/api/web_hosting/AZERTY/")
+      conn2 = get(conn, "/api/web_hosting/0123456789/")
 
       conn3 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "Invalid address" = response(conn1, 400)
@@ -67,7 +67,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "Invalid transaction content" = response(conn, 400)
@@ -121,7 +121,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "<h1>Archethic</h1>" = response(conn, 200) |> :zlib.gunzip()
