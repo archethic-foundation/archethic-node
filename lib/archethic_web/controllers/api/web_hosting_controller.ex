@@ -146,7 +146,7 @@ defmodule ArchethicWeb.API.WebHostingController do
         # Control if it is a file or a folder
         file_name = Enum.at(keys, 0)
 
-        if Map.get(json_content, file_name) |> Map.has_key?("content") do
+        if Map.get(json_content, file_name) |> Map.has_key?("address") do
           file_name
         else
           "index.html"
@@ -186,20 +186,7 @@ defmodule ArchethicWeb.API.WebHostingController do
           {:ok, binary(), binary() | nil} | :encodage_error | :file_error
   defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
 
-  defp get_file_content(file = %{"content" => content}, _cached? = false, _url_path)
-       when is_binary(content) do
-    try do
-      file_content = Base.url_decode64!(content, padding: false)
-      encodage = Map.get(file, "encodage")
-      {:ok, file_content, encodage}
-    rescue
-      _ ->
-        :encodage_error
-    end
-  end
-
-  defp get_file_content(file = %{"content" => address_list}, _cached? = false, url_path)
-       when is_list(address_list) do
+  defp get_file_content(file = %{"address" => address_list}, _cached? = false, url_path) do
     try do
       content =
         Enum.map_join(address_list, fn tx_address ->
