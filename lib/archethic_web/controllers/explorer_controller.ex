@@ -32,7 +32,7 @@ defmodule ArchethicWeb.ExplorerController do
          {:ok, %{uco: uco_balance}} <- Archethic.get_balance(addr),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
-        transaction_chain: chain,
+        transaction_chain: List.flatten(chain),
         chain_size: Enum.count(chain),
         address: addr,
         uco_balance: uco_balance,
@@ -92,7 +92,7 @@ defmodule ArchethicWeb.ExplorerController do
          {:ok, %{uco: uco_balance}} <- Archethic.get_balance(addr),
          uco_price <- DateTime.utc_now() |> OracleChain.get_uco_price() do
       render(conn, "chain.html",
-        transaction_chain: chain,
+        transaction_chain: List.flatten(chain),
         address: addr,
         chain_size: Enum.count(chain),
         uco_balance: uco_balance,

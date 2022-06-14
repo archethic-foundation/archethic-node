@@ -7,7 +7,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -33,8 +35,12 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
   describe "web_hosting/2" do
     test "should return Invalid address", %{conn: conn} do
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:error, :transaction_not_exists}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:error, :transaction_not_exists}
       end)
 
       conn1 = get(conn, "/api/web_hosting/AZERTY")
@@ -53,14 +59,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
 
     test "should return Invalid transaction content", %{conn: conn} do
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: "invalid"}
-         }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok,
+           %Transaction{
+             address:
+               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             data: %TransactionData{content: "invalid"}
+           }}
       end)
 
       conn =
@@ -91,14 +101,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok,
+           %Transaction{
+             address:
+               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             data: %TransactionData{content: content}
+           }}
       end)
 
       :ok
@@ -164,14 +178,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok,
+           %Transaction{
+             address:
+               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             data: %TransactionData{content: content}
+           }}
       end)
 
       :ok
@@ -270,14 +288,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address:
-             <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126, 15,
-               80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-           data: %TransactionData{content: content}
-         }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok,
+           %Transaction{
+             address:
+               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             data: %TransactionData{content: content}
+           }}
       end)
 
       conn1 =

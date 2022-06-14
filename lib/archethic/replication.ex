@@ -50,9 +50,6 @@ defmodule Archethic.Replication do
 
   It will download the transaction chain and unspents to validate the new transaction and store the new transaction chain
   and update the internal ledger and views
-
-  Options:
-  - self_repair?: Determines if the replication is from a self repair cycle. This switch will be determine to fetch unspent outputs or transaction inputs for a chain role validation
   """
   @spec validate_and_store_transaction_chain(
           validated_tx :: Transaction.t(),
@@ -83,20 +80,18 @@ defmodule Archethic.Replication do
 
       start_time = System.monotonic_time()
 
-      self_repair? = Keyword.get(opts, :self_repair?, false)
-
       Logger.debug("Retrieve chain and unspent outputs...",
         transaction_address: Base.encode16(address),
         transaction_type: type
       )
 
-      {previous_tx, inputs_unspent_outputs} = fetch_context(tx, self_repair?)
+      {previous_tx, inputs} = fetch_context(tx)
 
       # Validate the transaction and check integrity from the previous transaction
       case TransactionValidator.validate(
              tx,
              previous_tx,
-             Enum.to_list(inputs_unspent_outputs)
+             Enum.to_list(inputs)
            ) do
         :ok ->
           # Stream the insertion of the chain
@@ -203,18 +198,15 @@ defmodule Archethic.Replication do
     end
   end
 
-  defp fetch_context(
-         tx = %Transaction{type: type},
-         self_repair?
-       ) do
+  defp fetch_context(tx = %Transaction{type: type}) do
     if Transaction.network_type?(type) do
-      fetch_context_for_network_transaction(tx, self_repair?)
+      fetch_context_for_network_transaction(tx)
     else
-      fetch_context_for_regular_transaction(tx, self_repair?)
+      fetch_context_for_regular_transaction(tx)
     end
   end
 
-  defp fetch_context_for_network_transaction(tx = %Transaction{}, self_repair?) do
+  defp fetch_context_for_network_transaction(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -245,12 +237,12 @@ defmodule Archethic.Replication do
       transaction_type: tx.type
     )
 
-    inputs_unspent_outputs = fetch_inputs_unspent_outputs(tx, self_repair?)
+    inputs = fetch_inputs(tx)
 
-    {previous_transaction, inputs_unspent_outputs}
+    {previous_transaction, inputs}
   end
 
-  defp fetch_context_for_regular_transaction(tx = %Transaction{}, self_repair?) do
+  defp fetch_context_for_regular_transaction(tx = %Transaction{}) do
     previous_address = Transaction.previous_address(tx)
 
     t1 =
@@ -264,26 +256,20 @@ defmodule Archethic.Replication do
         TransactionContext.fetch_transaction(previous_address)
       end)
 
-    t2 =
-      Task.Supervisor.async(TaskSupervisor, fn ->
-        fetch_inputs_unspent_outputs(tx, self_repair?)
-      end)
+    t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx) end)
 
     previous_transaction = Task.await(t1)
-    inputs_unspent_outputs = Task.await(t2)
+    inputs = Task.await(t2)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    {previous_transaction, inputs_unspent_outputs}
+    {previous_transaction, inputs}
   end
 
-  defp fetch_inputs_unspent_outputs(
-         tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}},
-         _self_repair? = true
-       ) do
+  defp fetch_inputs(tx = %Transaction{validation_stamp: %ValidationStamp{timestamp: tx_time}}) do
     previous_address = Transaction.previous_address(tx)
 
     Logger.debug(
@@ -298,26 +284,6 @@ defmodule Archethic.Replication do
       Logger.debug("Got #{inspect(inputs)} for #{Base.encode16(previous_address)}",
         transaction_address: Base.encode16(tx.address),
         type: tx.type
-      )
-    end)
-  end
-
-  defp fetch_inputs_unspent_outputs(tx = %Transaction{}, _self_repair? = false) do
-    previous_address = Transaction.previous_address(tx)
-
-    Logger.debug(
-      "Fetch unspent outputs for #{Base.encode16(previous_address)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: tx.type
-    )
-
-    previous_address
-    |> TransactionContext.fetch_unspent_outputs()
-    |> tap(fn utxos ->
-      Logger.debug(
-        "Got #{inspect(utxos)} for #{Base.encode16(previous_address)}",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
       )
     end)
   end

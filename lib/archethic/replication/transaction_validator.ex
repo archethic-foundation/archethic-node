@@ -20,7 +20,6 @@ defmodule Archethic.Replication.TransactionValidator do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -50,15 +49,15 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(
           validated_transaction :: Transaction.t(),
           previous_transaction :: Transaction.t() | nil,
-          inputs_outputs :: list(UnspentOutput.t()) | list(TransactionInput.t())
+          inputs_outputs :: list(TransactionInput.t())
         ) ::
           :ok | {:error, error()}
   def validate(
         tx = %Transaction{},
         previous_transaction,
-        inputs_outputs
+        inputs
       ) do
-    with :ok <- valid_transaction(tx, inputs_outputs, true),
+    with :ok <- valid_transaction(tx, inputs, true),
          :ok <- validate_inheritance(tx, previous_transaction) do
       validate_chain(tx, previous_transaction)
     end
@@ -91,12 +90,11 @@ defmodule Archethic.Replication.TransactionValidator do
   @spec validate(Transaction.t()) :: :ok | {:error, error()}
   def validate(tx = %Transaction{}), do: valid_transaction(tx, [], false)
 
-  defp valid_transaction(tx = %Transaction{}, previous_inputs_unspent_outputs, chain_node?)
-       when is_list(previous_inputs_unspent_outputs) do
+  defp valid_transaction(tx = %Transaction{}, inputs, chain_node?) when is_list(inputs) do
     with :ok <- validate_consensus(tx),
          :ok <- validate_validation_stamp(tx) do
       if chain_node? do
-        check_unspent_outputs(tx, previous_inputs_unspent_outputs)
+        check_inputs(tx, inputs)
       else
         :ok
       end
@@ -340,9 +338,9 @@ defmodule Archethic.Replication.TransactionValidator do
     {:error, {:transaction_errors_detected, errors}}
   end
 
-  defp check_unspent_outputs(
+  defp check_inputs(
          tx = %Transaction{type: type, address: address},
-         previous_inputs_unspent_outputs
+         inputs
        ) do
     cond do
       address == Bootstrap.genesis_address() ->
@@ -352,24 +350,24 @@ defmodule Archethic.Replication.TransactionValidator do
         :ok
 
       true ->
-        do_check_unspent_outputs(tx, previous_inputs_unspent_outputs)
+        do_check_inputs(tx, inputs)
     end
   end
 
-  defp do_check_unspent_outputs(
+  defp do_check_inputs(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
              ledger_operations: ops = %LedgerOperations{}
            }
          },
-         previous_inputs_unspent_outputs
+         inputs
        ) do
-    with :ok <- validate_unspent_outputs(tx, previous_inputs_unspent_outputs) do
-      validate_funds(ops, previous_inputs_unspent_outputs)
+    with :ok <- validate_inputs(tx, inputs) do
+      validate_funds(ops, inputs)
     end
   end
 
-  defp validate_unspent_outputs(
+  defp validate_inputs(
          tx = %Transaction{
            validation_stamp: %ValidationStamp{
              ledger_operations: %LedgerOperations{
@@ -379,7 +377,7 @@ defmodule Archethic.Replication.TransactionValidator do
              }
            }
          },
-         previous_inputs_unspent_outputs
+         inputs
        ) do
     %LedgerOperations{unspent_outputs: expected_unspent_outputs} =
       %LedgerOperations{
@@ -387,7 +385,7 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_movements: transaction_movements
       }
       |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.consume_inputs(tx.address, previous_inputs_unspent_outputs)
+      |> LedgerOperations.consume_inputs(tx.address, inputs)
 
     same? =
       Enum.all?(next_unspent_outputs, fn %{amount: amount, from: from} ->
@@ -403,12 +401,12 @@ defmodule Archethic.Replication.TransactionValidator do
         transaction_type: tx.type
       )
 
-      {:error, :invalid_unspent_outputs}
+      {:error, :invalid_inputs}
     end
   end
 
-  defp validate_funds(ops = %LedgerOperations{}, previous_inputs_unspent_outputs) do
-    if LedgerOperations.sufficient_funds?(ops, previous_inputs_unspent_outputs) do
+  defp validate_funds(ops = %LedgerOperations{}, inputs) do
+    if LedgerOperations.sufficient_funds?(ops, inputs) do
       :ok
     else
       {:error, :insufficient_funds}

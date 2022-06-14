@@ -2,18 +2,10 @@ defmodule ArchethicWeb.API.OriginKeyControllerTest do
   use ArchethicCase
   use ArchethicWeb.ConnCase
 
-  alias Archethic.P2P
-
-  alias Archethic.P2P.Message.{
-    LastTransactionAddress,
-    GetLastTransactionAddress,
-    GetTransactionChainLength,
-    TransactionChainLength
-  }
-
-  alias Archethic.P2P.Node
-  alias Archethic.TransactionChain
   alias Archethic.Crypto
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
 
   import Mox
 
