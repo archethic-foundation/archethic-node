@@ -7,8 +7,9 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.Message.GetLastTransaction
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -113,23 +114,35 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, message, _ ->
-        case message do
-          %GetLastTransaction{} ->
-            {:ok,
-             %Transaction{
-               address:
-                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-               data: %TransactionData{content: content}
-             }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
 
-          %GetTransaction{} ->
-            {:ok,
-             %Transaction{
-               data: %TransactionData{content: content2}
-             }}
-        end
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
+           }}
       end)
 
       :ok
@@ -227,23 +240,35 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, message, _ ->
-        case message do
-          %GetLastTransaction{} ->
-            {:ok,
-             %Transaction{
-               address:
-                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-               data: %TransactionData{content: content}
-             }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
 
-          %GetTransaction{} ->
-            {:ok,
-             %Transaction{
-               data: %TransactionData{content: content2}
-             }}
-        end
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
+           }}
       end)
 
       :ok
@@ -382,37 +407,47 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, message, _ ->
-        case message do
-          %GetLastTransaction{} ->
-            {:ok,
-             %Transaction{
-               address:
-                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-               data: %TransactionData{content: content}
-             }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
 
-          %GetTransaction{
-            address:
-              <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
-                9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
-          } ->
-            {:ok,
-             %Transaction{
-               data: %TransactionData{content: content2}
-             }}
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content}
+           }}
 
-          %GetTransaction{
-            address:
-              <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226,
-                69, 34, 98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
-          } ->
-            {:ok,
-             %Transaction{
-               data: %TransactionData{content: content3}
-             }}
-        end
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226, 69,
+              34, 98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content3}
+           }}
       end)
 
       :ok
@@ -463,23 +498,35 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       """
 
       MockClient
-      |> stub(:send_message, fn _, message, _ ->
-        case message do
-          %GetLastTransaction{} ->
-            {:ok,
-             %Transaction{
-               address:
-                 <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                   15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
-               data: %TransactionData{content: content}
-             }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
 
-          %GetTransaction{} ->
-            {:ok,
-             %Transaction{
-               data: %TransactionData{content: content2}
-             }}
-        end
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
+           }}
       end)
 
       conn1 =
