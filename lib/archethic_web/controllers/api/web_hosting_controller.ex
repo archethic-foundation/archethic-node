@@ -74,25 +74,20 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   defp encode_res(conn, file_content, encodage) do
-    accept_encoding = get_req_header(conn, "accept-encoding")
+    with accept_encoding <- get_req_header(conn, "accept-encoding"),
+         false <- Enum.empty?(accept_encoding),
+         elt when elt != nil <-
+           Enum.find(accept_encoding, fn el -> String.contains?(el, "gzip") end) do
+      res_conn = put_resp_header(conn, "content-encoding", "gzip")
 
-    case !Enum.empty?(accept_encoding) and
-           Enum.find(accept_encoding, fn el -> String.contains?(el, "gzip") end) != nil do
-      true ->
-        res_conn = put_resp_header(conn, "content-encoding", "gzip")
-
-        if encodage == "gzip" do
-          {res_conn, file_content}
-        else
-          {res_conn, :zlib.gzip(file_content)}
-        end
-
-      false ->
-        if encodage == "gzip" do
-          {conn, :zlib.gunzip(file_content)}
-        else
-          {conn, file_content}
-        end
+      if encodage == "gzip",
+        do: {res_conn, file_content},
+        else: {res_conn, :zlib.gzip(file_content)}
+    else
+      _ ->
+        if encodage == "gzip",
+          do: {conn, :zlib.gunzip(file_content)},
+          else: {conn, file_content}
     end
   end
 
