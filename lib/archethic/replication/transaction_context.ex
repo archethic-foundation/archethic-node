@@ -6,18 +6,10 @@ defmodule Archethic.Replication.TransactionContext do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
 
   require Logger
@@ -27,37 +19,16 @@ defmodule Archethic.Replication.TransactionContext do
   """
   @spec fetch_transaction(address :: Crypto.versioned_hash()) :: Transaction.t() | nil
   def fetch_transaction(address) when is_binary(address) do
-    case replication_nodes(address) do
-      [] ->
-        nil
+    nodes = replication_nodes(address)
 
-      nodes ->
-        fetch_transaction(nodes, address)
-    end
-  end
-
-  defp fetch_transaction(
-         _nodes = [node | rest],
-         address
-       ) do
-    message = %GetTransaction{
-      address: address
-    }
-
-    case P2P.send_message(node, message) do
-      {:ok, tx = %Transaction{}} ->
+    case TransactionChain.fetch_transaction_remotely(address, nodes) do
+      {:ok, tx} ->
         tx
 
-      {:ok, %NotFound{}} ->
+      {:error, :transaction_not_exists} ->
         nil
-
-      {:error, _} ->
-        fetch_transaction(rest, address)
     end
   end
-
-  defp fetch_transaction([], _address),
-    do: raise("Cannot fetch transaction chain")
 
   @doc """
   Stream transaction chain
@@ -70,89 +41,9 @@ defmodule Archethic.Replication.TransactionContext do
         []
 
       nodes ->
-        Stream.resource(
-          fn -> {address, nil, 0} end,
-          fn
-            {:end, size} ->
-              Logger.debug("Size of the chain retrieved: #{size}",
-                transaction_address: Base.encode16(address)
-              )
-
-              {:halt, address}
-
-            {address, paging_state, size} ->
-              do_stream_chain(nodes, address, paging_state, size)
-          end,
-          fn _ -> :ok end
-        )
+        TransactionChain.stream_remotely(address, nodes)
     end
   end
-
-  defp do_stream_chain(nodes, address, paging_state, size) do
-    case fetch_transaction_chain(nodes, address, paging_state) do
-      {transactions, false, _} ->
-        {[transactions], {:end, size + length(transactions)}}
-
-      {transactions, true, paging_state} ->
-        {[transactions], {address, paging_state, size + length(transactions)}}
-    end
-  end
-
-  defp fetch_transaction_chain(
-         _nodes = [node | rest],
-         address,
-         paging_state
-       ) do
-    message = %GetTransactionChain{
-      address: address,
-      paging_state: paging_state
-    }
-
-    case P2P.send_message(node, message) do
-      {:ok,
-       %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->
-        {transactions, more?, paging_state}
-
-      {:error, _} ->
-        fetch_transaction_chain(rest, address, paging_state)
-    end
-  end
-
-  defp fetch_transaction_chain([], _address, _paging_state),
-    do: raise("Cannot fetch transaction chain")
-
-  @doc """
-  Fetch the transaction unspent outputs
-  """
-  @spec fetch_unspent_outputs(address :: Crypto.versioned_hash()) ::
-          list(UnspentOutput.t())
-  def fetch_unspent_outputs(address) when is_binary(address) do
-    case replication_nodes(address) do
-      [] ->
-        []
-
-      nodes ->
-        do_fetch_unspent_outputs(nodes, address)
-    end
-  end
-
-  defp do_fetch_unspent_outputs(nodes, address, prev_result \\ nil)
-
-  defp do_fetch_unspent_outputs([node | rest], address, _prev_result) do
-    case P2P.send_message(node, %GetUnspentOutputs{address: address}) do
-      {:ok, %UnspentOutputList{unspent_outputs: []}} ->
-        do_fetch_unspent_outputs(rest, address, [])
-
-      {:ok, %UnspentOutputList{unspent_outputs: unspent_outputs}} ->
-        unspent_outputs
-
-      {:error, _} ->
-        do_fetch_unspent_outputs(rest, address)
-    end
-  end
-
-  defp do_fetch_unspent_outputs([], _, nil), do: raise("Cannot fetch unspent outputs")
-  defp do_fetch_unspent_outputs([], _, prev_result), do: prev_result
 
   @doc """
   Fetch the transaction inputs for a transaction address at a given time
@@ -160,34 +51,11 @@ defmodule Archethic.Replication.TransactionContext do
   @spec fetch_transaction_inputs(address :: Crypto.versioned_hash(), DateTime.t()) ::
           list(TransactionInput.t())
   def fetch_transaction_inputs(address, timestamp = %DateTime{}) when is_binary(address) do
-    case replication_nodes(address) do
-      [] ->
-        []
+    nodes = replication_nodes(address)
 
-      nodes ->
-        nodes
-        |> do_fetch_inputs(address)
-        |> Enum.filter(&(DateTime.diff(&1.timestamp, timestamp) <= 0))
-    end
+    {:ok, inputs} = TransactionChain.fetch_inputs_remotely(address, nodes, timestamp)
+    inputs
   end
-
-  defp do_fetch_inputs(nodes, address, prev_result \\ nil)
-
-  defp do_fetch_inputs([node | rest], address, _prev_result) do
-    case P2P.send_message(node, %GetTransactionInputs{address: address}) do
-      {:ok, %TransactionInputList{inputs: []}} ->
-        do_fetch_inputs(rest, address, [])
-
-      {:ok, %TransactionInputList{inputs: inputs}} ->
-        inputs
-
-      {:error, _} ->
-        do_fetch_inputs(rest, address)
-    end
-  end
-
-  defp do_fetch_inputs([], _, nil), do: raise("Cannot fetch inputs")
-  defp do_fetch_inputs([], _, prev_result), do: prev_result
 
   defp replication_nodes(address) do
     address

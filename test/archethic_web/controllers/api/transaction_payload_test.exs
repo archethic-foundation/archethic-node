@@ -119,6 +119,27 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
       assert {"is invalid", _} = Keyword.get(errors, :code)
     end
 
+    test "should return an error if the code length is more than 24KB" do
+      %Ecto.Changeset{
+        valid?: false,
+        changes: %{data: %{errors: errors}}
+      } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{"code" => Base.encode16(:crypto.strong_rand_bytes(24 * 1024 + 1))}
+        })
+
+      {error_message, _} = Keyword.get(errors, :code)
+      assert String.starts_with?(error_message, "code size can't be more than ")
+    end
+
     test "should return an error if the uco ledger transfer address is invalid" do
       changeset =
         %Ecto.Changeset{
@@ -174,6 +195,41 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
 
       assert [%{amount: ["is invalid"]}] =
                changeset |> get_errors() |> get_in([:data, :ledger, :uco, :transfers])
+    end
+
+    test "should return an error if the uco ledger transfers are more than 256" do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ledger" => %{
+              "uco" => %{
+                "transfers" =>
+                  1..257
+                  |> Enum.map(fn _ ->
+                    %{
+                      "to" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "amount" => Enum.random(1..100)
+                    }
+                  end)
+              }
+            }
+          }
+        })
+
+      assert %{transfers: ["maximum uco transfers in a transaction can be 256"]} =
+               changeset |> get_errors() |> get_in([:data, :ledger, :uco])
     end
 
     test "should return an error if the nft ledger transfer address is invalid" do
@@ -278,6 +334,43 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
 
       assert [%{nft: ["must be hexadecimal"]}] =
                changeset |> get_errors |> get_in([:data, :ledger, :nft, :transfers])
+    end
+
+    test "should return an error if the nft ledger transfers are more than 256" do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ledger" => %{
+              "nft" => %{
+                "transfers" =>
+                  1..257
+                  |> Enum.map(fn _ ->
+                    %{
+                      "to" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "amount" => Enum.random(1..100),
+                      "nft" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                    }
+                  end)
+              }
+            }
+          }
+        })
+
+      assert %{transfers: ["maximum nft transfers in a transaction can be 256"]} =
+               changeset |> get_errors |> get_in([:data, :ledger, :nft])
     end
 
     test "should return an error if the encrypted secret is not an hexadecimal" do
@@ -413,6 +506,79 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                changeset |> get_errors |> get_in([:data, :ownerships])
     end
 
+    test "should return an error ownerships are more than 256." do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ownerships" =>
+              1..257
+              |> Enum.map(fn _ ->
+                %{
+                  "authorizedKeys" =>
+                    Enum.map(1..2, fn _ ->
+                      %{
+                        "publicKey" =>
+                          Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                        "encryptedSecretKey" => Base.encode16(:crypto.strong_rand_bytes(45))
+                      }
+                    end),
+                  "secret" => Base.encode16(<<:crypto.strong_rand_bytes(64)::binary>>)
+                }
+              end)
+          }
+        })
+
+      {msg, _} = changeset.errors[:ownerships]
+      assert "ownerships can not be more that 256" == msg
+    end
+
+    test "should return an error authorized keys in a ownership can't be more than 256" do
+      changeset =
+        %Ecto.Changeset{
+          valid?: false
+        } =
+        TransactionPayload.changeset(%{
+          "version" => 1,
+          "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "type" => "transfer",
+          "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+          "previousPublicKey" =>
+            Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+          "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+          "data" => %{
+            "ownerships" => [
+              %{
+                "authorizedKeys" =>
+                  1..257
+                  |> Enum.map(fn _ ->
+                    %{
+                      "publicKey" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "encryptedSecretKey" => Base.encode16(:crypto.strong_rand_bytes(64))
+                    }
+                  end),
+                "secret" => Base.encode16(:crypto.strong_rand_bytes(64))
+              }
+            ]
+          }
+        })
+
+      assert [%{authorizedKeys: ["maximum number of authorized keys can be 256"]}] =
+               changeset |> get_errors |> get_in([:data, :ownerships])
+    end
+
     test "should return an error if the recipients are invalid" do
       changeset =
         %Ecto.Changeset{
@@ -454,6 +620,33 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
 
       assert ["invalid hash"] = changeset |> get_errors() |> get_in([:data, :recipients])
     end
+  end
+
+  test "should return an error if the recipients are more that 256" do
+    changeset =
+      %Ecto.Changeset{
+        valid?: false
+      } =
+      TransactionPayload.changeset(%{
+        "version" => 1,
+        "address" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+        "type" => "transfer",
+        "timestamp" => DateTime.utc_now() |> DateTime.to_unix(:millisecond),
+        "previousPublicKey" =>
+          Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+        "previousSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
+        "data" => %{
+          "recipients" =>
+            1..257
+            |> Enum.map(fn _ ->
+              Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+            end)
+        }
+      })
+
+    assert ["maximum number of recipients can be 256"] =
+             changeset |> get_errors() |> get_in([:data, :recipients])
   end
 
   test "to_map/1 should return a map of the changeset" do

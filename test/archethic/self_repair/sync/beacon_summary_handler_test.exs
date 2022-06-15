@@ -240,7 +240,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       %BeaconSummary{transaction_attestations: transaction_attestations} =
         BeaconSummaryHandler.get_full_beacon_summary(summary_time, "A", [node1, node2])
 
-      transaction_addresses = Enum.map(transaction_attestations, & &1.address)
+      transaction_addresses = Enum.map(transaction_attestations, & &1.transaction_summary.address)
 
       assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
     end

@@ -18,6 +18,10 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
     changeset
     |> cast(params, [])
     |> cast_embed(:transfers, with: &changeset_transfers/2)
+    |> validate_length(:transfers,
+      max: 256,
+      message: "maximum nft transfers in a transaction can be 256"
+    )
   end
 
   defp changeset_transfers(changeset, params) do

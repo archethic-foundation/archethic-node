@@ -49,7 +49,7 @@ defmodule Archethic.BeaconChain.Slot.Validation do
 
     with :ok <-
            ReplicationAttestation.validate(attestation),
-         :ok <- check_transaction_summary(storage_nodes, address, tx_summary) do
+         :ok <- check_transaction_summary(storage_nodes, tx_summary) do
       true
     else
       {:error, reason} ->
@@ -62,38 +62,55 @@ defmodule Archethic.BeaconChain.Slot.Validation do
     end
   end
 
-  defp check_transaction_summary(nodes, address, expected_summary, timeout \\ 500)
+  defp check_transaction_summary(nodes, expected_summary, timeout \\ 500)
+
+  defp check_transaction_summary([], _, _), do: {:error, :network_issue}
 
   defp check_transaction_summary(
-         [node | rest],
-         address,
-         expected_summary,
-         timeout
+         nodes,
+         expected_summary = %TransactionSummary{
+           address: address,
+           type: type
+         },
+         _timeout
        ) do
-    case P2P.send_message(node, %GetTransactionSummary{address: address}, timeout) do
+    conflict_resolver = fn results ->
+      case Enum.find(results, &match?(%TransactionSummary{address: ^address, type: ^type}, &1)) do
+        nil ->
+          %NotFound{}
+
+        tx_summary ->
+          tx_summary
+      end
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetTransactionSummary{address: address},
+           conflict_resolver
+         ) do
       {:ok, ^expected_summary} ->
         :ok
 
       {:ok, recv = %TransactionSummary{}} ->
-        Logger.debug(
-          "Transaction summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}"
+        Logger.warning(
+          "Transaction summary received is different #{inspect(recv)} - expect #{inspect(expected_summary)}",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
+        )
+
+      {:ok, %NotFound{}} ->
+        Logger.warning("Transaction summary was not found",
+          transaction_address: Base.encode16(address),
+          transaction_type: type
         )
 
         {:error, :invalid_summary}
 
-      {:ok, %NotFound{}} ->
-        Logger.debug("Transaction summary was not found at #{Node.endpoint(node)}")
-        check_transaction_summary(rest, address, expected_summary, timeout)
-
-      {:error, :timeout} ->
-        check_transaction_summary(rest, address, expected_summary, trunc(timeout * 1.5))
-
-      {:error, :closed} ->
-        check_transaction_summary(rest, address, expected_summary, timeout)
+      {:error, :network_issue} ->
+        {:error, :network_issue}
     end
   end
-
-  defp check_transaction_summary([], _, _, _), do: {:error, :network_issue}
 
   defp transaction_storage_nodes(address, timestamp) do
     authorized_nodes =

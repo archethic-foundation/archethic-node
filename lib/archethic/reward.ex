@@ -66,7 +66,7 @@ defmodule Archethic.Reward do
   end
 
   defp get_transactions_after(address, date) do
-    last_address = TransactionChain.resolve_last_address(address, DateTime.utc_now())
+    {:ok, last_address} = TransactionChain.resolve_last_address(address, DateTime.utc_now())
 
     last_address
     |> Election.chain_storage_nodes(P2P.available_nodes())

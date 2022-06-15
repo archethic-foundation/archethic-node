@@ -34,28 +34,31 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
   def get_full_beacon_summary(summary_time, subset, nodes) do
     summary_address = Crypto.derive_beacon_chain_address(subset, summary_time, true)
 
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      Enum.filter(nodes, &Node.locally_available?/1),
-      fn node ->
-        P2P.send_message(node, %GetBeaconSummary{address: summary_address})
-      end,
-      on_timeout: :kill_task,
-      ordered: false
-    )
-    |> Enum.filter(&match?({:ok, {:ok, %BeaconSummary{}}}, &1))
-    |> Enum.map(fn {:ok, {:ok, summary}} -> summary end)
-    |> Enum.reject(&BeaconSummary.empty?/1)
-    |> Enum.reduce(
-      %{
+    conflict_resolver = fn results ->
+      acc = %{
         transaction_attestations: [],
         node_availabilities: [],
-        node_average_availabilities: [],
-        end_of_node_synchronizations: []
-      },
-      &do_reduce_beacon_summaries/2
-    )
-    |> aggregate(summary_time, subset)
+        node_average_availabilities: []
+      }
+
+      results
+      |> Enum.filter(&match?(%BeaconSummary{}, &1))
+      |> Enum.reduce(acc, &do_reduce_beacon_summaries/2)
+      |> aggregate_summary(summary_time, subset)
+    end
+
+    case P2P.quorum_read(
+           nodes,
+           %GetBeaconSummary{address: summary_address},
+           conflict_resolver,
+           length(nodes)
+         ) do
+      {:ok, summary = %BeaconSummary{}} ->
+        summary
+
+      _ ->
+        %BeaconSummary{summary_time: summary_time, subset: subset}
+    end
   end
 
   defp do_reduce_beacon_summaries(
@@ -90,7 +93,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
     end
   end
 
-  defp aggregate(
+  defp aggregate_summary(
          %{
            transaction_attestations: transaction_attestations,
            node_availabilities: node_availabilities,
@@ -148,26 +151,29 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
   def download_summary(_beacon_address, [], _), do: {:ok, %NotFound{}}
 
   def download_summary(beacon_address, nodes, patch) do
+    conflict_resolver = fn results ->
+      acc = %{
+        transaction_attestations: [],
+        node_availabilities: [],
+        node_average_availabilities: []
+      }
+
+      %{transaction_attestations: transaction_attestations} =
+        results
+        |> Enum.filter(&match?(%BeaconSummary{}, &1))
+        |> Enum.reduce(acc, &do_reduce_beacon_summaries/2)
+
+      %BeaconSummary{transaction_attestations: transaction_attestations}
+    end
+
     nodes
     |> P2P.nearest_nodes(patch)
-    |> do_get_download_summary(beacon_address, nil)
+    |> P2P.quorum_read(
+      %GetBeaconSummary{address: beacon_address},
+      conflict_resolver,
+      length(nodes)
+    )
   end
-
-  defp do_get_download_summary([node | rest], address, prev_result) do
-    case P2P.send_message(node, %GetBeaconSummary{address: address}) do
-      {:ok, summary = %BeaconSummary{}} ->
-        {:ok, summary}
-
-      {:ok, %NotFound{}} ->
-        do_get_download_summary(rest, address, %NotFound{})
-
-      {:error, _} ->
-        do_get_download_summary(rest, address, prev_result)
-    end
-  end
-
-  defp do_get_download_summary([], _, %NotFound{}), do: {:ok, %NotFound{}}
-  defp do_get_download_summary([], _, _), do: {:error, :network_issue}
 
   @doc """
   Process beacon summary to synchronize the transactions involving.

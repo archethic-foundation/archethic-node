@@ -10,10 +10,11 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
-  alias Archethic.P2P.Message.GetLastTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
@@ -99,13 +100,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       last_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok,
-         %Transaction{
-           address: last_address,
-           type: :transfer,
-           data: %TransactionData{}
-         }}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{}, _ ->
+          {:ok, %LastTransactionAddress{address: last_address}}
+
+        _, %GetTransaction{address: ^last_address}, _ ->
+          {:ok, %Transaction{address: last_address, type: :transfer}}
       end)
 
       conn =
@@ -124,8 +124,12 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
-      |> stub(:send_message, fn _, %GetLastTransaction{}, _ ->
-        {:ok, %NotFound{}}
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _, %GetTransaction{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       conn =
