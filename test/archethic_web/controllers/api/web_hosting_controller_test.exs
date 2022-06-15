@@ -7,8 +7,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.LastTransactionAddress
 
   alias Archethic.TransactionChain.Transaction
@@ -43,13 +43,13 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           {:error, :transaction_not_exists}
       end)
 
-      conn1 = get(conn, "/api/web_hosting/AZERTY")
-      conn2 = get(conn, "/api/web_hosting/0123456789")
+      conn1 = get(conn, "/api/web_hosting/AZERTY/")
+      conn2 = get(conn, "/api/web_hosting/0123456789/")
 
       conn3 =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "Invalid address" = response(conn1, 400)
@@ -76,7 +76,7 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "Invalid transaction content" = response(conn, 400)
@@ -89,13 +89,26 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
       {
         "index.html":{
           "encodage":"base64",
-          "content":"PGgxPkFyY2hldGhpYzwvaDE-"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "folder":{
           "hello_world.html":{
             "encodage":"base64",
-            "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
           }
+        }
+      }
+      """
+
+      content2 = """
+      {
+        "index.html":"PGgxPkFyY2hldGhpYzwvaDE-",
+        "folder":{
+          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
         }
       }
       """
@@ -105,13 +118,30 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _, %GetTransaction{}, _ ->
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
           {:ok,
            %Transaction{
-             address:
-               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             address: address,
              data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
            }}
       end)
 
@@ -129,16 +159,20 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
 
     test "should return default index.html file", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
       conn =
         get(
           conn,
-          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba"
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/"
         )
 
       assert "<h1>Archethic</h1>" = response(conn, 200) |> :zlib.gunzip()
     end
 
     test "should return selected file", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
       conn =
         get(
           conn,
@@ -149,31 +183,59 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
   end
 
-  describe "get_file_content/2" do
+  describe "get_file_content/3" do
     setup do
       content = """
       {
         "error.html":{
           "encodage":"gzip",
-          "content":"4rdHFh%2BHYoS8oLdVvbUzEVqB8Lvm7kSPnuwF0AAABYQ%3D"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "gzip.js":{
           "encodage":"base64",
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "unsupported.xml":{
           "encodage":"unsupported",
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "raw.html":{
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         },
         "no_content.html":{
           "unsupported":"unsupported"
         },
         "image.png":{
-          "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "ungzip.png":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
         }
+      }
+      """
+
+      content2 = """
+      {
+        "error.html":"4rdHFh%2BHYoS8oLdVvbUzEVqB8Lvm7kSPnuwF0AAABYQ%3D",
+        "gzip.js":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "unsupported.xml":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "raw.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "no_content.html":"unsupported",
+        "image.png":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg",
+        "ungzip.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
       }
       """
 
@@ -182,13 +244,30 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _, %GetTransaction{}, _ ->
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
           {:ok,
            %Transaction{
-             address:
-               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             address: address,
              data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
            }}
       end)
 
@@ -222,7 +301,29 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/gzip.js"
         )
 
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+
+    test "should return gzipped file content", %{conn: conn} do
+      conn = put_req_header(conn, "accept-encoding", "[gzip]")
+
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+        )
+
       assert "<h1>Hello world !</h1>" = response(conn, 200) |> :zlib.gunzip()
+    end
+
+    test "should return ungzipped file content", %{conn: conn} do
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/ungzip.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
     end
 
     test "should return raw file content", %{conn: conn} do
@@ -238,8 +339,8 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
           "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/unsupported.xml"
         )
 
-      assert "<h1>Hello world !</h1>" = response(conn1, 200) |> :zlib.gunzip()
-      assert "<h1>Hello world !</h1>" = response(conn2, 200) |> :zlib.gunzip()
+      assert "<h1>Hello world !</h1>" = response(conn1, 200)
+      assert "<h1>Hello world !</h1>" = response(conn2, 200)
     end
 
     test "should return good file content-type", %{conn: conn} do
@@ -274,6 +375,105 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
     end
   end
 
+  describe "get_file_content/3 with address_content" do
+    setup do
+      content = """
+      {
+        "address_content.png":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+          ]
+        },
+        "concat_content.png":{
+          "encodage":"gzip",
+          "address":[
+            "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de",
+            "0000e363f156fc5185217433d986f59d9fe245226287c2dd94b1ac57ffb6df7928aa"
+          ]
+        }
+      }
+      """
+
+      content2 = """
+        {
+          "concat_content.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_",
+          "address_content.png":"H4sIAAAAAAAAA7PJMLTzSM3JyVcozy_KSVFQtNEHigAA4YcXnxYAAAA"
+        }
+      """
+
+      content3 = """
+        {"concat_content.png":"KSVFQtNEHigAA4YcXnxYAAAA"}
+      """
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetLastTransactionAddress{address: address}, _ ->
+          {:ok, %LastTransactionAddress{address: address}}
+
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             address: address,
+             data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 227, 99, 241, 86, 252, 81, 133, 33, 116, 51, 217, 134, 245, 157, 159, 226, 69,
+              34, 98, 135, 194, 221, 148, 177, 172, 87, 255, 182, 223, 121, 40, 170>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content3}
+           }}
+      end)
+
+      :ok
+    end
+
+    test "should return content at specified addresses", %{conn: conn} do
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/address_content.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+
+    test "should return concatened content at specified addresses", %{conn: conn} do
+      conn =
+        get(
+          conn,
+          "/api/web_hosting/0000225496a380d5005cb68374e9b8b45d7e0f505a42f8cd61cbd43c3684c5cbacba/concat_content.png"
+        )
+
+      assert "<h1>Hello world !</h1>" = response(conn, 200)
+    end
+  end
+
   describe "get_cache/3" do
     test "should return 304 status if file is cached in browser", %{conn: conn} do
       content = """
@@ -281,8 +481,18 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         "folder":{
           "hello_world.html":{
             "encodage":"base64",
-            "content":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
+            "address":[
+              "000071fbc2205f3eba39d310baf15bd89a019b0929be76b7864852cb68c9cd6502de"
+            ]
           }
+        }
+      }
+      """
+
+      content2 = """
+      {
+        "folder":{
+          "hello_world.html":"PGgxPkhlbGxvIHdvcmxkICE8L2gxPg"
         }
       }
       """
@@ -292,13 +502,30 @@ defmodule ArchethicWeb.API.WebHostingControllerTest do
         _, %GetLastTransactionAddress{address: address}, _ ->
           {:ok, %LastTransactionAddress{address: address}}
 
-        _, %GetTransaction{}, _ ->
+        _,
+        %GetTransaction{
+          address:
+            address =
+                <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
+                  15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>
+        },
+        _ ->
           {:ok,
            %Transaction{
-             address:
-               <<0, 0, 34, 84, 150, 163, 128, 213, 0, 92, 182, 131, 116, 233, 184, 180, 93, 126,
-                 15, 80, 90, 66, 248, 205, 97, 203, 212, 60, 54, 132, 197, 203, 172, 186>>,
+             address: address,
              data: %TransactionData{content: content}
+           }}
+
+        _,
+        %GetTransaction{
+          address:
+            <<0, 0, 113, 251, 194, 32, 95, 62, 186, 57, 211, 16, 186, 241, 91, 216, 154, 1, 155,
+              9, 41, 190, 118, 183, 134, 72, 82, 203, 104, 201, 205, 101, 2, 222>>
+        },
+        _ ->
+          {:ok,
+           %Transaction{
+             data: %TransactionData{content: content2}
            }}
       end)
 

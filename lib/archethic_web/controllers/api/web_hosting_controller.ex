@@ -15,7 +15,16 @@ defmodule ArchethicWeb.API.WebHostingController do
   require Logger
 
   @spec web_hosting(Plug.Conn.t(), map) :: Plug.Conn.t()
-  def web_hosting(conn, %{"address" => address, "url_path" => url_path}) do
+  def web_hosting(conn, params = %{"url_path" => url_path}) do
+    # Redirect to enforce "/" at the end of the root url
+    if Enum.empty?(url_path) and String.last(conn.request_path) != "/" do
+      redirect(conn, to: conn.request_path <> "/")
+    else
+      do_web_hosting(conn, params)
+    end
+  end
+
+  defp do_web_hosting(conn, %{"address" => address, "url_path" => url_path}) do
     with {:ok, address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(address),
          {:ok, %Transaction{address: last_address, data: %TransactionData{content: content}}} <-
@@ -23,24 +32,19 @@ defmodule ArchethicWeb.API.WebHostingController do
          {:ok, json_content} <- Jason.decode(content),
          {:ok, file, mime_type} <- get_file(json_content, url_path),
          {cached?, etag} <- get_cache(conn, last_address, url_path),
-         {:ok, file_content, encodage} <- get_file_content(file, cached?) do
+         {:ok, file_content, encodage} <- get_file_content(file, cached?, url_path) do
       conn =
         conn
         |> put_resp_content_type(mime_type, "utf-8")
-        |> put_resp_header("content-encoding", "gzip")
         |> put_resp_header("cache-control", "public")
         |> put_resp_header("etag", etag)
 
       if cached? do
         send_resp(conn, 304, "")
       else
-        case encodage do
-          "gzip" ->
-            send_resp(conn, 200, file_content)
+        {conn, response_content} = encode_res(conn, file_content, encodage)
 
-          _ ->
-            send_resp(conn, 200, :zlib.gzip(file_content))
-        end
+        send_resp(conn, 200, response_content)
       end
     else
       # Base.decode16 || Crypto.valid_address
@@ -66,6 +70,20 @@ defmodule ArchethicWeb.API.WebHostingController do
 
       _reason ->
         send_resp(conn, 404, "Not Found")
+    end
+  end
+
+  defp encode_res(conn, file_content, encodage) do
+    if Enum.any?(get_req_header(conn, "accept-encoding"), &String.contains?(&1, "gzip")) do
+      res_conn = put_resp_header(conn, "content-encoding", "gzip")
+
+      if encodage == "gzip",
+        do: {res_conn, file_content},
+        else: {res_conn, :zlib.gzip(file_content)}
+    else
+      if encodage == "gzip",
+        do: {conn, :zlib.gunzip(file_content)},
+        else: {conn, file_content}
     end
   end
 
@@ -119,7 +137,7 @@ defmodule ArchethicWeb.API.WebHostingController do
         # Control if it is a file or a folder
         file_name = Enum.at(keys, 0)
 
-        if Map.get(json_content, file_name) |> Map.has_key?("content") do
+        if Map.get(json_content, file_name) |> Map.has_key?("address") do
           file_name
         else
           "index.html"
@@ -155,20 +173,34 @@ defmodule ArchethicWeb.API.WebHostingController do
   end
 
   # All file are encoded in base64 in JSON content
-  @spec get_file_content(file :: map(), cached? :: boolean()) ::
+  @spec get_file_content(file :: map(), cached? :: boolean(), url_path :: list()) ::
           {:ok, binary(), binary() | nil} | :encodage_error | :file_error
-  defp get_file_content(_file, _cached? = true), do: {:ok, nil, nil}
+  defp get_file_content(_file, _cached? = true, _url_path), do: {:ok, nil, nil}
 
-  defp get_file_content(file = %{"content" => content}, _cached = false) do
+  defp get_file_content(file = %{"address" => address_list}, _cached? = false, url_path) do
     try do
+      content =
+        Enum.map_join(address_list, fn tx_address ->
+          {:ok, %Transaction{data: %TransactionData{content: content}}} =
+            Base.decode16!(tx_address, case: :mixed) |> Archethic.search_transaction()
+
+          {:ok, json_content} = Jason.decode(content)
+          {:ok, nested_file_content, _} = get_file(json_content, url_path)
+
+          nested_file_content
+        end)
+
       file_content = Base.url_decode64!(content, padding: false)
       encodage = Map.get(file, "encodage")
       {:ok, file_content, encodage}
     rescue
-      _ ->
+      ArgumentError ->
         :encodage_error
+
+      error ->
+        error
     end
   end
 
-  defp get_file_content(_, _), do: :file_error
+  defp get_file_content(_, _, _), do: :file_error
 end
