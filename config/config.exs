@@ -135,7 +135,7 @@ config :archethic, ArchethicWeb.FaucetController,
 # -----Start-of-Networking-configs-----
 
 config :archethic, Archethic.Networking.IPLookup.NATDiscovery,
-  provider: Archethic.Networking.IPLookup.NATDiscovery.UPnPv1
+  provider: Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP
 
 config :archethic, Archethic.Networking.IPLookup.RemoteDiscovery,
   provider: Archethic.Networking.IPLookup.RemoteDiscovery.IPIFY

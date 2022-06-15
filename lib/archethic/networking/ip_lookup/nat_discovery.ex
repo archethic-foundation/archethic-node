@@ -1,55 +1,24 @@
 defmodule Archethic.Networking.IPLookup.NATDiscovery do
   @moduledoc """
-  Provide abstraction over :natupnp_v1, :natupnp_v2, :natpmp
+  Provide implementation to discover ip address using NAT
   """
 
   alias Archethic.Networking.IPLookup.Impl
 
-  alias __MODULE__.UPnPv1
-  alias __MODULE__.UPnPv2
-  alias __MODULE__.PMP
-
-  require Logger
-
   @behaviour Impl
-  def get_node_ip() do
-    provider = provider()
-    do_get_node_ip(provider)
+  @spec get_node_ip() :: {:ok, :inet.ip_address()} | {:error, any()}
+  def get_node_ip do
+    provider().get_node_ip()
   end
 
-  defp do_get_node_ip(provider) do
-    case provider.get_node_ip() do
-      {:ok, ip} ->
-        {:ok, ip}
-
-      {:error, reason} ->
-        Logger.error(
-          "Cannot use the provider #{provider} for IP Lookup - reason: #{inspect(reason)}"
-        )
-
-        fallback(provider, reason)
-    end
+  @spec open_port(non_neg_integer()) :: {:ok, non_neg_integer()} | :error
+  def open_port(port) do
+    provider().open_port(port)
   end
 
-  defp fallback(UPnPv1, _reason) do
-    do_get_node_ip(UPnPv2)
-  end
-
-  defp fallback(UPnPv2, _reason) do
-    do_get_node_ip(PMP)
-  end
-
-  defp fallback(PMP, reason) do
-    {:error, reason}
-  end
-
-  defp fallback(_provider, reason) do
-    {:error, reason}
-  end
-
-  defp provider() do
+  defp provider do
     :archethic
     |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:provider, UPnPv1)
+    |> Keyword.get(:provider, __MODULE__.MiniUPNP)
   end
 end
