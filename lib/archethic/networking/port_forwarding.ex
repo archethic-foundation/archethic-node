@@ -47,7 +47,7 @@ defmodule Archethic.Networking.PortForwarding do
         Logger.info("Use the random port #{port} as fallback")
         port
 
-      {:error, _} ->
+      :error ->
         Logger.error("Cannot publish the a random port #{port}")
 
         raise "Port from configuration is used but requires a manuel port forwarding setting on the router"

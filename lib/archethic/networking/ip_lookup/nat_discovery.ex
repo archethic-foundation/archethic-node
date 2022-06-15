@@ -11,7 +11,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery do
     provider().get_node_ip()
   end
 
-  @spec open_port(non_neg_integer()) :: :ok | :error
+  @spec open_port(non_neg_integer()) :: {:ok, non_neg_integer()} | :error
   def open_port(port) do
     provider().open_port(port)
   end
