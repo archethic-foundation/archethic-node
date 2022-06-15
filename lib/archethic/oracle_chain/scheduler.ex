@@ -18,7 +18,7 @@ defmodule Archethic.OracleChain.Scheduler do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-
+  alias Archethic.Utils.DetectNodeResponsiveness
   alias Crontab.CronExpression.Parser, as: CronParser
   alias Crontab.Scheduler, as: CronScheduler
 
@@ -140,20 +140,59 @@ defmodule Archethic.OracleChain.Scheduler do
 
     index = Map.fetch!(indexes, summary_date)
 
-    if trigger_node?(summary_date, index + 1) do
-      new_oracle_data =
-        summary_date
-        |> Crypto.derive_oracle_address(index)
-        |> get_oracle_data()
-        |> Services.fetch_new_data()
+    new_oracle_data =
+      summary_date
+      |> Crypto.derive_oracle_address(index)
+      |> get_oracle_data()
+      |> Services.fetch_new_data()
 
+    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
+
+    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
+
+    tx =
+      Transaction.new_with_keys(
+        :oracle,
+        %TransactionData{
+          content: Jason.encode!(new_oracle_data),
+          code: ~S"""
+          condition inherit: [
+            # We need to ensure the type stays consistent
+            # So we can apply specific rules during the transaction validation
+            type: in?([oracle, oracle_summary]),
+
+            # We discard the content and code verification
+            content: true,
+
+            # We ensure the code stay the same
+            code: if type == oracle_summary do
+              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+            else
+              previous.code
+            end
+          ]
+          """
+        },
+        prev_pv,
+        prev_pub,
+        next_pub
+      )
+
+    if trigger_node?(summary_date, index + 1) do
       if Enum.empty?(new_oracle_data) do
         Logger.debug("Oracle transaction skipped - no new data")
       else
-        send_polling_transaction(new_oracle_data, index, summary_date)
+        send_polling_transaction(tx)
       end
     else
-      Logger.debug("Oracle transaction skipped - not the trigger node")
+      DetectNodeResponsiveness.start_link(tx.address, fn count ->
+        if Enum.empty?(new_oracle_data) and trigger_node?(summary_date, index + 1, count) do
+          Logger.info("Oracle polling transaction ...attempt#{count}")
+          send_polling_transaction(tx)
+        else
+          Logger.debug("Oracle transaction skipped - not the trigger node")
+        end
+      end)
     end
 
     current_time = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -371,58 +410,19 @@ defmodule Archethic.OracleChain.Scheduler do
     )
   end
 
-  defp trigger_node?(summary_date = %DateTime{}, index) do
+  defp trigger_node?(summary_date = %DateTime{}, index, count \\ 0) do
     authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
 
-    storage_nodes =
+    %Node{first_public_key: initiator_key} =
       summary_date
       |> Crypto.derive_oracle_address(index)
       |> Election.storage_nodes(authorized_nodes)
+      |> Enum.at(count)
 
-    node_public_key = Crypto.first_node_public_key()
-
-    case storage_nodes do
-      [%Node{first_public_key: ^node_public_key} | _] ->
-        true
-
-      _ ->
-        false
-    end
+    initiator_key == Crypto.first_node_public_key()
   end
 
-  defp send_polling_transaction(oracle_data, index, summary_date) do
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
-
-    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
-
-    tx =
-      Transaction.new_with_keys(
-        :oracle,
-        %TransactionData{
-          content: Jason.encode!(oracle_data),
-          code: ~S"""
-          condition inherit: [
-            # We need to ensure the type stays consistent
-            # So we can apply specific rules during the transaction validation
-            type: in?([oracle, oracle_summary]),
-
-            # We discard the content and code verification
-            content: true,
-
-            # We ensure the code stay the same
-            code: if type == oracle_summary do
-              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
-            else
-              previous.code
-            end
-          ]
-          """
-        },
-        prev_pv,
-        prev_pub,
-        next_pub
-      )
-
+  defp send_polling_transaction(tx) do
     Task.start(fn -> Archethic.send_new_transaction(tx) end)
 
     Logger.debug("New data pushed to the oracle",
