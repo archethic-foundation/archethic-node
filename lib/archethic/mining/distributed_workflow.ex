@@ -718,9 +718,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     context
     |> ValidationContext.get_io_replication_nodes()
-    |> P2P.broadcast_message(%ReplicateTransaction{
-      transaction: ValidationContext.get_validated_transaction(context)
-    })
+    |> P2P.broadcast_message(
+      with tx <- ValidationContext.get_validated_transaction(context) do
+        if Transaction.network_type?(tx.type),
+          do: %ReplicateTransactionChain{transaction: tx},
+          else: %ReplicateTransaction{transaction: tx}
+      end
+    )
 
     :keep_state_and_data
   end
