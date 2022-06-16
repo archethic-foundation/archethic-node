@@ -5,6 +5,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
   alias Archethic.BeaconChain.SlotTimer
+  alias Archethic.BeaconChain.Summary
   alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.BeaconChain.Subset
@@ -25,16 +26,16 @@ defmodule Archethic.BeaconChain.SubsetTest do
   import Mox
 
   setup do
-    start_supervised!({SummaryTimer, interval: "0 0 * * * *"})
-    start_supervised!({SlotTimer, interval: "0 * * * * *"})
-    pid = start_supervised!({Subset, subset: <<0>>})
-    {:ok, subset: <<0>>, pid: pid}
+    {:ok, subset: <<0>>}
   end
 
   test "add_end_of_node_sync/2 should insert end of node synchronization in the beacon slot", %{
-    subset: subset,
-    pid: pid
+    subset: subset
   } do
+    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    pid = start_supervised!({Subset, subset: subset})
+
     public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     :ok = Subset.add_end_of_node_sync(subset, %EndOfNodeSync{public_key: public_key})
@@ -48,7 +49,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
 
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
-         %{pid: pid, subset: subset} do
+         %{subset: subset} do
+      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      pid = start_supervised!({Subset, subset: subset})
+
       tx_time = DateTime.utc_now()
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
@@ -82,7 +87,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
     end
 
     test "new transaction summary's confirmation added to the slot",
-         %{pid: pid, subset: subset} do
+         %{subset: subset} do
+      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      pid = start_supervised!({Subset, subset: subset})
+
       tx_time = DateTime.utc_now()
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
@@ -128,7 +137,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
       assert Enum.count(confirmations) == 2
     end
 
-    test "new slot is created when receive a :create_slot message", %{pid: pid, subset: subset} do
+    test "new slot is created when receive a :create_slot message", %{subset: subset} do
+      start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      pid = start_supervised!({Subset, subset: subset})
+
       tx_time = DateTime.utc_now()
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
@@ -212,10 +225,14 @@ defmodule Archethic.BeaconChain.SubsetTest do
     end
 
     test "new summary is created when the slot time is the summary time", %{
-      subset: subset,
-      pid: pid
+      subset: subset
     } do
-      tx_time = DateTime.utc_now()
+      summary_interval = "*/5 * * * *"
+      start_supervised!({SummaryTimer, interval: summary_interval})
+      start_supervised!({SlotTimer, interval: "0 0 * * *"})
+      pid = start_supervised!({Subset, subset: subset})
+
+      tx_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
       tx_address = <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>
 
       P2P.add_and_connect_node(%Node{
@@ -229,21 +246,21 @@ defmodule Archethic.BeaconChain.SubsetTest do
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: ~U[2020-09-01 00:00:00Z]
+        authorization_date: ~U[2020-09-01 00:00:00Z],
+        enrollment_date: ~U[2020-09-01 00:00:00Z]
       })
 
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
-        first_public_key:
-          <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
-        last_public_key:
-          <<0::8, 0::8, subset::binary-size(1), :crypto.strong_rand_bytes(31)::binary>>,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
         geo_patch: "AAA",
         network_patch: "AAA",
         available?: true,
         authorized?: true,
-        authorization_date: ~U[2020-09-01 00:00:00Z]
+        authorization_date: ~U[2020-09-01 00:00:00Z],
+        enrollment_date: ~U[2020-09-01 00:00:00Z]
       })
 
       tx_summary = %TransactionSummary{
@@ -264,43 +281,70 @@ defmodule Archethic.BeaconChain.SubsetTest do
         {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}}
       )
 
+      me = self()
+
       MockClient
       |> stub(:send_message, fn
-        _, %NewBeaconTransaction{transaction: tx}, _ ->
-          send(self(), {:beacon_tx, tx})
-          {:ok, %Ok{}}
-
         _, %Ping{}, _ ->
           Process.sleep(10)
           {:ok, %Ok{}}
       end)
 
       MockDB
-      |> stub(:write_transaction, fn %Transaction{
-                                       type: :beacon,
-                                       data: %TransactionData{content: content}
-                                     } ->
-        {%Slot{
-           subset: ^subset,
-           p2p_view: %{
-             availabilities: <<1::1, 1::1>>,
-             network_stats: [%{latency: 0}, %{latency: 0}]
-           }
-         }, _} = Slot.deserialize(content)
+      |> stub(:write_transaction_at, fn
+        %Transaction{
+          type: :beacon,
+          data: %TransactionData{content: content}
+        },
+        _ ->
+          assert {%Slot{
+                    subset: ^subset,
+                    p2p_view: %{
+                      availabilities: <<1::1>>,
+                      network_stats: [%{latency: _}]
+                    },
+                    transaction_attestations: [
+                      %ReplicationAttestation{
+                        transaction_summary: ^tx_summary
+                      }
+                    ]
+                  }, _} = Slot.deserialize(content)
 
-        :ok
+          send(me, :beacon_transaction_stored)
+
+        %Transaction{type: :beacon_summary, data: %TransactionData{content: content}}, _ ->
+          {%Summary{
+             transaction_attestations: [
+               %ReplicationAttestation{
+                 transaction_summary: ^tx_summary
+               }
+             ]
+           }, _} = Summary.deserialize(content)
+
+          send(me, :beacon_transaction_summary_stored)
       end)
 
-      send(pid, {:create_slot, ~U[2020-10-01 00:00:00Z]})
-      Process.sleep(500)
+      offset = Archethic.Utils.time_offset(summary_interval)
+      Process.sleep(offset * 1000)
+
+      now =
+        DateTime.utc_now()
+        |> DateTime.truncate(:millisecond)
+
+      send(pid, {:create_slot, now})
+      assert_receive :beacon_transaction_stored
+      assert_receive :beacon_transaction_summary_stored
     end
   end
 
   test "subscribed nodes are being getting subscribed & added to beacon pool directly via subset",
        %{
-         subset: subset,
-         pid: pid
+         subset: subset
        } do
+    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    pid = start_supervised!({Subset, subset: subset})
+
     public_key1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     Subset.subscribe_for_beacon_updates(subset, public_key1)
 
@@ -314,9 +358,12 @@ defmodule Archethic.BeaconChain.SubsetTest do
   end
 
   test "subscribed nodes are being getting subscribed & added to beacon pool via Beacon chain", %{
-    subset: subset,
-    pid: pid
+    subset: subset
   } do
+    start_supervised!({SummaryTimer, interval: "0 0 * * *"})
+    start_supervised!({SlotTimer, interval: "0 0 * * *"})
+    pid = start_supervised!({Subset, subset: subset})
+
     first_public_key = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
     P2P.add_and_connect_node(%Node{

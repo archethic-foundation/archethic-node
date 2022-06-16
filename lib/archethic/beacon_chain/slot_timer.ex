@@ -136,7 +136,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
       ) do
     timer = schedule_new_slot(interval)
 
-    slot_time = DateTime.utc_now() |> Utils.truncate_datetime()
+    slot_time = DateTime.utc_now() |> DateTime.truncate(:millisecond)
 
     Logger.debug("Trigger beacon slots creation at #{Utils.time_to_string(slot_time)}")
     PubSub.notify_current_epoch_of_slot_timer(slot_time)
