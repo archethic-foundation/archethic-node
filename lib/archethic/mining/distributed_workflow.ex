@@ -930,8 +930,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     message = %ReplicateTransactionChain{
-      transaction: validated_tx,
-      ack_storage?: true
+      transaction: validated_tx
     }
 
     me = self()

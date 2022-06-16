@@ -301,8 +301,7 @@ defmodule Archethic.P2P.MessageTest do
               inconsistencies: []
             }
           ]
-        },
-        ack_storage?: true
+        }
       }
 
       assert msg ==

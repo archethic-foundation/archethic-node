@@ -264,13 +264,8 @@ defmodule Archethic.P2P.Message do
     <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
-  def encode(%ReplicateTransactionChain{
-        transaction: tx,
-        ack_storage?: ack_storage?
-      }) do
-    ack_storage_bit = if ack_storage?, do: 1, else: 0
-
-    <<11::8, Transaction.serialize(tx)::bitstring, ack_storage_bit::1>>
+  def encode(%ReplicateTransactionChain{transaction: tx}) do
+    <<11::8, Transaction.serialize(tx)::bitstring>>
   end
 
   def encode(%ReplicateTransaction{transaction: tx}) do
@@ -651,13 +646,10 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<11::8, rest::bitstring>>) do
-    {tx, <<ack_storage_bit::1, rest::bitstring>>} = Transaction.deserialize(rest)
-
-    ack_storage? = ack_storage_bit == 1 || false
+    {tx, <<rest::bitstring>>} = Transaction.deserialize(rest)
 
     {%ReplicateTransactionChain{
-       transaction: tx,
-       ack_storage?: ack_storage?
+       transaction: tx
      }, rest}
   end
 
@@ -1133,21 +1125,14 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransactionChain{
-        transaction: tx,
-        ack_storage?: ack_storage?
-      }) do
+  def process(%ReplicateTransactionChain{transaction: tx}) do
     case Replication.validate_and_store_transaction_chain(tx) do
       :ok ->
-        if ack_storage? do
-          tx_summary = TransactionSummary.from_transaction(tx)
+        tx_summary = TransactionSummary.from_transaction(tx)
 
-          %AcknowledgeStorage{
-            signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
-          }
-        else
-          %Ok{}
-        end
+        %AcknowledgeStorage{
+          signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+        }
 
       {:error, :transaction_already_exists} ->
         %Error{reason: :transaction_already_exists}
