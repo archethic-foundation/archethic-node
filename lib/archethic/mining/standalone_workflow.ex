@@ -143,8 +143,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       replication_nodes,
       fn node ->
         {P2P.send_message(node, %ReplicateTransactionChain{
-           transaction: validated_tx,
-           ack_storage?: true
+           transaction: validated_tx
          }), node}
       end,
       on_timeout: :kill_task,
