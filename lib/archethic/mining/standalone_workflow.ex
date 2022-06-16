@@ -240,6 +240,10 @@ defmodule Archethic.Mining.StandaloneWorkflow do
         transaction_type: validated_tx.type
       )
     end)
-    |> P2P.broadcast_message(%ReplicateTransaction{transaction: validated_tx})
+    |> P2P.broadcast_message(
+      if Transaction.network_type?(validated_tx.type),
+        do: %ReplicateTransactionChain{transaction: validated_tx},
+        else: %ReplicateTransaction{transaction: validated_tx}
+    )
   end
 end
