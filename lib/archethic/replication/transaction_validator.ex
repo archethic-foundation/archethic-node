@@ -134,7 +134,6 @@ defmodule Archethic.Replication.TransactionValidator do
 
   defp validate_validation_stamp(tx = %Transaction{}) do
     with :ok <- validate_proof_of_work(tx),
-         :ok <- validate_proof_of_election(tx),
          :ok <- validate_node_election(tx),
          :ok <- validate_transaction_fee(tx),
          :ok <- validate_transaction_movements(tx) do
@@ -154,30 +153,6 @@ defmodule Archethic.Replication.TransactionValidator do
       )
 
       {:error, :invalid_proof_of_work}
-    end
-  end
-
-  defp validate_proof_of_election(
-         tx = %Transaction{
-           validation_stamp: %ValidationStamp{timestamp: timestamp, proof_of_election: poe}
-         }
-       ) do
-    daily_nonce_public_key = SharedSecrets.get_daily_nonce_public_key(timestamp)
-
-    if Election.valid_proof_of_election?(
-         tx,
-         poe,
-         daily_nonce_public_key
-       ) do
-      :ok
-    else
-      Logger.error(
-        "Invalid proof of election - checking public key: #{Base.encode16(daily_nonce_public_key)}",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
-      )
-
-      {:error, :invalid_proof_of_election}
     end
   end
 

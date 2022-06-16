@@ -80,12 +80,6 @@ defmodule Archethic.Replication.TransactionValidatorTest do
                |> TransactionValidator.validate()
     end
 
-    test "should return {:error, :invalid_proof_of_election} when an invalid proof of work" do
-      assert {:error, :invalid_proof_of_election} =
-               TransactionFactory.create_transaction_with_invalid_proof_of_election()
-               |> TransactionValidator.validate()
-    end
-
     test "should return {:error, :invalid_node_election} when the validation stamp signature is invalid" do
       assert {:error, :invalid_node_election} =
                TransactionFactory.create_transaction_with_invalid_validation_stamp_signature()
