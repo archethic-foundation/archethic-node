@@ -38,7 +38,8 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler do
       acc = %{
         transaction_attestations: [],
         node_availabilities: [],
-        node_average_availabilities: []
+        node_average_availabilities: [],
+        end_of_node_synchronizations: []
       }
 
       results
