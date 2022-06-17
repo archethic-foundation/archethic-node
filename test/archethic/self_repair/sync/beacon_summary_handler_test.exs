@@ -252,25 +252,29 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandlerTest do
       summary_v1 = %BeaconSummary{
         subset: "A",
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 0::1>>
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        end_of_node_synchronizations: []
       }
 
       summary_v2 = %BeaconSummary{
         subset: "A",
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 1::1>>
+        node_availabilities: <<1::1, 1::1, 1::1>>,
+        end_of_node_synchronizations: []
       }
 
       summary_v3 = %BeaconSummary{
         subset: "A",
         summary_time: summary_time,
-        node_availabilities: <<1::1, 0::1, 1::1>>
+        node_availabilities: <<1::1, 0::1, 1::1>>,
+        end_of_node_synchronizations: []
       }
 
       summary_v4 = %BeaconSummary{
         subset: "A",
         summary_time: summary_time,
-        node_availabilities: <<1::1, 1::1, 0::1>>
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        end_of_node_synchronizations: []
       }
 
       MockClient
