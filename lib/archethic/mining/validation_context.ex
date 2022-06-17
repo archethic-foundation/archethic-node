@@ -923,11 +923,9 @@ defmodule Archethic.Mining.ValidationContext do
 
     node_list
     |> Enum.with_index()
-    # We are preventing non available and authorized nodes to receive the transaction as they have
-    # not yet synchronized everything from the new joining
     # We take only the node which are locally available from the validation nodes
-    |> Enum.filter(fn {node, index} ->
-      node.available? and Enum.at(view_list, index) == 1
+    |> Enum.filter(fn {_node, index} ->
+      Enum.at(view_list, index) == 1
     end)
     |> Enum.map(fn {node, _index} -> node end)
   end

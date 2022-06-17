@@ -207,7 +207,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         http_port: 4000,
         first_public_key: "key1",
         last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       {:ok, coordinator_pid} =
@@ -237,7 +239,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           first_public_key: "key23",
           last_public_key: "key23",
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         }
       ]
 
@@ -302,7 +306,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         http_port: 4000,
         first_public_key: "key1",
         last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       P2P.add_and_connect_node(welcome_node)
@@ -419,7 +425,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         http_port: 4000,
         first_public_key: "key1",
         last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       P2P.add_and_connect_node(welcome_node)
@@ -547,7 +555,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         http_port: 4000,
         first_public_key: "key1",
         last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       P2P.add_and_connect_node(welcome_node)
@@ -736,7 +746,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
         http_port: 4000,
         first_public_key: "key1",
         last_public_key: "key1",
-        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        geo_patch: "AAA",
+        network_patch: "AAA"
       }
 
       P2P.add_and_connect_node(welcome_node)
@@ -836,7 +848,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           last_public_key: elem(storage_node_keypair, 0),
           reward_address: :crypto.strong_rand_bytes(32),
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         },
         %Node{
           ip: {80, 10, 20, 102},
@@ -846,7 +860,9 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           last_public_key: elem(storage_node_keypair2, 0),
           reward_address: :crypto.strong_rand_bytes(32),
           authorized?: true,
-          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400)
+          authorization_date: DateTime.utc_now() |> DateTime.add(-86_400),
+          geo_patch: "AAA",
+          network_patch: "AAA"
         }
       ]
 
