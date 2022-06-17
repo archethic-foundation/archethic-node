@@ -18,7 +18,7 @@ defmodule Archethic.P2P.GeoPatch.GeoIP.MaxMindDB do
   def init(_) do
     Logger.info("Initialize InMemory MaxMindDB metadata...")
 
-    database = File.read!("./priv/p2p/GEOLITE2.mmdb")
+    database = File.read!(Application.app_dir(:archethic, "/priv/p2p/GEOLITE2.mmdb"))
 
     {:ok, meta, tree, data} = MMDB2Decoder.parse_database(database)
 

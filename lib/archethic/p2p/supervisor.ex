@@ -27,11 +27,11 @@ defmodule Archethic.P2P.Supervisor do
     optional_children = [
       {Registry, name: ConnectionRegistry, keys: :unique},
       ConnectionSupervisor,
+      MaxMindDB,
       MemTable,
       MemTableLoader,
       {Listener, Keyword.put(listener_conf, :port, port)},
-      {BootstrappingSeeds, bootstraping_seeds_conf},
-      MaxMindDB
+      {BootstrappingSeeds, bootstraping_seeds_conf}
     ]
 
     children = Utils.configurable_children(optional_children)
