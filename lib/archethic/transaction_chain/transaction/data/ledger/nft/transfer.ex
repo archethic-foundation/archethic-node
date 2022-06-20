@@ -5,6 +5,7 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedger.Transfer do
   defstruct [:to, :amount, :nft, conditions: [], nft_id: 0]
 
   alias Archethic.Utils
+  # impl nft_id
 
   @typedoc """
   Transfer is composed from:
