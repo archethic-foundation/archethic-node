@@ -130,7 +130,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>  159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
-      ...>  type: :UCO
+      ...>  type: "UCO"
       ...>  } |> UnspentOutput.from_map()
       %UnspentOutput{
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
@@ -145,7 +145,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45,
       ...>    68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>  amount: 1_050_000_000,
-      ...>  type: :NFT, nft_address: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>  type: "NFT", nft_address: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, nft_id: 0
       ...> } |> UnspentOutput.from_map()
       %UnspentOutput{
@@ -164,7 +164,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
 
     case Map.get(unspent_output, :type) do
-      :NFT ->
+      "NFT" ->
         %{
           res
           | type: {:NFT, Map.get(unspent_output, :nft_address), Map.get(unspent_output, :nft_id)}
@@ -190,7 +190,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       %{
         from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
-        type: :UCO,
+        type: "UCO",
         reward?: false,
         timestamp: nil
       }
@@ -207,7 +207,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
         194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
         amount: 1_050_000_000,
-        type: :NFT,
+        type: "NFT",
         nft_address: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
         140,74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
         nft_id: 0,
@@ -228,7 +228,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     %{
       from: from,
       amount: amount,
-      type: :UCO,
+      type: "UCO",
       reward?: reward,
       timestamp: timestamp
     }
@@ -244,7 +244,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     %{
       from: from,
       amount: amount,
-      type: :NFT,
+      type: "NFT",
       nft_address: nft_address,
       nft_id: nft_id,
       reward?: reward,

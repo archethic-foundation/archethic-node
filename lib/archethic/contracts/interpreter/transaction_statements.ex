@@ -59,7 +59,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       iex> TransactionStatements.add_nft_transfer(%Transaction{data: %TransactionData{}}, [
       ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
       ...>   {"amount", 1_000_000_000},
-      ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528", 0}
+      ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"},
+      ...>   {"nft_id",  0}
       ...> ])
       %Transaction{
         data: %TransactionData{

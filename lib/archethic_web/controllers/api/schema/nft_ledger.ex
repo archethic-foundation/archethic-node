@@ -11,6 +11,7 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
       field(:to, Address)
       field(:amount, :integer)
       field(:nft, Address)
+      field(:nft_id, :integer, default: 0)
     end
   end
 
@@ -29,5 +30,7 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
     |> cast(params, [:to, :amount, :nft, :nft_id])
     |> validate_required([:to, :amount, :nft, :nft_id])
     |> validate_number(:amount, greater_than: 0)
+    |> validate_number(:nft_id, greater_than_or_equal_to: 0)
+    |> validate_number(:nft_id, less_than_or_equal_to: 255)
   end
 end

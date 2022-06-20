@@ -1,4 +1,5 @@
 defmodule ArchethicWeb.GraphQLSchemaTest do
+  @moduledoc false
   use ArchethicCase
   use ArchethicWeb.ConnCase
   use ArchethicWeb.GraphQLSubscriptionCase
@@ -294,9 +295,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         {:ok,
          %Balance{
            nft: %{
-             "@NFT1" => 200_000_000,
-             "@NFT2" => 500_000_000,
-             "@NFT3" => 1_000_000_000
+             {"@NFT1", 0} => 200_000_000,
+             {"@NFT2", 0} => 500_000_000,
+             {"@NFT3", 0} => 1_000_000_000
            }
          }}
       end)

@@ -37,9 +37,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
                 "transfers" => [
                   %{
                     "amount" => trunc(100_000_000),
-                    "to" =>
-                      "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80",
-                    nft_id: 0
+                    "to" => "000098fe10e8633bce19c59a40a089731c1f72b097c5a8f7dc71a37eb26913aa4f80"
                   }
                 ]
               }
