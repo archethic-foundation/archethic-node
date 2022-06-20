@@ -42,25 +42,41 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec burning_address() :: Crypto.versioned_hash()
   def burning_address, do: @burning_address
 
-  @doc """
+  @doc ~S"""
   Build some ledger operations from a specific transaction
   ## Examples
       iex> LedgerOperations.from_transaction(%LedgerOperations{},
       ...>   %Transaction{
       ...>     address: "@NFT2",
       ...>     type: :nft,
-      ...>     data: %TransactionData{content: "initial supply: 1000"}
+      ...>     data: %TransactionData{content: "{\"supply\": 10, \"type\": \"fungible\" }"}
       ...>   }
       ...> )
       %LedgerOperations{
-          unspent_outputs: [
-            %UnspentOutput{
-              from: "@NFT2",
-              amount: 100_000_000_000,
-              type: {:NFT, "@NFT2", 0}
-            }
-             ]
-        }
+          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 1_000_000_000, type: {:NFT, "@NFT2", 0}}]
+      }
+
+      iex> LedgerOperations.from_transaction(%LedgerOperations{},
+      ...>   %Transaction{
+      ...>     address: "@NFT2",
+      ...>     type: :nft,
+      ...>     data: %TransactionData{content: "{\"supply\": 10, \"type\": \"non-fungible\", \"properties\": [[],[],[],[],[],[],[],[],[],[]]}"}
+      ...>   }
+      ...>  )
+      %LedgerOperations{
+        unspent_outputs: [
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 0}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 1}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 2}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 3}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 4}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 5}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 6}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 7}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 8}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 9}}
+        ]
+      }
   """
   @spec from_transaction(t(), Transaction.t()) :: t()
   def from_transaction(ops = %__MODULE__{}, %Transaction{
@@ -68,24 +84,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         type: :nft,
         data: %TransactionData{content: content}
       }) do
-    [[match | _]] = Regex.scan(~r/(?<=initial supply:).*\d/mi, content)
+    case Jason.decode(content) do
+      {:ok, json} ->
+        utxos = get_token_utxos(json, address)
+        Map.update(ops, :unspent_outputs, utxos, &(utxos ++ &1))
 
-    {initial_supply, _} =
-      match
-      |> String.trim()
-      |> String.replace(" ", "")
-      |> Integer.parse()
-
-    %{
-      ops
-      | unspent_outputs: [
-          %UnspentOutput{
-            from: address,
-            amount: initial_supply * @unit_uco,
-            type: {:NFT, address, 0}
-          }
-        ]
-    }
+      _ ->
+        ops
+    end
   end
 
   def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops
