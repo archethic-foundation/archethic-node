@@ -287,9 +287,15 @@ defmodule Archethic.Utils.Regression.Playbook do
               Enum.map(nft_transfers, fn %NFTTransfer{
                                            to: to,
                                            amount: amount,
-                                           nft: nft_address
+                                           nft: nft_address,
+                                           nft_id: nft_id
                                          } ->
-                %{"to" => Base.encode16(to), "amount" => amount, "nft" => nft_address}
+                %{
+                  "to" => Base.encode16(to),
+                  "amount" => amount,
+                  "nft" => nft_address,
+                  "nft_id" => nft_id
+                }
               end)
           }
         },

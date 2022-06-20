@@ -26,8 +26,8 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
 
   defp changeset_transfers(changeset, params) do
     changeset
-    |> cast(params, [:to, :amount, :nft])
-    |> validate_required([:to, :amount, :nft])
+    |> cast(params, [:to, :amount, :nft, :nft_id])
+    |> validate_required([:to, :amount, :nft, :nft_id])
     |> validate_number(:amount, greater_than: 0)
   end
 end

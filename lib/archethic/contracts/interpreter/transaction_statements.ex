@@ -59,7 +59,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       iex> TransactionStatements.add_nft_transfer(%Transaction{data: %TransactionData{}}, [
       ...>   {"to", "22368B50D3B2976787CFCC27508A8E8C67483219825F998FC9D6908D54D0FE10"},
       ...>   {"amount", 1_000_000_000},
-      ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528"}
+      ...>   {"nft", "70541604258A94B76DB1F1AF5A2FC2BEF165F3BD9C6B7DDB3F1ACC628465E528", 0}
       ...> ])
       %Transaction{
         data: %TransactionData{
@@ -71,7 +71,8 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
                       103, 72, 50, 25, 130, 95, 153, 143, 201, 214, 144, 141, 84, 208, 254, 16>>,
                     amount: 1_000_000_000,
                     nft: <<112, 84, 22, 4, 37, 138, 148, 183, 109, 177, 241, 175, 90, 47, 194, 190, 241, 101, 243,
-                      189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>
+                      189, 156, 107, 125, 219, 63, 26, 204, 98, 132, 101, 229, 40>>,
+                    nft_id: 0
                 }
               ]
             }
@@ -81,12 +82,20 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
   """
   @spec add_nft_transfer(Transaction.t(), list()) :: Transaction.t()
   def add_nft_transfer(tx = %Transaction{}, args) when is_list(args) do
-    %{"to" => to, "amount" => amount, "nft" => nft} = Enum.into(args, %{})
+    %{"to" => to, "amount" => amount, "nft" => nft, "nft_id" => nft_id} = Enum.into(args, %{})
 
     update_in(
       tx,
       [Access.key(:data), Access.key(:ledger), Access.key(:nft), Access.key(:transfers)],
-      &[%NFTTransfer{to: decode_binary(to), amount: amount, nft: decode_binary(nft)} | &1]
+      &[
+        %NFTTransfer{
+          nft_id: nft_id,
+          to: decode_binary(to),
+          amount: amount,
+          nft: decode_binary(nft)
+        }
+        | &1
+      ]
     )
   end
 
@@ -98,7 +107,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
         iex> TransactionStatements.set_content(%Transaction{data: %TransactionData{}}, "hello")
         %Transaction{
           data: %TransactionData{
-            content: "hello" 
+            content: "hello"
           }
         }
   """
@@ -116,7 +125,7 @@ defmodule Archethic.Contracts.Interpreter.TransactionStatements do
       %Transaction{
         data: %TransactionData{
           code: "condition origin_family: biometric"
-        }  
+        }
       }
   """
   @spec set_code(Transaction.t(), binary()) :: Transaction.t()

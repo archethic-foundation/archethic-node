@@ -697,6 +697,7 @@ defmodule Archethic.Contracts.Interpreter do
            {{:atom, "to"}, _to},
            {{:atom, "amount"}, _amount},
            {{:atom, "nft"}, _nft_address}
+           # ??
          ],
          acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
        ) do

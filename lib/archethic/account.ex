@@ -13,7 +13,7 @@ defmodule Archethic.Account do
 
   @type balance :: %{
           uco: amount :: pos_integer(),
-          nft: %{(address :: binary()) => amount :: pos_integer()}
+          nft: %{{address :: binary(), nft_id :: non_neg_integer()} => amount :: pos_integer()}
         }
 
   @doc """
@@ -27,8 +27,8 @@ defmodule Archethic.Account do
       %UnspentOutput{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %UnspentOutput{type: {:NFT, nft_address}, amount: amount}, acc ->
-        update_in(acc, [:nft, Access.key(nft_address, 0)], &(&1 + amount))
+      %UnspentOutput{type: {:NFT, nft_address, nft_id}, amount: amount}, acc ->
+        update_in(acc, [:nft, Access.key({nft_address, nft_id}, 0)], &(&1 + amount))
     end)
   end
 
