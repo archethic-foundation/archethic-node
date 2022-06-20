@@ -655,4 +655,22 @@ defmodule Archethic.Utils do
 
     "#{h} #{base_unit} #{t |> Enum.map_join(" minute ", fn term -> term |> Integer.to_string() |> String.pad_leading(2, "0") end)} second"
   end
+
+  @doc """
+  Converts a list of map to a Single Map.
+
+  ## Examples
+
+      iex> [%{k: 5}, %{m: 5}, %{v: 3}]
+      ...> |>Utils.merge_list_of_maps()
+      %{k: 5, m: 5, v: 3}
+
+  """
+  def merge_list_of_maps(list_of_map) do
+    Enum.reduce(list_of_map, _acc = %{}, fn a, acc ->
+      Map.merge(a, acc, fn _key, a1, a2 ->
+        a1 + a2
+      end)
+    end)
+  end
 end

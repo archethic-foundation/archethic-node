@@ -6,7 +6,7 @@ defmodule Archethic.Metrics.Collector do
   alias Archethic.Metrics.Aggregator
   alias Archethic.Metrics.Parser
   alias Archethic.P2P
-  alias Archethic.Utils.Data
+  alias Archethic.Utils
   alias Archethic.TaskSupervisor
 
   @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
@@ -35,7 +35,7 @@ defmodule Archethic.Metrics.Collector do
     |> Aggregator.inject_tps()
     |> Aggregator.reduce_values()
     |> Aggregator.summarize()
-    |> Data.Mutate.list_of_map_to_map()
+    |> Utils.merge_list_of_maps()
   end
 
   defp service do
