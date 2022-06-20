@@ -1,4 +1,5 @@
 defmodule Archethic.AccountTest do
+  @moduledoc false
   use ExUnit.Case
 
   alias Archethic.Account
@@ -40,12 +41,12 @@ defmodule Archethic.AccountTest do
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:NFT, "@CharlieNFT"}
+          type: {:NFT, "@CharlieNFT", 0}
         },
         ~U[2021-03-05 13:41:34Z]
       )
 
-      assert %{uco: 400_000_000, nft: %{"@CharlieNFT" => 10_000_000_000}} ==
+      assert %{uco: 400_000_000, nft: %{{"@CharlieNFT", 0} => 10_000_000_000}} ==
                Account.get_balance("@Alice2")
     end
 
@@ -71,7 +72,7 @@ defmodule Archethic.AccountTest do
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:NFT, "@CharlieNFT"}
+          type: {:NFT, "@CharlieNFT", 0}
         },
         ~U[2021-03-05 13:41:34Z]
       )

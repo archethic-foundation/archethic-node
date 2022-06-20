@@ -13,8 +13,8 @@ defmodule Archethic.Account.MemTables.NFTLedger do
 
   @doc """
   Initialize the NFT ledger tables:
-  - Main NFT ledger as ETS set ({nft, to, from}, amount, spent?)
-  - NFT Unspent Output Index as ETS bag (to, {from, nft})
+  - Main NFT ledger as ETS set ({nft, to, from, nft_id}, amount, spent?)
+  - NFT Unspent Output Index as ETS bag (to, {from, nft, nft_id})
 
   ## Examples
 
@@ -51,17 +51,17 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}}, ~U[2021-03-05 13:41:34Z])
       iex> { :ets.tab2list(:archethic_nft_ledger), :ets.tab2list(:archethic_nft_unspent_output_index) }
       {
         [
-          {{"@Alice2", "@Bob3", "@NFT1"}, 300_000_000, false, ~U[2021-03-05 13:41:34Z]},
-          {{"@Alice2", "@Charlie10", "@NFT1"}, 100_000_000, false, ~U[2021-03-05 13:41:34Z]}
+          {{"@Alice2", "@Charlie10", "@NFT1", 1}, 100_000_000, false, ~U[2021-03-05 13:41:34Z]},
+          {{"@Alice2", "@Bob3", "@NFT1", 0}, 300_000_000, false, ~U[2021-03-05 13:41:34Z]}
         ],
         [
-          {"@Alice2", "@Bob3", "@NFT1"},
-          {"@Alice2", "@Charlie10", "@NFT1"}
+          {"@Alice2", "@Bob3", "@NFT1", 0},
+          {"@Alice2", "@Charlie10", "@NFT1", 1}
         ]
       }
 
@@ -72,19 +72,20 @@ defmodule Archethic.Account.MemTables.NFTLedger do
         %UnspentOutput{
           from: from_address,
           amount: amount,
-          type: {:NFT, nft_address}
+          type: {:NFT, nft_address, nft_id}
         },
         timestamp = %DateTime{}
       )
       when is_binary(to_address) and is_binary(from_address) and is_integer(amount) and amount > 0 and
-             is_binary(nft_address) do
+             is_binary(nft_address) and is_integer(nft_id) and nft_id >= 0 do
     true =
       :ets.insert(
         @ledger_table,
-        {{to_address, from_address, nft_address}, amount, false, timestamp}
+        {{to_address, from_address, nft_address, nft_id}, amount, false, timestamp}
       )
 
-    true = :ets.insert(@unspent_output_index_table, {to_address, from_address, nft_address})
+    true =
+      :ets.insert(@unspent_output_index_table, {to_address, from_address, nft_address, nft_id})
 
     Logger.info(
       "#{amount} unspent NFT (#{Base.encode16(nft_address)}) added for #{Base.encode16(to_address)}",
@@ -100,12 +101,12 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       [
-        %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}},
-        %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}},
+        %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}},
+        %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}}
       ]
 
       iex> {:ok, _pid} = NFTLedger.start_link()
@@ -116,14 +117,14 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   def get_unspent_outputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
-    |> Enum.reduce([], fn {_, from, nft_address}, acc ->
-      case :ets.lookup(@ledger_table, {address, from, nft_address}) do
+    |> Enum.reduce([], fn {_, from, nft_address, nft_id}, acc ->
+      case :ets.lookup(@ledger_table, {address, from, nft_address, nft_id}) do
         [{_, amount, false, _}] ->
           [
             %UnspentOutput{
               from: from,
               amount: amount,
-              type: {:NFT, nft_address}
+              type: {:NFT, nft_address, nft_id}
             }
             | acc
           ]
@@ -140,8 +141,8 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1",0}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1",1}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_unspent_outputs("@Alice2")
       []
@@ -151,8 +152,8 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   def spend_all_unspent_outputs(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
-    |> Enum.each(fn {_, from, nft_address} ->
-      :ets.update_element(@ledger_table, {address, from, nft_address}, {3, true})
+    |> Enum.each(fn {_, from, nft_address, nft_id} ->
+      :ets.update_element(@ledger_table, {address, from, nft_address, nft_id}, {3, true})
     end)
 
     :ok
@@ -164,35 +165,36 @@ defmodule Archethic.Account.MemTables.NFTLedger do
   ## Examples
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}}, ~U[2021-03-05 13:41:34Z])
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]},
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]}
+        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}, spent?: false, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
 
       iex> {:ok, _pid} = NFTLedger.start_link()
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
-      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}}, ~U[2021-03-05 13:41:34Z])
+      iex> :ok = NFTLedger.add_unspent_output("@Alice2", %UnspentOutput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}}, ~U[2021-03-05 13:41:34Z])
       iex> :ok = NFTLedger.spend_all_unspent_outputs("@Alice2")
       iex> NFTLedger.get_inputs("@Alice2")
       [
-        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]},
-        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1"}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]}
+        %TransactionInput{from: "@Bob3", amount: 300_000_000, type: {:NFT, "@NFT1", 0}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]},
+        %TransactionInput{from: "@Charlie10", amount: 100_000_000, type: {:NFT, "@NFT1", 1}, spent?: true, timestamp: ~U[2021-03-05 13:41:34Z]}
       ]
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
   def get_inputs(address) when is_binary(address) do
     @unspent_output_index_table
     |> :ets.lookup(address)
-    |> Enum.map(fn {_, from, nft_address} ->
-      [{_, amount, spent?, timestamp}] = :ets.lookup(@ledger_table, {address, from, nft_address})
+    |> Enum.map(fn {_, from, nft_address, nft_id} ->
+      [{_, amount, spent?, timestamp}] =
+        :ets.lookup(@ledger_table, {address, from, nft_address, nft_id})
 
       %TransactionInput{
         from: from,
         amount: amount,
-        type: {:NFT, nft_address},
+        type: {:NFT, nft_address, nft_id},
         spent?: spent?,
         timestamp: timestamp
       }

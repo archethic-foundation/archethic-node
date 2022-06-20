@@ -20,7 +20,9 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
           uco: uco,
           nft:
             nft_balances
-            |> Enum.map(fn {address, amount} -> %{address: address, amount: amount} end)
+            |> Enum.map(fn {{address, nft_id}, amount} ->
+              %{address: address, amount: amount, nft_id: nft_id}
+            end)
             |> Enum.sort_by(& &1.amount)
         }
 

@@ -333,7 +333,7 @@
                                                             <%= if movement.amount > 0 do %>
                                                                 (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                             <% end %>
-                                                        <% {:NFT, nft_address} -> %>
+                                                        <% {:NFT, nft_address, _nft_id} -> %>
                                                             <%= to_float(movement.amount) %>
                                                             <span class="tag is-success is-light ml-2">NFT</span>
                                                             <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
@@ -370,7 +370,7 @@
                                                         <%= if unspent_output.amount > 0 do %>
                                                             (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% end %>
-                                                    <% {:NFT, nft_address} -> %>
+                                                    <% {:NFT, nft_address, _nft_id} -> %>
                                                         <%= to_float(unspent_output.amount) %>
                                                         <span class="tag is-success is-light ml-2">NFT</span>
                                                         <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
@@ -509,7 +509,7 @@
                                                 <%= if input.reward? do %>
                                                   <span class="tag is-info is-light">Mining reward</span>
                                                 <% end %>
-                                             <% {:NFT, nft_address} -> %>
+                                             <% {:NFT, nft_address, _nft_id} -> %>
                                                 <div class="columns">
                                                   <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                                   <div class="column is-4-desktop">

@@ -1,4 +1,5 @@
 defmodule Archethic.TransactionChain.TransactionData.NFTLedgerTest do
+  @moduledoc false
   use ExUnit.Case
   use ExUnitProperties
 
@@ -12,15 +13,17 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedgerTest do
             transfers <-
               StreamData.map_of(
                 StreamData.binary(length: 32),
-                {StreamData.binary(length: 32), StreamData.positive_integer()}
+                {StreamData.binary(length: 32), StreamData.positive_integer(),
+                 StreamData.positive_integer()}
               )
           ) do
       transfers =
-        Enum.map(transfers, fn {nft, {to, amount}} ->
+        Enum.map(transfers, fn {nft, {to, amount, nft_id}} ->
           %Transfer{
             nft: <<0::8, 0::8>> <> nft,
             to: <<0::8, 0::8>> <> to,
-            amount: amount
+            amount: amount,
+            nft_id: nft_id
           }
         end)
 

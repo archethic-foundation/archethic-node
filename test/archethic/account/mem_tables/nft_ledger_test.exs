@@ -1,4 +1,5 @@
 defmodule Archethic.Account.MemTables.NFTLedgerTest do
+  @moduledoc false
   use ExUnit.Case
 
   alias Archethic.Account.MemTables.NFTLedger

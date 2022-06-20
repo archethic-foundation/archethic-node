@@ -253,7 +253,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                   %{
                     "to" => "abc",
                     "amount" => 10.0,
-                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                    "nft_id" => 0
                   }
                 ]
               }
@@ -286,7 +287,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                   %{
                     "to" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                     "amount" => "abc",
-                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                    "nft_id" => 0
                   }
                 ]
               }
@@ -324,7 +326,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                   %{
                     "to" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                     "amount" => 10.0,
-                    "nft" => "abc"
+                    "nft" => "abc",
+                    "nft_id" => 0
                   }
                 ]
               }
@@ -361,7 +364,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                       "amount" => Enum.random(1..100),
                       "nft" =>
-                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "nft_id" => Enum.random(0..255)
                     }
                   end)
               }

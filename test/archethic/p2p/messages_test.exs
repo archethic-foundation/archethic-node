@@ -600,17 +600,18 @@ defmodule Archethic.P2P.MessageTest do
 
     test "Balance message" do
       nft_address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      nft_id = 0
 
       assert %Balance{
                uco: 1_050_000_000,
                nft: %{
-                 nft_address => 1_000_000_000
+                 {nft_address, nft_id} => 1_000_000_000
                }
              } ==
                %Balance{
                  uco: 1_050_000_000,
                  nft: %{
-                   nft_address => 1_000_000_000
+                   {nft_address, nft_id} => 1_000_000_000
                  }
                }
                |> Message.encode()

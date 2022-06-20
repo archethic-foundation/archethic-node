@@ -401,8 +401,8 @@ defmodule Archethic.Contracts.Worker do
         %TransactionMovement{type: :UCO, amount: amount}, acc ->
           Map.update!(acc, :uco, &(&1 + amount))
 
-        %TransactionMovement{type: {:NFT, nft_address}, amount: amount}, acc ->
-          Map.update!(acc, :nft, &Map.put(&1, nft_address, amount))
+        %TransactionMovement{type: {:NFT, nft_address, nft_id}, amount: amount}, acc ->
+          Map.update!(acc, :nft, &Map.put(&1, {nft_address, nft_id}, amount))
       end)
 
     %{uco: uco_balance, nft: nft_balances} = Account.get_balance(contract_address)
@@ -420,9 +420,13 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- uco_balance > uco_to_transfer + tx_fee,
          true <-
-           Enum.all?(nft_to_transfer, fn {nft_address, amount} ->
-             %{amount: balance} = Enum.find(nft_balances, &(Map.get(&1, :nft) == nft_address))
-             balance > amount
+           Enum.all?(nft_to_transfer, fn {{t_nft_address, t_nft_id}, t_amount} ->
+             {{_nft_address, _nft_id}, balance} =
+               Enum.find(nft_balances, fn {{f_nft_address, f_nft_id}, _f_amount} ->
+                 f_nft_address == t_nft_address and f_nft_id == t_nft_id
+               end)
+
+             balance > t_amount
            end) do
       :ok
     else
