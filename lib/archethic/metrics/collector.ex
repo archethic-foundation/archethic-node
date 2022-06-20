@@ -6,7 +6,7 @@ defmodule Archethic.Metrics.Collector do
   alias Archethic.Metrics.Aggregator
   alias Archethic.Metrics.Parser
   alias Archethic.P2P
-
+  alias Archethic.Utils
   alias Archethic.TaskSupervisor
 
   @callback fetch_metrics({:inet.ip_address(), :inet.port_number()}) ::
@@ -35,7 +35,7 @@ defmodule Archethic.Metrics.Collector do
     |> Aggregator.inject_tps()
     |> Aggregator.reduce_values()
     |> Aggregator.summarize()
-    |> reduce_to_single_map()
+    |> Utils.merge_list_of_maps()
   end
 
   defp service do
@@ -54,12 +54,4 @@ defmodule Archethic.Metrics.Collector do
   defp accept_metric?("archethic_mining_full_transaction_validation_duration"), do: true
   defp accept_metric?("archethic_p2p_send_message_duration"), do: true
   defp accept_metric?(_), do: false
-
-  defp reduce_to_single_map(data_list_of_maps) do
-    Enum.reduce(data_list_of_maps, fn a, b ->
-      Map.merge(a, b, fn _key, a1, a2 ->
-        a1 + a2
-      end)
-    end)
-  end
 end
