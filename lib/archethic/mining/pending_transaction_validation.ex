@@ -307,10 +307,29 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :nft,
          data: %TransactionData{content: content}
        }) do
-    if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
+    schema =
+      :archethic
+      |> Application.app_dir("priv/json-schemas/token-core.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> ExJsonSchema.Schema.resolve()
+
+    with {:ok, json_token} <- Jason.decode(content),
+         :ok <- ExJsonSchema.Validator.validate(schema, json_token),
+         %{"type" => "non-fungible", "supply" => supply, "properties" => properties}
+         when length(properties) == supply <- json_token do
       :ok
     else
-      {:error, "Invalid NFT content"}
+      {:error, reason} ->
+        Logger.debug("Invalid NFT token specification: #{inspect(reason)}")
+        {:error, "Invalid NFT transaction - Invalid specification"}
+
+      %{"type" => "fungible"} ->
+        :ok
+
+      %{"type" => "non-fungible"} ->
+        {:error,
+         "Invalid NFT transaction - Supply should match properties for non-fungible tokens"}
     end
   end
 

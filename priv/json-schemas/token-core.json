@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+     "supply": {
+        "type": "integer",
+        "description": "Number of tokens to create",
+        "exclusiveMinimum": 0
+     },
+     "type": {
+        "type": "string",
+        "pattern": "fungible|non-fungible",
+        "description": "Type of token to create"
+     },
+     "name": {
+        "type": "string",
+        "description": "Name of the token"
+     },
+     "symbol": {
+       "type": "string",
+       "description": "Symbol of the token"
+     },
+     "properties": {
+        "description": "List of all the token properties (each one being for a token item)",
+        "type": "array",
+        "items": { "$ref": "#/$defs/property-list" }
+      }
+   },
+   "required": [ "supply", "type" ],
+   "$defs": {
+     "property-list": {
+        "type": "array",
+        "description": "List of the properties for a given token item",
+        "items": { "$ref": "#/$defs/property" }
+      },
+      "property": {
+         "type": "object",
+         "properties": {
+           "name": {
+             "type": "string",
+             "description": "Name of the property"
+           },
+           "value": {
+             "type": ["number", "string"],
+             "description": "Value of the property"
+           }
+         },
+         "required": ["name", "value"]
+      }
+   }
+}
