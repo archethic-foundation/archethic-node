@@ -4,7 +4,6 @@ defmodule Archethic.P2P.Listener do
   use GenServer
 
   alias Archethic.P2P.ListenerProtocol
-  alias Archethic.P2P.ListenerProtocol.Supervisor, as: ListenerProtocolSupervisor
 
   require Logger
 
@@ -25,8 +24,6 @@ defmodule Archethic.P2P.Listener do
           transport
       end
 
-    {:ok, listener_protocol_sup} = ListenerProtocolSupervisor.start_link()
-
     {:ok, listener_pid} =
       :ranch.start_listener(
         :archethic_p2p,
@@ -38,6 +35,6 @@ defmodule Archethic.P2P.Listener do
 
     Logger.info("P2P #{transport} Endpoint running on port #{port}")
 
-    {:ok, %{listener_pid: listener_pid, listener_protocol_sup_pid: listener_protocol_sup}}
+    {:ok, %{listener_pid: listener_pid}}
   end
 end

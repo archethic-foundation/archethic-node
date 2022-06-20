@@ -3,7 +3,6 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
 
   alias Archethic.Crypto
 
-  alias Archethic.P2P.ListenerProtocol.BroadwayPipelineRegistry
   alias Archethic.P2P.ListenerProtocol.MessageProducer
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
@@ -15,36 +14,18 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
 
   use Broadway
 
-  def start_link(arg) do
-    socket = Keyword.get(arg, :socket)
-    transport = Keyword.get(arg, :transport)
-    ip = Keyword.get(arg, :ip)
-    port = Keyword.get(arg, :port)
-    conn_pid = Keyword.get(arg, :conn_pid)
-
+  def start_link(arg \\ []) do
     Broadway.start_link(__MODULE__,
-      name: {:via, Registry, {BroadwayPipelineRegistry, {ip, port, conn_pid}}},
-      context: %{
-        socket: socket,
-        transport: transport
-      },
+      name: __MODULE__,
       producer: [
         module: {MessageProducer, arg},
         transformer: {__MODULE__, :transform, []},
         concurrency: 1
       ],
       processors: [
-        default: [concurrency: 5, max_demand: 1]
+        default: [concurrency: System.schedulers_online() * 10, max_demand: 1]
       ]
     )
-  end
-
-  def process_name(
-        {:via, Registry, {BroadwayPipelineRegistry, {ip, port, conn_pid}}},
-        base_name
-      ) do
-    pid_string = conn_pid |> :erlang.pid_to_list() |> :erlang.list_to_binary()
-    :"#{:inet.ntoa(ip)}:#{port}.#{pid_string}.Broadway.#{base_name}"
   end
 
   def transform(event, _) do
@@ -54,8 +35,10 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
     }
   end
 
-  def handle_message(_, message, %{socket: socket, transport: transport}) do
-    BroadwayMessage.update_data(message, fn data ->
+  def handle_message(_, message, _context) do
+    #    start_time = System.monotonic_time(:millisecond)
+
+    BroadwayMessage.update_data(message, fn {socket, transport, data} ->
       message =
         data
         |> decode()
@@ -63,6 +46,8 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
         |> encode()
 
       transport.send(socket, message)
+      #      end_time = System.monotnonic_time(:millisecond)
+      #      Logger.debug("Request processed in #{end_time - start_time} ms")
     end)
   end
 
@@ -73,11 +58,6 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
       sender_public_key: sender_public_key
     } = MessageEnvelop.decode(data)
 
-    #    Logger.debug("Receive message #{Message.name(message)}",
-    #      node: Base.encode16(sender_public_key),
-    #      message_id: message_id
-    #    )
-
     MemTable.increase_node_availability(sender_public_key)
     {System.monotonic_time(:millisecond), message_id, message, sender_public_key}
   end
@@ -85,11 +65,6 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
   defp process({_start_time, message_id, message, sender_public_key}) do
     response = Message.process(message)
     # end_time = System.monotonic_time(:millisecond)
-
-    #    Logger.debug("Message #{Message.name(message)} processed in #{end_time - start_time} ms",
-    #      node: Base.encode16(sender_public_key),
-    #      message_id: message_id
-    #    )
 
     {message_id, response, sender_public_key}
   end
