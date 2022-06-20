@@ -696,7 +696,8 @@ defmodule Archethic.Contracts.Interpreter do
          node = [
            {{:atom, "to"}, _to},
            {{:atom, "amount"}, _amount},
-           {{:atom, "nft"}, _nft_address}
+           {{:atom, "nft"}, _nft_address},
+           {{:atom, "nft_id"}, _nft_id}
          ],
          acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
        ) do
@@ -707,7 +708,7 @@ defmodule Archethic.Contracts.Interpreter do
          node = {{:atom, arg}, _},
          acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
        )
-       when arg in ["to", "amount", "nft"],
+       when arg in ["to", "amount", "nft", "nft_id"],
        do: {node, acc}
 
   # Whitelist the add_ownership argument list

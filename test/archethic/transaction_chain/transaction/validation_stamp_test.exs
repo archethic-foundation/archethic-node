@@ -55,7 +55,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
           type <-
             StreamData.one_of([
               StreamData.constant(:UCO),
-              StreamData.tuple({StreamData.constant(:NFT), StreamData.binary(length: 33)})
+              StreamData.tuple(
+                {StreamData.constant(:NFT), StreamData.binary(length: 33),
+                 StreamData.positive_integer()}
+              )
             ])
         ) do
       %TransactionMovement{to: to, amount: amount, type: type}
@@ -69,7 +72,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
           type <-
             StreamData.one_of([
               StreamData.constant(:UCO),
-              StreamData.tuple({StreamData.constant(:NFT), StreamData.binary(length: 33)})
+              StreamData.tuple(
+                {StreamData.constant(:NFT), StreamData.binary(length: 33),
+                 StreamData.positive_integer()}
+              )
             ])
         ) do
       %UnspentOutput{from: from, amount: amount, type: type}

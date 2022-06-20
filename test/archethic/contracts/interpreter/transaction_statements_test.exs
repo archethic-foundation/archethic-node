@@ -1,4 +1,5 @@
 defmodule Archethic.Contracts.Interpreter.TransactionStatementsTest do
+  @moduledoc false
   use ExUnit.Case
 
   alias Archethic.Contracts.Interpreter.TransactionStatements

@@ -376,7 +376,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>      },
       ...>      nft: %NFTLedger{
       ...>        transfers: [
-      ...>          %NFTLedger.Transfer{to: "@Alice1", amount: 3, nft: "@BobNFT"}
+      ...>          %NFTLedger.Transfer{to: "@Alice1", amount: 3, nft: "@BobNFT", nft_id: 0}
       ...>        ]
       ...>      }
       ...>    }
@@ -387,7 +387,7 @@ defmodule Archethic.TransactionChain.Transaction do
           to: "@Alice1", amount: 10, type: :UCO,
         },
         %TransactionMovement{
-          to: "@Alice1", amount: 3, type: {:NFT, "@BobNFT"},
+          to: "@Alice1", amount: 3, type: {:NFT, "@BobNFT", 0},
         }
       ]
   """
@@ -403,7 +403,7 @@ defmodule Archethic.TransactionChain.Transaction do
     Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
       Enum.map(
         nft_transfers,
-        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:NFT, &1.nft}}
+        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:NFT, &1.nft, &1.nft_id}}
       )
   end
 

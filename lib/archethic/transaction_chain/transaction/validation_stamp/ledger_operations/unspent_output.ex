@@ -48,7 +48,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 1_050_000_000,
       ...>    type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
+      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...>  }
       ...>  |> UnspentOutput.serialize()
       <<
@@ -61,7 +61,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       1,
       # NFT address
       0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
+      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
+      # NFT ID
+      0
       >>
   """
   @spec serialize(__MODULE__.t()) :: <<_::64, _::_*8>>
@@ -91,8 +93,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
-      ...> >>
+      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0>>
       ...> |> UnspentOutput.deserialize()
       {
         %UnspentOutput{
@@ -100,7 +101,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 1_050_000_000,
           type: {:NFT, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
+            197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0},
         },
         ""
       }
@@ -120,37 +121,124 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
+  @doc """
+  Build %UnspentOutput struct from map
+
+  ## Examples
+
+      iex> %{
+      ...>  from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+      ...>  159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>  amount: 1_050_000_000,
+      ...>  type: :UCO
+      ...>  } |> UnspentOutput.from_map()
+      %UnspentOutput{
+        from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 1_050_000_000,
+        type: :UCO,
+        reward?: false,
+        timestamp: nil
+      }
+
+
+      iex> %{
+      ...>  from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45,
+      ...>    68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>  amount: 1_050_000_000,
+      ...>  type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...> } |> UnspentOutput.from_map()
+      %UnspentOutput{
+        from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 1_050_000_000,
+        type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0 },
+        reward?: false,
+        timestamp: nil
+      }
+  """
   @spec from_map(map()) :: __MODULE__.t()
   def from_map(unspent_output = %{}) do
-    res = %__MODULE__{
+    %__MODULE__{
       from: Map.get(unspent_output, :from),
-      amount: Map.get(unspent_output, :amount)
+      amount: Map.get(unspent_output, :amount),
+      type: Map.get(unspent_output, :type)
     }
-
-    case Map.get(unspent_output, :type) do
-      "NFT" ->
-        %{res | type: {:NFT, Map.get(unspent_output, :nft_address)}}
-
-      _ ->
-        %{res | type: :UCO}
-    end
   end
 
+  @doc """
+  Convert %UnspentOutput{} Struct to a Map
+
+  ## Examples
+
+      iex> %UnspentOutput{
+      ...> from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...> amount: 1_050_000_000,
+      ...> type: :UCO,
+      ...> reward?: false,
+      ...> timestamp: nil
+      ...> }|> UnspentOutput.to_map()
+      %{
+        from:  <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 1_050_000_000,
+        type: "UCO",
+        reward?: false,
+        timestamp: nil
+      }
+
+
+      iex> %UnspentOutput{
+      ...>  from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45,
+      ...>   68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>  amount: 1_050_000_000,
+      ...>  type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185,
+      ...>  71, 140, 74,  197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0 }
+      ...> } |> UnspentOutput.to_map()
+      %{
+        from: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
+        194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 1_050_000_000,
+        type: "NFT",
+        nft_address: <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
+        140,74,197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
+        nft_id: 0,
+        reward?: false,
+        timestamp: nil
+      }
+
+
+  """
   @spec to_map(t()) :: map()
-  def to_map(%__MODULE__{from: from, amount: amount, type: :UCO}) do
+  def to_map(%__MODULE__{
+        from: from,
+        amount: amount,
+        type: :UCO,
+        reward?: reward,
+        timestamp: timestamp
+      }) do
     %{
       from: from,
       amount: amount,
-      type: "UCO"
+      type: "UCO",
+      reward?: reward,
+      timestamp: timestamp
     }
   end
 
-  def to_map(%__MODULE__{from: from, amount: amount, type: {:NFT, nft_address}}) do
+  def to_map(%__MODULE__{
+        from: from,
+        amount: amount,
+        type: {:NFT, nft_address, nft_id},
+        reward?: reward,
+        timestamp: timestamp
+      }) do
     %{
       from: from,
       amount: amount,
       type: "NFT",
-      nft_address: nft_address
+      nft_address: nft_address,
+      nft_id: nft_id,
+      reward?: reward,
+      timestamp: timestamp
     }
   end
 end

@@ -44,9 +44,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   @doc """
   Build some ledger operations from a specific transaction
-
   ## Examples
-
       iex> LedgerOperations.from_transaction(%LedgerOperations{},
       ...>   %Transaction{
       ...>     address: "@NFT2",
@@ -55,8 +53,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   }
       ...> )
       %LedgerOperations{
-          unspent_outputs: [%UnspentOutput{from: "@NFT2", amount: 100_000_000_000, type: {:NFT, "@NFT2"}}]
-      }
+          unspent_outputs: [
+            %UnspentOutput{
+              from: "@NFT2",
+              amount: 100_000_000_000,
+              type: {:NFT, "@NFT2", 0}
+            }
+             ]
+        }
   """
   @spec from_transaction(t(), Transaction.t()) :: t()
   def from_transaction(ops = %__MODULE__{}, %Transaction{
@@ -75,12 +79,40 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     %{
       ops
       | unspent_outputs: [
-          %UnspentOutput{from: address, amount: initial_supply * @unit_uco, type: {:NFT, address}}
+          %UnspentOutput{
+            from: address,
+            amount: initial_supply * @unit_uco,
+            type: {:NFT, address, 0}
+          }
         ]
     }
   end
 
   def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops
+
+  defp get_token_utxos(%{"type" => "fungible", "supply" => supply}, address) do
+    [
+      %UnspentOutput{
+        from: address,
+        amount: supply * @unit_uco,
+        type: {:NFT, address, 0}
+      }
+    ]
+  end
+
+  defp get_token_utxos(
+         %{"type" => "non-fungible", "supply" => supply, "properties" => properties},
+         address
+       )
+       when length(properties) == supply do
+    properties
+    |> Enum.with_index()
+    |> Enum.map(fn {_item_properties, index} ->
+      %UnspentOutput{from: address, amount: 1 * @unit_uco, type: {:NFT, address, index}}
+    end)
+  end
+
+  defp get_token_utxos(_, _), do: []
 
   @doc """
   Returns the amount to spend from the transaction movements and the fee
@@ -91,12 +123,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    transaction_movements: [
       ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
       ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Charlie2", amount: 2_000_000_000, type: {:NFT, "@TomNFT"}},
+      ...>      %TransactionMovement{to: "@Charlie2", amount: 2_000_000_000, type:
+      ...>      {:NFT, "@TomNFT", 0}},
       ...>    ],
       ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.total_to_spend()
-      %{ uco: 1_297_000_000, nft: %{ "@TomNFT" => 2_000_000_000 } }
+      %{ uco: 1_297_000_000, nft: %{ {"@TomNFT",0} => 2_000_000_000 } }
   """
   @spec total_to_spend(t()) :: %{
           :uco => non_neg_integer(),
@@ -113,8 +146,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       %{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %{type: {:NFT, nft_address}, amount: amount}, acc ->
-        update_in(acc, [:nft, Access.key(nft_address, 0)], &(&1 + amount))
+      %{type: {:NFT, nft_address, nft_id}, amount: amount}, acc ->
+        update_in(acc, [:nft, Access.key({nft_address, nft_id}, 0)], &(&1 + amount))
 
       %{type: :call}, acc ->
         acc
@@ -130,7 +163,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    transaction_movements: [
       ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
       ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT"}}
+      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT", 0}}
       ...>    ],
       ...>    fee: 40_000_000
       ...> }
@@ -141,13 +174,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>    transaction_movements: [
       ...>      %TransactionMovement{to: "@Bob4", amount: 1_040_000_000, type: :UCO},
       ...>      %TransactionMovement{to: "@Charlie2", amount: 217_000_000, type: :UCO},
-      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT"}}
+      ...>      %TransactionMovement{to: "@Tom4", amount: 500_000_000, type: {:NFT, "@BobNFT", 0}}
       ...>    ],
       ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.sufficient_funds?([
       ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@BobNFT"}}
+      ...>     %UnspentOutput{from: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@BobNFT", 0}}
       ...> ])
       true
 
@@ -157,7 +190,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...> }
       ...> |> LedgerOperations.sufficient_funds?([
       ...>     %UnspentOutput{from: "@Charlie5", amount: 3_000_000_000, type: :UCO},
-      ...>     %UnspentOutput{from: "@Bob4", amount: 10_000_000_000, type: {:NFT, "@BobNFT"}}
+      ...>     %UnspentOutput{from: "@Bob4", amount: 10_000_000_000, type: {:NFT, "@BobNFT", 0}}
       ...> ])
       true
   """
@@ -175,8 +208,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   defp sufficient_nfts?(_nfts_received, nfts_to_spend) when map_size(nfts_to_spend) == 0, do: true
 
   defp sufficient_nfts?(nfts_received, nfts_to_spend) do
-    Enum.all?(nfts_to_spend, fn {nft_address, amount_to_spend} ->
-      case Map.get(nfts_received, nft_address) do
+    Enum.all?(nfts_to_spend, fn {nft_key, amount_to_spend} ->
+      case Map.get(nfts_received, nft_key) do
         nil ->
           false
 
@@ -242,52 +275,75 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ]
       }
 
-    # When using NFT unspent outputs are sufficient to satisfy the transaction movements
+     # When using NFT unspent outputs are sufficient to satisfy the transaction movements
 
-      iex> %LedgerOperations{
-      ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
-      ...>    ],
-      ...>    fee: 40_000_000
-      ...> }
-      ...> |> LedgerOperations.consume_inputs("@Alice2", [
-      ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Bob3", amount: 1_200_000_000, type: {:NFT, "@CharlieNFT"}}
-      ...> ])
-      %LedgerOperations{
-          transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
-          ],
-          fee: 40_000_000,
-          unspent_outputs: [
-            %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
-            %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: {:NFT, "@CharlieNFT"}}
-          ]
-      }
+       iex> %LedgerOperations{
+       ...>    transaction_movements: [
+       ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT", 0}}
+       ...>    ],
+       ...>    fee: 40_000_000
+       ...> }
+       ...> |> LedgerOperations.consume_inputs("@Alice2", [
+       ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+       ...>    %UnspentOutput{from: "@Bob3", amount: 1_200_000_000, type: {:NFT, "@CharlieNFT", 0}}
+       ...> ])
+       %LedgerOperations{
+           transaction_movements: [
+             %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT", 0}}
+           ],
+           fee: 40_000_000,
+           unspent_outputs: [
+             %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
+             %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: {:NFT, "@CharlieNFT", 0}}
+           ]
+       }
 
     #  When multiple NFT unspent outputs are sufficient to satisfy the transaction movements
 
       iex> %LedgerOperations{
       ...>    transaction_movements: [
-      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
+      ...>      %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT", 0}}
       ...>    ],
       ...>    fee: 40_000_000
       ...> }
       ...> |> LedgerOperations.consume_inputs("@Alice2", [
       ...>    %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
-      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: {:NFT, "@CharlieNFT"}},
-      ...>    %UnspentOutput{from: "@Hugo5", amount: 700_000_000, type: {:NFT, "@CharlieNFT"}},
-      ...>    %UnspentOutput{from: "@Tom1", amount: 700_000_000, type: {:NFT, "@CharlieNFT"}}
+      ...>    %UnspentOutput{from: "@Bob3", amount: 500_000_000, type: {:NFT, "@CharlieNFT", 0}},
+      ...>    %UnspentOutput{from: "@Hugo5", amount: 700_000_000, type: {:NFT, "@CharlieNFT", 0}},
+      ...>    %UnspentOutput{from: "@Tom1", amount: 700_000_000, type: {:NFT, "@CharlieNFT", 0}}
       ...> ])
       %LedgerOperations{
           transaction_movements: [
-            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
+            %TransactionMovement{to: "@Bob4", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT", 0}}
           ],
           fee: 40_000_000,
           unspent_outputs: [
             %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
-            %UnspentOutput{from: "@Alice2", amount: 900_000_000, type: {:NFT, "@CharlieNFT"}}
+            %UnspentOutput{from: "@Alice2", amount: 900_000_000, type: {:NFT, "@CharlieNFT", 0}}
           ]
+      }
+
+      iex> %LedgerOperations{
+      ...>   transaction_movements: [
+      ...>     %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}}
+      ...> ],
+      ...>   fee: 40_000_000
+      ...> } |> LedgerOperations.consume_inputs("@Alice2", [
+      ...>     %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
+      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 0}},
+      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}},
+      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
+      ...> ])
+      %LedgerOperations{
+        fee: 40_000_000,
+        transaction_movements: [
+          %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}}
+        ],
+        unspent_outputs: [
+          %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
+          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 0}},
+          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
+        ]
       }
   """
   @spec consume_inputs(
@@ -304,7 +360,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       new_unspent_outputs = [
         %UnspentOutput{from: change_address, amount: uco_balance - uco_to_spend, type: :UCO}
-        | new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address)
+        | new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address, inputs)
       ]
 
       Map.update!(ops, :unspent_outputs, &(new_unspent_outputs ++ &1))
@@ -313,21 +369,34 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
-  defp new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address) do
-    Enum.reduce(nfts_to_spend, [], fn {nft_address, amount_to_spend}, acc ->
-      case Map.get(nfts_received, nft_address) do
+  defp new_nft_unspent_outputs(nfts_received, nfts_to_spend, change_address, inputs) do
+    # Reject NFT not used to inject back in the new unspent outputs
+    nfts_not_used =
+      nfts_received
+      |> Enum.reject(&Map.has_key?(nfts_to_spend, elem(&1, 0)))
+      |> Enum.map(fn {{nft_address, nft_id}, amount} ->
+        Enum.find(inputs, fn input ->
+          input.type == {:NFT, nft_address, nft_id} and input.amount == amount
+        end)
+      end)
+
+    Enum.reduce(nfts_to_spend, nfts_not_used, fn {{nft_address, nft_id}, amount_to_spend}, acc ->
+      case Map.get(nfts_received, {nft_address, nft_id}) do
         nil ->
           acc
 
-        recv_amount ->
+        recv_amount when recv_amount - amount_to_spend > 0 ->
           [
             %UnspentOutput{
               from: change_address,
               amount: recv_amount - amount_to_spend,
-              type: {:NFT, nft_address}
+              type: {:NFT, nft_address, nft_id}
             }
             | acc
           ]
+
+        _ ->
+          acc
       end
     end)
   end

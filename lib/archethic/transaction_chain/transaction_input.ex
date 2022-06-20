@@ -161,7 +161,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
             res
 
           nft_address ->
-            %{res | type: {:NFT, nft_address}}
+            %{res | type: {:NFT, nft_address, Map.get(input, :nft_id)}}
         end
 
       :call ->
@@ -195,7 +195,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
         amount: amount,
         from: from,
         spent?: spent?,
-        type: {:NFT, nft_address},
+        type: {:NFT, nft_address, nft_id},
         timestamp: timestamp
       }) do
     %{
@@ -203,6 +203,7 @@ defmodule Archethic.TransactionChain.TransactionInput do
       from: from,
       type: :NFT,
       nft_address: nft_address,
+      nft_id: nft_id,
       spent: spent?,
       reward: false,
       timestamp: timestamp

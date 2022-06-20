@@ -6,6 +6,6 @@ defmodule Archethic.P2P.Message.Balance do
 
   @type t :: %__MODULE__{
           uco: non_neg_integer(),
-          nft: %{binary() => non_neg_integer()}
+          nft: %{{binary(), non_neg_integer()} => non_neg_integer()}
         }
 end

@@ -66,9 +66,10 @@ defmodule Archethic.Contracts.Contract.Constants do
         |> Enum.map(fn %NFTTransfer{
                          to: to,
                          amount: amount,
-                         nft: nft_address
+                         nft: nft_address,
+                         nft_id: nft_id
                        } ->
-          %{"to" => to, "amount" => amount, "nft" => nft_address}
+          %{"to" => to, "amount" => amount, "nft" => nft_address, "nft_id" => nft_id}
         end)
     }
   end
@@ -113,8 +114,8 @@ defmodule Archethic.Contracts.Contract.Constants do
             transfers:
               constants
               |> Map.get("nft_transfers", [])
-              |> Enum.map(fn %{"to" => to, "amount" => amount, "nft" => nft} ->
-                %NFTTransfer{to: to, amount: amount, nft: nft}
+              |> Enum.map(fn %{"to" => to, "amount" => amount, "nft" => nft, "nft_id" => nft_id} ->
+                %NFTTransfer{to: to, amount: amount, nft: nft, nft_id: nft_id}
               end)
           }
         }

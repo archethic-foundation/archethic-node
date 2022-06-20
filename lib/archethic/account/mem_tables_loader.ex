@@ -95,13 +95,13 @@ defmodule Archethic.Account.MemTablesLoader do
           timestamp
         )
 
-      %TransactionMovement{to: to, amount: amount, type: {:NFT, nft_address}} ->
+      %TransactionMovement{to: to, amount: amount, type: {:NFT, nft_address, nft_id}} ->
         NFTLedger.add_unspent_output(
           to,
           %UnspentOutput{
             amount: amount,
             from: address,
-            type: {:NFT, nft_address}
+            type: {:NFT, nft_address, nft_id}
           },
           timestamp
         )
@@ -115,7 +115,7 @@ defmodule Archethic.Account.MemTablesLoader do
       unspent_output = %UnspentOutput{type: :UCO} ->
         UCOLedger.add_unspent_output(address, unspent_output, timestamp)
 
-      unspent_output = %UnspentOutput{type: {:NFT, _nft_address}} ->
+      unspent_output = %UnspentOutput{type: {:NFT, _nft_address, _nft_id}} ->
         NFTLedger.add_unspent_output(address, unspent_output, timestamp)
     end)
   end
