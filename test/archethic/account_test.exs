@@ -1,4 +1,5 @@
 defmodule Archethic.AccountTest do
+  @moduledoc false
   use ExUnit.Case
 
   alias Archethic.Account

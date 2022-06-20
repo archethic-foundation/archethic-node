@@ -1,4 +1,5 @@
 defmodule Archethic.TransactionChain.TransactionTest do
+  @moduledoc false
   use ArchethicCase, async: false
 
   alias Archethic.Crypto

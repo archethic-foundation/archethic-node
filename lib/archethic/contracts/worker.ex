@@ -421,8 +421,6 @@ defmodule Archethic.Contracts.Worker do
     with true <- uco_balance > uco_to_transfer + tx_fee,
          true <-
            Enum.all?(nft_to_transfer, fn {{t_nft_address, t_nft_id}, t_amount} ->
-             #  Dont understand the part wher we are looking for :nft in %{{nft_address, nft_id} => amount}}
-             #  %{amount: balance} = Enum.find(nft_balances, &(Map.get(&1, :nft) == {nft_address, nft_id}))
              {{_nft_address, _nft_id}, balance} =
                Enum.find(nft_balances, fn {{f_nft_address, f_nft_id}, _f_amount} ->
                  f_nft_address == t_nft_address and f_nft_id == t_nft_id

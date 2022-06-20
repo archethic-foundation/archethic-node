@@ -141,7 +141,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                                           {"nft",
                                            <<174, 180, 166, 245, 171, 109, 130, 190, 34, 60, 88,
                                              103, 235, 165, 254, 97, 111, 82, 244, 16, 220, 248,
-                                             59, 69, 175, 241, 88, 221, 64, 174, 138, 195>>}
+                                             59, 69, 175, 241, 88, 221, 64, 174, 138, 195>>},
+                                          {"nft_id", 0}
                                         ]
                                       ]
                                     }
@@ -275,7 +276,8 @@ defmodule Archethic.Contracts.InterpreterTest do
                actions triggered_by: transaction do
                  set_type transfer
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
-                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\"
+                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\", nft_id:
+                 0
                  set_content \"Receipt\"
                  add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"]
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
@@ -540,7 +542,7 @@ defmodule Archethic.Contracts.InterpreterTest do
 
           # Send the new transaction
           set_type transfer
-          add_nft_transfer to: transaction.address, nft: contract.address, amount: token_to_credit
+          add_nft_transfer to: transaction.address, nft: contract.address, amount: token_to_credit, nft_id: nft_id
         end
       end
       """
@@ -578,7 +580,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       {:ok, %Contract{conditions: %{transaction: conditions}}} =
         ~s"""
         condition transaction: [
-          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4" 
+          address: get_genesis_address() == "64F05F5236088FC64D1BB19BD13BC548F1C49A42432AF02AD9024D8A2990B2B4"
 
         ]
         """
