@@ -1,5 +1,4 @@
 defmodule Archethic.UtilsTest do
-
   @moduledoc false
   use ExUnit.Case
 
