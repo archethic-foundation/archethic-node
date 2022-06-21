@@ -317,7 +317,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     network_address = SharedSecrets.get_network_pool_address()
 
-    assert %{nft: %{^network_address => 100_000_000_000_000}} =
+    assert %{nft: %{^network_address => 3_400_000_000_000_000}} =
              Account.get_balance(network_address)
   end
 
