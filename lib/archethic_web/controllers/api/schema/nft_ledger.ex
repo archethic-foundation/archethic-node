@@ -11,7 +11,7 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
       field(:to, Address)
       field(:amount, :integer)
       field(:nft, Address)
-      field(:nft_id, :integer, default: 0)
+      field(:nft_id, :integer)
     end
   end
 
