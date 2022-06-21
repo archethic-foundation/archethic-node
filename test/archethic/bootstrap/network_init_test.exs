@@ -271,8 +271,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     |> elem(0)
     |> NetworkLookup.set_daily_nonce_public_key(DateTime.utc_now() |> DateTime.add(-10))
 
-    NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
-
     assert :ok = NetworkInit.init_genesis_wallets()
 
     genesis_pools = Application.get_env(:archethic, NetworkInit)[:genesis_pools]
@@ -280,9 +278,47 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     assert Enum.all?(genesis_pools, fn %{address: address, amount: amount} ->
              match?(%{uco: ^amount}, Account.get_balance(address))
            end)
+  end
 
-    assert %{uco: 146_000_000_000_000_000} =
-             Account.get_balance(SharedSecrets.get_network_pool_address())
+  test "init_network_reward_pool/1 should initialize genesis wallets" do
+    MockClient
+    |> stub(:send_message, fn
+      _, %GetTransaction{}, _ ->
+        {:ok, %NotFound{}}
+
+      _, %GetTransactionChain{}, _ ->
+        {:ok, %TransactionList{transactions: [], more?: false, paging_state: nil}}
+
+      _, %GetTransactionInputs{}, _ ->
+        {:ok, %TransactionInputList{inputs: []}}
+
+      _, %GetLastTransactionAddress{address: address}, _ ->
+        {:ok, %LastTransactionAddress{address: address}}
+    end)
+
+    network_pool_seed = :crypto.strong_rand_bytes(32)
+
+    {_, pv} = Crypto.generate_deterministic_keypair(network_pool_seed)
+
+    {pub, _} = Crypto.derive_keypair(network_pool_seed, 1)
+
+    NetworkLookup.set_network_pool_address(Crypto.derive_address(pub))
+
+    MockCrypto
+    |> expect(:sign_with_network_pool_key, fn data, _ ->
+      Crypto.sign(data, pv)
+    end)
+    |> stub(:network_pool_public_key, fn index ->
+      {pub, _} = Crypto.derive_keypair(network_pool_seed, index)
+      pub
+    end)
+
+    assert :ok = NetworkInit.init_network_reward_pool()
+
+    network_address = SharedSecrets.get_network_pool_address()
+
+    assert %{nft: %{^network_address => 100_000_000_000_000}} =
+             Account.get_balance(network_address)
   end
 
   test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do
