@@ -11,7 +11,11 @@ defmodule ArchethicWeb.DashboardLive do
       Archethic.Metrics.Poller.monitor()
     end
 
-    {:ok, socket}
+    version = Application.spec(:archethic, :vsn)
+
+    new_socket = socket |> assign(%{version: version})
+
+    {:ok, new_socket}
   end
 
   def handle_info({:update_data, data}, socket) do
