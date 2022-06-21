@@ -16,7 +16,8 @@ defmodule ArchethicWeb.GraphQLSchema.AddressType do
 
   @spec parse_address(Absinthe.Blueprint.Input.String.t()) :: {:ok, binary()} | :error
   defp parse_address(%Absinthe.Blueprint.Input.String{value: address}) do
-    with {:ok, addr} <- Base.decode16(address, case: :mixed),
+    with true <- String.length(address) > 0,
+         {:ok, addr} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(addr) do
       {:ok, addr}
     else

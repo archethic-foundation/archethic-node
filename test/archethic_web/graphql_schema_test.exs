@@ -267,6 +267,16 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert Enum.slice(transactions, slice_range)
              |> Enum.map(&%{"address" => Base.encode16(&1.address)}) == recv_transactions
     end
+
+    test "should return error on 0 length address argument", %{conn: conn} do
+      conn =
+        post(conn, "/api", %{
+          "query" => "query { transactionChain(address: \"\") { address } }"
+        })
+
+      %{"errors" => [%{"message" => message}]} = json_response(conn, 200)
+      assert message |> String.starts_with?("Argument \"address\" has invalid value \"\"")
+    end
   end
 
   describe "query: balance" do
