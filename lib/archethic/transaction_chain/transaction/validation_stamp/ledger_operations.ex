@@ -49,17 +49,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   %Transaction{
       ...>     address: "@NFT2",
       ...>     type: :nft,
-      ...>     data: %TransactionData{content: "initial supply: 1000"}
+      ...>     data: %TransactionData{content: "initial supply: 3"}
       ...>   }
       ...> )
       %LedgerOperations{
           unspent_outputs: [
-            %UnspentOutput{
-              from: "@NFT2",
-              amount: 100_000_000_000,
-              type: {:NFT, "@NFT2", 0}
-            }
-             ]
+            %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 0}},
+            %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 1}},
+            %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 2}}
+          ]
         }
   """
   @spec from_transaction(t(), Transaction.t()) :: t()
@@ -76,16 +74,16 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       |> String.replace(" ", "")
       |> Integer.parse()
 
-    %{
-      ops
-      | unspent_outputs: [
-          %UnspentOutput{
-            from: address,
-            amount: initial_supply * @unit_uco,
-            type: {:NFT, address, 0}
-          }
-        ]
-    }
+    unspent_outputs =
+      Enum.with_index(Enum.to_list(0..(initial_supply - 1)), fn _element, index ->
+        %UnspentOutput{
+          from: address,
+          amount: @unit_uco,
+          type: {:NFT, address, index}
+        }
+      end)
+
+    %{ops | unspent_outputs: unspent_outputs}
   end
 
   def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops
