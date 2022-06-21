@@ -122,6 +122,7 @@ defmodule Archethic.Bootstrap.Sync do
     NetworkInit.init_software_origin_chain()
     NetworkInit.init_node_shared_secrets_chain()
     NetworkInit.init_genesis_wallets()
+    NetworkInit.init_network_reward_pool()
   end
 
   @doc """

@@ -42,7 +42,8 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
         |> Base.decode16!(case: :mixed),
       amount: 1_000_000_000_000_000
     }
-  ]
+  ],
+  genesis_network_pool_amount: 1_000_000
 
 config :archethic, Archethic.Bootstrap.Sync, out_of_sync_date_threshold: 60
 

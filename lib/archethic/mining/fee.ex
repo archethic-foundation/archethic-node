@@ -7,7 +7,9 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.Crypto
 
+  alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
@@ -30,12 +32,17 @@ defmodule Archethic.Mining.Fee do
   def calculate(
         tx = %Transaction{
           address: address,
-          type: type
+          type: type,
+          previous_public_key: previous_public_key
         },
         uco_price_in_usd
       ) do
     cond do
       address == Bootstrap.genesis_address() ->
+        0
+
+      TransactionChain.get_first_public_key(previous_public_key) ==
+          Crypto.network_pool_public_key(0) ->
         0
 
       true == Transaction.network_type?(type) ->

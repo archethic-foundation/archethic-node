@@ -122,6 +122,24 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   @doc """
+  Create a new pending transaction using the Crypto keystore to find out
+  the seed and the transaction index for the nft reward minting
+  """
+  @spec new_nft_reward(data :: TransactionData.t()) :: t()
+  def new_nft_reward(data = %TransactionData{}) do
+    {previous_public_key, next_public_key} = get_network_public_key()
+
+    %__MODULE__{
+      address: Crypto.derive_address(next_public_key),
+      type: :nft,
+      data: data,
+      previous_public_key: previous_public_key
+    }
+    |> previous_network_sign_transaction()
+    |> origin_sign_transaction()
+  end
+
+  @doc """
   Create a new pending transaction
 
   The first node private key is used as origin private key
@@ -182,15 +200,19 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp get_transaction_public_keys(:node_rewards) do
-    key_index = Crypto.number_of_network_pool_keys()
-    previous_public_key = Crypto.network_pool_public_key(key_index)
-    next_public_key = Crypto.network_pool_public_key(key_index + 1)
-    {previous_public_key, next_public_key}
+    get_network_public_key()
   end
 
   defp get_transaction_public_keys(_) do
     previous_public_key = Crypto.previous_node_public_key()
     next_public_key = Crypto.next_node_public_key()
+    {previous_public_key, next_public_key}
+  end
+
+  defp get_network_public_key() do
+    key_index = Crypto.number_of_network_pool_keys()
+    previous_public_key = Crypto.network_pool_public_key(key_index)
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
     {previous_public_key, next_public_key}
   end
 
@@ -207,15 +229,7 @@ defmodule Archethic.TransactionChain.Transaction do
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{type: :node_rewards}) do
-    key_index = Crypto.number_of_network_pool_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_network_pool_key(key_index)
-
-    %{tx | previous_signature: previous_signature}
+    previous_network_sign_transaction(tx)
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{}) do
@@ -224,6 +238,18 @@ defmodule Archethic.TransactionChain.Transaction do
       |> extract_for_previous_signature()
       |> serialize()
       |> Crypto.sign_with_previous_node_key()
+
+    %{tx | previous_signature: previous_signature}
+  end
+
+  defp previous_network_sign_transaction(tx = %__MODULE__{}) do
+    key_index = Crypto.number_of_network_pool_keys()
+
+    previous_signature =
+      tx
+      |> extract_for_previous_signature()
+      |> serialize()
+      |> Crypto.sign_with_network_pool_key(key_index)
 
     %{tx | previous_signature: previous_signature}
   end
