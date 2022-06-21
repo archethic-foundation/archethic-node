@@ -12,8 +12,8 @@ defmodule ArchethicWeb.DashboardLive do
     end
 
     version = Application.spec(:archethic, :vsn)
-    applications = Application.spec(:archethic, :applications)
-    new_socket = socket |> assign(%{version: version, applications: applications})
+
+    new_socket = socket |> assign(%{version: version})
 
     {:ok, new_socket}
   end
