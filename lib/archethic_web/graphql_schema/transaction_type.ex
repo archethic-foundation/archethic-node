@@ -78,7 +78,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:to, :address)
     field(:amount, :amount)
     field(:nft, :address)
-    field(:nft_id, :nft_id)
+    field(:nft_id, :integer)
   end
 
   @desc "[UCOLedger] represents the transfers to perform on the UCO ledger"
@@ -159,7 +159,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :address)
-    field(:nft_id, :nft_id)
+    field(:nft_id, :integer)
   end
 
   @desc """
@@ -179,7 +179,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:nft_address, :address)
     field(:spent, :boolean)
     field(:timestamp, :timestamp)
-    field(:nft_id, :nft_id)
+    field(:nft_id, :integer)
   end
 
   @desc """
@@ -195,7 +195,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:amount, :amount)
     field(:type, :string)
     field(:nft_address, :address)
-    field(:nft_id, :nft_id)
+    field(:nft_id, :integer)
   end
 
   @desc """
@@ -229,7 +229,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   object :nft_balance do
     field(:address, :address)
     field(:amount, :amount)
-    field(:nft_id, :nft_id)
+    field(:nft_id, :integer)
   end
 
   @desc """

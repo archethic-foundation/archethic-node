@@ -1,4 +1,5 @@
 defmodule Archethic.Contracts.InterpreterTest do
+  @moduledoc false
   use ArchethicCase
 
   alias Archethic.Contracts.Contract
@@ -276,8 +277,7 @@ defmodule Archethic.Contracts.InterpreterTest do
                actions triggered_by: transaction do
                  set_type transfer
                  add_uco_transfer to: \"7F6661ACE282F947ACA2EF947D01BDDC90C65F09EE828BDADE2E3ED4258470B3\", amount: 1040000000
-                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\", nft_id:
-                 0
+                 add_nft_transfer to: \"30670455713E2CBECF94591226A903651ED8625635181DDA236FECC221D1E7E4\", amount: 20000000000, nft: \"AEB4A6F5AB6D82BE223C5867EBA5FE616F52F410DCF83B45AFF158DD40AE8AC3\", nft_id: 0
                  set_content \"Receipt\"
                  add_ownership secret: \"MyEncryptedSecret\", secret_key: \"MySecretKey\", authorized_public_keys: ["70C245E5D970B59DF65638BDD5D963EE22E6D892EA224D8809D0FB75D0B1907A"]
                  add_recipient \"78273C5CBCEB8617F54380CC2F173DF2404DB676C9F10D546B6F395E6F3BDDEE\"
@@ -528,7 +528,7 @@ defmodule Archethic.Contracts.InterpreterTest do
       condition inherit: [
       type: transfer,
       uco_transfers: size() == 1
-      # TODO: to provide more security, we should check the destination address is within the previous transaction inputs
+      # TODO: to provide more security, we should check the destidnation address is within the previous transaction inputs
       ]
 
 
