@@ -14,7 +14,8 @@
       <nav class="navbar is-transparent" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
           <a class="navbar-item is-size-5 is-uppercase" href="<%= Routes.live_path(@conn, ArchethicWeb.ExplorerIndexLive) %>">
-            Archethic
+            <img src="https://raw.githubusercontent.com/archethic-foundation/archethic-assets/main/assets/logos/references_svg/Archethic%20Public%20Blockchain%20-%20White.svg" alt="archethic_logo"/>
+            <%# <img src="<%= Routes.static_path(@conn, "/logo_full_white.svg") >" alt="archethic_logo"/> %>
           </a>
           <a role="button" class="navbar-burger burger" aria-label="menu" aria-expanded="false" data-target="navbar">
             <span aria-hidden="true"></span>
