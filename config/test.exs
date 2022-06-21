@@ -32,7 +32,7 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
       amount: 1_000_000_000_000_000
     }
   ],
-  genesis_network_pool_amount: 1_000_000
+  genesis_network_pool_amount: 34_000_000
 
 config :archethic, Archethic.Contracts.Loader, enabled: false
 
