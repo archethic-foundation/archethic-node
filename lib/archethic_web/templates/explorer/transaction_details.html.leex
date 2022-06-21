@@ -343,17 +343,6 @@
                                                     <% end %>
                                                 </div>
                                             </div>
-                                            <%= case movement.type do %>
-                                                       <% :UCO -> %>
-                                                       <% {:NFT, _nft_address, nft_id} -> %>
-                                                                 <div class="columns">
-                                                                 <div class="column is-1 heading">ID</div>
-                                                                    <div class="column">
-                                                                    <span><%= nft_id%></span>
-                                                                </div>
-                                                            </div>
-                                            <% end %>
-
                                         </div>
                                         <% end %>
                                     </div>
@@ -390,17 +379,6 @@
                                                     <% end %>
                                                 </div>
                                             </div>
-                                            <%= case unspent_output.type do %>
-                                                       <% :UCO -> %>
-                                                       <% {:NFT, _nft_address, nft_id} -> %>
-                                                                 <div class="columns">
-                                                                 <div class="column is-1 heading">ID</div>
-                                                                    <div class="column">
-                                                                    <span><%= nft_id%></span>
-                                                                </div>
-                                                            </div>
-                                            <% end %>
-
                                         </div>
                                         <% end %>
                                     </div>
@@ -519,18 +497,6 @@
                                           <div class="column"><%= to_float(input.amount) %></div>
                                       </div>
                                     </div>
-                                       <%= case input.type do %>
-                                             <% :UCO -> %>
-                                              <% {:NFT, _nft_address, nft_id} -> %>
-                                                <div class="column is-1-desktop">
-                                                    <div class="columns">
-                                                        <div class="column heading">ID</div>
-                                                    </div>
-                                                    <div class="columns">
-                                                        <div class="column"><%= nft_id %></div>
-                                                    </div>
-                                               </div>
-                                       <% end %>
                                     <div class="column">
                                       <div class="columns">
                                         <div class="column heading">Asset type</div>
@@ -544,6 +510,7 @@
                                                   <span class="tag is-info is-light">Mining reward</span>
                                                 <% end %>
                                              <% {:NFT, nft_address, _nft_id} -> %>
+                                                <div class="columns">
                                                   <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
                                                   <div class="column is-4-desktop">
                                                     <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
@@ -556,7 +523,6 @@
                                          </div>
                                        </div>
                                     </div>
-
                                 </div>
                               </div>
                             <% end %>
