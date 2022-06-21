@@ -22,25 +22,24 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
     {
       %{
         "UCO Transfer single recipient" => fn ->
-          benchee(host,port)
+          benchee(host, port)
         end
       },
       [parallel: 4]
     }
   end
 
-  def benchee(host,port) do
+  def benchee(host, port) do
     {ss, rs} = get_random_seed()
     {sa, _ra} = {ss, rs} |> get_address()
 
-    allocate_funds(sa,host,port)
+    allocate_funds(sa, host, port)
 
     Task.async_stream(Enum.to_list(1..100), fn _x ->
       build_txn(ss, rs)
       |> deploy()
     end)
   end
-
 
   def get_random_seed() do
     {Integer.to_string(System.unique_integer([:monotonic])),
@@ -64,14 +63,14 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
   end
 
   def allocate_funds(recipient_address, host, port) do
-    Playbook.send_funds_to(recipient_address,host, port)
+    Playbook.send_funds_to(recipient_address, host, port)
   end
 
   def deploy(txn) do
     case Archethic.send_new_transaction(txn) do
       :ok ->
         {:ok, txn.address}
-        Logger.critical("success #{inspect txn.address}")
+        Logger.critical("success #{inspect(txn.address)}")
 
       {:error, _} = e ->
         e
@@ -114,5 +113,4 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
       }
     }
   end
-
 end
