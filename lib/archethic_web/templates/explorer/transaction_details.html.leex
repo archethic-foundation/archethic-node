@@ -169,6 +169,7 @@
                                         </div>
                                         <% end %>
                                     </div>
+                                    <%# nft ops %>
                                     <div x-show="data_section=='nft_ledger' ">
                                         <p class="heading mb-4">NFT Ledger</p>
                                         <%= if Enum.count(@transaction.data.ledger.nft.transfers) == 0 do %>
@@ -187,6 +188,10 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column"><%= to_float(transfer.amount) %></div>
+                                            </div>
+                                            <div class="columns">
+                                                <div class="column is-1 heading">ID</div>
+                                                <div class="column"><%= transfer.nft_id %></div>
                                             </div>
                                             <div class="columns">
                                                 <div class="column is-1 heading">NFT</div>
@@ -323,6 +328,19 @@
                                                     <% end %>
                                                 </div>
                                             </div>
+                                                <%# nft ops %>
+                                            <%= case movement.type do %>
+                                                <% {:NFT, _nft_address, nft_id} -> %>
+                                                        <div class="columns">
+                                                            <div class="column is-1 heading">ID</div>
+                                                             <div class="column">
+                                                                <span class="tag is-primary is-light ml-2">
+                                                                  <%= nft_id %>
+                                                                </span>
+                                                            </div>
+                                                 <% _ -> %>
+                                            <% end %>
+
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
@@ -360,6 +378,7 @@
                                                     <% end %>
                                                 </div>
                                             </div>
+
                                             <div class="columns">
                                                 <div class="column is-1 heading">Amount</div>
                                                 <div class="column">
@@ -379,6 +398,18 @@
                                                     <% end %>
                                                 </div>
                                             </div>
+                                                <%# nft ops %>
+                                            <%= case unspent_output.type do %>
+                                                <% {:NFT, _nft_address, nft_id} -> %>
+                                                        <div class="columns">
+                                                            <div class="column is-1 heading">ID</div>
+                                                             <div class="column">
+                                                                <span class="tag is-primary is-light ml-2">
+                                                                  <%= nft_id %>
+                                                                </span>
+                                                            </div>
+                                                 <% _ -> %>
+                                            <% end %>
                                         </div>
                                         <% end %>
                                     </div>
@@ -497,6 +528,20 @@
                                           <div class="column"><%= to_float(input.amount) %></div>
                                       </div>
                                     </div>
+                                      <%# nft ops %>
+                                            <%= case input.type do %>
+                                                <% {:NFT, _nft_address, nft_id} -> %>
+                                                         <div class="column is-1-desktop">
+                                                            <div class="columns">
+                                                                    <div class="column heading">ID</div>
+                                                            </div>
+                                                            <div class="columns">
+                                                                    <div class="column"><%= nft_id %></div>
+                                                            </div>
+                                                        </div>
+                                                 <% _ -> %>
+                                            <% end %>
+
                                     <div class="column">
                                       <div class="columns">
                                         <div class="column heading">Asset type</div>
