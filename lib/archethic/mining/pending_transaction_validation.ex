@@ -118,6 +118,17 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
+         type: :mint_rewards,
+         data: %TransactionData{content: content}
+       }) do
+    if Regex.match?(~r/(?<=initial supply:).*\d/mi, content) do
+      :ok
+    else
+      {:error, "Invalid mint rewards content"}
+    end
+  end
+
+  defp do_accept_transaction(%Transaction{
          type: :node,
          data: %TransactionData{
            content: content

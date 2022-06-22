@@ -39,7 +39,10 @@ defmodule Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl do
 
     Logger.info("Node shared secrets keys positioned at #{nb_node_shared_secrets_keys}")
 
-    nb_network_pool_keys = TransactionChain.count_transactions_by_type(:node_rewards)
+    nb_network_pool_keys =
+      TransactionChain.count_transactions_by_type(:node_rewards) +
+        TransactionChain.count_transactions_by_type(:mint_rewards)
+
     Logger.info("Network pool keys positioned at #{nb_network_pool_keys}")
 
     :ets.insert(@keystore_table, {:shared_secrets_index, nb_node_shared_secrets_keys})

@@ -63,6 +63,7 @@ defmodule Archethic.TransactionChain.Transaction do
           :node
           | :node_shared_secrets
           | :node_rewards
+          | :mint_rewards
           | :beacon
           | :beacon_summary
           | :oracle
@@ -84,6 +85,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :oracle,
     :oracle_summary,
     :node_rewards,
+    :mint_rewards,
     :code_proposal,
     :code_approval,
     :keychain,
@@ -118,24 +120,6 @@ defmodule Archethic.TransactionChain.Transaction do
       previous_public_key: previous_public_key
     }
     |> previous_sign_transaction()
-    |> origin_sign_transaction()
-  end
-
-  @doc """
-  Create a new pending transaction using the Crypto keystore to find out
-  the seed and the transaction index for the nft reward minting
-  """
-  @spec new_nft_reward(data :: TransactionData.t()) :: t()
-  def new_nft_reward(data = %TransactionData{}) do
-    {previous_public_key, next_public_key} = get_network_public_key()
-
-    %__MODULE__{
-      address: Crypto.derive_address(next_public_key),
-      type: :nft,
-      data: data,
-      previous_public_key: previous_public_key
-    }
-    |> previous_network_sign_transaction()
     |> origin_sign_transaction()
   end
 
@@ -199,20 +183,16 @@ defmodule Archethic.TransactionChain.Transaction do
     {previous_public_key, next_public_key}
   end
 
-  defp get_transaction_public_keys(:node_rewards) do
-    get_network_public_key()
+  defp get_transaction_public_keys(type) when type in [:node_rewards, :mint_rewards] do
+    key_index = Crypto.number_of_network_pool_keys()
+    previous_public_key = Crypto.network_pool_public_key(key_index)
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    {previous_public_key, next_public_key}
   end
 
   defp get_transaction_public_keys(_) do
     previous_public_key = Crypto.previous_node_public_key()
     next_public_key = Crypto.next_node_public_key()
-    {previous_public_key, next_public_key}
-  end
-
-  defp get_network_public_key() do
-    key_index = Crypto.number_of_network_pool_keys()
-    previous_public_key = Crypto.network_pool_public_key(key_index)
-    next_public_key = Crypto.network_pool_public_key(key_index + 1)
     {previous_public_key, next_public_key}
   end
 
@@ -228,8 +208,17 @@ defmodule Archethic.TransactionChain.Transaction do
     %{tx | previous_signature: previous_signature}
   end
 
-  defp previous_sign_transaction(tx = %__MODULE__{type: :node_rewards}) do
-    previous_network_sign_transaction(tx)
+  defp previous_sign_transaction(tx = %__MODULE__{type: type})
+       when type in [:node_rewards, :mint_rewards] do
+    key_index = Crypto.number_of_network_pool_keys()
+
+    previous_signature =
+      tx
+      |> extract_for_previous_signature()
+      |> serialize()
+      |> Crypto.sign_with_network_pool_key(key_index)
+
+    %{tx | previous_signature: previous_signature}
   end
 
   defp previous_sign_transaction(tx = %__MODULE__{}) do
@@ -238,18 +227,6 @@ defmodule Archethic.TransactionChain.Transaction do
       |> extract_for_previous_signature()
       |> serialize()
       |> Crypto.sign_with_previous_node_key()
-
-    %{tx | previous_signature: previous_signature}
-  end
-
-  defp previous_network_sign_transaction(tx = %__MODULE__{}) do
-    key_index = Crypto.number_of_network_pool_keys()
-
-    previous_signature =
-      tx
-      |> extract_for_previous_signature()
-      |> serialize()
-      |> Crypto.sign_with_network_pool_key(key_index)
 
     %{tx | previous_signature: previous_signature}
   end
@@ -334,6 +311,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def serialize_type(:code_proposal), do: 7
   def serialize_type(:code_approval), do: 8
   def serialize_type(:node_rewards), do: 9
+  def serialize_type(:mint_rewards), do: 10
 
   # User transaction's type
   def serialize_type(:keychain), do: 255
@@ -357,6 +335,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def parse_type(7), do: :code_proposal
   def parse_type(8), do: :code_approval
   def parse_type(9), do: :node_rewards
+  def parse_type(10), do: :mint_rewards
 
   # User transaction's type
   def parse_type(255), do: :keychain
@@ -377,6 +356,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def network_type?(:oracle), do: true
   def network_type?(:oracle_summary), do: true
   def network_type?(:node_rewards), do: true
+  def network_type?(:mint_rewards), do: true
   def network_type?(_), do: false
 
   @doc """

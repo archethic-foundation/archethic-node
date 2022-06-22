@@ -153,7 +153,7 @@ defmodule Archethic.Bootstrap.NetworkInit do
       """
     }
 
-    tx = %Transaction{address: address} = Transaction.new_nft_reward(data)
+    tx = %Transaction{address: address} = Transaction.new(:mint_rewards, data)
 
     tx
     |> self_validation([

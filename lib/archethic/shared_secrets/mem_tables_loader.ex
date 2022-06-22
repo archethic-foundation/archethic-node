@@ -138,7 +138,8 @@ defmodule Archethic.SharedSecrets.MemTablesLoader do
     )
   end
 
-  def load_transaction(%Transaction{type: :node_rewards, address: address}) do
+  def load_transaction(%Transaction{type: type, address: address})
+      when type in [:node_rewards, :mint_rewards] do
     NetworkLookup.set_network_pool_address(address)
   end
 

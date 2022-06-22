@@ -1047,13 +1047,14 @@ defmodule Archethic.Crypto do
     end
   end
 
-  def load_transaction(%Transaction{type: :node_rewards, address: address}) do
+  def load_transaction(%Transaction{type: type, address: address})
+      when type in [:node_rewards, :mint_rewards] do
     nb_transactions = TransactionChain.size(address)
     SharedSecretsKeystore.set_network_pool_key_index(nb_transactions)
 
     Logger.info("Network pool chain positioned at#{nb_transactions}",
       transaction_address: Base.encode16(address),
-      transaction_type: :node_rewards
+      transaction_type: type
     )
   end
 

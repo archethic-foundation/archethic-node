@@ -93,6 +93,27 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     end
   end
 
+  def from_transaction(ops = %__MODULE__{}, %Transaction{
+        address: address,
+        type: :mint_rewards,
+        data: %TransactionData{content: content}
+      }) do
+    [[match | _]] = Regex.scan(~r/(?<=initial supply:).*\d/mi, content)
+
+    {initial_supply, _} =
+      match
+      |> String.trim()
+      |> String.replace(" ", "")
+      |> Integer.parse()
+
+    %{
+      ops
+      | unspent_outputs: [
+          %UnspentOutput{from: address, amount: initial_supply * @unit_uco, type: {:NFT, address}}
+        ]
+    }
+  end
+
   def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops
 
   defp get_token_utxos(%{"type" => "fungible", "supply" => supply}, address) do
