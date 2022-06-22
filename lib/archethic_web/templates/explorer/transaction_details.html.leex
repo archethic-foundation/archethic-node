@@ -333,9 +333,14 @@
                                                             <%= if movement.amount > 0 do %>
                                                                 (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                             <% end %>
-                                                        <% {:NFT, nft_address, _nft_id} -> %>
+                                                        <% {:NFT, nft_address, nft_id} -> %>
                                                             <%= to_float(movement.amount) %>
-                                                            <span class="tag is-success is-light ml-2">NFT</span>
+                                                            <span class="tag is-success is-light ml-2">NFT
+  <%= if nft_id >= 1 do %>
+    (#<%= nft_id %>)
+  <% end %>
+
+                                                            </span>
                                                             <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                                 <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
                                                             <% end %>
@@ -370,9 +375,13 @@
                                                         <%= if unspent_output.amount > 0 do %>
                                                             (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% end %>
-                                                    <% {:NFT, nft_address, _nft_id} -> %>
+                                                    <% {:NFT, nft_address, nft_id} -> %>
                                                         <%= to_float(unspent_output.amount) %>
-                                                        <span class="tag is-success is-light ml-2">NFT</span>
+                                                        <span class="tag is-success is-light ml-2">NFT 
+  <%= if nft_id >= 1 do %>
+    (#<%= nft_id %>)
+  <% end %>
+                                                        </span>
                                                         <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                             <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
                                                         <% end %>
@@ -509,9 +518,13 @@
                                                 <%= if input.reward? do %>
                                                   <span class="tag is-info is-light">Mining reward</span>
                                                 <% end %>
-                                             <% {:NFT, nft_address, _nft_id} -> %>
+                                             <% {:NFT, nft_address, nft_id} -> %>
                                                 <div class="columns">
-                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">NFT</span></div>
+                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">NFT
+                                                      <%= if nft_id >= 1 do %>
+                                                        (#<%= nft_id %>)
+                                                      <% end %>
+                                                    </span></div>
                                                   <div class="column is-4-desktop">
                                                     <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
                                                         <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>

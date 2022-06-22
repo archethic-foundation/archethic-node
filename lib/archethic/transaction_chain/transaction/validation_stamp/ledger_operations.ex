@@ -65,7 +65,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>  )
       %LedgerOperations{
         unspent_outputs: [
-          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 0}},
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 1}},
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 2}},
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 3}},
@@ -74,7 +73,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 6}},
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 7}},
           %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 8}},
-          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 9}}
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 9}},
+          %UnspentOutput{from: "@NFT2", amount: 100_000_000, type: {:NFT, "@NFT2", 10}}
         ]
       }
   """
@@ -114,7 +114,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     properties
     |> Enum.with_index()
     |> Enum.map(fn {_item_properties, index} ->
-      %UnspentOutput{from: address, amount: 1 * @unit_uco, type: {:NFT, address, index}}
+      %UnspentOutput{from: address, amount: 1 * @unit_uco, type: {:NFT, address, index + 1}}
     end)
   end
 
@@ -329,26 +329,28 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           ]
       }
 
+      # When non-fungible tokens are used as input but want to consume only a single input
+
       iex> %LedgerOperations{
       ...>   transaction_movements: [
-      ...>     %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}}
+      ...>     %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
       ...> ],
       ...>   fee: 40_000_000
       ...> } |> LedgerOperations.consume_inputs("@Alice2", [
       ...>     %UnspentOutput{from: "@Charlie1", amount: 200_000_000, type: :UCO},
-      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 0}},
       ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}},
-      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
+      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}},
+      ...>      %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 3}}
       ...> ])
       %LedgerOperations{
         fee: 40_000_000,
         transaction_movements: [
-          %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}}
+          %TransactionMovement{to: "@Bob4", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
         ],
         unspent_outputs: [
           %UnspentOutput{from: "@Alice2", amount: 160_000_000, type: :UCO},
-          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 0}},
-          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 2}}
+          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 1}},
+          %UnspentOutput{from: "@CharlieNFT", amount: 100_000_000, type: {:NFT, "@CharlieNFT", 3}}
         ]
       }
   """
@@ -395,7 +397,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           [
             %UnspentOutput{
               from: change_address,
-              amount: recv_amount - amount_to_spend,
+              amount: recv_amount - trunc_nft_amount(nft_id, amount_to_spend),
               type: {:NFT, nft_address, nft_id}
             }
             | acc
@@ -406,6 +408,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       end
     end)
   end
+
+  # We prevent part of non-fungible token to be spent
+  defp trunc_nft_amount(0, amount), do: amount
+  defp trunc_nft_amount(_nft_id, amount), do: trunc(amount / @unit_uco) * @unit_uco
 
   @doc """
   List all the addresses from transaction movements
