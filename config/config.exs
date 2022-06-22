@@ -91,7 +91,8 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
   genesis_origin_public_keys: [
     "010104AB41291F847A601055AEDD1AF24FF76FA970D6441E2DCA3818A8319B004C96B27B8FEB1DA31A044BA0A4800B4353359735719EBB3A05F98393A9CC599C3FAFD6"
     |> Base.decode16!(case: :mixed)
-  ]
+  ],
+  genesis_network_pool_amount: 34_000_000
 
 config :archethic, Archethic.P2P.BootstrappingSeeds,
   backup_file: "p2p/seeds",

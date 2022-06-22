@@ -71,8 +71,7 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
         }
       )
     ]
-    |> Enum.filter(& &1),
-  genesis_network_pool_amount: 34_000_000
+    |> Enum.filter(& &1)
 
 config :archethic, Archethic.Bootstrap.Sync,
   # 15 days

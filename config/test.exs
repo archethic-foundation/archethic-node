@@ -31,8 +31,7 @@ config :archethic, Archethic.Bootstrap.NetworkInit,
         |> Base.decode16!(case: :mixed),
       amount: 1_000_000_000_000_000
     }
-  ],
-  genesis_network_pool_amount: 34_000_000
+  ]
 
 config :archethic, Archethic.Contracts.Loader, enabled: false
 
