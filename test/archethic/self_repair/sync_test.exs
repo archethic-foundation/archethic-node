@@ -11,7 +11,8 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.Election
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.GetBeaconSummary
+  alias Archethic.P2P.Message.BeaconSummaryList
+  alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -227,8 +228,8 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       MockClient
       |> stub(:send_message, fn
-        _, %GetBeaconSummary{}, _ ->
-          {:ok, summary}
+        _, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary]}}
 
         _, %GetTransaction{address: ^tx_address}, _ ->
           {:ok, tx}
