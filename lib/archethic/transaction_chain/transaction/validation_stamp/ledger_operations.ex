@@ -80,9 +80,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec from_transaction(t(), Transaction.t()) :: t()
   def from_transaction(ops = %__MODULE__{}, %Transaction{
         address: address,
-        type: :token,
+        type: type,
         data: %TransactionData{content: content}
-      }) do
+      })
+      when type in [:token, :mint_rewards] do
     case Jason.decode(content) do
       {:ok, json} ->
         utxos = get_token_utxos(json, address)
@@ -91,27 +92,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       _ ->
         ops
     end
-  end
-
-  def from_transaction(ops = %__MODULE__{}, %Transaction{
-        address: address,
-        type: :mint_rewards,
-        data: %TransactionData{content: content}
-      }) do
-    [[match | _]] = Regex.scan(~r/(?<=initial supply:).*\d/mi, content)
-
-    {initial_supply, _} =
-      match
-      |> String.trim()
-      |> String.replace(" ", "")
-      |> Integer.parse()
-
-    %{
-      ops
-      | unspent_outputs: [
-          %UnspentOutput{from: address, amount: initial_supply * @unit_uco, type: {:NFT, address}}
-        ]
-    }
   end
 
   def from_transaction(ops = %__MODULE__{}, %Transaction{}), do: ops

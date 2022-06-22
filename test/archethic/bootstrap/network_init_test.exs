@@ -316,9 +316,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     assert :ok = NetworkInit.init_network_reward_pool()
 
     network_address = SharedSecrets.get_network_pool_address()
+    key = {network_address, 0}
 
-    assert %{nft: %{^network_address => 3_400_000_000_000_000}} =
-             Account.get_balance(network_address)
+    assert %{nft: %{^key => 3_400_000_000_000_000}} = Account.get_balance(network_address)
   end
 
   test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do

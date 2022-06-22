@@ -18,6 +18,7 @@ defmodule Archethic.Reward do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer
 
   @unit_uco 100_000_000
@@ -33,6 +34,25 @@ defmodule Archethic.Reward do
       |> Keyword.get(:eur)
 
     trunc(uco_eur_price * 50) * @unit_uco
+  end
+
+  @doc """
+  Create a transaction for minting new rewards
+  """
+  @spec new_rewards_mint(amount :: non_neg_integer()) :: Transaction.t()
+  def new_rewards_mint(amount) do
+    data = %TransactionData{
+      content: """
+      {
+        "supply":#{amount},
+        "type":"fungible",
+        "name":"Mining UCO rewards",
+        "symbol":"MUCO"
+      }
+      """
+    }
+
+    Transaction.new(:mint_rewards, data)
   end
 
   @doc """

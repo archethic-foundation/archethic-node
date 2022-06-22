@@ -21,6 +21,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
   alias Archethic.SharedSecrets
 
+  alias Archethic.Reward
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -147,22 +149,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
   def init_network_reward_pool() do
     Logger.info("Create mining reward pool")
 
-    data = %TransactionData{
-      content: """
-      initial supply: #{@genesis_network_pool_amount}
-      """
-    }
-
-    tx = %Transaction{address: address} = Transaction.new(:mint_rewards, data)
-
-    tx
-    |> self_validation([
-      %UnspentOutput{
-        from: address,
-        amount: @genesis_network_pool_amount,
-        type: {:NFT, address}
-      }
-    ])
+    Reward.new_rewards_mint(@genesis_network_pool_amount)
+    |> self_validation()
     |> self_replication()
   end
 
