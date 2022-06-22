@@ -15,10 +15,10 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   alias Archethic.Reward
 
-  alias Archethic.TransactionChain.Transaction
-  alias Archethic.TransactionChain.TransactionData
-  alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  # alias Archethic.TransactionChain.Transaction
+  # alias Archethic.TransactionChain.TransactionData
+  # alias Archethic.TransactionChain.TransactionData.Ledger
+  # alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias Archethic.Utils
 
@@ -84,7 +84,7 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
     if sender?() do
       interval
       |> get_last_date
-      |> Reward.get_transfers_for_in_need_validation_nodes()
+      |> Reward.get_transfers()
       |> send_rewards()
     end
 
@@ -140,25 +140,25 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   defp send_rewards([]), do: :ok
 
-  defp send_rewards(transfers) do
-    Logger.debug("Sending node reward transaction")
+  # defp send_rewards(transfers) do
+  #   Logger.debug("Sending node reward transaction")
 
-    Transaction.new(:node_rewards, %TransactionData{
-      code: """
-      condition inherit: [ 
-         # We need to ensure the transaction type keep consistent
-         # So we can apply specific rules during the transaction verification
-         type: node_rewards
-      ]
-      """,
-      ledger: %Ledger{
-        uco: %UCOLedger{
-          transfers: transfers
-        }
-      }
-    })
-    |> Archethic.send_new_transaction()
-  end
+  #   Transaction.new(:node_rewards, %TransactionData{
+  #     code: """
+  #     condition inherit: [
+  #        # We need to ensure the transaction type keep consistent
+  #        # So we can apply specific rules during the transaction verification
+  #        type: node_rewards
+  #     ]
+  #     """,
+  #     ledger: %Ledger{
+  #       uco: %UCOLedger{
+  #         transfers: transfers
+  #       }
+  #     }
+  #   })
+  #   |> Archethic.send_new_transaction()
+  # end
 
   defp schedule(interval) do
     Process.send_after(self(), :send_rewards, Utils.time_offset(interval) * 1000)
