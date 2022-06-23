@@ -27,7 +27,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
 
   alias Archethic.Utils
 
@@ -104,12 +104,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :node_rewards,
          data: %TransactionData{
            ledger: %Ledger{
-             nft: %NFTLedger{transfers: nft_transfers}
+             token: %TokenLedger{transfers: token_transfers}
            }
          }
        }) do
     case Reward.get_transfers(Reward.last_scheduling_date()) do
-      ^nft_transfers ->
+      ^token_transfers ->
         :ok
 
       _ ->
