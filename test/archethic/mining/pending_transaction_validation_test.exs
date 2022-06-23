@@ -324,9 +324,9 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
           %TransactionData{
             content:
               Jason.encode!(%{
-                supply: 3,
+                supply: 300_000_000,
                 name: "MyToken",
-                type: "fungible",
+                type: "non-fungible",
                 symbol: "MTK",
                 properties: [
                   [
