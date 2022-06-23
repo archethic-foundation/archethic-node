@@ -256,9 +256,10 @@ defmodule Archethic.Contracts.Worker do
   defp schedule_trigger(_), do: :ok
 
   defp handle_new_transaction(next_transaction = %Transaction{}) do
-    validation_nodes = P2P.authorized_and_available_nodes()
+    validation_nodes = get_validation_nodes(next_transaction)
+
     # The first storage node of the contract initiate the sending of the new transaction
-    if trigger_node?(next_transaction) do
+    if trigger_node?(validation_nodes) do
       P2P.broadcast_message(validation_nodes, %StartMining{
         transaction: next_transaction,
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
@@ -266,7 +267,9 @@ defmodule Archethic.Contracts.Worker do
       })
     else
       DetectNodeResponsiveness.start_link(next_transaction.address, fn count ->
-        if trigger_node?(count) do
+        Logger.info("contract transaction ...attempt #{count}")
+
+        if trigger_node?(validation_nodes, count) do
           P2P.broadcast_message(validation_nodes, %StartMining{
             transaction: next_transaction,
             validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
@@ -277,11 +280,15 @@ defmodule Archethic.Contracts.Worker do
     end
   end
 
-  defp trigger_node?(next_transaction = %Transaction{}, count \\ 0) do
+  defp get_validation_nodes(next_transaction = %Transaction{}) do
+    next_transaction
+    |> Transaction.previous_address()
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+  end
+
+  defp trigger_node?(validation_nodes, count \\ 0) do
     %Node{first_public_key: key} =
-      next_transaction
-      |> Transaction.previous_address()
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+      validation_nodes
       |> Enum.at(count)
 
     key == Crypto.first_node_public_key()
