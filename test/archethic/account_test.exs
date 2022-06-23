@@ -3,7 +3,7 @@ defmodule Archethic.AccountTest do
   use ExUnit.Case
 
   alias Archethic.Account
-  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -11,7 +11,7 @@ defmodule Archethic.AccountTest do
   describe "get_balance/1" do
     setup do
       start_supervised!(UCOLedger)
-      start_supervised!(NFTLedger)
+      start_supervised!(TokenLedger)
       :ok
     end
 
@@ -36,22 +36,22 @@ defmodule Archethic.AccountTest do
         ~U[2021-03-05 13:41:34Z]
       )
 
-      NFTLedger.add_unspent_output(
+      TokenLedger.add_unspent_output(
         "@Alice2",
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:NFT, "@CharlieNFT", 0}
+          type: {:token, "@CharlieToken", 0}
         },
         ~U[2021-03-05 13:41:34Z]
       )
 
-      assert %{uco: 400_000_000, nft: %{{"@CharlieNFT", 0} => 10_000_000_000}} ==
+      assert %{uco: 400_000_000, token: %{{"@CharlieToken", 0} => 10_000_000_000}} ==
                Account.get_balance("@Alice2")
     end
 
     test "should return 0 when no unspent outputs associated" do
-      assert %{uco: 0, nft: %{}} == Account.get_balance("@Alice2")
+      assert %{uco: 0, token: %{}} == Account.get_balance("@Alice2")
     end
 
     test "should return 0 when all the unspent outputs have been spent" do
@@ -67,20 +67,20 @@ defmodule Archethic.AccountTest do
         ~U[2021-03-05 13:41:34Z]
       )
 
-      NFTLedger.add_unspent_output(
+      TokenLedger.add_unspent_output(
         "@Alice2",
         %UnspentOutput{
           from: "@Charlie2",
           amount: 10_000_000_000,
-          type: {:NFT, "@CharlieNFT", 0}
+          type: {:token, "@CharlieToken", 0}
         },
         ~U[2021-03-05 13:41:34Z]
       )
 
       UCOLedger.spend_all_unspent_outputs("@Alice2")
-      NFTLedger.spend_all_unspent_outputs("@Alice2")
+      TokenLedger.spend_all_unspent_outputs("@Alice2")
 
-      assert %{uco: 0, nft: %{}} == Account.get_balance("@Alice2")
+      assert %{uco: 0, token: %{}} == Account.get_balance("@Alice2")
     end
   end
 end

@@ -2,7 +2,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   @moduledoc false
   use ArchethicCase
 
-  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTablesLoader
 
@@ -51,9 +51,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:NFT, "@CharlieNFT", 0}
+                 type: {:token, "@CharlieToken", 0}
                }
-             ] = NFTLedger.get_unspent_outputs("@Bob3")
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -80,9 +80,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:NFT, "@CharlieNFT", 0}
+                 type: {:token, "@CharlieToken", 0}
                }
-             ] = NFTLedger.get_unspent_outputs("@Bob3")
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -98,7 +98,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
             %TransactionMovement{
               to: "@Bob3",
               amount: 1_000_000_000,
-              type: {:NFT, "@CharlieNFT", 0}
+              type: {:token, "@CharlieToken", 0}
             }
           ],
           unspent_outputs: [

@@ -15,13 +15,13 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   def get_balance(address) do
     case Archethic.get_balance(address) do
-      {:ok, %{uco: uco, nft: nft_balances}} ->
+      {:ok, %{uco: uco, token: token_balances}} ->
         balance = %{
           uco: uco,
-          nft:
-            nft_balances
-            |> Enum.map(fn {{address, nft_id}, amount} ->
-              %{address: address, amount: amount, nft_id: nft_id}
+          token:
+            token_balances
+            |> Enum.map(fn {{address, token_id}, amount} ->
+              %{address: address, amount: amount, token_id: token_id}
             end)
             |> Enum.sort_by(& &1.amount)
         }

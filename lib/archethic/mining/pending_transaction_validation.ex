@@ -304,7 +304,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
-         type: :nft,
+         type: :token,
          data: %TransactionData{content: content}
        }) do
     schema =
@@ -321,15 +321,15 @@ defmodule Archethic.Mining.PendingTransactionValidation do
       :ok
     else
       {:error, reason} ->
-        Logger.debug("Invalid NFT token specification: #{inspect(reason)}")
-        {:error, "Invalid NFT transaction - Invalid specification"}
+        Logger.debug("Invalid token token specification: #{inspect(reason)}")
+        {:error, "Invalid token transaction - Invalid specification"}
 
       %{"type" => "fungible"} ->
         :ok
 
       %{"type" => "non-fungible"} ->
         {:error,
-         "Invalid NFT transaction - Supply should match properties for non-fungible tokens"}
+         "Invalid token transaction - Supply should match properties for non-fungible tokens"}
     end
   end
 

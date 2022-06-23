@@ -151,8 +151,8 @@ defmodule Archethic do
 
   defp get_balance([node | rest], address) do
     case P2P.send_message(node, %GetBalance{address: address}) do
-      {:ok, %Balance{uco: uco, nft: nft}} ->
-        {:ok, %{uco: uco, nft: nft}}
+      {:ok, %Balance{uco: uco, token: token}} ->
+        {:ok, %{uco: uco, token: token}}
 
       {:error, _} ->
         get_balance(rest, address)
