@@ -317,15 +317,18 @@ defmodule Archethic.Mining.PendingTransactionValidation do
     with {:ok, json_token} <- Jason.decode(content),
          :ok <- ExJsonSchema.Validator.validate(schema, json_token),
          %{"type" => "non-fungible", "supply" => supply, "properties" => properties}
-         when length(properties) == supply <- json_token do
+         when length(properties) == supply / 100_000_000 <- json_token do
       :ok
     else
       {:error, reason} ->
         Logger.debug("Invalid token token specification: #{inspect(reason)}")
         {:error, "Invalid token transaction - Invalid specification"}
 
-      %{"type" => "fungible"} ->
+      %{"type" => "fungible", "properties" => properties} when length(properties) <= 1 ->
         :ok
+
+      %{"type" => "fungible"} ->
+        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
 
       %{"type" => "non-fungible"} ->
         {:error,

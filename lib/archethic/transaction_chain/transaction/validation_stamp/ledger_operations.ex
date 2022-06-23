@@ -48,18 +48,18 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       ...>   %Transaction{
       ...>     address: "@Token2",
       ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 10, \"type\": \"fungible\" }"}
+      ...>     data: %TransactionData{content: "{\"supply\": 1000000000, \"type\": \"fungible\" }"}
       ...>   }
       ...> )
       %LedgerOperations{
-          unspent_outputs: [%UnspentOutput{from: "@Token2", amount: 1_000_000_000, type: {:token, "@Token2", 0}}]
+          unspent_outputs: [%UnspentOutput{from: "@Token2", amount: 1000000000, type: {:token, "@Token2", 0}}]
       }
 
       iex> LedgerOperations.from_transaction(%LedgerOperations{},
       ...>   %Transaction{
       ...>     address: "@Token2",
       ...>     type: :token,
-      ...>     data: %TransactionData{content: "{\"supply\": 10, \"type\": \"non-fungible\", \"properties\": [[],[],[],[],[],[],[],[],[],[]]}"}
+      ...>     data: %TransactionData{content: "{\"supply\": 1000000000, \"type\": \"non-fungible\", \"properties\": [[],[],[],[],[],[],[],[],[],[]]}"}
       ...>   }
       ...>  )
       %LedgerOperations{
@@ -99,7 +99,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     [
       %UnspentOutput{
         from: address,
-        amount: supply * @unit_uco,
+        amount: supply,
         type: {:token, address, 0}
       }
     ]
@@ -109,7 +109,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
          %{"type" => "non-fungible", "supply" => supply, "properties" => properties},
          address
        )
-       when length(properties) == supply do
+       when length(properties) == supply / @unit_uco do
     properties
     |> Enum.with_index()
     |> Enum.map(fn {_item_properties, index} ->
