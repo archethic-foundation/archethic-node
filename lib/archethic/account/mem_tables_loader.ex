@@ -3,7 +3,7 @@ defmodule Archethic.Account.MemTablesLoader do
 
   use GenServer
 
-  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
 
   alias Archethic.Crypto
@@ -72,7 +72,7 @@ defmodule Archethic.Account.MemTablesLoader do
     previous_address = Crypto.derive_address(previous_public_key)
 
     UCOLedger.spend_all_unspent_outputs(previous_address)
-    NFTLedger.spend_all_unspent_outputs(previous_address)
+    TokenLedger.spend_all_unspent_outputs(previous_address)
 
     :ok = set_transaction_movements(address, transaction_movements, timestamp)
     :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
@@ -95,13 +95,13 @@ defmodule Archethic.Account.MemTablesLoader do
           timestamp
         )
 
-      %TransactionMovement{to: to, amount: amount, type: {:NFT, nft_address}} ->
-        NFTLedger.add_unspent_output(
+      %TransactionMovement{to: to, amount: amount, type: {:token, token_address, token_id}} ->
+        TokenLedger.add_unspent_output(
           to,
           %UnspentOutput{
             amount: amount,
             from: address,
-            type: {:NFT, nft_address}
+            type: {:token, token_address, token_id}
           },
           timestamp
         )
@@ -115,8 +115,8 @@ defmodule Archethic.Account.MemTablesLoader do
       unspent_output = %UnspentOutput{type: :UCO} ->
         UCOLedger.add_unspent_output(address, unspent_output, timestamp)
 
-      unspent_output = %UnspentOutput{type: {:NFT, _nft_address}} ->
-        NFTLedger.add_unspent_output(address, unspent_output, timestamp)
+      unspent_output = %UnspentOutput{type: {:token, _token_address, _token_id}} ->
+        TokenLedger.add_unspent_output(address, unspent_output, timestamp)
     end)
   end
 end

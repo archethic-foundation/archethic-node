@@ -1,4 +1,5 @@
 defmodule ArchethicWeb.GraphQLSchemaTest do
+  @moduledoc false
   use ArchethicCase
   use ArchethicWeb.ConnCase
   use ArchethicWeb.GraphQLSubscriptionCase
@@ -296,30 +297,30 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       assert %{"data" => %{"balance" => %{"uco" => 2.18}}} = json_response(conn, 200)
     end
 
-    test "should retrieve the nft balance of an address", %{conn: conn} do
+    test "should retrieve the token balance of an address", %{conn: conn} do
       addr = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
 
       MockClient
       |> stub(:send_message, fn _, %GetBalance{}, _ ->
         {:ok,
          %Balance{
-           nft: %{
-             "@NFT1" => 200_000_000,
-             "@NFT2" => 500_000_000,
-             "@NFT3" => 1_000_000_000
+           token: %{
+             {"@Token1", 0} => 200_000_000,
+             {"@Token2", 0} => 500_000_000,
+             {"@Token3", 0} => 1_000_000_000
            }
          }}
       end)
 
       conn =
         post(conn, "/api", %{
-          "query" => "query { balance(address: \"#{Base.encode16(addr)}\") { nft { amount } } }"
+          "query" => "query { balance(address: \"#{Base.encode16(addr)}\") { token { amount } } }"
         })
 
       assert %{
                "data" => %{
                  "balance" => %{
-                   "nft" => [%{"amount" => 2.0}, %{"amount" => 5.0}, %{"amount" => 10.0}]
+                   "token" => [%{"amount" => 2.0}, %{"amount" => 5.0}, %{"amount" => 10.0}]
                  }
                }
              } = json_response(conn, 200)

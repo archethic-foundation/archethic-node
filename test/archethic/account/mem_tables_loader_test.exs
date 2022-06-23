@@ -1,7 +1,8 @@
 defmodule Archethic.Account.MemTablesLoaderTest do
+  @moduledoc false
   use ArchethicCase
 
-  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTablesLoader
 
@@ -50,9 +51,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:NFT, "@CharlieNFT"}
+                 type: {:token, "@CharlieToken", 0}
                }
-             ] = NFTLedger.get_unspent_outputs("@Bob3")
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -79,9 +80,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
                %UnspentOutput{
                  from: "@Charlie3",
                  amount: 1_000_000_000,
-                 type: {:NFT, "@CharlieNFT"}
+                 type: {:token, "@CharlieToken", 0}
                }
-             ] = NFTLedger.get_unspent_outputs("@Bob3")
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
     end
   end
 
@@ -94,7 +95,11 @@ defmodule Archethic.Account.MemTablesLoaderTest do
         ledger_operations: %LedgerOperations{
           transaction_movements: [
             %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
-            %TransactionMovement{to: "@Bob3", amount: 1_000_000_000, type: {:NFT, "@CharlieNFT"}}
+            %TransactionMovement{
+              to: "@Bob3",
+              amount: 1_000_000_000,
+              type: {:token, "@CharlieToken", 0}
+            }
           ],
           unspent_outputs: [
             %UnspentOutput{

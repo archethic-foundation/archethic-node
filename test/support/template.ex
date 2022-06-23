@@ -2,7 +2,7 @@ defmodule ArchethicCase do
   @moduledoc false
   use ExUnit.CaseTemplate
 
-  alias Archethic.Account.MemTables.NFTLedger
+  alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
 
   alias Archethic.Crypto
@@ -169,7 +169,7 @@ defmodule ArchethicCase do
     MockClient
     |> stub(:new_connection, fn _, _, _, _ -> {:ok, make_ref()} end)
 
-    start_supervised!(NFTLedger)
+    start_supervised!(TokenLedger)
     start_supervised!(UCOLedger)
     start_supervised!(KOLedger)
     start_supervised!(PendingLedger)

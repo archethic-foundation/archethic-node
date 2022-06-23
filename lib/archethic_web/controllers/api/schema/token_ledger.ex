@@ -1,4 +1,4 @@
-defmodule ArchethicWeb.API.Schema.NFTLedger do
+defmodule ArchethicWeb.API.Schema.TokenLedger do
   @moduledoc false
 
   use Ecto.Schema
@@ -10,7 +10,8 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
     embeds_many :transfers, Transfer do
       field(:to, Address)
       field(:amount, :integer)
-      field(:nft, Address)
+      field(:token, Address)
+      field(:token_id, :integer)
     end
   end
 
@@ -20,14 +21,15 @@ defmodule ArchethicWeb.API.Schema.NFTLedger do
     |> cast_embed(:transfers, with: &changeset_transfers/2)
     |> validate_length(:transfers,
       max: 256,
-      message: "maximum nft transfers in a transaction can be 256"
+      message: "maximum token transfers in a transaction can be 256"
     )
   end
 
   defp changeset_transfers(changeset, params) do
     changeset
-    |> cast(params, [:to, :amount, :nft])
-    |> validate_required([:to, :amount, :nft])
+    |> cast(params, [:to, :amount, :token, :token_id])
+    |> validate_required([:to, :amount, :token, :token_id])
     |> validate_number(:amount, greater_than: 0)
+    |> validate_inclusion(:token_id, 0..255)
   end
 end

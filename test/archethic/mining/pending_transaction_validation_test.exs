@@ -314,5 +314,38 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       assert :ok = PendingTransactionValidation.validate(tx)
     end
+
+    test "should return :ok when a transaction contains valid fields for token creation" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+
+      tx =
+        Transaction.new(
+          :token,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "non-fungible",
+                symbol: "MTK",
+                properties: [
+                  [
+                    %{name: "image", value: "link"}
+                  ],
+                  [
+                    %{name: "image", value: "link"}
+                  ],
+                  [
+                    %{name: "image", value: "link"}
+                  ]
+                ]
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
   end
 end

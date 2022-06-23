@@ -11,7 +11,7 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   @unit_uco 100_000_000
@@ -46,16 +46,49 @@ defmodule Archethic.Mining.Fee do
         nb_bytes = get_transaction_size(tx)
         nb_storage_nodes = get_number_replicas(tx)
 
-        trunc(
-          do_calculate(
+        # TODO: determine the fee for smart contract execution
+
+        storage_cost =
+          fee_for_storage(
             uco_price_in_usd,
             nb_bytes,
-            nb_storage_nodes,
-            nb_recipients
-          ) * @unit_uco
-        )
+            nb_storage_nodes
+          )
+
+        replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
+
+        fee =
+          minimum_fee(uco_price_in_usd) + storage_cost + replication_cost +
+            get_additional_fee(tx, uco_price_in_usd)
+
+        trunc(fee * @unit_uco)
     end
   end
+
+  defp get_additional_fee(
+         %Transaction{type: :token, data: %TransactionData{content: content}},
+         uco_price_in_usd
+       ) do
+    with {:ok, json} <- Jason.decode(content),
+         "non-fungible" <- Map.get(json, "type", "fungible"),
+         utxos = [_ | _] <- Map.get(json, "properties", []) do
+      nb_utxos = length(utxos)
+      base_fee = minimum_fee(uco_price_in_usd)
+      (:math.log10(nb_utxos) + 1) * nb_utxos * base_fee
+    else
+      {:error, _} ->
+        0
+
+      "fungible" ->
+        1 * minimum_fee(uco_price_in_usd)
+
+      [] ->
+        # Invalid non-fungible definition
+        0
+    end
+  end
+
+  defp get_additional_fee(_tx, _uco_price_usd), do: 0
 
   defp get_transaction_size(tx = %Transaction{}) do
     tx
@@ -68,11 +101,11 @@ defmodule Archethic.Mining.Fee do
          data: %TransactionData{
            ledger: %Ledger{
              uco: %UCOLedger{transfers: uco_transfers},
-             nft: %NFTLedger{transfers: nft_transfers}
+             token: %TokenLedger{transfers: token_transfers}
            }
          }
        }) do
-    (uco_transfers ++ nft_transfers)
+    (uco_transfers ++ token_transfers)
     |> Enum.uniq_by(& &1.to)
     |> length()
   end
@@ -84,26 +117,8 @@ defmodule Archethic.Mining.Fee do
     |> length()
   end
 
-  defp do_calculate(
-         uco_price_in_usd,
-         nb_bytes,
-         nb_storage_nodes,
-         nb_recipients
-       ) do
-    # TODO: determine the fee for smart contract execution
-
-    minimum_fee = 0.01 / uco_price_in_usd
-
-    storage_cost =
-      fee_for_storage(
-        uco_price_in_usd,
-        nb_bytes,
-        nb_storage_nodes
-      )
-
-    replication_cost = cost_per_recipients(nb_recipients, uco_price_in_usd)
-
-    minimum_fee + storage_cost + replication_cost
+  defp minimum_fee(uco_price_in_usd) do
+    0.01 / uco_price_in_usd
   end
 
   defp fee_for_storage(uco_price_in_usd, nb_bytes, nb_storage_nodes) do

@@ -1,7 +1,7 @@
 defmodule Archethic.Account do
   @moduledoc false
 
-  alias __MODULE__.MemTables.NFTLedger
+  alias __MODULE__.MemTables.TokenLedger
   alias __MODULE__.MemTables.UCOLedger
   alias __MODULE__.MemTablesLoader
 
@@ -13,7 +13,9 @@ defmodule Archethic.Account do
 
   @type balance :: %{
           uco: amount :: pos_integer(),
-          nft: %{(address :: binary()) => amount :: pos_integer()}
+          token: %{
+            {address :: binary(), token_id :: non_neg_integer()} => amount :: pos_integer()
+          }
         }
 
   @doc """
@@ -23,12 +25,12 @@ defmodule Archethic.Account do
   def get_balance(address) when is_binary(address) do
     address
     |> get_unspent_outputs()
-    |> Enum.reduce(%{uco: 0, nft: %{}}, fn
+    |> Enum.reduce(%{uco: 0, token: %{}}, fn
       %UnspentOutput{type: :UCO, amount: amount}, acc ->
         Map.update!(acc, :uco, &(&1 + amount))
 
-      %UnspentOutput{type: {:NFT, nft_address}, amount: amount}, acc ->
-        update_in(acc, [:nft, Access.key(nft_address, 0)], &(&1 + amount))
+      %UnspentOutput{type: {:token, token_address, token_id}, amount: amount}, acc ->
+        update_in(acc, [:token, Access.key({token_address, token_id}, 0)], &(&1 + amount))
     end)
   end
 
@@ -37,7 +39,7 @@ defmodule Archethic.Account do
   """
   @spec get_unspent_outputs(binary()) :: list(UnspentOutput.t())
   def get_unspent_outputs(address) do
-    UCOLedger.get_unspent_outputs(address) ++ NFTLedger.get_unspent_outputs(address)
+    UCOLedger.get_unspent_outputs(address) ++ TokenLedger.get_unspent_outputs(address)
   end
 
   @doc """
@@ -45,7 +47,7 @@ defmodule Archethic.Account do
   """
   @spec get_inputs(binary()) :: list(TransactionInput.t())
   def get_inputs(address) do
-    UCOLedger.get_inputs(address) ++ NFTLedger.get_inputs(address)
+    UCOLedger.get_inputs(address) ++ TokenLedger.get_inputs(address)
   end
 
   @doc """

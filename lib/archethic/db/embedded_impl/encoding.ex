@@ -8,7 +8,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
@@ -31,7 +31,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
           content: content,
           code: code,
           ownerships: ownerships,
-          ledger: %Ledger{uco: uco_ledger, nft: nft_ledger},
+          ledger: %Ledger{uco: uco_ledger, token: token_ledger},
           recipients: recipients
         },
         previous_public_key: previous_public_key,
@@ -79,7 +79,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"data.content", content},
         {"data.code", code},
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger)},
-        {"data.ledger.nft", NFTLedger.serialize(nft_ledger)},
+        {"data.ledger.token", TokenLedger.serialize(token_ledger)},
         {"data.ownerships", <<length(ownerships)::8, ownerships_encoding::binary>>},
         {"data.recipients",
          <<length(recipients)::8, :erlang.list_to_binary(recipients)::binary>>},
@@ -131,9 +131,9 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :uco], uco_ledger)
   end
 
-  def decode(_version, "data.ledger.nft", data, acc) do
-    {nft_ledger, _} = NFTLedger.deserialize(data)
-    put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :nft], nft_ledger)
+  def decode(_version, "data.ledger.token", data, acc) do
+    {token_ledger, _} = TokenLedger.deserialize(data)
+    put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :token], token_ledger)
   end
 
   def decode(_version, "data.recipients", <<0>>, acc), do: acc

@@ -282,7 +282,7 @@ defmodule Archethic.Bootstrap.SyncTest do
 
       Application.get_env(:archethic, Archethic.Bootstrap.NetworkInit)[:genesis_pools]
       |> Enum.each(fn %{address: address, amount: amount} ->
-        assert %{uco: amount, nft: %{}} == Account.get_balance(address)
+        assert %{uco: amount, token: %{}} == Account.get_balance(address)
       end)
     end
   end

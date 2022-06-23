@@ -426,16 +426,16 @@ defmodule Archethic.P2P.Message do
     <<247::8, byte_size(digest)::8, digest::binary>>
   end
 
-  def encode(%Balance{uco: uco_balance, nft: nft_balances}) do
-    nft_balances_binary =
-      nft_balances
-      |> Enum.reduce([], fn {nft_address, amount}, acc ->
-        [<<nft_address::binary, amount::float>> | acc]
+  def encode(%Balance{uco: uco_balance, token: token_balances}) do
+    token_balances_binary =
+      token_balances
+      |> Enum.reduce([], fn {{token_address, token_id}, amount}, acc ->
+        [<<token_address::binary, amount::float, token_id::8>> | acc]
       end)
       |> Enum.reverse()
       |> :erlang.list_to_binary()
 
-    <<248::8, uco_balance::float, map_size(nft_balances)::16, nft_balances_binary::binary>>
+    <<248::8, uco_balance::float, map_size(token_balances)::16, token_balances_binary::binary>>
   end
 
   def encode(%NodeList{nodes: nodes}) do
@@ -876,12 +876,12 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<248::8, uco_balance::float, nb_nft_balances::16, rest::bitstring>>) do
-    {nft_balances, rest} = deserialize_nft_balances(rest, nb_nft_balances, %{})
+  def decode(<<248::8, uco_balance::float, nb_token_balances::16, rest::bitstring>>) do
+    {token_balances, rest} = deserialize_token_balances(rest, nb_token_balances, %{})
 
     {%Balance{
        uco: uco_balance,
-       nft: nft_balances
+       token: token_balances
      }, rest}
   end
 
@@ -973,15 +973,22 @@ defmodule Archethic.P2P.Message do
     deserialize_transaction_inputs(rest, nb_inputs, [input | acc])
   end
 
-  defp deserialize_nft_balances(rest, 0, _acc), do: {%{}, rest}
+  defp deserialize_token_balances(rest, 0, _acc), do: {%{}, rest}
 
-  defp deserialize_nft_balances(rest, nft_balances, acc) when map_size(acc) == nft_balances do
+  defp deserialize_token_balances(rest, token_balances, acc)
+       when map_size(acc) == token_balances do
     {acc, rest}
   end
 
-  defp deserialize_nft_balances(rest, nb_nft_balances, acc) do
-    {nft_address, <<amount::float, rest::bitstring>>} = Utils.deserialize_address(rest)
-    deserialize_nft_balances(rest, nb_nft_balances, Map.put(acc, nft_address, amount))
+  defp deserialize_token_balances(rest, nb_token_balances, acc) do
+    {token_address, <<amount::float, rest::bitstring>>} = Utils.deserialize_address(rest)
+    <<token_id::8, rest::bitstring>> = rest
+
+    deserialize_token_balances(
+      rest,
+      nb_token_balances,
+      Map.put(acc, {token_address, token_id}, amount)
+    )
   end
 
   defp deserialize_summaries(rest, 0, _), do: {[], rest}
@@ -1189,11 +1196,11 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%GetBalance{address: address}) do
-    %{uco: uco, nft: nft} = Account.get_balance(address)
+    %{uco: uco, token: token} = Account.get_balance(address)
 
     %Balance{
       uco: uco,
-      nft: nft
+      token: token
     }
   end
 

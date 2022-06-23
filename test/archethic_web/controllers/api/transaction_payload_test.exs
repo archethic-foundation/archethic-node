@@ -44,7 +44,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                      "uco" => %{
                        "transfers" => []
                      },
-                     "nft" => %{
+                     "token" => %{
                        "transfers" => []
                      }
                    },
@@ -232,7 +232,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                changeset |> get_errors() |> get_in([:data, :ledger, :uco])
     end
 
-    test "should return an error if the nft ledger transfer address is invalid" do
+    test "should return an error if the token ledger transfer address is invalid" do
       changeset =
         %Ecto.Changeset{
           valid?: false
@@ -248,12 +248,14 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
             "ledger" => %{
-              "nft" => %{
+              "token" => %{
                 "transfers" => [
                   %{
                     "to" => "abc",
                     "amount" => 10.0,
-                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                    "token" =>
+                      Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                    "token_id" => 0
                   }
                 ]
               }
@@ -262,10 +264,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
         })
 
       assert [%{to: ["must be hexadecimal"]}] =
-               changeset |> get_errors() |> get_in([:data, :ledger, :nft, :transfers])
+               changeset |> get_errors() |> get_in([:data, :ledger, :token, :transfers])
     end
 
-    test "should return an error if the nft ledger transfer amount is invalid" do
+    test "should return an error if the token ledger transfer amount is invalid" do
       changeset =
         %Ecto.Changeset{
           valid?: false
@@ -281,12 +283,14 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
             "ledger" => %{
-              "nft" => %{
+              "token" => %{
                 "transfers" => [
                   %{
                     "to" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                     "amount" => "abc",
-                    "nft" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                    "token" =>
+                      Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                    "token_id" => 0
                   }
                 ]
               }
@@ -300,10 +304,10 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                    "is invalid"
                  ]
                }
-             ] = changeset |> get_errors |> get_in([:data, :ledger, :nft, :transfers])
+             ] = changeset |> get_errors |> get_in([:data, :ledger, :token, :transfers])
     end
 
-    test "should return an error if the nft ledger transfer nft address is invalid" do
+    test "should return an error if the token ledger transfer token address is invalid" do
       changeset =
         %Ecto.Changeset{
           valid?: false
@@ -319,12 +323,13 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
             "ledger" => %{
-              "nft" => %{
+              "token" => %{
                 "transfers" => [
                   %{
                     "to" => Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                     "amount" => 10.0,
-                    "nft" => "abc"
+                    "token" => "abc",
+                    "token_id" => 0
                   }
                 ]
               }
@@ -332,11 +337,11 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           }
         })
 
-      assert [%{nft: ["must be hexadecimal"]}] =
-               changeset |> get_errors |> get_in([:data, :ledger, :nft, :transfers])
+      assert [%{token: ["must be hexadecimal"]}] =
+               changeset |> get_errors |> get_in([:data, :ledger, :token, :transfers])
     end
 
-    test "should return an error if the nft ledger transfers are more than 256" do
+    test "should return an error if the token ledger transfers are more than 256" do
       changeset =
         %Ecto.Changeset{
           valid?: false
@@ -352,7 +357,7 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "originSignature" => Base.encode16(:crypto.strong_rand_bytes(64)),
           "data" => %{
             "ledger" => %{
-              "nft" => %{
+              "token" => %{
                 "transfers" =>
                   1..257
                   |> Enum.map(fn _ ->
@@ -360,8 +365,9 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
                       "to" =>
                         Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
                       "amount" => Enum.random(1..100),
-                      "nft" =>
-                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>)
+                      "token" =>
+                        Base.encode16(<<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>),
+                      "token_id" => Enum.random(0..255)
                     }
                   end)
               }
@@ -369,8 +375,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           }
         })
 
-      assert %{transfers: ["maximum nft transfers in a transaction can be 256"]} =
-               changeset |> get_errors |> get_in([:data, :ledger, :nft])
+      assert %{transfers: ["maximum token transfers in a transaction can be 256"]} =
+               changeset |> get_errors |> get_in([:data, :ledger, :token])
     end
 
     test "should return an error if the encrypted secret is not an hexadecimal" do

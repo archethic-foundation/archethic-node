@@ -2,10 +2,10 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
   @moduledoc """
   Represents transaction ledger movements
   """
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
-  defstruct uco: %UCOLedger{}, nft: %NFTLedger{}
+  defstruct uco: %UCOLedger{}, token: %TokenLedger{}
 
   @typedoc """
   Ledger movements are composed from:
@@ -13,7 +13,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
   """
   @type t :: %__MODULE__{
           uco: UCOLedger.t(),
-          nft: NFTLedger.t()
+          token: TokenLedger.t()
         }
 
   @doc """
@@ -29,14 +29,15 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...>       amount: 1_050_000_000
       ...>     }
       ...>   ]},
-      ...>   nft: %NFTLedger{
+      ...>   token: %TokenLedger{
       ...>     transfers: [
-      ...>       %NFTLedger.Transfer{
-      ...>         nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>       %TokenLedger.Transfer{
+      ...>         token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>               197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>         to: <<0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>               165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-      ...>         amount: 1_050_000_000
+      ...>         amount: 1_050_000_000,
+      ...>         token_id: 0
       ...>       }
       ...>     ]
       ...>   }
@@ -59,12 +60,14 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
         0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
         # NFT transfer amount
-        0, 0, 0, 0, 62, 149, 186, 128
+        0, 0, 0, 0, 62, 149, 186, 128,
+        # NFT ID
+        0
       >>
   """
   @spec serialize(t()) :: binary()
-  def serialize(%__MODULE__{uco: uco_ledger, nft: nft_ledger}) do
-    <<UCOLedger.serialize(uco_ledger)::binary, NFTLedger.serialize(nft_ledger)::binary>>
+  def serialize(%__MODULE__{uco: uco_ledger, token: token_ledger}) do
+    <<UCOLedger.serialize(uco_ledger)::binary, TokenLedger.serialize(token_ledger)::binary>>
   end
 
   @doc """
@@ -78,7 +81,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...> 122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
       ...> 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
-      ...> 0, 0, 0, 0, 62, 149, 186, 128>>
+      ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
       ...> |> Ledger.deserialize()
       {
         %Ledger{
@@ -91,14 +94,15 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
               }
             ]
           },
-          nft: %NFTLedger{
+          token: %TokenLedger{
             transfers: [
-              %NFTLedger.Transfer{
-                nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+              %TokenLedger.Transfer{
+                token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
                       197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
                 to: <<0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
                       165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-                amount: 1_050_000_000
+                amount: 1_050_000_000,
+                 token_id: 0
               }
             ]
           }
@@ -109,12 +113,12 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(binary) when is_bitstring(binary) do
     {uco_ledger, rest} = UCOLedger.deserialize(binary)
-    {nft_ledger, rest} = NFTLedger.deserialize(rest)
+    {token_ledger, rest} = TokenLedger.deserialize(rest)
 
     {
       %__MODULE__{
         uco: uco_ledger,
-        nft: nft_ledger
+        token: token_ledger
       },
       rest
     }
@@ -124,7 +128,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
   def from_map(ledger = %{}) do
     %__MODULE__{
       uco: Map.get(ledger, :uco, %UCOLedger{}) |> UCOLedger.from_map(),
-      nft: Map.get(ledger, :nft, %NFTLedger{}) |> NFTLedger.from_map()
+      token: Map.get(ledger, :token, %TokenLedger{}) |> TokenLedger.from_map()
     }
   end
 
@@ -132,14 +136,14 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
   def to_map(nil) do
     %{
       uco: UCOLedger.to_map(nil),
-      nft: NFTLedger.to_map(nil)
+      token: TokenLedger.to_map(nil)
     }
   end
 
-  def to_map(%__MODULE__{uco: uco, nft: nft}) do
+  def to_map(%__MODULE__{uco: uco, token: token}) do
     %{
       uco: UCOLedger.to_map(uco),
-      nft: NFTLedger.to_map(nft)
+      token: TokenLedger.to_map(token)
     }
   end
 
@@ -156,14 +160,15 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       ...>       amount: 1_050_000_000
       ...>     },
       ...>   ]},
-      ...>   nft: %NFTLedger{
+      ...>   token: %TokenLedger{
       ...>     transfers: [
-      ...>       %NFTLedger.Transfer{
-      ...>         nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>       %TokenLedger.Transfer{
+      ...>         token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>               197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>         to: <<0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>               165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
-      ...>         amount: 1_050_000_000
+      ...>         amount: 1_050_000_000,
+      ...>         token_id: 0
       ...>       }
       ...>     ]
       ...>   }
@@ -172,7 +177,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ledger do
       2_100_000_000
   """
   @spec total_amount(t()) :: non_neg_integer()
-  def total_amount(%__MODULE__{uco: uco_ledger, nft: nft_ledger}) do
-    UCOLedger.total_amount(uco_ledger) + NFTLedger.total_amount(nft_ledger)
+  def total_amount(%__MODULE__{uco: uco_ledger, token: token_ledger}) do
+    UCOLedger.total_amount(uco_ledger) + TokenLedger.total_amount(token_ledger)
   end
 end

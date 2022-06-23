@@ -1,4 +1,5 @@
 defmodule Archethic.TransactionChain.TransactionTest do
+  @moduledoc false
   use ArchethicCase, async: false
 
   alias Archethic.Crypto
@@ -12,7 +13,7 @@ defmodule Archethic.TransactionChain.TransactionTest do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   doctest Archethic.TransactionChain.Transaction

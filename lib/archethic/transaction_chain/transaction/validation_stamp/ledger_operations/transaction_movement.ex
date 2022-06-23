@@ -13,7 +13,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   TransactionMovement is composed from:
   - to: receiver address of the movement
   - amount: specify the number assets to transfer to the recipients (smallest unit of uco 10^-8)
-  - type: asset type (ie. UCO or NFT)
+  - type: asset type (ie. UCO or Token)
   """
   @type t() :: %__MODULE__{
           to: Crypto.versioned_hash(),
@@ -40,15 +40,14 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       # Amount
       0, 0, 0, 0, 1, 201, 195, 128,
       # UCO type
-      0
-      >>
+      0>>
 
       iex> %TransactionMovement{
       ...>    to: <<0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...>      159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
       ...>    amount: 30_000_000,
-      ...>    type: {:NFT, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
+      ...>    type: {:token, <<0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
       ...>  }
       ...>  |> TransactionMovement.serialize()
       <<
@@ -57,11 +56,13 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       # Amount
       0, 0, 0, 0, 1, 201, 195, 128,
-      # NFT type
+      # Token type
       1,
-      # NFT address
+      # Token address
       0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
+      197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
+      # Token ID
+      0
       >>
   """
   @spec serialize(t()) :: <<_::64, _::_*8>>
@@ -76,8 +77,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
-      ...> 0, 0, 0, 0, 1, 201, 195, 128, 0
-      ...> >>
+      ...> 0, 0, 0, 0, 1, 201, 195, 128, 0>>
       ...> |> TransactionMovement.deserialize()
       {
         %TransactionMovement{
@@ -92,7 +92,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       iex> <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
       ...> 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186,
       ...> 0, 0, 0, 0, 1, 201, 195, 128, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175
+      ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0
       ...> >>
       ...> |> TransactionMovement.deserialize()
       {
@@ -100,8 +100,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
             159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
           amount: 30_000_000,
-          type: {:NFT, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
-                        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>}
+          type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+                        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
         },
         ""
       }
@@ -121,6 +121,41 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
+  @doc """
+  Convert a map to TransactionMovement Struct
+
+  ## Examples
+
+      iex> %{
+      ...> to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...> amount: 30_000_000,
+      ...> type: "UCO"
+      ...> }
+      ...> |> TransactionMovement.from_map()
+      %TransactionMovement{
+        to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 30_000_000,
+        type: :UCO
+      }
+
+      iex> %{
+      ...>  to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68,
+      ...>  194,159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>  amount: 30_000_000,
+      ...>  type: "Token", token_address: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92,
+      ...>  122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215,
+      ...>  143, 175>>, token_id: 0
+      ...>  }
+      ...>  |> TransactionMovement.from_map()
+      %TransactionMovement{
+        to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194,
+         159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 30_000_000,
+        type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71,
+         140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      }
+
+  """
   @spec from_map(map()) :: t()
   def from_map(movement = %{}) do
     res = %__MODULE__{
@@ -129,14 +164,46 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
 
     case Map.get(movement, :type) do
-      :UCO ->
-        %{res | type: :UCO}
+      "Token" ->
+        %{res | type: {:token, Map.get(movement, :token_address), Map.get(movement, :token_id)}}
 
-      {:NFT, nft_address} ->
-        %{res | type: {:NFT, nft_address}}
+      _ ->
+        %{res | type: :UCO}
     end
   end
 
+  @doc """
+  Convert TransactionMovement Struct to a Map
+
+  ## Examples
+
+      iex> %TransactionMovement{
+      ...> to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...> amount: 30_000_000,
+      ...> type: :UCO
+      ...> }
+      ...> |> TransactionMovement.to_map()
+      %{
+        to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 30_000_000,
+        type: "UCO"
+       }
+
+      iex> %TransactionMovement{
+      ...>  to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+      ...>  amount: 30_000_000,
+      ...>  type: {:token, <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>, 0}
+      ...> }
+      ...> |> TransactionMovement.to_map()
+      %{
+        to: <<0, 0, 214, 107, 17, 107, 227, 11, 17, 43, 204, 48, 78, 129, 145, 126, 45, 68, 194, 159, 19, 92, 240, 29, 37, 105, 183, 232, 56, 42, 163, 236, 251, 186>>,
+        amount: 30_000_000,
+        type:  "token",
+        token_address: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74, 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
+        token_id: 0
+      }
+
+  """
   @spec to_map(t()) :: map()
   def to_map(%__MODULE__{to: to, amount: amount, type: :UCO}) do
     %{
@@ -146,12 +213,17 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     }
   end
 
-  def to_map(%__MODULE__{to: to, amount: amount, type: {:NFT, nft_address}}) do
+  def to_map(%__MODULE__{
+        to: to,
+        amount: amount,
+        type: {:token, token_address, token_id}
+      }) do
     %{
       to: to,
       amount: amount,
-      type: "NFT",
-      nft_address: nft_address
+      type: "token",
+      token_address: token_address,
+      token_id: token_id
     }
   end
 end
