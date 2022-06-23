@@ -29,6 +29,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       |> stub(:count_transactions_by_type, fn
         :node_rewards -> 1
         :node_shared_secrets -> 1
+        :mint_rewards -> 1
       end)
       |> expect(:list_addresses_by_type, fn :node_shared_secrets ->
         [:crypto.strong_rand_bytes(32)]
@@ -52,7 +53,7 @@ defmodule Archethic.Crypto.SharedSecrets.SoftwareImplTest do
       unix_timestamp = DateTime.to_unix(timestamp)
 
       assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :shared_secrets_index)
-      assert [{_, 1}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
+      assert [{_, 2}] = :ets.lookup(:archethic_shared_secrets_keystore, :network_pool_index)
 
       assert [{^unix_timestamp, ^daily_nonce_keypair}] =
                :ets.tab2list(:archethic_shared_secrets_daily_keys)

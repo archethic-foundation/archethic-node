@@ -21,6 +21,8 @@ defmodule Archethic.Bootstrap.NetworkInit do
 
   alias Archethic.SharedSecrets
 
+  alias Archethic.Reward
+
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -42,6 +44,11 @@ defmodule Archethic.Bootstrap.NetworkInit do
                                 :archethic,
                                 [__MODULE__, :genesis_origin_public_keys]
                               )
+
+  @genesis_network_pool_amount Application.compile_env!(
+                                 :archethic,
+                                 [__MODULE__, :genesis_network_pool_amount]
+                               )
 
   defp get_genesis_pools do
     Application.get_env(:archethic, __MODULE__) |> Keyword.get(:genesis_pools, [])
@@ -115,12 +122,11 @@ defmodule Archethic.Bootstrap.NetworkInit do
   """
   @spec init_genesis_wallets() :: :ok
   def init_genesis_wallets do
-    network_pool_address = SharedSecrets.get_network_pool_address()
     Logger.info("Create UCO distribution genesis transaction")
 
     tx =
-      network_pool_address
-      |> genesis_transfers()
+      get_genesis_pools()
+      |> Enum.map(&%Transfer{to: &1.address, amount: &1.amount})
       |> create_genesis_transaction()
 
     genesis_transfers_amount =
@@ -139,6 +145,15 @@ defmodule Archethic.Bootstrap.NetworkInit do
     |> self_replication()
   end
 
+  @spec init_network_reward_pool() :: :ok
+  def init_network_reward_pool() do
+    Logger.info("Create mining reward pool")
+
+    Reward.new_rewards_mint(@genesis_network_pool_amount)
+    |> self_validation()
+    |> self_replication()
+  end
+
   defp create_genesis_transaction(genesis_transfers) do
     Transaction.new(
       :transfer,
@@ -152,12 +167,6 @@ defmodule Archethic.Bootstrap.NetworkInit do
       @genesis_seed,
       0
     )
-  end
-
-  defp genesis_transfers(network_pool_address) do
-    get_genesis_pools()
-    |> Enum.map(&%Transfer{to: &1.address, amount: &1.amount})
-    |> Enum.concat([%Transfer{to: network_pool_address, amount: 146_000_000_000_000_000}])
   end
 
   @spec self_validation(Transaction.t(), list(UnspentOutput.t())) :: Transaction.t()

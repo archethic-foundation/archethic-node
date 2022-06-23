@@ -80,9 +80,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   @spec from_transaction(t(), Transaction.t()) :: t()
   def from_transaction(ops = %__MODULE__{}, %Transaction{
         address: address,
-        type: :token,
+        type: type,
         data: %TransactionData{content: content}
-      }) do
+      })
+      when type in [:token, :mint_rewards] do
     case Jason.decode(content) do
       {:ok, json} ->
         utxos = get_token_utxos(json, address)

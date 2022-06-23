@@ -27,7 +27,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.Ownership
-  alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
 
   alias Archethic.Utils
 
@@ -104,12 +104,12 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :node_rewards,
          data: %TransactionData{
            ledger: %Ledger{
-             uco: %UCOLedger{transfers: uco_transfers}
+             token: %TokenLedger{transfers: token_transfers}
            }
          }
        }) do
-    case Reward.get_transfers_for_in_need_validation_nodes(Reward.last_scheduling_date()) do
-      ^uco_transfers ->
+    case Reward.get_transfers(Reward.last_scheduling_date()) do
+      ^token_transfers ->
         :ok
 
       _ ->
@@ -304,9 +304,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
-         type: :token,
+         type: type,
          data: %TransactionData{content: content}
-       }) do
+       })
+       when type in [:token, :mint_rewards] do
     schema =
       :archethic
       |> Application.app_dir("priv/json-schemas/token-core.json")

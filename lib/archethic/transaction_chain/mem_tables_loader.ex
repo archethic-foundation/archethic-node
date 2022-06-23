@@ -29,6 +29,7 @@ defmodule Archethic.TransactionChain.MemTablesLoader do
     :beacon,
     :beacon_summary,
     :node_rewards,
+    :mint_rewards,
     :origin
   ]
 
