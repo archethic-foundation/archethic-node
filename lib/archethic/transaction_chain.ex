@@ -591,7 +591,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch transaction remotely
 
-  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`. 
+  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`.
   If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
 
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.

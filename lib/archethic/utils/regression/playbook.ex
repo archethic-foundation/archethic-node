@@ -5,7 +5,7 @@ defmodule Archethic.Utils.Regression.Playbook do
   require Logger
   alias Archethic.Crypto
 
-  alias Archethic.Utils.WebSocket.Client, as: WSClient
+  # alias Archethic.Utils.WebSocket.Client, as: WSClient
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -194,29 +194,29 @@ defmodule Archethic.Utils.Regression.Playbook do
         tx.previous_public_key
       )
 
-    replication_attestation = Task.async(fn -> await_replication(tx.address) end)
+    # replication_attestation = Task.async(fn -> await_replication(tx.address) end)
 
     case WebClient.with_connection(
            host,
            port,
            &WebClient.json(&1, "/api/transaction", tx_to_json(tx))
          ) do
-      {:ok, %{"status" => "pending"}} ->
-        case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
-          {:ok, :ok} ->
-            :ok
+      {:ok, %{"status" => "pending"}} -> :ok
+        # case Task.yield(replication_attestation, 5_000) || Task.shutdown(replication_attestation) do
+        #   {:ok, :ok} ->
+        #     :ok
 
-          {:ok, {:error, reason}} ->
-            Logger.error(
-              "Transaction #{Base.encode16(tx.address)}confirmation fails - #{inspect(reason)}"
-            )
+        #   {:ok, {:error, reason}} ->
+        #     Logger.error(
+        #       "Transaction #{Base.encode16(tx.address)}confirmation fails - #{inspect(reason)}"
+        #     )
 
-            {:error, reason}
+        #     {:error, reason}
 
-          nil ->
-            Logger.error("Transaction #{Base.encode16(tx.address)} validation timeouts")
-            {:error, :timeout}
-        end
+        #   nil ->
+        #     Logger.error("Transaction #{Base.encode16(tx.address)} validation timeouts")
+        #     {:error, :timeout}
+        # end
 
       {:error, reason} ->
         Logger.error(
@@ -225,29 +225,29 @@ defmodule Archethic.Utils.Regression.Playbook do
     end
   end
 
-  defp await_replication(txn_address) do
-    query = """
-    subscription {
-    transactionConfirmed(address: "#{Base.encode16(txn_address)}") {
-      nbConfirmations
-    }
-    }
-    """
+  # defp await_replication(txn_address) do
+  #   query = """
+  #   subscription {
+  #   transactionConfirmed(address: "#{Base.encode16(txn_address)}") {
+  #     nbConfirmations
+  #   }
+  #   }
+  #   """
 
-    WSClient.absinthe_sub(
-      query,
-      _var = %{},
-      _sub_id = Base.encode16(txn_address)
-    )
+  #   WSClient.absinthe_sub(
+  #     query,
+  #     _var = %{},
+  #     _sub_id = Base.encode16(txn_address)
+  #   )
 
-    receive do
-      %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
-        :ok
+  #   receive do
+  #     %{"transactionConfirmed" => %{"nbConfirmations" => 1}} ->
+  #       :ok
 
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
+  #     {:error, reason} ->
+  #       {:error, reason}
+  #   end
+  # end
 
   defp tx_to_json(%Transaction{
          version: version,
