@@ -4,7 +4,7 @@ defmodule Archethic.OracleChain.Scheduler do
   """
 
   alias Archethic.Crypto
-
+  alias Archethic.DB
   alias Archethic.Election
 
   alias Archethic.P2P
@@ -146,53 +146,59 @@ defmodule Archethic.OracleChain.Scheduler do
       |> get_oracle_data()
       |> Services.fetch_new_data()
 
-    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
+    if generate_oracle_tx?(new_oracle_data) do
+      # build transaction
+      {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
 
-    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
+      {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
 
-    tx =
-      Transaction.new_with_keys(
-        :oracle,
-        %TransactionData{
-          content: Jason.encode!(new_oracle_data),
-          code: ~S"""
-          condition inherit: [
-            # We need to ensure the type stays consistent
-            # So we can apply specific rules during the transaction validation
-            type: in?([oracle, oracle_summary]),
+      tx =
+        Transaction.new_with_keys(
+          :oracle,
+          %TransactionData{
+            content: Jason.encode!(new_oracle_data),
+            code: ~S"""
+            condition inherit: [
+              # We need to ensure the type stays consistent
+              # So we can apply specific rules during the transaction validation
+              type: in?([oracle, oracle_summary]),
 
-            # We discard the content and code verification
-            content: true,
+              # We discard the content and code verification
+              content: true,
 
-            # We ensure the code stay the same
-            code: if type == oracle_summary do
-              regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
-            else
-              previous.code
-            end
-          ]
-          """
-        },
-        prev_pv,
-        prev_pub,
-        next_pub
-      )
+              # We ensure the code stay the same
+              code: if type == oracle_summary do
+                regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+              else
+                previous.code
+              end
+            ]
+            """
+          },
+          prev_pv,
+          prev_pub,
+          next_pub
+        )
 
-    if trigger_node?(summary_date, index + 1) do
-      if Enum.empty?(new_oracle_data) do
-        Logger.debug("Oracle transaction skipped - no new data")
-      else
+      authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
+
+      storage_nodes =
+        summary_date
+        |> Crypto.derive_oracle_address(index)
+        |> Election.storage_nodes(authorized_nodes)
+
+      if trigger_node?(storage_nodes) and !DB.transaction_exists?(tx.address) do
         send_polling_transaction(tx)
+      else
+        DetectNodeResponsiveness.start_link(tx.address, fn count ->
+          if trigger_node?(storage_nodes, count) do
+            Logger.info("Oracle polling transaction ...attempt #{count}")
+            send_polling_transaction(tx)
+          end
+        end)
       end
     else
-      DetectNodeResponsiveness.start_link(tx.address, fn count ->
-        if Enum.empty?(new_oracle_data) and trigger_node?(summary_date, index + 1, count) do
-          Logger.info("Oracle polling transaction ...attempt#{count}")
-          send_polling_transaction(tx)
-        else
-          Logger.debug("Oracle transaction skipped - not the trigger node")
-        end
-      end)
+      Logger.debug("Oracle transaction skipped - no new data")
     end
 
     current_time = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -216,8 +222,9 @@ defmodule Archethic.OracleChain.Scheduler do
     Logger.debug("Oracle summary - state: #{inspect(data)}")
 
     index = Map.fetch!(indexes, summary_date)
+    validation_nodes = get_validation_nodes(summary_date, index + 1)
 
-    if trigger_node?(summary_date, index + 1) do
+    if trigger_node?(validation_nodes) do
       Logger.debug("Oracle transaction summary sending")
       send_summary_transaction(summary_date, index)
     else
@@ -410,13 +417,9 @@ defmodule Archethic.OracleChain.Scheduler do
     )
   end
 
-  defp trigger_node?(summary_date = %DateTime{}, index, count \\ 0) do
-    authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
-
+  defp trigger_node?(validation_nodes, count \\ 0) do
     %Node{first_public_key: initiator_key} =
-      summary_date
-      |> Crypto.derive_oracle_address(index)
-      |> Election.storage_nodes(authorized_nodes)
+      validation_nodes
       |> Enum.at(count)
 
     initiator_key == Crypto.first_node_public_key()
@@ -461,13 +464,21 @@ defmodule Archethic.OracleChain.Scheduler do
         next_pub
       )
 
-    Logger.debug(
-      "Sending oracle summary transaction - aggregation: #{inspect(aggregated_content)}",
-      transaction_address: Base.encode16(tx.address),
-      transaction_type: :oracle_summary
-    )
+    if DB.transaction_exists?(tx.address) do
+      Logger.debug(
+        "Transaction Already Exists:oracle summary transaction - aggregation: #{inspect(aggregated_content)}",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: :oracle_summary
+      )
+    else
+      Logger.debug(
+        "Sending oracle summary transaction - aggregation: #{inspect(aggregated_content)}",
+        transaction_address: Base.encode16(tx.address),
+        transaction_type: :oracle_summary
+      )
 
-    Task.start(fn -> Archethic.send_new_transaction(tx) end)
+      Task.start(fn -> Archethic.send_new_transaction(tx) end)
+    end
   end
 
   defp get_chain(address, opts \\ [], acc \\ []) do
@@ -510,6 +521,22 @@ defmodule Archethic.OracleChain.Scheduler do
       cron_expression
       |> CronScheduler.get_next_run_date!(naive_from_date)
       |> DateTime.from_naive!("Etc/UTC")
+    end
+  end
+
+  defp get_validation_nodes(summary_date, index) do
+    authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
+
+    summary_date
+    |> Crypto.derive_oracle_address(index)
+    |> Election.storage_nodes(authorized_nodes)
+  end
+
+  defp generate_oracle_tx?(data) do
+    if Enum.empty?(data) do
+      false
+    else
+      true
     end
   end
 end
