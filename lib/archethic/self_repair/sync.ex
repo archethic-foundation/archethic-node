@@ -175,36 +175,17 @@ defmodule Archethic.SelfRepair.Sync do
   end
 
   defp fetch_summaries(node, addresses) do
-    case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
-      {:ok, %BeaconSummaryList{summaries: summaries}} ->
-        summaries
+    addresses
+    |> Stream.chunk_every(10)
+    |> Stream.flat_map(fn addresses ->
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
 
-      _ ->
-        []
-    end
+        _ ->
+          []
+      end
+    end)
+    |> Enum.to_list()
   end
-
-  # defp subsets_by_times(time) do
-  #   subsets = BeaconChain.list_subsets()
-  #   Enum.map(subsets, fn subset -> {DateTime.truncate(time, :second), subset} end)
-  # end
-
-  # defp flow_window do
-  #   Flow.Window.fixed(summary_interval(:second), :second, fn {date, _} ->
-  #     DateTime.to_unix(date, :millisecond)
-  #   end)
-  # end
-
-  # defp summary_interval(unit) do
-  #   next_summary = BeaconChain.next_summary_date(DateTime.utc_now())
-  #   next_summary2 = BeaconChain.next_summary_date(next_summary)
-  #   DateTime.diff(next_summary2, next_summary, unit)
-  # end
-
-  # defp get_beacon_summary(time, subset, node_list) do
-  #   filter_nodes = Enum.filter(node_list, &(DateTime.compare(&1.authorization_date, time) == :lt))
-
-  #   nodes = Election.beacon_storage_nodes(subset, time, filter_nodes)
-  #   BeaconSummaryHandler.get_full_beacon_summary(time, subset, nodes)
-  # end
 end
