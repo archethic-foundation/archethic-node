@@ -131,7 +131,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     else
       DetectNodeResponsiveness.start_link(tx.address, fn count ->
         if NodeRenewal.initiator?(count) do
-          Logger.info("Node shared secret renewal creation...attempt#{count}")
+          Logger.info("Node shared secret renewal creation...attempt #{count}")
           make_renewal(tx)
         end
       end)
