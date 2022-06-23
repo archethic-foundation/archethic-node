@@ -30,7 +30,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
       ) do
     with false <- DB.transaction_exists?(address),
          true <- count < length(P2P.authorized_and_available_nodes()) do
-      Logger.error("calling replay fn with count=#{count}")
+      Logger.info("calling replay fn with count=#{count}")
       replaying_fn.(count)
       schedule_timeout()
       new_count = count + 1
