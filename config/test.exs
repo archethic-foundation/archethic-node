@@ -116,7 +116,6 @@ config :archethic, Archethic.Metrics.Poller, enabled: false
 config :archethic, Archethic.Metrics.Collector, MockMetricsCollector
 
 config :archethic, Archethic.Reward.NetworkPoolScheduler, enabled: false
-config :archethic, Archethic.Reward.WithdrawScheduler, enabled: false
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   enabled: false,

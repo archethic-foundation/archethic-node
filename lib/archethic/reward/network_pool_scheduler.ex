@@ -8,17 +8,13 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   alias Archethic.Crypto
 
-  alias Archethic.Election
+  alias Archethic.PubSub
 
-  alias Archethic.P2P
+  alias Archethic.DB
+
   alias Archethic.P2P.Node
 
   alias Archethic.Reward
-
-  # alias Archethic.TransactionChain.Transaction
-  # alias Archethic.TransactionChain.TransactionData
-  # alias Archethic.TransactionChain.TransactionData.Ledger
-  # alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias Archethic.Utils
 
@@ -42,6 +38,7 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   def init(args) do
     interval = Keyword.fetch!(args, :interval)
+    PubSub.register_to_node_update()
     {:ok, %{interval: interval}, :hibernate}
   end
 
@@ -78,14 +75,20 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   def handle_info({:node_update, _}, state), do: {:noreply, state}
 
-  def handle_info(:send_rewards, state = %{interval: interval}) do
+  def handle_info(:mint_rewards, state = %{interval: interval}) do
     timer = schedule(interval)
 
-    if sender?() do
-      interval
-      |> get_last_date
-      |> Reward.get_transfers()
-      |> send_rewards()
+    if Reward.initiator?() do
+      case DB.get_latest_burned_fees() do
+        0 ->
+          Logger.info("No mint rewards transaction needed")
+
+        amount ->
+          Reward.new_rewards_mint(amount)
+          |> Archethic.send_new_transaction()
+
+          Logger.info("New mint rewards transaction sent  with #{amount} token")
+      end
     end
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
@@ -122,46 +125,8 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
     end
   end
 
-  defp sender? do
-    next_transaction_index = Crypto.number_of_network_pool_keys() + 1
-    node_public_key = Crypto.last_node_public_key()
-
-    with true <- P2P.authorized_node?(),
-         next_address <-
-           Crypto.node_shared_secrets_public_key(next_transaction_index) |> Crypto.hash(),
-         [%Node{last_public_key: ^node_public_key} | _] <-
-           Election.storage_nodes(next_address, P2P.authorized_and_available_nodes()) do
-      true
-    else
-      _ ->
-        false
-    end
-  end
-
-  defp send_rewards([]), do: :ok
-
-  # defp send_rewards(transfers) do
-  #   Logger.debug("Sending node reward transaction")
-
-  #   Transaction.new(:node_rewards, %TransactionData{
-  #     code: """
-  #     condition inherit: [
-  #        # We need to ensure the transaction type keep consistent
-  #        # So we can apply specific rules during the transaction verification
-  #        type: node_rewards
-  #     ]
-  #     """,
-  #     ledger: %Ledger{
-  #       uco: %UCOLedger{
-  #         transfers: transfers
-  #       }
-  #     }
-  #   })
-  #   |> Archethic.send_new_transaction()
-  # end
-
   defp schedule(interval) do
-    Process.send_after(self(), :send_rewards, Utils.time_offset(interval) * 1000)
+    Process.send_after(self(), :mint_rewards, Utils.time_offset(interval) * 1000)
   end
 
   def config_change(nil), do: :ok

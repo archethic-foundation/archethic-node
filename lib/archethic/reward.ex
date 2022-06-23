@@ -5,6 +5,13 @@ defmodule Archethic.Reward do
 
   alias Archethic.OracleChain
 
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+
   alias __MODULE__.NetworkPoolScheduler
 
   alias Archethic.TransactionChain.Transaction
@@ -43,6 +50,25 @@ defmodule Archethic.Reward do
     }
 
     Transaction.new(:mint_rewards, data)
+  end
+
+  @doc """
+  Determine if the local node is the initiator of the new rewards mint
+  """
+  @spec initiator?() :: boolean()
+  def initiator? do
+    %Node{first_public_key: initiator_key} =
+      next_address()
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
+      |> List.first()
+
+    initiator_key == Crypto.first_node_public_key()
+  end
+
+  defp next_address do
+    key_index = Crypto.number_of_network_pool_keys()
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    Crypto.derive_address(next_public_key)
   end
 
   @doc """

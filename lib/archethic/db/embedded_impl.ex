@@ -253,15 +253,28 @@ defmodule Archethic.DB.EmbeddedImpl do
   @doc """
   Register the new stats from a self-repair cycle
   """
-  @spec register_tps(time :: DateTime.t(), tps :: float(), nb_transactions :: non_neg_integer()) ::
+  @spec register_stats(
+          time :: DateTime.t(),
+          tps :: float(),
+          nb_transactions :: non_neg_integer(),
+          burned_fees :: non_neg_integer()
+        ) ::
           :ok
-  defdelegate register_tps(date, tps, nb_transactions), to: StatsInfo, as: :new_stats
+  defdelegate register_stats(date, tps, nb_transactions, burned_fees),
+    to: StatsInfo,
+    as: :new_stats
 
   @doc """
   Return tps from the last self-repair cycle
   """
   @spec get_latest_tps() :: float()
   defdelegate get_latest_tps, to: StatsInfo, as: :get_tps
+
+  @doc """
+  Return burned_fees from the last self-repair cycle
+  """
+  @spec get_latest_burned_fees() :: non_neg_integer()
+  defdelegate get_latest_burned_fees, to: StatsInfo, as: :get_burned_fees
 
   @doc """
   Return the last number of transaction in the network (from the previous self-repair cycles)

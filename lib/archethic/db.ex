@@ -36,8 +36,9 @@ defmodule Archethic.DB do
   @callback get_first_chain_address(binary()) :: binary()
   @callback get_first_public_key(Crypto.key()) :: binary()
 
-  @callback register_tps(DateTime.t(), float(), non_neg_integer()) :: :ok
+  @callback register_stats(DateTime.t(), float(), non_neg_integer(), non_neg_integer()) :: :ok
   @callback get_latest_tps() :: float()
+  @callback get_latest_burned_fees() :: non_neg_integer()
   @callback get_nb_transactions() :: non_neg_integer()
 
   @callback transaction_exists?(binary()) :: boolean()
