@@ -5,8 +5,9 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
 
   alias Archethic
   alias Archethic.Crypto
+
   # alias ArchethicWeb.TransactionSubscriber
-  alias Archethic.Utils.Regression.Playbook
+  # alias Archethic.Utils.Regression.Playbook
   alias Archethic.Utils.Regression.Benchmark
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -25,45 +26,46 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
           benchee(host, port)
         end
       },
-      [parallel: 4]
+      [parallel: 1]
     }
   end
 
-  def benchee(host, port) do
-    {ss, rs} = get_random_seed()
-    {sa, _ra} = {ss, rs} |> get_address()
+  def benchee(_host, _port) do
+    # Enum.map(sender_seed(), &get_address(&1))
+    # |> Playbook.batch_send_funds_to(host, port)
+    Archethic.Utils.Regression.Benchmark.GetFunds.main()
+    Enum.map(seed(), fn {sender_seed, reciever_seed} ->
+      Task.async(fn ->
+        build_txn(sender_seed, reciever_seed)
+        |> deploy()
+      end)
+    end)
+    |> Enum.map(&Task.await/1)
+  end
 
-    allocate_funds(sa, host, port)
-
-    Task.async_stream(Enum.to_list(1..100), fn _x ->
-      build_txn(ss, rs)
-      |> deploy()
+  def seed() do
+    Enum.map(Enum.to_list(1..10_000), fn x ->
+      {"sender_seed #{x}", "receiver seed #{x}"}
     end)
   end
 
-  def get_random_seed() do
-    {Integer.to_string(System.unique_integer([:monotonic])),
-     Integer.to_string(System.unique_integer([:monotonic]))}
+  def sender_seed() do
+    Enum.map(Enum.to_list(1..10_000), fn x ->
+      "sender_seed #{x}"
+    end)
   end
 
-  def get_address({ss, rs}) do
-    sa =
-      ss
-      |> Crypto.derive_keypair(0)
-      |> elem(0)
-      |> Crypto.derive_address()
-
-    ra =
-      rs
-      |> Crypto.derive_keypair(0)
-      |> elem(0)
-      |> Crypto.derive_address()
-
-    {sa, ra}
+  def receiver_seed() do
+    Enum.map(Enum.to_list(1..10_000), fn x ->
+      "reciever_seed #{x}"
+    end)
   end
 
-  def allocate_funds(recipient_address, host, port) do
-    Playbook.send_funds_to(recipient_address, host, port)
+  def get_address(seed) do
+    seed
+    |> Crypto.derive_keypair(0)
+    |> elem(0)
+    |> Crypto.derive_address()
   end
 
   def deploy(txn) do
@@ -80,17 +82,6 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
   def build_txn(ss, rs) do
     txn_data = get_txn_data(rs)
     Transaction.new(:transfer, txn_data, ss, 0, Crypto.default_curve())
-    # genesis_origin_private_key = get_origin_private_key(host, port)
-
-    # tx =
-    #   %Transaction{
-    #     address: Crypto.derive_address(next_public_key),
-    #     type: tx_type,
-    #     data: transaction_data,
-    #     previous_public_key: previous_public_key
-    #   }
-    #   |> Transaction.previous_sign_transaction(previous_private_key)
-    #   |> Transaction.origin_sign_transaction(genesis_origin_private_key)
   end
 
   defp get_txn_data(receiver_seed) do
