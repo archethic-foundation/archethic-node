@@ -315,12 +315,12 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
       assert :ok = PendingTransactionValidation.validate(tx)
     end
 
-    test "should return :ok when a transaction contains valid fields for NFT creation" do
+    test "should return :ok when a transaction contains valid fields for token creation" do
       tx_seed = :crypto.strong_rand_bytes(32)
 
       tx =
         Transaction.new(
-          :nft,
+          :token,
           %TransactionData{
             content:
               Jason.encode!(%{

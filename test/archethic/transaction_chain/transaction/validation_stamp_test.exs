@@ -56,7 +56,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
             StreamData.one_of([
               StreamData.constant(:UCO),
               StreamData.tuple(
-                {StreamData.constant(:NFT), StreamData.binary(length: 33),
+                {StreamData.constant(:token), StreamData.binary(length: 33),
                  StreamData.positive_integer()}
               )
             ])
@@ -73,7 +73,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStampTest do
             StreamData.one_of([
               StreamData.constant(:UCO),
               StreamData.tuple(
-                {StreamData.constant(:NFT), StreamData.binary(length: 33),
+                {StreamData.constant(:token), StreamData.binary(length: 33),
                  StreamData.positive_integer()}
               )
             ])

@@ -33,9 +33,9 @@ defmodule Archethic.Contracts.Interpreter do
     "keys",
     "code",
     "uco_ledger",
-    "nft_ledger",
+    "token_ledger",
     "uco_transfers",
-    "nft_transfers",
+    "token_transfers",
     "authorized_public_keys",
     "secrets",
     "recipients"
@@ -95,7 +95,7 @@ defmodule Archethic.Contracts.Interpreter do
                 },
                 authorized_keys: nil,
                 code: nil,
-                nft_transfers: nil,
+                token_transfers: nil,
                 origin_family: :all,
                 previous_public_key: nil,
                 type: nil,
@@ -119,7 +119,7 @@ defmodule Archethic.Contracts.Interpreter do
                   },
                  authorized_keys: nil,
                  code: nil,
-                 nft_transfers: nil,
+                 token_transfers: nil,
                  origin_family: :all,
                  previous_public_key: nil,
                  type: nil,
@@ -137,7 +137,7 @@ defmodule Archethic.Contracts.Interpreter do
                  origin_family: :biometric,
                  authorized_keys: nil,
                  code: nil,
-                 nft_transfers: nil,
+                 token_transfers: nil,
                  previous_public_key: nil,
                  type: nil,
                  uco_transfers: nil
@@ -691,24 +691,24 @@ defmodule Archethic.Contracts.Interpreter do
        when arg in ["to", "amount"],
        do: {node, acc}
 
-  # Whitelist the add_nft_tranfser argument list
+  # Whitelist the add_token_tranfser argument list
   defp prewalk(
          node = [
            {{:atom, "to"}, _to},
            {{:atom, "amount"}, _amount},
-           {{:atom, "nft"}, _nft_address},
-           {{:atom, "nft_id"}, _nft_id}
+           {{:atom, "token"}, _token_address},
+           {{:atom, "token_id"}, _token_id}
          ],
-         acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_token_transfer", :actions}}}
        ) do
     {node, acc}
   end
 
   defp prewalk(
          node = {{:atom, arg}, _},
-         acc = {:ok, %{scope: {:function, "add_nft_transfer", :actions}}}
+         acc = {:ok, %{scope: {:function, "add_token_transfer", :actions}}}
        )
-       when arg in ["to", "amount", "nft", "nft_id"],
+       when arg in ["to", "amount", "token", "token_id"],
        do: {node, acc}
 
   # Whitelist the add_ownership argument list

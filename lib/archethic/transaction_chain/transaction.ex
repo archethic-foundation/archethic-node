@@ -13,7 +13,7 @@ defmodule Archethic.TransactionChain.Transaction do
 
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias Archethic.Utils
@@ -72,7 +72,7 @@ defmodule Archethic.TransactionChain.Transaction do
           | :keychain
           | :keychain_access
           | :transfer
-          | :nft
+          | :token
           | :hosting
           | :origin
 
@@ -90,7 +90,7 @@ defmodule Archethic.TransactionChain.Transaction do
     :keychain_access,
     :transfer,
     :hosting,
-    :nft,
+    :token,
     :origin
   ]
 
@@ -314,7 +314,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def serialize_type(:keychain_access), do: 254
   def serialize_type(:transfer), do: 253
   def serialize_type(:hosting), do: 252
-  def serialize_type(:nft), do: 251
+  def serialize_type(:token), do: 251
 
   @doc """
   Parse a serialize transaction type
@@ -337,7 +337,7 @@ defmodule Archethic.TransactionChain.Transaction do
   def parse_type(254), do: :keychain_access
   def parse_type(253), do: :transfer
   def parse_type(252), do: :hosting
-  def parse_type(251), do: :nft
+  def parse_type(251), do: :token
 
   @doc """
   Determines if a transaction type is a network one
@@ -374,9 +374,9 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>          %UCOLedger.Transfer{to: "@Alice1", amount: 10}
       ...>        ]
       ...>      },
-      ...>      nft: %NFTLedger{
+      ...>      token: %TokenLedger{
       ...>        transfers: [
-      ...>          %NFTLedger.Transfer{to: "@Alice1", amount: 3, nft: "@BobNFT", nft_id: 0}
+      ...>          %TokenLedger.Transfer{to: "@Alice1", amount: 3, token: "@BobToken", token_id: 0}
       ...>        ]
       ...>      }
       ...>    }
@@ -387,7 +387,7 @@ defmodule Archethic.TransactionChain.Transaction do
           to: "@Alice1", amount: 10, type: :UCO,
         },
         %TransactionMovement{
-          to: "@Alice1", amount: 3, type: {:NFT, "@BobNFT", 0},
+          to: "@Alice1", amount: 3, type: {:Token, "@BobToken", 0},
         }
       ]
   """
@@ -396,14 +396,14 @@ defmodule Archethic.TransactionChain.Transaction do
         data: %TransactionData{
           ledger: %Ledger{
             uco: %UCOLedger{transfers: uco_transfers},
-            nft: %NFTLedger{transfers: nft_transfers}
+            token: %TokenLedger{transfers: token_transfers}
           }
         }
       }) do
     Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
       Enum.map(
-        nft_transfers,
-        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:NFT, &1.nft, &1.nft_id}}
+        token_transfers,
+        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:Token, &1.token, &1.token_id}}
       )
   end
 
@@ -499,7 +499,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...>       124, 88, 206, 36, 125, 163, 108, 229, 219, 181, 143, 253, 246, 237, 238,
       ...>       21, 79, 9, 230, 172, 0, 95, 0, 0, 0, 0, 0>>,
       ...>     ledger: %Archethic.TransactionChain.TransactionData.Ledger{
-      ...>       nft: %Archethic.TransactionChain.TransactionData.NFTLedger{transfers: []},
+      ...>       token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []},
       ...>       uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}
       ...>     },
       ...>     ownerships: [],
@@ -697,7 +697,7 @@ defmodule Archethic.TransactionChain.Transaction do
               124, 88, 206, 36, 125, 163, 108, 229, 219, 181, 143, 253, 246, 237, 238,
               21, 79, 9, 230, 172, 0, 95, 0, 0, 0, 0, 0>>,
             ledger: %Archethic.TransactionChain.TransactionData.Ledger{
-              nft: %Archethic.TransactionChain.TransactionData.NFTLedger{transfers: []},
+              token: %Archethic.TransactionChain.TransactionData.TokenLedger{transfers: []},
               uco: %Archethic.TransactionChain.TransactionData.UCOLedger{transfers: []}
             },
             ownerships: [],

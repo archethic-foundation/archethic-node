@@ -10,7 +10,7 @@ defmodule ArchethicWeb.API.Types.TransactionType do
     "keychain",
     "transfer",
     "hosting",
-    "nft",
+    "token",
     "code_proposal",
     "code_approval"
   ]

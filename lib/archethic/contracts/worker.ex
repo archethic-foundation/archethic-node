@@ -394,18 +394,18 @@ defmodule Archethic.Contracts.Worker do
   end
 
   defp ensure_enough_funds(next_transaction, contract_address) do
-    %{uco: uco_to_transfer, nft: nft_to_transfer} =
+    %{uco: uco_to_transfer, token: token_to_transfer} =
       next_transaction
       |> Transaction.get_movements()
-      |> Enum.reduce(%{uco: 0, nft: %{}}, fn
+      |> Enum.reduce(%{uco: 0, token: %{}}, fn
         %TransactionMovement{type: :UCO, amount: amount}, acc ->
           Map.update!(acc, :uco, &(&1 + amount))
 
-        %TransactionMovement{type: {:NFT, nft_address, nft_id}, amount: amount}, acc ->
-          Map.update!(acc, :nft, &Map.put(&1, {nft_address, nft_id}, amount))
+        %TransactionMovement{type: {:token, token_address, token_id}, amount: amount}, acc ->
+          Map.update!(acc, :token, &Map.put(&1, {token_address, token_id}, amount))
       end)
 
-    %{uco: uco_balance, nft: nft_balances} = Account.get_balance(contract_address)
+    %{uco: uco_balance, token: token_balances} = Account.get_balance(contract_address)
 
     uco_usd_price =
       DateTime.utc_now()
@@ -420,10 +420,10 @@ defmodule Archethic.Contracts.Worker do
 
     with true <- uco_balance > uco_to_transfer + tx_fee,
          true <-
-           Enum.all?(nft_to_transfer, fn {{t_nft_address, t_nft_id}, t_amount} ->
-             {{_nft_address, _nft_id}, balance} =
-               Enum.find(nft_balances, fn {{f_nft_address, f_nft_id}, _f_amount} ->
-                 f_nft_address == t_nft_address and f_nft_id == t_nft_id
+           Enum.all?(token_to_transfer, fn {{t_token_address, t_token_id}, t_amount} ->
+             {{_token_address, _token_id}, balance} =
+               Enum.find(token_balances, fn {{f_token_address, f_token_id}, _f_amount} ->
+                 f_token_address == t_token_address and f_token_id == t_token_id
                end)
 
              balance > t_amount
@@ -432,7 +432,7 @@ defmodule Archethic.Contracts.Worker do
     else
       false ->
         Logger.debug(
-          "Not enough funds to submit the transaction - expected %{ UCO: #{uco_to_transfer + tx_fee},  nft: #{inspect(nft_to_transfer)}} - got: %{ UCO: #{uco_balance}, nft: #{inspect(nft_balances)}}",
+          "Not enough funds to submit the transaction - expected %{ UCO: #{uco_to_transfer + tx_fee},  token: #{inspect(token_to_transfer)}} - got: %{ UCO: #{uco_balance}, token: #{inspect(token_balances)}}",
           contract: Base.encode16(contract_address)
         )
 

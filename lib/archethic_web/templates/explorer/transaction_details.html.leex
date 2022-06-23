@@ -96,9 +96,9 @@
                                                         </a>
                                                     </li>
                                                     <li>
-                                                        <a @click="data_section='nft_ledger'"
-                                                        :class="data_section == 'nft_ledger' ? 'is-active' : '' ">
-                                                            NFT
+                                                        <a @click="data_section='token_ledger'"
+                                                        :class="data_section == 'token_ledger' ? 'is-active' : '' ">
+                                                            Token
                                                         </a>
                                                     </li>
                                                 </ul>
@@ -169,12 +169,12 @@
                                         </div>
                                         <% end %>
                                     </div>
-                                    <div x-show="data_section=='nft_ledger' ">
-                                        <p class="heading mb-4">NFT Ledger</p>
-                                        <%= if Enum.count(@transaction.data.ledger.nft.transfers) == 0 do %>
+                                    <div x-show="data_section=='token_ledger' ">
+                                        <p class="heading mb-4">Token Ledger</p>
+                                        <%= if Enum.count(@transaction.data.ledger.token.transfers) == 0 do %>
                                             N/A
                                         <% end %>
-                                        <%= for transfer <- @transaction.data.ledger.nft.transfers do %>
+                                        <%= for transfer <- @transaction.data.ledger.token.transfers do %>
                                         <div class="box">
                                             <div class="columns">
                                                 <div class="column is-1 heading">To</div>
@@ -189,10 +189,10 @@
                                                 <div class="column"><%= to_float(transfer.amount) %></div>
                                             </div>
                                             <div class="columns">
-                                                <div class="column is-1 heading">NFT</div>
+                                                <div class="column is-1 heading">Token</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.nft)) do%>
-                                                    <span class="text_wrap"><%= Base.encode16(transfer.nft) %></span>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
+                                                    <span class="text_wrap"><%= Base.encode16(transfer.token_address) %></span>
                                                 <% end %>
                                                 </div>
                                             </div>
@@ -333,16 +333,16 @@
                                                             <%= if movement.amount > 0 do %>
                                                                 (<%= format_full_usd_amount(movement.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                             <% end %>
-                                                        <% {:NFT, nft_address, nft_id} -> %>
+                                                        <% {:token, token_address, token_id} -> %>
                                                             <%= to_float(movement.amount) %>
-                                                            <span class="tag is-success is-light ml-2">NFT
-  <%= if nft_id >= 1 do %>
-    (#<%= nft_id %>)
+                                                            <span class="tag is-success is-light ml-2">Token
+  <%= if token_id >= 1 do %>
+    (#<%= token_id %>)
   <% end %>
 
                                                             </span>
-                                                            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
-                                                                <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
+                                                            <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                                                <span><%= Base.encode16(:binary.part(token_address, 0, 13)) %>...</span>
                                                             <% end %>
                                                         </div>
                                                     <% end %>
@@ -375,15 +375,15 @@
                                                         <%= if unspent_output.amount > 0 do %>
                                                             (<%= format_full_usd_amount(unspent_output.amount, @uco_price_at_time[:usd], @uco_price_now[:usd]) %>)
                                                         <% end %>
-                                                    <% {:NFT, nft_address, nft_id} -> %>
+                                                    <% {:token, token_address, token_id} -> %>
                                                         <%= to_float(unspent_output.amount) %>
-                                                        <span class="tag is-success is-light ml-2">NFT 
-  <%= if nft_id >= 1 do %>
-    (#<%= nft_id %>)
+                                                        <span class="tag is-success is-light ml-2">Token 
+  <%= if token_id >= 1 do %>
+    (#<%= token_id %>)
   <% end %>
                                                         </span>
-                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
-                                                            <span><%= Base.encode16(:binary.part(nft_address, 0, 13)) %>...</span>
+                                                        <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                                            <span><%= Base.encode16(:binary.part(token_address, 0, 13)) %>...</span>
                                                         <% end %>
                                                     <% end %>
                                                 </div>
@@ -518,17 +518,17 @@
                                                 <%= if input.reward? do %>
                                                   <span class="tag is-info is-light">Mining reward</span>
                                                 <% end %>
-                                             <% {:NFT, nft_address, nft_id} -> %>
+                                             <% {:token, token_address, token_id} -> %>
                                                 <div class="columns">
-                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">NFT
-                                                      <%= if nft_id >= 1 do %>
-                                                        (#<%= nft_id %>)
+                                                  <div class="column is-2-desktop"><span class="tag is-success is-light">Token
+                                                      <%= if token_id >= 1 do %>
+                                                        (#<%= token_id %>)
                                                       <% end %>
                                                     </span></div>
                                                   <div class="column is-4-desktop">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(nft_address)) do %>
-                                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(nft_address, 0, 6)) %>...</span>
-                                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(nft_address, 0, 12)) %>...</span>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(token_address)) do %>
+                                                        <span class="is-hidden-mobile"><%= Base.encode16(:binary.part(token_address, 0, 6)) %>...</span>
+                                                        <span class="is-hidden-desktop"><%= Base.encode16(:binary.part(token_address, 0, 12)) %>...</span>
                                                     <% end %>
                                                   </div>
                                                 </div>

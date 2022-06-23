@@ -13,8 +13,8 @@ defmodule Archethic.Contracts.Contract.Constants do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
@@ -35,8 +35,8 @@ defmodule Archethic.Contracts.Contract.Constants do
             uco: %UCOLedger{
               transfers: uco_transfers
             },
-            nft: %NFTLedger{
-              transfers: nft_transfers
+            token: %TokenLedger{
+              transfers: token_transfers
             }
           },
           recipients: recipients
@@ -61,15 +61,15 @@ defmodule Archethic.Contracts.Contract.Constants do
         |> Enum.map(fn %UCOTransfer{to: to, amount: amount} ->
           %{"to" => to, "amount" => amount}
         end),
-      "nft_transfers" =>
-        nft_transfers
-        |> Enum.map(fn %NFTTransfer{
+      "token_transfers" =>
+        token_transfers
+        |> Enum.map(fn %TokenTransfer{
                          to: to,
                          amount: amount,
-                         nft: nft_address,
-                         nft_id: nft_id
+                         token: token_address,
+                         token_id: token_id
                        } ->
-          %{"to" => to, "amount" => amount, "nft" => nft_address, "nft_id" => nft_id}
+          %{"to" => to, "amount" => amount, "token" => token_address, "token_id" => token_id}
         end)
     }
   end
@@ -110,12 +110,17 @@ defmodule Archethic.Contracts.Contract.Constants do
                 %UCOTransfer{to: to, amount: amount}
               end)
           },
-          nft: %NFTLedger{
+          token: %TokenLedger{
             transfers:
               constants
-              |> Map.get("nft_transfers", [])
-              |> Enum.map(fn %{"to" => to, "amount" => amount, "nft" => nft, "nft_id" => nft_id} ->
-                %NFTTransfer{to: to, amount: amount, nft: nft, nft_id: nft_id}
+              |> Map.get("token_transfers", [])
+              |> Enum.map(fn %{
+                               "to" => to,
+                               "amount" => amount,
+                               "token" => token,
+                               "token_id" => token_id
+                             } ->
+                %TokenTransfer{to: to, amount: amount, token: token, token_id: token_id}
               end)
           }
         }

@@ -1,6 +1,6 @@
-defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
+defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   @moduledoc """
-  Represents a NFT ledger movement
+  Represents token ledger movements
   """
   defstruct transfers: []
 
@@ -8,40 +8,40 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
 
   @typedoc """
   UCO movement is composed from:
-  - Transfers: List of NFT transfers
+  - Transfers: List of token transfers
   """
   @type t :: %__MODULE__{
           transfers: list(Transfer.t())
         }
 
   @doc """
-  Serialize a NFT ledger into binary format
+  Serialize a Token ledger into binary format
 
   ## Examples
 
-      iex> %NFTLedger{transfers: [
+      iex> %TokenLedger{transfers: [
       ...>   %Transfer{
-      ...>     nft:  <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>     token:  <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>        197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
       ...>     amount: 1_050_000_000,
-      ...>     nft_id: 0
+      ...>     token_id: 0
       ...>   }
       ...> ]}
-      ...> |> NFTLedger.serialize()
+      ...> |> TokenLedger.serialize()
       <<
-        # Number of NFT transfers
+        # Number of Token transfers
         1,
-        # NFT address
+        # Token address
         0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
-        # NFT recipient
+        # Token recipient
         0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
-        # NFT amount
+        # Token amount
         0, 0, 0, 0, 62, 149, 186, 128,
-        # NFT_ID
+        # Token_ID
         0
       >>
   """
@@ -52,7 +52,7 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
   end
 
   @doc """
-  Deserialize an encoded NFT ledger
+  Deserialize an encoded Token ledger
 
   ## Examples
 
@@ -60,17 +60,17 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
-      ...> |> NFTLedger.deserialize()
+      ...> |> TokenLedger.deserialize()
       {
-        %NFTLedger{
+        %TokenLedger{
           transfers: [
             %Transfer{
-              nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+              token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
                     197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
               to: <<0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
                     165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
               amount: 1_050_000_000,
-              nft_id: 0
+              token_id: 0
             }
           ]
         },
@@ -105,48 +105,48 @@ defmodule Archethic.TransactionChain.TransactionData.NFTLedger do
   end
 
   @spec from_map(map()) :: t()
-  def from_map(nft_ledger = %{}) do
+  def from_map(token_ledger = %{}) do
     %__MODULE__{
-      transfers: Map.get(nft_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
+      transfers: Map.get(token_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
     }
   end
 
   @spec to_map(t() | nil) :: map()
   def to_map(nil), do: %{transfers: []}
 
-  def to_map(nft_ledger = %__MODULE__{}) do
+  def to_map(token_ledger = %__MODULE__{}) do
     %{
       transfers:
-        nft_ledger
+        token_ledger
         |> Map.get(:transfers, [])
         |> Enum.map(&Transfer.to_map/1)
     }
   end
 
   @doc """
-  Return the total of uco transferred
+  Return the total of tokens transferred
 
   ## Examples
 
-      iex> %NFTLedger{transfers: [
+      iex> %TokenLedger{transfers: [
       ...>   %Transfer{
-      ...>     nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>     token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...>         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53>>,
       ...>     amount: 1_050_000_000,
-      ...>     nft_id: 0,
+      ...>     token_id: 0,
       ...>   },
       ...>   %Transfer{
-      ...>     nft: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      ...>     token: <<0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...>         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175>>,
       ...>     to: <<0, 0, 202, 39, 113, 5, 117, 133, 141, 107, 1, 202, 156, 250, 124, 22, 13, 183, 20,
       ...>         221, 181, 252, 153, 184, 2, 26, 115, 73, 148, 163, 119, 163, 86, 6>>,
       ...>     amount: 2_290_000_000,
-      ...>     nft_id: 0,
+      ...>     token_id: 0,
       ...>   }
       ...> ]}
-      ...> |> NFTLedger.total_amount()
+      ...> |> TokenLedger.total_amount()
       3_340_000_000
   """
   @spec total_amount(t()) :: non_neg_integer()

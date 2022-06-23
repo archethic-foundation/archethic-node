@@ -10,8 +10,8 @@ defmodule Archethic.Utils.Regression.Playbook do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger.Transfer, as: NFTTransfer
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer, as: TokenTransfer
   alias Archethic.TransactionChain.TransactionData.Ownership
   alias Archethic.TransactionChain.TransactionData.UCOLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger.Transfer, as: UCOTransfer
@@ -256,7 +256,7 @@ defmodule Archethic.Utils.Regression.Playbook do
          data: %TransactionData{
            ledger: %Ledger{
              uco: %UCOLedger{transfers: uco_transfers},
-             nft: %NFTLedger{transfers: nft_transfers}
+             token: %TokenLedger{transfers: token_transfers}
            },
            code: code,
            content: content,
@@ -282,19 +282,19 @@ defmodule Archethic.Utils.Regression.Playbook do
                 %{"to" => Base.encode16(to), "amount" => amount}
               end)
           },
-          "nft" => %{
+          "token" => %{
             "transfers" =>
-              Enum.map(nft_transfers, fn %NFTTransfer{
-                                           to: to,
-                                           amount: amount,
-                                           nft: nft_address,
-                                           nft_id: nft_id
-                                         } ->
+              Enum.map(token_transfers, fn %TokenTransfer{
+                                             to: to,
+                                             amount: amount,
+                                             token: token_address,
+                                             token_id: token_id
+                                           } ->
                 %{
                   "to" => Base.encode16(to),
                   "amount" => amount,
-                  "nft" => nft_address,
-                  "nft_id" => nft_id
+                  "token" => token_address,
+                  "token_id" => token_id
                 }
               end)
           }

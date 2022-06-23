@@ -10,7 +10,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
     :authorized_keys,
     :secrets,
     :uco_transfers,
-    :nft_transfers,
+    :token_transfers,
     :previous_public_key,
     origin_family: :all
   ]
@@ -25,7 +25,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
           authorized_keys: map() | Macro.t() | nil,
           secrets: list(binary()) | Macro.t() | nil,
           uco_transfers: map() | Macro.t() | nil,
-          nft_transfers: map() | Macro.t() | nil,
+          token_transfers: map() | Macro.t() | nil,
           previous_public_key: binary() | Macro.t() | nil,
           origin_family: SharedSecrets.origin_family() | :all
         }
@@ -37,7 +37,7 @@ defmodule Archethic.Contracts.Contract.Conditions do
         authorized_keys: nil,
         secrets: nil,
         uco_transfers: nil,
-        nft_transfers: nil,
+        token_transfers: nil,
         previous_public_key: nil
       }),
       do: true

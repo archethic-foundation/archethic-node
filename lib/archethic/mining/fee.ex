@@ -11,7 +11,7 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionData.Ledger
-  alias Archethic.TransactionChain.TransactionData.NFTLedger
+  alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   @unit_uco 100_000_000
@@ -66,7 +66,7 @@ defmodule Archethic.Mining.Fee do
   end
 
   defp get_additional_fee(
-         %Transaction{type: :nft, data: %TransactionData{content: content}},
+         %Transaction{type: :token, data: %TransactionData{content: content}},
          uco_price_in_usd
        ) do
     with {:ok, json} <- Jason.decode(content),
@@ -101,11 +101,11 @@ defmodule Archethic.Mining.Fee do
          data: %TransactionData{
            ledger: %Ledger{
              uco: %UCOLedger{transfers: uco_transfers},
-             nft: %NFTLedger{transfers: nft_transfers}
+             token: %TokenLedger{transfers: token_transfers}
            }
          }
        }) do
-    (uco_transfers ++ nft_transfers)
+    (uco_transfers ++ token_transfers)
     |> Enum.uniq_by(& &1.to)
     |> length()
   end

@@ -64,7 +64,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   @desc "[Ledger] represents the ledger operations to perform"
   object :ledger do
     field(:uco, :uco_ledger)
-    field(:nft, :nft_ledger)
+    field(:token, :token_ledger)
   end
 
   @desc "[UCOTransfer] represents the an asset transfer"
@@ -73,12 +73,12 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:amount, :amount)
   end
 
-  @desc "[NFTTransfer] represents the an asset transfer"
-  object :nft_transfer do
+  @desc "[TokenTransfer] represents the an asset transfer"
+  object :token_transfer do
     field(:to, :address)
     field(:amount, :amount)
-    field(:nft, :address)
-    field(:nft_id, :integer)
+    field(:token, :address)
+    field(:token_id, :integer)
   end
 
   @desc "[UCOLedger] represents the transfers to perform on the UCO ledger"
@@ -86,9 +86,9 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:transfers, list_of(:uco_transfer))
   end
 
-  @desc "[NFTLedger] represents the transfers to perform on the UCO ledger"
-  object :nft_ledger do
-    field(:transfers, list_of(:nft_transfer))
+  @desc "[TokenLedger] represents the transfers to perform on the UCO ledger"
+  object :token_ledger do
+    field(:transfers, list_of(:token_transfer))
   end
 
   @desc "[Ownership] represents a block to set a secret and the authorized public keys able to decrypt the secret"
@@ -151,15 +151,15 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   It includes:
   - From: transaction which send the amount of assets
   - Amount: asset amount
-  - Type: UCO/NFT
-  - NFT address: address of the NFT if the type is NFT
+  - Type: UCO/token
+  - token address: address of the token if the type is token
   """
   object :unspent_output do
     field(:from, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :address)
-    field(:nft_id, :integer)
+    field(:token_address, :address)
+    field(:token_id, :integer)
   end
 
   @desc """
@@ -167,8 +167,8 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   It includes:
   - From: transaction which send the amount of assets
   - Amount: asset amount
-  - Type: UCO/NFT/Call
-  - NFT address: address of the NFT if the type is NFT
+  - Type: UCO/token/Call
+  - token address: address of the token if the type is token
   - Spent: determines if the input has been spent
   - Timestamp: Date time when the inputs was generated
   """
@@ -176,10 +176,10 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
     field(:from, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :address)
+    field(:token_address, :address)
     field(:spent, :boolean)
     field(:timestamp, :timestamp)
-    field(:nft_id, :integer)
+    field(:token_id, :integer)
   end
 
   @desc """
@@ -187,15 +187,15 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   It includes:
   - TO: asset transfer recipient
   - Amount: asset amount
-  - Type: UCO/NFT
-  - NFT address: address of the NFT if the type is NFT
+  - Type: UCO/token
+  - token address: address of the token if the type is token
   """
   object :transaction_movement do
     field(:to, :address)
     field(:amount, :amount)
     field(:type, :string)
-    field(:nft_address, :address)
-    field(:nft_id, :integer)
+    field(:token_address, :address)
+    field(:token_id, :integer)
   end
 
   @desc """
@@ -213,23 +213,24 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   [Balance] represents a ledger balance.
   It includes:
   - UCO: uco balance
-  - NFT: NFT balances
+  - token: token balances
   """
   object :balance do
     field(:uco, :amount)
-    field(:nft, list_of(:nft_balance))
+    field(:token, list_of(:token_balance))
   end
 
   @desc """
-  [NftBalance] represents a NFT ledger balance.
+  [tokenBalance] represents a token ledger balance.
   It includes:
-  - NFT: address of the NFT
-  - Amount: amount of NFT
+  - Token: address of the token
+  - Amount: amount of token
+  - Token ID: ID of the token
   """
-  object :nft_balance do
+  object :token_balance do
     field(:address, :address)
     field(:amount, :amount)
-    field(:nft_id, :integer)
+    field(:token_id, :integer)
   end
 
   @desc """
