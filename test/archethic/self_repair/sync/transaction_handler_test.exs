@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest do
+defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain
@@ -18,7 +18,7 @@ defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandlerTest 
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
 
-  alias Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler
+  alias Archethic.SelfRepair.Sync.TransactionHandler
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
   alias Archethic.TransactionFactory

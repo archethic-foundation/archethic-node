@@ -2,22 +2,30 @@ defmodule Archethic.BeaconChainTest do
   use ArchethicCase
 
   alias Archethic.BeaconChain
+  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.Slot.EndOfNodeSync
   alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.Subset
   alias Archethic.BeaconChain.Subset.SummaryCache
   alias Archethic.BeaconChain.SubsetRegistry
+  alias Archethic.BeaconChain.Summary
+  alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
+  alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
 
@@ -97,6 +105,327 @@ defmodule Archethic.BeaconChainTest do
       assert :ok = BeaconChain.load_transaction(tx)
 
       assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
+    end
+  end
+
+  describe "fetch_summary_aggregates/1" do
+    setup do
+      summary_time = ~U[2021-01-22 16:12:58Z]
+
+      node_keypair1 = Crypto.derive_keypair("node_seed", 1)
+      node_keypair2 = Crypto.derive_keypair("node_seed", 2)
+      node_keypair3 = Crypto.derive_keypair("node_seed", 3)
+      node_keypair4 = Crypto.derive_keypair("node_seed", 4)
+
+      node1 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: elem(node_keypair1, 0),
+        last_public_key: elem(node_keypair1, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorization_date: summary_time |> DateTime.add(-10),
+        authorized?: true,
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      node2 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: elem(node_keypair2, 0),
+        last_public_key: elem(node_keypair2, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorization_date: summary_time |> DateTime.add(-10),
+        authorized?: true,
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      node3 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: elem(node_keypair3, 0),
+        last_public_key: elem(node_keypair3, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorization_date: summary_time |> DateTime.add(-10),
+        authorized?: true,
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      node4 = %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: elem(node_keypair4, 0),
+        last_public_key: elem(node_keypair4, 0),
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorization_date: summary_time |> DateTime.add(-10),
+        authorized?: true,
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      }
+
+      P2P.add_and_connect_node(node1)
+      P2P.add_and_connect_node(node2)
+      P2P.add_and_connect_node(node3)
+      P2P.add_and_connect_node(node4)
+
+      P2P.add_and_connect_node(%Node{
+        first_public_key: Crypto.last_node_public_key(),
+        network_patch: "AAA",
+        available?: false
+      })
+
+      {:ok, %{summary_time: summary_time, nodes: [node1, node2, node3, node4]}}
+    end
+
+    test "should download the beacon summary", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      tx_summary = %TransactionSummary{
+        address: addr1,
+        timestamp: DateTime.utc_now(),
+        type: :transfer,
+        fee: 100_000_000
+      }
+
+      storage_nodes =
+        Election.chain_storage_nodes_with_type(addr1, :transfer, P2P.available_nodes())
+
+      beacon_summary = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: tx_summary,
+            confirmations:
+              [node1, node2, node3, node4]
+              |> Enum.with_index(1)
+              |> Enum.map(fn {node, index} ->
+                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                {_, pv} = Crypto.derive_keypair("node_seed", index)
+                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
+              end)
+          }
+        ]
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [beacon_summary]}}
+      end)
+
+      [%SummaryAggregate{transaction_summaries: transaction_summaries}] =
+        BeaconChain.fetch_summary_aggregates([summary_time])
+
+      assert [addr1] == Enum.map(transaction_summaries, & &1.address)
+    end
+
+    test "should find other beacon summaries and aggregate missing summaries", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      addr1 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+      addr2 = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+      storage_nodes =
+        Election.chain_storage_nodes_with_type(addr1, :transfer, P2P.available_nodes())
+
+      tx_summary = %TransactionSummary{
+        address: addr1,
+        timestamp: DateTime.utc_now(),
+        type: :transfer,
+        fee: 100_000_000
+      }
+
+      summary_v1 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: tx_summary,
+            confirmations:
+              [node1, node2, node3, node4]
+              |> Enum.with_index(1)
+              |> Enum.map(fn {node, index} ->
+                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                {_, pv} = Crypto.derive_keypair("node_seed", index)
+                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
+              end)
+          }
+        ]
+      }
+
+      summary_v2 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        transaction_attestations: [
+          %ReplicationAttestation{
+            transaction_summary: tx_summary,
+            confirmations:
+              [node1, node2, node3, node4]
+              |> Enum.with_index(1)
+              |> Enum.map(fn {node, index} ->
+                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                {_, pv} = Crypto.derive_keypair("node_seed", index)
+                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
+              end)
+          },
+          %ReplicationAttestation{
+            transaction_summary: %TransactionSummary{
+              address: addr2,
+              timestamp: DateTime.utc_now(),
+              type: :transfer,
+              fee: 100_000_000
+            },
+            confirmations:
+              [node1, node2, node3, node4]
+              |> Enum.with_index(1)
+              |> Enum.map(fn {node, index} ->
+                node_index = Enum.find_index(storage_nodes, &(&1 == node))
+                {_, pv} = Crypto.derive_keypair("node_seed", index)
+                {node_index, Crypto.sign(TransactionSummary.serialize(tx_summary), pv)}
+              end)
+          }
+        ]
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+
+        ^node2, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+
+        ^node3, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+
+        ^node4, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+      end)
+
+      [%SummaryAggregate{transaction_summaries: transaction_summaries}] =
+        BeaconChain.fetch_summary_aggregates([summary_time])
+
+      transaction_addresses = Enum.map(transaction_summaries, & &1.address)
+
+      assert Enum.all?(transaction_addresses, &(&1 in [addr1, addr2]))
+    end
+
+    test "should find other beacon summaries and aggregate node P2P views", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      summary_v1 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        end_of_node_synchronizations: []
+      }
+
+      summary_v2 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1, 1::1>>,
+        end_of_node_synchronizations: []
+      }
+
+      summary_v3 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 0::1, 1::1>>,
+        end_of_node_synchronizations: []
+      }
+
+      summary_v4 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        end_of_node_synchronizations: []
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+
+        ^node2, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+
+        ^node3, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v3]}}
+
+        ^node4, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
+      end)
+
+      assert [
+               %SummaryAggregate{
+                 p2p_availabilities: %{"A" => %{node_availabilities: <<1::1, 1::1, 1::1>>}}
+               }
+             ] = BeaconChain.fetch_summary_aggregates([summary_time])
+    end
+
+    test "should find other beacon summaries and aggregate node P2P avg availabilities", %{
+      summary_time: summary_time,
+      nodes: [node1, node2, node3, node4]
+    } do
+      summary_v1 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_average_availabilities: [1.0, 0.9, 1.0, 1.0]
+      }
+
+      summary_v2 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_average_availabilities: [0.90, 0.9, 1.0, 1.0]
+      }
+
+      summary_v3 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_average_availabilities: [0.8, 0.9, 0.7, 1.0]
+      }
+
+      summary_v4 = %Summary{
+        subset: "A",
+        summary_time: summary_time,
+        node_availabilities: <<1::1, 1::1, 0::1>>,
+        node_average_availabilities: [1, 0.5, 1, 0.4]
+      }
+
+      MockClient
+      |> stub(:send_message, fn
+        ^node1, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v1]}}
+
+        ^node2, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v2]}}
+
+        ^node3, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v3]}}
+
+        ^node4, %GetBeaconSummaries{}, _ ->
+          {:ok, %BeaconSummaryList{summaries: [summary_v4]}}
+      end)
+
+      assert [
+               %SummaryAggregate{
+                 p2p_availabilities: %{
+                   "A" => %{node_average_availabilities: [0.925, 0.8, 0.925, 0.85]}
+                 }
+               }
+             ] = BeaconChain.fetch_summary_aggregates([summary_time])
     end
   end
 end

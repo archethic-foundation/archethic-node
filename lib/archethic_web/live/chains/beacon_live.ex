@@ -5,7 +5,6 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Summary, as: BeaconSummary
   alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.Crypto
@@ -16,8 +15,6 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
-
-  alias Archethic.SelfRepair.Sync.BeaconSummaryHandler
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -228,32 +225,9 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   defp list_transactions_from_summary(date = %DateTime{}) do
-    %Node{network_patch: patch} = P2P.get_node_info()
-
-    node_list = P2P.authorized_and_available_nodes()
-
-    BeaconChain.list_subsets()
-    |> Flow.from_enumerable()
-    |> Flow.map(fn subset ->
-      nodes = Election.beacon_storage_nodes(subset, date, node_list)
-      {subset, nodes}
-    end)
-    |> Flow.partition(key: {:elem, 0})
-    |> Flow.reduce(fn -> [] end, fn {subset, nodes}, acc ->
-      address = Crypto.derive_beacon_chain_address(subset, date, true)
-
-      case BeaconSummaryHandler.download_summary(address, nodes, patch) do
-        {:ok, %BeaconSummary{transaction_attestations: attestations}} ->
-          tx_summaries = Enum.map(attestations, & &1.transaction_summary)
-          tx_summaries ++ acc
-
-        _ ->
-          acc
-      end
-    end)
-    |> Enum.to_list()
-    |> List.flatten()
-    |> Enum.uniq_by(& &1.address)
+    [date]
+    |> BeaconChain.fetch_summary_aggregates()
+    |> Enum.flat_map(& &1.transaction_summaries)
     |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
   end
 

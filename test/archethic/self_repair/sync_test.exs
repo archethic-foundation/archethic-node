@@ -4,6 +4,7 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.SlotTimer, as: BeaconSlotTimer
   alias Archethic.BeaconChain.Summary, as: BeaconSummary
+  alias Archethic.BeaconChain.SummaryAggregate
   alias Archethic.BeaconChain.SummaryTimer, as: BeaconSummaryTimer
 
   alias Archethic.Crypto
@@ -258,5 +259,134 @@ defmodule Archethic.SelfRepair.SyncTest do
 
       assert_received :storage
     end
+  end
+
+  describe "process_summary_aggregate/2" do
+    setup do
+      start_supervised!({BeaconSlotTimer, [interval: "* * * * * *"]})
+      start_supervised!({BeaconSummaryTimer, [interval: "0 * * * * *"]})
+      :ok
+    end
+
+    test "should synchronize transactions" do
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      create_p2p_context()
+
+      transfer_tx =
+        TransactionFactory.create_valid_transaction(inputs,
+          seed: "transfer_seed"
+        )
+
+      inputs = [
+        %TransactionInput{
+          from: "@Alice2",
+          amount: 1_000_000_000,
+          type: :UCO,
+          timestamp: DateTime.utc_now()
+        }
+      ]
+
+      tx_address = transfer_tx.address
+
+      me = self()
+
+      MockDB
+      |> stub(:write_transaction, fn ^transfer_tx ->
+        send(me, :transaction_stored)
+        :ok
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransaction{address: ^tx_address}, _ ->
+          {:ok, transfer_tx}
+
+        _, %GetTransaction{address: _}, _ ->
+          {:ok, %NotFound{}}
+
+        _, %GetTransactionChain{}, _ ->
+          {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransactionInputs{address: _}, _ ->
+          {:ok, %TransactionInputList{inputs: inputs}}
+
+        _, %GetUnspentOutputs{}, _ ->
+          {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+      end)
+
+      MockDB
+      |> stub(:register_tps, fn _, _, _ ->
+        :ok
+      end)
+
+      assert :ok =
+               Sync.process_summary_aggregate(
+                 %SummaryAggregate{
+                   summary_time: DateTime.utc_now(),
+                   transaction_summaries: [
+                     %TransactionSummary{
+                       address: tx_address,
+                       type: :transfer,
+                       timestamp: DateTime.utc_now()
+                     }
+                   ]
+                 },
+                 "AAA"
+               )
+
+      assert_received :transaction_stored
+    end
+  end
+
+  defp create_p2p_context do
+    welcome_node = %Node{
+      first_public_key: "key1",
+      last_public_key: "key1",
+      available?: true,
+      geo_patch: "BBB",
+      network_patch: "BBB",
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      enrollment_date: DateTime.utc_now()
+    }
+
+    coordinator_node = %Node{
+      first_public_key: Crypto.first_node_public_key(),
+      last_public_key: Crypto.last_node_public_key(),
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      enrollment_date: DateTime.utc_now()
+    }
+
+    storage_nodes = [
+      %Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        http_port: 4000,
+        first_public_key: "key3",
+        last_public_key: "key3",
+        available?: true,
+        geo_patch: "BBB",
+        network_patch: "BBB",
+        reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+        authorization_date: DateTime.utc_now()
+      }
+    ]
+
+    Enum.each(storage_nodes, &P2P.add_and_connect_node(&1))
+
+    P2P.add_and_connect_node(welcome_node)
+    P2P.add_and_connect_node(coordinator_node)
   end
 end

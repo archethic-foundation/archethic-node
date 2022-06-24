@@ -1,4 +1,4 @@
-defmodule Archethic.SelfRepair.Sync.BeaconSummaryHandler.TransactionHandler do
+defmodule Archethic.SelfRepair.Sync.TransactionHandler do
   @moduledoc false
 
   alias Archethic.Crypto
