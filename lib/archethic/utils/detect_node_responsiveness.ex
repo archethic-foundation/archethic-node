@@ -2,7 +2,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   @moduledoc """
   Detects the nodes responsiveness based on timeouts
   """
-  @default_timeout 3 * 1000
+  @default_timeout 10 * 1000
   alias Archethic.P2P
   alias Archethic.DB
 
