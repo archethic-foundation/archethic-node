@@ -589,20 +589,35 @@ defmodule Archethic.DB.EmbeddedTest do
     test "should get the latest tps from the stats file" do
       date = DateTime.utc_now()
 
-      :ok = EmbeddedImpl.register_tps(date, 10.0, 10_000)
+      :ok = EmbeddedImpl.register_stats(date, 10.0, 10_000, 0)
       assert 10.0 == EmbeddedImpl.get_latest_tps()
 
-      :ok = EmbeddedImpl.register_tps(DateTime.add(date, 86_400), 5.0, 5_000)
+      :ok = EmbeddedImpl.register_stats(DateTime.add(date, 86_400), 5.0, 5_000, 0)
 
       assert 5.0 == EmbeddedImpl.get_latest_tps()
     end
 
     test "should get the latest nb of transactions" do
-      :ok = EmbeddedImpl.register_tps(DateTime.utc_now(), 10.0, 10_000)
+      :ok = EmbeddedImpl.register_stats(DateTime.utc_now(), 10.0, 10_000, 0)
       assert 10_000 = EmbeddedImpl.get_nb_transactions()
 
-      :ok = EmbeddedImpl.register_tps(DateTime.utc_now() |> DateTime.add(86_400), 5.0, 5_000)
+      :ok = EmbeddedImpl.register_stats(DateTime.utc_now() |> DateTime.add(86_400), 5.0, 5_000, 0)
       assert 15_000 = EmbeddedImpl.get_nb_transactions()
+    end
+
+    test "should get the latest burned fees amount" do
+      :ok = EmbeddedImpl.register_stats(DateTime.utc_now(), 10.0, 10_000, 15_000)
+      assert 15_000 = EmbeddedImpl.get_latest_burned_fees()
+
+      :ok =
+        EmbeddedImpl.register_stats(
+          DateTime.utc_now() |> DateTime.add(86_400),
+          5.0,
+          5_000,
+          20_000
+        )
+
+      assert 20_000 = EmbeddedImpl.get_latest_burned_fees()
     end
   end
 

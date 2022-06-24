@@ -259,9 +259,7 @@ defmodule Archethic.SelfRepair.Sync do
       "TPS #{tps} on #{Utils.time_to_string(date)} with #{nb_transactions} transactions"
     )
 
-    Logger.info(
-      "Burned fees #{burned_fees} on #{Utils.time_to_string(date)}"
-    )
+    Logger.info("Burned fees #{burned_fees} on #{Utils.time_to_string(date)}")
 
     PubSub.notify_new_tps(tps, nb_transactions)
   end
