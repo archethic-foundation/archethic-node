@@ -23,7 +23,6 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   alias Archethic.P2P.Node
 
   alias Archethic.Reward
-  alias Archethic.Reward.NetworkPoolScheduler
 
   alias Archethic.SharedSecrets.NodeRenewal
 
@@ -327,7 +326,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          true <- supply == DB.get_latest_burned_fees(),
          network_pool_address <- SharedSecrets.get_network_pool_address(),
          false <-
-           DB.get_last_chain_address(network_pool_address, NetworkPoolScheduler.last_date()) !=
+           DB.get_last_chain_address(network_pool_address, Reward.last_scheduling_date()) !=
              network_pool_address do
       :ok
     else
@@ -394,11 +393,11 @@ defmodule Archethic.Mining.PendingTransactionValidation do
         Logger.debug("Invalid token token specification: #{inspect(reason)}")
         {:error, "Invalid token transaction - Invalid specification"}
 
-      %{"type" => "fungible", "properties" => properties} when length(properties) <= 1 ->
-        :ok
+      %{"type" => "fungible", "properties" => properties} when length(properties) > 1 ->
+        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
 
       %{"type" => "fungible"} ->
-        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
+        :ok
 
       %{"type" => "non-fungible"} ->
         {:error,
