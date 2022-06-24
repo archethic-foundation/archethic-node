@@ -5,6 +5,7 @@ defmodule Archethic.P2P.Supervisor do
   alias Archethic.P2P.Client.ConnectionRegistry
   alias Archethic.P2P.Client.ConnectionSupervisor
   alias Archethic.P2P.Listener
+  alias Archethic.P2P.ListenerProtocol.BroadwayPipeline
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.MemTableLoader
   alias Archethic.P2P.GeoPatch.GeoIP.MaxMindDB
@@ -30,6 +31,7 @@ defmodule Archethic.P2P.Supervisor do
       MaxMindDB,
       MemTable,
       MemTableLoader,
+      BroadwayPipeline,
       {Listener, Keyword.put(listener_conf, :port, port)},
       {BootstrappingSeeds, bootstraping_seeds_conf}
     ]

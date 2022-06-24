@@ -75,8 +75,11 @@ defmodule Archethic.BeaconChainTest do
         authorization_date: DateTime.utc_now() |> DateTime.add(-10)
       })
 
+      me = self()
+
       MockDB
       |> expect(:write_transaction_at, fn _, _ ->
+        send(me, :tx_written)
         :ok
       end)
 
@@ -95,6 +98,9 @@ defmodule Archethic.BeaconChainTest do
       }
 
       assert :ok = BeaconChain.load_transaction(tx)
+      assert_receive :tx_written
+
+      Process.sleep(500)
 
       assert [%Slot{subset: <<0>>}] = SummaryCache.pop_slots(<<0>>)
     end

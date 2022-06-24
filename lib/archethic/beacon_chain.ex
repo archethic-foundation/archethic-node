@@ -23,8 +23,11 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.RegisterBeaconUpdates
 
+  alias Archethic.TaskSupervisor
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionData
 
   alias Archethic.Utils
@@ -106,37 +109,66 @@ defmodule Archethic.BeaconChain do
   @spec load_transaction(Transaction.t()) :: :ok | :error
   def load_transaction(
         tx = %Transaction{
+          address: tx_address,
           type: :beacon,
-          data: %TransactionData{content: content}
+          data: %TransactionData{content: content},
+          validation_stamp: %ValidationStamp{
+            timestamp: timestamp
+          }
         }
       ) do
     with {%Slot{subset: subset, slot_time: slot_time} = slot, _} <- Slot.deserialize(content),
-         :ok <- validate_slot(tx, slot),
-         genesis_address <-
-           Crypto.derive_beacon_chain_address(subset, previous_summary_time(slot_time)),
-         :ok <- TransactionChain.write_transaction_at(tx, genesis_address) do
-      Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
-        beacon_subset: Base.encode16(subset)
-      )
+         :ok <- validate_beacon_address(subset, slot_time, tx_address),
+         slot_time <- SlotTimer.previous_slot(timestamp) do
+      Task.Supervisor.start_child(TaskSupervisor, fn ->
+        case validate_slot(slot) do
+          :ok ->
+            genesis_address =
+              Crypto.derive_beacon_chain_address(subset, previous_summary_time(slot_time))
 
-      SummaryCache.add_slot(subset, slot)
+            :ok = TransactionChain.write_transaction_at(tx, genesis_address)
+
+            Logger.debug("New beacon transaction loaded - #{inspect(slot)}",
+              beacon_subset: Base.encode16(subset)
+            )
+
+            SummaryCache.add_slot(subset, slot)
+
+          {:error, reason} ->
+            Logger.error("Invalid beacon slot - #{inspect(reason)}")
+        end
+      end)
+
+      :ok
     else
-      {:error, _} = e ->
-        Logger.error("Invalid beacon slot #{inspect(e)}")
+      {:error, :invalid_address} ->
+        Logger.error("Invalid beacon slot - Invalid tx address")
+        :error
+
+      %DateTime{} ->
+        Logger.error("Invalid beacon slot - Invalid slot time")
+        :error
+
+      _ ->
+        Logger.error("Invalid beacon slot - Unexpected serialized data")
         :error
     end
   end
 
   def load_transaction(_), do: :ok
 
-  defp validate_slot(
-         %Transaction{address: address},
-         slot = %Slot{subset: subset, slot_time: slot_time}
-       ) do
-    cond do
-      address != Crypto.derive_beacon_chain_address(subset, slot_time) ->
-        {:error, :invalid_address}
+  defp validate_beacon_address(subset, slot_time, address) do
+    case Crypto.derive_beacon_chain_address(subset, slot_time) do
+      ^address ->
+        :ok
 
+      _ ->
+        {:error, :invalid_address}
+    end
+  end
+
+  defp validate_slot(slot = %Slot{}) do
+    cond do
       !SlotValidation.valid_transaction_attestations?(slot) ->
         {:error, :invalid_transaction_attestations}
 

@@ -1,9 +1,7 @@
 defmodule Archethic.P2P.ListenerProtocol do
   @moduledoc false
 
-  alias __MODULE__.BroadwayPipeline
   alias __MODULE__.MessageProducer
-  alias __MODULE__.MessageProducerRegistry
 
   require Logger
 
@@ -20,23 +18,9 @@ defmodule Archethic.P2P.ListenerProtocol do
 
     {:ok, {ip, port}} = :inet.peername(socket)
 
-    {:ok, _pid} =
-      BroadwayPipeline.start_link(
-        socket: socket,
-        transport: transport,
-        conn_pid: self(),
-        ip: ip,
-        port: port
-      )
-
-    Process.sleep(100)
-
-    [{producer_pid, _}] = Registry.lookup(MessageProducerRegistry, socket)
-
     :gen_server.enter_loop(__MODULE__, [], %{
       socket: socket,
       transport: transport,
-      producer_pid: producer_pid,
       ip: ip,
       port: port
     })
@@ -44,10 +28,10 @@ defmodule Archethic.P2P.ListenerProtocol do
 
   def handle_info(
         {_transport, socket, msg},
-        state = %{producer_pid: producer_pid}
+        state = %{transport: transport}
       ) do
     :inet.setopts(socket, active: :once)
-    MessageProducer.new_message(producer_pid, msg)
+    MessageProducer.new_message({socket, transport, msg})
     {:noreply, state}
   end
 
