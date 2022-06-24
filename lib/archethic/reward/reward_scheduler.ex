@@ -1,4 +1,4 @@
-defmodule Archethic.Reward.NetworkPoolScheduler do
+defmodule Archethic.Reward.RewardScheduler do
   @moduledoc false
 
   use GenServer
@@ -22,10 +22,6 @@ defmodule Archethic.Reward.NetworkPoolScheduler do
 
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
-  end
-
-  def start_scheduling do
-    GenServer.cast(__MODULE__, :start_scheduling)
   end
 
   @doc """

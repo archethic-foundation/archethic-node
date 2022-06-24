@@ -3,7 +3,7 @@ defmodule Archethic.Reward.Supervisor do
 
   use Supervisor
 
-  alias Archethic.Reward.NetworkPoolScheduler
+  alias Archethic.Reward.RewardScheduler
 
   alias Archethic.Utils
 
@@ -13,7 +13,7 @@ defmodule Archethic.Reward.Supervisor do
 
   def init(_) do
     children = [
-      {NetworkPoolScheduler, Application.get_env(:archethic, NetworkPoolScheduler)}
+      {RewardScheduler, Application.get_env(:archethic, RewardScheduler)}
     ]
 
     Supervisor.init(Utils.configurable_children(children), strategy: :one_for_one)
