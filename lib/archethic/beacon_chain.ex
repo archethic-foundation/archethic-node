@@ -4,16 +4,16 @@ defmodule Archethic.BeaconChain do
   to retrieve the beacon storage nodes involved.
   """
 
-  alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.Slot.EndOfNodeSync
-  alias Archethic.BeaconChain.Slot.Validation, as: SlotValidation
-
-  alias Archethic.BeaconChain.SlotTimer
-  alias Archethic.BeaconChain.Subset
-  alias Archethic.BeaconChain.Subset.P2PSampling
-  alias Archethic.BeaconChain.Subset.SummaryCache
-  alias Archethic.BeaconChain.Summary
-  alias Archethic.BeaconChain.SummaryTimer
+  alias __MODULE__.Slot
+  alias __MODULE__.Slot.EndOfNodeSync
+  alias __MODULE__.Slot.Validation, as: SlotValidation
+  alias __MODULE__.SlotTimer
+  alias __MODULE__.Subset
+  alias __MODULE__.Subset.P2PSampling
+  alias __MODULE__.Subset.SummaryCache
+  alias __MODULE__.Summary
+  alias __MODULE__.SummaryAggregate
+  alias __MODULE__.SummaryTimer
 
   alias Archethic.Crypto
 
@@ -21,6 +21,8 @@ defmodule Archethic.BeaconChain do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetBeaconSummaries
+  alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.RegisterBeaconUpdates
 
   alias Archethic.TaskSupervisor
@@ -258,5 +260,97 @@ defmodule Archethic.BeaconChain do
         subset: subset
       })
     end)
+  end
+
+  @doc """
+  Request from the beacon chains all the summaries for the given dates and aggregate them
+
+  ```
+   [0, 1, ...]    Subsets
+      / | \
+     /  |  \
+  [ ]  [ ]  [ ]  Node election for each dates to sync
+   |\  /|\  /|
+   | \/ | \/ |
+   | /\ | /\ |
+  [ ]  [ ]  [ ] Partition by node
+   |    |    |
+  [ ]  [ ]  [ ] Aggregate addresses
+   |    |    |
+  [ ]  [ ]  [ ] Fetch summaries
+   |\  /|\  /|
+   | \/ | \/ |
+   | /\ | /\ |
+  [D1] [D2] [D3] Partition by date
+   |    |    |
+  [ ]  [ ]  [ ] Aggregate and consolidate summaries 
+   \    |    /
+    \   |   /
+     \  |  /
+      \ | /
+       [ ]
+  ```
+  """
+  @spec fetch_summary_aggregates(list(DateTime.t()) | Enumerable.t()) ::
+          list(SummaryAggregate.t())
+  def fetch_summary_aggregates(dates) do
+    authorized_nodes = P2P.authorized_and_available_nodes()
+
+    list_subsets()
+    |> Flow.from_enumerable()
+    |> Flow.flat_map(fn subset ->
+      # Foreach subset and date we compute concurrently the node election 
+      dates
+      |> Stream.map(&get_summary_address_by_node(&1, subset, authorized_nodes))
+      |> Enum.flat_map(& &1)
+    end)
+    # We partition by node
+    |> Flow.partition(key: {:elem, 0})
+    |> Flow.reduce(fn -> %{} end, fn {node, summary_address}, acc ->
+      # We aggregate the addresses for a given node
+      Map.update(acc, node, [summary_address], &[summary_address | &1])
+    end)
+    |> Flow.flat_map(fn {node, addresses} ->
+      # For this node we fetch the summaries
+      fetch_summaries(node, addresses)
+    end)
+    # We repartition by summary time to aggregate summaries for a date
+    |> Flow.partition(key: {:key, :summary_time})
+    |> Flow.reduce(
+      fn -> %SummaryAggregate{} end,
+      &SummaryAggregate.add_summary(&2, &1)
+    )
+    |> Flow.emit(:state)
+    |> Stream.reject(&SummaryAggregate.empty?/1)
+    |> Stream.map(&SummaryAggregate.aggregate/1)
+    |> Enum.sort_by(& &1.summary_time)
+  end
+
+  defp get_summary_address_by_node(date, subset, authorized_nodes) do
+    filter_nodes =
+      Enum.filter(authorized_nodes, &(DateTime.compare(&1.authorization_date, date) == :lt))
+
+    summary_address = Crypto.derive_beacon_chain_address(subset, date, true)
+
+    subset
+    |> Election.beacon_storage_nodes(date, filter_nodes)
+    |> Enum.map(fn node ->
+      {node, summary_address}
+    end)
+  end
+
+  defp fetch_summaries(node, addresses) do
+    addresses
+    |> Stream.chunk_every(10)
+    |> Stream.flat_map(fn addresses ->
+      case P2P.send_message(node, %GetBeaconSummaries{addresses: addresses}) do
+        {:ok, %BeaconSummaryList{summaries: summaries}} ->
+          summaries
+
+        _ ->
+          []
+      end
+    end)
+    |> Enum.to_list()
   end
 end
