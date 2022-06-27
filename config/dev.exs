@@ -107,7 +107,7 @@ config :archethic, Archethic.Networking.Scheduler, interval: "0 * * * * * *"
 
 # -----end-of-Networking-dev-configs-----
 
-config :archethic, Archethic.Reward.RewardScheduler,
+config :archethic, Archethic.Reward.Scheduler,
   # At the 30th second
   interval: "30 * * * * *"
 

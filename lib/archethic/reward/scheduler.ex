@@ -1,4 +1,4 @@
-defmodule Archethic.Reward.RewardScheduler do
+defmodule Archethic.Reward.Scheduler do
   @moduledoc false
 
   use GenServer

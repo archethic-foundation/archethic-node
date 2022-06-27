@@ -1,4 +1,4 @@
-defmodule Archethic.Reward.RewardSchedulerTest do
+defmodule Archethic.Reward.SchedulerTest do
   use ArchethicCase, async: false
 
   alias Archethic.Crypto
@@ -7,7 +7,7 @@ defmodule Archethic.Reward.RewardSchedulerTest do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.StartMining
 
-  alias Archethic.Reward.RewardScheduler
+  alias Archethic.Reward.Scheduler
 
   import Mox
 
@@ -27,7 +27,7 @@ defmodule Archethic.Reward.RewardSchedulerTest do
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 0 end)
 
-    assert {:ok, pid} = RewardScheduler.start_link(interval: "*/1 * * * * *")
+    assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
 
     assert %{interval: "*/1 * * * * *"} = :sys.get_state(pid)
 
@@ -57,7 +57,7 @@ defmodule Archethic.Reward.RewardSchedulerTest do
       send(me, type)
     end)
 
-    assert {:ok, pid} = RewardScheduler.start_link(interval: "*/1 * * * * *")
+    assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
 
     send(
       pid,
@@ -83,7 +83,7 @@ defmodule Archethic.Reward.RewardSchedulerTest do
       send(me, type)
     end)
 
-    assert {:ok, pid} = RewardScheduler.start_link(interval: "*/1 * * * * *")
+    assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
 
     send(
       pid,

@@ -9,7 +9,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
 
-  alias Archethic.Reward.RewardScheduler
+  alias Archethic.Reward.Scheduler
 
   alias Archethic.P2P
   alias Archethic.P2P.Message.FirstPublicKey
@@ -359,7 +359,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(address)
 
-      RewardScheduler.start_link(interval: "0 * * * * *")
+      Scheduler.start_link(interval: "0 * * * * *")
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
@@ -391,7 +391,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(address)
 
-      RewardScheduler.start_link(interval: "0 * * * * *")
+      Scheduler.start_link(interval: "0 * * * * *")
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 200_000_000 end)
@@ -424,7 +424,7 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
       NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
 
-      RewardScheduler.start_link(interval: "0 * * * * *")
+      Scheduler.start_link(interval: "0 * * * * *")
 
       MockDB
       |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)

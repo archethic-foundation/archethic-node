@@ -12,7 +12,7 @@ defmodule Archethic.Reward do
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
-  alias __MODULE__.RewardScheduler
+  alias __MODULE__.Scheduler
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -38,18 +38,12 @@ defmodule Archethic.Reward do
 
   ## Examples
 
-    iex> case Reward.new_rewards_mint(2_000_000_000) do
-    ...>  %{
-    ...>    type: :mint_rewards,
-    ...>    data: %{
-    ...>      content: "{\\n  \\"supply\\":2000000000,\\n  \\"type\\":\\"fungible\\",\\n  \\"name\\":\\"Mining UCO rewards\\",\\n  \\"symbol\\":\\"MUCO\\"\\n}\\n"
-    ...>    }
-    ...>  } ->
-    ...>    :ok
-    ...>  _ ->
-    ...>    :error
-    ...> end
-    :ok
+    iex> %{
+    ...>  type: :mint_rewards,
+    ...>  data: %{
+    ...>    content: "{\\n  \\"supply\\":2000000000,\\n  \\"type\\":\\"fungible\\",\\n  \\"name\\":\\"Mining UCO rewards\\",\\n  \\"symbol\\":\\"MUCO\\"\\n}\\n"
+    ...>  }
+    ...> } = Reward.new_rewards_mint(2_000_000_000)
   """
   @spec new_rewards_mint(amount :: non_neg_integer()) :: Transaction.t()
   def new_rewards_mint(amount) do
@@ -99,11 +93,11 @@ defmodule Archethic.Reward do
   Returns the last date of the rewards scheduling from the network pool
   """
   @spec last_scheduling_date() :: DateTime.t()
-  defdelegate last_scheduling_date, to: RewardScheduler, as: :last_date
+  defdelegate last_scheduling_date, to: Scheduler, as: :last_date
 
   def config_change(changed_conf) do
     changed_conf
-    |> Keyword.get(RewardScheduler)
-    |> RewardScheduler.config_change()
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
   end
 end
