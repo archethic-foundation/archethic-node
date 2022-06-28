@@ -34,7 +34,7 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     db_path = Keyword.get(arg, :path)
     setup_folders(db_path)
 
-    {:ok, %{db_path: db_path}}
+    {:ok, %{db_path: db_path, clients: %{}}}
   end
 
   defp setup_folders(path) do
@@ -45,9 +45,29 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
 
   def handle_call(
         {:append_tx, genesis_address, tx},
-        _from,
+        from,
         state = %{db_path: db_path}
       ) do
+    %Task{ref: ref} = Task.async(fn -> write_transaction(genesis_address, tx, db_path) end)
+    {:noreply, Map.update!(state, :clients, &Map.put(&1, ref, from))}
+  end
+
+  def handle_info({ref, :ok}, state) do
+    case pop_in(state, [:clients, ref]) do
+      {nil, ^state} ->
+        {:noreply, state}
+
+      {from, new_state} ->
+        GenServer.reply(from, :ok)
+        {:noreply, new_state}
+    end
+  end
+
+  def handle_info(_, state) do
+    {:noreply, state}
+  end
+
+  defp write_transaction(genesis_address, tx, db_path) do
     start = System.monotonic_time()
 
     filename = chain_path(db_path, genesis_address)
@@ -65,8 +85,6 @@ defmodule Archethic.DB.EmbeddedImpl.ChainWriter do
     :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
       query: "write_transaction"
     })
-
-    {:reply, :ok, state}
   end
 
   defp index_transaction(
