@@ -721,7 +721,7 @@ defmodule Archethic.Mining.ValidationContext do
     initial_movements =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(&{&1.to, &1})
+      |> Enum.map(&{{&1.to, &1.type}, &1})
       |> Enum.into(%{})
 
     fee =
@@ -731,14 +731,18 @@ defmodule Archethic.Mining.ValidationContext do
       )
 
     resolved_movements =
-      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
-        case Map.get(initial_movements, to) do
-          nil ->
-            acc
+      Enum.reduce(resolved_addresses, [], fn
+        {to, resolved}, acc ->
+          case Map.get(initial_movements, to) do
+            nil ->
+              acc
 
-          movement ->
-            [%{movement | to: resolved} | acc]
-        end
+            movement ->
+              [%{movement | to: resolved} | acc]
+          end
+
+        _, acc ->
+          acc
       end)
 
     resolved_recipients =
