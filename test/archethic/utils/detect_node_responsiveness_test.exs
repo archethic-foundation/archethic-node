@@ -1,5 +1,7 @@
 defmodule Archethic.Utils.DetectNodeResponsivenessTest do
   use ArchethicCase
+  @timeout 5_000
+  @sleep_timeout 5_500
 
   alias Archethic.Utils.DetectNodeResponsiveness
 
@@ -15,7 +17,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       count
     end
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
     assert true == Process.alive?(pid)
   end
 
@@ -26,8 +28,8 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       count
     end
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
-    Process.sleep(11_000)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+    Process.sleep(@sleep_timeout)
     assert false == Process.alive?(pid)
   end
 
@@ -96,7 +98,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -105,18 +107,17 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  first soft_timeout
     assert true == Process.alive?(pid)
-    Process.sleep(10_500)
-    assert_received :replay
+    assert_receive :replay, @sleep_timeout
     # second soft_timeout
-    Process.sleep(10_500)
-    assert_received :replay
+    Process.sleep(@sleep_timeout)
+    assert_receive :replay, @sleep_timeout
     assert true == Process.alive?(pid)
     # third soft_timeout
-    Process.sleep(10_500)
-    assert_received :replay
+    Process.sleep(@sleep_timeout)
+    assert_receive :replay, @sleep_timeout
     assert true == Process.alive?(pid)
     # last timeout leading to stop as hard_timeout
-    Process.sleep(10_500)
+    Process.sleep(@sleep_timeout)
     assert false == Process.alive?(pid)
   end
 
@@ -159,7 +160,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -168,9 +169,8 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  first soft_timeout
     assert true == Process.alive?(pid)
-    Process.sleep(10_500)
+    Process.sleep(@sleep_timeout)
     assert false == Process.alive?(pid)
-    # assert_received :replay
   end
 
   test "check to second soft_timeout" do
@@ -212,7 +212,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
     |> expect(:transaction_exists?, fn ^address ->
@@ -224,11 +224,10 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  first soft_timeout
     assert true == Process.alive?(pid)
-    Process.sleep(10_500)
+    Process.sleep(@sleep_timeout)
     assert true == Process.alive?(pid)
-    assert_received :replay
-
-    Process.sleep(10_500)
+    assert_receive :replay, @sleep_timeout
+    Process.sleep(@sleep_timeout)
     assert false == Process.alive?(pid)
   end
 
@@ -271,7 +270,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       enrollment_date: DateTime.utc_now()
     })
 
-    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn)
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
@@ -280,11 +279,12 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     #  After first soft_timeout it goes to hard_timeout
     assert true == Process.alive?(pid)
-    Process.sleep(10_500)
-    assert true == Process.alive?(pid)
-    assert_received :replay
+    Process.sleep(@sleep_timeout)
 
-    Process.sleep(10_500)
+    assert true == Process.alive?(pid)
+    assert_receive :replay, @sleep_timeout
+
+    Process.sleep(@sleep_timeout)
     assert false == Process.alive?(pid)
   end
 end
