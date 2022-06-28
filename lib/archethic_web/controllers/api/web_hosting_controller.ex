@@ -136,8 +136,9 @@ defmodule ArchethicWeb.API.WebHostingController do
       1 ->
         # Control if it is a file or a folder
         file_name = Enum.at(keys, 0)
+        file_content = Map.get(json_content, file_name)
 
-        if Map.get(json_content, file_name) |> Map.has_key?("address") do
+        if !is_map(file_content) or Map.has_key?(file_content, "address") do
           file_name
         else
           "index.html"
