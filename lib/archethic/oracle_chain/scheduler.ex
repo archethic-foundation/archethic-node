@@ -146,60 +146,52 @@ defmodule Archethic.OracleChain.Scheduler do
       |> get_oracle_data()
       |> Services.fetch_new_data()
 
-    if generate_oracle_tx?(new_oracle_data) do
-      # build transaction
-      {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
+    authorized_nodes =
+      summary_date
+      |> P2P.authorized_nodes()
+      |> Enum.filter(& &1.available?)
 
-      {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
+    storage_nodes =
+      summary_date
+      |> Crypto.derive_oracle_address(index)
+      |> Election.storage_nodes(authorized_nodes)
 
-      tx =
-        Transaction.new_with_keys(
-          :oracle,
-          %TransactionData{
-            content: Jason.encode!(new_oracle_data),
-            code: ~S"""
-            condition inherit: [
-              # We need to ensure the type stays consistent
-              # So we can apply specific rules during the transaction validation
-              type: in?([oracle, oracle_summary]),
+    tx = build_oracle_transaction(summary_date, index, new_oracle_data)
 
-              # We discard the content and code verification
-              content: true,
-
-              # We ensure the code stay the same
-              code: if type == oracle_summary do
-                regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
-              else
-                previous.code
-              end
-            ]
-            """
-          },
-          prev_pv,
-          prev_pub,
-          next_pub
-        )
-
-      authorized_nodes = P2P.authorized_nodes(summary_date) |> Enum.filter(& &1.available?)
-
-      storage_nodes =
-        summary_date
-        |> Crypto.derive_oracle_address(index)
-        |> Election.storage_nodes(authorized_nodes)
-
-      if trigger_node?(storage_nodes) and !DB.transaction_exists?(tx.address) do
+    watcher_pid =
+      with {:empty, false} <- {:empty, Enum.empty?(new_oracle_data)},
+           {:trigger, true} <- {:trigger, trigger_node?(storage_nodes)},
+           {:exists, false} <- {:exists, DB.transaction_exists?(tx.address)} do
         send_polling_transaction(tx)
+        nil
       else
-        DetectNodeResponsiveness.start_link(tx.address, fn count ->
-          if trigger_node?(storage_nodes, count) do
-            Logger.info("Oracle polling transaction ...attempt #{count}")
-            send_polling_transaction(tx)
-          end
-        end)
+        {:empty, true} ->
+          Logger.debug("Oracle transaction skipped - no new data")
+          nil
+
+        {:trigger, false} ->
+          {:ok, pid} =
+            DetectNodeResponsiveness.start_link(tx.address, fn count ->
+              if trigger_node?(storage_nodes, count) do
+                Logger.info("Oracle polling transaction ...attempt #{count}",
+                  transaction_address: Base.encode16(tx.address),
+                  transaction_type: :oracle
+                )
+
+                send_polling_transaction(tx)
+              end
+            end)
+
+          pid
+
+        {:exists, true} ->
+          Logger.warning("Transaction already exists - before sending",
+            transaction_address: Base.encode16(tx.address),
+            transaction_type: :oracle
+          )
+
+          nil
       end
-    else
-      Logger.debug("Oracle transaction skipped - no new data")
-    end
 
     current_time = DateTime.utc_now() |> DateTime.truncate(:second)
     next_polling_date = next_date(polling_interval, current_time)
@@ -208,6 +200,7 @@ defmodule Archethic.OracleChain.Scheduler do
       data
       |> Map.put(:polling_date, next_polling_date)
       |> Map.put(:polling_timer, schedule_new_polling(next_polling_date, current_time))
+      |> Map.put(:oracle_watcher_pid, watcher_pid)
 
     {:next_state, :ready, new_data}
   end
@@ -224,12 +217,60 @@ defmodule Archethic.OracleChain.Scheduler do
     index = Map.fetch!(indexes, summary_date)
     validation_nodes = get_validation_nodes(summary_date, index + 1)
 
-    if trigger_node?(validation_nodes) do
-      Logger.debug("Oracle transaction summary sending")
-      send_summary_transaction(summary_date, index)
-    else
-      Logger.debug("Oracle summary skipped - not the trigger node")
+    # Stop previous oracle retries when the summary is triggered
+    case Map.get(data, :oracle_watcher_pid) do
+      nil ->
+        :ok
+
+      pid ->
+        Process.exit(pid, :normal)
     end
+
+    tx_address =
+      summary_date
+      |> Crypto.derive_oracle_keypair(index + 1)
+      |> elem(0)
+      |> Crypto.derive_address()
+
+    summary_watcher_pid =
+      with {:trigger, true} <- {:trigger, trigger_node?(validation_nodes)},
+           {:exists, false} <- {:exists, DB.transaction_exists?(tx_address)} do
+        Logger.debug("Oracle transaction summary sending",
+          transaction_address: Base.encode16(tx_address),
+          transaction_type: :oracle_summary
+        )
+
+        send_summary_transaction(summary_date, index)
+        nil
+      else
+        {:trigger, false} ->
+          Logger.debug("Oracle summary skipped - not the trigger node",
+            transaction_address: Base.encode16(tx_address),
+            transaction_type: :oracle_summary
+          )
+
+          {:ok, pid} =
+            DetectNodeResponsiveness.start_link(tx_address, fn count ->
+              if trigger_node?(validation_nodes, count) do
+                Logger.info("Oracle summary transaction ...attempt #{count}",
+                  transaction_address: Base.encode16(tx_address),
+                  transaction_type: :oracle_summary
+                )
+
+                send_summary_transaction(summary_date, index)
+              end
+            end)
+
+          pid
+
+        {:exists, true} ->
+          Logger.warning("Oracle transaction already exists",
+            transaction_address: Base.encode16(tx_address),
+            transaction_type: :oracle_summary
+          )
+
+          nil
+      end
 
     current_time = DateTime.utc_now() |> DateTime.truncate(:second)
     next_summary_date = next_date(summary_interval, current_time)
@@ -237,6 +278,8 @@ defmodule Archethic.OracleChain.Scheduler do
 
     new_data =
       data
+      |> Map.put(:summary_watcher_pid, summary_watcher_pid)
+      |> Map.delete(:oracle_watcher_pid)
       |> Map.put(:summary_date, next_summary_date)
       |> Map.update!(:indexes, fn indexes ->
         # Clean previous indexes
@@ -434,6 +477,39 @@ defmodule Archethic.OracleChain.Scheduler do
     )
   end
 
+  defp build_oracle_transaction(summary_date, index, oracle_data) do
+    {prev_pub, prev_pv} = Crypto.derive_oracle_keypair(summary_date, index)
+
+    {next_pub, _} = Crypto.derive_oracle_keypair(summary_date, index + 1)
+
+    Transaction.new_with_keys(
+      :oracle,
+      %TransactionData{
+        content: Jason.encode!(oracle_data),
+        code: ~S"""
+        condition inherit: [
+          # We need to ensure the type stays consistent
+          # So we can apply specific rules during the transaction validation
+          type: in?([oracle, oracle_summary]),
+
+          # We discard the content and code verification
+          content: true,
+
+          # We ensure the code stay the same
+          code: if type == oracle_summary do
+            regex_match?("condition inherit: \\[[\\s].*content: \\\"\\\"[\\s].*]")
+          else
+            previous.code
+          end
+        ]
+        """
+      },
+      prev_pv,
+      prev_pub,
+      next_pub
+    )
+  end
+
   defp send_summary_transaction(summary_date, index) do
     oracle_chain =
       summary_date
@@ -530,13 +606,5 @@ defmodule Archethic.OracleChain.Scheduler do
     summary_date
     |> Crypto.derive_oracle_address(index)
     |> Election.storage_nodes(authorized_nodes)
-  end
-
-  defp generate_oracle_tx?(data) do
-    if Enum.empty?(data) do
-      false
-    else
-      true
-    end
   end
 end
