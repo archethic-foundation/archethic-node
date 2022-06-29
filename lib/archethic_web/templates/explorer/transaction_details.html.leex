@@ -191,8 +191,8 @@
                                             <div class="columns">
                                                 <div class="column is-1 heading">Token</div>
                                                 <div class="column">
-                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token_address)) do%>
-                                                    <span class="text_wrap"><%= Base.encode16(transfer.token_address) %></span>
+                                                    <%= link to: Routes.live_path(@socket, ArchethicWeb.TransactionDetailsLive, Base.encode16(transfer.token)) do%>
+                                                    <span class="text_wrap"><%= Base.encode16(transfer.token) %></span>
                                                 <% end %>
                                                 </div>
                                             </div>

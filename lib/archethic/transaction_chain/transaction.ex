@@ -393,7 +393,7 @@ defmodule Archethic.TransactionChain.Transaction do
           to: "@Alice1", amount: 10, type: :UCO,
         },
         %TransactionMovement{
-          to: "@Alice1", amount: 3, type: {:Token, "@BobToken", 0},
+          to: "@Alice1", amount: 3, type: {:token, "@BobToken", 0},
         }
       ]
   """
@@ -409,7 +409,7 @@ defmodule Archethic.TransactionChain.Transaction do
     Enum.map(uco_transfers, &%TransactionMovement{to: &1.to, amount: &1.amount, type: :UCO}) ++
       Enum.map(
         token_transfers,
-        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:Token, &1.token, &1.token_id}}
+        &%TransactionMovement{to: &1.to, amount: &1.amount, type: {:token, &1.token, &1.token_id}}
       )
   end
 
