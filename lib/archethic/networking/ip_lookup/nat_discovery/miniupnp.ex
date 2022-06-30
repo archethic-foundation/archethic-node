@@ -56,10 +56,7 @@ defmodule Archethic.Networking.IPLookup.NATDiscovery.MiniUPNP do
       # Protocol
       "tcp",
       # Lifetime
-      "0",
-      # Tag the port
-      "-e",
-      "Archethic port"
+      "0"
     ]
 
     case System.cmd(@upnpc, opts) do
