@@ -100,7 +100,15 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
       File.mkdir_p!(Utils.mut_dir("crypto"))
     end
 
-    node_seed = Keyword.get(opts, :seed, read_seed())
+    node_seed =
+      case Keyword.get(opts, :seed) do
+        nil ->
+          read_seed()
+
+        seed ->
+          seed
+      end
+
     nb_keys = read_index()
 
     Logger.info("Start NodeKeystore at #{nb_keys}th key")
