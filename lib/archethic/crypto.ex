@@ -738,7 +738,7 @@ defmodule Archethic.Crypto do
   @spec ec_decrypt_with_first_node_key(cipher :: binary()) ::
           {:ok, term()} | {:error, :decryption_failed}
   def ec_decrypt_with_first_node_key(encoded_cipher) when is_binary(encoded_cipher) do
-    <<curve_id::8, _::8, _::binary>> = NodeKeystore.last_public_key()
+    <<curve_id::8, _::8, _::binary>> = NodeKeystore.first_public_key()
     key_size = key_size(curve_id)
 
     <<ephemeral_public_key::binary-size(key_size), tag::binary-16, cipher::binary>> =
