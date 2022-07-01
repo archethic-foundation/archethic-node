@@ -173,6 +173,7 @@ defmodule Archethic.OracleChain.Scheduler do
                   transaction_address: Base.encode16(tx.address),
                   transaction_type: :oracle
                 )
+
                 new_oracle_data = get_new_oracle_data(summary_date, index)
                 tx = build_oracle_transaction(summary_date, index, new_oracle_data)
                 send_polling_transaction(tx)
@@ -606,7 +607,6 @@ defmodule Archethic.OracleChain.Scheduler do
   end
 
   defp get_new_oracle_data(summary_date, index) do
-
     summary_date
     |> Crypto.derive_oracle_address(index)
     |> get_oracle_data()
