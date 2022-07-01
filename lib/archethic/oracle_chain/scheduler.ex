@@ -140,11 +140,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     index = Map.fetch!(indexes, summary_date)
 
-    new_oracle_data =
-      summary_date
-      |> Crypto.derive_oracle_address(index)
-      |> get_oracle_data()
-      |> Services.fetch_new_data()
+    new_oracle_data = get_new_oracle_data(summary_date, index)
 
     authorized_nodes =
       summary_date
@@ -177,7 +173,8 @@ defmodule Archethic.OracleChain.Scheduler do
                   transaction_address: Base.encode16(tx.address),
                   transaction_type: :oracle
                 )
-
+                new_oracle_data = get_new_oracle_data(summary_date, index)
+                tx = build_oracle_transaction(summary_date, index, new_oracle_data)
                 send_polling_transaction(tx)
               end
             end)
@@ -606,5 +603,13 @@ defmodule Archethic.OracleChain.Scheduler do
     summary_date
     |> Crypto.derive_oracle_address(index)
     |> Election.storage_nodes(authorized_nodes)
+  end
+
+  defp get_new_oracle_data(summary_date, index) do
+
+    summary_date
+    |> Crypto.derive_oracle_address(index)
+    |> get_oracle_data()
+    |> Services.fetch_new_data()
   end
 end
