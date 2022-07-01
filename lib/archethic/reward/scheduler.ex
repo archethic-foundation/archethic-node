@@ -91,9 +91,12 @@ defmodule Archethic.Reward.Scheduler do
     case DB.get_latest_burned_fees() do
       0 ->
         Logger.info("No mint rewards transaction needed")
+        send_node_rewards()
 
       amount ->
         tx = Reward.new_rewards_mint(amount)
+
+        PubSub.register_to_new_transaction_by_address(tx.address)
 
         if Reward.initiator?() do
           Archethic.send_new_transaction(tx)
@@ -119,6 +122,22 @@ defmodule Archethic.Reward.Scheduler do
     end
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
+  end
+
+  def handle_info({:new_transaction, _address, :mint_rewards, _timestamp}, state) do
+    send_node_rewards()
+    {:noreply, state, :hibernate}
+  end
+
+  def handle_info({:new_transaction, _address, _type, _timestamp}, state) do
+    {:noreply, state, :hibernate}
+  end
+
+  defp send_node_rewards do
+    if Reward.initiator?() do
+      Reward.new_node_rewards()
+      |> Archethic.send_new_transaction()
+    end
   end
 
   def handle_call(:last_date, _, state = %{interval: interval}) do

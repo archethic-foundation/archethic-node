@@ -112,7 +112,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
            }
          }
        }) do
-    case Reward.get_transfers(Reward.last_scheduling_date()) do
+    case Reward.get_transfers() do
       ^token_transfers ->
         :ok
 
