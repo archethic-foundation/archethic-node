@@ -57,7 +57,7 @@ defmodule Archethic.MixProject do
       {:mint, "~> 1.0"},
       {:ecto, "~> 3.5"},
       {:websockex, "~> 0.4.3"},
-
+      {:logger_file_backend, "~> 0.0.13"},
       # Dev
       {:benchee, "~> 1.0"},
       {:benchee_html, "~> 1.0", only: :dev},

@@ -2,6 +2,14 @@ import Config
 
 config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 
+config :logger,
+  backends: [:console, {LoggerFileBackend, :error_log}],
+  format: "[$level] $message\n"
+
+config :logger, :error_log,
+  path: "/home/apoorv-2204/Documents/info.log",
+  level: :debug
+
 config :archethic,
        :mut_dir,
        System.get_env(
