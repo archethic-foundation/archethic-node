@@ -19,11 +19,11 @@ defmodule Archethic.Utils.Regression.Benchmark.TxnGenerator do
   # @pool_seed Application.compile_env(:archethic, [ArchethicWeb.FaucetController, :seed])
   def plan([host | _nodes], _opts) do
     port = Application.get_env(:archethic, ArchethicWeb.Endpoint)[:http][:port]
-
+    benchee(host, port)
     {
       %{
         "UCO Transfer single recipient" => fn ->
-          benchee(host, port)
+          Logger.info("")
         end
       },
       [parallel: 1]

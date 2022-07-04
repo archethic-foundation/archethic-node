@@ -5,9 +5,9 @@ config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> Stri
 config :logger,
   backends: [:console, {LoggerFileBackend, :error_log}],
   format: "[$level] $message\n"
-
+  name = System.get_env("ARCHETHIC_CRYPTO_SEED", "node1")
 config :logger, :error_log,
-  path: "/home/apoorv-2204/Documents/info.log",
+  path: "~/aebot/info-#{name}.log",
   level: :debug
 
 config :archethic,
