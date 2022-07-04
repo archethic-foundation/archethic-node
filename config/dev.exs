@@ -68,9 +68,6 @@ config :archethic,
             Archethic.Crypto.NodeKeystore.Origin.TPMImpl
         end)
 
-config :archethic, Archethic.DB.CassandraImpl,
-  host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")
-
 config :archethic, Archethic.Governance.Pools,
   initial_members: [
     technical_council: [

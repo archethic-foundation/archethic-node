@@ -119,9 +119,6 @@ config :archethic,
        Archethic.Crypto.SharedSecretsKeystore,
        Archethic.Crypto.SharedSecretsKeystore.SoftwareImpl
 
-config :archethic, Archethic.DB.CassandraImpl,
-  host: System.get_env("ARCHETHIC_DB_HOST", "127.0.0.1:9042")
-
 config :archethic, Archethic.Governance.Pools,
   # TODO: provide the true addresses of the members
   initial_members: [
