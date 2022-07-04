@@ -149,7 +149,7 @@ defmodule Archethic.OracleChain.Scheduler do
 
     storage_nodes =
       summary_date
-      |> Crypto.derive_oracle_address(index)
+      |> Crypto.derive_oracle_address(index + 1)
       |> Election.storage_nodes(authorized_nodes)
 
     tx = build_oracle_transaction(summary_date, index, new_oracle_data)
@@ -168,13 +168,15 @@ defmodule Archethic.OracleChain.Scheduler do
         {:trigger, false} ->
           {:ok, pid} =
             DetectNodeResponsiveness.start_link(tx.address, fn count ->
-              if trigger_node?(storage_nodes, count) do
+              new_oracle_data = get_new_oracle_data(summary_date, index)
+              new_data? = !Enum.empty?(new_oracle_data)
+
+              if trigger_node?(storage_nodes, count) and new_data? do
                 Logger.info("Oracle polling transaction ...attempt #{count}",
                   transaction_address: Base.encode16(tx.address),
                   transaction_type: :oracle
                 )
 
-                new_oracle_data = get_new_oracle_data(summary_date, index)
                 tx = build_oracle_transaction(summary_date, index, new_oracle_data)
                 send_polling_transaction(tx)
               end

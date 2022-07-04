@@ -142,7 +142,7 @@ config :archethic, Archethic.TransactionChain.MemTables.KOLedger, enabled: false
 config :archethic, Archethic.TransactionChain.MemTablesLoader, enabled: false
 
 config :archethic, ArchethicWeb.FaucetController, enabled: true
-config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 5_000
+config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.

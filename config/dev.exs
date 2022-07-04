@@ -120,7 +120,7 @@ config :archethic, Archethic.SharedSecrets.NodeRenewalScheduler,
 config :archethic, Archethic.P2P.Listener,
   port: System.get_env("ARCHETHIC_P2P_PORT", "3002") |> String.to_integer()
 
-config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 5_000
+config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 1_000
 
 config :archethic, ArchethicWeb.FaucetController, enabled: true
 
