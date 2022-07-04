@@ -986,7 +986,7 @@ defmodule Archethic.Mining.ValidationContext do
          validation_time: validation_time
        }) do
     diff = DateTime.diff(timestamp, validation_time)
-    diff <= 0 and diff > -10
+    diff <= 3 and diff > -10
   end
 
   defp valid_stamp_signature(stamp = %ValidationStamp{}, %__MODULE__{
