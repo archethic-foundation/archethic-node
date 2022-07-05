@@ -4,8 +4,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
   """
 
   alias Archethic.Crypto
+  alias Archethic.Utils.VarInt
 
   alias __MODULE__.LedgerOperations
+
 
   defstruct [
     :timestamp,
@@ -121,11 +123,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
       # Fee
       0, 0, 0, 0, 0, 152, 150, 128,
       # Nb of transaction movements
-      0,
+      1, 0,
       # Nb of unspent outputs
-      0,
+      1, 0,
       # Nb of resolved recipients addresses
-      0,
+      1, 0,
       # Nb errors reported
       0,
       # Signature size
@@ -156,8 +158,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         pow
       end
 
+    encoded_recipients_len = length(recipients) |> VarInt.from_value() |> VarInt.serialize()
+
     <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
-      LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
+      LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring>>
   end
@@ -180,12 +184,15 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
         pow
       end
 
+    encoded_recipients_len = length(recipients) |> VarInt.from_value() |> VarInt.serialize()
+
     <<DateTime.to_unix(timestamp, :millisecond)::64, pow::binary, poi::binary, poe::binary,
-      LedgerOperations.serialize(ledger_operations)::binary, length(recipients)::8,
+      LedgerOperations.serialize(ledger_operations)::binary, encoded_recipients_len::binary,
       :erlang.list_to_binary(recipients)::binary, length(errors)::8,
       serialize_errors(errors)::bitstring, byte_size(signature)::8, signature::binary>>
   end
 
+  # TODO: Prince : Below Doc needs to be modified
   @doc """
   Deserialize an encoded validation stamp
 
@@ -241,7 +248,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     poi_hash_size = Crypto.hash_size(poi_hash_id)
     <<poi_hash::binary-size(poi_hash_size), poe::binary-size(64), rest::bitstring>> = rest
 
-    {ledger_ops, <<recipients_length::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
+    {ledger_ops, <<encoded_int_recipient_len::8, rest::bitstring>>} = LedgerOperations.deserialize(rest)
+
+    <<recipients_length::size(encoded_int_recipient_len)-unit(8), rest::bitstring>> = rest
 
     {recipients, <<nb_errors::8, rest::bitstring>>} =
       deserialize_list_of_recipients_addresses(rest, recipients_length, [])

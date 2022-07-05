@@ -5,6 +5,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   defstruct transfers: []
 
   alias __MODULE__.Transfer
+  alias Archethic.Utils.VarInt
 
   @typedoc """
   UCO movement is composed from:
@@ -31,8 +32,8 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       ...> ]}
       ...> |> TokenLedger.serialize()
       <<
-        # Number of Token transfers
-        1,
+        # Number of Token transfers in VarInt
+        1, 1,
         # Token address
         0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
         197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175,
@@ -48,7 +49,8 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{transfers: transfers}) do
     transfers_bin = Enum.map(transfers, &Transfer.serialize/1) |> :erlang.list_to_binary()
-    <<length(transfers)::8, transfers_bin::binary>>
+    encoded_transfer = VarInt.from_value(length(transfers)) |> VarInt.serialize()
+    <<encoded_transfer::binary, transfers_bin::binary>>
   end
 
   @doc """
@@ -56,7 +58,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
 
   ## Examples
 
-      iex> <<1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
+      iex> <<1, 1, 0, 0, 49, 101, 72, 154, 152, 3, 174, 47, 2, 35, 7, 92, 122, 206, 185, 71, 140, 74,
       ...> 197, 46, 99, 117, 89, 96, 100, 20, 0, 34, 181, 215, 143, 175, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128, 0>>
@@ -78,14 +80,16 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<0::8, rest::bitstring>>) do
+  def deserialize(<<1::8, 0::8, rest::bitstring>>) do
     {
       %__MODULE__{},
       rest
     }
   end
 
-  def deserialize(<<nb_transfers::8, rest::bitstring>>) do
+  def deserialize(<<encoded_int_len::8, rest::bitstring>>) do
+
+    <<nb_transfers::size(encoded_int_len)-unit(8), rest::bitstring>> = rest
     {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [])
 
     {

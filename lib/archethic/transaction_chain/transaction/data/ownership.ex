@@ -6,6 +6,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
   defstruct authorized_keys: %{}, secret: ""
 
   alias Archethic.Crypto
+  alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           secret: binary(),
@@ -23,7 +24,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       iex> %Ownership{authorized_keys: authorized_keys} = Ownership.new(secret, secret_key, [pub])
       iex> Map.keys(authorized_keys)
       [
-        <<0, 1, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96, 203, 174, 116, 191, 211, 
+        <<0, 1, 241, 101, 225, 229, 247, 194, 144, 229, 47, 46, 222, 243, 251, 171, 96, 203, 174, 116, 191, 211,
         39, 79, 142, 94, 225, 222, 51, 69, 201, 84, 161,102>>
       ]
   """
@@ -67,8 +68,8 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
         0, 0, 0, 16,
         # Secret
         205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206, 198, 202,
-        # Number of authorized keys
-        1,
+        # Number of authorized keys in VarInt Encoded Form (1-byte -> Length of Integer Bytes, n-bytes -> Value of List length)
+        1, 1,
         # Authorized public key
         0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22, 125, 76, 29,
         83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54, 187, 9,
@@ -87,7 +88,9 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       end)
       |> :erlang.list_to_binary()
 
-    <<byte_size(secret)::32, secret::binary, map_size(authorized_keys)::8,
+    serialized_length = VarInt.from_value(map_size(authorized_keys)) |> VarInt.serialize()
+
+    <<byte_size(secret)::32, secret::binary, serialized_length::binary,
       authorized_keys_bin::binary>>
   end
 
@@ -97,7 +100,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
   ## Examples
 
       iex> <<0, 0, 0, 16, 205, 124, 251, 211, 28, 69, 249, 1, 58, 108, 16, 35, 23, 206,
-      ...> 198, 202, 1, 0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22,
+      ...> 198, 202, 1, 1, 0, 0, 229, 188, 159, 80, 100, 5, 54, 152, 137, 201, 204, 24, 22,
       ...> 125, 76, 29, 83, 14, 154, 60, 66, 69, 121, 97, 40, 215, 226, 204, 133, 54,
       ...> 187, 9, 139, 100, 20, 32, 187, 77, 56, 30, 116, 207, 34, 95, 157, 128, 208, 115, 113,
       ...> 177, 45, 9, 93, 107, 90, 254, 173, 71, 60, 181, 113, 247, 75, 151, 127, 41, 7,
@@ -123,10 +126,13 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(
-        <<secret_size::32, secret::binary-size(secret_size), nb_authorized_keys::8,
+        <<secret_size::32, secret::binary-size(secret_size), encoded_int_len::8,
           rest::bitstring>>
       ) do
-    {authorized_keys, rest} = reduce_authorized_keys_bin(rest, nb_authorized_keys, %{})
+
+    <<encoded_int::size(encoded_int_len)-unit(8), rest::bitstring>> = rest
+
+    {authorized_keys, rest} = reduce_authorized_keys_bin(rest, encoded_int, %{})
 
     {%__MODULE__{
        secret: secret,
