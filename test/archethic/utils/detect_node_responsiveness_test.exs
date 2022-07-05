@@ -1,9 +1,11 @@
 defmodule Archethic.Utils.DetectNodeResponsivenessTest do
   use ArchethicCase
-  @timeout 500
-  @sleep_timeout 600
+  @timeout 200
+  @sleep_timeout 350
 
   alias Archethic.Utils.DetectNodeResponsiveness
+
+  alias Archethic.Mining.WorkflowRegistry
 
   import Mox
   alias Archethic.Crypto
@@ -163,7 +165,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
 
     MockDB
     |> stub(:transaction_exists?, fn ^address ->
-      send(me, :transaction_stored)
+      Process.send_after(me, :transaction_stored, 50)
       true
     end)
 
@@ -217,7 +219,7 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
       false
     end)
     |> expect(:transaction_exists?, fn ^address ->
-      send(me, :transaction_stored)
+      Process.send_after(me, :transaction_stored, 50)
       true
     end)
 
@@ -272,6 +274,58 @@ defmodule Archethic.Utils.DetectNodeResponsivenessTest do
     end)
 
     assert_receive :replay, @sleep_timeout
+    Process.sleep(@sleep_timeout)
+    assert !Process.alive?(pid)
+  end
+
+  test "should not retry if the transaction is in mining process" do
+    address = <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+
+    me = self()
+
+    replaying_fn = fn _count ->
+      send(me, :replay)
+    end
+
+    {pub1, _} = Crypto.derive_keypair("node1", 0)
+    {pub2, _} = Crypto.derive_keypair("node2", 0)
+
+    P2P.add_and_connect_node(%Node{
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      authorized?: true,
+      last_public_key: pub1,
+      first_public_key: pub1,
+      available?: true,
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      enrollment_date: DateTime.utc_now(),
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
+    })
+
+    P2P.add_and_connect_node(%Node{
+      first_public_key: pub2,
+      last_public_key: pub2,
+      authorized?: true,
+      available?: true,
+      authorization_date: DateTime.utc_now() |> DateTime.add(-10),
+      geo_patch: "AAA",
+      network_patch: "AAA",
+      reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>,
+      enrollment_date: DateTime.utc_now()
+    })
+
+    {:ok, pid} = DetectNodeResponsiveness.start_link(address, replaying_fn, @timeout)
+
+    MockDB
+    |> stub(:transaction_exists?, fn ^address ->
+      false
+    end)
+
+    Registry.register(WorkflowRegistry, address, [])
+
+    #  first soft_timeout
     Process.sleep(@sleep_timeout)
     assert !Process.alive?(pid)
   end

@@ -5,6 +5,7 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
   @default_timeout Application.compile_env(:archethic, __MODULE__) |> Keyword.get(:timeout, 5_000)
   alias Archethic.P2P
   alias Archethic.DB
+  alias Archethic.Mining
 
   use GenStateMachine
   require Logger
@@ -30,8 +31,12 @@ defmodule Archethic.Utils.DetectNodeResponsiveness do
         }
       ) do
     with false <- DB.transaction_exists?(address),
+         false <- Mining.processing?(address),
          true <- count < length(P2P.authorized_and_available_nodes()) do
-      Logger.info("calling replay fn with count=#{count}")
+      Logger.info("calling replay fn with count=#{count}",
+        transaction_address: Base.encode16(address)
+      )
+
       replaying_fn.(count)
       schedule_timeout(timeout)
       new_count = count + 1
