@@ -212,6 +212,8 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
   # TODO: define the default list of P2P seeds once the network will be more open to new miners
   genesis_seeds: System.get_env("ARCHETHIC_P2P_BOOTSTRAPPING_SEEDS")
 
+config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 10_000
+
 config :archethic, ArchethicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 

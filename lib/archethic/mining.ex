@@ -169,8 +169,8 @@ defmodule Archethic.Mining do
     |> DistributedWorkflow.add_cross_validation_stamp(stamp)
   end
 
-  defp get_mining_process!(tx_address) do
-    retry_while with: exponential_backoff(100, 2) |> expiry(@mining_timeout) do
+  defp get_mining_process!(tx_address, timeout \\ @mining_timeout) do
+    retry_while with: exponential_backoff(100, 2) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
         [{pid, _}] ->
           {:halt, pid}
@@ -178,6 +178,20 @@ defmodule Archethic.Mining do
         _ ->
           {:cont, nil}
       end
+    end
+  end
+
+  @doc """
+  Return true if the transaction is in mining process
+  """
+  @spec processing?(binary()) :: boolean()
+  def processing?(tx_address) do
+    case get_mining_process!(tx_address, 100) do
+      nil ->
+        false
+
+      _pid ->
+        true
     end
   end
 

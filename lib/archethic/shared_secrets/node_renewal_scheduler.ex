@@ -28,6 +28,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   alias Archethic.SharedSecrets.NodeRenewal
 
   alias Archethic.Utils
+  alias Archethic.Utils.DetectNodeResponsiveness
 
   require Logger
 
@@ -117,9 +118,23 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
       "Node shared secrets will be renewed in #{Utils.remaining_seconds_from_timer(timer)}"
     )
 
+    tx =
+      NodeRenewal.next_authorized_node_public_keys()
+      |> NodeRenewal.new_node_shared_secrets_transaction(
+        :crypto.strong_rand_bytes(32),
+        :crypto.strong_rand_bytes(32)
+      )
+
     if NodeRenewal.initiator?() do
       Logger.info("Node shared secrets renewal creation...")
-      make_renewal()
+      make_renewal(tx)
+    else
+      DetectNodeResponsiveness.start_link(tx.address, fn count ->
+        if NodeRenewal.initiator?(count) do
+          Logger.info("Node shared secret renewal creation...attempt #{count}")
+          make_renewal(tx)
+        end
+      end)
     end
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
@@ -135,14 +150,7 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
     end
   end
 
-  defp make_renewal do
-    tx =
-      NodeRenewal.next_authorized_node_public_keys()
-      |> NodeRenewal.new_node_shared_secrets_transaction(
-        :crypto.strong_rand_bytes(32),
-        :crypto.strong_rand_bytes(32)
-      )
-
+  defp make_renewal(tx) do
     Archethic.send_new_transaction(tx)
 
     Logger.info(

@@ -32,7 +32,7 @@ defmodule Archethic.Contracts.Worker do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.Utils
-
+  alias Archethic.Utils.DetectNodeResponsiveness
   require Logger
 
   use GenServer
@@ -256,21 +256,42 @@ defmodule Archethic.Contracts.Worker do
   defp schedule_trigger(_), do: :ok
 
   defp handle_new_transaction(next_transaction = %Transaction{}) do
-    [%Node{first_public_key: key} | _] =
-      next_transaction
-      |> Transaction.previous_address()
-      |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+    validation_nodes = get_validation_nodes(next_transaction)
 
     # The first storage node of the contract initiate the sending of the new transaction
-    if key == Crypto.first_node_public_key() do
-      validation_nodes = P2P.authorized_and_available_nodes()
-
+    if trigger_node?(validation_nodes) do
       P2P.broadcast_message(validation_nodes, %StartMining{
         transaction: next_transaction,
         validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
         welcome_node_public_key: Crypto.last_node_public_key()
       })
+    else
+      DetectNodeResponsiveness.start_link(next_transaction.address, fn count ->
+        Logger.info("contract transaction ...attempt #{count}")
+
+        if trigger_node?(validation_nodes, count) do
+          P2P.broadcast_message(validation_nodes, %StartMining{
+            transaction: next_transaction,
+            validation_node_public_keys: Enum.map(validation_nodes, & &1.last_public_key),
+            welcome_node_public_key: Crypto.last_node_public_key()
+          })
+        end
+      end)
     end
+  end
+
+  defp get_validation_nodes(next_transaction = %Transaction{}) do
+    next_transaction
+    |> Transaction.previous_address()
+    |> Election.chain_storage_nodes(P2P.authorized_and_available_nodes())
+  end
+
+  defp trigger_node?(validation_nodes, count \\ 0) do
+    %Node{first_public_key: key} =
+      validation_nodes
+      |> Enum.at(count)
+
+    key == Crypto.first_node_public_key()
   end
 
   defp chain_transaction(
