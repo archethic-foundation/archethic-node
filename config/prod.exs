@@ -217,8 +217,6 @@ config :archethic, Archethic.P2P.BootstrappingSeeds,
 
 config :archethic, Archethic.Utils.DetectNodeResponsiveness, timeout: 10_000
 
-config :archethic, Archethic.Mining.DistributedWorkflow, global_timeout: 60_000
-
 config :archethic, ArchethicWeb.FaucetController,
   enabled: System.get_env("ARCHETHIC_NETWORK_TYPE") == "testnet"
 
