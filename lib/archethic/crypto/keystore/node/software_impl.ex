@@ -106,7 +106,13 @@ defmodule Archethic.Crypto.NodeKeystore.SoftwareImpl do
           read_seed()
 
         seed ->
-          seed
+          case Base.decode16(seed, case: :mixed) do
+            :error ->
+              seed
+
+            {:ok, seed} ->
+              seed
+          end
       end
 
     nb_keys = read_index()
