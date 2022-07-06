@@ -126,14 +126,14 @@ defmodule Archethic.BeaconChain.Subset do
         state = %{subset: subset, node_public_key: node_public_key, current_slot: current_slot}
       ) do
     if beacon_slot_node?(subset, time, node_public_key) do
-      handle_slot(time, current_slot, node_public_key)
+      handle_slot(time, current_slot)
 
       if summary_time?(time) and beacon_summary_node?(subset, time, node_public_key) do
         handle_summary(time, subset)
       end
     end
 
-    {:noreply, next_state(state, time)}
+    {:noreply, next_state(state)}
   end
 
   def handle_info(
@@ -202,13 +202,14 @@ defmodule Archethic.BeaconChain.Subset do
 
   defp handle_slot(
          time,
-         current_slot = %Slot{subset: subset},
-         node_public_key
+         current_slot = %Slot{subset: subset}
        ) do
     current_slot = ensure_p2p_view(current_slot)
 
     # Avoid to store or dispatch an empty beacon's slot
     unless Slot.empty?(current_slot) do
+      current_slot = %{current_slot | slot_time: SlotTimer.previous_slot(time)}
+
       beacon_transaction = create_beacon_transaction(current_slot)
 
       if summary_time?(time) do
@@ -219,7 +220,7 @@ defmodule Archethic.BeaconChain.Subset do
         SummaryCache.add_slot(subset, current_slot)
       else
         next_time = SlotTimer.next_slot(time)
-        broadcast_beacon_transaction(subset, next_time, beacon_transaction, node_public_key)
+        broadcast_beacon_transaction(subset, next_time, beacon_transaction)
       end
     end
   end
@@ -237,17 +238,13 @@ defmodule Archethic.BeaconChain.Subset do
              transaction_attestations: transaction_attestations,
              end_of_sync: end_of_sync
            }
-         },
-         time
+         }
        ) do
-    next_time = SlotTimer.next_slot(time)
-
     state
     |> Map.put(
       :current_slot,
       %Slot{
         subset: subset,
-        slot_time: next_time,
         transaction_attestations: transaction_attestations,
         end_of_node_synchronizations: end_of_sync
       }
@@ -259,7 +256,7 @@ defmodule Archethic.BeaconChain.Subset do
     )
   end
 
-  defp broadcast_beacon_transaction(subset, next_time, transaction, _node_public_key) do
+  defp broadcast_beacon_transaction(subset, next_time, transaction) do
     subset
     |> Election.beacon_storage_nodes(next_time, P2P.authorized_and_available_nodes())
     |> P2P.broadcast_message(%NewBeaconTransaction{transaction: transaction})
@@ -319,7 +316,7 @@ defmodule Archethic.BeaconChain.Subset do
   defp ensure_p2p_view(slot = %Slot{}), do: slot
 
   defp create_beacon_transaction(slot = %Slot{subset: subset, slot_time: slot_time}) do
-    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, SlotTimer.previous_slot(slot_time))
+    {prev_pub, prev_pv} = Crypto.derive_beacon_keypair(subset, slot_time)
     {next_pub, _} = Crypto.derive_beacon_keypair(subset, slot_time)
 
     slot_content =
