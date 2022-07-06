@@ -64,27 +64,8 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
         {[], false, ""}
 
       {:ok, %{genesis_address: genesis_address}} ->
-        filepath = ChainWriter.chain_path(db_path, genesis_address)
-        fd = File.open!(filepath, [:binary, :read])
-
-        # Set the file cursor position to the paging state
-        case Keyword.get(opts, :paging_state) do
-          nil ->
-            :file.position(fd, 0)
-            0
-
-          paging_address ->
-            {:ok, %{offset: offset, size: size}} =
-              ChainIndex.get_tx_entry(paging_address, db_path)
-
-            :file.position(fd, offset + size)
-        end
-
-        column_names = fields_to_column_names(fields)
-
-        # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
-        {transactions, more?, paging_state} = scan_chain(fd, column_names, address)
-        :file.close(fd)
+        {transactions, more?, paging_state} =
+          process_get_chain({address, fields, opts, db_path}, genesis_address)
 
         :telemetry.execute([:archethic, :db], %{duration: System.monotonic_time() - start}, %{
           query: "get_transaction_chain"
@@ -92,6 +73,37 @@ defmodule Archethic.DB.EmbeddedImpl.ChainReader do
 
         {transactions, more?, paging_state}
     end
+  end
+
+  defp process_get_chain({address, fields, opts, db_path}, genesis_address) do
+    filepath = ChainWriter.chain_path(db_path, genesis_address)
+    fd = File.open!(filepath, [:binary, :read])
+    # Set the file cursor position to the paging state
+    case Keyword.get(opts, :paging_state) do
+      nil ->
+        :file.position(fd, 0)
+        process_get_chain({address, fields}, {fd})
+
+      paging_address ->
+        case ChainIndex.get_tx_entry(paging_address, db_path) do
+          {:ok, %{offset: offset, size: size}} ->
+            :file.position(fd, offset + size)
+            process_get_chain({address, fields}, {fd})
+
+          {:error, :not_exists} ->
+            {[], false, ""}
+        end
+    end
+  end
+
+  defp process_get_chain({address, fields}, {fd}) do
+    column_names = fields_to_column_names(fields)
+
+    # Read the transactions until the nb of transactions to fullfil the page (ie. 10 transactions)
+    {transactions, more?, paging_state} = scan_chain(fd, column_names, address)
+    :file.close(fd)
+
+    {transactions, more?, paging_state}
   end
 
   defp read_transaction(fd, fields, limit, position, acc \\ %{})

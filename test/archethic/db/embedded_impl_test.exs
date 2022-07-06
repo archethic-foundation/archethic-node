@@ -218,6 +218,30 @@ defmodule Archethic.DB.EmbeddedTest do
       assert length(page2) == 10
       assert page2 == Enum.slice(transactions, 10, 10)
     end
+
+    test "should return an empty list when the Paging Address is not found" do
+      transactions =
+        Enum.map(1..15, fn i ->
+          TransactionFactory.create_valid_transaction([],
+            index: i,
+            timestamp: DateTime.utc_now() |> DateTime.add(i * 60)
+          )
+        end)
+
+      EmbeddedImpl.write_transaction_chain(transactions)
+
+      {page, true, paging_state} =
+        EmbeddedImpl.get_transaction_chain(List.last(transactions).address)
+
+      assert length(page) == 10
+      assert page == Enum.take(transactions, 10)
+      assert paging_state == List.last(page).address
+
+      assert {[], false, ""} =
+               EmbeddedImpl.get_transaction_chain(List.last(transactions).address, [],
+                 paging_state: :crypto.strong_rand_bytes(32)
+               )
+    end
   end
 
   describe "chain_size/1" do
