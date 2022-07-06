@@ -11,6 +11,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.Utils.VarInt
 
   defstruct [:transaction_summary, confirmations: [], version: 1]
 
@@ -56,9 +57,9 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           # Fee
           0, 0, 0, 0, 0, 152, 150, 128,
           # Nb movements
-          0, 0,
+          1, 0,
           # Nb confirmations
-          1,
+          1, 1,
           # Replication node position
           0,
           # Signature size
@@ -76,8 +77,11 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
         transaction_summary: transaction_summary,
         confirmations: confirmations
       }) do
-    <<1::8, TransactionSummary.serialize(transaction_summary)::binary, length(confirmations)::8,
-      serialize_confirmations(confirmations)::binary>>
+    encoded_confirmation_length =
+      length(confirmations) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<1::8, TransactionSummary.serialize(transaction_summary)::binary,
+      encoded_confirmation_length::binary, serialize_confirmations(confirmations)::binary>>
   end
 
   defp serialize_confirmations(confirmations) do
@@ -95,8 +99,8 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
       iex> <<1, 0, 0, 232, 183, 247, 15, 195, 209, 138, 58, 226, 218, 221, 135, 181, 43, 216,
       ...> 164, 4, 187, 38, 200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66,
       ...> 0, 0, 1, 126, 154, 208, 125, 176,
-      ...> 253, 0, 0, 0, 0, 0, 152, 150, 128, 0, 0,
-      ...> 1, 0,64,
+      ...> 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0,
+      ...> 1, 1, 0,64,
       ...> 129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
       ...> 100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
       ...> 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
@@ -127,7 +131,10 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, rest::bitstring>>) do
-    {tx_summary, <<nb_confirmations::8, rest::bitstring>>} = TransactionSummary.deserialize(rest)
+    {tx_summary, <<encoded_int_confirmations_len::8, rest::bitstring>>} =
+      TransactionSummary.deserialize(rest)
+
+    <<nb_confirmations::size(encoded_int_confirmations_len)-unit(8), rest::bitstring>> = rest
 
     {confirmations, rest} = deserialize_confirmations(rest, nb_confirmations, [])
 
