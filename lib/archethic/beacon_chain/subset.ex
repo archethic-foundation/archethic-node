@@ -193,11 +193,13 @@ defmodule Archethic.BeaconChain.Subset do
     end
   end
 
-  defp notify_subscribed_nodes(nodes, attestation) do
+  defp notify_subscribed_nodes(nodes, %ReplicationAttestation{
+         transaction_summary: tx_summary
+       }) do
     nodes
     |> P2P.get_nodes_info()
     |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
-    |> P2P.broadcast_message(attestation)
+    |> P2P.broadcast_message(tx_summary)
   end
 
   defp handle_slot(

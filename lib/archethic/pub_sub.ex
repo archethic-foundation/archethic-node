@@ -16,6 +16,8 @@ defmodule Archethic.PubSub do
 
   alias Archethic.TransactionChain.Transaction
 
+  alias Archethic.TransactionChain.TransactionSummary
+
   @doc """
   Notify the registered processes than a new transaction has been validated
   """
@@ -87,6 +89,17 @@ defmodule Archethic.PubSub do
     dispatch(
       :new_replication_attestation,
       {:new_replication_attestation, attestation}
+    )
+  end
+
+  @doc """
+  Notify a new transaction  attestation for beacon explorer
+  """
+  @spec notify_transaction_attestation(TransactionSummary.t()) :: :ok
+  def notify_transaction_attestation(attestation = %TransactionSummary{}) do
+    dispatch(
+      :new_transaction_attestation,
+      {:new_transaction_attestation, attestation}
     )
   end
 
@@ -175,6 +188,13 @@ defmodule Archethic.PubSub do
   """
   def register_to_new_replication_attestations do
     Registry.register(PubSubRegistry, :new_replication_attestation, [])
+  end
+
+  @doc """
+  Register to new transaction attestations for beacon explorer
+  """
+  def register_to_new_transaction_attestations do
+    Registry.register(PubSubRegistry, :new_transaction_attestation, [])
   end
 
   defp dispatch(topic, message) do
