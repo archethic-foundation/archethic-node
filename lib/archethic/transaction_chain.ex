@@ -277,7 +277,8 @@ defmodule Archethic.TransactionChain do
       ...>  ]
       ...>  |> TransactionChain.proof_of_integrity()
       # Hash of the transaction
-      <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187, 160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+          182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
 
     With multiple transactions
 
@@ -320,15 +321,15 @@ defmodule Archethic.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187,
-      ...>           160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      ...>         proof_of_integrity:  <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+      ...>         182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
       ...>      }
       ...>    }
       ...> ]
       ...> |> TransactionChain.proof_of_integrity()
       # Hash of the transaction + previous proof of integrity
-      <<0, 150, 171, 173, 84, 39, 116, 164, 116, 216, 112, 168, 253, 154, 141, 95,
-        123, 179, 96, 253, 195, 247, 192, 75, 47, 173, 144, 82, 99, 4, 10, 149, 169>>
+      <<0, 55, 249, 251, 141, 2, 131, 48, 149, 173, 57, 54, 6, 238, 92, 79, 195, 97,
+           103, 111, 2, 182, 136, 136, 28, 171, 103, 225, 120, 214, 144, 147, 234>>
   """
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
@@ -375,8 +376,8 @@ defmodule Archethic.TransactionChain do
       ...>         232, 135, 42, 112, 58, 181, 13>>,
       ...>     validation_stamp: %ValidationStamp{
       ...>        timestamp: ~U[2020-03-30 12:06:30.000Z],
-      ...>        proof_of_integrity: <<0, 150, 171, 173, 84, 39, 116, 164, 116, 216, 112, 168, 253, 154, 141, 95,
-      ...>          123, 179, 96, 253, 195, 247, 192, 75, 47, 173, 144, 82, 99, 4, 10, 149, 169>>
+      ...>        proof_of_integrity: <<0, 55, 249, 251, 141, 2, 131, 48, 149, 173, 57, 54, 6, 238, 92, 79, 195, 97,
+      ...>           103, 111, 2, 182, 136, 136, 28, 171, 103, 225, 120, 214, 144, 147, 234>>
       ...>      }
       ...>    },
       ...>    %Transaction{
@@ -398,7 +399,8 @@ defmodule Archethic.TransactionChain do
       ...>          232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
       ...>         timestamp: ~U[2020-03-30 10:06:30.000Z],
-      ...>         proof_of_integrity: <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187, 160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      ...>         proof_of_integrity: <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+      ...>          182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
       ...>      }
       ...>    }
       ...> ]
@@ -444,7 +446,7 @@ defmodule Archethic.TransactionChain do
         )
 
         false
-
+      IO.puts("REACHED HERE: POI PASSED!!")
       Crypto.derive_address(previous_public_key) != previous_address ->
         Logger.error("Invalid previous public key",
           transaction_type: last_tx.type,
@@ -591,7 +593,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch transaction remotely
 
-  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`. 
+  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`.
   If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
 
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.

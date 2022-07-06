@@ -88,7 +88,6 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   end
 
   def deserialize(<<encoded_int_len::8, rest::bitstring>>) do
-
     <<nb_transfers::size(encoded_int_len)-unit(8), rest::bitstring>> = rest
     {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [])
 
