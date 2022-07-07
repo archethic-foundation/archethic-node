@@ -27,7 +27,7 @@ defmodule VarIntTest do
     # Deserialize the bitstrings to struct
     decoded_numbers = serialized_numbers |> Enum.map(fn x -> x |> VarInt.deserialize() end)
 
-    assert length(struct_nums -- decoded_numbers) == 0
+    assert struct_nums -- decoded_numbers == []
   end
 
   test "Should Raise an Error on Malformed Argument Supplied" do
