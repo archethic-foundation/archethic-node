@@ -13,7 +13,7 @@ defmodule Archethic.Mining.ProofOfWorkTest do
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
 
-  doctest ProofOfWork
+  # doctest ProofOfWork
 
   describe "list_origin_public_keys_candidates/1 when it's a transaction with smart contract" do
     test "load the origin public keys based on the origin family provided " do
