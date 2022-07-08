@@ -133,7 +133,7 @@ defmodule Archethic.BeaconChain.Subset do
       end
     end
 
-    {:noreply, next_state(state)}
+    {:noreply, next_state(state, time)}
   end
 
   def handle_info(
@@ -240,13 +240,17 @@ defmodule Archethic.BeaconChain.Subset do
              transaction_attestations: transaction_attestations,
              end_of_sync: end_of_sync
            }
-         }
+         },
+         time
        ) do
+    next_time = SlotTimer.next_slot(time)
+
     state
     |> Map.put(
       :current_slot,
       %Slot{
         subset: subset,
+        slot_time: next_time,
         transaction_attestations: transaction_attestations,
         end_of_node_synchronizations: end_of_sync
       }
