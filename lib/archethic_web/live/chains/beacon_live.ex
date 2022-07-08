@@ -3,7 +3,6 @@ defmodule ArchethicWeb.BeaconChainLive do
   use ArchethicWeb, :live_view
 
   alias Archethic.BeaconChain
-  alias Archethic.BeaconChain.ReplicationAttestation
   alias Archethic.BeaconChain.Slot
   alias Archethic.BeaconChain.SummaryTimer
 
@@ -19,7 +18,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
-
+  alias Archethic.TransactionChain.TransactionSummary
   alias ArchethicWeb.ExplorerView
   alias ArchethicWeb.TransactionCache
 
@@ -33,8 +32,7 @@ defmodule ArchethicWeb.BeaconChainLive do
     if connected?(socket) do
       PubSub.register_to_next_summary_time()
       PubSub.register_to_current_epoch_of_slot_time()
-      PubSub.register_to_new_replication_attestations()
-
+      PubSub.register_to_new_transaction_attestations()
       # register for client to able to get the current added transaction to the beacon pool
       BeaconChain.register_to_beacon_pool_updates()
     end
@@ -141,7 +139,7 @@ defmodule ArchethicWeb.BeaconChainLive do
   end
 
   def handle_info(
-        {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}},
+        {:new_transaction_attestation, tx_summary = %TransactionSummary{}},
         socket = %{
           assigns:
             assigns = %{

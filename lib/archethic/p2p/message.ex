@@ -1304,7 +1304,17 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%BeaconUpdate{transaction_attestations: transaction_attestations}) do
-    Enum.each(transaction_attestations, &process/1)
+    Enum.each(transaction_attestations, fn %ReplicationAttestation{
+                                             transaction_summary: tx_summary
+                                           } ->
+      process(tx_summary)
+    end)
+
+    %Ok{}
+  end
+
+  def process(tx_summary = %TransactionSummary{}) do
+    PubSub.notify_transaction_attestation(tx_summary)
 
     %Ok{}
   end
