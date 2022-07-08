@@ -7,6 +7,7 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
+  alias Archethic.P2P.Client
 
   alias Broadway.Message, as: BroadwayMessage
 
@@ -59,6 +60,7 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
     } = MessageEnvelop.decode(data)
 
     MemTable.increase_node_availability(sender_public_key)
+    Client.set_connected(sender_public_key)
     {System.monotonic_time(:millisecond), message_id, message, sender_public_key}
   end
 
