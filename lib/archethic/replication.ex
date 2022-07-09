@@ -300,7 +300,7 @@ defmodule Archethic.Replication do
     previous_address = Transaction.previous_address(tx)
 
     if TransactionChain.transaction_exists?(previous_address) do
-      stream_local_chain(previous_address)
+      []
     else
       Logger.debug(
         "Try to fetch network transaction chain from remote nodes (possibility of an orphan state)",
@@ -310,30 +310,6 @@ defmodule Archethic.Replication do
 
       TransactionContext.stream_transaction_chain(previous_address)
     end
-  end
-
-  defp stream_local_chain(address) do
-    Stream.resource(
-      fn -> {address, nil, 0} end,
-      fn
-        {:end, size} ->
-          Logger.debug("Size of the chain retrieved: #{size}",
-            transaction_address: Base.encode16(address)
-          )
-
-          {:halt, address}
-
-        {address, paging_state, size} ->
-          case TransactionChain.get(address, [], paging_state: paging_state) do
-            {transactions, false, _} ->
-              {[transactions], {:end, size + length(transactions)}}
-
-            {transactions, true, paging_state} ->
-              {[transactions], {address, paging_state, size + length(transactions)}}
-          end
-      end,
-      fn _ -> :ok end
-    )
   end
 
   @doc """
