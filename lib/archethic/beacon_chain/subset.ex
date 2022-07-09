@@ -201,11 +201,23 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp notify_subscribed_nodes(nodes, %ReplicationAttestation{
-         transaction_summary: tx_summary
+         transaction_summary:
+           tx_summary = %TransactionSummary{timestamp: timestamp, address: address}
        }) do
+    PubSub.notify_transaction_attestation(tx_summary)
+
+    # Do not notify beacon storage nodes as they are already aware of the transaction
+    beacon_storage_nodes =
+      Election.beacon_storage_nodes(
+        BeaconChain.subset_from_address(address),
+        BeaconChain.next_slot(timestamp),
+        P2P.authorized_nodes(timestamp)
+      )
+      |> Enum.map(& &1.first_public_key)
+
     nodes
     |> P2P.get_nodes_info()
-    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    |> Enum.reject(&Enum.member?(beacon_storage_nodes, &1.first_public_key))
     |> P2P.broadcast_message(tx_summary)
   end
 
