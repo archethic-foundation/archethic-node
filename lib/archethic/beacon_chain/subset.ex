@@ -153,18 +153,25 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     with ^subset <- BeaconChain.subset_from_address(address),
          ^slot_time <- SlotTimer.next_slot(timestamp) do
-      new_slot =
+      {new_tx?, new_slot} =
         Slot.add_transaction_attestation(
           current_slot,
           attestation
         )
 
-      Logger.info(
-        "Transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
-        beacon_subset: Base.encode16(subset)
-      )
+      if new_tx? do
+        Logger.info(
+          "Transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
+          beacon_subset: Base.encode16(subset)
+        )
 
-      notify_subscribed_nodes(subscribed_nodes, attestation)
+        notify_subscribed_nodes(subscribed_nodes, attestation)
+      else
+        Logger.info(
+          "New confirmation for transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
+          beacon_subset: Base.encode16(subset)
+        )
+      end
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds
       if update_p2p_view?(state) do

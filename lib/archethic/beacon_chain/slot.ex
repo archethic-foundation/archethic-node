@@ -52,6 +52,8 @@ defmodule Archethic.BeaconChain.Slot do
 
   If the transaction summary already exists, it will append the confirmation node with the node public key and its signature.
 
+  Return true if transaction summary is new, false if transaction summary is updated
+
   ## Examples
 
     Add the first confirmation
@@ -74,7 +76,7 @@ defmodule Archethic.BeaconChain.Slot do
       ...>      32, 180, 47, 189, 143, 239, 156, 56, 234, 236, 128, 17, 79, 236, 211, 124,
       ...>      158, 142, 23, 151, 43, 50, 153, 52, 195, 144, 226, 247, 65>>}]
       ...> })
-      %Slot{
+      {true, %Slot{
         transaction_attestations: [
           %ReplicationAttestation{
             transaction_summary: %TransactionSummary{
@@ -99,7 +101,7 @@ defmodule Archethic.BeaconChain.Slot do
             ]
           }
         ]
-      }
+      }}
 
     Append confirmation
 
@@ -140,7 +142,7 @@ defmodule Archethic.BeaconChain.Slot do
        ...>      239, 151, 241, 35, 93, 254, 65, 201, 152, 57, 187, 225, 86, 235, 56, 206, 134,
        ...>      141, 174, 141, 29, 28, 173, 17, 4, 78, 129, 33, 68, 4>>}],
        ...> })
-       %Slot{
+       {false, %Slot{
          transaction_attestations: [
            %ReplicationAttestation{
              transaction_summary: %TransactionSummary{
@@ -172,7 +174,7 @@ defmodule Archethic.BeaconChain.Slot do
              ]
            }
          ]
-       }
+       }}
 
     Append transaction attestations
 
@@ -207,7 +209,7 @@ defmodule Archethic.BeaconChain.Slot do
        ...>      239, 151, 241, 35, 93, 254, 65, 201, 152, 57, 187, 225, 86, 235, 56, 206, 134,
        ...>      141, 174, 141, 29, 28, 173, 17, 4, 78, 129, 33, 68, 4>>}],
        ...> })
-       %Slot{
+       {true, %Slot{
          transaction_attestations: [
            %ReplicationAttestation{
              transaction_summary: %TransactionSummary{
@@ -243,14 +245,14 @@ defmodule Archethic.BeaconChain.Slot do
              ]
            }
          ]
-       }
+       }}
 
   """
   @spec add_transaction_attestation(
           __MODULE__.t(),
           ReplicationAttestation.t()
         ) ::
-          __MODULE__.t()
+          {boolean(), __MODULE__.t()}
   def add_transaction_attestation(
         slot = %__MODULE__{transaction_attestations: transaction_attestations},
         attestation = %ReplicationAttestation{
@@ -263,10 +265,10 @@ defmodule Archethic.BeaconChain.Slot do
            &(&1.transaction_summary.address == tx_address)
          ) do
       nil ->
-        Map.update!(slot, :transaction_attestations, &[attestation | &1])
+        {true, Map.update!(slot, :transaction_attestations, &[attestation | &1])}
 
       index ->
-        add_transaction_attestation_confirmations(slot, index, confirmations)
+        {false, add_transaction_attestation_confirmations(slot, index, confirmations)}
     end
   end
 
