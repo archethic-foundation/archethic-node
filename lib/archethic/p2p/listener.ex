@@ -24,17 +24,24 @@ defmodule Archethic.P2P.Listener do
           transport
       end
 
-    {:ok, listener_pid} =
-      :ranch.start_listener(
-        :archethic_p2p,
-        ranch_transport,
-        %{socket_opts: [{:port, port}, {:backlog, 4096}], num_acceptors: 100},
-        ListenerProtocol,
-        [:binary, packet: 4, active: :once]
-      )
+    case :ranch.start_listener(
+           :archethic_p2p,
+           ranch_transport,
+           %{socket_opts: [{:port, port}, {:backlog, 4096}], num_acceptors: 100},
+           ListenerProtocol,
+           [:binary, packet: 4, active: :once]
+         ) do
+      {:ok, listener_pid} ->
+        Logger.info("P2P #{transport} Endpoint running on port #{port}")
 
-    Logger.info("P2P #{transport} Endpoint running on port #{port}")
+        {:ok, %{listener_pid: listener_pid}}
 
-    {:ok, %{listener_pid: listener_pid}}
+      {:error, :eaddrinuse} ->
+        Logger.error(
+          "P2P #{transport} Endpoint cannot listen on port #{port}. Port already in use"
+        )
+
+        System.stop(1)
+    end
   end
 end
