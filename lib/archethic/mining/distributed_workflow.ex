@@ -26,6 +26,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.Mining.WorkflowRegistry
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
@@ -50,10 +51,10 @@ defmodule Archethic.Mining.DistributedWorkflow do
   use GenStateMachine, callback_mode: [:handle_event_function, :state_enter], restart: :temporary
 
   @mining_timeout Application.compile_env!(:archethic, [__MODULE__, :global_timeout])
-  @coordinator_notification_timeout Application.compile_env!(:archethic, [
-                                      __MODULE__,
-                                      :coordinator_notification_timeout
-                                    ])
+  @coordinator_timeout_supplement Application.compile_env!(:archethic, [
+                                    __MODULE__,
+                                    :coordinator_timeout_supplement
+                                  ])
   @context_notification_timeout Application.compile_env!(:archethic, [
                                   __MODULE__,
                                   :context_notification_timeout
@@ -125,6 +126,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
   def add_cross_validation_stamp(pid, stamp = %CrossValidationStamp{}) do
     GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
   end
+
+  defp get_context_timeout(type) when type == :hosting, do: Message.get_max_timeout()
+  defp get_context_timeout(type) when type == :oracle, do: @context_notification_timeout + 1_000
+  defp get_context_timeout(_type), do: @context_notification_timeout
+
+  defp get_coordinator_timeout(type) do
+    get_context_timeout(type) + @coordinator_timeout_supplement
+  end
+
+  defp get_mining_timeout(type) when type == :hosting, do: @mining_timeout * 3
+  defp get_mining_timeout(_type), do: @mining_timeout
 
   def init(opts) do
     {tx, welcome_node, validation_nodes, node_public_key, timeout} = parse_opts(opts)
@@ -200,7 +212,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     welcome_node = Keyword.get(opts, :welcome_node)
     validation_nodes = Keyword.get(opts, :validation_nodes)
     node_public_key = Keyword.get(opts, :node_public_key)
-    timeout = Keyword.get(opts, :timeout, @mining_timeout)
+    timeout = Keyword.get(opts, :timeout, get_mining_timeout(tx.type))
 
     {tx, welcome_node, validation_nodes, node_public_key, timeout}
   end
@@ -342,7 +354,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           # TODO: Provide a better waiting time management
           # for example rolling percentile latency could be way to achieve this
           # (https://cs.stackexchange.com/a/129178)
-          waiting_time = @context_notification_timeout
+          waiting_time = get_context_timeout(tx.type)
 
           Logger.debug(
             "Coordinator will wait #{waiting_time} ms before continue with the responding nodes",
@@ -357,7 +369,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
         :cross_validator ->
           [
-            {{:timeout, :change_coordinator}, @coordinator_notification_timeout, :any},
+            {{:timeout, :change_coordinator}, get_coordinator_timeout(tx.type), :any},
             {{:timeout, :stop_timeout}, timeout, :any}
           ]
       end
@@ -415,7 +427,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     actions = [
-      {{:timeout, :wait_confirmations}, @context_notification_timeout, :any}
+      {{:timeout, :wait_confirmations}, get_context_timeout(tx.type), :any}
     ]
 
     {:keep_state_and_data, actions}
@@ -800,7 +812,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           {:next_state, :coordinator, %{data | context: new_context}}
         else
           actions = [
-            {{:timeout, :change_coordinator}, @coordinator_notification_timeout, :any},
+            {{:timeout, :change_coordinator}, get_coordinator_timeout(tx.type), :any},
             {:next_event, :internal, :notify_context}
           ]
 

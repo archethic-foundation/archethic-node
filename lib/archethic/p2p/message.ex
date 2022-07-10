@@ -155,14 +155,23 @@ defmodule Archethic.P2P.Message do
   @doc """
   Return timeout depending of message type
   """
+  @spec get_timeout(__MODULE__.t()) :: non_neg_integer()
   def get_timeout(message) do
     full_size_message = [GetTransaction, GetLastTransaction]
 
     if message.__struct__ in full_size_message do
-      trunc(@content_max_size / @floor_upload_speed * 1_000)
+      get_max_timeout()
     else
       3_000
     end
+  end
+
+  @doc """
+  Return the maximum timeout for a full sized transaction
+  """
+  @spec get_max_timeout() :: non_neg_integer()
+  def get_max_timeout() do
+    trunc(@content_max_size / @floor_upload_speed * 1_000)
   end
 
   @doc """
