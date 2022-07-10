@@ -130,8 +130,7 @@ defmodule Archethic.Mining.TransactionContext do
         fn node_public_key ->
           {node_public_key, P2P.send_message(node_public_key, %Ping{}, 500)}
         end,
-        on_timeout: :kill_task,
-        timeout: 500
+        on_timeout: :kill_task
       )
       |> Stream.filter(&match?({:ok, _}, &1))
       |> Enum.map(fn

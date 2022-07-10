@@ -129,7 +129,6 @@ defmodule Archethic.P2P.Message do
           | EncryptedStorageNonce.t()
           | BootstrappingNodes.t()
           | P2PView.t()
-          | Transaction.t()
           | TransactionSummary.t()
           | LastTransactionAddress.t()
           | FirstPublicKey.t()
@@ -140,6 +139,9 @@ defmodule Archethic.P2P.Message do
           | BeaconSummaryList.t()
           | FirstAddress.t()
 
+  @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
+  @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
+
   @doc """
   Extract the Message Struct name
   """
@@ -148,6 +150,19 @@ defmodule Archethic.P2P.Message do
     message.__struct__
     |> Module.split()
     |> List.last()
+  end
+
+  @doc """
+  Return timeout depending of message type
+  """
+  def get_timeout(message) do
+    full_size_message = [GetTransaction, GetLastTransaction]
+
+    if message.__struct__ in full_size_message do
+      trunc(@content_max_size / @floor_upload_speed * 1_000)
+    else
+      3_000
+    end
   end
 
   @doc """

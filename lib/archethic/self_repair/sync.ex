@@ -11,6 +11,8 @@ defmodule Archethic.SelfRepair.Sync do
 
   alias Archethic.P2P
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message
+  alias Archethic.P2P.Message.GetTransaction
 
   alias __MODULE__.TransactionHandler
 
@@ -171,7 +173,8 @@ defmodule Archethic.SelfRepair.Sync do
       TaskSupervisor,
       transaction_summaries,
       &TransactionHandler.download_transaction(&1, node_patch),
-      on_timeout: :kill_task
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(GetTransaction)
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->

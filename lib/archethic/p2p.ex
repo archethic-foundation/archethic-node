@@ -216,7 +216,7 @@ defmodule Archethic.P2P do
   For mode details see `send_message/3`
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
-  def send_message!(node, message, timeout \\ 3_000)
+  def send_message!(node, message, timeout \\ 0)
 
   def send_message!(public_key, message, timeout) when is_binary(public_key) do
     public_key
@@ -249,7 +249,7 @@ defmodule Archethic.P2P do
           | {:error, :not_found}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(node, message, timeout \\ 3_000)
+  def send_message(node, message, timeout \\ 0)
 
   def send_message(public_key, message, timeout) when is_binary(public_key) do
     case get_node_info(public_key) do
@@ -261,7 +261,12 @@ defmodule Archethic.P2P do
     end
   end
 
-  defdelegate send_message(node, message, timeout), to: Client
+  def send_message(node, message, timeout) do
+    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
+    do_send_message(node, message, timeout)
+  end
+
+  defdelegate do_send_message(node, message, timeout), to: Client, as: :send_message
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
@@ -471,7 +476,8 @@ defmodule Archethic.P2P do
   def broadcast_message(nodes, message) do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
       ordered: false,
-      on_timeout: :kill_task
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(message)
     )
     |> Stream.run()
   end
@@ -575,7 +581,7 @@ defmodule Archethic.P2P do
         conflict_resolver,
         consistency_level
       ) do
-    # We request the first node and 
+    # We request the first node and
     case send_message(node, message) do
       {:ok, result} ->
         # Then we try to reach performing monotonic quorum read (using the conflict resolver)
@@ -605,7 +611,8 @@ defmodule Archethic.P2P do
         group,
         &send_message(&1, message),
         ordered: false,
-        on_timeout: :kill_task
+        on_timeout: :kill_task,
+        timeout: Message.get_timeout(message)
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Stream.map(fn {:ok, {:ok, res}} -> res end)

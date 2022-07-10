@@ -103,6 +103,9 @@ config :archethic, Archethic.P2P.Listener,
   transport: :tcp,
   port: 3002
 
+# Floor upload speed in bytes/sec (1Mb/sec -> 0.125MB/s)
+config :archethic, Archethic.P2P.Message, floor_upload_speed: 125_000
+
 config :archethic, Archethic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
 
 # Configure the endpoint
