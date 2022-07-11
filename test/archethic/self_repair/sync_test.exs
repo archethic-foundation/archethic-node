@@ -12,6 +12,8 @@ defmodule Archethic.SelfRepair.SyncTest do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.BeaconSummaryList
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.GetTransaction
@@ -246,6 +248,9 @@ defmodule Archethic.SelfRepair.SyncTest do
 
         _, %GetTransactionChain{}, _ ->
           {:ok, %TransactionList{transactions: []}}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       MockDB
@@ -320,6 +325,9 @@ defmodule Archethic.SelfRepair.SyncTest do
 
         _, %GetUnspentOutputs{}, _ ->
           {:ok, %UnspentOutputList{unspent_outputs: inputs}}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       MockDB

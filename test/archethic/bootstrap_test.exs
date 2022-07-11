@@ -10,6 +10,8 @@ defmodule Archethic.BootstrapTest do
 
   alias Archethic.P2P
   alias Archethic.P2P.BootstrappingSeeds
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.BootstrappingNodes
   alias Archethic.P2P.Message.EncryptedStorageNonce
   alias Archethic.P2P.Message.GetBootstrappingNodes
@@ -75,6 +77,9 @@ defmodule Archethic.BootstrapTest do
 
         _, %NotifyEndOfNodeSync{}, _ ->
           {:ok, %Ok{}}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)

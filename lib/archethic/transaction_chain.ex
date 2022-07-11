@@ -686,10 +686,16 @@ defmodule Archethic.TransactionChain do
     end
 
     # Get transaction chain size to calculate timeout
-    {:ok, chain_size} = Archethic.get_transaction_chain_length(address)
-    chain_size = if chain_size == 0, do: 1, else: chain_size
+    chain_size =
+      case Archethic.get_transaction_chain_length(address) do
+        {:ok, chain_size} ->
+          chain_size
 
-    timeout = Message.get_max_timeout() * chain_size
+        _ ->
+          1
+      end
+
+    timeout = Message.get_max_timeout() + Message.get_max_timeout() * chain_size
 
     case P2P.quorum_read(
            nodes,

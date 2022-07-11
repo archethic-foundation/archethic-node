@@ -8,6 +8,8 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.Mining.Fee
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -94,6 +96,9 @@ defmodule Archethic.ReplicationTest do
 
       _, %GetTransaction{}, _ ->
         {:ok, %NotFound{}}
+
+      _, %GetTransactionChainLength{}, _ ->
+        %TransactionChainLength{length: 1}
     end)
 
     assert :ok = Replication.validate_and_store_transaction_chain(tx, [])

@@ -572,40 +572,24 @@ defmodule Archethic.P2P do
         message,
         conflict_resolver \\ fn results -> List.first(results) end,
         timeout \\ 0,
-        consistency_level \\ 2
+        consistency_level \\ 3
       )
 
-  def quorum_read([], _, _, _, _), do: {:error, :network_issue}
-
-  def quorum_read(
-        [node | rest],
-        message,
-        conflict_resolver,
-        timeout,
-        consistency_level
-      ) do
-    # We request the first node and
-    case send_message(node, message, timeout) do
-      {:ok, result} ->
-        # Then we try to reach performing monotonic quorum read (using the conflict resolver)
-        do_quorum_read(
-          rest,
-          message,
-          conflict_resolver,
-          consistency_level,
-          result,
-          timeout
-        )
-
-      {:error, _} ->
-        quorum_read(rest, message, conflict_resolver, timeout, consistency_level)
-    end
+  def quorum_read(nodes, message, conflict_resolver, timeout, consistency_level) do
+    do_quorum_read(nodes, message, conflict_resolver, timeout, consistency_level, nil)
   end
 
-  defp do_quorum_read([], _message, _conflict_resolver, _consistency_level, prior_result, _timeout),
-    do: {:ok, prior_result}
+  defp do_quorum_read([], _, _, _, _, nil), do: {:error, :network_issue}
+  defp do_quorum_read([], _, _, _, _, previous_result), do: {:ok, previous_result}
 
-  defp do_quorum_read(nodes, message, conflict_resolver, consistency_level, prior_result, timeout) do
+  defp do_quorum_read(
+         nodes,
+         message,
+         conflict_resolver,
+         timeout,
+         consistency_level,
+         previous_result
+       ) do
     # We determine how many nodes to fetch for the quorum from the consistency level
     {group, rest} = Enum.split(nodes, consistency_level)
 
@@ -625,20 +609,42 @@ defmodule Archethic.P2P do
       |> Enum.to_list()
 
     # If no nodes answered we try another group
-    if Enum.empty?(results) do
-      do_quorum_read(rest, message, conflict_resolver, consistency_level, prior_result, timeout)
-    else
-      distinct_elems = Enum.dedup([prior_result | results])
+    case length(results) do
+      0 ->
+        do_quorum_read(
+          rest,
+          message,
+          conflict_resolver,
+          consistency_level,
+          timeout,
+          previous_result
+        )
 
-      # If the results are the same, then we reached consistency
-      if length(distinct_elems) == 1 do
-        {:ok, prior_result}
-      else
-        # If the results differ, we can apply a conflict resolver to merge the result into
-        # a consistent response
-        resolved_result = conflict_resolver.(distinct_elems)
-        {:ok, resolved_result}
-      end
+      1 ->
+        if previous_result != nil do
+          do_quorum([previous_result | results], conflict_resolver)
+        else
+          result = List.first(results)
+          do_quorum_read(rest, message, conflict_resolver, consistency_level - 1, timeout, result)
+        end
+
+      _ ->
+        results = if previous_result != nil, do: [previous_result | results], else: results
+        do_quorum(results, conflict_resolver)
+    end
+  end
+
+  defp do_quorum(results, conflict_resolver) do
+    distinct_elems = Enum.dedup(results)
+
+    # If the results are the same, then we reached consistency
+    if length(distinct_elems) == 1 do
+      {:ok, List.first(distinct_elems)}
+    else
+      # If the results differ, we can apply a conflict resolver to merge the result into
+      # a consistent response
+      resolved_result = conflict_resolver.(distinct_elems)
+      {:ok, resolved_result}
     end
   end
 end

@@ -951,12 +951,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
           1
 
         previous_transaction ->
-          {:ok, chain_size} = Archethic.get_transaction_chain_length(previous_transaction.address)
+          # Get transaction chain size to calculate timeout
+          case Archethic.get_transaction_chain_length(previous_transaction.address) do
+            {:ok, chain_size} ->
+              chain_size
 
-            if chain_size <= 0, do: 1, else: chain_size
+            _ ->
+              1
+          end
       end
 
-    timeout = Message.get_max_timeout() * chain_size
+    timeout = Message.get_max_timeout() + Message.get_max_timeout() * chain_size
 
     validated_tx = ValidationContext.get_validated_transaction(context)
 

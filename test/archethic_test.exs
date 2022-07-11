@@ -296,14 +296,18 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _, %GetTransactionChain{}, _ ->
-        {:ok,
-         %TransactionList{
-           transactions: [
-             %Transaction{address: "@Alice2"},
-             %Transaction{address: "@Alice1"}
-           ]
-         }}
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: "@Alice2"},
+               %Transaction{address: "@Alice1"}
+             ]
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       assert {:ok, [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]} =

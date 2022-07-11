@@ -6,6 +6,8 @@ defmodule Archethic.Replication.TransactionContextTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -44,8 +46,12 @@ defmodule Archethic.Replication.TransactionContextTest do
 
   test "stream_transaction_chain/1 should retrieve the previous transaction chain" do
     MockClient
-    |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-      {:ok, %TransactionList{transactions: [%Transaction{}]}}
+    |> stub(:send_message, fn
+      _, %GetTransactionChain{}, _ ->
+        {:ok, %TransactionList{transactions: [%Transaction{}]}}
+
+      _, %GetTransactionChainLength{}, _ ->
+        %TransactionChainLength{length: 1}
     end)
 
     P2P.add_and_connect_node(%Node{
