@@ -91,4 +91,8 @@ defmodule ArchethicWeb.Router do
       schema: ArchethicWeb.GraphQLSchema
     )
   end
+
+  scope "/", ArchethicWeb do
+    get("/*path", RootController, :index)
+  end
 end
