@@ -932,7 +932,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   defp request_replication(
          context = %ValidationContext{
-           transaction: tx
+           transaction: tx,
+           previous_transaction: previous_transaction
          }
        ) do
     storage_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -942,6 +943,20 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
+
+    # Get transaction chain size to calculate timeout
+    chain_size =
+      case previous_transaction do
+        nil ->
+          1
+
+        previous_transaction ->
+          {:ok, chain_size} = Archethic.get_transaction_chain_length(previous_transaction.address)
+
+            if chain_size <= 0, do: 1, else: chain_size
+      end
+
+    timeout = Message.get_max_timeout() * chain_size
 
     validated_tx = ValidationContext.get_validated_transaction(context)
 
@@ -955,10 +970,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
       TaskSupervisor,
       storage_nodes,
       fn node ->
-        {P2P.send_message(node, message), node}
+        {P2P.send_message(node, message, timeout), node}
       end,
       ordered: false,
-      on_timeout: :kill_task
+      on_timeout: :kill_task,
+      timeout: timeout
     )
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)

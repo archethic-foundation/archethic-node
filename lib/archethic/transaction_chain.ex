@@ -10,6 +10,7 @@ defmodule Archethic.TransactionChain do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Error
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
@@ -591,7 +592,7 @@ defmodule Archethic.TransactionChain do
   @doc """
   Fetch transaction remotely
 
-  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`. 
+  If the transaction exists, then its value is returned in the shape of `{:ok, transaction}`.
   If the transaction doesn't exist, `{:error, :transaction_not_exists}` is returned.
 
   If no nodes are available to answer the request, `{:error, :network_issue}` is returned.
@@ -684,10 +685,17 @@ defmodule Archethic.TransactionChain do
       |> List.first()
     end
 
+    # Get transaction chain size to calculate timeout
+    {:ok, chain_size} = Archethic.get_transaction_chain_length(address)
+    chain_size = if chain_size == 0, do: 1, else: chain_size
+
+    timeout = Message.get_max_timeout() * chain_size
+
     case P2P.quorum_read(
            nodes,
            %GetTransactionChain{address: address, paging_state: paging_state},
-           conflict_resolver
+           conflict_resolver,
+           timeout
          ) do
       {:ok,
        %TransactionList{transactions: transactions, more?: more?, paging_state: paging_state}} ->

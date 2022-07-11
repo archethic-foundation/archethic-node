@@ -563,6 +563,7 @@ defmodule Archethic.P2P do
           node_list :: list(Node.t()),
           message :: Message.t(),
           conflict_resolver :: (list(Message.t()) -> Message.t()),
+          timeout :: non_neg_integer(),
           consistency_level :: pos_integer()
         ) ::
           {:ok, Message.t()} | {:error, :network_issue}
@@ -570,19 +571,21 @@ defmodule Archethic.P2P do
         nodes,
         message,
         conflict_resolver \\ fn results -> List.first(results) end,
+        timeout \\ 0,
         consistency_level \\ 2
       )
 
-  def quorum_read([], _, _, _), do: {:error, :network_issue}
+  def quorum_read([], _, _, _, _), do: {:error, :network_issue}
 
   def quorum_read(
         [node | rest],
         message,
         conflict_resolver,
+        timeout,
         consistency_level
       ) do
     # We request the first node and
-    case send_message(node, message) do
+    case send_message(node, message, timeout) do
       {:ok, result} ->
         # Then we try to reach performing monotonic quorum read (using the conflict resolver)
         do_quorum_read(
@@ -590,29 +593,32 @@ defmodule Archethic.P2P do
           message,
           conflict_resolver,
           consistency_level,
-          result
+          result,
+          timeout
         )
 
       {:error, _} ->
-        quorum_read(rest, message, conflict_resolver, consistency_level)
+        quorum_read(rest, message, conflict_resolver, timeout, consistency_level)
     end
   end
 
-  defp do_quorum_read([], _message, _conflict_resolver, _consistency_level, prior_result),
+  defp do_quorum_read([], _message, _conflict_resolver, _consistency_level, prior_result, _timeout),
     do: {:ok, prior_result}
 
-  defp do_quorum_read(nodes, message, conflict_resolver, consistency_level, prior_result) do
+  defp do_quorum_read(nodes, message, conflict_resolver, consistency_level, prior_result, timeout) do
     # We determine how many nodes to fetch for the quorum from the consistency level
     {group, rest} = Enum.split(nodes, consistency_level)
+
+    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
 
     results =
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
         group,
-        &send_message(&1, message),
+        &send_message(&1, message, timeout),
         ordered: false,
         on_timeout: :kill_task,
-        timeout: Message.get_timeout(message)
+        timeout: timeout
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Stream.map(fn {:ok, {:ok, res}} -> res end)
@@ -620,7 +626,7 @@ defmodule Archethic.P2P do
 
     # If no nodes answered we try another group
     if Enum.empty?(results) do
-      do_quorum_read(rest, message, conflict_resolver, consistency_level, prior_result)
+      do_quorum_read(rest, message, conflict_resolver, consistency_level, prior_result, timeout)
     else
       distinct_elems = Enum.dedup([prior_result | results])
 
