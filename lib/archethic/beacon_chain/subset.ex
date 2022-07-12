@@ -193,6 +193,8 @@ defmodule Archethic.BeaconChain.Subset do
           beacon_subset: Base.encode16(subset)
         )
 
+        notify_subscribed_nodes(subscribed_nodes, attestation)
+
         {:noreply, new_state}
 
       _ ->
