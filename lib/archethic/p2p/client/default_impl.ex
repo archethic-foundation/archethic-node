@@ -12,6 +12,8 @@ defmodule Archethic.P2P.Client.DefaultImpl do
   alias Archethic.P2P.Message
   alias Archethic.P2P.Node
 
+  alias Archethic.BeaconChain.Update, as: BeaconUpdate
+
   require Logger
 
   @behaviour Client
@@ -61,6 +63,7 @@ defmodule Archethic.P2P.Client.DefaultImpl do
           )
 
           MemTable.decrease_node_availability(node_public_key)
+          BeaconUpdate.unsubscribe(node_public_key)
 
           {:error, reason}
       end

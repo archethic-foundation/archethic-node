@@ -23,6 +23,15 @@ defmodule Archethic.BeaconChain.Update do
     GenServer.cast(__MODULE__, {:subscribe, nodes, subset})
   end
 
+  @doc """
+  Unsubscribe for Beacon update to a node
+  """
+  @spec unsubscribe(binary()) :: :ok
+  def unsubscribe(node_public_key) do
+    GenServer.cast(__MODULE__, {:unsubscribe, node_public_key})
+  end
+
+
   def init(_args) do
     {:ok, Map.new()}
   end
@@ -57,6 +66,12 @@ defmodule Archethic.BeaconChain.Update do
           Map.update(acc, public_key, [], fn subsets -> [subset | subsets] end)
         end)
       end
+
+    {:noreply, new_state}
+  end
+
+  def handle_cast({:unsubscribe, node_public_key}, state) do
+    new_state = Map.delete(state, node_public_key)
 
     {:noreply, new_state}
   end
