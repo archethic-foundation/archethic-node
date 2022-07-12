@@ -20,6 +20,7 @@ defmodule Archethic.Replication do
   alias Archethic.Election
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message
   alias Archethic.P2P.Message.NotifyLastTransactionAddress
 
   alias Archethic.P2P.Node
@@ -256,7 +257,7 @@ defmodule Archethic.Replication do
 
     t2 = Task.Supervisor.async(TaskSupervisor, fn -> fetch_inputs(tx) end)
 
-    previous_transaction = Task.await(t1)
+    previous_transaction = Task.await(t1, Message.get_max_timeout())
     inputs = Task.await(t2)
 
     Logger.debug("Previous transaction #{inspect(previous_transaction)}",

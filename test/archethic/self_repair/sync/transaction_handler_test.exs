@@ -8,6 +8,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionInputs
@@ -147,6 +149,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
+
+      _, %GetTransactionChainLength{}, _ ->
+        %TransactionChainLength{length: 1}
     end)
 
     MockDB

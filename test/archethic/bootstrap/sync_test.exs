@@ -10,6 +10,8 @@ defmodule Archethic.Bootstrap.SyncTest do
   alias Archethic.Crypto
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.EncryptedStorageNonce
   alias Archethic.P2P.Message.GetLastTransactionAddress
   alias Archethic.P2P.Message.GetStorageNonce
@@ -56,6 +58,9 @@ defmodule Archethic.Bootstrap.SyncTest do
 
       _, %GetTransactionChain{}, _ ->
         {:ok, %TransactionList{transactions: []}}
+
+      _, %GetTransactionChainLength{}, _ ->
+        %TransactionChainLength{length: 1}
     end)
 
     :ok

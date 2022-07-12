@@ -103,6 +103,9 @@ config :archethic, Archethic.P2P.Listener,
   transport: :tcp,
   port: 3002
 
+# Floor upload speed in bytes/sec (1Mb/sec -> 0.125MB/s)
+config :archethic, Archethic.P2P.Message, floor_upload_speed: 125_000
+
 config :archethic, Archethic.SelfRepair.Sync, last_sync_file: "p2p/last_sync"
 
 # Configure the endpoint
@@ -117,7 +120,7 @@ config :archethic, ArchethicWeb.Endpoint,
 
 config :archethic, Archethic.Mining.DistributedWorkflow,
   global_timeout: 60_000,
-  coordinator_notification_timeout: 5_000,
+  coordinator_timeout_supplement: 2_000,
   context_notification_timeout: 3_000
 
 config :archethic, Archethic.OracleChain,

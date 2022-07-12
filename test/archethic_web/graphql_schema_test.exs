@@ -9,6 +9,8 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.BeaconChain.ReplicationAttestation
 
   alias Archethic.P2P
+  alias Archethic.P2P.Message.GetTransactionChainLength
+  alias Archethic.P2P.Message.TransactionChainLength
   alias Archethic.P2P.Message.Balance
   alias Archethic.P2P.Message.GetBalance
   alias Archethic.P2P.Message.GetLastTransactionAddress
@@ -210,13 +212,17 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
         end)
 
       MockClient
-      |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-        slice_range = 1..@transaction_chain_page_size
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{}, _ ->
+          slice_range = 1..@transaction_chain_page_size
 
-        {:ok,
-         %TransactionList{
-           transactions: Enum.slice(transactions, slice_range)
-         }}
+          {:ok,
+           %TransactionList{
+             transactions: Enum.slice(transactions, slice_range)
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       last_addr = List.last(transactions).address
@@ -246,11 +252,15 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
       slice_range = @transaction_chain_page_size..(2 * @transaction_chain_page_size)
 
       MockClient
-      |> stub(:send_message, fn _, %GetTransactionChain{}, _ ->
-        {:ok,
-         %TransactionList{
-           transactions: Enum.slice(transactions, slice_range)
-         }}
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: Enum.slice(transactions, slice_range)
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       last_addr = List.last(transactions).address

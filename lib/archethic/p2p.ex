@@ -216,7 +216,7 @@ defmodule Archethic.P2P do
   For mode details see `send_message/3`
   """
   @spec send_message!(Crypto.key() | Node.t(), Message.request(), timeout()) :: Message.response()
-  def send_message!(node, message, timeout \\ 3_000)
+  def send_message!(node, message, timeout \\ 0)
 
   def send_message!(public_key, message, timeout) when is_binary(public_key) do
     public_key
@@ -249,7 +249,7 @@ defmodule Archethic.P2P do
           | {:error, :not_found}
           | {:error, :timeout}
           | {:error, :closed}
-  def send_message(node, message, timeout \\ 3_000)
+  def send_message(node, message, timeout \\ 0)
 
   def send_message(public_key, message, timeout) when is_binary(public_key) do
     case get_node_info(public_key) do
@@ -261,7 +261,12 @@ defmodule Archethic.P2P do
     end
   end
 
-  defdelegate send_message(node, message, timeout), to: Client
+  def send_message(node, message, timeout) do
+    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
+    do_send_message(node, message, timeout)
+  end
+
+  defdelegate do_send_message(node, message, timeout), to: Client, as: :send_message
 
   @doc """
   Get the nearest nodes from a specified node and a list of nodes to compare with
@@ -471,7 +476,8 @@ defmodule Archethic.P2P do
   def broadcast_message(nodes, message) do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
       ordered: false,
-      on_timeout: :kill_task
+      on_timeout: :kill_task,
+      timeout: Message.get_timeout(message)
     )
     |> Stream.run()
   end
@@ -557,6 +563,7 @@ defmodule Archethic.P2P do
           node_list :: list(Node.t()),
           message :: Message.t(),
           conflict_resolver :: (list(Message.t()) -> Message.t()),
+          timeout :: non_neg_integer(),
           consistency_level :: pos_integer()
         ) ::
           {:ok, Message.t()} | {:error, :network_issue}
@@ -564,68 +571,80 @@ defmodule Archethic.P2P do
         nodes,
         message,
         conflict_resolver \\ fn results -> List.first(results) end,
-        consistency_level \\ 2
+        timeout \\ 0,
+        consistency_level \\ 3
       )
 
-  def quorum_read([], _, _, _), do: {:error, :network_issue}
-
-  def quorum_read(
-        [node | rest],
-        message,
-        conflict_resolver,
-        consistency_level
-      ) do
-    # We request the first node and 
-    case send_message(node, message) do
-      {:ok, result} ->
-        # Then we try to reach performing monotonic quorum read (using the conflict resolver)
-        do_quorum_read(
-          rest,
-          message,
-          conflict_resolver,
-          consistency_level,
-          result
-        )
-
-      {:error, _} ->
-        quorum_read(rest, message, conflict_resolver, consistency_level)
-    end
+  def quorum_read(nodes, message, conflict_resolver, timeout, consistency_level) do
+    do_quorum_read(nodes, message, conflict_resolver, timeout, consistency_level, nil)
   end
 
-  defp do_quorum_read([], _message, _conflict_resolver, _consistency_level, prior_result),
-    do: {:ok, prior_result}
+  defp do_quorum_read([], _, _, _, _, nil), do: {:error, :network_issue}
+  defp do_quorum_read([], _, _, _, _, previous_result), do: {:ok, previous_result}
 
-  defp do_quorum_read(nodes, message, conflict_resolver, consistency_level, prior_result) do
+  defp do_quorum_read(
+         nodes,
+         message,
+         conflict_resolver,
+         timeout,
+         consistency_level,
+         previous_result
+       ) do
     # We determine how many nodes to fetch for the quorum from the consistency level
     {group, rest} = Enum.split(nodes, consistency_level)
+
+    timeout = if timeout == 0, do: Message.get_timeout(message), else: timeout
 
     results =
       Task.Supervisor.async_stream_nolink(
         TaskSupervisor,
         group,
-        &send_message(&1, message),
+        &send_message(&1, message, timeout),
         ordered: false,
-        on_timeout: :kill_task
+        on_timeout: :kill_task,
+        timeout: timeout
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Stream.map(fn {:ok, {:ok, res}} -> res end)
       |> Enum.to_list()
 
     # If no nodes answered we try another group
-    if Enum.empty?(results) do
-      do_quorum_read(rest, message, conflict_resolver, consistency_level, prior_result)
-    else
-      distinct_elems = Enum.dedup([prior_result | results])
+    case length(results) do
+      0 ->
+        do_quorum_read(
+          rest,
+          message,
+          conflict_resolver,
+          consistency_level,
+          timeout,
+          previous_result
+        )
 
-      # If the results are the same, then we reached consistency
-      if length(distinct_elems) == 1 do
-        {:ok, prior_result}
-      else
-        # If the results differ, we can apply a conflict resolver to merge the result into
-        # a consistent response
-        resolved_result = conflict_resolver.(distinct_elems)
-        {:ok, resolved_result}
-      end
+      1 ->
+        if previous_result != nil do
+          do_quorum([previous_result | results], conflict_resolver)
+        else
+          result = List.first(results)
+          do_quorum_read(rest, message, conflict_resolver, consistency_level - 1, timeout, result)
+        end
+
+      _ ->
+        results = if previous_result != nil, do: [previous_result | results], else: results
+        do_quorum(results, conflict_resolver)
+    end
+  end
+
+  defp do_quorum(results, conflict_resolver) do
+    distinct_elems = Enum.dedup(results)
+
+    # If the results are the same, then we reached consistency
+    if length(distinct_elems) == 1 do
+      {:ok, List.first(distinct_elems)}
+    else
+      # If the results differ, we can apply a conflict resolver to merge the result into
+      # a consistent response
+      resolved_result = conflict_resolver.(distinct_elems)
+      {:ok, resolved_result}
     end
   end
 end

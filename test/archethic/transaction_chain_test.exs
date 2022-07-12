@@ -157,13 +157,17 @@ defmodule Archethic.TransactionChainTest do
       Enum.each(nodes, &P2P.add_and_connect_node/1)
 
       MockClient
-      |> stub(:send_message, fn _, %GetTransactionChain{address: _}, _ ->
-        {:ok,
-         %TransactionList{
-           transactions: [
-             %Transaction{}
-           ]
-         }}
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{address: _}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{}
+             ]
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       assert 1 =
@@ -226,6 +230,9 @@ defmodule Archethic.TransactionChainTest do
              ],
              more?: false
            }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 1}
       end)
 
       assert 5 =
