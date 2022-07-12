@@ -6,6 +6,7 @@ defmodule Archethic.BeaconChain.Supervisor do
   alias Archethic.BeaconChain.SlotTimer
   alias Archethic.BeaconChain.SummaryTimer
   alias Archethic.BeaconChain.SubsetSupervisor
+  alias Archethic.BeaconChain.Update
 
   alias Archethic.Utils
 
@@ -20,7 +21,7 @@ defmodule Archethic.BeaconChain.Supervisor do
         {SummaryTimer, Application.get_env(:archethic, SummaryTimer), []}
       ])
 
-    children = schedulers ++ [SubsetSupervisor]
+    children = schedulers ++ [SubsetSupervisor, Update]
 
     Supervisor.init(children, strategy: :one_for_one)
   end

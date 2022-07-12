@@ -4,7 +4,6 @@ defmodule ArchethicWeb.BeaconChainLive do
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.Slot
-  alias Archethic.BeaconChain.SummaryTimer
 
   alias Archethic.Crypto
 
@@ -218,7 +217,7 @@ defmodule ArchethicWeb.BeaconChainLive do
       |> Enum.at(0)
 
     enrollment_date
-    |> SummaryTimer.previous_summaries()
+    |> BeaconChain.previous_summary_dates()
     |> Enum.sort({:desc, DateTime})
   end
 

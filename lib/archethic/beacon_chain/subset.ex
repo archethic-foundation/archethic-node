@@ -153,18 +153,25 @@ defmodule Archethic.BeaconChain.Subset do
       ) do
     with ^subset <- BeaconChain.subset_from_address(address),
          ^slot_time <- SlotTimer.next_slot(timestamp) do
-      new_slot =
+      {new_tx?, new_slot} =
         Slot.add_transaction_attestation(
           current_slot,
           attestation
         )
 
-      Logger.info(
-        "Transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
-        beacon_subset: Base.encode16(subset)
-      )
+      if new_tx? do
+        Logger.info(
+          "Transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
+          beacon_subset: Base.encode16(subset)
+        )
 
-      notify_subscribed_nodes(subscribed_nodes, attestation)
+        notify_subscribed_nodes(subscribed_nodes, attestation)
+      else
+        Logger.info(
+          "New confirmation for transaction #{type}@#{Base.encode16(address)} added to the beacon chain (in #{DateTime.to_string(slot_time)} slot)",
+          beacon_subset: Base.encode16(subset)
+        )
+      end
 
       # Request the P2P view sampling if the not perfomed from the last 3 seconds
       if update_p2p_view?(state) do
@@ -194,11 +201,23 @@ defmodule Archethic.BeaconChain.Subset do
   end
 
   defp notify_subscribed_nodes(nodes, %ReplicationAttestation{
-         transaction_summary: tx_summary
+         transaction_summary:
+           tx_summary = %TransactionSummary{timestamp: timestamp, address: address}
        }) do
+    PubSub.notify_transaction_attestation(tx_summary)
+
+    # Do not notify beacon storage nodes as they are already aware of the transaction
+    beacon_storage_nodes =
+      Election.beacon_storage_nodes(
+        BeaconChain.subset_from_address(address),
+        BeaconChain.next_slot(timestamp),
+        P2P.authorized_nodes(timestamp)
+      )
+      |> Enum.map(& &1.first_public_key)
+
     nodes
     |> P2P.get_nodes_info()
-    |> Enum.reject(&(&1.first_public_key == Crypto.first_node_public_key()))
+    |> Enum.reject(&Enum.member?(beacon_storage_nodes, &1.first_public_key))
     |> P2P.broadcast_message(tx_summary)
   end
 

@@ -14,6 +14,7 @@ defmodule Archethic.BeaconChain do
   alias __MODULE__.Summary
   alias __MODULE__.SummaryAggregate
   alias __MODULE__.SummaryTimer
+  alias __MODULE__.Update
 
   alias Archethic.Crypto
 
@@ -23,7 +24,6 @@ defmodule Archethic.BeaconChain do
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetBeaconSummaries
   alias Archethic.P2P.Message.BeaconSummaryList
-  alias Archethic.P2P.Message.RegisterBeaconUpdates
 
   alias Archethic.TaskSupervisor
 
@@ -255,10 +255,10 @@ defmodule Archethic.BeaconChain do
     Enum.map(list_subsets(), fn subset ->
       nodes = Election.beacon_storage_nodes(subset, date, P2P.authorized_and_available_nodes())
 
-      P2P.broadcast_message(nodes, %RegisterBeaconUpdates{
-        node_public_key: Crypto.first_node_public_key(),
-        subset: subset
-      })
+      nodes =
+        Enum.reject(nodes, fn node -> node.first_public_key == Crypto.first_node_public_key() end)
+
+      Update.subscribe(nodes, subset)
     end)
   end
 
@@ -283,7 +283,7 @@ defmodule Archethic.BeaconChain do
    | /\ | /\ |
   [D1] [D2] [D3] Partition by date
    |    |    |
-  [ ]  [ ]  [ ] Aggregate and consolidate summaries 
+  [ ]  [ ]  [ ] Aggregate and consolidate summaries
    \    |    /
     \   |   /
      \  |  /
@@ -299,7 +299,7 @@ defmodule Archethic.BeaconChain do
     list_subsets()
     |> Flow.from_enumerable()
     |> Flow.flat_map(fn subset ->
-      # Foreach subset and date we compute concurrently the node election 
+      # Foreach subset and date we compute concurrently the node election
       dates
       |> Stream.map(&get_summary_address_by_node(&1, subset, authorized_nodes))
       |> Enum.flat_map(& &1)
