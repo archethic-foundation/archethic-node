@@ -127,13 +127,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
     GenStateMachine.cast(pid, {:add_cross_validation_stamp, stamp})
   end
 
-  defp get_context_timeout(type) when type == :hosting, do: Message.get_max_timeout()
-  defp get_context_timeout(type) when type == :oracle, do: @context_notification_timeout + 1_000
+  defp get_context_timeout(:hosting), do: Message.get_max_timeout()
+  defp get_context_timeout(:oracle), do: @context_notification_timeout + 1_000
   defp get_context_timeout(_type), do: @context_notification_timeout
 
-  defp get_coordinator_timeout(type) do
-    get_context_timeout(type) + @coordinator_timeout_supplement
-  end
+  defp get_coordinator_timeout(type),
+    do: get_context_timeout(type) + @coordinator_timeout_supplement
 
   defp get_mining_timeout(type) when type == :hosting, do: @mining_timeout * 3
   defp get_mining_timeout(_type), do: @mining_timeout

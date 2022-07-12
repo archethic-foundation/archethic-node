@@ -907,4 +907,9 @@ defmodule Archethic.P2P.MessageTest do
                |> elem(0)
     end
   end
+
+  test "get_timeout should return timeout according to message type" do
+    assert 3_000 == Message.get_timeout(%GetBalance{address: "123"})
+    assert 25_165 == Message.get_timeout(%GetTransaction{address: "123"})
+  end
 end
