@@ -2,6 +2,16 @@ import Config
 
 config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 
+if System.get_env("ARCHETHIC_FILE_LOGGER", "false") == "true" do
+  config :logger,
+    backends: [:console, {LoggerFileBackend, :error_log}],
+    format: "[$level] $message\n"
+
+  config :logger, :error_log,
+    path: "_build/dev/lib/archethic/aelog.txt",
+    level: :debug
+end
+
 config :archethic,
        :mut_dir,
        System.get_env(
