@@ -11,8 +11,8 @@ defmodule Archethic.BeaconChain.Update do
 
   alias Archethic.TaskSupervisor
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, name: __MODULE__)
+  def start_link(args \\ [], opts \\ [name: __MODULE__]) do
+    GenServer.start_link(__MODULE__, args, opts)
   end
 
   @doc """
@@ -30,7 +30,6 @@ defmodule Archethic.BeaconChain.Update do
   def unsubscribe(node_public_key) do
     GenServer.cast(__MODULE__, {:unsubscribe, node_public_key})
   end
-
 
   def init(_args) do
     {:ok, Map.new()}
@@ -63,7 +62,7 @@ defmodule Archethic.BeaconChain.Update do
         |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
         |> Stream.map(fn {:ok, {{:ok, _response}, public_key}} -> public_key end)
         |> Enum.reduce(state, fn public_key, acc ->
-          Map.update(acc, public_key, [], fn subsets -> [subset | subsets] end)
+          Map.update(acc, public_key, [subset], fn subsets -> [subset | subsets] end)
         end)
       end
 
