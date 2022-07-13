@@ -1,6 +1,6 @@
 defmodule Archethic.DB.EmbeddedImpl do
   @moduledoc """
-  Custom database implementation for Archethic storage layer using File for transaction chain storages and index backup 
+  Custom database implementation for Archethic storage layer using File for transaction chain storages and index backup
   while using a key value in memory for fast lookup
   """
 
@@ -84,7 +84,11 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec write_transaction_at(Transaction.t(), binary()) :: :ok
   def write_transaction_at(tx = %Transaction{}, genesis_address)
       when is_binary(genesis_address) do
-    ChainWriter.append_transaction(genesis_address, tx)
+    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+      {:error, :transaction_already_exists}
+    else
+      ChainWriter.append_transaction(genesis_address, tx)
+    end
   end
 
   @doc """
@@ -253,7 +257,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     as: :add_node_view
 
   @doc """
-  Register a new node view from the last self-repair cycle 
+  Register a new node view from the last self-repair cycle
   """
   @spec get_last_p2p_summaries() :: %{
           (node_public_key :: Crypto.key()) => {
