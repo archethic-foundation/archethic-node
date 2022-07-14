@@ -8,6 +8,7 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
   alias Archethic.DB.EmbeddedImpl.ChainIndex
   alias Archethic.DB.EmbeddedImpl.P2PView
   alias Archethic.DB.EmbeddedImpl.StatsInfo
+  alias Archethic.DB.EmbeddedImpl.Queue
 
   require Logger
 
@@ -25,7 +26,8 @@ defmodule Archethic.DB.EmbeddedImpl.Supervisor do
       {ChainWriter, path: path},
       {BootstrapInfo, path: path},
       {P2PView, path: path},
-      {StatsInfo, path: path}
+      {StatsInfo, path: path},
+      Queue
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
