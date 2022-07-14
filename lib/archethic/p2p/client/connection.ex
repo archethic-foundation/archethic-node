@@ -56,7 +56,7 @@ defmodule Archethic.P2P.Client.Connection do
       :ok ->
         :ok
     after
-      500 ->
+      1000 ->
         :ok
     end
   end
