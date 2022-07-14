@@ -18,6 +18,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   @doc """
   Encode a transaction
@@ -72,6 +73,21 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
+    encoded_recipients_len = length(recipients) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_ownerships_len = length(ownerships) |> VarInt.from_value() |> VarInt.serialize()
+
+    encoded_transaction_movements_len =
+      length(transaction_movements) |> VarInt.from_value() |> VarInt.serialize()
+
+    encoded_unspent_outputs_len =
+      length(unspent_outputs) |> VarInt.from_value() |> VarInt.serialize()
+
+    encoded_resolved_recipients_len =
+      length(resolved_recipients) |> VarInt.from_value() |> VarInt.serialize()
+
+    encoded_cross_validation_stamps_len =
+      length(cross_validation_stamps) |> VarInt.from_value() |> VarInt.serialize()
+
     encoding =
       [
         {"address", address},
@@ -80,9 +96,9 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"data.code", code},
         {"data.ledger.uco", UCOLedger.serialize(uco_ledger)},
         {"data.ledger.token", TokenLedger.serialize(token_ledger)},
-        {"data.ownerships", <<length(ownerships)::8, ownerships_encoding::binary>>},
+        {"data.ownerships", <<encoded_ownerships_len::binary, ownerships_encoding::binary>>},
         {"data.recipients",
-         <<length(recipients)::8, :erlang.list_to_binary(recipients)::binary>>},
+         <<encoded_recipients_len::binary, :erlang.list_to_binary(recipients)::binary>>},
         {"previous_public_key", previous_public_key},
         {"previous_signature", previous_signature},
         {"origin_signature", origin_signature},
@@ -91,15 +107,16 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         {"validation_stamp.proof_of_election", proof_of_election},
         {"validation_stamp.proof_of_integrity", proof_of_integrity},
         {"validation_stamp.ledger_operations.transaction_movements",
-         <<length(transaction_movements)::8, transaction_movements_encoding::binary>>},
+         <<encoded_transaction_movements_len::binary, transaction_movements_encoding::binary>>},
         {"validation_stamp.ledger_operations.unspent_outputs",
-         <<length(unspent_outputs)::8, unspent_outputs_encoding::binary>>},
+         <<encoded_unspent_outputs_len::binary, unspent_outputs_encoding::binary>>},
         {"validation_stamp.ledger_operations.fee", <<fee::64>>},
         {"validation_stamp.recipients",
-         <<length(resolved_recipients)::8, :erlang.list_to_binary(resolved_recipients)::binary>>},
+         <<encoded_resolved_recipients_len::binary,
+           :erlang.list_to_binary(resolved_recipients)::binary>>},
         {"validation_stamp.signature", validation_stamp_sig},
         {"cross_validation_stamps",
-         <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
+         <<encoded_cross_validation_stamps_len::binary, cross_validation_stamps_encoding::binary>>}
       ]
       |> Enum.map(fn {column, value} ->
         <<byte_size(column)::8, byte_size(value)::32, column::binary, value::binary>>
@@ -121,7 +138,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:data, %{}), :code], code)
   end
 
-  def decode(_version, "data.ownerships", <<nb::8, rest::binary>>, acc) do
+  def decode(_version, "data.ownerships", <<rest::binary>>, acc) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     ownerships = deserialize_ownerships(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :ownerships], ownerships)
   end
@@ -136,9 +154,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:data, %{}), Access.key(:ledger, %{}), :token], token_ledger)
   end
 
-  def decode(_version, "data.recipients", <<0>>, acc), do: acc
+  def decode(_version, "data.recipients", <<1::8, 0::8>>, acc), do: acc
 
-  def decode(_version, "data.recipients", <<nb::8, rest::binary>>, acc) do
+  def decode(_version, "data.recipients", <<rest::binary>>, acc) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     recipients = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
@@ -174,9 +193,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   def decode(
         1,
         "validation_stamp.ledger_operations.transaction_movements",
-        <<nb::8, rest::binary>>,
+        <<rest::binary>>,
         acc
       ) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     tx_movements = deserialize_transaction_movements(rest, nb, [])
 
     put_in(
@@ -193,9 +213,10 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   def decode(
         _version,
         "validation_stamp.ledger_operations.unspent_outputs",
-        <<nb::8, rest::binary>>,
+        <<rest::binary>>,
         acc
       ) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     utxos = deserialize_unspent_outputs(rest, nb, [])
 
     put_in(
@@ -205,7 +226,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     )
   end
 
-  def decode(_version, "validation_stamp.recipients", <<nb::8, rest::binary>>, acc) do
+  def decode(_version, "validation_stamp.recipients", <<rest::binary>>, acc) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:validation_stamp, %{}), :recipients], recipients)
   end
@@ -214,7 +236,8 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:validation_stamp, %{}), :signature], data)
   end
 
-  def decode(_version, "cross_validation_stamps", <<nb::8, rest::bitstring>>, acc) do
+  def decode(_version, "cross_validation_stamps", <<rest::bitstring>>, acc) do
+    %{value: nb, rest: rest} = rest |> VarInt.get_value()
     stamps = deserialize_cross_validation_stamps(rest, nb, [])
     Map.put(acc, :cross_validation_stamps, stamps)
   end
