@@ -1,6 +1,6 @@
 defmodule Archethic.DB.EmbeddedImpl do
   @moduledoc """
-  Custom database implementation for Archethic storage layer using File for transaction chain storages and index backup 
+  Custom database implementation for Archethic storage layer using File for transaction chain storages and index backup
   while using a key value in memory for fast lookup
   """
 
@@ -12,6 +12,7 @@ defmodule Archethic.DB.EmbeddedImpl do
   alias __MODULE__.ChainWriter
   alias __MODULE__.P2PView
   alias __MODULE__.StatsInfo
+  alias __MODULE__.Queue
 
   alias Archethic.TransactionChain.Transaction
 
@@ -51,6 +52,10 @@ defmodule Archethic.DB.EmbeddedImpl do
     first_tx = List.first(sorted_chain)
     genesis_address = Transaction.previous_address(first_tx)
 
+    Queue.push(genesis_address, fn -> do_write_transaction_chain(genesis_address, chain) end)
+  end
+
+  defp do_write_transaction_chain(genesis_address, sorted_chain) do
     Enum.each(sorted_chain, fn tx ->
       unless ChainIndex.transaction_exists?(tx.address, db_path()) do
         ChainWriter.append_transaction(genesis_address, tx)
@@ -70,11 +75,19 @@ defmodule Archethic.DB.EmbeddedImpl do
 
       case ChainIndex.get_tx_entry(previous_address, db_path()) do
         {:ok, %{genesis_address: genesis_address}} ->
-          ChainWriter.append_transaction(genesis_address, tx)
+          Queue.push(genesis_address, fn -> do_write_transaction(genesis_address, tx) end)
 
         {:error, :not_exists} ->
           ChainWriter.append_transaction(previous_address, tx)
       end
+    end
+  end
+
+  defp do_write_transaction(genesis_address, tx) do
+    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+      {:error, :transaction_already_exists}
+    else
+      ChainWriter.append_transaction(genesis_address, tx)
     end
   end
 
@@ -84,7 +97,19 @@ defmodule Archethic.DB.EmbeddedImpl do
   @spec write_transaction_at(Transaction.t(), binary()) :: :ok
   def write_transaction_at(tx = %Transaction{}, genesis_address)
       when is_binary(genesis_address) do
-    ChainWriter.append_transaction(genesis_address, tx)
+    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+      {:error, :transaction_already_exists}
+    else
+      Queue.push(genesis_address, fn -> do_write_transaction_at(genesis_address, tx) end)
+    end
+  end
+
+  defp do_write_transaction_at(genesis_address, tx) do
+    if ChainIndex.transaction_exists?(tx.address, db_path()) do
+      {:error, :transaction_already_exists}
+    else
+      ChainWriter.append_transaction(genesis_address, tx)
+    end
   end
 
   @doc """
@@ -253,7 +278,7 @@ defmodule Archethic.DB.EmbeddedImpl do
     as: :add_node_view
 
   @doc """
-  Register a new node view from the last self-repair cycle 
+  Register a new node view from the last self-repair cycle
   """
   @spec get_last_p2p_summaries() :: %{
           (node_public_key :: Crypto.key()) => {
