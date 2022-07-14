@@ -535,13 +535,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ""
       }
   """
-  def deserialize(<<fee::64, encoded_int_txn_movement_len::8, rest::bitstring>>) do
-    <<nb_transaction_movements::size(encoded_int_txn_movement_len)-unit(8), rest::bitstring>> =
-      rest
-
+  def deserialize(<<fee::64, rest::bitstring>>) do
+    %{value: nb_transaction_movements, rest: rest} = rest |> VarInt.get_value()
     {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
-    <<encoded_int_utxo_len::8, rest::bitstring>> = rest
-    <<nb_unspent_outputs::size(encoded_int_utxo_len)-unit(8), rest::bitstring>> = rest
+
+    %{value: nb_unspent_outputs, rest: rest} = rest |> VarInt.get_value()
     {unspent_outputs, rest} = reduce_unspent_outputs(rest, nb_unspent_outputs, [])
 
     {

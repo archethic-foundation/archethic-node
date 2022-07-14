@@ -42,7 +42,7 @@ defmodule Archethic.Utils.VarInt do
     bytes
   end
 
-  @spec serialize(__MODULE__.t()) :: <<_::64, _::_*8>>
+  @spec serialize(__MODULE__.t()) :: <<_::8, _::_*8>>
   def serialize(%__MODULE__{bytes: bytes, value: value}) do
     <<bytes::8>> <> <<value::size(bytes)-unit(8)>>
   end
@@ -62,6 +62,18 @@ defmodule Archethic.Utils.VarInt do
     %__MODULE__{
       bytes: bytes,
       value: value
+    }
+  end
+
+  @spec get_value(bitstring()) :: %{value: integer(), rest: bitstring()}
+  def get_value(data) do
+    <<bytes::8, rest::bitstring>> = data
+
+    <<value::size(bytes)-unit(8), rest::bitstring>> = rest
+
+    %{
+      value: value,
+      rest: rest
     }
   end
 end

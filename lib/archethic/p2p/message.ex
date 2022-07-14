@@ -80,6 +80,7 @@ defmodule Archethic.P2P.Message do
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   require Logger
 
@@ -208,8 +209,11 @@ defmodule Archethic.P2P.Message do
         welcome_node_public_key: welcome_node_public_key,
         validation_node_public_keys: validation_node_public_keys
       }) do
+    encoded_validation_node_public_keys_length =
+      length(validation_node_public_keys) |> VarInt.from_value() |> VarInt.serialize()
+
     <<7::8, Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
-      length(validation_node_public_keys)::8,
+      encoded_validation_node_public_keys_length::binary,
       :erlang.list_to_binary(validation_node_public_keys)::binary>>
   end
 
@@ -221,8 +225,11 @@ defmodule Archethic.P2P.Message do
         io_storage_nodes_view: io_storage_nodes_view,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys
       }) do
+    encoded_previous_storage_nodes_public_keys_length =
+      length(previous_storage_nodes_public_keys) |> VarInt.from_value() |> VarInt.serialize()
+
     <<8::8, address::binary, validation_node_public_key::binary,
-      length(previous_storage_nodes_public_keys)::8,
+      encoded_previous_storage_nodes_public_keys_length::binary,
       :erlang.list_to_binary(previous_storage_nodes_public_keys)::binary,
       bit_size(chain_storage_nodes_view)::8, chain_storage_nodes_view::bitstring,
       bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring,
@@ -239,7 +246,10 @@ defmodule Archethic.P2P.Message do
         },
         confirmed_validation_nodes: confirmed_validation_nodes
       }) do
-    nb_validation_nodes = length(chain_replication_tree)
+    encoded_nb_validation_nodes_length =
+      length(chain_replication_tree) |> VarInt.from_value() |> VarInt.serialize()
+
+    # nb_validation_nodes = length(chain_replication_tree)
     tree_size = chain_replication_tree |> List.first() |> bit_size()
 
     io_tree_size =
@@ -253,8 +263,9 @@ defmodule Archethic.P2P.Message do
           |> bit_size()
       end
 
-    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
-      tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
+    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring,
+      encoded_nb_validation_nodes_length::binary, tree_size::8,
+      :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
       :erlang.list_to_bitstring(beacon_replication_tree)::bitstring, io_tree_size::8,
       :erlang.list_to_bitstring(io_replication_tree)::bitstring,
       bit_size(confirmed_validation_nodes)::8, confirmed_validation_nodes::bitstring>>
@@ -299,7 +310,11 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%GetP2PView{node_public_keys: node_public_keys}) do
-    <<19::8, length(node_public_keys)::16, :erlang.list_to_binary(node_public_keys)::binary>>
+    encoded_node_public_keys_length =
+      length(node_public_keys) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<19::8, encoded_node_public_keys_length::binary,
+      :erlang.list_to_binary(node_public_keys)::binary>>
   end
 
   def encode(%GetFirstPublicKey{public_key: public_key}) do
@@ -334,8 +349,10 @@ defmodule Archethic.P2P.Message do
   def encode(%NewBeaconTransaction{transaction: tx}),
     do: <<27::8, Transaction.serialize(tx)::bitstring>>
 
-  def encode(%GetBeaconSummaries{addresses: addresses}),
-    do: <<28::8, length(addresses)::32, :erlang.list_to_binary(addresses)::binary>>
+  def encode(%GetBeaconSummaries{addresses: addresses}) do
+    encoded_addresses_length = length(addresses) |> VarInt.from_value() |> VarInt.serialize()
+    <<28::8, encoded_addresses_length::binary, :erlang.list_to_binary(addresses)::binary>>
+  end
 
   def encode(%RegisterBeaconUpdates{node_public_key: node_public_key, subset: subset}) do
     <<29::8, subset::binary-size(1), node_public_key::binary>>
@@ -359,7 +376,11 @@ defmodule Archethic.P2P.Message do
       |> Enum.map(&ReplicationAttestation.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<236::8, length(transaction_attestations)::16, transaction_attestations_bin::bitstring>>
+    encoded_transaction_attestations_len =
+      length(transaction_attestations) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<236::8, encoded_transaction_attestations_len::binary,
+      transaction_attestations_bin::bitstring>>
   end
 
   def encode(%BeaconSummaryList{summaries: summaries}) do
@@ -368,7 +389,9 @@ defmodule Archethic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<237::8, Enum.count(summaries)::32, summaries_bin::bitstring>>
+    encoded_summaries_length = Enum.count(summaries) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<237::8, encoded_summaries_length::binary, summaries_bin::bitstring>>
   end
 
   def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
@@ -400,11 +423,14 @@ defmodule Archethic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<244::8, length(inputs)::16, inputs_bin::bitstring>>
+    encoded_inputs_length = length(inputs) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<244::8, encoded_inputs_length::binary, inputs_bin::bitstring>>
   end
 
   def encode(%TransactionChainLength{length: length}) do
-    <<245::8, length::32>>
+    encoded_length = length |> VarInt.from_value() |> VarInt.serialize()
+    <<245::8, encoded_length::binary>>
   end
 
   def encode(%BootstrappingNodes{new_seeds: new_seeds, closest_nodes: closest_nodes}) do
@@ -418,8 +444,13 @@ defmodule Archethic.P2P.Message do
       |> Enum.map(&Node.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<246::8, length(new_seeds)::8, new_seeds_bin::bitstring, length(closest_nodes)::8,
-      closest_nodes_bin::bitstring>>
+    encoded_new_seeds_length = length(new_seeds) |> VarInt.from_value() |> VarInt.serialize()
+
+    encoded_closest_nodes_length =
+      length(closest_nodes) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<246::8, encoded_new_seeds_length::binary, new_seeds_bin::bitstring,
+      encoded_closest_nodes_length::binary, closest_nodes_bin::bitstring>>
   end
 
   def encode(%EncryptedStorageNonce{digest: digest}) do
@@ -435,7 +466,11 @@ defmodule Archethic.P2P.Message do
       |> Enum.reverse()
       |> :erlang.list_to_binary()
 
-    <<248::8, uco_balance::float, map_size(token_balances)::16, token_balances_binary::binary>>
+    encoded_token_balances_length =
+      map_size(token_balances) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<248::8, uco_balance::float, encoded_token_balances_length::binary,
+      token_balances_binary::binary>>
   end
 
   def encode(%NodeList{nodes: nodes}) do
@@ -444,7 +479,9 @@ defmodule Archethic.P2P.Message do
       |> Enum.map(&Node.serialize/1)
       |> :erlang.list_to_bitstring()
 
-    <<249::8, length(nodes)::16, nodes_bin::bitstring>>
+    encoded_nodes_length = length(nodes) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<249::8, encoded_nodes_length::binary, nodes_bin::bitstring>>
   end
 
   def encode(%UnspentOutputList{unspent_outputs: unspent_outputs}) do
@@ -454,7 +491,10 @@ defmodule Archethic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_binary()
 
-    <<250::8, Enum.count(unspent_outputs)::32, unspent_outputs_bin::binary>>
+    encoded_unspent_outputs_length =
+      Enum.count(unspent_outputs) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<250::8, encoded_unspent_outputs_length::binary, unspent_outputs_bin::binary>>
   end
 
   def encode(%TransactionList{transactions: transactions, more?: false}) do
@@ -464,7 +504,10 @@ defmodule Archethic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 0::1>>
+    encoded_transactions_length =
+      Enum.count(transactions) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<251::8, encoded_transactions_length::binary, transaction_bin::bitstring, 0::1>>
   end
 
   def encode(%TransactionList{transactions: transactions, more?: true, paging_state: paging_state}) do
@@ -474,7 +517,10 @@ defmodule Archethic.P2P.Message do
       |> Enum.to_list()
       |> :erlang.list_to_bitstring()
 
-    <<251::8, Enum.count(transactions)::32, transaction_bin::bitstring, 1::1,
+    encoded_transactions_length =
+      Enum.count(transactions) |> VarInt.from_value() |> VarInt.serialize()
+
+    <<251::8, encoded_transactions_length::binary, transaction_bin::bitstring, 1::1,
       byte_size(paging_state)::8, paging_state::binary>>
   end
 
@@ -559,8 +605,9 @@ defmodule Archethic.P2P.Message do
   def decode(<<7::8, rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
 
-    {welcome_node_public_key, <<nb_validation_nodes::8, rest::bitstring>>} =
-      Utils.deserialize_public_key(rest)
+    {welcome_node_public_key, <<rest::bitstring>>} = Utils.deserialize_public_key(rest)
+
+    %{value: nb_validation_nodes, rest: rest} = rest |> VarInt.get_value()
 
     {validation_node_public_keys, rest} =
       Utils.deserialize_public_key_list(rest, nb_validation_nodes, [])
@@ -575,8 +622,9 @@ defmodule Archethic.P2P.Message do
   def decode(<<8::8, rest::bitstring>>) do
     {tx_address, rest} = Utils.deserialize_address(rest)
 
-    {node_public_key, <<nb_previous_storage_nodes::8, rest::bitstring>>} =
-      Utils.deserialize_public_key(rest)
+    {node_public_key, <<rest::bitstring>>} = Utils.deserialize_public_key(rest)
+
+    %{value: nb_previous_storage_nodes, rest: rest} = rest |> VarInt.get_value()
 
     {previous_storage_nodes_keys, rest} =
       Utils.deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
@@ -605,7 +653,9 @@ defmodule Archethic.P2P.Message do
     {address, rest} = Utils.deserialize_address(rest)
     {validation_stamp, rest} = ValidationStamp.deserialize(rest)
 
-    <<nb_validations::8, tree_size::8, rest::bitstring>> = rest
+    %{value: nb_validations, rest: rest} = rest |> VarInt.get_value()
+
+    <<tree_size::8, rest::bitstring>> = rest
 
     {chain_tree, rest} = deserialize_bit_sequences(rest, nb_validations, tree_size, [])
 
@@ -698,7 +748,8 @@ defmodule Archethic.P2P.Message do
     {%GetTransactionChainLength{address: address}, rest}
   end
 
-  def decode(<<19::8, nb_node_public_keys::16, rest::bitstring>>) do
+  def decode(<<19::8, rest::bitstring>>) do
+    %{value: nb_node_public_keys, rest: rest} = rest |> VarInt.get_value()
     {public_keys, rest} = Utils.deserialize_public_key_list(rest, nb_node_public_keys, [])
     {%GetP2PView{node_public_keys: public_keys}, rest}
   end
@@ -761,7 +812,8 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def decode(<<28::8, nb_addresses::32, rest::bitstring>>) do
+  def decode(<<28::8, rest::bitstring>>) do
+    %{value: nb_addresses, rest: rest} = rest |> VarInt.get_value()
     {addresses, rest} = Utils.deserialize_addresses(rest, nb_addresses, [])
 
     {
@@ -796,7 +848,9 @@ defmodule Archethic.P2P.Message do
     {%FirstAddress{address: address}, rest}
   end
 
-  def decode(<<236::8, nb_transaction_attestations::16, rest::bitstring>>) do
+  def decode(<<236::8, rest::bitstring>>) do
+    %{value: nb_transaction_attestations, rest: rest} = rest |> VarInt.get_value()
+
     {transaction_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
@@ -808,7 +862,8 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def decode(<<237::8, nb_summaries::32, rest::bitstring>>) do
+  def decode(<<237::8, rest::bitstring>>) do
+    %{value: nb_summaries, rest: rest} = rest |> VarInt.get_value()
     {summaries, rest} = deserialize_summaries(rest, nb_summaries, [])
 
     {
@@ -844,7 +899,8 @@ defmodule Archethic.P2P.Message do
     {%P2PView{nodes_view: nodes_view}, rest}
   end
 
-  def decode(<<244::8, nb_inputs::16, rest::bitstring>>) do
+  def decode(<<244::8, rest::bitstring>>) do
+    %{value: nb_inputs, rest: rest} = rest |> VarInt.get_value()
     {inputs, rest} = deserialize_transaction_inputs(rest, nb_inputs, [])
 
     {%TransactionInputList{
@@ -852,16 +908,19 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<245::8, length::32, rest::bitstring>>) do
+  def decode(<<245::8, rest::bitstring>>) do
+    %{value: length, rest: rest} = rest |> VarInt.get_value()
+
     {%TransactionChainLength{
        length: length
      }, rest}
   end
 
-  def decode(<<246::8, nb_new_seeds::8, rest::bitstring>>) do
-    {new_seeds, <<nb_closest_nodes::8, rest::bitstring>>} =
-      deserialize_node_list(rest, nb_new_seeds, [])
+  def decode(<<246::8, rest::bitstring>>) do
+    %{value: nb_new_seeds, rest: rest} = rest |> VarInt.get_value()
+    {new_seeds, <<rest::bitstring>>} = deserialize_node_list(rest, nb_new_seeds, [])
 
+    %{value: nb_closest_nodes, rest: rest} = rest |> VarInt.get_value()
     {closest_nodes, rest} = deserialize_node_list(rest, nb_closest_nodes, [])
 
     {%BootstrappingNodes{
@@ -876,7 +935,8 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<248::8, uco_balance::float, nb_token_balances::16, rest::bitstring>>) do
+  def decode(<<248::8, uco_balance::float, rest::bitstring>>) do
+    %{value: nb_token_balances, rest: rest} = rest |> VarInt.get_value()
     {token_balances, rest} = deserialize_token_balances(rest, nb_token_balances, %{})
 
     {%Balance{
@@ -885,17 +945,20 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(<<249::8, nb_nodes::16, rest::bitstring>>) do
+  def decode(<<249::8, rest::bitstring>>) do
+    %{value: nb_nodes, rest: rest} = rest |> VarInt.get_value()
     {nodes, rest} = deserialize_node_list(rest, nb_nodes, [])
     {%NodeList{nodes: nodes}, rest}
   end
 
-  def decode(<<250::8, nb_unspent_outputs::32, rest::bitstring>>) do
+  def decode(<<250::8, rest::bitstring>>) do
+    %{value: nb_unspent_outputs, rest: rest} = rest |> VarInt.get_value()
     {unspent_outputs, rest} = deserialize_unspent_output_list(rest, nb_unspent_outputs, [])
     {%UnspentOutputList{unspent_outputs: unspent_outputs}, rest}
   end
 
-  def decode(<<251::8, nb_transactions::32, rest::bitstring>>) do
+  def decode(<<251::8, rest::bitstring>>) do
+    %{value: nb_transactions, rest: rest} = rest |> VarInt.get_value()
     {transactions, rest} = deserialize_tx_list(rest, nb_transactions, [])
 
     case rest do

@@ -125,12 +125,9 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(
-        <<secret_size::32, secret::binary-size(secret_size), encoded_int_len::8, rest::bitstring>>
-      ) do
-    <<encoded_int::size(encoded_int_len)-unit(8), rest::bitstring>> = rest
-
-    {authorized_keys, rest} = reduce_authorized_keys_bin(rest, encoded_int, %{})
+  def deserialize(<<secret_size::32, secret::binary-size(secret_size), rest::bitstring>>) do
+    %{value: nb_authorized_keys_len, rest: rest} = rest |> VarInt.get_value()
+    {authorized_keys, rest} = reduce_authorized_keys_bin(rest, nb_authorized_keys_len, %{})
 
     {%__MODULE__{
        secret: secret,

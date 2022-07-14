@@ -784,10 +784,8 @@ defmodule Archethic.TransactionChain.Transaction do
 
       1 ->
         {validation_stamp, rest} = ValidationStamp.deserialize(rest)
-        <<encoded_int_cross_validations_stamps_len::8, rest::bitstring>> = rest
 
-        <<nb_cross_validations_stamps::size(encoded_int_cross_validations_stamps_len)-unit(8),
-          rest::bitstring>> = rest
+        %{value: nb_cross_validations_stamps, rest: rest} = rest |> VarInt.get_value()
 
         {cross_validation_stamps, rest} =
           reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])

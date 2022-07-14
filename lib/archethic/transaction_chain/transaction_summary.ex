@@ -121,11 +121,10 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(data) when is_bitstring(data) do
-    {address, <<timestamp::64, type::8, fee::64, encoded_int_movements_len::8, rest::bitstring>>} =
+    {address, <<timestamp::64, type::8, fee::64, rest::bitstring>>} =
       Utils.deserialize_address(data)
 
-    <<nb_movements::size(encoded_int_movements_len)-unit(8), rest::bitstring>> = rest
-
+    %{value: nb_movements, rest: rest} = rest |> VarInt.get_value()
     {addresses, rest} = Utils.deserialize_addresses(rest, nb_movements, [])
 
     {

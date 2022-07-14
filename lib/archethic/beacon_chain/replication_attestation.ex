@@ -131,11 +131,9 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, rest::bitstring>>) do
-    {tx_summary, <<encoded_int_confirmations_len::8, rest::bitstring>>} =
-      TransactionSummary.deserialize(rest)
+    {tx_summary, <<rest::bitstring>>} = TransactionSummary.deserialize(rest)
 
-    <<nb_confirmations::size(encoded_int_confirmations_len)-unit(8), rest::bitstring>> = rest
-
+    %{value: nb_confirmations, rest: rest} = rest |> VarInt.get_value()
     {confirmations, rest} = deserialize_confirmations(rest, nb_confirmations, [])
 
     {%__MODULE__{

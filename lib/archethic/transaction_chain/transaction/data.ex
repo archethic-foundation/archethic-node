@@ -147,13 +147,14 @@ defmodule Archethic.TransactionChain.TransactionData do
   """
   def deserialize(
         <<code_size::32, code::binary-size(code_size), content_size::32,
-          content::binary-size(content_size), encoded_int_ownerships_len::8, rest::bitstring>>
+          content::binary-size(content_size), rest::bitstring>>
       ) do
-    <<nb_ownerships::size(encoded_int_ownerships_len)-unit(8), rest::bitstring>> = rest
+    %{value: nb_ownerships, rest: rest} = rest |> VarInt.get_value()
+
     {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [])
     {ledger, rest} = Ledger.deserialize(rest)
-    <<encoded_int_recipients_len::8, rest::bitstring>> = rest
-    <<nb_recipients::size(encoded_int_recipients_len)-unit(8), rest::bitstring>> = rest
+
+    %{value: nb_recipients, rest: rest} = rest |> VarInt.get_value()
     {recipients, rest} = reduce_recipients(rest, nb_recipients, [])
 
     {

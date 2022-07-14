@@ -533,19 +533,13 @@ defmodule Archethic.BeaconChain.Slot do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(
-        <<1::8, subset::8, slot_timestamp::32, encoded_int_transaction_attestations_len::8,
-          rest::bitstring>>
-      ) do
-    <<nb_transaction_attestations::size(encoded_int_transaction_attestations_len)-unit(8),
-      rest::bitstring>> = rest
+  def deserialize(<<1::8, subset::8, slot_timestamp::32, rest::bitstring>>) do
+    %{value: nb_transaction_attestations, rest: rest} = rest |> VarInt.get_value()
 
     {tx_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
-    <<encoded_int_end_of_sync_len::8, rest::bitstring>> = rest
-
-    <<nb_end_of_sync::size(encoded_int_end_of_sync_len)-unit(8), rest::bitstring>> = rest
+    %{value: nb_end_of_sync, rest: rest} = rest |> VarInt.get_value()
 
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_end_of_sync, [])

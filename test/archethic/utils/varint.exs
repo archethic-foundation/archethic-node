@@ -37,4 +37,13 @@ defmodule VarIntTest do
       data |> VarInt.deserialize()
     end
   end
+
+  test "Should Return the Correct Rest" do
+    data = <<1, 34>>
+    rest = <<2, 3>>
+
+    %{value: value, rest: returned_rest} = VarInt.get_value(data <> rest)
+
+    assert rest == returned_rest
+  end
 end

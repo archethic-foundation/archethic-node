@@ -246,10 +246,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     poi_hash_size = Crypto.hash_size(poi_hash_id)
     <<poi_hash::binary-size(poi_hash_size), poe::binary-size(64), rest::bitstring>> = rest
 
-    {ledger_ops, <<encoded_int_recipient_len::8, rest::bitstring>>} =
-      LedgerOperations.deserialize(rest)
+    {ledger_ops, <<rest::bitstring>>} = LedgerOperations.deserialize(rest)
 
-    <<recipients_length::size(encoded_int_recipient_len)-unit(8), rest::bitstring>> = rest
+    %{value: recipients_length, rest: rest} = rest |> VarInt.get_value()
 
     {recipients, <<nb_errors::8, rest::bitstring>>} =
       deserialize_list_of_recipients_addresses(rest, recipients_length, [])
