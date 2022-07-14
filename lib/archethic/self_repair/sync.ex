@@ -173,7 +173,7 @@ defmodule Archethic.SelfRepair.Sync do
       transaction_summaries,
       &TransactionHandler.download_transaction(&1, node_patch),
       on_timeout: :kill_task,
-      timeout: Message.get_max_timeout()
+      timeout: Message.get_max_timeout() + 2000
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->

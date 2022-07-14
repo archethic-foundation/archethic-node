@@ -477,7 +477,7 @@ defmodule Archethic.P2P do
     Task.Supervisor.async_stream_nolink(TaskSupervisor, nodes, &send_message(&1, message),
       ordered: false,
       on_timeout: :kill_task,
-      timeout: Message.get_timeout(message)
+      timeout: Message.get_timeout(message) + 2000
     )
     |> Stream.run()
   end
@@ -602,7 +602,7 @@ defmodule Archethic.P2P do
         &send_message(&1, message, timeout),
         ordered: false,
         on_timeout: :kill_task,
-        timeout: timeout
+        timeout: timeout + 2000
       )
       |> Stream.filter(&match?({:ok, {:ok, _}}, &1))
       |> Stream.map(fn {:ok, {:ok, res}} -> res end)

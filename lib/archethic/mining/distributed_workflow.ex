@@ -978,7 +978,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       end,
       ordered: false,
       on_timeout: :kill_task,
-      timeout: timeout
+      timeout: timeout + 2000
     )
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)
