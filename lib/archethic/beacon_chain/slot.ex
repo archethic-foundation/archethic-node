@@ -467,11 +467,10 @@ defmodule Archethic.BeaconChain.Slot do
       |> Enum.map(fn %{latency: latency} -> <<latency::8>> end)
       |> :erlang.list_to_binary()
 
-    encoded_transaction_attestations_len =
-      length(transaction_attestations) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_transaction_attestations_len = length(transaction_attestations) |> VarInt.from_value()
 
     encoded_end_of_node_synchronizations_len =
-      length(end_of_node_synchronizations) |> VarInt.from_value() |> VarInt.serialize()
+      length(end_of_node_synchronizations) |> VarInt.from_value()
 
     <<1::8, subset::binary, DateTime.to_unix(slot_time)::32,
       encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
@@ -534,12 +533,12 @@ defmodule Archethic.BeaconChain.Slot do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, subset::8, slot_timestamp::32, rest::bitstring>>) do
-    %{value: nb_transaction_attestations, rest: rest} = rest |> VarInt.get_value()
+    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
 
     {tx_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
-    %{value: nb_end_of_sync, rest: rest} = rest |> VarInt.get_value()
+    {nb_end_of_sync, rest} = rest |> VarInt.get_value()
 
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_end_of_sync, [])

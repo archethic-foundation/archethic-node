@@ -446,7 +446,6 @@ defmodule Archethic.TransactionChain do
         )
 
         false
-        IO.puts("REACHED HERE: POI PASSED!!")
 
       Crypto.derive_address(previous_public_key) != previous_address ->
         Logger.error("Invalid previous public key",

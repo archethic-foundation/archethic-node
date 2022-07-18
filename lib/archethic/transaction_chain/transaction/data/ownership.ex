@@ -88,7 +88,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
       end)
       |> :erlang.list_to_binary()
 
-    serialized_length = VarInt.from_value(map_size(authorized_keys)) |> VarInt.serialize()
+    serialized_length = VarInt.from_value(map_size(authorized_keys))
 
     <<byte_size(secret)::32, secret::binary, serialized_length::binary,
       authorized_keys_bin::binary>>
@@ -126,7 +126,7 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
   def deserialize(<<secret_size::32, secret::binary-size(secret_size), rest::bitstring>>) do
-    %{value: nb_authorized_keys_len, rest: rest} = rest |> VarInt.get_value()
+    {nb_authorized_keys_len, rest} = rest |> VarInt.get_value()
     {authorized_keys, rest} = reduce_authorized_keys_bin(rest, nb_authorized_keys_len, %{})
 
     {%__MODULE__{

@@ -77,8 +77,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
         transaction_summary: transaction_summary,
         confirmations: confirmations
       }) do
-    encoded_confirmation_length =
-      length(confirmations) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_confirmation_length = length(confirmations) |> VarInt.from_value()
 
     <<1::8, TransactionSummary.serialize(transaction_summary)::binary,
       encoded_confirmation_length::binary, serialize_confirmations(confirmations)::binary>>
@@ -133,7 +132,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   def deserialize(<<1::8, rest::bitstring>>) do
     {tx_summary, <<rest::bitstring>>} = TransactionSummary.deserialize(rest)
 
-    %{value: nb_confirmations, rest: rest} = rest |> VarInt.get_value()
+    {nb_confirmations, rest} = rest |> VarInt.get_value()
     {confirmations, rest} = deserialize_confirmations(rest, nb_confirmations, [])
 
     {%__MODULE__{

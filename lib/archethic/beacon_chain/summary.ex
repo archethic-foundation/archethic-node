@@ -381,11 +381,10 @@ defmodule Archethic.BeaconChain.Summary do
 
     end_of_node_synchronizations_bin = :erlang.list_to_binary(end_of_node_synchronizations)
 
-    encoded_transaction_attestations_len =
-      length(transaction_attestations) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_transaction_attestations_len = length(transaction_attestations) |> VarInt.from_value()
 
     encoded_end_of_node_synchronizations_len =
-      length(end_of_node_synchronizations) |> VarInt.from_value() |> VarInt.serialize()
+      length(end_of_node_synchronizations) |> VarInt.from_value()
 
     <<1::8, subset::binary, DateTime.to_unix(summary_time)::32,
       encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
@@ -439,7 +438,7 @@ defmodule Archethic.BeaconChain.Summary do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
-    %{value: nb_transaction_attestations, rest: rest} = rest |> VarInt.get_value()
+    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
 
     {transaction_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
@@ -449,7 +448,7 @@ defmodule Archethic.BeaconChain.Summary do
 
     <<node_average_availabilities_bin::binary-size(nb_availabilities), rest::bitstring>> = rest
 
-    %{value: nb_end_of_sync, rest: rest} = rest |> VarInt.get_value()
+    {nb_end_of_sync, rest} = rest |> VarInt.get_value()
 
     {end_of_node_synchronizations, rest} =
       Utils.deserialize_public_key_list(rest, nb_end_of_sync, [])

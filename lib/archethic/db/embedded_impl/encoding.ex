@@ -73,20 +73,16 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    encoded_recipients_len = length(recipients) |> VarInt.from_value() |> VarInt.serialize()
-    encoded_ownerships_len = length(ownerships) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_recipients_len = length(recipients) |> VarInt.from_value()
+    encoded_ownerships_len = length(ownerships) |> VarInt.from_value()
 
-    encoded_transaction_movements_len =
-      length(transaction_movements) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
 
-    encoded_unspent_outputs_len =
-      length(unspent_outputs) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_unspent_outputs_len = length(unspent_outputs) |> VarInt.from_value()
 
-    encoded_resolved_recipients_len =
-      length(resolved_recipients) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_resolved_recipients_len = length(resolved_recipients) |> VarInt.from_value()
 
-    encoded_cross_validation_stamps_len =
-      length(cross_validation_stamps) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_cross_validation_stamps_len = length(cross_validation_stamps) |> VarInt.from_value()
 
     encoding =
       [
@@ -139,7 +135,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(_version, "data.ownerships", <<rest::binary>>, acc) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     ownerships = deserialize_ownerships(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :ownerships], ownerships)
   end
@@ -157,7 +153,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   def decode(_version, "data.recipients", <<1::8, 0::8>>, acc), do: acc
 
   def decode(_version, "data.recipients", <<rest::binary>>, acc) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     recipients = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:data, %{}), :recipients], recipients)
   end
@@ -196,7 +192,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         <<rest::binary>>,
         acc
       ) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     tx_movements = deserialize_transaction_movements(rest, nb, [])
 
     put_in(
@@ -216,7 +212,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
         <<rest::binary>>,
         acc
       ) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     utxos = deserialize_unspent_outputs(rest, nb, [])
 
     put_in(
@@ -227,7 +223,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(_version, "validation_stamp.recipients", <<rest::binary>>, acc) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     {recipients, _} = Utils.deserialize_addresses(rest, nb, [])
     put_in(acc, [Access.key(:validation_stamp, %{}), :recipients], recipients)
   end
@@ -237,7 +233,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
   end
 
   def decode(_version, "cross_validation_stamps", <<rest::bitstring>>, acc) do
-    %{value: nb, rest: rest} = rest |> VarInt.get_value()
+    {nb, rest} = rest |> VarInt.get_value()
     stamps = deserialize_cross_validation_stamps(rest, nb, [])
     Map.put(acc, :cross_validation_stamps, stamps)
   end

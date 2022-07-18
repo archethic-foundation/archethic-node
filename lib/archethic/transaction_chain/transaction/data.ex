@@ -83,8 +83,8 @@ defmodule Archethic.TransactionChain.TransactionData do
       }) do
     ownerships_bin = Enum.map(ownerships, &Ownership.serialize/1) |> :erlang.list_to_binary()
 
-    encoded_ownership_len = length(ownerships) |> VarInt.from_value() |> VarInt.serialize()
-    encoded_recipients_len = length(recipients) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_ownership_len = length(ownerships) |> VarInt.from_value()
+    encoded_recipients_len = length(recipients) |> VarInt.from_value()
 
     <<byte_size(code)::32, code::binary, byte_size(content)::32, content::binary,
       encoded_ownership_len::binary, ownerships_bin::binary, Ledger.serialize(ledger)::binary,
@@ -149,12 +149,12 @@ defmodule Archethic.TransactionChain.TransactionData do
         <<code_size::32, code::binary-size(code_size), content_size::32,
           content::binary-size(content_size), rest::bitstring>>
       ) do
-    %{value: nb_ownerships, rest: rest} = rest |> VarInt.get_value()
+    {nb_ownerships, rest} = rest |> VarInt.get_value()
 
     {ownerships, rest} = reduce_ownerships(rest, nb_ownerships, [])
     {ledger, rest} = Ledger.deserialize(rest)
 
-    %{value: nb_recipients, rest: rest} = rest |> VarInt.get_value()
+    {nb_recipients, rest} = rest |> VarInt.get_value()
     {recipients, rest} = reduce_recipients(rest, nb_recipients, [])
 
     {

@@ -49,7 +49,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{transfers: transfers}) do
     transfers_bin = Enum.map(transfers, &Transfer.serialize/1) |> :erlang.list_to_binary()
-    encoded_transfer = VarInt.from_value(length(transfers)) |> VarInt.serialize()
+    encoded_transfer = VarInt.from_value(length(transfers))
     <<encoded_transfer::binary, transfers_bin::binary>>
   end
 
@@ -88,7 +88,7 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
   end
 
   def deserialize(<<rest::bitstring>>) do
-    %{value: nb_transfers, rest: rest} = rest |> VarInt.get_value()
+    {nb_transfers, rest} = rest |> VarInt.get_value()
     {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [])
 
     {

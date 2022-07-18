@@ -490,11 +490,9 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     bin_unspent_outputs =
       unspent_outputs |> Enum.map(&UnspentOutput.serialize/1) |> :erlang.list_to_binary()
 
-    encoded_transaction_movements_len =
-      length(transaction_movements) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
 
-    encoded_unspent_outputs_len =
-      length(unspent_outputs) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_unspent_outputs_len = length(unspent_outputs) |> VarInt.from_value()
 
     <<fee::64, encoded_transaction_movements_len::binary, bin_transaction_movements::binary,
       encoded_unspent_outputs_len::binary, bin_unspent_outputs::binary>>
@@ -536,10 +534,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       }
   """
   def deserialize(<<fee::64, rest::bitstring>>) do
-    %{value: nb_transaction_movements, rest: rest} = rest |> VarInt.get_value()
+    {nb_transaction_movements, rest} = rest |> VarInt.get_value()
     {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
 
-    %{value: nb_unspent_outputs, rest: rest} = rest |> VarInt.get_value()
+    {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
     {unspent_outputs, rest} = reduce_unspent_outputs(rest, nb_unspent_outputs, [])
 
     {

@@ -646,8 +646,7 @@ defmodule Archethic.TransactionChain.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    encoded_cross_validations_stamps_len =
-      length(cross_validation_stamps) |> VarInt.from_value() |> VarInt.serialize()
+    encoded_cross_validations_stamps_len = length(cross_validation_stamps) |> VarInt.from_value()
 
     <<version::32, address::binary, serialize_type(type)::8,
       TransactionData.serialize(data)::binary, previous_public_key::binary,
@@ -785,7 +784,7 @@ defmodule Archethic.TransactionChain.Transaction do
       1 ->
         {validation_stamp, rest} = ValidationStamp.deserialize(rest)
 
-        %{value: nb_cross_validations_stamps, rest: rest} = rest |> VarInt.get_value()
+        {nb_cross_validations_stamps, rest} = rest |> VarInt.get_value()
 
         {cross_validation_stamps, rest} =
           reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])
