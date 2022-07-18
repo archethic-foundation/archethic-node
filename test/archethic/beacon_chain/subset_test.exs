@@ -18,6 +18,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
+  # alias Archethic.P2P.Message.GetFirstAddress
+  # alias Archethic.P2P.Message.NotFound
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -405,11 +407,16 @@ defmodule Archethic.BeaconChain.SubsetTest do
     )
 
     MockClient
-    |> expect(:send_message, fn _,
-                                %BeaconUpdate{transaction_attestations: transaction_attestations},
-                                _ ->
-      send(me, {:transaction_attestations, transaction_attestations})
-      {:ok, %Ok{}}
+    |> expect(:send_message, fn
+      _, %BeaconUpdate{transaction_attestations: transaction_attestations}, _ ->
+        send(me, {:transaction_attestations, transaction_attestations})
+        {:ok, %Ok{}}
+
+      _, %ReplicationAttestation{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %NewBeaconTransaction{}, _ ->
+        {:ok, %Ok{}}
     end)
 
     Subset.subscribe_for_beacon_updates(subset, first_public_key)

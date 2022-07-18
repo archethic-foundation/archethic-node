@@ -177,7 +177,7 @@ defmodule Archethic do
   end
 
   @doc """
-  Retrieve a transaction chain based on an address from the closest nodes
+  Retrieve a transaction chain based on an address from the closest nodes.
   """
   @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain(address) when is_binary(address) do
@@ -199,6 +199,34 @@ defmodule Archethic do
       _ ->
         {:error, :network_issue}
     end
+  end
+
+  def get_chain_efficiently(address) do
+    case TransactionChain.get_from_local(address) do
+      {false, nil} -> get_transaction_chain(address)
+      {true, last_address} -> do_get_chain_efficiently(address, last_address)
+    end
+  end
+
+  defp do_get_chain_efficiently(address, last_address) when is_binary(last_address) do
+    chain_from_local =
+      Task.async(fn ->
+        case TransactionChain.fetch_chain_locally(last_address) do
+          {:ok, chain} -> chain
+          _ -> []
+        end
+      end)
+
+    chain_from_network =
+      Task.async(fn ->
+        case get_transaction_chain_by_paging_address(address, last_address) do
+          {:ok, chain} -> chain
+          _ -> []
+        end
+      end)
+
+    txn_list = Task.await(chain_from_local) ++ Task.await(chain_from_network)
+    {:ok, txn_list}
   end
 
   @doc """

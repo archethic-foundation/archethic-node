@@ -31,6 +31,8 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.NotFound
 
   alias Archethic.Replication
 
@@ -80,6 +82,9 @@ defmodule Archethic.BootstrapTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
+
+        _node, %GetFirstAddress{}, _timeout ->
+          {:ok, %NotFound{}}
       end)
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)

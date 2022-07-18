@@ -41,7 +41,10 @@ defmodule Archethic.Replication.TransactionContext do
         []
 
       nodes ->
-        TransactionChain.stream_remotely(address, nodes)
+        case TransactionChain.get_from_local(address) do
+          {false, nil} -> TransactionChain.stream_remotely(address, nodes)
+          {true, last_address} -> TransactionChain.stream_remotely(address, nodes, last_address)
+        end
     end
   end
 

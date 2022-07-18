@@ -15,6 +15,9 @@ defmodule ArchethicTest do
   alias Archethic.P2P.Message.GetTransactionChain
   alias Archethic.P2P.Message.GetTransactionChainLength
   alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetFirstAddress
+
+  alias Archethic.P2P.Message.FirstAddress
   alias Archethic.P2P.Message.LastTransactionAddress
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.Ok
@@ -301,17 +304,158 @@ defmodule ArchethicTest do
           {:ok,
            %TransactionList{
              transactions: [
-               %Transaction{address: "@Alice2"},
-               %Transaction{address: "@Alice1"}
+               %Transaction{address: "@Alice0"},
+               %Transaction{address: "@Alice1"},
+               %Transaction{address: "@Alice2"}
              ]
            }}
 
         _, %GetTransactionChainLength{}, _ ->
-          %TransactionChainLength{length: 1}
+          %TransactionChainLength{length: 3}
       end)
 
-      assert {:ok, [%Transaction{address: "@Alice2"}, %Transaction{address: "@Alice1"}]} =
-               Archethic.get_transaction_chain("@Alice2")
+      assert {:ok,
+              [
+                %Transaction{address: "@Alice0"},
+                %Transaction{address: "@Alice1"},
+                %Transaction{address: "@Alice2"}
+              ]} = Archethic.get_transaction_chain("@Alice2")
+    end
+  end
+
+  describe "get_transaction_chain efficiently " do
+    test "should get_transaction_chain from local db and remaining from network" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA"
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "key1",
+        last_public_key: "key1",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      MockClient
+      |> expect(:send_message, fn _node, %GetFirstAddress{}, _timeout ->
+        {:ok, %FirstAddress{address: "@Alice0"}}
+      end)
+
+      MockDB
+      |> stub(:get_last_chain_address, fn _address ->
+        "@Alice5"
+      end)
+
+      MockDB
+      |> stub(:get_transaction_chain, fn _address, [], [] ->
+        {[
+           %Transaction{address: "@Alice0"},
+           %Transaction{address: "@Alice1"},
+           %Transaction{address: "@Alice2"},
+           %Transaction{address: "@Alice3"},
+           %Transaction{address: "@Alice4"},
+           %Transaction{address: "@Alice5"}
+         ], false, nil}
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{address: "@Alice2", paging_state: "@Alice5"}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: "@Alice6"},
+               %Transaction{address: "@Alice7"}
+             ]
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 2}
+      end)
+
+      assert {:ok,
+              [
+                %Transaction{address: "@Alice0"},
+                %Transaction{address: "@Alice1"},
+                %Transaction{address: "@Alice2"},
+                %Transaction{address: "@Alice3"},
+                %Transaction{address: "@Alice4"},
+                %Transaction{address: "@Alice5"},
+                %Transaction{address: "@Alice6"},
+                %Transaction{address: "@Alice7"}
+              ]} = Archethic.get_chain_efficiently("@Alice2")
+    end
+
+    test "should get_transaction_chain from network when GetFirstAddress fails" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.last_node_public_key(),
+        last_public_key: Crypto.last_node_public_key(),
+        network_patch: "AAA",
+        geo_patch: "AAA"
+      })
+
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: "key1",
+        last_public_key: "key1",
+        network_patch: "AAA",
+        geo_patch: "AAA",
+        available?: true,
+        authorized?: true,
+        authorization_date: DateTime.utc_now()
+      })
+
+      MockClient
+      |> expect(:send_message, fn _node, %GetFirstAddress{}, _timeout ->
+        {:ok, %NotFound{}}
+      end)
+
+      MockDB
+      |> stub(:get_last_chain_address, fn address ->
+        address
+      end)
+
+      MockClient
+      |> stub(:send_message, fn
+        _, %GetTransactionChain{address: "@Alice2", paging_state: nil}, _ ->
+          {:ok,
+           %TransactionList{
+             transactions: [
+               %Transaction{address: "@Alice0"},
+               %Transaction{address: "@Alice1"},
+               %Transaction{address: "@Alice2"},
+               %Transaction{address: "@Alice3"},
+               %Transaction{address: "@Alice4"},
+               %Transaction{address: "@Alice5"}
+             ]
+           }}
+
+        _, %GetTransactionChainLength{}, _ ->
+          %TransactionChainLength{length: 6}
+      end)
+
+      assert {:ok,
+              [
+                %Transaction{address: "@Alice0"},
+                %Transaction{address: "@Alice1"},
+                %Transaction{address: "@Alice2"},
+                %Transaction{address: "@Alice3"},
+                %Transaction{address: "@Alice4"},
+                %Transaction{address: "@Alice5"}
+              ]} = Archethic.get_chain_efficiently("@Alice2")
     end
   end
 
