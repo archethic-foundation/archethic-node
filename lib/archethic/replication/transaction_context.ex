@@ -41,9 +41,12 @@ defmodule Archethic.Replication.TransactionContext do
         []
 
       nodes ->
-        case TransactionChain.get_from_local(address) do
-          {false, nil} -> TransactionChain.stream_remotely(address, nodes)
-          {true, last_address} -> TransactionChain.stream_remotely(address, nodes, last_address)
+        paging_address = TransactionChain.get_last_local_address(address)
+
+        if paging_address != address do
+          TransactionChain.stream_remotely(address, nodes, paging_address)
+        else
+          []
         end
     end
   end

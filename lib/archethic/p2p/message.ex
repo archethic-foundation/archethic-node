@@ -1256,13 +1256,8 @@ defmodule Archethic.P2P.Message do
   end
 
   def process(%GetFirstAddress{address: address}) do
-    case TransactionChain.get_first_transaction(address, [:address]) do
-      {:ok, %Transaction{address: address}} ->
-        %FirstAddress{address: address}
-
-      {:error, :transaction_not_exists} ->
-        %NotFound{}
-    end
+    genesis_address = TransactionChain.get_genesis_address(address)
+    %FirstAddress{address: genesis_address}
   end
 
   def process(%GetLastTransactionAddress{address: address, timestamp: timestamp}) do

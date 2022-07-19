@@ -156,7 +156,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _node, %GetFirstAddress{}, _timeout ->
+      _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -215,7 +215,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _node, %GetFirstAddress{}, _timeout ->
+      _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -272,7 +272,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _node, %GetFirstAddress{}, _timeout ->
+      _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -320,7 +320,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _node, %GetFirstAddress{}, _timeout ->
+      _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 
@@ -367,7 +367,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _node, %GetFirstAddress{}, _timeout ->
+      _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
     end)
 

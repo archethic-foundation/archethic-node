@@ -312,6 +312,9 @@ defmodule ArchethicTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 3}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       assert {:ok,
@@ -321,9 +324,7 @@ defmodule ArchethicTest do
                 %Transaction{address: "@Alice2"}
               ]} = Archethic.get_transaction_chain("@Alice2")
     end
-  end
 
-  describe "get_transaction_chain efficiently " do
     test "should get_transaction_chain from local db and remaining from network" do
       P2P.add_and_connect_node(%Node{
         ip: {127, 0, 0, 1},
@@ -346,18 +347,13 @@ defmodule ArchethicTest do
         authorization_date: DateTime.utc_now()
       })
 
-      MockClient
-      |> expect(:send_message, fn _node, %GetFirstAddress{}, _timeout ->
-        {:ok, %FirstAddress{address: "@Alice0"}}
-      end)
-
       MockDB
       |> stub(:get_last_chain_address, fn _address ->
         "@Alice5"
       end)
 
       MockDB
-      |> stub(:get_transaction_chain, fn _address, [], [] ->
+      |> stub(:get_transaction_chain, fn _address, _, _ ->
         {[
            %Transaction{address: "@Alice0"},
            %Transaction{address: "@Alice1"},
@@ -381,6 +377,9 @@ defmodule ArchethicTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 2}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %FirstAddress{address: "@Alice0"}}
       end)
 
       assert {:ok,
@@ -393,7 +392,7 @@ defmodule ArchethicTest do
                 %Transaction{address: "@Alice5"},
                 %Transaction{address: "@Alice6"},
                 %Transaction{address: "@Alice7"}
-              ]} = Archethic.get_chain_efficiently("@Alice2")
+              ]} = Archethic.get_transaction_chain("@Alice2")
     end
 
     test "should get_transaction_chain from network when GetFirstAddress fails" do
@@ -419,7 +418,7 @@ defmodule ArchethicTest do
       })
 
       MockClient
-      |> expect(:send_message, fn _node, %GetFirstAddress{}, _timeout ->
+      |> expect(:send_message, fn _, %GetFirstAddress{}, _ ->
         {:ok, %NotFound{}}
       end)
 
@@ -445,6 +444,9 @@ defmodule ArchethicTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 6}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       assert {:ok,
@@ -455,7 +457,7 @@ defmodule ArchethicTest do
                 %Transaction{address: "@Alice3"},
                 %Transaction{address: "@Alice4"},
                 %Transaction{address: "@Alice5"}
-              ]} = Archethic.get_chain_efficiently("@Alice2")
+              ]} = Archethic.get_transaction_chain("@Alice2")
     end
   end
 

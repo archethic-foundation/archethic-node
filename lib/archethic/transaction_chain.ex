@@ -251,6 +251,12 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Get the genesis address from a given chain address
+  """
+  @spec get_genesis_address(binary()) :: binary()
+  defdelegate get_genesis_address(address), to: DB, as: :get_first_chain_address
+
+  @doc """
   Produce a proof of integrity for a given chain.
 
   If the chain contains only a transaction the hash of the pending is transaction is returned
@@ -811,60 +817,30 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
-  Retrieve the last transaction address for a chain locally
-  It queries the the netowork for genesis address
+  Retrieve the last transaction address for a chain stored locally
+  It queries the the network for genesis address
   """
-  @spec get_last_address_locally(address :: binary()) ::
-          {:ok, binary()} | {:error, :not_found} | {:error, :network_issue}
-  def get_last_address_locally(address) when is_binary(address) do
-    case get_genesis_transaction_address(address) do
+  @spec get_last_local_address(address :: binary()) :: binary() | nil
+  def get_last_local_address(address) when is_binary(address) do
+    case fetch_genesis_address_remotely(address) do
       {:ok, genesis_address} ->
         case get_last_address(genesis_address) do
-          ^genesis_address -> {:error, :not_found}
-          last_address -> {:ok, last_address}
+          ^genesis_address -> nil
+          last_address -> last_address
         end
 
       _ ->
-        address
+        nil
     end
   end
 
-  @doc """
-  Retrieve the transaction genesis address for a chain from the closest nodes
-  """
-  @spec get_genesis_transaction_address(address :: binary()) ::
-          {:ok, binary()}
-          | {:error, :network_issue}
-  def get_genesis_transaction_address(address) when is_binary(address) do
-    resolve_genesis_address(address)
-  end
-
-  @doc """
-  Retrieve the genesis address of a chain
-  """
-  @spec resolve_genesis_address(binary()) :: {:ok, binary()} | {:error, :network_issue}
-  def resolve_genesis_address(address) when is_binary(address) do
+  defp fetch_genesis_address_remotely(address) when is_binary(address) do
     nodes =
       address
       |> Election.chain_storage_nodes(P2P.available_nodes())
       |> P2P.nearest_nodes()
       |> Enum.filter(&Node.locally_available?/1)
 
-    case fetch_genesis_address_remotely(address, nodes) do
-      {:ok, genesis_address} ->
-        {:ok, genesis_address}
-
-      _e ->
-        {:error, :network_issue}
-    end
-  end
-
-  @doc """
-  Fetch the genesis|first address remotely
-  """
-  @spec fetch_genesis_address_remotely(binary(), list(Node.t())) ::
-          {:ok, binary()} | {:error, :network_issue}
-  def fetch_genesis_address_remotely(address, nodes) when is_binary(address) do
     case P2P.quorum_read(nodes, %GetFirstAddress{address: address}) do
       {:ok, %FirstAddress{address: genesis_address}} ->
         {:ok, genesis_address}
@@ -874,28 +850,15 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  @spec fetch_chain_locally(address :: binary()) :: {:ok, [Transaction.t()]} | {:error, :db_error}
-  def fetch_chain_locally(address) when is_binary(address) do
-    try do
-      {:ok, fetch_chain_db(get(address), [])}
-    catch
-      _ ->
-        Logger.debug("Error fetching chain locally {:error, :db_error}")
-        {:error, :db_error}
-    end
+  @spec get_locally(address :: binary(), paging_address :: binary() | nil) ::
+          Enumerable.t() | list(Transaction.t())
+  def get_locally(address, paging_address \\ nil) when is_binary(address) do
+    fetch_chain_db(get(address, [], paging_state: paging_address), [])
   end
 
   def fetch_chain_db({chain, false, _}, acc), do: acc ++ chain
 
   def fetch_chain_db({chain, true, paging_address}, acc) do
-    fetch_chain_db(get(paging_address, [], paging_address: paging_address), acc ++ chain)
-  end
-
-  @spec get_from_local(binary) :: {boolean(), binary | nil}
-  def get_from_local(address) when is_binary(address) do
-    case get_last_address_locally(address) do
-      {:ok, last_address} -> {true, last_address}
-      _ -> {false, nil}
-    end
+    fetch_chain_db(get(paging_address, [], paging_state: paging_address), acc ++ chain)
   end
 end
