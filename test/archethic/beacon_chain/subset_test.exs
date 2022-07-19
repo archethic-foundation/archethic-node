@@ -290,6 +290,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %Ping{}, _ ->
           Process.sleep(10)
           {:ok, %Ok{}}
+
+        _, %NewBeaconTransaction{}, _ ->
+          {:ok, %Ok{}}
       end)
 
       MockDB
