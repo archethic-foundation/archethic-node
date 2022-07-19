@@ -152,6 +152,15 @@ defmodule Archethic.P2P do
   end
 
   @doc """
+  Determine if the node public key is available
+  """
+  @spec available_node?(Crypto.key()) :: boolean()
+  def available_node?(node_public_key \\ Crypto.first_node_public_key())
+      when is_binary(node_public_key) do
+    Utils.key_in_node_list?(available_nodes(), node_public_key)
+  end
+
+  @doc """
   List all the authorized nodes
   """
   @spec authorized_nodes() :: list(Node.t())
