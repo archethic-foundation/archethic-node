@@ -49,8 +49,18 @@ defmodule Archethic.DB.EmbeddedImpl do
   def write_transaction_chain(chain) do
     sorted_chain = Enum.sort_by(chain, & &1.validation_stamp.timestamp, {:asc, DateTime})
 
-    first_tx = List.first(sorted_chain)
-    genesis_address = Transaction.previous_address(first_tx)
+    previous_address =
+      List.first(sorted_chain)
+      |> Transaction.previous_address()
+
+    genesis_address =
+      case ChainIndex.get_tx_entry(previous_address, db_path()) do
+        {:ok, %{genesis_address: genesis_address}} ->
+          genesis_address
+
+        _ ->
+          previous_address
+      end
 
     Queue.push(genesis_address, fn -> do_write_transaction_chain(genesis_address, chain) end)
   end
