@@ -26,6 +26,7 @@ defmodule Archethic.Application do
   alias Archethic.Networking.Supervisor, as: NetworkingSupervisor
 
   alias Archethic.P2P.Supervisor, as: P2PSupervisor
+  alias Archethic.P2P.ListenerSupervisor
 
   alias Archethic.OracleChain
   alias Archethic.OracleChain.Supervisor, as: OracleChainSupervisor
@@ -69,7 +70,7 @@ defmodule Archethic.Application do
       TransactionChainSupervisor,
       CryptoSupervisor,
       ElectionSupervisor,
-      {P2PSupervisor, port: port},
+      P2PSupervisor,
       MiningSupervisor,
       BeaconChainSupervisor,
       SharedSecretsSupervisor,
@@ -79,6 +80,7 @@ defmodule Archethic.Application do
       OracleChainSupervisor,
       ContractsSupervisor,
       RewardSupervisor,
+      {ListenerSupervisor, port: port},
       WebSupervisor,
       NetworkingSupervisor,
       {Bootstrap,
