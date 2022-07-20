@@ -21,6 +21,7 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
   alias Archethic.P2P.Message.NotFound
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.GetFirstAddress
   alias Archethic.P2P.Node
 
   alias Archethic.PubSub
@@ -223,6 +224,9 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       last_addr = List.last(transactions).address
@@ -261,15 +265,21 @@ defmodule ArchethicWeb.GraphQLSchemaTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       last_addr = List.last(transactions).address
       last_addr = Base.encode16(last_addr)
 
+      first_addr = List.first(transactions).address
+      first_addr = Base.encode16(first_addr)
+
       conn =
         post(conn, "/api", %{
           "query" =>
-            "query { transactionChain(address: \"#{last_addr}\", pagingAddress: \"#{last_addr}\") { address } }"
+            "query { transactionChain(address: \"#{last_addr}\", pagingAddress: \"#{first_addr}\") { address } }"
         })
 
       assert %{"data" => %{"transactionChain" => recv_transactions}} = json_response(conn, 200)

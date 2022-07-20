@@ -25,6 +25,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.NotFound
 
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -153,6 +155,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -209,6 +214,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     me = self()
@@ -263,6 +271,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -308,6 +319,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     network_pool_seed = :crypto.strong_rand_bytes(32)
@@ -352,6 +366,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     me = self()

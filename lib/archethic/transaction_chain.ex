@@ -12,19 +12,23 @@ defmodule Archethic.TransactionChain do
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.GetLastTransactionAddress
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.UnspentOutputList
+
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.FirstAddress
+
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransactionChainLength
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -245,6 +249,12 @@ defmodule Archethic.TransactionChain do
     |> DB.get_first_chain_address()
     |> get_transaction(fields)
   end
+
+  @doc """
+  Get the genesis address from a given chain address
+  """
+  @spec get_genesis_address(binary()) :: binary()
+  defdelegate get_genesis_address(address), to: DB, as: :get_first_chain_address
 
   @doc """
   Produce a proof of integrity for a given chain.
@@ -804,5 +814,51 @@ defmodule Archethic.TransactionChain do
       {:error, :network_issue} ->
         {:error, :network_issue}
     end
+  end
+
+  @doc """
+  Retrieve the last transaction address for a chain stored locally
+  It queries the the network for genesis address
+  """
+  @spec get_last_local_address(address :: binary()) :: binary() | nil
+  def get_last_local_address(address) when is_binary(address) do
+    case fetch_genesis_address_remotely(address) do
+      {:ok, genesis_address} ->
+        case get_last_address(genesis_address) do
+          ^genesis_address -> nil
+          last_address -> last_address
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  defp fetch_genesis_address_remotely(address) when is_binary(address) do
+    nodes =
+      address
+      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> P2P.nearest_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
+
+    case P2P.quorum_read(nodes, %GetFirstAddress{address: address}) do
+      {:ok, %FirstAddress{address: genesis_address}} ->
+        {:ok, genesis_address}
+
+      _ ->
+        {:error, :network_issue}
+    end
+  end
+
+  @spec get_locally(address :: binary(), paging_address :: binary() | nil) ::
+          Enumerable.t() | list(Transaction.t())
+  def get_locally(address, paging_address \\ nil) when is_binary(address) do
+    fetch_chain_db(get(address, [], paging_state: paging_address), [])
+  end
+
+  def fetch_chain_db({chain, false, _}, acc), do: acc ++ chain
+
+  def fetch_chain_db({chain, true, paging_address}, acc) do
+    fetch_chain_db(get(paging_address, [], paging_state: paging_address), acc ++ chain)
   end
 end
