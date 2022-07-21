@@ -67,8 +67,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now(),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -1),
+      authorization_date: DateTime.add(DateTime.utc_now(), -1),
       authorized?: true,
       reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })

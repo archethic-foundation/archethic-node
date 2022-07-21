@@ -13,6 +13,7 @@ defmodule Archethic.Mining.Fee do
   alias Archethic.TransactionChain.TransactionData.Ledger
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.UCOLedger
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
 
   @unit_uco 100_000_000
 
@@ -110,8 +111,16 @@ defmodule Archethic.Mining.Fee do
     |> length()
   end
 
+  defp get_number_replicas(%Transaction{
+         address: address,
+         validation_stamp: %ValidationStamp{timestamp: timestamp}
+       }) do
+    address
+    |> Election.chain_storage_nodes(P2P.authorized_nodes(timestamp))
+    |> length()
+  end
+
   defp get_number_replicas(%Transaction{address: address}) do
-    # TODO: take the nodes at the time of the transaction's timestamp
     address
     |> Election.chain_storage_nodes(P2P.authorized_nodes())
     |> length()

@@ -151,10 +151,10 @@ defmodule Archethic.ReplicationTest do
       last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       available?: true,
-      authorization_date: DateTime.utc_now(),
+      authorization_date: DateTime.add(DateTime.utc_now(), -1),
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -1),
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
@@ -167,7 +167,7 @@ defmodule Archethic.ReplicationTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        authorization_date: DateTime.utc_now(),
+        authorization_date: DateTime.add(DateTime.utc_now(), -1),
         reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
     ]
