@@ -228,7 +228,8 @@ defmodule Archethic do
 
     try do
       {local_chain, paging_address} =
-        with true <- DB.transaction_exists?(paging_address),
+        with true <- paging_address != nil,
+             true <- DB.transaction_exists?(paging_address),
              last_address when last_address != nil <-
                TransactionChain.get_last_local_address(address),
              true <- last_address != paging_address do
