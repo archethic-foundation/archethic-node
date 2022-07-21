@@ -11,7 +11,6 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
-  alias Archethic.Utils.VarInt
 
   defstruct [:transaction_summary, confirmations: [], version: 1]
 
@@ -59,7 +58,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
           # Nb movements
           1, 0,
           # Nb confirmations
-          1, 1,
+          1,
           # Replication node position
           0,
           # Signature size
@@ -77,10 +76,8 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
         transaction_summary: transaction_summary,
         confirmations: confirmations
       }) do
-    encoded_confirmation_length = length(confirmations) |> VarInt.from_value()
-
-    <<1::8, TransactionSummary.serialize(transaction_summary)::binary,
-      encoded_confirmation_length::binary, serialize_confirmations(confirmations)::binary>>
+    <<1::8, TransactionSummary.serialize(transaction_summary)::binary, length(confirmations)::8,
+      serialize_confirmations(confirmations)::binary>>
   end
 
   defp serialize_confirmations(confirmations) do
@@ -99,7 +96,7 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
       ...> 164, 4, 187, 38, 200, 170, 241, 23, 249, 75, 17, 23, 241, 185, 36, 15, 66,
       ...> 0, 0, 1, 126, 154, 208, 125, 176,
       ...> 253, 0, 0, 0, 0, 0, 152, 150, 128, 1, 0,
-      ...> 1, 1, 0,64,
+      ...> 1, 0,64,
       ...> 129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
       ...> 100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
       ...> 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
@@ -130,9 +127,8 @@ defmodule Archethic.BeaconChain.ReplicationAttestation do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(<<1::8, rest::bitstring>>) do
-    {tx_summary, <<rest::bitstring>>} = TransactionSummary.deserialize(rest)
+    {tx_summary, <<nb_confirmations::8, rest::bitstring>>} = TransactionSummary.deserialize(rest)
 
-    {nb_confirmations, rest} = rest |> VarInt.get_value()
     {confirmations, rest} = deserialize_confirmations(rest, nb_confirmations, [])
 
     {%__MODULE__{

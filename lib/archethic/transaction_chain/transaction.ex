@@ -17,7 +17,6 @@ defmodule Archethic.TransactionChain.Transaction do
   alias Archethic.TransactionChain.TransactionData.UCOLedger
 
   alias Archethic.Utils
-  alias Archethic.Utils.VarInt
 
   defstruct [
     :address,
@@ -581,7 +580,7 @@ defmodule Archethic.TransactionChain.Transaction do
           190, 102, 244, 88, 141, 142, 7, 138, 178, 77, 128, 21, 95, 29, 222, 145, 211,
           18, 48, 16, 185, 69, 209, 146, 56, 26, 106, 191, 101, 56, 15, 99, 52, 179,
           212, 169, 7, 30, 131, 39, 100, 115, 73, 176, 212, 121, 236, 91, 94, 118, 108,
-          9, 228, 44, 237, 157, 90, 243, 90, 6, 1, 0>>
+          9, 228, 44, 237, 157, 90, 243, 90, 6, 0>>
 
   """
   @spec serialize(t()) :: bitstring()
@@ -646,14 +645,12 @@ defmodule Archethic.TransactionChain.Transaction do
       |> Enum.map(&CrossValidationStamp.serialize/1)
       |> :erlang.list_to_binary()
 
-    encoded_cross_validations_stamps_len = length(cross_validation_stamps) |> VarInt.from_value()
-
     <<version::32, address::binary, serialize_type(type)::8,
       TransactionData.serialize(data)::binary, previous_public_key::binary,
       byte_size(previous_signature)::8, previous_signature::binary,
       byte_size(origin_signature)::8, origin_signature::binary, 1::8,
-      ValidationStamp.serialize(validation_stamp)::bitstring,
-      encoded_cross_validations_stamps_len::binary, cross_validation_stamps_bin::binary>>
+      ValidationStamp.serialize(validation_stamp)::bitstring, length(cross_validation_stamps)::8,
+      cross_validation_stamps_bin::binary>>
   end
 
   @doc """
@@ -689,7 +686,7 @@ defmodule Archethic.TransactionChain.Transaction do
       ...> 190, 102, 244, 88, 141, 142, 7, 138, 178, 77, 128, 21, 95, 29, 222, 145, 211,
       ...> 18, 48, 16, 185, 69, 209, 146, 56, 26, 106, 191, 101, 56, 15, 99, 52, 179,
       ...> 212, 169, 7, 30, 131, 39, 100, 115, 73, 176, 212, 121, 236, 91, 94, 118, 108,
-      ...> 9, 228, 44, 237, 157, 90, 243, 90, 6, 1, 0>>
+      ...> 9, 228, 44, 237, 157, 90, 243, 90, 6, 0>>
       ...> |> Transaction.deserialize()
       {
         %Transaction{
@@ -782,9 +779,8 @@ defmodule Archethic.TransactionChain.Transaction do
         {tx, rest}
 
       1 ->
-        {validation_stamp, rest} = ValidationStamp.deserialize(rest)
-
-        {nb_cross_validations_stamps, rest} = rest |> VarInt.get_value()
+        {validation_stamp, <<nb_cross_validations_stamps::8, rest::bitstring>>} =
+          ValidationStamp.deserialize(rest)
 
         {cross_validation_stamps, rest} =
           reduce_cross_validation_stamps(rest, nb_cross_validations_stamps, [])

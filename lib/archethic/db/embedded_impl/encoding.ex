@@ -82,8 +82,6 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
 
     encoded_resolved_recipients_len = length(resolved_recipients) |> VarInt.from_value()
 
-    encoded_cross_validation_stamps_len = length(cross_validation_stamps) |> VarInt.from_value()
-
     encoding =
       [
         {"address", address},
@@ -112,7 +110,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
            :erlang.list_to_binary(resolved_recipients)::binary>>},
         {"validation_stamp.signature", validation_stamp_sig},
         {"cross_validation_stamps",
-         <<encoded_cross_validation_stamps_len::binary, cross_validation_stamps_encoding::binary>>}
+         <<length(cross_validation_stamps)::8, cross_validation_stamps_encoding::binary>>}
       ]
       |> Enum.map(fn {column, value} ->
         <<byte_size(column)::8, byte_size(value)::32, column::binary, value::binary>>
@@ -232,8 +230,7 @@ defmodule Archethic.DB.EmbeddedImpl.Encoding do
     put_in(acc, [Access.key(:validation_stamp, %{}), :signature], data)
   end
 
-  def decode(_version, "cross_validation_stamps", <<rest::bitstring>>, acc) do
-    {nb, rest} = rest |> VarInt.get_value()
+  def decode(_version, "cross_validation_stamps", <<nb::8, rest::bitstring>>, acc) do
     stamps = deserialize_cross_validation_stamps(rest, nb, [])
     Map.put(acc, :cross_validation_stamps, stamps)
   end

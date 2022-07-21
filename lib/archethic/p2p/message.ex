@@ -209,11 +209,8 @@ defmodule Archethic.P2P.Message do
         welcome_node_public_key: welcome_node_public_key,
         validation_node_public_keys: validation_node_public_keys
       }) do
-    encoded_validation_node_public_keys_length =
-      length(validation_node_public_keys) |> VarInt.from_value()
-
     <<7::8, Transaction.serialize(tx)::binary, welcome_node_public_key::binary,
-      encoded_validation_node_public_keys_length::binary,
+      length(validation_node_public_keys)::8,
       :erlang.list_to_binary(validation_node_public_keys)::binary>>
   end
 
@@ -225,11 +222,8 @@ defmodule Archethic.P2P.Message do
         io_storage_nodes_view: io_storage_nodes_view,
         previous_storage_nodes_public_keys: previous_storage_nodes_public_keys
       }) do
-    encoded_previous_storage_nodes_public_keys_length =
-      length(previous_storage_nodes_public_keys) |> VarInt.from_value()
-
     <<8::8, address::binary, validation_node_public_key::binary,
-      encoded_previous_storage_nodes_public_keys_length::binary,
+      length(previous_storage_nodes_public_keys)::8,
       :erlang.list_to_binary(previous_storage_nodes_public_keys)::binary,
       bit_size(chain_storage_nodes_view)::8, chain_storage_nodes_view::bitstring,
       bit_size(beacon_storage_nodes_view)::8, beacon_storage_nodes_view::bitstring,
@@ -246,9 +240,7 @@ defmodule Archethic.P2P.Message do
         },
         confirmed_validation_nodes: confirmed_validation_nodes
       }) do
-    encoded_nb_validation_nodes_length = length(chain_replication_tree) |> VarInt.from_value()
-
-    # nb_validation_nodes = length(chain_replication_tree)
+    nb_validation_nodes = length(chain_replication_tree)
     tree_size = chain_replication_tree |> List.first() |> bit_size()
 
     io_tree_size =
@@ -262,9 +254,8 @@ defmodule Archethic.P2P.Message do
           |> bit_size()
       end
 
-    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring,
-      encoded_nb_validation_nodes_length::binary, tree_size::8,
-      :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
+    <<9::8, address::binary, ValidationStamp.serialize(stamp)::bitstring, nb_validation_nodes::8,
+      tree_size::8, :erlang.list_to_bitstring(chain_replication_tree)::bitstring,
       :erlang.list_to_bitstring(beacon_replication_tree)::bitstring, io_tree_size::8,
       :erlang.list_to_bitstring(io_replication_tree)::bitstring,
       bit_size(confirmed_validation_nodes)::8, confirmed_validation_nodes::bitstring>>
@@ -597,9 +588,8 @@ defmodule Archethic.P2P.Message do
   def decode(<<7::8, rest::bitstring>>) do
     {tx, rest} = Transaction.deserialize(rest)
 
-    {welcome_node_public_key, <<rest::bitstring>>} = Utils.deserialize_public_key(rest)
-
-    {nb_validation_nodes, rest} = rest |> VarInt.get_value()
+    {welcome_node_public_key, <<nb_validation_nodes::8, rest::bitstring>>} =
+      Utils.deserialize_public_key(rest)
 
     {validation_node_public_keys, rest} =
       Utils.deserialize_public_key_list(rest, nb_validation_nodes, [])
@@ -614,9 +604,8 @@ defmodule Archethic.P2P.Message do
   def decode(<<8::8, rest::bitstring>>) do
     {tx_address, rest} = Utils.deserialize_address(rest)
 
-    {node_public_key, <<rest::bitstring>>} = Utils.deserialize_public_key(rest)
-
-    {nb_previous_storage_nodes, rest} = rest |> VarInt.get_value()
+    {node_public_key, <<nb_previous_storage_nodes::8, rest::bitstring>>} =
+      Utils.deserialize_public_key(rest)
 
     {previous_storage_nodes_keys, rest} =
       Utils.deserialize_public_key_list(rest, nb_previous_storage_nodes, [])
@@ -643,9 +632,7 @@ defmodule Archethic.P2P.Message do
 
   def decode(<<9::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
-    {validation_stamp, rest} = ValidationStamp.deserialize(rest)
-
-    {nb_validations, rest} = rest |> VarInt.get_value()
+    {validation_stamp, <<nb_validations::8, rest::bitstring>>} = ValidationStamp.deserialize(rest)
 
     <<tree_size::8, rest::bitstring>> = rest
 
