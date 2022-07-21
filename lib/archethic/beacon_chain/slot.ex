@@ -18,6 +18,7 @@ defmodule Archethic.BeaconChain.Slot do
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   @type net_stats :: list(%{latency: non_neg_integer()})
 
@@ -399,7 +400,7 @@ defmodule Archethic.BeaconChain.Slot do
         # Slot time
         96, 8, 1, 120,
         # Nb transaction attestations
-        0, 0, 0, 1,
+        1, 1,
         # Attestation version
         1,
         # Address
@@ -412,7 +413,7 @@ defmodule Archethic.BeaconChain.Slot do
         # Fee
         0, 0, 0, 0, 0, 152, 150, 128,
         # Nb movements addresses
-        0, 0,
+        1, 0,
         # Nb confirmations
         1,
         # Replication node position
@@ -425,7 +426,7 @@ defmodule Archethic.BeaconChain.Slot do
         201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
         119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195,
         # Nb of node synchronizations
-        0, 1,
+        1, 1,
         # Node public key
         0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
         100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241,
@@ -468,10 +469,15 @@ defmodule Archethic.BeaconChain.Slot do
       |> Enum.map(fn %{latency: latency} -> <<latency::8>> end)
       |> :erlang.list_to_binary()
 
-    <<1::8, subset::binary, DateTime.to_unix(slot_time)::32, length(transaction_attestations)::32,
-      transaction_attestations_bin::binary, length(end_of_node_synchronizations)::16,
-      end_of_node_synchronizations_bin::binary, bit_size(availabilities)::16,
-      availabilities::bitstring, net_stats_bin::binary>>
+    encoded_transaction_attestations_len = length(transaction_attestations) |> VarInt.from_value()
+
+    encoded_end_of_node_synchronizations_len =
+      length(end_of_node_synchronizations) |> VarInt.from_value()
+
+    <<1::8, subset::binary, DateTime.to_unix(slot_time)::32,
+      encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
+      encoded_end_of_node_synchronizations_len::binary, end_of_node_synchronizations_bin::binary,
+      bit_size(availabilities)::16, availabilities::bitstring, net_stats_bin::binary>>
   end
 
   @doc """
@@ -479,17 +485,16 @@ defmodule Archethic.BeaconChain.Slot do
 
   ## Examples
 
-      iex> <<1, 0, 96, 8, 1, 120, 0, 0, 0, 1,
-      ...>  1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...>  99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
-      ...>  0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0, 0, 0, 0, 152, 150, 128, 0, 0,
-      ...>  1, 0, 64, 129, 204, 107, 81, 235, 88, 234, 207, 125, 1, 208, 227, 239, 175, 78, 217,
-      ...>  100, 172, 67, 228, 131, 42, 177, 200, 54, 225, 34, 241, 35, 226, 108, 138,
-      ...>  201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20, 43, 216, 176, 11, 159, 188,
-      ...>  119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123, 140, 195,
-      ...>  0, 1, 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200, 255, 174, 190, 91,
-      ...>  100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87, 143, 241, 94, 244, 190, 185,
-      ...>  0, 2, 1::1, 0::1, 10, 0>>
+      iex> <<1, 0, 96, 8, 1, 120, 1, 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116,
+      ...> 246, 27, 130, 162, 205, 249, 65, 232, 166, 99, 207, 133, 252, 112, 223, 41, 12,
+      ...> 206, 162, 233, 28, 49, 204, 255, 12, 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0, 0,
+      ...> 0, 0, 152, 150, 128, 1, 0, 1, 0, 64, 129, 204, 107, 81, 235, 88, 234, 207,
+      ...> 125, 1, 208, 227, 239, 175, 78, 217, 100, 172, 67, 228, 131, 42, 177, 200, 54,
+      ...> 225, 34, 241, 35, 226, 108, 138, 201, 2, 32, 75, 92, 49, 194, 42, 113, 154, 20,
+      ...> 43, 216, 176, 11, 159, 188, 119, 6, 8, 48, 201, 244, 138, 99, 52, 22, 1, 97, 123,
+      ...> 140, 195, 1, 1, 0, 0, 38, 105, 235, 147, 234, 114, 41, 1, 152, 148, 120, 31, 200,
+      ...> 255, 174, 190, 91, 100, 169, 225, 113, 249, 125, 21, 168, 14, 196, 222, 140, 87,
+      ...> 143, 241, 94, 244, 190, 185, 0, 2, 1::1, 0::1, 10, 0 >>
       ...> |> Slot.deserialize()
       {
         %Slot{
@@ -529,13 +534,13 @@ defmodule Archethic.BeaconChain.Slot do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(
-        <<1::8, subset::8, slot_timestamp::32, nb_transaction_attestations::32, rest::bitstring>>
-      ) do
+  def deserialize(<<1::8, subset::8, slot_timestamp::32, rest::bitstring>>) do
+    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
+
     {tx_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
-    <<nb_end_of_sync::16, rest::bitstring>> = rest
+    {nb_end_of_sync, rest} = rest |> VarInt.get_value()
 
     {end_of_node_synchronizations, rest} =
       deserialize_end_of_node_synchronizations(rest, nb_end_of_sync, [])

@@ -22,6 +22,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
+  alias Archethic.Utils.VarInt
+
   @typedoc """
   - Transaction movements: represents the pending transaction ledger movements
   - Unspent outputs: represents the new unspent outputs
@@ -455,8 +457,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       <<
       # Fee (0.1 UCO)
       0, 0, 0, 0, 0, 152, 150, 128,
-      # Nb of transaction movements
-      1,
+      # Nb of transaction movements in VarInt
+      1, 1,
       # Transaction movement recipient
       0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
@@ -464,8 +466,8 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       0, 0, 0, 0, 6, 20, 101, 128,
       # Transaction movement type (UCO)
       0,
-      # Nb of unspent outputs
-      1,
+      # Nb of unspent outputs in VarInt
+      1, 1,
       # Unspent output origin
       0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221,
       86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
@@ -488,8 +490,12 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
     bin_unspent_outputs =
       unspent_outputs |> Enum.map(&UnspentOutput.serialize/1) |> :erlang.list_to_binary()
 
-    <<fee::64, length(transaction_movements)::8, bin_transaction_movements::binary,
-      length(unspent_outputs)::8, bin_unspent_outputs::binary>>
+    encoded_transaction_movements_len = length(transaction_movements) |> VarInt.from_value()
+
+    encoded_unspent_outputs_len = length(unspent_outputs) |> VarInt.from_value()
+
+    <<fee::64, encoded_transaction_movements_len::binary, bin_transaction_movements::binary,
+      encoded_unspent_outputs_len::binary, bin_unspent_outputs::binary>>
   end
 
   @doc """
@@ -497,10 +503,10 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
 
   ## Examples
 
-      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 1,
+      iex> <<0, 0, 0, 0, 0, 152, 150, 128, 1, 1,
       ...> 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237, 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 60, 203, 247, 0, 0,
-      ...> 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
+      ...> 1, 1, 0, 0, 34, 118, 242, 194, 93, 131, 130, 195, 9, 97, 237,
       ...> 220, 195, 112, 1, 54, 221, 86, 154, 234, 96, 217, 149, 84, 188, 63, 242, 166, 47, 158, 139, 207,
       ...> 0, 0, 0, 0, 11, 235, 194, 0, 0>>
       ...> |> LedgerOperations.deserialize()
@@ -527,9 +533,11 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
         ""
       }
   """
-  def deserialize(<<fee::64, nb_transaction_movements::8, rest::bitstring>>) do
+  def deserialize(<<fee::64, rest::bitstring>>) do
+    {nb_transaction_movements, rest} = rest |> VarInt.get_value()
     {tx_movements, rest} = reduce_transaction_movements(rest, nb_transaction_movements, [])
-    <<nb_unspent_outputs::8, rest::bitstring>> = rest
+
+    {nb_unspent_outputs, rest} = rest |> VarInt.get_value()
     {unspent_outputs, rest} = reduce_unspent_outputs(rest, nb_unspent_outputs, [])
 
     {

@@ -9,6 +9,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   @type t :: %__MODULE__{
           timestamp: DateTime.t(),
@@ -70,7 +71,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
         # Fee,
         0, 0, 0, 0, 0, 152, 150, 128,
         # Nb movements addresses
-        0, 1,
+        1, 1,
         # Movement address
         0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
         99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12
@@ -84,8 +85,10 @@ defmodule Archethic.TransactionChain.TransactionSummary do
         movements_addresses: movements_addresses,
         fee: fee
       }) do
+    encoded_movement_addresses_len = length(movements_addresses) |> VarInt.from_value()
+
     <<address::binary, DateTime.to_unix(timestamp, :millisecond)::64,
-      Transaction.serialize_type(type), fee::64, length(movements_addresses)::16,
+      Transaction.serialize_type(type), fee::64, encoded_movement_addresses_len::binary,
       :erlang.list_to_binary(movements_addresses)::binary>>
   end
 
@@ -97,7 +100,7 @@ defmodule Archethic.TransactionChain.TransactionSummary do
       iex> <<0, 0, 11, 4, 226, 118, 242, 59, 165, 128, 69, 40, 228, 121, 127, 37, 154, 199,
       ...> 168, 212, 53, 82, 220, 22, 56, 222, 223, 127, 16, 172, 142, 218, 41, 247, 0, 0, 1, 114, 236, 9, 2, 168,
       ...> 253, 0, 0, 0, 0, 0, 152, 150, 128,
-      ...> 0, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
+      ...> 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
       ...> 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12>>
       ...> |> TransactionSummary.deserialize()
       {
@@ -117,9 +120,10 @@ defmodule Archethic.TransactionChain.TransactionSummary do
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
   def deserialize(data) when is_bitstring(data) do
-    {address, <<timestamp::64, type::8, fee::64, nb_movements::16, rest::bitstring>>} =
+    {address, <<timestamp::64, type::8, fee::64, rest::bitstring>>} =
       Utils.deserialize_address(data)
 
+    {nb_movements, rest} = rest |> VarInt.get_value()
     {addresses, rest} = Utils.deserialize_addresses(rest, nb_movements, [])
 
     {
