@@ -74,19 +74,21 @@ defmodule Archethic.P2P.MemTableLoader do
         |> Application.get_env(SelfRepairScheduler, [])
         |> Keyword.fetch!(:interval)
 
+      last_repair_time = last_repair_time |> DateTime.add(1, :millisecond)
+
       next_repair_time =
         self_repair_interval
         |> CronParser.parse!(true)
         |> CronScheduler.get_next_run_date!(DateTime.to_naive(last_repair_time))
         |> DateTime.from_naive!("Etc/UTC")
 
-      if DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt do
-        Logger.info("Reload last P2P summary")
-        # We want to reload the previous beacon chain summary information
-        # if the node haven't been disconnected for a significant time (one self-repair cycle)
-        # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
-        Enum.each(DB.get_last_p2p_summaries(), &load_p2p_summary/1)
-      end
+      is_same_slot? = DateTime.compare(DateTime.utc_now(), next_repair_time) == :lt
+      # We want to reload the previous beacon chain summary information
+      # if the node haven't been disconnected for a significant time (one self-repair cycle)
+      # if the node was disconnected for long time, then we don't load the previous view, as it's obsolete
+      Enum.each(DB.get_last_p2p_summaries(), fn summary ->
+        load_p2p_summary(summary, is_same_slot?)
+      end)
     end
 
     {:ok, %{}}
@@ -181,9 +183,13 @@ defmodule Archethic.P2P.MemTableLoader do
   defp first_node_change?(first_key, previous_key) when first_key == previous_key, do: true
   defp first_node_change?(_, _), do: false
 
-  defp load_p2p_summary({node_public_key, {available?, avg_availability}}) do
+  defp load_p2p_summary({node_public_key, {available?, avg_availability}}, is_same_slot?) do
     if available? do
-      MemTable.set_node_available(node_public_key)
+      P2P.set_node_globally_synced(node_public_key)
+
+      if is_same_slot? do
+        P2P.set_node_globally_available(node_public_key)
+      end
     end
 
     MemTable.update_node_average_availability(node_public_key, avg_availability)
