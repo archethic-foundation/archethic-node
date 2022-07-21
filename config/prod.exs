@@ -6,6 +6,7 @@ config :logger,
   handle_sasl_reports: true
 
 config :archethic, :mut_dir, System.get_env("ARCHETHIC_MUT_DIR", "data")
+config :archethic, :root_mut_dir, System.get_env("ARCHETHIC_ROOT_MUT_DIR", "~/aebot")
 
 config :archethic, Archethic.Bootstrap,
   reward_address: System.get_env("ARCHETHIC_REWARD_ADDRESS", "") |> Base.decode16!(case: :mixed)

@@ -526,7 +526,7 @@ defmodule Archethic.Utils do
   @spec mut_dir(String.t() | nonempty_list(Path.t())) :: Path.t()
   def mut_dir(path) when is_binary(path) do
     [
-      Application.app_dir(:archethic),
+      get_root_mut_dir(),
       Application.get_env(:archethic, :mut_dir),
       path
     ]
@@ -536,7 +536,7 @@ defmodule Archethic.Utils do
 
   def mut_dir(path = [_]) when is_list(path) do
     [
-      Application.app_dir(:archethic),
+      get_root_mut_dir(),
       Application.get_env(:archethic, :mut_dir) | path
     ]
     |> Path.join()
@@ -544,6 +544,13 @@ defmodule Archethic.Utils do
   end
 
   def mut_dir, do: mut_dir("")
+
+  defp get_root_mut_dir() do
+    case Application.get_env(:archethic, :root_mut_dir) do
+      nil -> Application.app_dir(:archethic)
+      dir -> dir
+    end
+  end
 
   @doc """
   Return the remaining seconds from timer
