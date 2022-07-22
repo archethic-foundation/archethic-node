@@ -42,6 +42,9 @@ defmodule Archethic.P2P.Client.Connection do
     receive do
       {^ref, msg} ->
         msg
+    after
+      timeout ->
+        {:error, :timeout}
     end
   end
 
@@ -239,13 +242,11 @@ defmodule Archethic.P2P.Client.Connection do
         data = %{node_public_key: node_public_key}
       ) do
     case pop_in(data, [:messages, msg_id]) do
-      {%{from: from, ref: ref, message_name: message_name}, new_data} ->
+      {%{message_name: message_name}, new_data} ->
         Logger.debug("Message #{message_name} reaches its timeout",
           node: Base.encode16(node_public_key),
           message_id: msg_id
         )
-
-        send(from, {ref, {:error, :timeout}})
 
         {:keep_state, new_data}
 

@@ -158,7 +158,13 @@ defmodule Archethic.P2P.Message do
   """
   @spec get_timeout(__MODULE__.t()) :: non_neg_integer()
   def get_timeout(message) do
-    full_size_message = [GetTransaction, GetLastTransaction]
+    full_size_message = [
+      GetTransaction,
+      GetLastTransaction,
+      NewTransaction,
+      StartMining,
+      ReplicateTransaction
+    ]
 
     if message.__struct__ in full_size_message do
       get_max_timeout()
