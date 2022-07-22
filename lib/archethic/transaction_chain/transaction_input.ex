@@ -155,13 +155,13 @@ defmodule Archethic.TransactionChain.TransactionInput do
       :UCO ->
         %{res | type: :UCO}
 
-      :NFT ->
-        case Map.get(input, :nft_address) do
+      :token ->
+        case Map.get(input, :token_address) do
           nil ->
             res
 
-          nft_address ->
-            %{res | type: {:NFT, nft_address, Map.get(input, :nft_id)}}
+          token_address ->
+            %{res | type: {:token, token_address, Map.get(input, :token_id)}}
         end
 
       :call ->
@@ -195,15 +195,15 @@ defmodule Archethic.TransactionChain.TransactionInput do
         amount: amount,
         from: from,
         spent?: spent?,
-        type: {:NFT, nft_address, nft_id},
+        type: {:token, token_address, token_id},
         timestamp: timestamp
       }) do
     %{
       amount: amount,
       from: from,
-      type: :NFT,
-      nft_address: nft_address,
-      nft_id: nft_id,
+      type: :token,
+      token_address: token_address,
+      token_id: token_id,
       spent: spent?,
       reward: false,
       timestamp: timestamp
