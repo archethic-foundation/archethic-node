@@ -210,7 +210,10 @@ defmodule ArchethicWeb.ExplorerView do
   end
 
   def format_transaction_content(:hosting, content) do
-    Jason.Formatter.pretty_print_to_iodata(content)
+    case Jason.decode(content) do
+      {:ok, _} -> Jason.Formatter.pretty_print_to_iodata(content)
+      _ -> content
+    end
   end
 
   def format_transaction_content(_, content), do: content
