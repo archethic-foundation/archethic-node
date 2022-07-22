@@ -14,7 +14,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   @typedoc """
   Transaction data is composed from:
   - Recipients: list of address recipients for smart contract interactions
-  - Ledger: Movement operations on UCO, NFT or Stock ledger
+  - Ledger: Movement operations on UCO TOKEN or Stock ledger
   - Code: Contains the smart contract code including triggers, conditions and actions
   - Ownerships: List of the authorizations and delegations to proof ownership of secrets
   - Content: Free content to store any data as binary
@@ -65,7 +65,7 @@ defmodule Archethic.TransactionChain.TransactionData do
   1, 0,
   # Number of UCO transfers
   1, 0,
-  # Number of NFT transfers
+  # Number of TOKEN transfers
   1, 0,
   # Number of recipients
   1, 1,
