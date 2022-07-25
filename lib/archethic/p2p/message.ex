@@ -1072,6 +1072,10 @@ defmodule Archethic.P2P.Message do
     end
   end
 
+  def process(%Error{reason: reason}) do
+    Logger.error(reason)
+  end
+
   def process(%GetTransaction{address: tx_address}) do
     case TransactionChain.get_transaction(tx_address) do
       {:ok, tx} ->

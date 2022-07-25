@@ -511,7 +511,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        :stop
+        {:next_state, {:return_error, "No_cross_validation_error"}, data}
 
       _ ->
         new_context =
@@ -610,7 +610,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :enter,
         :wait_cross_validation_stamps,
         :consensus_not_reached,
-        _data = %{
+        data = %{
           context:
             context = %ValidationContext{
               transaction: tx,
@@ -635,7 +635,8 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     MaliciousDetection.start_link(context)
-    :stop
+
+    {:next_state, {:return_error, "consensus_error"}, data}
   end
 
   def handle_event(
@@ -764,14 +765,15 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:replication_error, reason},
         :replication,
-        _ = %{context: %ValidationContext{transaction: tx}}
+        data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Replication error - #{inspect(reason)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    :stop
+    {:next_state, {:return_error, "replication_error"}, data}
+    # :stop
   end
 
   def handle_event(
@@ -796,7 +798,9 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        :stop
+        {:next_state, {:return_error, "No_coordinator_error"}, data}
+
+      # :stop
 
       _ ->
         nb_cross_validation_nodes = length(next_cross_validation_nodes)
@@ -824,13 +828,38 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:timeout, :stop_timeout},
         :any,
         _state,
-        _data = %{context: %ValidationContext{transaction: tx}}
+        data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.warning("Timeout reached during mining",
       transaction_type: tx.type,
       transaction_address: Base.encode16(tx.address)
     )
 
+    {:next_state, {:return_error, "mining_timeout"}, data}
+  end
+
+  def handle_event(
+        {:return_error, error},
+        :any,
+        _state,
+        _data = %{
+          context:
+            _context = %ValidationContext{
+              welcome_node: welcome_node = %Node{}
+            }
+        }
+      ) do
+    Logger.error("error state")
+    # notify_error_to_welcome_node
+    # log
+    # Logger.warning(
+    #   "expected event in the state #{inspect(state)} - Will be postponed for the next state"
+    # )
+    # case error do
+    #   smar -> 1
+    #   fee -> 2
+    # end
+    P2P.send_message(welcome_node, %Error{reason: error})
     :stop
   end
 
