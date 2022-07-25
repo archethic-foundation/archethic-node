@@ -311,7 +311,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :token,
          data: %TransactionData{content: content}
        }) do
-    verify_nft_creation(content)
+    verify_token_creation(content)
   end
 
   # To accept mint_rewards transaction, we ensure that the supply correspond to the
@@ -321,7 +321,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
          type: :mint_rewards,
          data: %TransactionData{content: content}
        }) do
-    with :ok <- verify_nft_creation(content),
+    with :ok <- verify_token_creation(content),
          {:ok, %{"supply" => supply}} <- Jason.decode(content),
          true <- supply == DB.get_latest_burned_fees(),
          network_pool_address <- SharedSecrets.get_network_pool_address(),
@@ -375,7 +375,7 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   defp do_accept_transaction(_), do: :ok
 
-  defp verify_nft_creation(content) do
+  defp verify_token_creation(content) do
     schema =
       :archethic
       |> Application.app_dir("priv/json-schemas/token-core.json")
