@@ -6,6 +6,10 @@ defmodule Archethic.Mining.PendingTransactionValidation do
 
   alias Archethic.Crypto
 
+  alias Archethic.DB
+
+  alias Archethic.SharedSecrets
+
   alias Archethic.Election
 
   alias Archethic.Governance
@@ -304,36 +308,36 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(%Transaction{
-         type: type,
+         type: :token,
          data: %TransactionData{content: content}
-       })
-       when type in [:token, :mint_rewards] do
-    schema =
-      :archethic
-      |> Application.app_dir("priv/json-schemas/token-core.json")
-      |> File.read!()
-      |> Jason.decode!()
-      |> ExJsonSchema.Schema.resolve()
+       }) do
+    verify_token_creation(content)
+  end
 
-    with {:ok, json_token} <- Jason.decode(content),
-         :ok <- ExJsonSchema.Validator.validate(schema, json_token),
-         %{"type" => "non-fungible", "supply" => supply, "properties" => properties}
-         when length(properties) == supply / 100_000_000 <- json_token do
+  # To accept mint_rewards transaction, we ensure that the supply correspond to the
+  # burned fees from the last summary and that there is no transaction since the last
+  # reward schedule
+  defp do_accept_transaction(%Transaction{
+         type: :mint_rewards,
+         data: %TransactionData{content: content}
+       }) do
+    with :ok <- verify_token_creation(content),
+         {:ok, %{"supply" => supply}} <- Jason.decode(content),
+         true <- supply == DB.get_latest_burned_fees(),
+         network_pool_address <- SharedSecrets.get_network_pool_address(),
+         false <-
+           DB.get_last_chain_address(network_pool_address, Reward.last_scheduling_date()) !=
+             network_pool_address do
       :ok
     else
-      {:error, reason} ->
-        Logger.debug("Invalid token token specification: #{inspect(reason)}")
-        {:error, "Invalid token transaction - Invalid specification"}
+      false ->
+        {:error, "The supply do not match burned fees from last summary"}
 
-      %{"type" => "fungible", "properties" => properties} when length(properties) <= 1 ->
-        :ok
+      true ->
+        {:error, "There is already a mint rewards transaction since last schedule"}
 
-      %{"type" => "fungible"} ->
-        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
-
-      %{"type" => "non-fungible"} ->
-        {:error,
-         "Invalid token transaction - Supply should match properties for non-fungible tokens"}
+      e ->
+        e
     end
   end
 
@@ -370,6 +374,36 @@ defmodule Archethic.Mining.PendingTransactionValidation do
   end
 
   defp do_accept_transaction(_), do: :ok
+
+  defp verify_token_creation(content) do
+    schema =
+      :archethic
+      |> Application.app_dir("priv/json-schemas/token-core.json")
+      |> File.read!()
+      |> Jason.decode!()
+      |> ExJsonSchema.Schema.resolve()
+
+    with {:ok, json_token} <- Jason.decode(content),
+         :ok <- ExJsonSchema.Validator.validate(schema, json_token),
+         %{"type" => "non-fungible", "supply" => supply, "properties" => properties}
+         when length(properties) == supply / 100_000_000 <- json_token do
+      :ok
+    else
+      {:error, reason} ->
+        Logger.debug("Invalid token token specification: #{inspect(reason)}")
+        {:error, "Invalid token transaction - Invalid specification"}
+
+      %{"type" => "fungible", "properties" => properties} when length(properties) > 1 ->
+        {:error, "Invalid token transaction - Fungible should have only 1 set of properties"}
+
+      %{"type" => "fungible"} ->
+        :ok
+
+      %{"type" => "non-fungible"} ->
+        {:error,
+         "Invalid token transaction - Supply should match properties for non-fungible tokens"}
+    end
+  end
 
   defp get_allowed_node_key_origins do
     :archethic

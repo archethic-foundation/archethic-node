@@ -5,7 +5,14 @@ defmodule Archethic.Reward do
 
   alias Archethic.OracleChain
 
-  alias __MODULE__.NetworkPoolScheduler
+  alias Archethic.Crypto
+
+  alias Archethic.Election
+
+  alias Archethic.P2P
+  alias Archethic.P2P.Node
+
+  alias __MODULE__.Scheduler
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -28,6 +35,15 @@ defmodule Archethic.Reward do
 
   @doc """
   Create a transaction for minting new rewards
+
+  ## Examples
+
+    iex> %{
+    ...>  type: :mint_rewards,
+    ...>  data: %{
+    ...>    content: "{\\n  \\"supply\\":2000000000,\\n  \\"type\\":\\"fungible\\",\\n  \\"name\\":\\"Mining UCO rewards\\",\\n  \\"symbol\\":\\"MUCO\\"\\n}\\n"
+    ...>  }
+    ...> } = Reward.new_rewards_mint(2_000_000_000)
   """
   @spec new_rewards_mint(amount :: non_neg_integer()) :: Transaction.t()
   def new_rewards_mint(amount) do
@@ -46,6 +62,25 @@ defmodule Archethic.Reward do
   end
 
   @doc """
+  Determine if the local node is the initiator of the new rewards mint
+  """
+  @spec initiator?() :: boolean()
+  def initiator?(index \\ 0) do
+    %Node{first_public_key: initiator_key} =
+      next_address()
+      |> Election.storage_nodes(P2P.authorized_and_available_nodes())
+      |> Enum.at(index)
+
+    initiator_key == Crypto.first_node_public_key()
+  end
+
+  defp next_address do
+    key_index = Crypto.number_of_network_pool_keys()
+    next_public_key = Crypto.network_pool_public_key(key_index + 1)
+    Crypto.derive_address(next_public_key)
+  end
+
+  @doc """
   Return the list of transfers to rewards the validation nodes for a specific date
   """
   @spec get_transfers(last_reward_date :: DateTime.t()) :: reward_transfers :: list(Transfer.t())
@@ -58,11 +93,11 @@ defmodule Archethic.Reward do
   Returns the last date of the rewards scheduling from the network pool
   """
   @spec last_scheduling_date() :: DateTime.t()
-  defdelegate last_scheduling_date, to: NetworkPoolScheduler, as: :last_date
+  defdelegate last_scheduling_date, to: Scheduler, as: :last_date
 
   def config_change(changed_conf) do
     changed_conf
-    |> Keyword.get(NetworkPoolScheduler)
-    |> NetworkPoolScheduler.config_change()
+    |> Keyword.get(Scheduler)
+    |> Scheduler.config_change()
   end
 end

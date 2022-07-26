@@ -259,7 +259,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       end)
 
       MockDB
-      |> stub(:register_tps, fn _, _, _ -> :ok end)
+      |> stub(:register_stats, fn _, _, _, _ -> :ok end)
 
       assert :ok =
                Sync.load_missed_transactions(
@@ -339,7 +339,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       end)
 
       MockDB
-      |> stub(:register_tps, fn _, _, _ ->
+      |> stub(:register_stats, fn _, _, _, _ ->
         :ok
       end)
 
@@ -351,7 +351,8 @@ defmodule Archethic.SelfRepair.SyncTest do
                      %TransactionSummary{
                        address: tx_address,
                        type: :transfer,
-                       timestamp: DateTime.utc_now()
+                       timestamp: DateTime.utc_now(),
+                       fee: 0
                      }
                    ]
                  },

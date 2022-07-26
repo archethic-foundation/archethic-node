@@ -184,9 +184,9 @@ config :archethic, Archethic.OracleChain.Scheduler,
   # Aggregate chain every day at midnight
   summary_interval: System.get_env("ARCHETHIC_ORACLE_CHAIN_SUMMARY_INTERVAL", "0 0 0 * * * *")
 
-config :archethic, Archethic.Reward.NetworkPoolScheduler,
-  # Every month
-  interval: System.get_env("ARCHETHIC_REWARD_SCHEDULER_INTERVAL", "0 0 0 1 * * *")
+config :archethic, Archethic.Reward.Scheduler,
+  # Every day at 02:00:00
+  interval: System.get_env("ARCHETHIC_REWARD_SCHEDULER_INTERVAL", "0 0 2 * * * *")
 
 config :archethic,
        Archethic.Crypto.SharedSecretsKeystore,

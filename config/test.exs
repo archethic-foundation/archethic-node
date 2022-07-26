@@ -115,8 +115,7 @@ config :archethic, Archethic.Mining.PendingTransactionValidation, validate_node_
 config :archethic, Archethic.Metrics.Poller, enabled: false
 config :archethic, Archethic.Metrics.Collector, MockMetricsCollector
 
-config :archethic, Archethic.Reward.NetworkPoolScheduler, enabled: false
-config :archethic, Archethic.Reward.WithdrawScheduler, enabled: false
+config :archethic, Archethic.Reward.Scheduler, enabled: false
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   enabled: false,
