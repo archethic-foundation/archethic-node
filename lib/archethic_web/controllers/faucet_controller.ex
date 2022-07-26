@@ -15,6 +15,8 @@ defmodule ArchethicWeb.FaucetController do
   alias ArchethicWeb.TransactionSubscriber
   alias ArchethicWeb.FaucetRateLimiter
 
+  alias Archethic.TransactionChain
+
   @pool_seed Application.compile_env(:archethic, [__MODULE__, :seed])
   @faucet_rate_limit_expiry Application.compile_env(:archethic, :faucet_rate_limit_expiry)
 
@@ -42,8 +44,10 @@ defmodule ArchethicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
+    with address <- String.trim(address),
+         {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
+         {:ok, address} <- get_genesis_address(address),
          %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(address),
          :ok <- FaucetRateLimiter.register(address, System.monotonic_time()),
          {:ok, tx_address} <- transfer(recipient_address) do
@@ -126,6 +130,16 @@ defmodule ArchethicWeb.FaucetController do
 
       {:error, _} = e ->
         e
+    end
+  end
+
+  def get_genesis_address(address) when is_binary(address) do
+    case TransactionChain.fetch_genesis_address_remotely(address) do
+      {:ok, genesis_address} ->
+        {:ok, genesis_address}
+
+      _ ->
+        {:ok, address}
     end
   end
 end
