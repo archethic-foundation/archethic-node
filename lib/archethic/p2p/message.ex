@@ -117,6 +117,7 @@ defmodule Archethic.P2P.Message do
           | TransactionSummary.t()
           | ReplicationAttestation.t()
           | GetFirstAddress.t()
+          | Error.t()
 
   @type response ::
           Ok.t()
@@ -1074,6 +1075,7 @@ defmodule Archethic.P2P.Message do
 
   def process(%Error{reason: reason}) do
     Logger.error(reason)
+    %Ok{}
   end
 
   def process(%GetTransaction{address: tx_address}) do
