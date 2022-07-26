@@ -88,37 +88,20 @@ defmodule Archethic.Reward.Scheduler do
   def handle_info(:mint_rewards, state = %{interval: interval}) do
     timer = schedule(interval)
 
-    case DB.get_latest_burned_fees() do
-      0 ->
-        Logger.info("No mint rewards transaction needed")
-        send_node_rewards()
+    tx_address = Reward.next_address()
 
-      amount ->
-        tx = Reward.new_rewards_mint(amount)
-
-        PubSub.register_to_new_transaction_by_address(tx.address)
-
-        if Reward.initiator?() do
-          Archethic.send_new_transaction(tx)
-
-          Logger.info("New mint rewards transaction sent with #{amount} token",
-            transaction_address: Base.encode16(tx.address)
+    if Reward.initiator?(tx_address) do
+      mint_node_rewards()
+    else
+      DetectNodeResponsiveness.start_link(tx_address, fn count ->
+        if Reward.initiator?(tx_address, count) do
+          Logger.debug("Mint reward creation...attempt #{count}",
+            transaction_address: Base.encode16(tx_address)
           )
-        else
-          DetectNodeResponsiveness.start_link(tx.address, fn count ->
-            if Reward.initiator?(count) do
-              Logger.debug("Mint secret creation...attempt #{count}",
-                transaction_address: Base.encode16(tx.address)
-              )
 
-              Logger.info("New mint rewards transaction sent with #{amount} token",
-                transaction_address: Base.encode16(tx.address)
-              )
-
-              Archethic.send_new_transaction(tx)
-            end
-          end)
+          mint_node_rewards()
         end
+      end)
     end
 
     {:noreply, Map.put(state, :timer, timer), :hibernate}
@@ -133,11 +116,28 @@ defmodule Archethic.Reward.Scheduler do
     {:noreply, state, :hibernate}
   end
 
-  defp send_node_rewards do
-    if Reward.initiator?() do
-      Reward.new_node_rewards()
-      |> Archethic.send_new_transaction()
+  defp mint_node_rewards do
+    case DB.get_latest_burned_fees() do
+      0 ->
+        Logger.info("No mint rewards transaction needed")
+        send_node_rewards()
+
+      amount ->
+        tx = Reward.new_rewards_mint(amount)
+
+        PubSub.register_to_new_transaction_by_address(tx.address)
+
+        Archethic.send_new_transaction(tx)
+
+        Logger.info("New mint rewards transaction sent with #{amount} token",
+          transaction_address: Base.encode16(tx.address)
+        )
     end
+  end
+
+  defp send_node_rewards do
+    Reward.new_node_rewards()
+    |> Archethic.send_new_transaction()
   end
 
   def handle_call(:last_date, _, state = %{interval: interval}) do

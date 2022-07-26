@@ -85,17 +85,18 @@ defmodule Archethic.Reward do
   @doc """
   Determine if the local node is the initiator of the new rewards mint
   """
-  @spec initiator?() :: boolean()
-  def initiator?(index \\ 0) do
+  @spec initiator?(binary()) :: boolean()
+  def initiator?(address, index \\ 0) do
     %Node{first_public_key: initiator_key} =
-      next_address()
+      address
       |> Election.storage_nodes(P2P.authorized_and_available_nodes())
       |> Enum.at(index)
 
     initiator_key == Crypto.first_node_public_key()
   end
 
-  defp next_address do
+  @spec next_address() :: binary()
+  def next_address do
     key_index = Crypto.number_of_network_pool_keys()
     next_public_key = Crypto.network_pool_public_key(key_index + 1)
     Crypto.derive_address(next_public_key)
@@ -164,6 +165,8 @@ defmodule Archethic.Reward do
   end
 
   defp get_node_transfers(_, network_pool_balance, 0, acc), do: {acc, network_pool_balance}
+
+  defp get_node_transfers(_, [], _, acc), do: {acc, []}
 
   @doc """
   Returns the last date of the rewards scheduling from the network pool
