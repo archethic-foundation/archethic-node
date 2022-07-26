@@ -850,21 +850,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.error("error state#{inspect({error, tx_address |> Base.encode16()})}")
+    Logger.error("error state #{inspect({error, tx_address |> Base.encode16()})}")
     # notify_error_to_welcome_node
-    # log
-    # Logger.warning(
-    #   "expected event in the state #{inspect(state)} - Will be postponed for the next state"
-    # )
-    # case error do
-    #   smar -> 1
-    #   fee -> 2
-    # end
+    message = %Error{address: tx_address, reason: :workflow_error}
 
-    P2P.send_message(
-      welcome_node,
-      %Error{reason: :workflow_error, address: tx_address}
-    )
+    Task.start(fn ->
+      P2P.send_message!(welcome_node, message)
+    end)
 
     :stop
   end

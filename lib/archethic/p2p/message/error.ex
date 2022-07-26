@@ -10,10 +10,11 @@ defmodule Archethic.P2P.Message.Error do
           | :invalid_transaction
           | :invalid_attestation
           | :transaction_already_exists
-  :workflow_error
+          | :workflow_error
 
   @type t :: %__MODULE__{
-          reason: reason()
+          reason: reason(),
+          address: binary()
         }
 
   @doc """
@@ -34,4 +35,5 @@ defmodule Archethic.P2P.Message.Error do
   def deserialize_reason(1), do: :invalid_transaction
   def deserialize_reason(2), do: :invalid_attestation
   def deserialize_reason(3), do: :transaction_already_exists
+  def deserialize_reason(4), do: :workflow_error
 end
