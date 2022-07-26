@@ -3,16 +3,18 @@ defmodule Archethic.P2P.Message.Error do
   Represents an error message
   """
 
-  defstruct [:reason]
+  defstruct [:reason, address: nil]
 
   @type reason ::
           :network_issue
           | :invalid_transaction
           | :invalid_attestation
           | :transaction_already_exists
+  :workflow_error
 
   @type t :: %__MODULE__{
-          reason: reason()
+          reason: reason(),
+          address: nil
         }
 
   @doc """
@@ -23,6 +25,7 @@ defmodule Archethic.P2P.Message.Error do
   def serialize_reason(:invalid_transaction), do: 1
   def serialize_reason(:invalid_attestation), do: 2
   def serialize_reason(:transaction_already_exists), do: 3
+  def serialize_reason(:workflow_error), do: 4
 
   @doc """
   Deserialize an error reason

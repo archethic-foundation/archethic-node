@@ -11,6 +11,8 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
   alias ArchethicWeb.Endpoint
 
+  require Logger
+
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -22,6 +24,13 @@ defmodule ArchethicWeb.TransactionSubscriber do
   def register(tx_address, start_time)
       when is_binary(tx_address) and is_integer(start_time) do
     GenServer.cast(__MODULE__, {:register, tx_address, start_time})
+  end
+
+  @doc """
+  Report a transaction error
+  """
+  def report_error(tx_address, error) when is_binary(tx_address) do
+    GenServer.cast(__MODULE__, {:error, tx_address, error})
   end
 
   def init(_) do
@@ -80,11 +89,35 @@ defmodule ArchethicWeb.TransactionSubscriber do
     end
   end
 
+  def handle_info(
+        {:error, tx_address, error},
+        state
+      ) do
+    Logger.debug("error in processing transaction: #{inspect({tx_address, error})}")
+
+    new_state =
+      Map.update!(state, tx_address, fn state ->
+        state
+        |> Map.put(:status, :error)
+      end)
+
+    Subscription.publish(
+      Endpoint,
+      %{address: tx_address, error: error},
+      transaction_confirmed: tx_address
+    )
+
+    {:noreply, new_state}
+  end
+
   def handle_info(:clean, state) do
     now = System.monotonic_time()
 
     new_state =
       Enum.filter(state, fn
+        {_address, %{status: :error}} ->
+          false
+
         {_address, %{status: :confirmed}} ->
           true
 
@@ -96,4 +129,28 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
     {:noreply, new_state}
   end
+
+  # # testing purposes
+  # def random_raise() do
+  #   Process.send_after(
+  #     ArchethicWeb.TransactionSubscriber,
+  #     {:error, "00000000000000000000000000000000000000000000000000000000000000000000"},
+  #     0
+  #   )
+
+  #   Process.send_after(
+  #     ArchethicWeb.TransactionSubscriber,
+  #     {:error, "00000000000000000000000000000000000000000000000000000000000000000000",
+  #      "usless----"},
+  #     0
+  #   )
+  # end
+  #   def handle_info(
+  #     {:error, tx_address},
+  #     state
+  #   ) do
+  # Logger.debug("error: #{inspect({tx_address, :error})}")
+
+  # {:noreply, Map.put(state, tx_address, %{status: :error})}
+  # end
 end

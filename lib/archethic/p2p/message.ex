@@ -396,7 +396,11 @@ defmodule Archethic.P2P.Message do
     <<237::8, Enum.count(summaries)::32, summaries_bin::bitstring>>
   end
 
-  def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
+  def encode(%Error{reason: reason, address: nil}),
+    do: <<238::8, Error.serialize_reason(reason)::8>>
+
+  def encode(%Error{reason: reason, address: address}),
+    do: <<238::8, Error.serialize_reason(reason)::8, address::binary>>
 
   def encode(tx_summary = %TransactionSummary{}) do
     <<239::8, TransactionSummary.serialize(tx_summary)::binary>>
@@ -843,7 +847,14 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<238::8, reason::8, rest::bitstring>>) do
-    {%Error{reason: Error.deserialize_reason(reason)}, rest}
+    reason = Error.deserialize_reason(reason)
+
+    try do
+      {address, rest} = Utils.deserialize_address(rest)
+      {%Error{reason: reason, address: address}, rest}
+    catch
+      _ -> {%Error{reason: reason}, rest}
+    end
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -1077,6 +1088,10 @@ defmodule Archethic.P2P.Message do
     Logger.error(reason)
     %Ok{}
   end
+
+  # def process(%Error{reason: reason, address: address}) do
+  #   TransactionSubscriber.report_error(reason, address)
+  # end
 
   def process(%GetTransaction{address: tx_address}) do
     case TransactionChain.get_transaction(tx_address) do
