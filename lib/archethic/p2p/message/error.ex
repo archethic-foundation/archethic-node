@@ -13,8 +13,7 @@ defmodule Archethic.P2P.Message.Error do
   :workflow_error
 
   @type t :: %__MODULE__{
-          reason: reason(),
-          address: nil
+          reason: reason()
         }
 
   @doc """

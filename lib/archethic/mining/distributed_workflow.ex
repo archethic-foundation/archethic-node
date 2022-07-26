@@ -845,11 +845,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
         _data = %{
           context:
             _context = %ValidationContext{
-              welcome_node: welcome_node = %Node{}
+              welcome_node: welcome_node = %Node{},
+              transaction: %Transaction{address: tx_address}
             }
         }
       ) do
-    Logger.error("error state")
+    Logger.error("error state#{inspect({error, tx_address |> Base.encode16()})}")
     # notify_error_to_welcome_node
     # log
     # Logger.warning(
@@ -859,7 +860,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
     #   smar -> 1
     #   fee -> 2
     # end
-    P2P.send_message(welcome_node, %Error{reason: error})
+
+    P2P.send_message(
+      welcome_node,
+      %Error{reason: :workflow_error, address: tx_address}
+    )
+
     :stop
   end
 
