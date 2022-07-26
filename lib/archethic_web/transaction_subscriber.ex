@@ -29,6 +29,7 @@ defmodule ArchethicWeb.TransactionSubscriber do
   @doc """
   Report a transaction error
   """
+  @spec report_error(binary(), atom()) :: :ok
   def report_error(tx_address, error) when is_binary(tx_address) do
     GenServer.cast(__MODULE__, {:error, tx_address, error})
   end
@@ -129,28 +130,4 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
     {:noreply, new_state}
   end
-
-  # # testing purposes
-  # def random_raise() do
-  #   Process.send_after(
-  #     ArchethicWeb.TransactionSubscriber,
-  #     {:error, "00000000000000000000000000000000000000000000000000000000000000000000"},
-  #     0
-  #   )
-
-  #   Process.send_after(
-  #     ArchethicWeb.TransactionSubscriber,
-  #     {:error, "00000000000000000000000000000000000000000000000000000000000000000000",
-  #      "usless----"},
-  #     0
-  #   )
-  # end
-  #   def handle_info(
-  #     {:error, tx_address},
-  #     state
-  #   ) do
-  # Logger.debug("error: #{inspect({tx_address, :error})}")
-
-  # {:noreply, Map.put(state, tx_address, %{status: :error})}
-  # end
 end

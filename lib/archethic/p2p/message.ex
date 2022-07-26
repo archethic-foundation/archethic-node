@@ -83,6 +83,8 @@ defmodule Archethic.P2P.Message do
 
   require Logger
 
+  alias ArchethicWeb.TransactionSubscriber
+
   @type t :: request() | response()
 
   @type request ::
@@ -853,7 +855,7 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<238::8, reason::8, rest::bitstring>>) do
-    {%Error{reason: Error.deserialize_reason(reason)}, rest}
+    {%Error{reason: Error.deserialize_reason(reason), address: nil}, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -1083,14 +1085,14 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%Error{reason: reason}) do
+  def process(%Error{reason: reason, address: nil}) do
     Logger.error(reason)
     %Ok{}
   end
 
-  # def process(%Error{reason: reason, address: address}) do
-  #   TransactionSubscriber.report_error(reason, address)
-  # end
+  def process(%Error{reason: reason, address: address}) do
+    TransactionSubscriber.report_error(reason, address)
+  end
 
   def process(%GetTransaction{address: tx_address}) do
     case TransactionChain.get_transaction(tx_address) do
