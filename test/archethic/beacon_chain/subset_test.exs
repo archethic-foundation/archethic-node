@@ -278,13 +278,6 @@ defmodule Archethic.BeaconChain.SubsetTest do
         fee: 0
       }
 
-      send(
-        pid,
-        {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}}
-      )
-
-      me = self()
-
       MockClient
       |> stub(:send_message, fn
         _, %Ping{}, _ ->
@@ -294,6 +287,13 @@ defmodule Archethic.BeaconChain.SubsetTest do
         _, %NewBeaconTransaction{}, _ ->
           {:ok, %Ok{}}
       end)
+
+      send(
+        pid,
+        {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}}
+      )
+
+      me = self()
 
       MockDB
       |> stub(:write_transaction_at, fn
