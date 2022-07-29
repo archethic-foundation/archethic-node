@@ -14,6 +14,8 @@ defmodule Archethic.Reward.Scheduler do
 
   alias Archethic.P2P.Node
 
+  alias Archethic.P2P
+
   alias Archethic.Reward
 
   alias Archethic.Utils
@@ -36,6 +38,20 @@ defmodule Archethic.Reward.Scheduler do
   def init(args) do
     interval = Keyword.fetch!(args, :interval)
     PubSub.register_to_node_update()
+    Logger.info("Starting Reward Scheduler")
+
+    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
+      %Node{authorized?: true, available?: true} ->
+        Logger.info("Reward Scheduler scheduled during init")
+
+        {:ok, %{interval: interval, timer: schedule(interval)}, :hibernate}
+
+      _ ->
+        Logger.info("Reward Scheduler waitng for Node Update Message")
+
+        {:ok, %{interval: interval}, :hibernate}
+    end
+
     {:ok, %{interval: interval}, :hibernate}
   end
 

@@ -22,7 +22,9 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
 
   alias Archethic.Crypto
 
+  alias Archethic.P2P
   alias Archethic.P2P.Node
+
   alias Archethic.PubSub
 
   alias Archethic.SharedSecrets.NodeRenewal
@@ -53,7 +55,20 @@ defmodule Archethic.SharedSecrets.NodeRenewalScheduler do
   def init(opts) do
     interval = Keyword.get(opts, :interval)
     PubSub.register_to_node_update()
-    {:ok, %{interval: interval}, :hibernate}
+
+    Logger.info("Starting Node Renewal Scheduler")
+
+    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
+      %Node{authorized?: true, available?: true} ->
+        Logger.info("Node Renewal Scheduler: Scheduled during init")
+
+        {:ok, %{interval: interval, timer: schedule_renewal_message(interval)}}
+
+      _ ->
+        Logger.info("Node Renewal Scheduler: Scheduler waiting for Node Update Message")
+
+        {:ok, %{interval: interval}, :hibernate}
+    end
   end
 
   def handle_info(
