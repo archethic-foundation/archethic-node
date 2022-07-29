@@ -46,18 +46,23 @@ defmodule Archethic.Reward.SchedulerTest do
     assert_receive {:trace, ^pid, :receive, :mint_rewards}, 3_000
   end
 
-  test "should send transaction when burning fees > 0" do
+  test "should send mint transaction when burning fees > 0 and node reward transaction" do
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 15_000 end)
 
     me = self()
 
-    MockClient
-    |> stub(:send_message, fn _, %StartMining{transaction: %{type: type}}, _ ->
-      send(me, type)
-    end)
-
     assert {:ok, pid} = Scheduler.start_link(interval: "*/1 * * * * *")
+
+    MockClient
+    |> stub(:send_message, fn
+      _, %StartMining{transaction: %{type: type}}, _ when type == :mint_rewards ->
+        send(pid, {:new_transaction, nil, :mint_rewards, nil})
+        send(me, type)
+
+      _, %StartMining{transaction: %{type: type}}, _ when type == :node_rewards ->
+        send(me, type)
+    end)
 
     send(
       pid,
@@ -70,9 +75,10 @@ defmodule Archethic.Reward.SchedulerTest do
     )
 
     assert_receive :mint_rewards, 1_500
+    assert_receive :node_rewards, 1_500
   end
 
-  test "should not send transaction when burning fees = 0" do
+  test "should not send transaction when burning fees = 0 and should send node rewards" do
     MockDB
     |> stub(:get_latest_burned_fees, fn -> 0 end)
 
@@ -95,6 +101,7 @@ defmodule Archethic.Reward.SchedulerTest do
        }}
     )
 
-    refute_receive :mint_rewards, 1_500
+    refute_receive :mint_rewards, 1_200
+    assert_receive :node_rewards, 1_500
   end
 end

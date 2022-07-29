@@ -497,20 +497,30 @@ defmodule Archethic.TransactionChain do
     addresses =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(& &1.to)
+      |> Enum.map(&{&1.to, &1.type})
       |> Enum.concat(recipients)
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       addresses,
-      fn to ->
-        case resolve_last_address(to, time) do
-          {:ok, resolved} ->
-            {to, resolved}
+      fn
+        {to, type} ->
+          case resolve_last_address(to, time) do
+            {:ok, resolved} ->
+              {{to, type}, resolved}
 
-          _ ->
-            {to, to}
-        end
+            _ ->
+              {{to, type}, to}
+          end
+
+        to ->
+          case resolve_last_address(to, time) do
+            {:ok, resolved} ->
+              {to, resolved}
+
+            _ ->
+              {to, to}
+          end
       end,
       on_timeout: :kill_task
     )
