@@ -48,12 +48,18 @@ defmodule Archethic.BootstrapTest do
 
   import Mox
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
+
+    start_supervised!(RewardTokens)
+    start_supervised!(MemTablesLoader)
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)

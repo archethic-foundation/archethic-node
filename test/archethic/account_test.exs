@@ -8,8 +8,29 @@ defmodule Archethic.AccountTest do
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
+  alias Archethic.TransactionChain.Transaction
+
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
+  import Mox
+
   describe "get_balance/1" do
     setup do
+      expect(MockDB, :list_transactions_by_type, fn _, _ ->
+        [
+          %Transaction{address: "@RewardToken0", type: :mint_rewards},
+          %Transaction{address: "@RewardToken1", type: :mint_rewards},
+          %Transaction{address: "@RewardToken2", type: :mint_rewards},
+          %Transaction{address: "@RewardToken3", type: :mint_rewards},
+          %Transaction{address: "@RewardToken4", type: :mint_rewards}
+        ]
+      end)
+
+      #  start supervised  ...
+      RewardTokens.start_link()
+      MemTablesLoader.start_link()
+
       start_supervised!(UCOLedger)
       start_supervised!(TokenLedger)
       :ok
