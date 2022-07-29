@@ -1170,16 +1170,26 @@ defmodule Archethic.P2P.Message do
         validation_node_public_keys: validation_nodes
       })
       when length(validation_nodes) > 0 do
-    if Mining.valid_election?(tx, validation_nodes) do
+    with {:election, true} <- {:election, Mining.valid_election?(tx, validation_nodes)},
+         {:mining, false} <- {:mining, Mining.processing?(tx.address)} do
       {:ok, _} = Mining.start(tx, welcome_node_public_key, validation_nodes)
       %Ok{}
     else
-      Logger.error("Invalid validation node election",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
-      )
+      {:election, _} ->
+        Logger.error("Invalid validation node election",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
-      raise "Invalid validate node election"
+        raise "Invalid validate node election"
+
+      {:mining, _} ->
+        Logger.warning("Transaction already in mining process",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
+
+        %Ok{}
     end
   end
 
