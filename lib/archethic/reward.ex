@@ -24,6 +24,8 @@ defmodule Archethic.Reward do
   alias Archethic.TransactionChain.TransactionData.TokenLedger
   alias Archethic.TransactionChain.TransactionData.TokenLedger.Transfer
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
   @unit_uco 100_000_000
 
   @doc """
@@ -178,5 +180,23 @@ defmodule Archethic.Reward do
     changed_conf
     |> Keyword.get(Scheduler)
     |> Scheduler.config_change()
+  end
+
+  def reload_transactions() do
+    MemTablesLoader.reload_memtables()
+    :ok
+  end
+
+  @spec load_transaction(Transaction.t()) :: :ok
+  def load_transaction(tx = %Transaction{type: :mint_rewards}) do
+    MemTablesLoader.load_transaction(tx)
+  end
+
+  def load_transaction(_tx = %Transaction{type: _}) do
+    :ok
+  end
+
+  def is_reward_token?(token_address) when is_binary(token_address) do
+    RewardTokens.exists?(token_address)
   end
 end

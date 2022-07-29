@@ -47,17 +47,23 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
+  import Mox
+
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
                                 [NetworkInit, :genesis_origin_public_keys]
                               )
 
-  import Mox
-
   setup do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
+
+    start_supervised!(RewardTokens)
+    start_supervised!(MemTablesLoader)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},

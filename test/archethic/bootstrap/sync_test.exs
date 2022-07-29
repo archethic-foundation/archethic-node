@@ -44,7 +44,13 @@ defmodule Archethic.Bootstrap.SyncTest do
 
   import Mox
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
   setup do
+    start_supervised!(RewardTokens)
+    start_supervised!(MemTablesLoader)
+
     MockClient
     |> stub(:send_message, fn
       _, %GetLastTransactionAddress{address: address}, _ ->
