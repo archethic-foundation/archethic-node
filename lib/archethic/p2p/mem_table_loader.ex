@@ -43,25 +43,16 @@ defmodule Archethic.P2P.MemTableLoader do
         validation_stamp: [:timestamp]
       ])
 
-    last_node_shared_secret_tx =
-      case DB.list_addresses_by_type(:node_shared_secrets) |> Enum.reverse() do
-        [] ->
-          nil
-
-        [address | _] ->
-          {:ok, tx} =
-            DB.get_transaction(address, [
-              :address,
-              :type,
-              data: [:ownerships],
-              validation_stamp: [:timestamp]
-            ])
-
-          tx
-      end
+    node_shared_secret_txs =
+      DB.list_transactions_by_type(:node_shared_secrets, [
+        :address,
+        :type,
+        data: [:ownerships],
+        validation_stamp: [:timestamp]
+      ])
 
     nodes_transactions
-    |> Stream.concat([last_node_shared_secret_tx])
+    |> Stream.concat(node_shared_secret_txs)
     |> Stream.filter(& &1)
     |> Enum.sort_by(& &1.validation_stamp.timestamp, {:asc, DateTime})
     |> Enum.each(&load_transaction/1)
