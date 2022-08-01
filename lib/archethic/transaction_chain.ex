@@ -836,7 +836,7 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  defp fetch_genesis_address_remotely(address) when is_binary(address) do
+  def fetch_genesis_address_remotely(address) when is_binary(address) do
     nodes =
       address
       |> Election.chain_storage_nodes(P2P.available_nodes())
