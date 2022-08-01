@@ -48,6 +48,7 @@ defmodule ArchethicWeb.FaucetController do
          true <- Crypto.valid_address?(recipient_address),
          %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(address),
          {:ok, tx_address} <- transfer(recipient_address) do
+
       TransactionSubscriber.register(tx_address, System.monotonic_time())
 
       conn
