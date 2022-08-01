@@ -3,6 +3,8 @@ defmodule ArchethicWeb.FaucetRateLimiter do
 
   use GenServer
 
+  alias Archethic.TransactionChain
+
   @faucet_rate_limit Application.compile_env!(:archethic, :faucet_rate_limit)
   @faucet_rate_limit_expiry Application.compile_env!(:archethic, :faucet_rate_limit_expiry)
   @block_period_expiry @faucet_rate_limit_expiry
@@ -46,14 +48,23 @@ defmodule ArchethicWeb.FaucetRateLimiter do
   # Server Call backs
   @impl GenServer
   def init(_) do
+    # Subscribe to PubSub
     schedule_clean()
     {:ok, %{}}
   end
 
+  # Listen to event :new_transaction
+
   @impl GenServer
   def handle_call({:block_status, address}, _from, state) do
+    address =
+      case TransactionChain.fetch_genesis_address_remotely(address) do
+        {:ok, genesis_address} -> genesis_address
+        _ -> address
+      end
+
     reply =
-      if address_state = Map.get(state, address) do
+      if address_state = Map.get(state, String.upcase(address)) do
         address_state
       else
         %{blocked?: false}
@@ -77,8 +88,14 @@ defmodule ArchethicWeb.FaucetRateLimiter do
       blocked_since: nil
     }
 
+    address =
+      case TransactionChain.fetch_genesis_address_remotely(address) do
+        {:ok, genesis_address} -> Base.encode16(genesis_address)
+        _ -> address
+      end
+
     updated_state =
-      Map.update(state, address, initial_tx_setup, fn
+      Map.update(state, String.upcase(address), initial_tx_setup, fn
         %{tx_count: tx_count} = transaction when tx_count + 1 == @faucet_rate_limit ->
           tx_count = transaction.tx_count + 1
 

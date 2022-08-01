@@ -12,6 +12,8 @@ defmodule ArchethicWeb.FaucetController do
     TransactionData.UCOLedger
   }
 
+  alias Archethic.TransactionChain
+
   alias ArchethicWeb.TransactionSubscriber
   alias ArchethicWeb.FaucetRateLimiter
 
@@ -45,7 +47,6 @@ defmodule ArchethicWeb.FaucetController do
     with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
          %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(address),
-         :ok <- FaucetRateLimiter.register(address, System.monotonic_time()),
          {:ok, tx_address} <- transfer(recipient_address) do
       TransactionSubscriber.register(tx_address, System.monotonic_time())
 
@@ -78,6 +79,34 @@ defmodule ArchethicWeb.FaucetController do
         |> put_flash(:error, "Malformed address")
         |> render("index.html", address: address, link_address: "")
     end
+  end
+
+  def transaction_confirmed({_, tx_address}) do
+    address =
+      case TransactionChain.get_transaction(tx_address) do
+        {:ok,
+         %Archethic.TransactionChain.Transaction{
+           data: %Archethic.TransactionChain.TransactionData{
+             ledger: %Archethic.TransactionChain.TransactionData.Ledger{
+               uco: %Archethic.TransactionChain.TransactionData.UCOLedger{
+                 transfers: [
+                   %Archethic.TransactionChain.TransactionData.UCOLedger.Transfer{
+                     amount: 10_000_000_000,
+                     to: address
+                   }
+                 ]
+               }
+             }
+           }
+         }} ->
+          address
+
+        _ ->
+          tx_address
+      end
+
+    #  How to get user's address from tx_address
+    FaucetRateLimiter.register(address, System.monotonic_time())
   end
 
   defp transfer(
