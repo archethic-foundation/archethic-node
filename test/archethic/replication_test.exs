@@ -192,7 +192,6 @@ defmodule Archethic.ReplicationTest do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-      |> LedgerOperations.add_burning_movement()
 
     validation_stamp =
       %ValidationStamp{

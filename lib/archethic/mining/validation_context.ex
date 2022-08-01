@@ -765,9 +765,11 @@ defmodule Archethic.Mining.ValidationContext do
             fee: fee,
             transaction_movements: resolved_movements
           }
-          |> LedgerOperations.add_burning_movement()
           |> LedgerOperations.from_transaction(tx)
-          |> LedgerOperations.consume_inputs(tx.address, unspent_outputs),
+          |> LedgerOperations.consume_inputs(
+            tx.address,
+            unspent_outputs
+          ),
         recipients: resolved_recipients,
         errors: [initial_error, chain_error(prev_tx, tx)] |> Enum.filter(& &1)
       }
@@ -1068,7 +1070,7 @@ defmodule Archethic.Mining.ValidationContext do
   defp valid_stamp_transaction_movements?(
          %ValidationStamp{
            ledger_operations:
-             ops = %LedgerOperations{
+             _ops = %LedgerOperations{
                transaction_movements: transaction_movements
              }
          },
@@ -1077,13 +1079,11 @@ defmodule Archethic.Mining.ValidationContext do
     initial_movements =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(&{&1.to, &1})
+      |> Enum.map(&{{&1.to, &1.type}, &1})
       |> Enum.into(%{})
 
-    tx_burn_mvt = LedgerOperations.get_burning_movement(ops)
-
     resolved_movements =
-      Enum.reduce(resolved_addresses, [tx_burn_mvt], fn {to, resolved}, acc ->
+      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
         case Map.get(initial_movements, to) do
           nil ->
             acc
@@ -1093,7 +1093,8 @@ defmodule Archethic.Mining.ValidationContext do
         end
       end)
 
-    Enum.all?(resolved_movements, &(&1 in transaction_movements))
+    length(resolved_movements) == length(transaction_movements) and
+      Enum.all?(resolved_movements, &(&1 in transaction_movements))
   end
 
   defp valid_stamp_unspent_outputs?(
@@ -1111,7 +1112,10 @@ defmodule Archethic.Mining.ValidationContext do
         transaction_movements: Transaction.get_movements(tx)
       }
       |> LedgerOperations.from_transaction(tx)
-      |> LedgerOperations.consume_inputs(tx.address, previous_unspent_outputs)
+      |> LedgerOperations.consume_inputs(
+        tx.address,
+        previous_unspent_outputs
+      )
 
     expected_unspent_outputs == next_unspent_outputs
   end

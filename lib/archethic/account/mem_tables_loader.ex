@@ -66,6 +66,7 @@ defmodule Archethic.Account.MemTablesLoader do
         validation_stamp: %ValidationStamp{
           timestamp: timestamp,
           ledger_operations: %LedgerOperations{
+            fee: fee,
             unspent_outputs: unspent_outputs,
             transaction_movements: transaction_movements
           }
@@ -78,6 +79,14 @@ defmodule Archethic.Account.MemTablesLoader do
 
     :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
     :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
+
+    if fee > 0 do
+      UCOLedger.add_unspent_output(
+        LedgerOperations.burning_address(),
+        %UnspentOutput{from: address, amount: fee, type: :UCO},
+        timestamp
+      )
+    end
 
     Logger.info("Loaded into in memory account tables",
       transaction_address: Base.encode16(address),
@@ -98,10 +107,8 @@ defmodule Archethic.Account.MemTablesLoader do
   end
 
   defp set_transaction_movements(address, transaction_movements, timestamp, tx_type) do
-    # address is sender to is reciever
     transaction_movements
     |> Enum.filter(&(&1.amount > 0))
-    |> Enum.reject(&(&1.to == LedgerOperations.burning_address()))
     |> Enum.reduce(%{}, &aggregate_movements(&1, &2, address, tx_type))
     |> Enum.each(fn
       {{to, :uco}, utxo} ->

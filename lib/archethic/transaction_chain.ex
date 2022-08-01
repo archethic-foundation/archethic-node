@@ -39,6 +39,10 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
+
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
+    as: TransactionMovementType
+
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.TransactionInput
@@ -489,7 +493,10 @@ defmodule Archethic.TransactionChain do
   Resolve all the last addresses from the transaction data
   """
   @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
-          list({origin_address :: binary(), resolved_address :: binary()})
+          list(
+            {{origin_address :: binary(), type :: TransactionMovementType.t()},
+             resolved_address :: binary()}
+          )
   def resolve_transaction_addresses(
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
