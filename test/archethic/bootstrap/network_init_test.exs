@@ -113,17 +113,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     tx_fee = tx.validation_stamp.ledger_operations.fee
     unspent_output = 1_000_000_000_000 - (tx_fee + 500_000_000_000)
-    burning_address = LedgerOperations.burning_address()
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
+                 fee: ^tx_fee,
                  transaction_movements: [
-                   %TransactionMovement{
-                     to: ^burning_address,
-                     amount: ^tx_fee,
-                     type: :UCO
-                   },
                    %TransactionMovement{to: "@Alice2", amount: 500_000_000_000, type: :UCO}
                  ],
                  unspent_outputs: [
