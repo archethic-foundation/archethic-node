@@ -59,12 +59,21 @@ defmodule ArchethicWeb.FaucetRateLimiter do
   def handle_call({:block_status, address}, _from, state) do
     address =
       case TransactionChain.fetch_genesis_address_remotely(address) do
-        {:ok, genesis_address} -> genesis_address
+        {:ok, genesis_address} ->
+          genesis_address
+
+        _ ->
+          address
+      end
+
+    address =
+      case Base.decode16(address, case: :mixed) do
+        {:ok, address} -> address
         _ -> address
       end
 
     reply =
-      if address_state = Map.get(state, String.upcase(address)) do
+      if address_state = Map.get(state, address) do
         address_state
       else
         %{blocked?: false}
@@ -90,12 +99,16 @@ defmodule ArchethicWeb.FaucetRateLimiter do
 
     address =
       case TransactionChain.fetch_genesis_address_remotely(address) do
-        {:ok, genesis_address} -> Base.encode16(genesis_address)
-        _ -> address
+        {:ok, genesis_address} ->
+          genesis_address
+
+        _ ->
+          {:ok, address} = Base.decode16(address, case: :mixed)
+          address
       end
 
     updated_state =
-      Map.update(state, String.upcase(address), initial_tx_setup, fn
+      Map.update(state, address, initial_tx_setup, fn
         %{tx_count: tx_count} = transaction when tx_count + 1 == @faucet_rate_limit ->
           tx_count = transaction.tx_count + 1
 
