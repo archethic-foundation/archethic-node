@@ -853,7 +853,13 @@ defmodule Archethic.TransactionChain do
     end
   end
 
-  defp fetch_genesis_address_remotely(address) when is_binary(address) do
+  @doc """
+  Retrieve the genesis address for a chain from P2P Quorom
+  It queries the the network for genesis address
+  """
+  @spec fetch_genesis_address_remotely(address :: binary()) ::
+          {:ok, binary()} | {:error, :network_issue}
+  def fetch_genesis_address_remotely(address) when is_binary(address) do
     nodes =
       address
       |> Election.chain_storage_nodes(P2P.available_nodes())
