@@ -13,6 +13,7 @@ defmodule ArchethicWeb.ExplorerView do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.Utils
 
@@ -248,4 +249,6 @@ defmodule ArchethicWeb.ExplorerView do
 
     {family, key, key_certificate}
   end
+
+  def burning_address, do: LedgerOperations.burning_address()
 end

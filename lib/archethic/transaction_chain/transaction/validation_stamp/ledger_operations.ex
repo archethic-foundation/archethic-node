@@ -144,9 +144,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
           :token => %{binary() => non_neg_integer()}
         }
   def total_to_spend(%__MODULE__{transaction_movements: transaction_movements, fee: fee}) do
-    transaction_movements
-    |> Enum.reject(&(&1.to == @burning_address))
-    |> ledger_balances(%{uco: fee, token: %{}})
+    ledger_balances(transaction_movements, %{uco: fee, token: %{}})
   end
 
   defp ledger_balances(movements, acc \\ %{uco: 0, token: %{}}) do
@@ -424,9 +422,7 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
   def movement_addresses(%__MODULE__{
         transaction_movements: transaction_movements
       }) do
-    transaction_movements
-    |> Enum.reject(&(&1.to == @burning_address))
-    |> Enum.map(& &1.to)
+    Enum.map(transaction_movements, & &1.to)
   end
 
   @doc """
@@ -595,27 +591,6 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperation
       transaction_movements: Enum.map(transaction_movements, &TransactionMovement.to_map/1),
       unspent_outputs: Enum.map(unspent_outputs, &UnspentOutput.to_map/1),
       fee: fee
-    }
-  end
-
-  @doc """
-  Add the movement to burn the fee
-  """
-  @spec add_burning_movement(t()) :: t()
-  def add_burning_movement(ops = %__MODULE__{}) do
-    burn_movement = get_burning_movement(ops)
-    Map.update(ops, :transaction_movements, [burn_movement], &([burn_movement] ++ &1))
-  end
-
-  @doc """
-  Get the burning transaction movement
-  """
-  @spec get_burning_movement(t()) :: TransactionMovement.t()
-  def get_burning_movement(%__MODULE__{fee: fee}) do
-    %TransactionMovement{
-      to: @burning_address,
-      amount: fee,
-      type: :UCO
     }
   end
 end
