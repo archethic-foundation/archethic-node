@@ -66,12 +66,6 @@ defmodule ArchethicWeb.FaucetRateLimiter do
           address
       end
 
-    address =
-      case Base.decode16(address, case: :mixed) do
-        {:ok, address} -> address
-        _ -> address
-      end
-
     reply =
       if address_state = Map.get(state, address) do
         address_state
