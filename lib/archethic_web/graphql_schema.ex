@@ -47,7 +47,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     Query the network to find all the transactions locally stored
     """
     field :transactions, list_of(:transaction) do
-      arg(:page, :integer)
+      arg(:page, :page)
 
       resolve(fn args, _ ->
         page = Map.get(args, :page, 1)
