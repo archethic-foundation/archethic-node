@@ -97,7 +97,6 @@ defmodule ArchethicWeb.FaucetRateLimiter do
           genesis_address
 
         _ ->
-          {:ok, address} = Base.decode16(address, case: :mixed)
           address
       end
 
