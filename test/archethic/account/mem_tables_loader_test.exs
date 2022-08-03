@@ -6,6 +6,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTablesLoader
 
+  alias Archethic.Crypto
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
@@ -29,9 +31,21 @@ defmodule Archethic.Account.MemTablesLoaderTest do
     MockDB
     |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
       [
-        %Transaction{address: "@RewardToken0", type: :mint_rewards},
-        %Transaction{address: "@RewardToken1", type: :mint_rewards},
-        %Transaction{address: "@RewardToken2", type: :mint_rewards}
+        %Transaction{
+          address: "@RewardToken0",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken1",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken2",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        }
       ]
     end)
 
@@ -52,6 +66,17 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   describe "load_transaction/1" do
     test "should distribute unspent outputs" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1000),
+        available?: true,
+        geo_patch: "AAA"
+      })
+
       assert :ok = MemTablesLoader.load_transaction(create_transaction())
 
       [
@@ -61,6 +86,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000}] =
         UCOLedger.get_unspent_outputs("@Tom4")
+
+      [%UnspentOutput{from: "@Charlie3", amount: 100_000_000}] =
+        UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
 
       assert [
                %UnspentOutput{
@@ -108,6 +136,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       validation_stamp: %ValidationStamp{
         timestamp: DateTime.utc_now(),
         ledger_operations: %LedgerOperations{
+          fee: 100_000_000,
           transaction_movements: [
             %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
             %TransactionMovement{
@@ -180,6 +209,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       validation_stamp: %ValidationStamp{
         timestamp: DateTime.utc_now(),
         ledger_operations: %LedgerOperations{
+          fee: 0,
           transaction_movements: [
             %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
             %TransactionMovement{
