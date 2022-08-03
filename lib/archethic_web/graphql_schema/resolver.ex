@@ -9,6 +9,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
   @limit_page 10
@@ -30,6 +31,52 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
       {:error, :network_issue} = e ->
         e
+    end
+  end
+
+  def get_token(address) do
+    genesis_address =
+      case TransactionChain.fetch_genesis_address_remotely(address) do
+        {:ok, genesis_address} -> genesis_address
+        _ -> nil
+      end
+
+    transaction_content =
+      case Archethic.search_transaction(address) do
+        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}} ->
+          if type == :token do
+            case Jason.decode(content) do
+              {:ok, map} -> map
+              _ -> nil
+            end
+          else
+            nil
+          end
+
+        _ ->
+          nil
+      end
+
+    if transaction_content != nil and genesis_address != nil do
+      {:ok,
+       %{
+         genesis: genesis_address,
+         name: Map.get(transaction_content, "name"),
+         supply: Map.get(transaction_content, "supply"),
+         symbol: Map.get(transaction_content, "symbol"),
+         type: Map.get(transaction_content, "type"),
+         properties: do_reduce_properties(Map.get(transaction_content, "properties"))
+       }}
+    else
+      {:error, "Transaction does't exist or not a token transaction"}
+    end
+  end
+
+  defp do_reduce_properties(properties) do
+    if properties do
+      Enum.map(List.flatten(properties), fn %{"name" => n, "value" => v}-> %{name: n, value: v} end)
+    else
+      []
     end
   end
 

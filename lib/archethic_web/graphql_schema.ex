@@ -80,6 +80,17 @@ defmodule ArchethicWeb.GraphQLSchema do
     end
 
     @desc """
+    Query the network to find a token's data
+    """
+    field :token, :token do
+      arg(:address, non_null(:address))
+
+      resolve(fn %{address: address}, _ ->
+        Resolver.get_token(address)
+      end)
+    end
+
+    @desc """
     Query the network to list the transaction inputs from an address
     """
     field :transaction_inputs, list_of(:transaction_input) do

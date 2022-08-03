@@ -221,6 +221,36 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   end
 
   @desc """
+  [token] represents a token metadata.
+  It includes:
+  - genesis: genesis address to the token
+  - name: Name of the token
+  - symbol: Symbol for the token
+  - supply: Supply of the token
+  - type: Type of the token
+  - properties: Properties of the token (if any)
+  """
+  object :token do
+    field(:genesis, :address)
+    field(:name, :string)
+    field(:symbol, :string)
+    field(:supply, :integer)
+    field(:type, :string)
+    field(:properties, list_of(:tokenProperty))
+  end
+
+  @desc """
+    [tokenProperty] represents a token's properties
+    It includes:
+      - name: Name of the Property
+      - value: Value of the Property
+  """
+  object :tokenProperty do
+    field(:name, :string)
+    field(:value, :string)
+  end
+
+  @desc """
   [tokenBalance] represents a token ledger balance.
   It includes:
   - Token: address of the token
