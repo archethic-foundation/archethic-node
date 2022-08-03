@@ -58,27 +58,31 @@ defmodule Archethic.Networking.Scheduler do
     {p2p_port, web_port} = open_ports()
     ip = IPLookup.get_node_ip()
 
-    %Node{ip: prev_ip, reward_address: reward_address, transport: transport} = P2P.get_node_info()
+    case P2P.get_node_info(Crypto.first_node_public_key()) do
+      {:ok, %Node{ip: prev_ip, reward_address: reward_address, transport: transport}}
+      when ip != prev_ip ->
+        origin_public_key = Crypto.origin_node_public_key()
+        key_certificate = Crypto.get_key_certificate(origin_public_key)
 
-    if ip != prev_ip do
-      origin_public_key = Crypto.origin_node_public_key()
-      key_certificate = Crypto.get_key_certificate(origin_public_key)
+        Transaction.new(:node, %TransactionData{
+          content:
+            Node.encode_transaction_content(
+              ip,
+              p2p_port,
+              web_port,
+              transport,
+              reward_address,
+              origin_public_key,
+              key_certificate
+            )
+        })
+        |> Archethic.send_new_transaction()
 
-      Transaction.new(:node, %TransactionData{
-        content:
-          Node.encode_transaction_content(
-            ip,
-            p2p_port,
-            web_port,
-            transport,
-            reward_address,
-            origin_public_key,
-            key_certificate
-          )
-      })
-      |> Archethic.send_new_transaction()
-    else
-      Logger.debug("Same IP - no need to send a new node transaction")
+      {:ok, %Node{}} ->
+        Logger.debug("Skip node update: Same IP - no need to send a new node transaction")
+
+      {:error, :not_found} ->
+        Logger.debug("Skip node update: Not yet bootstrapped")
     end
   end
 
