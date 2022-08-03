@@ -6,6 +6,8 @@ defmodule Archethic.AccountTest do
   alias Archethic.Account.MemTables.TokenLedger
   alias Archethic.Account.MemTables.UCOLedger
 
+  alias Archethic.TransactionChain.Transaction.ValidationStamp
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
 
   alias Archethic.TransactionChain.Transaction
@@ -19,11 +21,31 @@ defmodule Archethic.AccountTest do
     setup do
       expect(MockDB, :list_transactions_by_type, fn _, _ ->
         [
-          %Transaction{address: "@RewardToken0", type: :mint_rewards},
-          %Transaction{address: "@RewardToken1", type: :mint_rewards},
-          %Transaction{address: "@RewardToken2", type: :mint_rewards},
-          %Transaction{address: "@RewardToken3", type: :mint_rewards},
-          %Transaction{address: "@RewardToken4", type: :mint_rewards}
+          %Transaction{
+            address: "@RewardToken0",
+            type: :mint_rewards,
+            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          },
+          %Transaction{
+            address: "@RewardToken1",
+            type: :mint_rewards,
+            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          },
+          %Transaction{
+            address: "@RewardToken2",
+            type: :mint_rewards,
+            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          },
+          %Transaction{
+            address: "@RewardToken3",
+            type: :mint_rewards,
+            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          },
+          %Transaction{
+            address: "@RewardToken4",
+            type: :mint_rewards,
+            validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+          }
         ]
       end)
 

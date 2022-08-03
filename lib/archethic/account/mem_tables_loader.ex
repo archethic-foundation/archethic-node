@@ -8,6 +8,10 @@ defmodule Archethic.Account.MemTablesLoader do
 
   alias Archethic.Crypto
 
+  alias Archethic.Election
+
+  alias Archethic.P2P
+
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
@@ -16,6 +20,8 @@ defmodule Archethic.Account.MemTablesLoader do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.TransactionMovement
 
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
+
+  alias Archethic.Utils
 
   require Logger
 
@@ -27,14 +33,12 @@ defmodule Archethic.Account.MemTablesLoader do
     :previous_public_key,
     validation_stamp: [
       :timestamp,
-      ledger_operations: [:unspent_outputs, :transaction_movements]
+      ledger_operations: [:fee, :unspent_outputs, :transaction_movements]
     ]
   ]
 
   @excluded_types [
     :node,
-    :beacon,
-    :beacon_summary,
     :oracle,
     :oracle_summary,
     :node_shared_secrets,
@@ -80,7 +84,11 @@ defmodule Archethic.Account.MemTablesLoader do
     :ok = set_transaction_movements(address, transaction_movements, timestamp, tx_type)
     :ok = set_unspent_outputs(address, unspent_outputs, timestamp)
 
-    if fee > 0 do
+    burn_storage_nodes =
+      Election.storage_nodes(LedgerOperations.burning_address(), P2P.authorized_nodes(timestamp))
+
+    if Utils.key_in_node_list?(burn_storage_nodes, Crypto.first_node_public_key()) and
+         fee > 0 do
       UCOLedger.add_unspent_output(
         LedgerOperations.burning_address(),
         %UnspentOutput{from: address, amount: fee, type: :UCO},
