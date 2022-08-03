@@ -74,7 +74,9 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   defp do_reduce_properties(properties) do
     if properties do
-      Enum.map(List.flatten(properties), fn %{"name" => n, "value" => v}-> %{name: n, value: v} end)
+      Enum.map(List.flatten(properties), fn %{"name" => n, "value" => v} ->
+        %{name: n, value: v}
+      end)
     else
       []
     end
