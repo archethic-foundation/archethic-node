@@ -35,27 +35,22 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   end
 
   def get_token(address) do
-    genesis_address =
-      case TransactionChain.fetch_genesis_address_remotely(address) do
-        {:ok, genesis_address} -> genesis_address
-        _ -> nil
-      end
+    tasks = [
+      Task.async(fn -> TransactionChain.fetch_genesis_address_remotely(address) end),
+      Task.async(fn -> get_transaction_content(address) end)
+    ]
 
-    transaction_content =
-      case Archethic.search_transaction(address) do
-        {:ok, %Transaction{data: %TransactionData{content: content}, type: type}} ->
-          if type == :token do
-            case Jason.decode(content) do
-              {:ok, map} -> map
-              _ -> nil
-            end
-          else
-            nil
-          end
+    # Using 5000 ms default timeout on tasks
+    genesis_address = case Task.yield(List.first(tasks)) do
+      {:ok, {:ok, genesis_address}} -> genesis_address
+      {:ok, {:error, :network_issue}} -> :network_issue
+      _ -> nil
+    end
 
-        _ ->
-          nil
-      end
+    transaction_content = case Task.yield(List.last(tasks)) do
+      {:ok, {:ok, content}} -> content
+      _ -> nil
+    end
 
     if transaction_content != nil and genesis_address != nil do
       {:ok,
@@ -69,6 +64,19 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
        }}
     else
       {:error, "Transaction does't exist or not a token transaction"}
+    end
+  end
+
+  defp get_transaction_content(address) do
+    case Archethic.search_transaction(address) do
+      {:ok, %Transaction{data: %TransactionData{content: content}, type: :token}} ->
+        case Jason.decode(content) do
+          {:ok, map} -> {:ok, map}
+          _ -> {:error, :decode_error}
+        end
+
+      _ ->
+        {:error, :transaction_not_found}
     end
   end
 
