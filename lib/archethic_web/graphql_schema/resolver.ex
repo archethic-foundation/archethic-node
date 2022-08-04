@@ -41,16 +41,18 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
     ]
 
     # Using 5000 ms default timeout on tasks
-    genesis_address = case Task.yield(List.first(tasks)) do
-      {:ok, {:ok, genesis_address}} -> genesis_address
-      {:ok, {:error, :network_issue}} -> :network_issue
-      _ -> nil
-    end
+    genesis_address =
+      case Task.yield(List.first(tasks)) do
+        {:ok, {:ok, genesis_address}} -> genesis_address
+        {:ok, {:error, :network_issue}} -> :network_issue
+        _ -> nil
+      end
 
-    transaction_content = case Task.yield(List.last(tasks)) do
-      {:ok, {:ok, content}} -> content
-      _ -> nil
-    end
+    transaction_content =
+      case Task.yield(List.last(tasks)) do
+        {:ok, {:ok, content}} -> content
+        _ -> nil
+      end
 
     if transaction_content != nil and genesis_address != nil do
       {:ok,
