@@ -66,7 +66,7 @@ defmodule Archethic.MixProject do
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:elixir_make, "~> 0.6.0", runtime: false},
       {:dialyxir, "~> 1.0", runtime: false},
-      # {:broadway_dashboard, "~> 0.2.0", only: :dev},
+      {:logger_file_backend, "~> 0.0.13", only: :dev},
 
       # Test
       {:mox, "~> 0.5.2", only: [:test]},
@@ -99,11 +99,9 @@ defmodule Archethic.MixProject do
       {:retry, "~> 0.14.1"},
       {:gen_stage, "~> 1.1"},
       {:flow, "~> 1.0"},
-      {:broadway, "~> 1.0"},
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9.1", override: true},
-      {:pathex, "~> 2.0"},
-      {:logger_file_backend, "~> 0.0.13"}
+      {:pathex, "~> 2.0"}
     ]
   end
 
