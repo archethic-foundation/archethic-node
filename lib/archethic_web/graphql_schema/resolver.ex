@@ -58,9 +58,6 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       {:ok, {:error, :decode_error}} ->
         {:error, "Error in decoding transaction"}
 
-      {:ok, {:error, :invalid_transaction}} ->
-        {:error, "Transaction is not a token"}
-
       {:ok, {:error, :transaction_not_found}} ->
         {:error, "Transaction does not exist!"}
 
