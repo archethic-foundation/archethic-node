@@ -3,7 +3,6 @@ defmodule Archethic.P2P.ListenerSupervisor do
 
   alias Archethic.P2P.BootstrappingSeeds
   alias Archethic.P2P.Listener
-  alias Archethic.P2P.ListenerProtocol.BroadwayPipeline
 
   alias Archethic.Utils
 
@@ -21,7 +20,6 @@ defmodule Archethic.P2P.ListenerSupervisor do
     bootstraping_seeds_conf = Application.get_env(:archethic, BootstrappingSeeds)
 
     optional_children = [
-      BroadwayPipeline,
       {Listener, Keyword.put(listener_conf, :port, port)},
       {BootstrappingSeeds, bootstraping_seeds_conf}
     ]

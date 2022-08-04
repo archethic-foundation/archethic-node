@@ -1,9 +1,9 @@
 defmodule Archethic.P2P.ListenerProtocol do
   @moduledoc false
 
-  alias __MODULE__.MessageProducer
-
   require Logger
+
+  alias Archethic.TaskSupervisor
 
   @behaviour :ranch_protocol
 
@@ -31,7 +31,30 @@ defmodule Archethic.P2P.ListenerProtocol do
         state = %{transport: transport}
       ) do
     :inet.setopts(socket, active: :once)
-    MessageProducer.new_message({socket, transport, msg})
+
+    %Archethic.P2P.MessageEnvelop{
+      message_id: message_id,
+      message: message,
+      sender_public_key: sender_public_key
+    } = Archethic.P2P.MessageEnvelop.decode(msg)
+
+    Archethic.P2P.MemTable.increase_node_availability(sender_public_key)
+    Archethic.P2P.Client.set_connected(sender_public_key)
+
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      response = Archethic.P2P.Message.process(message)
+
+      encoded_response =
+        %Archethic.P2P.MessageEnvelop{
+          message: response,
+          message_id: message_id,
+          sender_public_key: Archethic.Crypto.first_node_public_key()
+        }
+        |> Archethic.P2P.MessageEnvelop.encode(sender_public_key)
+
+      transport.send(socket, encoded_response)
+    end)
+
     {:noreply, state}
   end
 
