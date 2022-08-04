@@ -68,6 +68,7 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
           {:ok, map} -> {:ok, map}
           _ -> {:error, :decode_error}
         end
+
       _ ->
         {:error, :transaction_not_found}
     end
