@@ -150,7 +150,8 @@ defmodule ArchethicWeb.FaucetControllerTest do
           post(conn, Routes.faucet_path(conn, :create_transfer), address: recipient_address)
         end
 
-      conn = List.last(faucet_requests)
+      # conn
+      List.last(faucet_requests)
 
       # Cannot determine response like this, as Faucet Register is triggered after transaction is replicated.
       # assert html_response(conn, 200) =~ "Blocked address"
