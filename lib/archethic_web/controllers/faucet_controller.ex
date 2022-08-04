@@ -44,7 +44,8 @@ defmodule ArchethicWeb.FaucetController do
   end
 
   def create_transfer(conn, %{"address" => address}) do
-    with {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
+    with address <- String.trim(address),
+         {:ok, recipient_address} <- Base.decode16(address, case: :mixed),
          true <- Crypto.valid_address?(recipient_address),
          %{blocked?: false} <- FaucetRateLimiter.get_address_block_status(recipient_address),
          {:ok, tx_address} <- transfer(recipient_address) do
