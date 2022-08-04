@@ -9,7 +9,10 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
+
+  require Logger
 
   @limit_page 10
 
@@ -30,6 +33,64 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
 
       {:error, :network_issue} = e ->
         e
+    end
+  end
+
+  def get_token(address) do
+    t1 = Task.async(fn -> TransactionChain.fetch_genesis_address_remotely(address) end)
+    t2 = Task.async(fn -> get_transaction_content(address) end)
+
+    with {:ok, {:ok, genesis_address}} <- Task.yield(t1),
+         {:ok, {:ok, transaction_content}} <- Task.yield(t2) do
+      {:ok,
+       %{
+         genesis: genesis_address,
+         name: Map.get(transaction_content, "name"),
+         supply: Map.get(transaction_content, "supply"),
+         symbol: Map.get(transaction_content, "symbol"),
+         type: Map.get(transaction_content, "type"),
+         properties: do_reduce_properties(Map.get(transaction_content, "properties"))
+       }}
+    else
+      {:ok, {:error, :network_issue}} ->
+        {:error, "Network issue"}
+
+      {:ok, {:error, :decode_error}} ->
+        {:error, "Error in decoding transaction"}
+
+      {:ok, {:error, :transaction_not_found}} ->
+        {:error, "Transaction does not exist!"}
+
+      {:exit, reason} ->
+        Logger.debug("Task exited with reason")
+        Logger.debug(reason)
+        {:error, "Task Exited!"}
+
+      nil ->
+        {:error, "Task didn't responded within timeout!"}
+    end
+  end
+
+  defp get_transaction_content(address) do
+    case Archethic.search_transaction(address) do
+      {:ok, %Transaction{data: %TransactionData{content: content}, type: :token}} ->
+        case Jason.decode(content) do
+          {:ok, map} -> {:ok, map}
+          _ -> {:error, :decode_error}
+        end
+
+      _ ->
+        {:error, :transaction_not_found}
+    end
+  end
+
+  defp do_reduce_properties(properties) do
+    if properties do
+      Enum.map(List.flatten(properties), fn %{"name" => n, "value" => v} ->
+        %{name: n, value: v}
+      end)
+    else
+      []
     end
   end
 
