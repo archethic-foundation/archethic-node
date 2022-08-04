@@ -12,6 +12,8 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
   alias Archethic.TransactionChain.TransactionData
   alias Archethic.TransactionChain.TransactionInput
 
+  require Logger
+
   @limit_page 10
 
   def get_balance(address) do
@@ -53,11 +55,22 @@ defmodule ArchethicWeb.GraphQLSchema.Resolver do
       {:ok, {:error, :network_issue}} ->
         {:error, "Network issue"}
 
+      {:ok, {:error, :decode_error}} ->
+        {:error, "Error in decoding transaction"}
+
       {:ok, {:error, :invalid_transaction}} ->
         {:error, "Transaction is not a token"}
 
       {:ok, {:error, :transaction_not_found}} ->
         {:error, "Transaction does not exist!"}
+
+      {:exit, reason} ->
+        Logger.debug("Task exited with reason")
+        Logger.debug(reason)
+        {:error, "Task Exited!"}
+
+      nil ->
+        {:error, "Task didn't responded within timeout!"}
     end
   end
 
