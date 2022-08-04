@@ -169,7 +169,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       me = self()
 
       MockDB
-      |> stub(:write_transaction, fn ^tx ->
+      |> stub(:write_transaction_chain, fn [^tx] ->
         send(me, :storage)
         :ok
       end)
@@ -309,7 +309,7 @@ defmodule Archethic.SelfRepair.SyncTest do
       me = self()
 
       MockDB
-      |> stub(:write_transaction, fn ^transfer_tx ->
+      |> stub(:write_transaction_chain, fn [^transfer_tx] ->
         send(me, :transaction_stored)
         :ok
       end)

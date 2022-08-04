@@ -59,6 +59,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.RegisterBeaconUpdates
   alias __MODULE__.ReplicateTransaction
   alias __MODULE__.ReplicateTransactionChain
+  alias __MODULE__.ReplicationError
   alias __MODULE__.StartMining
   alias __MODULE__.TransactionChainLength
   alias __MODULE__.TransactionInputList
@@ -79,6 +80,8 @@ defmodule Archethic.P2P.Message do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias Archethic.TransactionChain.TransactionInput
   alias Archethic.TransactionChain.TransactionSummary
+
+  alias Archethic.TaskSupervisor
 
   alias Archethic.Utils
   alias Archethic.Utils.VarInt
@@ -143,6 +146,7 @@ defmodule Archethic.P2P.Message do
           | Summary.t()
           | BeaconSummaryList.t()
           | FirstAddress.t()
+          | ReplicationError.t()
 
   @floor_upload_speed Application.compile_env!(:archethic, [__MODULE__, :floor_upload_speed])
   @content_max_size Application.compile_env!(:archethic, :transaction_data_content_max_size)
@@ -161,21 +165,29 @@ defmodule Archethic.P2P.Message do
   Return timeout depending of message type
   """
   @spec get_timeout(__MODULE__.t()) :: non_neg_integer()
-  def get_timeout(message) do
-    full_size_message = [
-      GetTransaction,
-      GetLastTransaction,
-      NewTransaction,
-      StartMining,
-      ReplicateTransaction
-    ]
+  def get_timeout(%GetTransaction{}), do: get_max_timeout()
+  def get_timeout(%GetLastTransaction{}), do: get_max_timeout()
+  def get_timeout(%NewTransaction{}), do: get_max_timeout()
+  def get_timeout(%StartMining{}), do: get_max_timeout()
+  def get_timeout(%ReplicateTransaction{}), do: get_max_timeout()
+  def get_timeout(%ReplicateTransactionChain{}), do: get_max_timeout()
 
-    if message.__struct__ in full_size_message do
-      get_max_timeout()
-    else
-      3_000
-    end
+  def get_timeout(%GetTransactionChain{}) do
+    # As we use 10 transaction in the pagination we can estimate the max time
+    get_max_timeout() * 10
   end
+
+  def get_timeout(%GetBeaconSummaries{addresses: addresses}) do
+    # We can expect high beacon summary where a transaction replication will contains a single UCO transfer
+    # CALC: Tx address +  recipient address + tx type + tx timestamp + storage node public key + signature * 200 (max storage nodes)
+    beacon_summary_high_estimation_bytes = 34 + 34 + 1 + 8 + (8 + 34 + 34 * 200)
+    length(addresses) * trunc(beacon_summary_high_estimation_bytes / @floor_upload_speed * 1000)
+  end
+
+  def get_timeout(%GetUnspentOutputs{}), do: get_max_timeout()
+  def get_timeout(%GetTransactionInputs{}), do: get_max_timeout()
+
+  def get_timeout(_), do: 3_000
 
   @doc """
   Return the maximum timeout for a full sized transaction
@@ -299,8 +311,12 @@ defmodule Archethic.P2P.Message do
     <<10::8, address::binary, CrossValidationStamp.serialize(stamp)::bitstring>>
   end
 
-  def encode(%ReplicateTransactionChain{transaction: tx}) do
-    <<11::8, Transaction.serialize(tx)::bitstring>>
+  def encode(%ReplicateTransactionChain{transaction: tx, replying_node: nil}) do
+    <<11::8, Transaction.serialize(tx)::bitstring, 0::1>>
+  end
+
+  def encode(%ReplicateTransactionChain{transaction: tx, replying_node: replying_node_public_key}) do
+    <<11::8, Transaction.serialize(tx)::bitstring, 1::1, replying_node_public_key::binary>>
   end
 
   def encode(%ReplicateTransaction{transaction: tx}) do
@@ -308,9 +324,12 @@ defmodule Archethic.P2P.Message do
   end
 
   def encode(%AcknowledgeStorage{
-        signature: signature
+        address: address,
+        signature: signature,
+        node_public_key: node_public_key
       }) do
-    <<13::8, byte_size(signature)::8, signature::binary>>
+    <<13::8, address::binary, node_public_key::binary, byte_size(signature)::8,
+      signature::binary>>
   end
 
   def encode(%NotifyEndOfNodeSync{node_public_key: public_key, timestamp: timestamp}) do
@@ -389,11 +408,13 @@ defmodule Archethic.P2P.Message do
     <<31::8, address::binary>>
   end
 
-  def encode(%ValidationError{reason: reason, address: nil}),
-    do: <<234::8, Error.serialize_reason(reason)::8>>
+  def encode(%ReplicationError{address: address, reason: reason}) do
+    <<233::8, address::binary, ReplicationError.serialize_reason(reason)::8>>
+  end
 
-  def encode(%ValidationError{reason: reason, address: address}),
-    do: <<234::8, 1::8, Error.serialize_reason(reason)::8, address::binary>>
+  def encode(%ValidationError{reason: reason, address: address}) do
+    <<234::8, Error.serialize_reason(reason)::8, address::binary>>
+  end
 
   def encode(%FirstAddress{address: address}) do
     <<235::8, address::binary>>
@@ -715,11 +736,20 @@ defmodule Archethic.P2P.Message do
   end
 
   def decode(<<11::8, rest::bitstring>>) do
-    {tx, <<rest::bitstring>>} = Transaction.deserialize(rest)
+    {tx, <<replying_node::1, rest::bitstring>>} = Transaction.deserialize(rest)
 
-    {%ReplicateTransactionChain{
-       transaction: tx
-     }, rest}
+    if replying_node == 1 do
+      {node_public_key, rest} = Utils.deserialize_public_key(rest)
+
+      {%ReplicateTransactionChain{
+         transaction: tx,
+         replying_node: node_public_key
+       }, rest}
+    else
+      {%ReplicateTransactionChain{
+         transaction: tx
+       }, rest}
+    end
   end
 
   def decode(<<12::8, rest::bitstring>>) do
@@ -730,11 +760,16 @@ defmodule Archethic.P2P.Message do
      }, rest}
   end
 
-  def decode(
-        <<13::8, signature_size::8, signature::binary-size(signature_size), rest::bitstring>>
-      ) do
+  def decode(<<13::8, rest::bitstring>>) do
+    {address, rest} = Utils.deserialize_address(rest)
+
+    {public_key, <<signature_size::8, signature::binary-size(signature_size), rest::bitstring>>} =
+      Utils.deserialize_public_key(rest)
+
     {%AcknowledgeStorage{
-       signature: signature
+       address: address,
+       signature: signature,
+       node_public_key: public_key
      }, rest}
   end
 
@@ -862,14 +897,22 @@ defmodule Archethic.P2P.Message do
     {%GetFirstAddress{address: address}, rest}
   end
 
-  def decode(<<234::8, 1::8, reason::8, rest::bitstring>>) do
-    reason = ValidationError.deserialize_reason(reason)
-    {address, rest} = Utils.deserialize_address(rest)
-    {%ValidationError{reason: reason, address: address}, rest}
+  def decode(<<233::8, rest::bitstring>>) do
+    {address, <<reason::8, rest::bitstring>>} = Utils.deserialize_address(rest)
+
+    {
+      %ReplicationError{
+        address: address,
+        reason: ReplicationError.deserialize_reason(reason)
+      },
+      rest
+    }
   end
 
   def decode(<<234::8, reason::8, rest::bitstring>>) do
-    {%ValidationError{reason: ValidationError.deserialize_reason(reason), address: nil}, rest}
+    reason = ValidationError.deserialize_reason(reason)
+    {address, rest} = Utils.deserialize_address(rest)
+    {%ValidationError{reason: reason, address: address}, rest}
   end
 
   def decode(<<235::8, rest::bitstring>>) do
@@ -1238,21 +1281,36 @@ defmodule Archethic.P2P.Message do
     %Ok{}
   end
 
-  def process(%ReplicateTransactionChain{transaction: tx}) do
-    case Replication.validate_and_store_transaction_chain(tx) do
-      :ok ->
-        tx_summary = TransactionSummary.from_transaction(tx)
+  def process(%ReplicateTransactionChain{
+        transaction: tx,
+        replying_node: replying_node_public_key
+      }) do
+    Task.Supervisor.start_child(TaskSupervisor, fn ->
+      response =
+        case Replication.validate_and_store_transaction_chain(tx) do
+          :ok ->
+            tx_summary = TransactionSummary.from_transaction(tx)
 
-        %AcknowledgeStorage{
-          signature: Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
-        }
+            %AcknowledgeStorage{
+              address: tx.address,
+              signature:
+                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
+              node_public_key: Crypto.first_node_public_key()
+            }
 
-      {:error, :transaction_already_exists} ->
-        %Error{reason: :transaction_already_exists}
+          {:error, :transaction_already_exists} ->
+            %ReplicationError{address: tx.address, reason: :transaction_already_exists}
 
-      {:error, :invalid_transaction} ->
-        %Error{reason: :invalid_transaction}
-    end
+          {:error, :invalid_transaction} ->
+            %ReplicationError{address: tx.address, reason: :invalid_transaction}
+        end
+
+      if replying_node_public_key do
+        P2P.send_message(replying_node_public_key, response)
+      end
+    end)
+
+    %Ok{}
   end
 
   def process(%ReplicateTransaction{transaction: tx}) do
@@ -1266,6 +1324,23 @@ defmodule Archethic.P2P.Message do
       {:error, :invalid_transaction} ->
         %Error{reason: :invalid_transaction}
     end
+  end
+
+  def process(%AcknowledgeStorage{
+        address: address,
+        signature: signature,
+        node_public_key: node_public_key
+      }) do
+    Mining.confirm_replication(address, signature, node_public_key)
+    %Ok{}
+  end
+
+  def process(%ReplicationError{
+        address: address,
+        reason: reason
+      }) do
+    Mining.notify_replication_error(address, reason)
+    %Ok{}
   end
 
   def process(%CrossValidate{

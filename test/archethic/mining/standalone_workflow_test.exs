@@ -8,7 +8,6 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
   alias Archethic.Mining.StandaloneWorkflow
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.P2P.Message.GetTransaction
   alias Archethic.P2P.Message.GetUnspentOutputs
   alias Archethic.P2P.Message.NotFound
@@ -61,12 +60,11 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
 
       _, %ReplicateTransactionChain{transaction: tx}, _ ->
         tx_summary = TransactionSummary.from_transaction(tx)
-        sig = Crypto.sign_with_last_node_key(TransactionSummary.serialize(tx_summary))
+        sig = Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
 
-        {:ok,
-         %AcknowledgeStorage{
-           signature: sig
-         }}
+        send(me, {:ack_replication, sig, Crypto.first_node_public_key()})
+
+        {:ok, %Ok{}}
 
       _, %ReplicationAttestation{}, _ ->
         send(me, :transaction_replicated)
@@ -74,7 +72,12 @@ defmodule Archethic.Mining.StandaloneWorkflowTest do
     end)
 
     tx = Transaction.new(:transfer, %TransactionData{}, "seed", 0)
-    assert :ok = StandaloneWorkflow.run(transaction: tx)
+    assert {:ok, pid} = StandaloneWorkflow.start_link(transaction: tx)
+
+    receive do
+      {:ack_replication, sig, public_key} ->
+        send(pid, {:ack_replication, sig, public_key})
+    end
 
     assert_receive :transaction_replicated
   end
