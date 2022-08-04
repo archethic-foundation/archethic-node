@@ -16,7 +16,6 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
   alias Archethic.Mining.ValidationContext
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.P2P.Message.AddMiningContext
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
@@ -789,38 +788,43 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
           {other_validator_pub, other_validator_pv} =
             Crypto.generate_deterministic_keypair("seed")
 
-          sig =
+          {sig, pub} =
             cond do
               first_public_key == Crypto.first_node_public_key() ->
-                Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary))
+                {
+                  Crypto.sign_with_first_node_key(TransactionSummary.serialize(tx_summary)),
+                  Crypto.first_node_public_key()
+                }
 
               first_public_key == elem(storage_node_keypair, 0) ->
-                Crypto.sign(
-                  TransactionSummary.serialize(tx_summary),
-                  elem(storage_node_keypair, 1)
-                )
+                {Crypto.sign(
+                   TransactionSummary.serialize(tx_summary),
+                   elem(storage_node_keypair, 1)
+                 ), elem(storage_node_keypair, 0)}
 
               first_public_key == elem(storage_node_keypair2, 0) ->
-                Crypto.sign(
-                  TransactionSummary.serialize(tx_summary),
-                  elem(storage_node_keypair2, 1)
-                )
+                {
+                  Crypto.sign(
+                    TransactionSummary.serialize(tx_summary),
+                    elem(storage_node_keypair2, 1)
+                  ),
+                  elem(storage_node_keypair2, 0)
+                }
 
               first_public_key == other_validator_pub ->
-                Crypto.sign(
-                  TransactionSummary.serialize(tx_summary),
-                  other_validator_pv
-                )
+                {Crypto.sign(
+                   TransactionSummary.serialize(tx_summary),
+                   other_validator_pv
+                 ), other_validator_pub}
             end
 
-          {:ok,
-           %AcknowledgeStorage{
-             signature: sig
-           }}
+          send(me, {:ack_replication, sig, pub})
+
+          {:ok, %Ok{}}
 
         _, %ReplicationAttestation{}, _ ->
           send(me, :replication_done)
-          %Ok{}
+          {:ok, %Ok{}}
       end)
 
       {:ok, coordinator_pid} =
@@ -912,6 +916,26 @@ defmodule Archethic.Mining.DistributedWorkflowTest do
             }
 
             Workflow.add_cross_validation_stamp(coordinator_pid, stamp)
+          end
+
+          receive do
+            {:ack_replication, sig, pub} ->
+              send(coordinator_pid, {:ack_replication, sig, pub})
+          end
+
+          receive do
+            {:ack_replication, sig, pub} ->
+              send(cross_validator_pid, {:ack_replication, sig, pub})
+          end
+
+          receive do
+            {:ack_replication, sig, pub} ->
+              send(cross_validator_pid, {:ack_replication, sig, pub})
+          end
+
+          receive do
+            {:ack_replication, sig, pub} ->
+              send(coordinator_pid, {:ack_replication, sig, pub})
           end
 
           assert_receive :replication_done

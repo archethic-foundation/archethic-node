@@ -5,7 +5,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   The single node will auto validate the transaction
   """
-  use Task
+  use GenServer
 
   alias Archethic.BeaconChain
   alias Archethic.BeaconChain.ReplicationAttestation
@@ -17,16 +17,13 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.Mining.PendingTransactionValidation
   alias Archethic.Mining.TransactionContext
   alias Archethic.Mining.ValidationContext
+  alias Archethic.Mining.WorkflowRegistry
 
   alias Archethic.P2P
-  alias Archethic.P2P.Message.AcknowledgeStorage
-  alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicateTransactionChain
+  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Node
-
-  alias Archethic.TaskSupervisor
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
@@ -35,13 +32,17 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   require Logger
 
-  def start_link(opts \\ []) do
-    Task.start_link(__MODULE__, :run, [opts])
+  def start_link(arg \\ []) do
+    GenServer.start_link(__MODULE__, arg)
   end
 
-  def run(opts) do
-    tx = Keyword.get(opts, :transaction)
+  def init(arg) do
+    tx = Keyword.get(arg, :transaction)
+    Registry.register(WorkflowRegistry, tx.address, [])
+    {:ok, %{}, {:continue, {:start_mining, tx}}}
+  end
 
+  def handle_continue({:start_mining, tx}, _state) do
     Logger.info("Start mining",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
@@ -97,29 +98,36 @@ defmodule Archethic.Mining.StandaloneWorkflow do
           false
       end
 
-    ValidationContext.new(
-      transaction: tx,
-      welcome_node: current_node,
-      coordinator_node: current_node,
-      cross_validation_nodes: [current_node],
-      chain_storage_nodes: chain_storage_nodes,
-      beacon_storage_nodes: beacon_storage_nodes,
-      io_storage_nodes: io_storage_nodes,
-      validation_time: validation_time,
-      resolved_addresses: resolved_addresses
-    )
-    |> ValidationContext.set_pending_transaction_validation(valid_pending_transaction?)
-    |> ValidationContext.put_transaction_context(
-      prev_tx,
-      unspent_outputs,
-      previous_storage_nodes,
-      chain_storage_nodes_view,
-      beacon_storage_nodes_view,
-      io_storage_nodes_view
-    )
-    |> validate()
-    |> replicate_and_aggregate_confirmations()
-    |> notify()
+    validation_context =
+      ValidationContext.new(
+        transaction: tx,
+        welcome_node: current_node,
+        coordinator_node: current_node,
+        cross_validation_nodes: [current_node],
+        chain_storage_nodes: chain_storage_nodes,
+        beacon_storage_nodes: beacon_storage_nodes,
+        io_storage_nodes: io_storage_nodes,
+        validation_time: validation_time,
+        resolved_addresses: resolved_addresses
+      )
+      |> ValidationContext.set_pending_transaction_validation(valid_pending_transaction?)
+      |> ValidationContext.put_transaction_context(
+        prev_tx,
+        unspent_outputs,
+        previous_storage_nodes,
+        chain_storage_nodes_view,
+        beacon_storage_nodes_view,
+        io_storage_nodes_view
+      )
+      |> validate()
+
+    start_replication(validation_context)
+
+    {:noreply,
+     %{
+       context: validation_context,
+       confirmations: []
+     }}
   end
 
   defp validate(context = %ValidationContext{}) do
@@ -130,7 +138,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     |> ValidationContext.cross_validate()
   end
 
-  defp replicate_and_aggregate_confirmations(context = %ValidationContext{}) do
+  defp start_replication(context = %ValidationContext{}) do
     validated_tx = ValidationContext.get_validated_transaction(context)
 
     replication_nodes = ValidationContext.get_chain_replication_nodes(context)
@@ -141,104 +149,75 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       transaction_type: validated_tx.type
     )
 
-    Task.Supervisor.async_stream_nolink(
-      TaskSupervisor,
-      replication_nodes,
-      fn node ->
-        {P2P.send_message(node, %ReplicateTransactionChain{
-           transaction: validated_tx
-         }), node}
-      end,
-      on_timeout: :kill_task,
-      ordered: false
-    )
-    |> Stream.filter(&match?({:ok, {{:ok, _res}, _node}}, &1))
-    |> Stream.map(fn {:ok, {{:ok, res}, node}} -> {res, node} end)
-    |> Enum.reduce(
-      %{
-        confirmations: [],
-        context: context,
-        transaction_summary: TransactionSummary.from_transaction(validated_tx)
-      },
-      &reduce_confirmations/2
-    )
+    P2P.broadcast_message(replication_nodes, %ReplicateTransactionChain{
+      transaction: validated_tx,
+      replying_node: Crypto.first_node_public_key()
+    })
   end
 
-  defp reduce_confirmations(
-         {%AcknowledgeStorage{
-            signature: signature
-          }, %Node{first_public_key: node_public_key}},
-         acc = %{transaction_summary: tx_summary, context: context}
-       ) do
-    if Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
-      {:ok, position} = ValidationContext.get_chain_storage_position(context, node_public_key)
-      Map.update!(acc, :confirmations, &[{position, signature} | &1])
+  def handle_info(
+        {:replication_error, reason},
+        _state = %{context: %ValidationContext{transaction: %Transaction{address: tx_address}}}
+      ) do
+    Logger.warning("Invalid transaction #{inspect(reason)}")
+    # notify welcome node
+    message = %ValidationError{address: tx_address, reason: reason}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        Crypto.last_node_public_key(),
+        message
+      )
+    end)
+
+    :stop
+  end
+
+  def handle_info(
+        {:ack_replication, signature, node_public_key},
+        state = %{context: context = %ValidationContext{transaction: tx}}
+      ) do
+    with {:ok, node_index} <-
+           ValidationContext.get_chain_storage_position(context, node_public_key),
+         validated_tx <- ValidationContext.get_validated_transaction(context),
+         tx_summary <- TransactionSummary.from_transaction(validated_tx),
+         true <-
+           Crypto.verify?(signature, TransactionSummary.serialize(tx_summary), node_public_key) do
+      new_context = ValidationContext.add_storage_confirmation(context, node_index, signature)
+
+      new_state = %{state | context: new_context}
+
+      if ValidationContext.enough_storage_confirmations?(new_context) do
+        notify(new_state)
+        {:noreply, new_state}
+      else
+        {:noreply, new_state}
+      end
     else
-      acc
+      _reason ->
+        Logger.warning("Invalid storage ack",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type,
+          node: Base.encode16(node_public_key)
+        )
+
+        {:noreply, state}
     end
   end
 
-  defp reduce_confirmations(
-         {%Error{reason: reason}, _},
-         _acc = %{transaction_summary: tx_summary}
-       ) do
-    Logger.warning("Invalid transaction #{inspect(reason)}")
-    # notify welcome node
-    message = %ValidationError{address: tx_summary.address, reason: reason}
-
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-      P2P.send_message(
-        Crypto.last_node_public_key(),
-        message
-      )
-
-      :ok
-    end)
-
-    :error
-  end
-
-  defp reduce_confirmations(_, :error), do: :error
-
-  defp notify(:error), do: :skip
-
-  defp notify(%{
-         confirmations: [],
-         transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
-       }) do
-    # notify welcome node
-    message = %ValidationError{address: tx_address, reason: :network_issue}
-
-    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
-      P2P.send_message(
-        Crypto.last_node_public_key(),
-        message
-      )
-
-      :ok
-    end)
-
-    Logger.error("Not confirmations for the transaction",
-      transaction_address: Base.encode16(tx_address),
-      transaction_type: tx_type
-    )
-  end
-
-  defp notify(%{
-         confirmations: confirmations,
-         transaction_summary: tx_summary,
-         context: context
-       }) do
-    notify_attestation(confirmations, tx_summary, context)
+  defp notify(%{context: context}) do
+    notify_attestation(context)
     notify_io_nodes(context)
   end
 
   defp notify_attestation(
-         confirmations,
-         tx_summary,
-         context = %ValidationContext{}
+         context = %ValidationContext{
+           welcome_node: welcome_node,
+           storage_nodes_confirmations: confirmations
+         }
        ) do
-    welcome_node = P2P.get_node_info()
+    validated_tx = ValidationContext.get_validated_transaction(context)
+    tx_summary = TransactionSummary.from_transaction(validated_tx)
 
     attestation = %ReplicationAttestation{
       transaction_summary: tx_summary,
@@ -272,7 +251,9 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     end)
     |> P2P.broadcast_message(
       if Transaction.network_type?(validated_tx.type),
-        do: %ReplicateTransactionChain{transaction: validated_tx},
+        do: %ReplicateTransactionChain{
+          transaction: validated_tx
+        },
         else: %ReplicateTransaction{transaction: validated_tx}
     )
   end

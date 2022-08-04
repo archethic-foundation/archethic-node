@@ -169,6 +169,31 @@ defmodule Archethic.Mining do
     |> DistributedWorkflow.add_cross_validation_stamp(stamp)
   end
 
+  @doc """
+  Confirm the replication from a storage node
+  """
+  @spec confirm_replication(
+          address :: binary(),
+          signature :: binary(),
+          node_public_key :: Crypto.key()
+        ) ::
+          :ok
+  def confirm_replication(tx_address, signature, node_public_key) do
+    pid = get_mining_process!(tx_address)
+    send(pid, {:ack_replication, signature, node_public_key})
+    :ok
+  end
+
+  @doc """
+  Notify replication to the mining process
+  """
+  @spec notify_replication_error(binary(), any()) :: :ok
+  def notify_replication_error(tx_address, error_reason) do
+    pid = get_mining_process!(tx_address)
+    send(pid, {:replication_error, error_reason})
+    :ok
+  end
+
   defp get_mining_process!(tx_address, timeout \\ @mining_timeout) do
     retry_while with: exponential_backoff(100, 2) |> expiry(timeout) do
       case Registry.lookup(WorkflowRegistry, tx_address) do
