@@ -52,6 +52,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
+      MockClient
+      |> stub(:send_message, fn _, _txn = %TransactionSummary{}, _ ->
+        :ok
+      end)
+
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
       pid = start_supervised!({Subset, subset: subset})

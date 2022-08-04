@@ -26,6 +26,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Node
   alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.FirstAddress
   alias Archethic.P2P.Message.NotFound
 
   alias Archethic.SharedSecrets
@@ -50,6 +51,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.Reward.MemTables.RewardTokens
   alias Archethic.Reward.MemTablesLoader
 
+  alias Archethic.P2P.Message.GetFirstAddress
   import Mox
 
   @genesis_origin_public_keys Application.compile_env!(
@@ -91,7 +93,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     assert :ok = NetworkInit.create_storage_nonce()
   end
 
-  test "self_validation!/2 should return a validated transaction" do
+  test "self_validation/2 should return a validated transaction" do
+    MockClient
+    |> stub(:send_message, fn _, %GetFirstAddress{address: address}, _ ->
+      address
+    end)
+
     tx =
       Transaction.new(
         :transfer,
@@ -216,8 +223,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
 
-      _, %GetFirstAddress{}, _ ->
-        {:ok, %NotFound{}}
+      _, %GetFirstAddress{address: address}, _ ->
+        {:ok, %FirstAddress{address: address}}
     end)
 
     me = self()
