@@ -179,7 +179,7 @@ defmodule Archethic.SelfRepair.Sync do
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->
-      TransactionHandler.process_transaction(tx)
+      :ok = TransactionHandler.process_transaction(tx)
     end)
     |> Stream.run()
   end

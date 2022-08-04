@@ -70,7 +70,7 @@ defmodule Archethic.ReplicationTest do
     tx = create_valid_transaction(unspent_outputs)
 
     MockDB
-    |> expect(:write_transaction, fn ^tx ->
+    |> expect(:write_transaction_chain, fn [^tx] ->
       send(me, :replicated)
       :ok
     end)
@@ -106,7 +106,7 @@ defmodule Archethic.ReplicationTest do
         {:ok, %NotFound{}}
     end)
 
-    assert :ok = Replication.validate_and_store_transaction_chain(tx, [])
+    assert :ok = Replication.validate_and_store_transaction_chain(tx)
 
     Process.sleep(200)
 
