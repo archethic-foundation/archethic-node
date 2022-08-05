@@ -38,19 +38,16 @@ defmodule Archethic.Bootstrap.SyncTest do
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionData
 
+  alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
+  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
+
   doctest Sync
 
   @moduletag :capture_log
 
   import Mox
 
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader
-
   setup do
-    start_supervised!(RewardTokens)
-    start_supervised!(MemTablesLoader)
-
     MockClient
     |> stub(:send_message, fn
       _, %GetLastTransactionAddress{address: address}, _ ->
@@ -68,6 +65,40 @@ defmodule Archethic.Bootstrap.SyncTest do
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
     end)
+
+    MockDB
+    |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
+      [
+        %Transaction{
+          address: "@RewardToken0",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken1",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken2",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken3",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken4",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        }
+      ]
+    end)
+
+    start_supervised!(RewardMemTable)
+    start_supervised!(RewardTableLoader)
 
     :ok
   end

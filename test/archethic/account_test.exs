@@ -13,7 +13,7 @@ defmodule Archethic.AccountTest do
   alias Archethic.TransactionChain.Transaction
 
   alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader
+  alias Archethic.Reward.MemTablesLoader, as: RewardMemTableLoader
 
   import Mox
 
@@ -51,7 +51,7 @@ defmodule Archethic.AccountTest do
 
       #  start supervised  ...
       RewardTokens.start_link()
-      MemTablesLoader.start_link()
+      RewardMemTableLoader.start_link()
 
       start_supervised!(UCOLedger)
       start_supervised!(TokenLedger)

@@ -48,11 +48,11 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader
-
   alias Archethic.P2P.Message.GetFirstAddress
   import Mox
+
+  alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
+  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
@@ -63,9 +63,6 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
-
-    start_supervised!(RewardTokens)
-    start_supervised!(MemTablesLoader)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -85,6 +82,40 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     |> stub(:send_message, fn _, %GetLastTransactionAddress{address: address}, _ ->
       {:ok, %LastTransactionAddress{address: address}}
     end)
+
+    MockDB
+    |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
+      [
+        %Transaction{
+          address: "@RewardToken0",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken1",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken2",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken3",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken4",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        }
+      ]
+    end)
+
+    start_supervised!(RewardMemTable)
+    start_supervised!(RewardTableLoader)
 
     :ok
   end
