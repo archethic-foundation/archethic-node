@@ -13,6 +13,10 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
   require Logger
 
+  alias Archethic.P2P
+
+  alias Archethic.Election
+
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -63,7 +67,12 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
   def handle_cast({:register, tx_address, start_time}, state) do
     {:noreply,
-     Map.put(state, tx_address, %{status: :pending, start_time: start_time, nb_confirmations: 0})}
+     Map.put(state, tx_address, %{
+       status: :pending,
+       start_time: start_time,
+       nb_confirmations: 0,
+       max_confirmations: get_max_confirmations(tx_address)
+     })}
   end
 
   def handle_info(
@@ -76,12 +85,18 @@ defmodule ArchethicWeb.TransactionSubscriber do
          }},
         state
       ) do
-    %{nb_confirmations: nb_confirmations} = Map.get(state, tx_address, %{nb_confirmations: 0})
+    %{nb_confirmations: nb_confirmations, max_confirmations: max_confirmations} =
+      Map.get(state, tx_address, %{nb_confirmations: 0, max_confirmations: 0})
+
     total_confirmations = nb_confirmations + length(confirmations)
 
     Subscription.publish(
       Endpoint,
-      %{address: tx_address, nb_confirmations: total_confirmations},
+      %{
+        address: tx_address,
+        nb_confirmations: total_confirmations,
+        max_confirmations: max_confirmations
+      },
       transaction_confirmed: tx_address
     )
 
@@ -129,5 +144,11 @@ defmodule ArchethicWeb.TransactionSubscriber do
       |> Enum.into(%{})
 
     {:noreply, new_state}
+  end
+
+  def get_max_confirmations(tx_address) do
+    tx_address
+    |> Election.chain_storage_nodes(P2P.authorized_nodes())
+    |> Enum.count()
   end
 end
