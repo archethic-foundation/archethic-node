@@ -179,7 +179,6 @@ defmodule ArchethicCase do
     start_supervised!(PoolsMemTable)
     start_supervised!(NetworkLookup)
     start_supervised!(OracleMemTable)
-
     :ok
   end
 end

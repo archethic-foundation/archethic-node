@@ -21,13 +21,24 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   import Mox
 
-  alias Archethic.Reward
   doctest Archethic.Account.MemTablesLoader
+
+  alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
+  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
   setup :verify_on_exit!
   setup :set_mox_global
 
   setup do
+    P2P.add_and_connect_node(%Node{
+      first_public_key: "NodeKey",
+      last_public_key: "NodeKey",
+      reward_address: "@NodeKey",
+      ip: {127, 0, 0, 1},
+      port: 3000,
+      geo_patch: "AAA"
+    })
+
     MockDB
     |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
       [
@@ -45,21 +56,22 @@ defmodule Archethic.Account.MemTablesLoaderTest do
           address: "@RewardToken2",
           type: :mint_rewards,
           validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken3",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken4",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
         }
       ]
     end)
 
-    start_supervised!(Reward.MemTables.RewardTokens)
-    start_supervised!(Reward.MemTablesLoader)
-
-    P2P.add_and_connect_node(%Node{
-      first_public_key: "NodeKey",
-      last_public_key: "NodeKey",
-      reward_address: "@NodeKey",
-      ip: {127, 0, 0, 1},
-      port: 3000,
-      geo_patch: "AAA"
-    })
+    start_supervised!(RewardMemTable)
+    start_supervised!(RewardTableLoader)
 
     :ok
   end
