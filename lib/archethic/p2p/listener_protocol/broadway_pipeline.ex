@@ -8,6 +8,7 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
   alias Archethic.P2P.Message
   alias Archethic.P2P.MessageEnvelop
   alias Archethic.P2P.Client
+  alias Archethic.TaskSupervisor
 
   alias Broadway.Message, as: BroadwayMessage
 
@@ -40,13 +41,16 @@ defmodule Archethic.P2P.ListenerProtocol.BroadwayPipeline do
     #    start_time = System.monotonic_time(:millisecond)
 
     BroadwayMessage.update_data(message, fn {socket, transport, data} ->
-      message =
-        data
-        |> decode()
-        |> process()
-        |> encode()
+      Task.Supervisor.async_nolink(TaskSupervisor, fn ->
+        message =
+          data
+          |> decode()
+          |> process()
+          |> encode()
 
-      transport.send(socket, message)
+        transport.send(socket, message)
+      end)
+
       #      end_time = System.monotnonic_time(:millisecond)
       #      Logger.debug("Request processed in #{end_time - start_time} ms")
     end)

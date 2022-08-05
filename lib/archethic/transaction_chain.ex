@@ -12,19 +12,23 @@ defmodule Archethic.TransactionChain do
   alias Archethic.P2P
   alias Archethic.P2P.Message
   alias Archethic.P2P.Message.Error
-  alias Archethic.P2P.Message.GetTransaction
-  alias Archethic.P2P.Message.GetTransactionChain
-  alias Archethic.P2P.Message.GetTransactionChainLength
-  alias Archethic.P2P.Message.GetLastTransactionAddress
-  alias Archethic.P2P.Message.GetTransactionInputs
-  alias Archethic.P2P.Message.GetUnspentOutputs
-  alias Archethic.P2P.Message.LastTransactionAddress
-  alias Archethic.P2P.Message.NotFound
-  alias Archethic.P2P.Message.TransactionChainLength
-  alias Archethic.P2P.Message.TransactionList
-  alias Archethic.P2P.Message.TransactionInputList
-  alias Archethic.P2P.Message.UnspentOutputList
+
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.NotFound
+  alias Archethic.P2P.Message.TransactionList
+  alias Archethic.P2P.Message.UnspentOutputList
+  alias Archethic.P2P.Message.TransactionInputList
+  alias Archethic.P2P.Message.TransactionChainLength
+  alias Archethic.P2P.Message.LastTransactionAddress
+  alias Archethic.P2P.Message.FirstAddress
+
+  alias Archethic.P2P.Message.GetTransaction
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.GetUnspentOutputs
+  alias Archethic.P2P.Message.GetTransactionChain
+  alias Archethic.P2P.Message.GetTransactionInputs
+  alias Archethic.P2P.Message.GetLastTransactionAddress
+  alias Archethic.P2P.Message.GetTransactionChainLength
 
   alias __MODULE__.MemTables.KOLedger
   alias __MODULE__.MemTables.PendingLedger
@@ -35,6 +39,10 @@ defmodule Archethic.TransactionChain do
   alias __MODULE__.Transaction
   alias __MODULE__.TransactionData
   alias __MODULE__.Transaction.ValidationStamp
+
+  alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.TransactionMovement.Type,
+    as: TransactionMovementType
+
   alias __MODULE__.Transaction.ValidationStamp.LedgerOperations.UnspentOutput
   alias __MODULE__.TransactionSummary
   alias __MODULE__.TransactionInput
@@ -247,6 +255,12 @@ defmodule Archethic.TransactionChain do
   end
 
   @doc """
+  Get the genesis address from a given chain address
+  """
+  @spec get_genesis_address(binary()) :: binary()
+  defdelegate get_genesis_address(address), to: DB, as: :get_first_chain_address
+
+  @doc """
   Produce a proof of integrity for a given chain.
 
   If the chain contains only a transaction the hash of the pending is transaction is returned
@@ -278,7 +292,8 @@ defmodule Archethic.TransactionChain do
       ...>  ]
       ...>  |> TransactionChain.proof_of_integrity()
       # Hash of the transaction
-      <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187, 160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+          182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
 
     With multiple transactions
 
@@ -321,15 +336,15 @@ defmodule Archethic.TransactionChain do
       ...>        161, 155, 143, 43, 50, 6, 7, 97, 130, 134, 174, 7, 235, 183, 88, 165, 197, 25, 219, 84,
       ...>        232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
-      ...>         proof_of_integrity: <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187,
-      ...>           160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      ...>         proof_of_integrity:  <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+      ...>         182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
       ...>      }
       ...>    }
       ...> ]
       ...> |> TransactionChain.proof_of_integrity()
       # Hash of the transaction + previous proof of integrity
-      <<0, 150, 171, 173, 84, 39, 116, 164, 116, 216, 112, 168, 253, 154, 141, 95,
-        123, 179, 96, 253, 195, 247, 192, 75, 47, 173, 144, 82, 99, 4, 10, 149, 169>>
+      <<0, 55, 249, 251, 141, 2, 131, 48, 149, 173, 57, 54, 6, 238, 92, 79, 195, 97,
+           103, 111, 2, 182, 136, 136, 28, 171, 103, 225, 120, 214, 144, 147, 234>>
   """
   @spec proof_of_integrity(nonempty_list(Transaction.t())) :: binary()
   def proof_of_integrity([
@@ -376,8 +391,8 @@ defmodule Archethic.TransactionChain do
       ...>         232, 135, 42, 112, 58, 181, 13>>,
       ...>     validation_stamp: %ValidationStamp{
       ...>        timestamp: ~U[2020-03-30 12:06:30.000Z],
-      ...>        proof_of_integrity: <<0, 150, 171, 173, 84, 39, 116, 164, 116, 216, 112, 168, 253, 154, 141, 95,
-      ...>          123, 179, 96, 253, 195, 247, 192, 75, 47, 173, 144, 82, 99, 4, 10, 149, 169>>
+      ...>        proof_of_integrity: <<0, 55, 249, 251, 141, 2, 131, 48, 149, 173, 57, 54, 6, 238, 92, 79, 195, 97,
+      ...>           103, 111, 2, 182, 136, 136, 28, 171, 103, 225, 120, 214, 144, 147, 234>>
       ...>      }
       ...>    },
       ...>    %Transaction{
@@ -399,7 +414,8 @@ defmodule Archethic.TransactionChain do
       ...>          232, 135, 42, 112, 58, 181, 13>>,
       ...>      validation_stamp: %ValidationStamp{
       ...>         timestamp: ~U[2020-03-30 10:06:30.000Z],
-      ...>         proof_of_integrity: <<0, 123, 128, 98, 182, 113, 165, 184, 172, 49, 237, 243, 192, 225, 204, 187, 160, 160, 64, 117, 136, 51, 186, 226, 34, 145, 31, 69, 48, 34, 164, 253, 95>>
+      ...>         proof_of_integrity: <<0, 117, 51, 33, 137, 134, 9, 1, 125, 165, 51, 130, 1, 205, 244, 5, 153, 62,
+      ...>          182, 224, 138, 144, 249, 235, 199, 89, 2, 119, 145, 101, 251, 251, 39>>
       ...>      }
       ...>    }
       ...> ]
@@ -477,7 +493,10 @@ defmodule Archethic.TransactionChain do
   Resolve all the last addresses from the transaction data
   """
   @spec resolve_transaction_addresses(Transaction.t(), DateTime.t()) ::
-          list({origin_address :: binary(), resolved_address :: binary()})
+          list(
+            {{origin_address :: binary(), type :: TransactionMovementType.t()},
+             resolved_address :: binary()}
+          )
   def resolve_transaction_addresses(
         tx = %Transaction{data: %TransactionData{recipients: recipients}},
         time = %DateTime{}
@@ -485,20 +504,30 @@ defmodule Archethic.TransactionChain do
     addresses =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(& &1.to)
+      |> Enum.map(&{&1.to, &1.type})
       |> Enum.concat(recipients)
 
     Task.Supervisor.async_stream_nolink(
       TaskSupervisor,
       addresses,
-      fn to ->
-        case resolve_last_address(to, time) do
-          {:ok, resolved} ->
-            {to, resolved}
+      fn
+        {to, type} ->
+          case resolve_last_address(to, time) do
+            {:ok, resolved} ->
+              {{to, type}, resolved}
 
-          _ ->
-            {to, to}
-        end
+            _ ->
+              {{to, type}, to}
+          end
+
+        to ->
+          case resolve_last_address(to, time) do
+            {:ok, resolved} ->
+              {to, resolved}
+
+            _ ->
+              {to, to}
+          end
       end,
       on_timeout: :kill_task
     )
@@ -804,5 +833,57 @@ defmodule Archethic.TransactionChain do
       {:error, :network_issue} ->
         {:error, :network_issue}
     end
+  end
+
+  @doc """
+  Retrieve the last transaction address for a chain stored locally
+  It queries the the network for genesis address
+  """
+  @spec get_last_local_address(address :: binary()) :: binary() | nil
+  def get_last_local_address(address) when is_binary(address) do
+    case fetch_genesis_address_remotely(address) do
+      {:ok, genesis_address} ->
+        case get_last_address(genesis_address) do
+          ^genesis_address -> nil
+          last_address -> last_address
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc """
+  Retrieve the genesis address for a chain from P2P Quorom
+  It queries the the network for genesis address
+  """
+  @spec fetch_genesis_address_remotely(address :: binary()) ::
+          {:ok, binary()} | {:error, :network_issue}
+  def fetch_genesis_address_remotely(address) when is_binary(address) do
+    nodes =
+      address
+      |> Election.chain_storage_nodes(P2P.available_nodes())
+      |> P2P.nearest_nodes()
+      |> Enum.filter(&Node.locally_available?/1)
+
+    case P2P.quorum_read(nodes, %GetFirstAddress{address: address}) do
+      {:ok, %FirstAddress{address: genesis_address}} ->
+        {:ok, genesis_address}
+
+      _ ->
+        {:error, :network_issue}
+    end
+  end
+
+  @spec get_locally(address :: binary(), paging_address :: binary() | nil) ::
+          Enumerable.t() | list(Transaction.t())
+  def get_locally(address, paging_address \\ nil) when is_binary(address) do
+    fetch_chain_db(get(address, [], paging_state: paging_address), [])
+  end
+
+  def fetch_chain_db({chain, false, _}, acc), do: acc ++ chain
+
+  def fetch_chain_db({chain, true, paging_address}, acc) do
+    fetch_chain_db(get(paging_address, [], paging_state: paging_address), acc ++ chain)
   end
 end

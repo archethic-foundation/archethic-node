@@ -42,6 +42,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.Transaction.CrossValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.TransactionSummary
@@ -175,6 +176,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
+        |> Enum.concat([LedgerOperations.burning_address()])
         |> Election.io_storage_nodes(authorized_nodes)
       end
 
@@ -1030,7 +1032,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       end,
       ordered: false,
       on_timeout: :kill_task,
-      timeout: timeout
+      timeout: timeout + 2000
     )
     |> Stream.filter(&match?({:ok, {{:ok, _}, _}}, &1))
     |> Stream.map(fn {:ok, {{:ok, response}, node}} -> {response, node} end)

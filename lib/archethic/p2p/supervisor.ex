@@ -1,11 +1,8 @@
 defmodule Archethic.P2P.Supervisor do
   @moduledoc false
 
-  alias Archethic.P2P.BootstrappingSeeds
   alias Archethic.P2P.Client.ConnectionRegistry
   alias Archethic.P2P.Client.ConnectionSupervisor
-  alias Archethic.P2P.Listener
-  alias Archethic.P2P.ListenerProtocol.BroadwayPipeline
   alias Archethic.P2P.MemTable
   alias Archethic.P2P.MemTableLoader
   alias Archethic.P2P.GeoPatch.GeoIP.MaxMindDB
@@ -18,22 +15,13 @@ defmodule Archethic.P2P.Supervisor do
     Supervisor.start_link(__MODULE__, args, name: Archethic.P2PSupervisor)
   end
 
-  def init(args) do
-    port = Keyword.fetch!(args, :port)
-
-    listener_conf = Application.get_env(:archethic, Listener, [])
-
-    bootstraping_seeds_conf = Application.get_env(:archethic, BootstrappingSeeds)
-
+  def init(_args) do
     optional_children = [
       {Registry, name: ConnectionRegistry, keys: :unique},
       ConnectionSupervisor,
       MaxMindDB,
       MemTable,
-      MemTableLoader,
-      BroadwayPipeline,
-      {Listener, Keyword.put(listener_conf, :port, port)},
-      {BootstrappingSeeds, bootstraping_seeds_conf}
+      MemTableLoader
     ]
 
     children = Utils.configurable_children(optional_children)

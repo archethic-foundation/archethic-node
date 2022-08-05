@@ -19,6 +19,8 @@ defmodule Archethic.ReplicationTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  # alias Archethic.P2P.Message.FirstAddress
 
   alias Archethic.Replication
 
@@ -99,6 +101,9 @@ defmodule Archethic.ReplicationTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     assert :ok = Replication.validate_and_store_transaction_chain(tx, [])
@@ -146,10 +151,10 @@ defmodule Archethic.ReplicationTest do
       last_public_key: Crypto.last_node_public_key(),
       authorized?: true,
       available?: true,
-      authorization_date: DateTime.utc_now(),
+      authorization_date: DateTime.add(DateTime.utc_now(), -1),
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -1),
       reward_address: <<0::8, 0::8, :crypto.strong_rand_bytes(32)::binary>>
     }
 
@@ -162,7 +167,7 @@ defmodule Archethic.ReplicationTest do
         available?: true,
         geo_patch: "BBB",
         network_patch: "BBB",
-        authorization_date: DateTime.utc_now(),
+        authorization_date: DateTime.add(DateTime.utc_now(), -1),
         reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
       }
     ]
@@ -187,7 +192,6 @@ defmodule Archethic.ReplicationTest do
         fee: Fee.calculate(tx, 0.07)
       }
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
-      |> LedgerOperations.add_burning_movement()
 
     validation_stamp =
       %ValidationStamp{

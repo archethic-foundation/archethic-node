@@ -52,12 +52,13 @@ defmodule Archethic.P2P.MemTableLoaderTest do
   end
 
   describe "start_link/1" do
-    test "should fetch the all the node transactions add integrate them" do
+    test "should fetch the all the node transactions and integrate them" do
       node_tx = create_node_transaction()
 
       MockDB
-      |> stub(:list_transactions_by_type, fn :node, _ ->
-        [node_tx]
+      |> stub(:list_transactions_by_type, fn
+        :node, _ -> [node_tx]
+        :node_shared_secrets, _ -> []
       end)
       |> expect(:get_first_public_key, fn pub -> pub end)
 
@@ -66,7 +67,7 @@ defmodule Archethic.P2P.MemTableLoaderTest do
       assert [%Node{ip: {127, 0, 0, 1}, port: 3003}] = MemTable.list_nodes()
     end
 
-    test "should fetch the last node shared secret transaction and integrate it" do
+    test "should fetch all the node shared secret transactions and integrate them" do
       MemTable.add_node(%Node{
         ip: {127, 0, 0, 1},
         port: 3000,
@@ -118,24 +119,15 @@ defmodule Archethic.P2P.MemTableLoaderTest do
       }
 
       MockDB
-      |> stub(:list_transactions_by_type, fn :node, _ -> [] end)
-      |> stub(:list_addresses_by_type, fn :node_shared_secrets ->
-        [
-          shared_secret_tx1.address,
-          shared_secret_tx2.address
-        ]
-      end)
-      |> stub(:get_transaction, fn address, _ ->
-        cond do
-          address == shared_secret_tx1.address ->
-            {:ok, shared_secret_tx1}
+      |> stub(:list_transactions_by_type, fn
+        :node, _ ->
+          []
 
-          address == shared_secret_tx2.address ->
-            {:ok, shared_secret_tx2}
-
-          true ->
-            {:error, :transaction_not_exists}
-        end
+        :node_shared_secrets, _ ->
+          [
+            shared_secret_tx1,
+            shared_secret_tx2
+          ]
       end)
 
       assert {:ok, _} = MemTableLoader.start_link()

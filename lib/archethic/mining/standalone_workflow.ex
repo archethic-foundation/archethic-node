@@ -29,6 +29,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
 
   alias Archethic.TransactionChain
   alias Archethic.TransactionChain.Transaction
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionSummary
 
   require Logger
@@ -72,6 +73,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
       else
         resolved_addresses
         |> Enum.map(fn {_origin, resolved} -> resolved end)
+        |> Enum.concat([LedgerOperations.burning_address()])
         |> Election.io_storage_nodes(authorized_nodes)
       end
 

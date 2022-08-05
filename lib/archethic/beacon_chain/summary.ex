@@ -13,6 +13,7 @@ defmodule Archethic.BeaconChain.Summary do
   alias Archethic.TransactionChain.TransactionSummary
 
   alias Archethic.Utils
+  alias Archethic.Utils.VarInt
 
   alias Archethic.Crypto
 
@@ -317,7 +318,7 @@ defmodule Archethic.BeaconChain.Summary do
       # Summary time
       96, 7, 114, 128,
       # Nb transactions attestations
-      0, 0, 0, 1,
+      1, 1,
       # Replication attestation version
       1,
       # Transaction address
@@ -330,7 +331,7 @@ defmodule Archethic.BeaconChain.Summary do
       # Fee
       0, 0, 0, 0, 0, 152, 150, 128,
       # Nb movement addresses
-      0, 0,
+      1, 0,
       # Nb confirmations
       1,
       # Replication storage node position
@@ -350,7 +351,7 @@ defmodule Archethic.BeaconChain.Summary do
       100,
       100,
       # Nb node end of sync
-      0, 1,
+      1, 1,
       # Node end of sync
       0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
       93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104
@@ -380,10 +381,15 @@ defmodule Archethic.BeaconChain.Summary do
 
     end_of_node_synchronizations_bin = :erlang.list_to_binary(end_of_node_synchronizations)
 
+    encoded_transaction_attestations_len = length(transaction_attestations) |> VarInt.from_value()
+
+    encoded_end_of_node_synchronizations_len =
+      length(end_of_node_synchronizations) |> VarInt.from_value()
+
     <<1::8, subset::binary, DateTime.to_unix(summary_time)::32,
-      length(transaction_attestations)::32, transaction_attestations_bin::binary,
+      encoded_transaction_attestations_len::binary, transaction_attestations_bin::binary,
       bit_size(node_availabilities)::16, node_availabilities::bitstring,
-      node_average_availabilities_bin::binary, length(end_of_node_synchronizations)::16,
+      node_average_availabilities_bin::binary, encoded_end_of_node_synchronizations_len::binary,
       end_of_node_synchronizations_bin::binary>>
   end
 
@@ -392,14 +398,14 @@ defmodule Archethic.BeaconChain.Summary do
 
   ## Examples
 
-      iex> <<1, 0, 96, 7, 114, 128, 0, 0, 0, 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246, 27, 130, 162, 205, 249, 65, 232, 166,
-      ...> 99, 207, 133, 252, 112, 223, 41, 12, 206, 162, 233, 28, 49, 204, 255, 12,
-      ...> 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0, 0, 0, 0, 152, 150, 128, 0, 0,
-      ...> 1, 0, 64, 255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
+      iex> <<1, 0, 96, 7, 114, 128, 1, 1, 1, 0, 0, 234, 233, 156, 155, 114, 241, 116, 246,
+      ...> 27, 130, 162, 205, 249, 65, 232, 166, 99, 207, 133, 252, 112, 223, 41, 12,
+      ...> 206, 162, 233, 28, 49, 204, 255, 12, 0, 0, 1, 114, 236, 9, 2, 168, 253, 0, 0,
+      ...> 0, 0, 0, 152, 150, 128, 1, 0, 1, 0, 64, 255, 120, 232, 52, 141, 15, 97, 213, 231, 93, 242, 160, 123, 25, 192, 3, 133,
       ...> 170, 197, 102, 148, 208, 119, 130, 225, 102, 130, 96, 223, 61, 36, 76, 229,
       ...> 210, 5, 142, 79, 249, 177, 51, 15, 45, 45, 141, 217, 85, 77, 146, 199, 126,
       ...> 213, 205, 108, 164, 167, 112, 201, 194, 113, 133, 242, 104, 254, 253,
-      ...> 0, 2, 1::1, 1::1, 100, 100, 0, 1, 0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
+      ...> 0, 2, 1::1, 1::1, 100, 100, 1, 1, 0, 1, 190, 20, 188, 141, 156, 135, 91, 37, 96, 187, 27, 24, 41, 130, 118,
       ...> 93, 43, 240, 229, 97, 227, 194, 31, 97, 228, 78, 156, 194, 154, 74, 160, 104>>
       ...> |> Summary.deserialize()
       {
@@ -431,18 +437,18 @@ defmodule Archethic.BeaconChain.Summary do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring()}
-  def deserialize(
-        <<1::8, subset::8, summary_timestamp::32, nb_transaction_attestations::32,
-          rest::bitstring>>
-      ) do
+  def deserialize(<<1::8, subset::8, summary_timestamp::32, rest::bitstring>>) do
+    {nb_transaction_attestations, rest} = rest |> VarInt.get_value()
+
     {transaction_attestations, rest} =
       Utils.deserialize_transaction_attestations(rest, nb_transaction_attestations, [])
 
     <<nb_availabilities::16, availabilities::bitstring-size(nb_availabilities), rest::bitstring>> =
       rest
 
-    <<node_average_availabilities_bin::binary-size(nb_availabilities), nb_end_of_sync::16,
-      rest::bitstring>> = rest
+    <<node_average_availabilities_bin::binary-size(nb_availabilities), rest::bitstring>> = rest
+
+    {nb_end_of_sync, rest} = rest |> VarInt.get_value()
 
     {end_of_node_synchronizations, rest} =
       Utils.deserialize_public_key_list(rest, nb_end_of_sync, [])

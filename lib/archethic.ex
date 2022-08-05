@@ -12,6 +12,8 @@ defmodule Archethic do
 
   alias __MODULE__.P2P
 
+  alias __MODULE__.DB
+
   alias __MODULE__.P2P.Message.Balance
   alias __MODULE__.P2P.Message.GetBalance
   alias __MODULE__.P2P.Message.NewTransaction
@@ -177,7 +179,7 @@ defmodule Archethic do
   end
 
   @doc """
-  Retrieve a transaction chain based on an address from the closest nodes
+  Retrieve a transaction chain based on an address from the closest nodes.
   """
   @spec get_transaction_chain(binary()) :: {:ok, list(Transaction.t())} | {:error, :network_issue}
   def get_transaction_chain(address) when is_binary(address) do
@@ -188,13 +190,23 @@ defmodule Archethic do
       |> Enum.filter(&Node.locally_available?/1)
 
     try do
-      chain =
-        address
-        |> TransactionChain.stream_remotely(nodes)
-        |> Enum.to_list()
-        |> List.flatten()
+      {local_chain, paging_address} =
+        case TransactionChain.get_last_local_address(address) do
+          nil -> {[], nil}
+          last_address -> {TransactionChain.get_locally(last_address), last_address}
+        end
 
-      {:ok, chain}
+      remote_chain =
+        if address != paging_address do
+          address
+          |> TransactionChain.stream_remotely(nodes, paging_address)
+          |> Enum.to_list()
+          |> List.flatten()
+        else
+          []
+        end
+
+      {:ok, local_chain ++ remote_chain}
     catch
       _ ->
         {:error, :network_issue}
@@ -215,12 +227,28 @@ defmodule Archethic do
       |> Enum.filter(&Node.locally_available?/1)
 
     try do
-      chain_page =
-        address
-        |> TransactionChain.stream_remotely(nodes, paging_address)
-        |> Enum.at(0)
+      {local_chain, paging_address} =
+        with true <- paging_address != nil,
+             true <- DB.transaction_exists?(paging_address),
+             last_address when last_address != nil <-
+               TransactionChain.get_last_local_address(address),
+             true <- last_address != paging_address do
+          {TransactionChain.get_locally(last_address, paging_address), last_address}
+        else
+          _ -> {[], paging_address}
+        end
 
-      {:ok, chain_page}
+      remote_chain =
+        if paging_address != address do
+          address
+          |> TransactionChain.stream_remotely(nodes, paging_address)
+          |> Enum.to_list()
+          |> List.flatten()
+        else
+          []
+        end
+
+      {:ok, local_chain ++ remote_chain}
     catch
       _ ->
         {:error, :network_issue}

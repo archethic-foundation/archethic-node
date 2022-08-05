@@ -176,7 +176,6 @@ defmodule Archethic.Bootstrap.NetworkInit do
         fee: Mining.get_transaction_fee(tx, 0.07),
         transaction_movements: Transaction.get_movements(tx)
       }
-      |> LedgerOperations.add_burning_movement()
       |> LedgerOperations.from_transaction(tx)
       |> LedgerOperations.consume_inputs(tx.address, unspent_outputs)
 

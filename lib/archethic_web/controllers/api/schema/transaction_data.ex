@@ -26,7 +26,7 @@ defmodule ArchethicWeb.API.Schema.TransactionData do
     |> cast_embed(:ownerships)
     |> validate_length(:content,
       max: @content_max_size,
-      message: "content size must be lessthan content_max_size"
+      message: "content size must be less than content_max_size"
     )
     |> validate_length(:code,
       max: @code_max_size,
