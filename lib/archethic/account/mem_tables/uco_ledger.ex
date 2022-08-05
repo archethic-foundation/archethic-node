@@ -16,11 +16,6 @@ defmodule Archethic.Account.MemTables.UCOLedger do
   - Main UCO ledger as ETS set ({to, from}, amount, spent?)
   - UCO Unspent Output Index as ETS bag (to, from)
 
-  ## Examples
-
-      iex> {:ok, _} = UCOLedger.start_link()
-      iex> { :ets.info(:archethic_uco_ledger)[:type], :ets.info(:archethic_uco_unspent_output_index)[:type] }
-      { :set, :bag }
   """
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)

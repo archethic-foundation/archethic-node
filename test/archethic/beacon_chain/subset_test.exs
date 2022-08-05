@@ -415,7 +415,7 @@ defmodule Archethic.BeaconChain.SubsetTest do
     )
 
     MockClient
-    |> expect(:send_message, fn
+    |> stub(:send_message, fn
       _, %BeaconUpdate{transaction_attestations: transaction_attestations}, _ ->
         send(me, {:transaction_attestations, transaction_attestations})
         {:ok, %Ok{}}
@@ -424,6 +424,9 @@ defmodule Archethic.BeaconChain.SubsetTest do
         {:ok, %Ok{}}
 
       _, %NewBeaconTransaction{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %Ping{}, _ ->
         {:ok, %Ok{}}
     end)
 
