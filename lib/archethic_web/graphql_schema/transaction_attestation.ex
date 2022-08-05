@@ -10,5 +10,6 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionAttestation do
   object :transaction_attestation do
     field(:address, :address)
     field(:nb_confirmations, :integer)
+    field(:max_confirmations, :integer)
   end
 end
