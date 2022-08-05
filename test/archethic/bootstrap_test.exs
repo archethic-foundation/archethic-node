@@ -42,14 +42,15 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.SharedSecrets.NodeRenewalScheduler
 
   alias Archethic.TransactionChain
+  alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.Transaction.ValidationStamp
   alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
   alias Archethic.TransactionChain.TransactionSummary
 
-  import Mox
+  alias Archethic.Reward.MemTables.RewardTokens, as: RewardMemTable
+  alias Archethic.Reward.MemTablesLoader, as: RewardTableLoader
 
-  alias Archethic.Reward.MemTables.RewardTokens
-  alias Archethic.Reward.MemTablesLoader
+  import Mox
 
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
@@ -58,11 +59,42 @@ defmodule Archethic.BootstrapTest do
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
 
-    start_supervised!(RewardTokens)
-    start_supervised!(MemTablesLoader)
-
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
+
+    MockDB
+    |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
+      [
+        %Transaction{
+          address: "@RewardToken0",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken1",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken2",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken3",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken4",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        }
+      ]
+    end)
+
+    start_supervised!(RewardMemTable)
+    start_supervised!(RewardTableLoader)
 
     :ok
   end
