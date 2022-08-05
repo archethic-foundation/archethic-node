@@ -15,12 +15,6 @@ defmodule Archethic.Account.MemTables.TokenLedger do
   Initialize the Token ledger tables:
   - Main Token ledger as ETS set ({token, to, from, token_id}, amount, spent?)
   - Token Unspent Output Index as ETS bag (to, {from, token, token_id})
-
-  ## Examples
-
-      iex> {:ok, _} = TokenLedger.start_link()
-      iex> { :ets.info(:archethic_token_ledger)[:type], :ets.info(:archethic_token_unspent_output_index)[:type] }
-      { :set, :bag }
   """
   def start_link(args \\ []) do
     GenServer.start_link(__MODULE__, args)
