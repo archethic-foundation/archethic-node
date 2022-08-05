@@ -32,6 +32,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Node
@@ -513,7 +514,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        :stop
+        next_events = [
+          {:next_event, :internal, {:notify_error, :network_issue}}
+        ]
+
+        {:keep_state_and_data, next_events}
 
       _ ->
         new_context =
@@ -637,7 +642,12 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     MaliciousDetection.start_link(context)
-    :stop
+
+    next_events = [
+      {:next_event, :internal, {:notify_error, :network_issue}}
+    ]
+
+    {:keep_state_and_data, next_events}
   end
 
   def handle_event(
@@ -766,14 +776,19 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:replication_error, reason},
         :replication,
-        _ = %{context: %ValidationContext{transaction: tx}}
+        _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Replication error - #{inspect(reason)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    :stop
+    next_events = [
+      {:next_event, :internal, {:notify_error, reason}}
+    ]
+
+    {:keep_state_and_data, next_events}
+    # :stop
   end
 
   def handle_event(
@@ -798,7 +813,13 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        :stop
+        next_events = [
+          {:next_event, :internal, {:notify_error, :network_issue}}
+        ]
+
+        {:keep_state_and_data, next_events}
+
+      # :stop
 
       _ ->
         nb_cross_validation_nodes = length(next_cross_validation_nodes)
@@ -832,6 +853,38 @@ defmodule Archethic.Mining.DistributedWorkflow do
       transaction_type: tx.type,
       transaction_address: Base.encode16(tx.address)
     )
+
+    next_events = [
+      {:next_event, :internal, {:notify_error, :network_issue}}
+    ]
+
+    {:keep_state_and_data, next_events}
+  end
+
+  def handle_event(
+        :internal,
+        {:notify_error, reason},
+        _,
+        _data = %{
+          context:
+            _context = %ValidationContext{
+              welcome_node: welcome_node = %Node{},
+              transaction: %Transaction{address: tx_address}
+            }
+        }
+      ) do
+    Logger.error("error state #{inspect(tx_address |> Base.encode16())}")
+    # notify_error_to_welcome_node
+    message = %ValidationError{reason: reason, address: tx_address}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        welcome_node,
+        message
+      )
+
+      :ok
+    end)
 
     :stop
   end

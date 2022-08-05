@@ -64,6 +64,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
+  alias __MODULE__.ValidationError
 
   alias Archethic.P2P.Node
 
@@ -83,6 +84,8 @@ defmodule Archethic.P2P.Message do
   alias Archethic.Utils.VarInt
 
   require Logger
+
+  alias ArchethicWeb.TransactionSubscriber
 
   @type t :: request() | response()
 
@@ -118,6 +121,7 @@ defmodule Archethic.P2P.Message do
           | TransactionSummary.t()
           | ReplicationAttestation.t()
           | GetFirstAddress.t()
+          | ValidationError.t()
 
   @type response ::
           Ok.t()
@@ -384,6 +388,12 @@ defmodule Archethic.P2P.Message do
   def encode(%GetFirstAddress{address: address}) do
     <<31::8, address::binary>>
   end
+
+  def encode(%ValidationError{reason: reason, address: nil}),
+    do: <<234::8, Error.serialize_reason(reason)::8>>
+
+  def encode(%ValidationError{reason: reason, address: address}),
+    do: <<234::8, 1::8, Error.serialize_reason(reason)::8, address::binary>>
 
   def encode(%FirstAddress{address: address}) do
     <<235::8, address::binary>>
@@ -852,6 +862,16 @@ defmodule Archethic.P2P.Message do
     {%GetFirstAddress{address: address}, rest}
   end
 
+  def decode(<<234::8, 1::8, reason::8, rest::bitstring>>) do
+    reason = ValidationError.deserialize_reason(reason)
+    {address, rest} = Utils.deserialize_address(rest)
+    {%ValidationError{reason: reason, address: address}, rest}
+  end
+
+  def decode(<<234::8, reason::8, rest::bitstring>>) do
+    {%ValidationError{reason: ValidationError.deserialize_reason(reason), address: nil}, rest}
+  end
+
   def decode(<<235::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%FirstAddress{address: address}, rest}
@@ -1118,6 +1138,10 @@ defmodule Archethic.P2P.Message do
       {:error, :network_issue} ->
         %Error{reason: :network_issue}
     end
+  end
+
+  def process(%ValidationError{reason: reason, address: address}) do
+    TransactionSubscriber.report_error(reason, address)
   end
 
   def process(%GetTransaction{address: tx_address}) do
