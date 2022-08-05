@@ -177,12 +177,12 @@ defmodule Archethic.P2P.Message do
     get_max_timeout() * 10
   end
 
-  def get_timeout(%GetBeaconSummaries{addresses: addresses}) do
-    # We can expect high beacon summary where a transaction replication will contains a single UCO transfer
-    # CALC: Tx address +  recipient address + tx type + tx timestamp + storage node public key + signature * 200 (max storage nodes)
-    beacon_summary_high_estimation_bytes = 34 + 34 + 1 + 8 + (8 + 34 + 34 * 200)
-    length(addresses) * trunc(beacon_summary_high_estimation_bytes / @floor_upload_speed * 1000)
-  end
+  #  def get_timeout(%GetBeaconSummaries{addresses: addresses}) do
+  #    # We can expect high beacon summary where a transaction replication will contains a single UCO transfer
+  #    # CALC: Tx address +  recipient address + tx type + tx timestamp + storage node public key + signature * 200 (max storage nodes)
+  #    beacon_summary_high_estimation_bytes = 34 + 34 + 1 + 8 + (8 + 34 + 34 * 200)
+  #    length(addresses) * trunc(beacon_summary_high_estimation_bytes / @floor_upload_speed * 1000)
+  #  end
 
   def get_timeout(%GetUnspentOutputs{}), do: get_max_timeout()
   def get_timeout(%GetTransactionInputs{}), do: get_max_timeout()
