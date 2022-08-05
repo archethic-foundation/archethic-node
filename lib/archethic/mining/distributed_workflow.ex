@@ -32,6 +32,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
   alias Archethic.P2P.Message.CrossValidate
   alias Archethic.P2P.Message.CrossValidationDone
   alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Node
@@ -874,7 +875,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       ) do
     Logger.error("error state #{inspect(tx_address |> Base.encode16())}")
     # notify_error_to_welcome_node
-    message = %Error{address: tx_address, reason: reason}
+    message = %ValidationError{reason: reason, address: tx_address}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
       P2P.send_message(

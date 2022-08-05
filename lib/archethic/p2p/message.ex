@@ -64,6 +64,7 @@ defmodule Archethic.P2P.Message do
   alias __MODULE__.TransactionInputList
   alias __MODULE__.TransactionList
   alias __MODULE__.UnspentOutputList
+  alias __MODULE__.ValidationError
 
   alias Archethic.P2P.Node
 
@@ -120,7 +121,7 @@ defmodule Archethic.P2P.Message do
           | TransactionSummary.t()
           | ReplicationAttestation.t()
           | GetFirstAddress.t()
-          | Error.t()
+          | ValidationError.t()
 
   @type response ::
           Ok.t()
@@ -388,6 +389,12 @@ defmodule Archethic.P2P.Message do
     <<31::8, address::binary>>
   end
 
+  def encode(%ValidationError{reason: reason, address: nil}),
+    do: <<234::8, Error.serialize_reason(reason)::8>>
+
+  def encode(%ValidationError{reason: reason, address: address}),
+    do: <<234::8, 1::8, Error.serialize_reason(reason)::8, address::binary>>
+
   def encode(%FirstAddress{address: address}) do
     <<235::8, address::binary>>
   end
@@ -415,11 +422,7 @@ defmodule Archethic.P2P.Message do
     <<237::8, encoded_summaries_length::binary, summaries_bin::bitstring>>
   end
 
-  def encode(%Error{reason: reason, address: nil}),
-    do: <<238::8, Error.serialize_reason(reason)::8>>
-
-  def encode(%Error{reason: reason, address: address}),
-    do: <<238::8, 1::8, Error.serialize_reason(reason)::8, address::binary>>
+  def encode(%Error{reason: reason}), do: <<238::8, Error.serialize_reason(reason)::8>>
 
   def encode(tx_summary = %TransactionSummary{}) do
     <<239::8, TransactionSummary.serialize(tx_summary)::binary>>
@@ -859,6 +862,16 @@ defmodule Archethic.P2P.Message do
     {%GetFirstAddress{address: address}, rest}
   end
 
+  def decode(<<234::8, 1::8, reason::8, rest::bitstring>>) do
+    reason = ValidationError.deserialize_reason(reason)
+    {address, rest} = Utils.deserialize_address(rest)
+    {%ValidationError{reason: reason, address: address}, rest}
+  end
+
+  def decode(<<234::8, reason::8, rest::bitstring>>) do
+    {%ValidationError{reason: ValidationError.deserialize_reason(reason), address: nil}, rest}
+  end
+
   def decode(<<235::8, rest::bitstring>>) do
     {address, rest} = Utils.deserialize_address(rest)
     {%FirstAddress{address: address}, rest}
@@ -888,14 +901,8 @@ defmodule Archethic.P2P.Message do
     }
   end
 
-  def decode(<<238::8, 1::8, reason::8, rest::bitstring>>) do
-    reason = Error.deserialize_reason(reason)
-    {address, rest} = Utils.deserialize_address(rest)
-    {%Error{reason: reason, address: address}, rest}
-  end
-
   def decode(<<238::8, reason::8, rest::bitstring>>) do
-    {%Error{reason: Error.deserialize_reason(reason), address: nil}, rest}
+    {%Error{reason: Error.deserialize_reason(reason)}, rest}
   end
 
   def decode(<<239::8, rest::bitstring>>) do
@@ -1133,12 +1140,7 @@ defmodule Archethic.P2P.Message do
     end
   end
 
-  def process(%Error{reason: reason, address: nil}) do
-    Logger.error(reason)
-    %Ok{}
-  end
-
-  def process(%Error{reason: reason, address: address}) do
+  def process(%ValidationError{reason: reason, address: address}) do
     TransactionSubscriber.report_error(reason, address)
   end
 
