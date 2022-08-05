@@ -511,7 +511,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        {:next_state, {:return_error, "No_cross_validation_error"}, data}
+        next_events = [
+          {:next_event, :internal, :network_issue}
+        ]
+
+        {:keep_state_and_data, next_events}
 
       _ ->
         new_context =
@@ -610,7 +614,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :enter,
         :wait_cross_validation_stamps,
         :consensus_not_reached,
-        data = %{
+        _data = %{
           context:
             context = %ValidationContext{
               transaction: tx,
@@ -636,7 +640,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
     MaliciousDetection.start_link(context)
 
-    {:next_state, {:return_error, "consensus_error"}, data}
+    next_events = [
+      {:next_event, :internal, :network_issue}
+    ]
+
+    {:keep_state_and_data, next_events}
   end
 
   def handle_event(
@@ -765,14 +773,18 @@ defmodule Archethic.Mining.DistributedWorkflow do
         :info,
         {:replication_error, reason},
         :replication,
-        data = %{context: %ValidationContext{transaction: tx}}
+        _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.error("Replication error - #{inspect(reason)}",
       transaction_address: Base.encode16(tx.address),
       transaction_type: tx.type
     )
 
-    {:next_state, {:return_error, "replication_error"}, data}
+    next_events = [
+      {:next_event, :internal, :network_issue}
+    ]
+
+    {:keep_state_and_data, next_events}
     # :stop
   end
 
@@ -798,7 +810,11 @@ defmodule Archethic.Mining.DistributedWorkflow do
           transaction_type: tx.type
         )
 
-        {:next_state, {:return_error, "No_coordinator_error"}, data}
+        next_events = [
+          {:next_event, :internal, :network_issue}
+        ]
+
+        {:keep_state_and_data, next_events}
 
       # :stop
 
@@ -828,20 +844,24 @@ defmodule Archethic.Mining.DistributedWorkflow do
         {:timeout, :stop_timeout},
         :any,
         _state,
-        data = %{context: %ValidationContext{transaction: tx}}
+        _data = %{context: %ValidationContext{transaction: tx}}
       ) do
     Logger.warning("Timeout reached during mining",
       transaction_type: tx.type,
       transaction_address: Base.encode16(tx.address)
     )
 
-    {:next_state, {:return_error, "mining_timeout"}, data}
+    next_events = [
+      {:next_event, :internal, :network_issue}
+    ]
+
+    {:keep_state_and_data, next_events}
   end
 
   def handle_event(
-        {:return_error, error},
-        :any,
-        _state,
+        :internal,
+        :network_issue,
+        _,
         _data = %{
           context:
             _context = %ValidationContext{
@@ -850,12 +870,17 @@ defmodule Archethic.Mining.DistributedWorkflow do
             }
         }
       ) do
-    Logger.error("error state #{inspect({error, tx_address |> Base.encode16()})}")
+    Logger.error("error state #{inspect(tx_address |> Base.encode16())}")
     # notify_error_to_welcome_node
-    message = %Error{address: tx_address, reason: :workflow_error}
+    message = %Error{address: tx_address, reason: :network_issue}
 
-    Task.start(fn ->
-      P2P.send_message!(welcome_node, message)
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        welcome_node,
+        message
+      )
+
+      :ok
     end)
 
     :stop
