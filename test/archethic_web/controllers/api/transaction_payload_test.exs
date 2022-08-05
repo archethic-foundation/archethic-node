@@ -96,7 +96,8 @@ defmodule ArchethicWeb.API.TransactionPayloadTest do
           "data" => %{"content" => content}
         })
 
-      assert {"content size must be lessthan content_max_size", _} = Keyword.get(errors, :content)
+      assert {"content size must be less than content_max_size", _} =
+               Keyword.get(errors, :content)
     end
 
     test "should return an error if the code is not a string" do

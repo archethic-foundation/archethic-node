@@ -169,7 +169,7 @@ function renderItem(params, api) {
 
     // Avoid dividing by 0
     const percent = max !== min ? 
-      (0.8 * (nbNodes - min) / (max - min)) + 0.2 : 1
+      (0.60 * (nbNodes - min) / (max - min)) + 0.40 : 1
     
     const radius = maxRadius * percent
   

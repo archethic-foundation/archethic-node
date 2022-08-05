@@ -31,6 +31,8 @@ defmodule Archethic.BootstrapTest do
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.NotFound
 
   alias Archethic.Replication
 
@@ -46,12 +48,18 @@ defmodule Archethic.BootstrapTest do
 
   import Mox
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
   setup do
     start_supervised!({BeaconSummaryTimer, interval: "0 0 * * * * *"})
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     start_supervised!({SelfRepairScheduler, interval: "0 * * * * * *"})
     start_supervised!(BootstrappingSeeds)
     start_supervised!({NodeRenewalScheduler, interval: "0 * * * * * *"})
+
+    start_supervised!(RewardTokens)
+    start_supervised!(MemTablesLoader)
 
     MockDB
     |> stub(:write_transaction_chain, fn _ -> :ok end)
@@ -80,6 +88,9 @@ defmodule Archethic.BootstrapTest do
 
         _, %GetTransactionChainLength{}, _ ->
           %TransactionChainLength{length: 1}
+
+        _, %GetFirstAddress{}, _ ->
+          {:ok, %NotFound{}}
       end)
 
       {:ok, daily_nonce_agent} = Agent.start_link(fn -> %{} end)

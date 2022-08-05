@@ -6,6 +6,8 @@ defmodule Archethic.Account.MemTablesLoaderTest do
   alias Archethic.Account.MemTables.UCOLedger
   alias Archethic.Account.MemTablesLoader
 
+  alias Archethic.Crypto
+
   alias Archethic.P2P
   alias Archethic.P2P.Node
 
@@ -19,10 +21,37 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   import Mox
 
+  alias Archethic.Reward
+  doctest Archethic.Account.MemTablesLoader
+
   setup :verify_on_exit!
   setup :set_mox_global
 
   setup do
+    MockDB
+    |> stub(:list_transactions_by_type, fn :mint_rewards, [:address, :type] ->
+      [
+        %Transaction{
+          address: "@RewardToken0",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken1",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        },
+        %Transaction{
+          address: "@RewardToken2",
+          type: :mint_rewards,
+          validation_stamp: %ValidationStamp{ledger_operations: %LedgerOperations{fee: 0}}
+        }
+      ]
+    end)
+
+    start_supervised!(Reward.MemTables.RewardTokens)
+    start_supervised!(Reward.MemTablesLoader)
+
     P2P.add_and_connect_node(%Node{
       first_public_key: "NodeKey",
       last_public_key: "NodeKey",
@@ -37,6 +66,17 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
   describe "load_transaction/1" do
     test "should distribute unspent outputs" do
+      P2P.add_and_connect_node(%Node{
+        ip: {127, 0, 0, 1},
+        port: 3000,
+        first_public_key: Crypto.first_node_public_key(),
+        last_public_key: Crypto.first_node_public_key(),
+        authorized?: true,
+        authorization_date: DateTime.utc_now() |> DateTime.add(-1000),
+        available?: true,
+        geo_patch: "AAA"
+      })
+
       assert :ok = MemTablesLoader.load_transaction(create_transaction())
 
       [
@@ -46,6 +86,9 @@ defmodule Archethic.Account.MemTablesLoaderTest do
 
       [%UnspentOutput{from: "@Charlie3", amount: 3_400_000_000}] =
         UCOLedger.get_unspent_outputs("@Tom4")
+
+      [%UnspentOutput{from: "@Charlie3", amount: 100_000_000}] =
+        UCOLedger.get_unspent_outputs(LedgerOperations.burning_address())
 
       assert [
                %UnspentOutput{
@@ -93,6 +136,7 @@ defmodule Archethic.Account.MemTablesLoaderTest do
       validation_stamp: %ValidationStamp{
         timestamp: DateTime.utc_now(),
         ledger_operations: %LedgerOperations{
+          fee: 100_000_000,
           transaction_movements: [
             %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
             %TransactionMovement{
@@ -108,6 +152,101 @@ defmodule Archethic.Account.MemTablesLoaderTest do
               type: :UCO
             },
             %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO}
+          ]
+        }
+      }
+    }
+  end
+
+  describe "Reward Minting test" do
+    test "Should display Reward Token as UCO in UnspentOutput of Recipient" do
+      assert :ok = MemTablesLoader.load_transaction(create_reward_transaction())
+
+      # uco ledger
+      assert [
+               %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+               %UnspentOutput{from: "@Alice2", amount: 200_000_000, type: :UCO}
+             ] = UCOLedger.get_unspent_outputs("@Charlie3")
+
+      assert [
+               %UnspentOutput{from: "@Charlie3", amount: 3_600_000_000, type: :UCO}
+             ] = UCOLedger.get_unspent_outputs("@Tom4")
+
+      assert [
+               %UnspentOutput{from: "@Charlie3", amount: 200_000_000, type: :UCO}
+             ] = UCOLedger.get_unspent_outputs("@Bob3")
+
+      #  token ledger
+      assert [
+               %UnspentOutput{
+                 from: "@RewardToken2",
+                 amount: 5_000_000_000,
+                 type: {:token, "@RewardToken2", 0}
+               },
+               %UnspentOutput{
+                 from: "@RewardToken1",
+                 amount: 5_000_000_000,
+                 type: {:token, "@RewardToken1", 0}
+               }
+             ] = TokenLedger.get_unspent_outputs("@Charlie3")
+
+      assert [] = TokenLedger.get_unspent_outputs("@Tom4")
+
+      assert [
+               %UnspentOutput{
+                 from: "@Charlie3",
+                 amount: 1_000_000_000,
+                 type: {:token, "@CharlieToken", 0}
+               }
+             ] = TokenLedger.get_unspent_outputs("@Bob3")
+    end
+  end
+
+  defp create_reward_transaction() do
+    %Transaction{
+      address: "@Charlie3",
+      previous_public_key: "Charlie2",
+      validation_stamp: %ValidationStamp{
+        timestamp: DateTime.utc_now(),
+        ledger_operations: %LedgerOperations{
+          fee: 0,
+          transaction_movements: [
+            %TransactionMovement{to: "@Tom4", amount: 3_400_000_000, type: :UCO},
+            %TransactionMovement{
+              to: "@Bob3",
+              amount: 1_000_000_000,
+              type: {:token, "@CharlieToken", 0}
+            },
+            %TransactionMovement{
+              to: "@Tom4",
+              amount: 200_000_000,
+              type: {:token, "@RewardToken1", 0}
+            },
+            %TransactionMovement{
+              to: "@Bob3",
+              amount: 200_000_000,
+              type: {:token, "@RewardToken2", 0}
+            }
+          ],
+          unspent_outputs: [
+            %UnspentOutput{
+              from: "@Alice2",
+              amount: 200_000_000,
+              type: :UCO
+            },
+            %UnspentOutput{from: "@Charlie3", amount: 1_900_000_000, type: :UCO},
+            %UnspentOutput{
+              from: "@RewardToken1",
+              amount: 5_000_000_000,
+              type: {:token, "@RewardToken1", 0},
+              reward?: true
+            },
+            %UnspentOutput{
+              from: "@RewardToken2",
+              amount: 5_000_000_000,
+              type: {:token, "@RewardToken2", 0},
+              reward?: true
+            }
           ]
         }
       }

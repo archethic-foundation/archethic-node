@@ -2,6 +2,16 @@ import Config
 
 config :logger, level: System.get_env("ARCHETHIC_LOGGER_LEVEL", "debug") |> String.to_atom()
 
+if System.get_env("ARCHETHIC_FILE_LOGGER", "false") == "true" do
+  config :logger,
+    backends: [:console, {LoggerFileBackend, :error_log}],
+    format: "[$level] $message\n"
+
+  config :logger, :error_log,
+    path: "_build/dev/lib/archethic/aelog.txt",
+    level: :debug
+end
+
 config :archethic,
        :mut_dir,
        System.get_env(
@@ -97,13 +107,9 @@ config :archethic, Archethic.Networking.Scheduler, interval: "0 * * * * * *"
 
 # -----end-of-Networking-dev-configs-----
 
-config :archethic, Archethic.Reward.NetworkPoolScheduler,
+config :archethic, Archethic.Reward.Scheduler,
   # At the 30th second
   interval: "30 * * * * *"
-
-config :archethic, Archethic.Reward.WithdrawScheduler,
-  # Every 10s
-  interval: "*/10 * * * * *"
 
 config :archethic, Archethic.SelfRepair.Scheduler,
   # Every minute at the 5th second

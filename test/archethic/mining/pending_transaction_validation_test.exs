@@ -7,6 +7,10 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
 
   alias Archethic.Mining.PendingTransactionValidation
 
+  alias Archethic.SharedSecrets.MemTables.NetworkLookup
+
+  alias Archethic.Reward.Scheduler
+
   alias Archethic.P2P
   alias Archethic.P2P.Message.FirstPublicKey
   alias Archethic.P2P.Message.GetFirstPublicKey
@@ -346,6 +350,104 @@ defmodule Archethic.Mining.PendingTransactionValidationTest do
         )
 
       assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return :ok when a mint reward transaction passes all tests" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      {pub, _} = Crypto.derive_keypair(tx_seed, 1)
+      address = Crypto.derive_address(pub)
+
+      NetworkLookup.set_network_pool_address(address)
+
+      Scheduler.start_link(interval: "0 * * * * *")
+
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
+      |> stub(:get_last_chain_address, fn _, _ -> address end)
+
+      tx =
+        Transaction.new(
+          :mint_rewards,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "fungible",
+                symbol: "MTK"
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert :ok = PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return :error when a mint reward transaction has != burned_fees" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      {pub, _} = Crypto.derive_keypair(tx_seed, 1)
+      address = Crypto.derive_address(pub)
+
+      NetworkLookup.set_network_pool_address(address)
+
+      Scheduler.start_link(interval: "0 * * * * *")
+
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 200_000_000 end)
+      |> stub(:get_last_chain_address, fn _, _ -> address end)
+
+      tx =
+        Transaction.new(
+          :mint_rewards,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "fungible",
+                symbol: "MTK"
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "The supply do not match burned fees from last summary"} =
+               PendingTransactionValidation.validate(tx)
+    end
+
+    test "should return :error when there is already a mint rewards transaction since last schedule" do
+      tx_seed = :crypto.strong_rand_bytes(32)
+      {pub, _} = Crypto.derive_keypair(tx_seed, 1)
+      address = Crypto.derive_address(pub)
+
+      NetworkLookup.set_network_pool_address(:crypto.strong_rand_bytes(32))
+
+      Scheduler.start_link(interval: "0 * * * * *")
+
+      MockDB
+      |> stub(:get_latest_burned_fees, fn -> 300_000_000 end)
+      |> stub(:get_last_chain_address, fn _, _ -> address end)
+
+      tx =
+        Transaction.new(
+          :mint_rewards,
+          %TransactionData{
+            content:
+              Jason.encode!(%{
+                supply: 300_000_000,
+                name: "MyToken",
+                type: "fungible",
+                symbol: "MTK"
+              })
+          },
+          tx_seed,
+          0
+        )
+
+      assert {:error, "There is already a mint rewards transaction since last schedule"} =
+               PendingTransactionValidation.validate(tx)
     end
   end
 end

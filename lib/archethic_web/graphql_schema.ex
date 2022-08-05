@@ -49,7 +49,7 @@ defmodule ArchethicWeb.GraphQLSchema do
     Query the network to find all the transactions locally stored
     """
     field :transactions, list_of(:transaction) do
-      arg(:page, :integer)
+      arg(:page, :page)
 
       resolve(fn args, _ ->
         page = Map.get(args, :page, 1)
@@ -78,6 +78,17 @@ defmodule ArchethicWeb.GraphQLSchema do
 
       resolve(fn %{address: address}, _ ->
         Resolver.get_balance(address)
+      end)
+    end
+
+    @desc """
+    Query the network to find a token's data
+    """
+    field :token, :token do
+      arg(:address, non_null(:address))
+
+      resolve(fn %{address: address}, _ ->
+        Resolver.get_token(address)
       end)
     end
 

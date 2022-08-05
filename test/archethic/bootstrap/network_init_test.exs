@@ -25,6 +25,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.TransactionInputList
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  alias Archethic.P2P.Message.FirstAddress
+  alias Archethic.P2P.Message.NotFound
 
   alias Archethic.SharedSecrets
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -45,17 +48,24 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
   alias Archethic.TransactionChain.TransactionSummary
   alias Archethic.TransactionFactory
 
+  alias Archethic.Reward.MemTables.RewardTokens
+  alias Archethic.Reward.MemTablesLoader
+
+  alias Archethic.P2P.Message.GetFirstAddress
+  import Mox
+
   @genesis_origin_public_keys Application.compile_env!(
                                 :archethic,
                                 [NetworkInit, :genesis_origin_public_keys]
                               )
 
-  import Mox
-
   setup do
     start_supervised!({BeaconSlotTimer, interval: "0 * * * * * *"})
     Enum.each(BeaconChain.list_subsets(), &BeaconSubset.start_link(subset: &1))
     start_supervised!({NodeRenewalScheduler, interval: "*/2 * * * * * *"})
+
+    start_supervised!(RewardTokens)
+    start_supervised!(MemTablesLoader)
 
     P2P.add_and_connect_node(%Node{
       ip: {127, 0, 0, 1},
@@ -65,8 +75,8 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
       available?: true,
       geo_patch: "AAA",
       network_patch: "AAA",
-      enrollment_date: DateTime.utc_now(),
-      authorization_date: DateTime.utc_now(),
+      enrollment_date: DateTime.add(DateTime.utc_now(), -1),
+      authorization_date: DateTime.add(DateTime.utc_now(), -1),
       authorized?: true,
       reward_address: <<0::8, :crypto.strong_rand_bytes(32)::binary>>
     })
@@ -83,7 +93,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     assert :ok = NetworkInit.create_storage_nonce()
   end
 
-  test "self_validation!/2 should return a validated transaction" do
+  test "self_validation/2 should return a validated transaction" do
+    MockClient
+    |> stub(:send_message, fn _, %GetFirstAddress{address: address}, _ ->
+      address
+    end)
+
     tx =
       Transaction.new(
         :transfer,
@@ -105,17 +120,12 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
     tx_fee = tx.validation_stamp.ledger_operations.fee
     unspent_output = 1_000_000_000_000 - (tx_fee + 500_000_000_000)
-    burning_address = LedgerOperations.burning_address()
 
     assert %Transaction{
              validation_stamp: %ValidationStamp{
                ledger_operations: %LedgerOperations{
+                 fee: ^tx_fee,
                  transaction_movements: [
-                   %TransactionMovement{
-                     to: ^burning_address,
-                     amount: ^tx_fee,
-                     type: :UCO
-                   },
                    %TransactionMovement{to: "@Alice2", amount: 500_000_000_000, type: :UCO}
                  ],
                  unspent_outputs: [
@@ -153,6 +163,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     Crypto.generate_deterministic_keypair("daily_nonce_seed")
@@ -209,6 +222,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{address: address}, _ ->
+        {:ok, %FirstAddress{address: address}}
     end)
 
     me = self()
@@ -263,6 +279,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     P2P.add_and_connect_node(%Node{
@@ -308,6 +327,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     network_pool_seed = :crypto.strong_rand_bytes(32)
@@ -332,7 +354,7 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
     network_address = SharedSecrets.get_network_pool_address()
     key = {network_address, 0}
 
-    assert %{token: %{^key => 3_400_000_000_000_000}} = Account.get_balance(network_address)
+    assert %{token: %{^key => 3_340_000_000_000_000}} = Account.get_balance(network_address)
   end
 
   test "init_software_origin_shared_secrets_chain/1 should create first origin shared secret transaction" do
@@ -352,6 +374,9 @@ defmodule Archethic.Bootstrap.NetworkInitTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     me = self()

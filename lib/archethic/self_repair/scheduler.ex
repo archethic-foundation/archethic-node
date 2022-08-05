@@ -14,6 +14,8 @@ defmodule Archethic.SelfRepair.Scheduler do
 
   alias Archethic.Utils
 
+  alias Archethic.Bootstrap.Sync, as: BootstrapSync
+
   require Logger
 
   @doc """
@@ -106,6 +108,9 @@ defmodule Archethic.SelfRepair.Scheduler do
   end
 
   def handle_info({ref, {:ok, date}}, state) do
+    # If the node is still unavailable after self repair, we send the postpone the
+    # end of node sync message
+    if !P2P.available_node?(), do: BootstrapSync.publish_end_of_sync()
     update_last_sync_date(date)
     Process.demonitor(ref, [:flush])
     {:noreply, state}

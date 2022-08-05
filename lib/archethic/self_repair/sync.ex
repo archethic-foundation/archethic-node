@@ -18,6 +18,8 @@ defmodule Archethic.SelfRepair.Sync do
   alias Archethic.TaskSupervisor
   alias Archethic.TransactionChain
 
+  alias Archethic.TransactionChain.TransactionSummary
+
   alias Archethic.Utils
 
   require Logger
@@ -123,7 +125,7 @@ defmodule Archethic.SelfRepair.Sync do
   The P2P view will also be updated if some node information are inside the beacon chain to determine
   the readiness or the availability of a node.
 
-  Also, the  number of transaction received during the beacon summary interval will be stored.
+  Also, the  number of transaction received and the fees burned during the beacon summary interval will be stored.
   """
   @spec process_summary_aggregate(SummaryAggregate.t(), binary()) :: :ok
   def process_summary_aggregate(
@@ -159,7 +161,7 @@ defmodule Archethic.SelfRepair.Sync do
     end)
     |> Enum.each(&update_availabilities/1)
 
-    update_statistics(summary_time, length(transaction_summaries))
+    update_statistics(summary_time, transaction_summaries)
   end
 
   defp synchronize_transactions([], _node_patch), do: :ok
@@ -173,7 +175,7 @@ defmodule Archethic.SelfRepair.Sync do
       transaction_summaries,
       &TransactionHandler.download_transaction(&1, node_patch),
       on_timeout: :kill_task,
-      timeout: Message.get_max_timeout()
+      timeout: Message.get_max_timeout() + 2000
     )
     |> Stream.filter(&match?({:ok, _}, &1))
     |> Stream.each(fn {:ok, tx} ->
@@ -229,9 +231,14 @@ defmodule Archethic.SelfRepair.Sync do
     P2P.set_node_average_availability(node_key, avg_availability)
   end
 
-  defp update_statistics(_date, 0), do: :ok
+  defp update_statistics(date, []) do
+    tps = DB.get_latest_tps()
+    DB.register_stats(date, tps, 0, 0)
+  end
 
-  defp update_statistics(date, nb_transactions) do
+  defp update_statistics(date, transaction_summaries) do
+    nb_transactions = length(transaction_summaries)
+
     previous_summary_time =
       date
       |> Utils.truncate_datetime()
@@ -240,11 +247,19 @@ defmodule Archethic.SelfRepair.Sync do
     nb_seconds = abs(DateTime.diff(previous_summary_time, date))
     tps = nb_transactions / nb_seconds
 
-    DB.register_tps(date, tps, nb_transactions)
+    acc = 0
+
+    burned_fees =
+      transaction_summaries
+      |> Enum.reduce(acc, fn %TransactionSummary{fee: fee}, acc -> acc + fee end)
+
+    DB.register_stats(date, tps, nb_transactions, burned_fees)
 
     Logger.info(
       "TPS #{tps} on #{Utils.time_to_string(date)} with #{nb_transactions} transactions"
     )
+
+    Logger.info("Burned fees #{burned_fees} on #{Utils.time_to_string(date)}")
 
     PubSub.notify_new_tps(tps, nb_transactions)
   end

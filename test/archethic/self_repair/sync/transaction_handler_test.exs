@@ -19,6 +19,8 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
   alias Archethic.P2P.Message.TransactionList
   alias Archethic.P2P.Message.UnspentOutputList
   alias Archethic.P2P.Node
+  alias Archethic.P2P.Message.GetFirstAddress
+  # alias Archethic.P2P.Message.FirstAddress
 
   alias Archethic.SelfRepair.Sync.TransactionHandler
   alias Archethic.SharedSecrets.MemTables.NetworkLookup
@@ -152,6 +154,9 @@ defmodule Archethic.SelfRepair.Sync.TransactionHandlerTest do
 
       _, %GetTransactionChainLength{}, _ ->
         %TransactionChainLength{length: 1}
+
+      _, %GetFirstAddress{}, _ ->
+        {:ok, %NotFound{}}
     end)
 
     MockDB

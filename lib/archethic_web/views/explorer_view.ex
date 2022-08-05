@@ -13,6 +13,7 @@ defmodule ArchethicWeb.ExplorerView do
   alias Archethic.P2P.Node
 
   alias Archethic.TransactionChain.TransactionSummary
+  alias Archethic.TransactionChain.Transaction.ValidationStamp.LedgerOperations
 
   alias Archethic.Utils
 
@@ -210,7 +211,10 @@ defmodule ArchethicWeb.ExplorerView do
   end
 
   def format_transaction_content(:hosting, content) do
-    Jason.Formatter.pretty_print_to_iodata(content)
+    case Jason.decode(content) do
+      {:ok, _} -> Jason.Formatter.pretty_print_to_iodata(content)
+      _ -> content
+    end
   end
 
   def format_transaction_content(_, content), do: content
@@ -245,4 +249,6 @@ defmodule ArchethicWeb.ExplorerView do
 
     {family, key, key_certificate}
   end
+
+  def burning_address, do: LedgerOperations.burning_address()
 end

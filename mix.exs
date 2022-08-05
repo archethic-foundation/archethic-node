@@ -4,7 +4,7 @@ defmodule Archethic.MixProject do
   def project do
     [
       app: :archethic,
-      version: "0.17.0",
+      version: "0.20.1",
       build_path: "_build",
       config_path: "config/config.exs",
       deps_path: "deps",
@@ -102,7 +102,8 @@ defmodule Archethic.MixProject do
       {:broadway, "~> 1.0"},
       {:knigge, "~> 1.4"},
       {:ex_json_schema, "~> 0.9.1", override: true},
-      {:pathex, "~> 2.0"}
+      {:pathex, "~> 2.0"},
+      {:logger_file_backend, "~> 0.0.13"}
     ]
   end
 

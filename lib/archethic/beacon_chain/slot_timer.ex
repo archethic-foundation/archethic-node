@@ -14,6 +14,7 @@ defmodule Archethic.BeaconChain.SlotTimer do
   alias Archethic.Crypto
 
   alias Archethic.P2P.Node
+  alias Archethic.P2P
 
   alias Archethic.PubSub
 
@@ -96,7 +97,19 @@ defmodule Archethic.BeaconChain.SlotTimer do
 
     PubSub.register_to_node_update()
 
-    {:ok, %{interval: interval}}
+    Logger.info("Starting SlotTimer")
+
+    case Crypto.first_node_public_key() |> P2P.get_node_info() |> elem(1) do
+      %Node{authorized?: true} ->
+        Logger.info("SlotTimer scheduled during init")
+
+        {:ok, %{interval: interval, timer: schedule_new_slot(interval)}, :hibernate}
+
+      _ ->
+        Logger.info("SlotTimer scheduler waitng for Node Update Message")
+
+        {:ok, %{interval: interval}}
+    end
   end
 
   @doc false

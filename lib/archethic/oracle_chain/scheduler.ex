@@ -57,6 +57,7 @@ defmodule Archethic.OracleChain.Scheduler do
     summary_interval = Keyword.fetch!(args, :summary_interval)
 
     PubSub.register_to_node_update()
+    Logger.info("Starting Oracle Scheduler")
 
     current_time = DateTime.utc_now() |> DateTime.truncate(:second)
     polling_date = next_date(polling_interval, current_time)
@@ -66,6 +67,8 @@ defmodule Archethic.OracleChain.Scheduler do
       # Schedule polling for authorized node
       # This case may happen in case of process restart after crash
       {:ok, %Node{authorized?: true}} ->
+        Logger.info("Oracle Scheduler: Scheduled during init")
+
         polling_timer = schedule_new_polling(polling_date, current_time)
 
         {:ok, :ready,
@@ -79,6 +82,8 @@ defmodule Archethic.OracleChain.Scheduler do
          }}
 
       _ ->
+        Logger.info("Oracle Scheduler: waiting for Node Update Message")
+
         {:ok, :idle,
          %{
            polling_interval: polling_interval,

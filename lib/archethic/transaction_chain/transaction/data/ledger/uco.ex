@@ -6,6 +6,8 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
 
   alias __MODULE__.Transfer
 
+  alias Archethic.Utils.VarInt
+
   @typedoc """
   UCO movement is composed from:
   - Transfers: List of UCO transfers
@@ -28,8 +30,8 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
       ...> ]}
       ...> |> UCOLedger.serialize()
       <<
-        # Number of UCO transfers
-        1,
+        # Number of UCO transfers in VarInt
+        1, 1,
         # UCO recipient
         0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
         165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
@@ -40,7 +42,8 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
   @spec serialize(t()) :: binary()
   def serialize(%__MODULE__{transfers: transfers}) do
     transfers_bin = Enum.map(transfers, &Transfer.serialize/1) |> :erlang.list_to_binary()
-    <<length(transfers)::8, transfers_bin::binary>>
+    encoded_transfer = VarInt.from_value(length(transfers))
+    <<encoded_transfer::binary, transfers_bin::binary>>
   end
 
   @doc """
@@ -48,7 +51,7 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
 
   ## Examples
 
-      iex> <<1, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
+      iex> <<1, 1, 0, 0, 59, 140, 2, 130, 52, 88, 206, 176, 29, 10, 173, 95, 179, 27, 166, 66, 52,
       ...> 165, 11, 146, 194, 246, 89, 73, 85, 202, 120, 242, 136, 136, 63, 53,
       ...> 0, 0, 0, 0, 62, 149, 186, 128>>
       ...> |> UCOLedger.deserialize()
@@ -66,14 +69,15 @@ defmodule Archethic.TransactionChain.TransactionData.UCOLedger do
       }
   """
   @spec deserialize(bitstring()) :: {t(), bitstring}
-  def deserialize(<<0::8, rest::bitstring>>) do
+  def deserialize(<<1::8, 0::8, rest::bitstring>>) do
     {
       %__MODULE__{},
       rest
     }
   end
 
-  def deserialize(<<nb_transfers::8, rest::bitstring>>) do
+  def deserialize(<<rest::bitstring>>) do
+    {nb_transfers, rest} = rest |> VarInt.get_value()
     {transfers, rest} = do_reduce_transfers(rest, nb_transfers, [])
 
     {

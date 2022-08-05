@@ -269,13 +269,11 @@ defmodule Archethic.Replication.TransactionValidator do
     initial_movements =
       tx
       |> Transaction.get_movements()
-      |> Enum.map(&{&1.to, &1})
+      |> Enum.map(&{{&1.to, &1.type}, &1})
       |> Enum.into(%{})
 
-    tx_burn_mvt = LedgerOperations.get_burning_movement(ops)
-
     resolved_movements =
-      Enum.reduce(resolved_addresses, [tx_burn_mvt], fn {to, resolved}, acc ->
+      Enum.reduce(resolved_addresses, [], fn {to, resolved}, acc ->
         case Map.get(initial_movements, to) do
           nil ->
             acc
@@ -285,16 +283,18 @@ defmodule Archethic.Replication.TransactionValidator do
         end
       end)
 
-    if Enum.all?(resolved_movements, &(&1 in transaction_movements)) do
+    with true <- length(resolved_movements) == length(transaction_movements),
+         true <- Enum.all?(resolved_movements, &(&1 in transaction_movements)) do
       :ok
     else
-      Logger.error(
-        "Invalid movements: #{inspect(ops.transaction_movements)}",
-        transaction_address: Base.encode16(tx.address),
-        transaction_type: tx.type
-      )
+      false ->
+        Logger.error(
+          "Invalid movements: #{inspect(ops.transaction_movements)}",
+          transaction_address: Base.encode16(tx.address),
+          transaction_type: tx.type
+        )
 
-      {:error, :invalid_transaction_movements}
+        {:error, :invalid_transaction_movements}
     end
   end
 

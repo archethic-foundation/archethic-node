@@ -18,6 +18,8 @@ defmodule Archethic.BeaconChain.SubsetTest do
   alias Archethic.P2P.Message.Ok
   alias Archethic.P2P.Message.Ping
   alias Archethic.P2P.Node
+  # alias Archethic.P2P.Message.GetFirstAddress
+  # alias Archethic.P2P.Message.NotFound
 
   alias Archethic.TransactionChain.Transaction
   alias Archethic.TransactionChain.TransactionData
@@ -50,6 +52,11 @@ defmodule Archethic.BeaconChain.SubsetTest do
   describe "handle_info/1" do
     test "new transaction summary is added to the slot and include the storage node confirmation",
          %{subset: subset} do
+      MockClient
+      |> stub(:send_message, fn _, _txn = %TransactionSummary{}, _ ->
+        :ok
+      end)
+
       start_supervised!({SummaryTimer, interval: "0 0 * * *"})
       start_supervised!({SlotTimer, interval: "0 0 * * *"})
       pid = start_supervised!({Subset, subset: subset})
@@ -276,19 +283,22 @@ defmodule Archethic.BeaconChain.SubsetTest do
         fee: 0
       }
 
+      MockClient
+      |> stub(:send_message, fn
+        _, %Ping{}, _ ->
+          Process.sleep(10)
+          {:ok, %Ok{}}
+
+        _, %NewBeaconTransaction{}, _ ->
+          {:ok, %Ok{}}
+      end)
+
       send(
         pid,
         {:new_replication_attestation, %ReplicationAttestation{transaction_summary: tx_summary}}
       )
 
       me = self()
-
-      MockClient
-      |> stub(:send_message, fn
-        _, %Ping{}, _ ->
-          Process.sleep(10)
-          {:ok, %Ok{}}
-      end)
 
       MockDB
       |> stub(:write_transaction_at, fn
@@ -405,11 +415,16 @@ defmodule Archethic.BeaconChain.SubsetTest do
     )
 
     MockClient
-    |> expect(:send_message, fn _,
-                                %BeaconUpdate{transaction_attestations: transaction_attestations},
-                                _ ->
-      send(me, {:transaction_attestations, transaction_attestations})
-      {:ok, %Ok{}}
+    |> expect(:send_message, fn
+      _, %BeaconUpdate{transaction_attestations: transaction_attestations}, _ ->
+        send(me, {:transaction_attestations, transaction_attestations})
+        {:ok, %Ok{}}
+
+      _, %ReplicationAttestation{}, _ ->
+        {:ok, %Ok{}}
+
+      _, %NewBeaconTransaction{}, _ ->
+        {:ok, %Ok{}}
     end)
 
     Subset.subscribe_for_beacon_updates(subset, first_public_key)

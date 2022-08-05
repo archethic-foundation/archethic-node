@@ -32,7 +32,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
           "address" => "00009e059e8171643b959284fe542909f3b32198b8fc25b3e50447589b84341c1d67",
           "data" => %{
             "ledger" => %{
-              "nft" => %{"transfers" => []},
+              "token" => %{"transfers" => []},
               "uco" => %{
                 "transfers" => [
                   %{
@@ -54,7 +54,7 @@ defmodule ArchethicWeb.API.TransactionControllerTest do
         })
 
       assert %{
-               "fee" => 0.05001324,
+               "fee" => 0.05001344,
                "rates" => %{
                  "eur" => 0.2,
                  "usd" => 0.2
