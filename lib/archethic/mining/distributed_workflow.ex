@@ -512,7 +512,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         )
 
         next_events = [
-          {:next_event, :internal, :network_issue}
+          {:next_event, :internal, {:notify_error, :network_issue}}
         ]
 
         {:keep_state_and_data, next_events}
@@ -641,7 +641,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     MaliciousDetection.start_link(context)
 
     next_events = [
-      {:next_event, :internal, :network_issue}
+      {:next_event, :internal, {:notify_error, :network_issue}}
     ]
 
     {:keep_state_and_data, next_events}
@@ -781,7 +781,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     next_events = [
-      {:next_event, :internal, :network_issue}
+      {:next_event, :internal, {:notify_error, reason}}
     ]
 
     {:keep_state_and_data, next_events}
@@ -811,7 +811,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
         )
 
         next_events = [
-          {:next_event, :internal, :network_issue}
+          {:next_event, :internal, {:notify_error, :network_issue}}
         ]
 
         {:keep_state_and_data, next_events}
@@ -852,7 +852,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
     )
 
     next_events = [
-      {:next_event, :internal, :network_issue}
+      {:next_event, :internal, {:notify_error, :network_issue}}
     ]
 
     {:keep_state_and_data, next_events}
@@ -860,7 +860,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
 
   def handle_event(
         :internal,
-        :network_issue,
+        {:notify_error, reason},
         _,
         _data = %{
           context:
@@ -872,7 +872,7 @@ defmodule Archethic.Mining.DistributedWorkflow do
       ) do
     Logger.error("error state #{inspect(tx_address |> Base.encode16())}")
     # notify_error_to_welcome_node
-    message = %Error{address: tx_address, reason: :network_issue}
+    message = %Error{address: tx_address, reason: reason}
 
     Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
       P2P.send_message(

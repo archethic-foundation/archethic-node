@@ -55,7 +55,7 @@ defmodule ArchethicWeb.TransactionSubscriber do
     Subscription.publish(
       Endpoint,
       %{address: tx_address, error: error},
-      transaction_confirmed: tx_address
+      transaction_error: tx_address
     )
 
     {:noreply, new_state}

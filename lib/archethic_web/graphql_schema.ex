@@ -11,6 +11,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   alias __MODULE__.TransactionType
   alias __MODULE__.PageType
   alias __MODULE__.TransactionAttestation
+  alias __MODULE__.TransactionError
 
   import_types(HexType)
   import_types(DateTimeType)
@@ -18,6 +19,7 @@ defmodule ArchethicWeb.GraphQLSchema do
   import_types(SharedSecretsType)
   import_types(P2PType)
   import_types(TransactionAttestation)
+  import_types(TransactionError)
   import_types(PageType)
 
   query do
@@ -122,6 +124,14 @@ defmodule ArchethicWeb.GraphQLSchema do
     Subscribe to be notified when a transaction is stored (if acted as welcome node)
     """
     field :transaction_confirmed, :transaction_attestation do
+      arg(:address, non_null(:address))
+
+      config(fn args, _info ->
+        {:ok, topic: args.address}
+      end)
+    end
+
+    field :transaction_error, :transaction_error do
       arg(:address, non_null(:address))
 
       config(fn args, _info ->
