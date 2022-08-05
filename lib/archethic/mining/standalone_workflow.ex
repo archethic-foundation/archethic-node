@@ -21,6 +21,7 @@ defmodule Archethic.Mining.StandaloneWorkflow do
   alias Archethic.P2P
   alias Archethic.P2P.Message.AcknowledgeStorage
   alias Archethic.P2P.Message.Error
+  alias Archethic.P2P.Message.ValidationError
   alias Archethic.P2P.Message.ReplicateTransaction
   alias Archethic.P2P.Message.ReplicateTransactionChain
   alias Archethic.P2P.Node
@@ -177,8 +178,23 @@ defmodule Archethic.Mining.StandaloneWorkflow do
     end
   end
 
-  defp reduce_confirmations({%Error{reason: reason}, _}, _acc) do
+  defp reduce_confirmations(
+         {%Error{reason: reason}, _},
+         _acc = %{transaction_summary: tx_summary}
+       ) do
     Logger.warning("Invalid transaction #{inspect(reason)}")
+    # notify welcome node
+    message = %ValidationError{address: tx_summary.address, reason: reason}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        Crypto.last_node_public_key(),
+        message
+      )
+
+      :ok
+    end)
+
     :error
   end
 
@@ -190,6 +206,18 @@ defmodule Archethic.Mining.StandaloneWorkflow do
          confirmations: [],
          transaction_summary: %TransactionSummary{address: tx_address, type: tx_type}
        }) do
+    # notify welcome node
+    message = %ValidationError{address: tx_address, reason: :network_issue}
+
+    Task.Supervisor.async_nolink(Archethic.TaskSupervisor, fn ->
+      P2P.send_message(
+        Crypto.last_node_public_key(),
+        message
+      )
+
+      :ok
+    end)
+
     Logger.error("Not confirmations for the transaction",
       transaction_address: Base.encode16(tx_address),
       transaction_type: tx_type

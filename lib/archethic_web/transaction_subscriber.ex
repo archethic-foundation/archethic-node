@@ -9,9 +9,9 @@ defmodule ArchethicWeb.TransactionSubscriber do
   alias Archethic.PubSub
   alias Archethic.TransactionChain.TransactionSummary
 
-  alias ArchethicWeb.FaucetController
-
   alias ArchethicWeb.Endpoint
+
+  require Logger
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -26,8 +26,12 @@ defmodule ArchethicWeb.TransactionSubscriber do
     GenServer.cast(__MODULE__, {:register, tx_address, start_time})
   end
 
-  def get_state() do
-    GenServer.call(__MODULE__, {:get_state})
+  @doc """
+  Report a transaction error
+  """
+  @spec report_error(atom(), binary()) :: :ok
+  def report_error(error, tx_address) when is_binary(tx_address) do
+    GenServer.cast(__MODULE__, {:error, tx_address, error})
   end
 
   def init(_) do
@@ -36,13 +40,30 @@ defmodule ArchethicWeb.TransactionSubscriber do
     {:ok, %{}}
   end
 
+  def handle_cast(
+        {:error, tx_address, error},
+        state
+      ) do
+    Logger.debug("error in processing transaction: #{inspect({tx_address, error})}")
+
+    new_state =
+      Map.update(state, tx_address, %{status: :error}, fn state ->
+        state
+        |> Map.put(:status, :error)
+      end)
+
+    Subscription.publish(
+      Endpoint,
+      %{address: tx_address, error: error},
+      transaction_error: tx_address
+    )
+
+    {:noreply, new_state}
+  end
+
   def handle_cast({:register, tx_address, start_time}, state) do
     {:noreply,
-     Map.put(state, tx_address, %{
-       status: :pending,
-       start_time: start_time,
-       nb_confirmations: 0
-     })}
+     Map.put(state, tx_address, %{status: :pending, start_time: start_time, nb_confirmations: 0})}
   end
 
   def handle_info(
@@ -79,8 +100,6 @@ defmodule ArchethicWeb.TransactionSubscriber do
           duration: System.monotonic_time() - start_time
         })
 
-        FaucetController.transaction_confirmed({total_confirmations, tx_address})
-
         new_state =
           Map.update!(state, tx_address, fn state ->
             state
@@ -97,6 +116,9 @@ defmodule ArchethicWeb.TransactionSubscriber do
 
     new_state =
       Enum.filter(state, fn
+        {_address, %{status: :error}} ->
+          false
+
         {_address, %{status: :confirmed}} ->
           true
 
