@@ -153,6 +153,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Amount: asset amount
   - Type: UCO/token
   - token address: address of the token if the type is token
+  - token id: It is the id for a token which is allocated when the token is minted.
   """
   object :unspent_output do
     field(:from, :address)
