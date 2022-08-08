@@ -153,6 +153,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Amount: asset amount
   - Type: UCO/token
   - token address: address of the token if the type is token
+  - token id: It is the id for a token which is allocated when the token is minted.
   """
   object :unspent_output do
     field(:from, :address)
@@ -171,6 +172,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - token address: address of the token if the type is token
   - Spent: determines if the input has been spent
   - Timestamp: Date time when the inputs was generated
+  - token id: It is the id for a token which is allocated when the token is minted.
   """
   object :transaction_input do
     field(:from, :address)
@@ -189,6 +191,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - Amount: asset amount
   - Type: UCO/token
   - token address: address of the token if the type is token
+  - token id: It is the id for a token which is allocated when the token is minted.
   """
   object :transaction_movement do
     field(:to, :address)
