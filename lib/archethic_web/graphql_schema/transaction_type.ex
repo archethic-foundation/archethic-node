@@ -171,6 +171,7 @@ defmodule ArchethicWeb.GraphQLSchema.TransactionType do
   - token address: address of the token if the type is token
   - Spent: determines if the input has been spent
   - Timestamp: Date time when the inputs was generated
+  - token id: It is the id for a token which is allocated when the token is minted.
   """
   object :transaction_input do
     field(:from, :address)
