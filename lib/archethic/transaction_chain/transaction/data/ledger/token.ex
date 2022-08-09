@@ -107,10 +107,10 @@ defmodule Archethic.TransactionChain.TransactionData.TokenLedger do
     do_reduce_transfers(rest, nb_transfers, [transfer | acc])
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(token_ledger = %{}) do
+  @spec cast(map()) :: t()
+  def cast(token_ledger = %{}) do
     %__MODULE__{
-      transfers: Map.get(token_ledger, :transfers, []) |> Enum.map(&Transfer.from_map/1)
+      transfers: Map.get(token_ledger, :transfers, []) |> Enum.map(&Transfer.cast/1)
     }
   end
 

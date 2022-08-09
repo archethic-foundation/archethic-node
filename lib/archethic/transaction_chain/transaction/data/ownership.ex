@@ -167,8 +167,8 @@ defmodule Archethic.TransactionChain.TransactionData.Ownership do
     )
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(ownership = %{}) do
+  @spec cast(map()) :: t()
+  def cast(ownership = %{}) do
     %__MODULE__{
       secret: Map.get(ownership, :secret, <<>>),
       authorized_keys: Map.get(ownership, :authorized_keys, %{})

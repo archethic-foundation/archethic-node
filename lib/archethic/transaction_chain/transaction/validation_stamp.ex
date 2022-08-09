@@ -272,22 +272,22 @@ defmodule Archethic.TransactionChain.Transaction.ValidationStamp do
     }
   end
 
-  @spec from_map(map()) :: __MODULE__.t()
-  def from_map(stamp = %{}) do
+  @spec cast(map()) :: __MODULE__.t()
+  def cast(stamp = %{}) do
     %__MODULE__{
       timestamp: Map.get(stamp, :timestamp),
       proof_of_work: Map.get(stamp, :proof_of_work),
       proof_of_integrity: Map.get(stamp, :proof_of_integrity),
       proof_of_election: Map.get(stamp, :proof_of_election),
       ledger_operations:
-        Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.from_map(),
+        Map.get(stamp, :ledger_operations, %LedgerOperations{}) |> LedgerOperations.cast(),
       recipients: Map.get(stamp, :recipients, []),
       signature: Map.get(stamp, :signature),
       errors: Map.get(stamp, :errors, [])
     }
   end
 
-  def from_map(nil), do: nil
+  def cast(nil), do: nil
 
   @spec to_map(__MODULE__.t()) :: map()
   def to_map(%__MODULE__{

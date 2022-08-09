@@ -74,8 +74,8 @@ defmodule Archethic.BeaconChain.Slot.EndOfNodeSync do
     }
   end
 
-  @spec from_map(map()) :: t()
-  def from_map(%{public_key: public_key, timestamp: timestamp}) do
+  @spec cast(map()) :: t()
+  def cast(%{public_key: public_key, timestamp: timestamp}) do
     %__MODULE__{
       public_key: public_key,
       timestamp: timestamp
