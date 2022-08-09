@@ -58,6 +58,14 @@ defmodule Archethic.Reward do
   @spec new_rewards_mint(amount :: non_neg_integer()) :: Transaction.t()
   def new_rewards_mint(amount) do
     data = %TransactionData{
+      code: """
+        condition inherit: [
+          # We need to ensure the type stays consistent
+          type: in?([mint_rewards, node_rewards]),
+          content: true,
+          token_transfers: true
+        ]
+      """,
       content: """
       {
         "supply":#{amount},
@@ -74,6 +82,14 @@ defmodule Archethic.Reward do
   @spec new_node_rewards() :: Transaction.t()
   def new_node_rewards() do
     data = %TransactionData{
+      code: """
+        condition inherit: [
+          # We need to ensure the type stays consistent
+          type: in?([mint_rewards, node_rewards]),
+          content: true,
+          token_transfers: true
+        ]
+      """,
       ledger: %Ledger{
         token: %TokenLedger{
           transfers: get_transfers()
